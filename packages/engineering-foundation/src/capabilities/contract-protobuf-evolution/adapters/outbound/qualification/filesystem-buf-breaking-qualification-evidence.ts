@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
+import { assertBufQualificationActive, rejectBufQualificationInput } from "../../../application/policies/buf-qualification-input.js";
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import type { ProtobufSchemaAssertion } from "../../schema-validation.js";
@@ -27,15 +27,6 @@ const MAX_BUF_CONFIG_BYTES = 1024 * 1024;
 const MAX_DESCRIPTOR_BYTES = 64 * 1024 * 1024;
 const MAX_EVIDENCE_BYTES = 8 * 1024 * 1024;
 
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "protobuf-buf-qualification-evidence",
-    retryable: false
-  });
-}
-
 async function readQualificationFile(input: {
   readonly consumerRoot: string;
   readonly path: string;
@@ -52,7 +43,7 @@ async function readQualificationFile(input: {
     if (!(error instanceof ContainedFileReadError)) {
       throw error;
     }
-    inputError(
+    rejectBufQualificationInput(
       error.failure === "symlink" || error.failure === "escape"
         ? "BUF_QUALIFICATION_PATH_UNSAFE"
         : "BUF_QUALIFICATION_INPUT_UNAVAILABLE",
@@ -97,7 +88,7 @@ implements BufBreakingQualificationEvidencePort {
   async read(
     input: ReadBufBreakingQualificationEvidenceInput
   ): Promise<ResolvedBufBreakingQualificationEvidence> {
-    assertNotCancelled(input.signal);
+    assertBufQualificationActive(input.signal);
     const { configuration } = input;
     const evidenceBytes = await readQualificationFile({
       consumerRoot: input.consumerRoot,
@@ -105,7 +96,7 @@ implements BufBreakingQualificationEvidencePort {
       maxBytes: MAX_EVIDENCE_BYTES,
       label: "Buf qualification evidence"
     });
-    assertNotCancelled(input.signal);
+    assertBufQualificationActive(input.signal);
     const rawEvidence = parseStrictYamlSource(
       evidenceBytes.toString("utf8"),
       "protobuf-buf-qualification-evidence"
@@ -130,7 +121,7 @@ implements BufBreakingQualificationEvidencePort {
         label: "Released descriptor image"
       })
     ]);
-    assertNotCancelled(input.signal);
+    assertBufQualificationActive(input.signal);
     assertExactBufFilePolicy(
       parseStrictYamlSource(bufConfigBytes.toString("utf8"), "protobuf-buf-config")
     );
@@ -168,7 +159,7 @@ implements BufBreakingQualificationEvidencePort {
       evidence.candidateDescriptorImageDigest === configuration.current.descriptorImageDigest &&
       evidence.breakingPolicyConfigDigest === expectedBreakingPolicyConfigDigest;
     if (!bindingsMatch) {
-      inputError(
+      rejectBufQualificationInput(
         "BUF_QUALIFICATION_EVIDENCE_MISMATCH",
         "Buf qualification evidence is stale or does not match the declared contract, toolchain, paths, baseline, or candidate."
       );
@@ -177,7 +168,7 @@ implements BufBreakingQualificationEvidencePort {
       observedBufConfigDigest !== configuration.current.bufConfigDigest ||
       observedBaselineDigest !== configuration.released.descriptorImageDigest
     ) {
-      inputError(
+      rejectBufQualificationInput(
         "BUF_QUALIFICATION_INPUT_DIGEST_MISMATCH",
         "Buf configuration or released descriptor bytes do not match declared digests."
       );
@@ -187,7 +178,7 @@ implements BufBreakingQualificationEvidencePort {
       evidence.result.findingSetDigest !== expectedFindingSetDigest ||
       evidence.evidenceDigest !== expectedEvidenceDigest
     ) {
-      inputError(
+      rejectBufQualificationInput(
         "BUF_QUALIFICATION_EVIDENCE_DIGEST_MISMATCH",
         "Buf qualification evidence contains a stale or fabricated deterministic digest."
       );

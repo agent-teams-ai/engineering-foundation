@@ -1,7 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import { FoundationError } from "../../../../../features/validation-reporting/api.js";
+import { rejectChangedWorkflowInput } from "../../../application/policies/workflow-input.js";
 import type { RepositoryChangesReader } from "../../../application/ports/changed-workflow.js";
 import type {
   RepositoryChangeGroup,
@@ -28,20 +28,16 @@ const GIT_HARDENING = [
   "diff.renames=false"
 ] as const;
 
-function invalid(message: string): never {
-  throw new FoundationError("CONSUMER_INVALID", message);
-}
-
 function parseNullDelimited(value: string, context: string): readonly string[] {
   if (value.length === 0) {
     return [];
   }
   if (!value.endsWith("\0")) {
-    invalid(`Git returned malformed NUL-delimited ${context} evidence.`);
+    rejectChangedWorkflowInput(`Git returned malformed NUL-delimited ${context} evidence.`);
   }
   const paths = value.slice(0, -1).split("\0");
   if (paths.some((path) => path.length === 0)) {
-    invalid(`Git returned an empty path in ${context} evidence.`);
+    rejectChangedWorkflowInput(`Git returned an empty path in ${context} evidence.`);
   }
   return paths;
 }
@@ -70,7 +66,7 @@ function assertSafeRepositoryPath(path: string): void {
     path.startsWith("../") ||
     path.includes("/../")
   ) {
-    invalid(`Git reported an unsafe repository path: ${JSON.stringify(path)}.`);
+    rejectChangedWorkflowInput(`Git reported an unsafe repository path: ${JSON.stringify(path)}.`);
   }
 }
 
@@ -83,7 +79,7 @@ async function git(execute: ExecuteWorkflowProcess, root: string, args: readonly
     });
   } catch (error) {
     if (error instanceof Error && /not valid UTF-8/u.test(error.message)) {
-      invalid("Git returned repository evidence that is not valid UTF-8.");
+      rejectChangedWorkflowInput("Git returned repository evidence that is not valid UTF-8.");
     }
     throw error;
   }
@@ -92,7 +88,7 @@ async function git(execute: ExecuteWorkflowProcess, root: string, args: readonly
 function exactCommit(value: string, context: string): string {
   const commit = value.replace(/\r?\n$/u, "");
   if (!FULL_COMMIT.test(commit)) {
-    invalid(`Git did not return an immutable ${context} commit identifier.`);
+    rejectChangedWorkflowInput(`Git did not return an immutable ${context} commit identifier.`);
   }
   return commit.toLowerCase();
 }
@@ -113,7 +109,7 @@ async function resolveCommit(execute: ExecuteWorkflowProcess,
   if (resolved.exitCode === 1) {
     return null;
   }
-  invalid(
+  rejectChangedWorkflowInput(
     `Git could not resolve an immutable commit: ${resolved.stderr.trim() || "git rev-parse failed"}.`
   );
 }
@@ -128,11 +124,11 @@ async function assertExactRef(execute: ExecuteWorkflowProcess,
     return;
   }
   if (result.exitCode === 1) {
-    invalid(
+    rejectChangedWorkflowInput(
       `The explicit base ref ${JSON.stringify(ref)} is not an exact Git ref name.`
     );
   }
-  invalid(
+  rejectChangedWorkflowInput(
     `Git could not validate the explicit base ref: ${result.stderr.trim() || "git check-ref-format failed"}.`
   );
 }
@@ -165,7 +161,7 @@ async function resolveRequestedRef(execute: ExecuteWorkflowProcess,
     match.commit !== null
   );
   if (matches.length > 1) {
-    invalid(
+    rejectChangedWorkflowInput(
       `The explicit base ref ${JSON.stringify(requested)} is ambiguous: ${matches.map(({ ref }) => ref).join(", ")}.`
     );
   }
@@ -187,7 +183,7 @@ async function uniqueMergeBase(execute: ExecuteWorkflowProcess,
     return null;
   }
   if (result.exitCode !== 0) {
-    invalid(
+    rejectChangedWorkflowInput(
       `Git could not inspect merge bases: ${result.stderr.trim() || "git merge-base failed"}.`
     );
   }
@@ -196,11 +192,11 @@ async function uniqueMergeBase(execute: ExecuteWorkflowProcess,
     lines.pop();
   }
   if (lines.length === 0) {
-    invalid("Git did not return a merge-base commit identifier.");
+    rejectChangedWorkflowInput("Git did not return a merge-base commit identifier.");
   }
   const commits = lines.map((value) => exactCommit(value, "merge-base"));
   if (commits.length !== 1) {
-    invalid(
+    rejectChangedWorkflowInput(
       `Git reported ${String(commits.length)} merge bases; changed scope requires one unique merge base.`
     );
   }
@@ -225,7 +221,7 @@ async function resolveBaseline(execute: ExecuteWorkflowProcess,
   const headCommit = await resolveCommit(execute, root, "HEAD", signal);
   if (headCommit === null) {
     if (requested !== undefined) {
-      invalid("An explicit base cannot be resolved before the repository has an initial commit.");
+      rejectChangedWorkflowInput("An explicit base cannot be resolved before the repository has an initial commit.");
     }
     return {
       requestedRef: null,
@@ -271,10 +267,10 @@ async function resolveBaseline(execute: ExecuteWorkflowProcess,
     }
   }
   if (requested !== undefined) {
-    invalid(`Unable to resolve one exact merge base for ${JSON.stringify(requested)}.`);
+    rejectChangedWorkflowInput(`Unable to resolve one exact merge base for ${JSON.stringify(requested)}.`);
   }
   if (resolvedCandidateCount > 0) {
-    invalid(
+    rejectChangedWorkflowInput(
       "Unable to establish a merge base from the discovered refs; the history may be shallow or unrelated. Fetch the required history or pass an explicit base."
     );
   }
@@ -298,14 +294,14 @@ async function existingFiles(
     const candidate = resolve(root, path);
     const relation = relative(root, candidate);
     if (relation.startsWith(`..${sep}`) || relation === "..") {
-      invalid(`Changed path escapes the repository: ${path}.`);
+      rejectChangedWorkflowInput(`Changed path escapes the repository: ${path}.`);
     }
     const metadata = await lstat(candidate).catch(() => null);
     if (metadata === null) {
       continue;
     }
     if (!metadata.isFile()) {
-      invalid(`Changed path is not a regular file: ${path}.`);
+      rejectChangedWorkflowInput(`Changed path is not a regular file: ${path}.`);
     }
     result.push(path);
   }
@@ -335,7 +331,7 @@ async function diffGroup(execute: ExecuteWorkflowProcess,
   ]);
   for (const result of [all, deleted]) {
     if (result.exitCode !== 0) {
-      invalid(`Unable to inspect repository changes: ${result.stderr.trim() || "git diff failed"}.`);
+      rejectChangedWorkflowInput(`Unable to inspect repository changes: ${result.stderr.trim() || "git diff failed"}.`);
     }
   }
   return Object.freeze({
@@ -374,7 +370,7 @@ async function changedPathGroups(execute: ExecuteWorkflowProcess,
     )
   ]);
   if (untrackedResult.exitCode !== 0) {
-    invalid(
+    rejectChangedWorkflowInput(
       `Unable to inspect repository changes: ${untrackedResult.stderr.trim() || "git ls-files failed"}.`
     );
   }
@@ -420,10 +416,10 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
   }) {
     const execute = this.execute;
     if (input.baseRef !== undefined && input.baseRef.startsWith("-")) {
-      invalid("The base ref cannot start with a dash.");
+      rejectChangedWorkflowInput("The base ref cannot start with a dash.");
     }
     const root = await realpath(input.consumerRoot).catch(() =>
-      invalid("The consumer root is unavailable.")
+      rejectChangedWorkflowInput("The consumer root is unavailable.")
     );
     const topLevel = await git(execute,
       root,
@@ -431,11 +427,11 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
       input.signal
     );
     if (topLevel.exitCode !== 0) {
-      invalid("The consumer root must be a Git repository.");
+      rejectChangedWorkflowInput("The consumer root must be a Git repository.");
     }
     const gitRoot = await realpath(topLevel.stdout.trim());
     if (gitRoot !== root) {
-      invalid("The consumer root must be the Git repository root.");
+      rejectChangedWorkflowInput("The consumer root must be the Git repository root.");
     }
     const baseline = await resolveBaseline(execute, root, input.baseRef, input.signal);
     const changeGroups = await changedPathGroups(execute, root, baseline, input.signal);

@@ -11,6 +11,8 @@
       "tests": [
         "packages/document-authoring/tests/public-api-contract.test.mjs",
         "packages/engineering-foundation/tests/repository-mutation-public-api.test.mjs",
+        "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs",
+        "tests/capability-reporting-architecture.test.mjs",
         "packages/repository-mutation/tests/public-api-contract.test.mjs",
         "tests/capability-public-api.test.mjs",
         "tests/contract-json-schema-releases.test.mjs",

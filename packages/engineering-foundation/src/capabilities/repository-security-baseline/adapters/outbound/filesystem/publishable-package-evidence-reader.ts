@@ -3,7 +3,7 @@ import { readRequiredEvidenceFile } from "./repository-security-filesystem.js";
 import {
   repositorySecurityInputError,
   requireRecord
-} from "./repository-security-input.js";
+} from "../../../application/policies/repository-security-input.js";
 
 export async function readPublishablePackageEvidence(
   root: string,

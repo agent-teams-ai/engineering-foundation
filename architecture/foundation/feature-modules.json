@@ -1803,7 +1803,8 @@
         }
       ],
       "testRoots": [
-        "tests"
+        "tests",
+        "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs"
       ]
     }
   ],

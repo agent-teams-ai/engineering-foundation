@@ -681,6 +681,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/run-changed-agent-workflow.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/changed-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/process-execution.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/policies/workflow-input.ts
   - id: capability.repository-agent-workflow.contract
     roots:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract
@@ -696,10 +697,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters
     allow:
       boundaries:
-        - foundation.validation-reporting.error
         - capability.repository-agent-workflow.application
         - foundation.core
-        - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
       packages: []
@@ -762,6 +761,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/api.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/managed-process-executor.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/quality-gate-input.ts
   - id: capability.quality-gate-runner.contract
     roots:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/contract
@@ -777,9 +777,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters
     allow:
       boundaries:
-        - foundation.validation-reporting.error
         - capability.quality-gate-runner.application
-        - foundation.validation-reporting.application
         - foundation.core
         - foundation.process-execution.application
         - foundation.check.application
@@ -2143,6 +2141,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/rules.ts
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/use-cases/analyze-repository-security.ts
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/configuration-input.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/policies/repository-security-input.ts
   - id: capability.repository-security.contract
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/contract
@@ -2160,7 +2159,6 @@ boundaries:
       boundaries:
         - capability.repository-security.application
         - foundation.core
-        - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
         - foundation.configuration-input.adapters
@@ -2497,6 +2495,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/use-cases/promote-architecture-decision-baseline.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/api.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/use-cases/resolve-accepted-architecture-decision-evidence.ts
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/architecture-decision-baseline-input.ts
   - id: capability.architecture-decisions.contract
     roots:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/contract
@@ -2515,7 +2514,6 @@ boundaries:
         - capability.architecture-decisions.contract
         - capability.architecture-decisions.application
         - foundation.core
-        - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
       packages:
@@ -2703,6 +2701,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/rules.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/use-cases/resolve-protobuf-evolution-policy.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/api.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/buf-qualification-input.ts
   - id: capability.contract-protobuf.contract
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract
@@ -2721,7 +2720,6 @@ boundaries:
         - capability.contract-protobuf.contract
         - capability.contract-protobuf.application
         - foundation.core
-        - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
         - foundation.configuration-input.adapters
@@ -3409,5 +3407,26 @@ boundaries:
         - node:path
         - node:test
         - node:url
+      runtimeReferences: []
+    entrypoints: []
+  - id: foundation.tests.capability-reporting
+    dependencyMode: development
+    roots:
+      - packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs
+    allow:
+      boundaries:
+        - foundation.validation-reporting.application
+        - capability.quality-gate-runner.adapters
+        - capability.repository-agent-workflow.adapters
+        - capability.repository-security.adapters
+        - capability.architecture-decisions.adapters
+        - capability.contract-protobuf.adapters
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
       runtimeReferences: []
     entrypoints: []

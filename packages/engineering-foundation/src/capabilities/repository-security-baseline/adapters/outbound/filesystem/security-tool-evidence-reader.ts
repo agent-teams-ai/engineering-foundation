@@ -14,7 +14,7 @@ import {
 import {
   repositorySecurityInputError,
   requireRecord
-} from "./repository-security-input.js";
+} from "../../../application/policies/repository-security-input.js";
 
 const SHA_256_DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const EXACT_SEMANTIC_VERSION =

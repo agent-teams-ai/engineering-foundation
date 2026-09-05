@@ -70,6 +70,8 @@
     ]
   },
   "legacyTests": [
+    "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs",
+    "tests/capability-reporting-architecture.test.mjs",
     "packages/repository-mutation/tests/mutation-lease.test.mjs",
     "packages/document-authoring/tests/package-boundary.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",

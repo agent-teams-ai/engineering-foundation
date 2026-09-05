@@ -1,7 +1,7 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
+import { assertWorkflowObservationActive, rejectWorkflowEvidence } from "../../../application/policies/workflow-input.js";
 import type {
   AgentInstructionPaths,
   InstructionFileEvidence,
@@ -12,15 +12,6 @@ import type { RepositoryAgentWorkflowReader } from "../../../application/ports/r
 
 const MAX_INSTRUCTION_BYTES = 256 * 1024;
 const PACKAGE_MANIFEST = "package.json";
-
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "repository-agent-workflow-evidence",
-    retryable: false
-  });
-}
 
 function contained(root: string, candidate: string): boolean {
   const relation = relative(root, candidate);
@@ -62,10 +53,10 @@ async function readPackageScripts(root: string): Promise<Readonly<Record<string,
   try {
     input = JSON.parse(await readFile(resolve(root, PACKAGE_MANIFEST), "utf8")) as unknown;
   } catch {
-    inputError("REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID", "package.json must be valid JSON.");
+    rejectWorkflowEvidence("REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID", "package.json must be valid JSON.");
   }
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    inputError("REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID", "package.json must be an object.");
+    rejectWorkflowEvidence("REPOSITORY_AGENT_WORKFLOW_PACKAGE_INVALID", "package.json must be an object.");
   }
   const scriptsInput = (input as Record<string, unknown>)["scripts"];
   if (typeof scriptsInput !== "object" || scriptsInput === null || Array.isArray(scriptsInput)) {
@@ -86,9 +77,9 @@ export class FilesystemRepositoryAgentWorkflowReader implements RepositoryAgentW
     policy: RepositoryAgentWorkflowPolicy,
     signal?: AbortSignal
   ): Promise<RepositoryAgentWorkflowEvidence> {
-    assertNotCancelled(signal);
+    assertWorkflowObservationActive(signal);
     const root = await realpath(consumerRoot).catch(() =>
-      inputError(
+      rejectWorkflowEvidence(
         "REPOSITORY_AGENT_WORKFLOW_ROOT_UNAVAILABLE",
         "The consumer root is unavailable."
       )
@@ -98,7 +89,7 @@ export class FilesystemRepositoryAgentWorkflowReader implements RepositoryAgentW
         async ([kind, repositoryPath]) => [kind, await readInstruction(root, repositoryPath)] as const
       )
     );
-    assertNotCancelled(signal);
+    assertWorkflowObservationActive(signal);
     return Object.freeze({
       instructionFiles: Object.freeze(Object.fromEntries(entries)) as Readonly<
         Record<keyof AgentInstructionPaths, InstructionFileEvidence>

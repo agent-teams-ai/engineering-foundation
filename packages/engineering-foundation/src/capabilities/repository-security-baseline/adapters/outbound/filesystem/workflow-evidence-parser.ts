@@ -12,7 +12,7 @@ import type {
 import {
   repositorySecurityInputError,
   requireRecord
-} from "./repository-security-input.js";
+} from "../../../application/policies/repository-security-input.js";
 
 function permissions(
   value: unknown,

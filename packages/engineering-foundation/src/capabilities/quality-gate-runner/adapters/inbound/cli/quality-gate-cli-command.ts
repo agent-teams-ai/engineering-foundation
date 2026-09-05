@@ -1,4 +1,4 @@
-import { CapabilityInputError,FoundationError } from "../../../../../features/validation-reporting/api.js";
+import { isQualityGateExecutionCancellation, qualityGateSetupCancellationFailure, requireQualityGateConfigPath, requireQualityGateProfile } from "../../../application/policies/quality-gate-input.js";
 import type { QualityGateCommand } from "../../../api.js";
 import {
   projectQualityGateRun,
@@ -30,18 +30,8 @@ export type QualityGateCliCommand = (
   environment: NodeJS.ProcessEnv
 ) => Promise<boolean>;
 
-function isExecutionCancellation(error: unknown): boolean {
-  return error instanceof CapabilityInputError &&
-    error.problem.code === "EXECUTION_CANCELLED";
-}
-
 function setupCancellationFailureJson(failureJson: (error: unknown) => string): string {
-  const error = new CapabilityInputError({
-    code: "EXECUTION_CANCELLED",
-    message: "Quality gate execution was cancelled.",
-    phase: "quality-gate-runner-command",
-    retryable: false
-  });
+  const error = qualityGateSetupCancellationFailure();
   return failureJson(error);
 }
 
@@ -64,10 +54,7 @@ export function createQualityGateCliCommand(
     if (parsed.command !== "gate.run") {
       return false;
     }
-    const profileId = parsed.positional[0];
-    if (profileId === undefined) {
-      throw new FoundationError("CONSUMER_INVALID", "gate run requires a profile ID.");
-    }
+    const profileId = requireQualityGateProfile(parsed.positional[0]);
 
     const controller = new AbortController();
     let cancellation: QualityGateOperatorCancellation | undefined;
@@ -90,25 +77,17 @@ export function createQualityGateCliCommand(
         );
         return true;
       }
-      const declaration = settings.declaredCapabilities.find(
-        ({ id }) => id === "quality.gate-runner"
-      );
-      if (declaration === undefined) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          "The consumer must declare quality.gate-runner before using gate run."
-        );
-      }
+      const configPath = requireQualityGateConfigPath(settings.declaredCapabilities);
       const report = await dependencies.commandFactory(environment)({
         consumerRoot: parsed.consumerRoot,
-        configPath: declaration.configPath,
+        configPath,
         profileId,
         signal: controller.signal
       });
       writeProjection(projectQualityGateRun(report, parsed.format, cancellation));
       return true;
     } catch (error) {
-      if (cancellation !== undefined && isExecutionCancellation(error)) {
+      if (cancellation !== undefined && isQualityGateExecutionCancellation(error)) {
         writeProjection(
           projectQualityGateSetupCancellation(
             parsed.format,

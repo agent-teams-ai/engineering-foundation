@@ -1,7 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
-import { FoundationError } from "../../../../../features/validation-reporting/api.js";
+import { rejectQualityGateExecutor } from "../../../application/policies/quality-gate-input.js";
 import {
   ProcessCancellationError,
   ProcessTimeoutError
@@ -87,10 +87,7 @@ async function resolvePnpmInvocation(
       return { command: candidate, argsPrefix: [] };
     }
   }
-  throw new FoundationError(
-    "PROCESS_FAILED",
-    "Unable to resolve a shell-free pnpm entrypoint on Windows."
-  );
+  rejectQualityGateExecutor();
 }
 
 export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {

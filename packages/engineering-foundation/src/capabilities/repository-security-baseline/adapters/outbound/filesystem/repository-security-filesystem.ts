@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../source-inventory/node.js";
-import { repositorySecurityInputError } from "./repository-security-input.js";
+import { repositorySecurityInputError } from "../../../application/policies/repository-security-input.js";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 

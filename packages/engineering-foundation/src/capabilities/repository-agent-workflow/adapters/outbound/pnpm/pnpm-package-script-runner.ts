@@ -2,7 +2,7 @@ import { lstat } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import type { PackageScriptRunner } from "../../../application/ports/changed-workflow.js";
-import { FoundationError } from "../../../../../features/validation-reporting/api.js";
+import { rejectWorkflowExecutor } from "../../../application/policies/workflow-input.js";
 import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
 
 export interface PnpmProcessEnvironment {
@@ -70,10 +70,7 @@ async function resolvePnpmInvocation(
       return { command: candidate, argsPrefix: [] };
     }
   }
-  throw new FoundationError(
-    "PROCESS_FAILED",
-    "Unable to resolve a shell-free pnpm entrypoint on Windows."
-  );
+  rejectWorkflowExecutor();
 }
 
 export class PnpmPackageScriptRunner implements PackageScriptRunner {

@@ -1,7 +1,6 @@
 import { opendir } from "node:fs/promises";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import type {
   CompositeActionEvidence,
   RepositorySecurityPolicy,
@@ -15,7 +14,7 @@ import {
   readRequiredEvidenceFile,
   resolveSafeEvidencePath
 } from "./repository-security-filesystem.js";
-import { repositorySecurityInputError } from "./repository-security-input.js";
+import { assertSecurityObservationActive, repositorySecurityInputError } from "../../../application/policies/repository-security-input.js";
 import {
   collectCompositeActionWorkflowUses,
   collectCompositeActionUses,
@@ -124,7 +123,7 @@ export async function readWorkflowDirectoryEvidence(
   const names: string[] = [];
   const handle = await opendir(directory);
   for await (const entry of handle) {
-    assertNotCancelled(signal);
+    assertSecurityObservationActive(signal);
     if (entry.isSymbolicLink() || !entry.isFile() || !/\.ya?ml$/iu.test(entry.name)) {
       repositorySecurityInputError(
         "REPOSITORY_SECURITY_WORKFLOW_ENTRY_INVALID",

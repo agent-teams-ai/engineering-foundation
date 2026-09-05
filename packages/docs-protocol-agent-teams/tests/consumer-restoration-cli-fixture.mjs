@@ -40,6 +40,7 @@ export function restorationArgs(fixture, command, selection, proofPath = fixture
 // Only fixture catalog and central authority are injected. The production router, strict serializer,
 // public kernel, actual pinned Corepack install and installed fixture checks execute in this child.
 const uri = (path) => pathToFileURL(join(packageRoot, path)).href;
+let evidenceSequence = 0;
 
 export async function restorationCli(fixture, argv, options = {}) {
   const script = `
@@ -53,7 +54,12 @@ const catalog=input.catalog;
 for(const bundle of catalog.directTargetBundles) for(const key of ['skill','callerWorkflow']) bundle[key]=Buffer.from(bundle[key].data);
 registerHooks({load(url,context,next){
  if(url===${JSON.stringify(uri("dist/consumer-integration/adapters/package-consumer-asset-catalog.js"))}) return {format:'module',shortCircuit:true,source:'export const packageConsumerAssetCatalogReader={read:async()=>globalThis.__restorationTestCatalog};'};
- return next(url,context);
+ const loaded=next(url,context);
+ if(input.fault==='before-receipt' && url===${JSON.stringify(uri("dist/consumer-integration/adapters/node-consumer-restoration-evidence.js"))}) {
+  return {...loaded,source:Buffer.from(loaded.source).toString().replace('export async function retainRestorationProof(path, proof) {',
+   "export async function retainRestorationProof(path, proof) { if(path.endsWith('.receipt')) {process.stderr.write('TEST boundary: after public CAS, before receipt retention\\\\n');process.kill(process.pid,'SIGKILL');}")};
+ }
+ return loaded;
 }});
 globalThis.__restorationTestCatalog=catalog;
 const {GitHubCohortAuthorityReader}=await import(${JSON.stringify(uri("dist/consumer-integration/adapters/github-cohort-authority-reader.js"))});
@@ -77,7 +83,9 @@ process.exitCode=await runManagedConsumerCommand(input.argv);
     fault: options.fault, proofPath: options.proofPath ?? fixture.proofPath, preparationPath: options.preparationPath ?? `${fixture.proofPath}.prepared` };
   const result = await new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
-      cwd: fixture.consumerRoot, env: { ...process.env, ...options.env }, stdio: ["pipe", options.fault === "lost-output" ? "ignore" : "pipe", "pipe"]
+      cwd: fixture.consumerRoot, env: { ...process.env, ...options.env,
+        ...(options.fault === "during-activation" ? { MANAGED_RESTORATION_KILL_CONTROLLER: "1" } : {}) },
+      stdio: ["pipe", options.fault === "lost-output" ? "ignore" : "pipe", "pipe"]
     });
     let stdout = "", stderr = "";
     child.stdout?.on("data", (data) => {stdout += data;}); child.stderr.on("data", (data) => {stderr += data;});
@@ -87,8 +95,8 @@ process.exitCode=await runManagedConsumerCommand(input.argv);
   const directory = process.env.MANAGED_RESTORATION_EVIDENCE_DIR;
   if (directory) {
     await mkdir(directory, { recursive: true });
-    const name = options.label ?? `${argv[0]}-${Date.now()}`;
-    await writeFile(join(directory, `${name}.json`), `${JSON.stringify({ argv, fault: options.fault, ...result }, null, 2)}\n`);
+    const name = `${String(++evidenceSequence).padStart(3, "0")}-${options.label ?? argv[0]}`;
+    await writeFile(join(directory, `${name}.json`), `${JSON.stringify({ argv, fault: options.fault, ...result }, null, 2)}\n`, { flag: "wx" });
   }
   if (result.stdout.trim()) {result.execution = JSON.parse(result.stdout);}
   return result;

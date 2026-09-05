@@ -88,7 +88,8 @@ assert.equal(existsSync(join(root,'node_modules/@agent-teams/docs-protocol-agent
 console.log(JSON.stringify({outcome:'current',fixtureCli:'historical-v1'}));
 if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     const packages = [
-      await fixturePackage(disposable, foundationName, origin.packages.engineeringFoundation.version, {}),
+      await fixturePackage(disposable, foundationName, origin.packages.engineeringFoundation.version,
+        preserveForeign ? { "consumer-shared": "1.0.0" } : {}),
       await fixturePackage(disposable, docsName, origin.packages.docsProtocol.version,
         { [foundationName]: origin.packages.engineeringFoundation.version }, oldCli)
     ];
@@ -100,16 +101,26 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
       docsProtocol: docsName, docsProtocolAgentTeams: "@agent-teams/docs-protocol-agent-teams", engineeringFoundation: foundationName
     };
     const snapshots = lockfileObjectForV2(target).snapshots;
-    const managedCli = `// TEST fixture delegates to the retained implementation, not a published package claim.\nimport {runManagedConsumerCommand} from ${JSON.stringify(pathToFileURL(join(packageRoot, "dist/consumer-integration/composition/consumer-integration-cli.js")).href)};\nprocess.exitCode=await runManagedConsumerCommand(process.argv.slice(2));\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_TARGET_FAIL==='1') process.exitCode=1;\n`;
+    if (preserveForeign) {snapshots["@agent-teams/repository-mutation@99.0.0"].dependencies = { "consumer-shared": "2.0.0" };}
+    const managedCli = `// TEST fixture delegates to the retained implementation, not a published package claim.\nimport {runManagedConsumerCommand} from ${JSON.stringify(pathToFileURL(join(packageRoot, "dist/consumer-integration/composition/consumer-integration-cli.js")).href)};\nprocess.exitCode=await runManagedConsumerCommand(process.argv.slice(2));\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_TARGET_FAIL==='1') process.exitCode=1;\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_KILL_CONTROLLER==='1') process.kill(process.ppid,'SIGKILL');\n`;
     for (const [key, name] of Object.entries(names)) {
       const pkg = await fixturePackage(disposable, name, "99.0.0", snapshots[`${name}@99.0.0`].dependencies ?? {},
         key === "docsProtocolAgentTeams" ? managedCli : undefined);
       packages.push(pkg);
       target.packages[key].integrity = pkg.integrity;
     }
-    if (preserveForeign) {packages.push(await fixturePackage(disposable, "consumer-test-tool", "1.0.0", {}));}
+    if (preserveForeign) {
+      packages.push(await fixturePackage(disposable, "consumer-test-tool", "1.0.0", { "consumer-runtime-alias": "npm:consumer-shared@1.0.0" }));
+      for (const version of ["1.0.0", "2.0.0"]) {packages.push(await fixturePackage(disposable, "consumer-shared", version, {}));}
+    }
     target.assets = describeCanonicalConsumerAssets(target);
-    target.runtime.runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfileObjectForV2(target), target);
+    const targetLock = lockfileObjectForV2(target);
+    if (preserveForeign) {
+      targetLock.snapshots["@agent-teams/repository-mutation@99.0.0"] = snapshots["@agent-teams/repository-mutation@99.0.0"];
+      targetLock.snapshots["consumer-shared@2.0.0"] = {};
+      targetLock.packages["consumer-shared@2.0.0"] = { resolution: { integrity: packages.at(-1).integrity } };
+    }
+    target.runtime.runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(targetLock, target);
     registry = await fixtureRegistry(packages);
     setEnv("npm_config_registry", registry.base);
     setEnv("pnpm_config_registry", registry.base);

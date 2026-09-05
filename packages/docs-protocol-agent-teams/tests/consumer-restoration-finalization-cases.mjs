@@ -69,7 +69,7 @@ export function registerRestorationFinalizationTests(helpers) {
     const fixture = await managedRestorationFixture(helpers);
     try {
       const original = await restorationSnapshot(fixture.consumerRoot);
-      for (const fault of ["after-cas", "after-activation", "lost-output"]) {
+      for (const fault of ["before-receipt", "after-cas", "during-activation", "after-activation", "lost-output"]) {
         await t.test(fault, async () => {
           const { path, selection } = await prepare(fixture, fault);
           const result = await restorationCli(fixture, restorationArgs(fixture, "finalize", selection, path), { fault, proofPath: path, label: fault });
@@ -80,8 +80,10 @@ export function registerRestorationFinalizationTests(helpers) {
             assert.equal(result.signal, "SIGKILL", JSON.stringify(result));
             await assert.rejects(readFile(path), { code: "ENOENT" });
           }
+          if (fault === "before-receipt") {await assert.rejects(readFile(`${path}.receipt`), { code: "ENOENT" });}
           assert.equal((await inspectKnownFileTransactionBarrier({ consumerRoot: fixture.consumerRoot })).state, "idle");
           const retry = await retryAndRestore(fixture, selection, path, fault);
+          if (fault === "before-receipt") {assert.equal(JSON.parse(await readFile(path)).originalReceipt, null);}
           if (fault === "lost-output") {
             assert.equal(JSON.parse(await readFile(path)).receipt.outcome, "applied");
             assert.equal(retry.receipt.outcome, "already-satisfied");

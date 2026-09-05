@@ -21,6 +21,10 @@ function parse(bytes: Uint8Array) {
   });
   return { value: record(document.toJS({ maxAliasCount: 0 })), comments: comments.toSorted() };
 }
+function snapshotLocator(lock: RecordValue, name: string, version: string): string {
+  // pnpm stores a foreign alias resolution as its target locator, including any peer context.
+  return Object.hasOwn(record(lock["snapshots"]), version) ? version : `${name}@${version}`;
+}
 function closure(lock: RecordValue, roots: readonly string[]): Set<string> {
   const snapshots = record(lock["snapshots"]);
   const visited = new Set<string>();
@@ -36,7 +40,7 @@ function closure(lock: RecordValue, roots: readonly string[]): Set<string> {
     for (const section of ["dependencies", "optionalDependencies"]) {
       for (const [name, version] of Object.entries(record(snapshot[section] ?? {}))) {
         requireRestoration(typeof version === "string", "invalid lock resolution.");
-        pending.push(`${name}@${version}`);
+        pending.push(snapshotLocator(lock, name, version));
       }
     }
   }
@@ -55,7 +59,7 @@ function nonOwnedProjection(lock: RecordValue): RecordValue {
         const binding = record(value);
         requireRestoration(typeof binding["version"] === "string", "invalid importer resolution.");
         const isOwned = path === "." && section === "devDependencies" && managedRoots.has(name);
-        (isOwned ? owned : foreign).push(`${name}@${binding["version"]}`);
+        (isOwned ? owned : foreign).push(snapshotLocator(lock, name, binding["version"]));
         if (isOwned) {delete entries[name];}
       }
       // pnpm removes empty dependency sections; normalize only this structural difference.

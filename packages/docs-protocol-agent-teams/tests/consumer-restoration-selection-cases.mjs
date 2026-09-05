@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { compileKnownFileTransactionPlan, sha256Bytes } from "@agent-teams/repository-mutation";
 import { managedRestorationFixture } from "./consumer-restoration-fixture.mjs";
 import { assertCliSuccess, resealRestorationProof, restorationArgs, restorationCli, restorationSnapshot } from "./consumer-restoration-cli-fixture.mjs";
@@ -98,6 +99,12 @@ export function registerRestorationSelectionTests(helpers) {
       assert.equal(proof.plan.operations.length, 7);
       assert.equal(proof.plan.operations.some(({ path }) => path === "AGENTS.md"), false);
       const migrated = await restorationSnapshot(fixture.consumerRoot);
+      const oldLock = parseYaml(Buffer.from(original["pnpm-lock.yaml"].bytes, "base64").toString());
+      const newLock = parseYaml(Buffer.from(migrated["pnpm-lock.yaml"].bytes, "base64").toString());
+      assert.deepEqual(newLock.snapshots["consumer-test-tool@1.0.0"], oldLock.snapshots["consumer-test-tool@1.0.0"]);
+      assert.equal(newLock.snapshots["consumer-test-tool@1.0.0"].dependencies["consumer-runtime-alias"], "consumer-shared@1.0.0");
+      assert.deepEqual(newLock.packages["consumer-shared@1.0.0"], oldLock.packages["consumer-shared@1.0.0"]);
+      assert.ok(newLock.packages["consumer-shared@2.0.0"]);
       const targets = [
         ["AGENTS.md", (bytes) => Buffer.concat([bytes, Buffer.from("\nA new consumer-owned note.\n")])],
         ["package.json", (bytes) => Buffer.from(bytes.toString().replace('"packageManager": "pnpm@11.20.0"', '"packageManager": "pnpm@11.19.0"'))],
@@ -106,6 +113,11 @@ export function registerRestorationSelectionTests(helpers) {
         ["pnpm-lock.yaml", (bytes) => Buffer.concat([bytes, Buffer.from("consumerUnrelatedPolicy: changed\n")])],
         ["pnpm-lock.yaml", (bytes) => Buffer.concat([bytes, Buffer.from("# consumer-owned lock comment\n")])],
         ["pnpm-lock.yaml", (bytes) => Buffer.from(bytes.toString().replace("consumer-test-tool:", "consumer-forged-tool:"))],
+        ["pnpm-lock.yaml", (bytes) => {
+          const lock = parseYaml(bytes.toString());
+          lock.snapshots["consumer-test-tool@1.0.0"].dependencies["consumer-runtime-alias"] = "consumer-shared@2.0.0";
+          return Buffer.from(stringifyYaml(lock));
+        }],
         [fixture.current.callerWorkflowPath, (bytes) => Buffer.concat([bytes, Buffer.from("# unowned workflow change\n")])],
         [fixture.current.managedStatePath, (bytes) => Buffer.concat([bytes, Buffer.from("\n")])],
         [fixture.current.skillPath, (bytes) => Buffer.concat([bytes, Buffer.from("\nUnrelated instructions.\n")])],
@@ -129,7 +141,9 @@ export function registerRestorationSelectionTests(helpers) {
           await writeFile(forgedPath, bytes);
           await assert.rejects(fixture.restore({ expect: upgraded.restoration.digest }), /current bytes|unrelated edits/u);
           await assert.rejects(fixture.restore({ proofPath: forgedPath, expect: upgraded.restoration.digest }), /selection digest/u);
-          await assert.rejects(fixture.restore({ proofPath: forgedPath, expect: sha256Bytes(bytes) }), /managed field\/block ownership|exact deterministic managed effects|lock migration/u);
+          const refused = await expectBlocked(fixture,
+            restorationArgs(fixture, "restore", { digest: sha256Bytes(bytes) }, forgedPath), "recomputed-scope-" + path.replaceAll("/", "-"));
+          assert.match(refused.execution.issues[0].message, /managed field\/block ownership|exact deterministic managed effects|lock migration/u);
           assert.deepEqual(await readFile(join(fixture.consumerRoot, path)), candidateBytes);
           await writeFile(join(fixture.consumerRoot, path), before);
         });

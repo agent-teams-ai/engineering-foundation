@@ -30,12 +30,20 @@ export class LoaderBindingAnalysis {
   readonly #pending = new Set<LexicalBinding>();
   #current: LexicalBinding | undefined;
 
-  constructor(program: Program) {
-    this.#scopes = new LoaderLexicalScopes(program);
+  constructor(program: Program, path: string) {
+    this.#scopes = new LoaderLexicalScopes(program, path);
   }
 
   callOrigins(call: CallExpression): readonly LoaderOrigin[] {
-    return this.#expressionOrigins(call.callee, this.#scopes.scope(call));
+    return this.#calleeOrigins(call.callee, this.#scopes.scope(call));
+  }
+
+  #calleeOrigins(value: Expression, scope: LexicalScope): readonly LoaderOrigin[] {
+    const callee = unwrapExpression(value);
+    return callee.type === "MemberExpression"
+      ? this.#expressionOrigins(callee.object, scope).flatMap((object) =>
+          memberOrigin(object, propertyName(callee.property, callee.computed), true) ?? [])
+      : this.#expressionOrigins(callee, scope);
   }
 
   #bindingOrigins(binding: LexicalBinding): readonly LoaderOrigin[] {
@@ -63,6 +71,9 @@ export class LoaderBindingAnalysis {
     const previous = this.#current;
     this.#current = binding;
     const origins = binding.declaredOrigin === undefined ? [] : [binding.declaredOrigin];
+    if (binding.initialBinding !== undefined) {
+      origins.push(...this.#bindingOrigins(binding.initialBinding));
+    }
     for (const input of binding.inputs) {
       let candidates = this.#expressionOrigins(input.expression, this.#scopes.scope(input.expression));
       for (const property of input.properties) {
@@ -103,7 +114,7 @@ export class LoaderBindingAnalysis {
       return last === undefined ? [] : this.#expressionOrigins(last, scope);
     }
     return expression.type === "CallExpression"
-      ? this.#expressionOrigins(expression.callee, scope).flatMap((callee) =>
+      ? this.#calleeOrigins(expression.callee, scope).flatMap((callee) =>
           this.#callResultOrigin(expression, callee) ?? []) : [];
   }
 

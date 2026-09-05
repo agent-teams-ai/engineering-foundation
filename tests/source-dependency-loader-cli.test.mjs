@@ -73,8 +73,8 @@ async function fixture(root, schemaVersion, options = {}) {
   await write(root, "packages/core/src/index.ts", "export type Value = string; export const value = 1;");
 }
 
-async function check(root, cli, expectedRules) {
-  const watched = ["source.yaml", "foundation.config.yaml", "packages/app/src/a/index.ts", "packages/app/src/b/index.ts"];
+async function check(root, cli, expectedRules, extraPaths = []) {
+  const watched = ["source.yaml", "foundation.config.yaml", "packages/app/src/a/index.ts", "packages/app/src/b/index.ts", ...extraPaths];
   const before = await Promise.all(watched.map((path) => readFile(join(root, path))));
   const result = spawnSync(process.execPath, [cli, "check", "--consumer", root, "--json"], {
     cwd: root, encoding: "utf8", timeout: 30_000,
@@ -170,3 +170,129 @@ createRequire(new URL("../b/index.ts", import.meta.url))("./dep.cjs");`;
     await check(root, cli, []);
   });
 });
+
+for (const schemaVersion of [1, 2]) {
+  test(`installed CLI v${schemaVersion}: wrapper and parameter provenance`, async (t) => {
+    await withInstalledCli(async (root, cli) => {
+      const cases = [
+        ["default var", 'function f(load = require) { var load; load("node:fs"); } f();', "unresolved-runtime-reference", true],
+        ["destructured default var", 'function f({load = require} = {}) { var load; load("node:fs"); } f();', "unresolved-runtime-reference", true],
+        ["array default var", 'function f([load = require] = []) { var load; load("node:fs"); } f();', "unresolved-runtime-reference", true],
+        ["wrapper require var", 'var require; require("node:fs");', "forbidden-builtin-dependency", true],
+        ["wrapper module var", 'var module; module.require("node:fs");', "forbidden-builtin-dependency", true],
+        ["require alias", 'var require; const load = require; load("node:fs");', "forbidden-builtin-dependency", true],
+        ["retained receiver", 'var module; const m = module; m.require("node:fs");', "forbidden-builtin-dependency", true],
+        ["body reset", 'function f(load = require) { var load; load = () => {}; load("node:fs"); } f();', "unresolved-runtime-reference", false],
+        ["wrapper reset", 'var require; require = () => {}; require("node:fs");', "unresolved-runtime-reference", false],
+        ["wrapper initializer", 'var require = () => {}; require("node:fs");', "unresolved-runtime-reference", false],
+        ["wrapper iteration reset", 'for (var require of [() => {}]) { require("node:fs"); }', "unresolved-runtime-reference", false],
+        ["lexical shadow", '{ const require = () => {}; require("node:fs"); }', undefined, false],
+        ["module lexical shadow", '{ const module = { require() {} }; module.require("node:fs"); }', undefined, false],
+        ["plain parameter var", 'function f(require) { var require; require("node:fs"); } f(() => {});', undefined, false],
+        ["user default var", 'function f(load = () => {}) { var load; load("node:fs"); } f();', undefined, false],
+        ["destructured user default var", 'function f({load = () => {}} = {}) { var load; load("node:fs"); } f();', undefined, false],
+      ];
+      for (const extension of ["cjs", "cts"]) {
+        const path = `packages/app/src/a/probe.${extension}`;
+        for (const [name, source, rule, nativeLoad] of cases) {
+          await t.test(`${extension}: ${name}`, async () => {
+            await fixture(root, schemaVersion, { source: "export const marker = 1;" });
+            await write(root, path, source);
+            await check(root, cli, rule === undefined ? [] : [rule], [path]);
+            if (rule !== undefined) {
+              const config = JSON.parse(await readFile(join(root, "source.yaml"), "utf8"));
+              if (rule === "unresolved-runtime-reference") {
+                config.boundaries[0].allow.runtimeReferences = ["dynamic"];
+                await write(root, "source.yaml", config);
+                await check(root, cli, [rule], [path]);
+                config.boundaries[0].allow.runtimeReferences = ["commonjs"];
+              } else {
+                config.boundaries[0].allow.builtins = ["node:fs"];
+              }
+              await write(root, "source.yaml", config);
+              await check(root, cli, [], [path]);
+            }
+            await write(root, "packages/app/src/a/payload.cjs", 'console.log("NATIVE_PAYLOAD_LOADED");');
+            await write(root, path, source.replaceAll('"node:fs"', '"./payload.cjs"'));
+            const native = spawnSync(process.execPath, [join(root, path)], {
+              cwd: root, encoding: "utf8", timeout: 10_000,
+            });
+            assert.equal(native.status, 0, native.stderr);
+            assert.equal(native.stdout, nativeLoad ? "NATIVE_PAYLOAD_LOADED\n" : "");
+            assert.equal(native.stderr, "");
+          });
+        }
+        await rm(join(root, path));
+      }
+    });
+  });
+
+  test(`installed CLI v${schemaVersion}: detached receiver never fabricates a base`, async () => {
+    await withInstalledCli(async (root, cli) => {
+      await fixture(root, schemaVersion, { source: "export const marker = 1;" });
+      await write(root, "packages/app/src/a/payload.cjs", 'console.log("IMPORTER_A");');
+      await write(root, "packages/app/src/b/payload.cjs", 'console.log("CWD_B");');
+      const path = "packages/app/src/a/probe.cjs";
+      for (const source of [
+        'const load = module.require; load("./payload.cjs");',
+        'const m = module; const {require: load} = m; load("./payload.cjs");',
+        '(0, module.require)("./payload.cjs");',
+      ]) {
+        await write(root, path, source);
+        for (const [allowed, rules] of [
+          [[], ["unresolved-runtime-reference"]],
+          [["dynamic"], ["unresolved-runtime-reference"]],
+          [["commonjs"], []],
+        ]) {
+          await fixture(root, schemaVersion, { source: "export const marker = 1;", runtimeReferences: allowed });
+          await check(root, cli, rules, [path]);
+        }
+        for (const [cwd, output] of [["a", "IMPORTER_A\n"], ["b", "CWD_B\n"]]) {
+          const native = spawnSync(process.execPath, [join(root, path)], {
+            cwd: join(root, "packages/app/src", cwd), encoding: "utf8", timeout: 10_000,
+          });
+          assert.equal(native.status, 0, native.stderr);
+          assert.equal(native.stdout, output);
+        }
+      }
+      // Retaining the receiver and ordinary require aliases preserve the importer base.
+      for (const source of ['const m = module; m.require("./payload.cjs");',
+        'const load = require; load("./payload.cjs");']) {
+        await fixture(root, schemaVersion, { source: "export const marker = 1;" });
+        await write(root, path, source);
+        await check(root, cli, [], [path]);
+        const native = spawnSync(process.execPath, [join(root, path)], {
+          cwd: join(root, "packages/app/src/b"), encoding: "utf8", timeout: 10_000,
+        });
+        assert.equal(native.status, 0, native.stderr);
+        assert.equal(native.stdout, "IMPORTER_A\n");
+      }
+    });
+  });
+}
+
+for (const schemaVersion of [1, 2]) {
+  test(`installed CLI v${schemaVersion}: erased exports do not hide possible wrapper loads`, async () => {
+    await withInstalledCli(async (root, cli) => {
+      await fixture(root, schemaVersion, { source: "export const marker = 1;" });
+      const path = "packages/app/src/a/probe.ts";
+      const source = 'export type T = string; var require; require("node:fs");';
+      await write(root, path, source);
+      await check(root, cli, ["unresolved-runtime-reference"], [path]);
+      const config = JSON.parse(await readFile(join(root, "source.yaml"), "utf8"));
+      config.boundaries[0].allow.runtimeReferences = ["commonjs"];
+      await write(root, "source.yaml", config);
+      await check(root, cli, [], [path]);
+      const manifestPath = "packages/app/package.json";
+      const manifest = JSON.parse(await readFile(join(root, manifestPath), "utf8"));
+      await write(root, manifestPath, { ...manifest, type: "commonjs" });
+      await write(root, "packages/app/src/a/payload.cjs", 'console.log("NATIVE_PAYLOAD_LOADED");');
+      await write(root, path, source.replace('"node:fs"', '"./payload.cjs"'));
+      const native = spawnSync(process.execPath, [join(root, path)], {
+        cwd: root, encoding: "utf8", timeout: 10_000,
+      });
+      assert.equal(native.status, 0, native.stderr);
+      assert.equal(native.stdout, "NATIVE_PAYLOAD_LOADED\n");
+    });
+  });
+}

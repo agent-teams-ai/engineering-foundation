@@ -14,6 +14,7 @@ export interface BindingInput {
 export interface LexicalBinding {
   readonly inputs: BindingInput[];
   readonly declaredOrigin?: LoaderOrigin;
+  readonly initialBinding?: LexicalBinding;
   mutable: boolean;
 }
 
@@ -21,6 +22,7 @@ export interface LexicalScope {
   readonly bindings: Map<string, LexicalBinding>;
   readonly kind: "block" | "function" | "program";
   readonly parent?: LexicalScope;
+  readonly varInitialBindings?: ReadonlyMap<string, LexicalBinding>;
 }
 
 export function childNodes(node: Node): readonly Node[] {
@@ -32,6 +34,29 @@ export function childNodes(node: Node): readonly Node[] {
       typeof item === "object" && item !== null && "type" in item
     );
   });
+}
+
+/** Type-only module declarations are erased and cannot establish runtime ESM. */
+export function hasRuntimeModuleSyntax(node: Node, insideFunction = false): boolean {
+  if (node.type === "ImportDeclaration") {
+    return node.importKind !== "type";
+  }
+  if (node.type === "ExportNamedDeclaration" || node.type === "ExportAllDeclaration") {
+    return node.exportKind !== "type";
+  }
+  if (node.type === "ExportDefaultDeclaration") {
+    return node.declaration.type !== "TSInterfaceDeclaration" && node.declaration.type !== "TSDeclareFunction";
+  }
+  if (node.type === "MetaProperty" && node.meta.name === "import") {
+    return true;
+  }
+  if (!insideFunction && (node.type === "AwaitExpression" ||
+      (node.type === "ForOfStatement" && node.await))) {
+    return true;
+  }
+  const nestedFunction = insideFunction || node.type === "FunctionDeclaration" ||
+    node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression";
+  return childNodes(node).some((child) => hasRuntimeModuleSyntax(child, nestedFunction));
 }
 
 export function propertyName(node: Node, computed: boolean): string | undefined {
@@ -78,7 +103,7 @@ export function unwrapExpression(expression: Expression): Expression {
 }
 
 const MEMBER_ORIGINS = new Map<string, LoaderOrigin>([
-  ["commonjs-module:require", { kind: "loader" }],
+  ["commonjs-module:require", { kind: "loader", opaque: true }],
   ["module:createRequire", { kind: "factory" }],
   ["module:default", { kind: "module" }],
   ["process:getBuiltinModule", { kind: "builtin-getter" }],
@@ -89,12 +114,16 @@ const MEMBER_ORIGINS = new Map<string, LoaderOrigin>([
 
 export function memberOrigin(
   object: LoaderOrigin | undefined,
-  property: string | undefined
+  property: string | undefined,
+  retainsReceiver = false
 ): LoaderOrigin | undefined {
   if (object === undefined || property === undefined) {
     return undefined;
   }
-  const member = MEMBER_ORIGINS.get(`${object.kind}:${property}`);
+  // Module.prototype.require depends on its receiver. Reading the method alone
+  // cannot preserve an importer-relative base, even through a const alias.
+  const member = retainsReceiver && object.kind === "commonjs-module" && property === "require"
+    ? { kind: "loader" as const } : MEMBER_ORIGINS.get(`${object.kind}:${property}`);
   return member === undefined ? undefined : { ...member, ...(object.opaque === true ? { opaque: true } : {}) };
 }
 

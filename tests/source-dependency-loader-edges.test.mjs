@@ -111,7 +111,7 @@ const bindingCases = [
   ["ambient namespace", 'declare namespace require { function call(s: string): void; } require("user");', [], []],
   ["parameter default excludes body var", 'function f(x = require("default")) { var require = user; require("user"); }', ["commonjs:default"], []],
   ["unrelated destructuring", 'const { resolve: load } = require; load("user"); const [other] = require; other("user");', [], []],
-  ["module destructuring", 'const { require: load } = module; load("edge");', ["commonjs:edge"], []],
+  ["module destructuring", 'const { require: load } = module; load("edge");', [], ["commonjs"]],
   ["static computed members", 'module["require"]("edge"); require("node:module")["createRequire"](import.meta.url)("other");', ["commonjs:edge", "commonjs:node:module", "commonjs:other"], []],
   ["TS builtin namespace", 'import Module = require("node:module"); Module.createRequire(import.meta.url)("edge");', ["import-equals:node:module", "commonjs:edge"], []],
   ["builtin loader", 'process.getBuiltinModule("module").createRequire(import.meta.url)("edge");', ["commonjs:module", "commonjs:edge"], []],
@@ -164,12 +164,14 @@ for (const [name, source, references, unresolved] of bindingCases) {
   });
 }
 
-test("opaque bases remain graph evidence even when commonjs is explicitly allowed", async () => {
+test("opaque bases and provenance remain graph evidence when commonjs is allowed", async () => {
   const modulePath = "capabilities/source-dependencies/application/use-cases/build-observed-source-graph.js";
   const { buildObservedSourceGraph } = await import(pathToFileURL(join(distRoot, modulePath)).href);
   const source = `import { createRequire } from "node:module";
 createRequire(import.meta.url)("same-specifier");
-createRequire("/other/index.cjs")("same-specifier");`;
+createRequire("/other/index.cjs")("same-specifier");
+const detached = module.require; detached("same-specifier");
+function f(load = require) { var load; load("same-specifier"); }`;
   const file = { path: "packages/app/src/index.mts", source };
   const workspacePackage = { name: "@fixture/app", rootPath: "packages/app",
     manifestPath: "packages/app/package.json" };
@@ -190,10 +192,13 @@ createRequire("/other/index.cjs")("same-specifier");`;
     { kind: "commonjs", specifier: "same-specifier", mode: "runtime" },
     { kind: "static", specifier: "node:module", mode: "runtime" },
   ]);
-  assert.equal(graph.unresolvedRuntimeReferences.length, 1);
-  const opaque = graph.unresolvedRuntimeReferences[0];
-  assert.equal(opaque.kind, "commonjs");
-  assert.equal(source.slice(opaque.start, opaque.end), 'createRequire("/other/index.cjs")("same-specifier")');
+  assert.deepEqual(graph.unresolvedRuntimeReferences.map((opaque) => ({
+    kind: opaque.kind, source: source.slice(opaque.start, opaque.end),
+  })), [
+    { kind: "commonjs", source: 'createRequire("/other/index.cjs")("same-specifier")' },
+    { kind: "commonjs", source: 'detached("same-specifier")' },
+    { kind: "commonjs", source: 'load("same-specifier")' },
+  ]);
   assert.ok(Object.isFrozen(graph.unresolvedRuntimeReferences));
 });
 
@@ -208,7 +213,6 @@ test("loader source spans and parse-error evidence stay fail closed", () => {
   assert.deepEqual(broken.references, []);
   assert.deepEqual(broken.unresolved, []);
 });
-
 
 test("dense cyclic aliases converge without losing possible loader origins", () => {
   const names = Array.from({ length: 24 }, (_, index) => `load${index}`);
@@ -238,3 +242,143 @@ require("commonjs");`;
       "dynamic:dynamic", "commonjs:commonjs"], unresolved: [],
   });
 });
+
+const provenanceCases = [
+  ["detached method", 'const load = module.require; load("edge");', [], ["commonjs"]],
+  ["detached alias chain", 'const m = module; const first = m.require; const load = first; load("edge");', [], ["commonjs"]],
+  ["detached projected method", 'const m = module; const { require: load } = m; load("edge");', [], ["commonjs"]],
+  ["detached sequence method", '(0, module.require)("edge");', [], ["commonjs"]],
+  ["detached logical method", '(module.require || user)("edge");', [], ["commonjs"]],
+  ["detached conditional method", '(flag ? module.require : user)("edge");', [], ["commonjs"]],
+  ["retained module alias", 'const m = module; m.require("edge");', ["commonjs:edge"], []],
+  ["retained computed receiver", 'const m = module; (m["require"])("edge");', ["commonjs:edge"], []],
+  ["retained optional receiver", 'const m = module; m?.require?.("edge");', ["commonjs:edge"], []],
+  ["retained typed receiver", '(module.require as Function)("edge");', ["commonjs:edge"], []],
+  ["ordinary require alias", 'const load = require; (0, load)("edge");', ["commonjs:edge"], []],
+  ["detached builtin namespace stays opaque", 'const load = module.require; load("node:module").createRequire(import.meta.url)("edge");', [], ["commonjs", "commonjs"]],
+  ["retained builtin namespace", 'module.require("node:module").createRequire(import.meta.url)("edge");', ["commonjs:node:module", "commonjs:edge"], []],
+  ["user method alias", 'const module = { require() {} }; const load = module.require; load("edge");', [], []],
+  ["written receiver", 'let m = module; m = user; m.require("edge");', [], ["commonjs"]],
+  ["default parameter var", 'function f(load = require) { var load; load("edge"); } f();', [], ["commonjs"]],
+  ["destructured default var", 'function f({load = require} = {}) { var load; load("edge"); } f();', [], ["commonjs"]],
+  ["projected default var", 'function f({require: load} = module) { var load; load("edge"); } f();', [], ["commonjs"]],
+  ["array default var", 'function f([load = require] = []) { var load; load("edge"); } f();', [], ["commonjs"]],
+  ["nested destructured default var", 'function f({nested: {load = require} = {}} = {}) { var load; load("edge"); } f();', [], ["commonjs"]],
+  ["arrow default var", 'const f = (load = require) => { var load; load("edge"); }; f();', [], ["commonjs"]],
+  ["method default var", 'const object = { f(load = require) { var load; load("edge"); } };', [], ["commonjs"]],
+  ["hoisted default var", 'function f(load = require) { load("edge"); { var load; } }', [], ["commonjs"]],
+  ["default body initializer", 'function f(load = require) { var load = user; load("edge"); }', [], ["commonjs"]],
+  ["default body reset", 'function f(load = require) { var load; load = user; load("edge"); }', [], ["commonjs"]],
+  ["parameter write before body copy", 'function f(load, seed = (load = require)) { var load; load("edge"); }', [], ["commonjs"]],
+  ["plain parameter redeclaration", 'const load = require; function f(load) { var load; load("edge"); }', [], []],
+  ["plain function var shadows outer", 'const load = require; function f() { var load; load("edge"); }', [], []],
+  ["user default var", 'function f(load = user) { var load; load("edge"); }', [], []],
+  ["user destructured default var", 'function f({load = user} = {}) { var load; load("edge"); }', [], []],
+  ["user array default var", 'function f([load = user] = []) { var load; load("edge"); }', [], []],
+  ["unrelated body loader write", 'function f(load = user, probe = () => load("user")) { var load; load = require; load("edge"); }', [], ["commonjs"]],
+  ["unrelated parameter closure", 'function f(load = user, probe = () => load("user")) { var load = require; }', [], []],
+  ["parameter closure survives body reset", 'function f(load = require, probe = () => load("edge")) { var load = user; }', [], ["commonjs"]],
+  ["body lexical shadow", 'function f(load = require) { { let load = user; load("user"); } var load; load("edge"); }', [], ["commonjs"]],
+  ["body catch shadow", 'function f(load = require) { try {} catch (load) { load("user"); } var load; load("edge"); }', [], ["commonjs"]],
+  ["nested function var shadow", 'function f(load = require) { var load; function g() { var load; load("user"); } load("edge"); }', [], ["commonjs"]],
+  ["static block var shadow", 'function f(load = require) { var load; class C { static { var load; load("user"); } } load("edge"); }', [], ["commonjs"]],
+  ["namespace var shadow", 'function f(load = require) { var load; namespace Local { var load; load("user"); } load("edge"); }', [], ["commonjs"]],
+  ["parameter defaults exclude body require", 'function f(load = require) { var require; var load; load("edge"); require("user"); }', [], ["commonjs"]],
+  ["copied default object shares member writes", 'import Module from "node:module"; function f(m = Module) { var m; m.createRequire = user; } Module.createRequire(import.meta.url)("edge");', ["static:node:module"], ["commonjs"]],
+  ["copied default object reset stays local", 'import Module from "node:module"; function f(m = Module) { var m; m = user; } Module.createRequire(import.meta.url)("edge");', ["static:node:module", "commonjs:edge"], []],
+];
+for (const [name, source, references, unresolved] of provenanceCases) {
+  test(`loader provenance: ${name}`, () => {
+    assert.deepEqual(observe(source), { parseErrorCount: 0, references, unresolved });
+  });
+}
+
+for (const extension of ["cjs", "cts"]) {
+  for (const [name, source, references, unresolved] of [
+    ["wrapper require var", 'var require; require("edge");', ["commonjs:edge"], []],
+    ["wrapper module var", 'var module; module.require("edge");', ["commonjs:edge"], []],
+    ["hoisted wrapper var", 'require("edge"); { var require; }', ["commonjs:edge"], []],
+    ["wrapper require alias", 'var require; const load = require; load("edge");', ["commonjs:edge"], []],
+    ["wrapper retained receiver", 'var module; const m = module; m.require("edge");', ["commonjs:edge"], []],
+    ["wrapper detached method", 'var module; const load = module.require; load("edge");', [], ["commonjs"]],
+    ["wrapper initializer", 'var require = user; require("edge");', [], ["commonjs"]],
+    ["wrapper reset", 'var require; require = user; require("edge");', [], ["commonjs"]],
+    ["wrapper module reset", 'var module; module = user; module.require("edge");', [], ["commonjs"]],
+    ["wrapper member reset", 'var module; module.require = user; module.require("edge");', [], ["commonjs"]],
+    ["wrapper iteration reset", 'for (var require of users) { require("edge"); }', [], ["commonjs"]],
+    ["wrapper key iteration reset", 'for (var module in users) { module.require("edge"); }', [], ["commonjs"]],
+    ["lexical iteration shadow", 'for (let require of users) { require("user"); }', [], []],
+    ["lexical require shadow", '{ let require = user; require("user"); }', [], []],
+    ["lexical module shadow", '{ const module = user; module.require("user"); }', [], []],
+    ["function require var", 'function f() { var require; require("user"); }', [], []],
+    ["function module var", 'function f() { var module; module.require("user"); }', [], []],
+    ["function parameter", 'function f(require) { var require; require("user"); }', [], []],
+    ["process is not a wrapper parameter", 'var process; process.getBuiltinModule("user");', [], []],
+  ]) {
+    test(`CommonJS ${extension}: ${name}`, () => {
+      assert.deepEqual(observe(source, `case.${extension}`), { parseErrorCount: 0, references, unresolved });
+    });
+  }
+}
+
+for (const extension of ["js", "ts", "mjs", "mts", "d.ts", "d.cts", "d.mts"]) {
+  test(`file context ${extension}: plain var declarations`, () => {
+    const ambiguous = extension === "js" || extension === "ts";
+    const declarations = 'var require; var module;';
+    const calls = extension.startsWith("d.") ? "" : ' require("edge"); module.require("edge");';
+    assert.deepEqual(observe(declarations + calls, `case.${extension}`), {
+      parseErrorCount: 0, references: [], unresolved: ambiguous ? ["commonjs", "commonjs"] : [],
+    });
+  });
+}
+for (const extension of ["ts", "cts", "mts"]) {
+  test(`file context ${extension}: explicit ambient values shadow`, () => {
+    assert.deepEqual(observe('declare var require: any; declare var module: any; require("user"); module.require("user");', `case.${extension}`), {
+      parseErrorCount: 0, references: [], unresolved: [],
+    });
+  });
+}
+for (const extension of ["js", "ts"]) {
+  test(`file context ${extension}: ESM declarations and resets stay local`, () => {
+    assert.deepEqual(observe('export {}; var require; var module; require = user; module = user; require("user"); module.require("user");', `case.${extension}`), {
+      parseErrorCount: 0, references: [], unresolved: [],
+    });
+  });
+}
+
+for (const [name, header, references] of [
+  ["type import", 'import type {T} from "types";', ["static-type:types"]],
+  ["type export", 'export type T = string;', []],
+  ["interface export", 'export interface T {}', []],
+  ["ambient export", 'export declare const x: number;', []],
+  ["default interface export", 'export default interface T {}', []],
+  ["default function signature", 'export default function f(): void;', []],
+  ["anonymous default function signature", 'export default function(): void;', []],
+  ["type import equals", 'import type T = require("types");', ["import-equals-type:types"]],
+]) {
+  test(`erased ${name} cannot establish a runtime module mode`, () => {
+    const source = `${header} var require; var module; require("edge"); module.require("edge");`;
+    assert.deepEqual(observe(source, "case.ts"), {
+      parseErrorCount: 0, references, unresolved: ["commonjs", "commonjs"],
+    });
+    assert.deepEqual(observe(source, "case.mts"), {
+      parseErrorCount: 0, references, unresolved: [],
+    });
+    assert.deepEqual(observe(source, "case.cts"), {
+      parseErrorCount: 0, references: [...references, "commonjs:edge", "commonjs:edge"], unresolved: [],
+    });
+  });
+}
+for (const [name, source, references, unresolved] of [
+  ["runtime import", 'import {} from "runtime"; var require; require("user");', ["static:runtime"], []],
+  ["inline type specifier retains runtime syntax", 'import {type T} from "types"; var require; require("user");', ["static-type:types"], []],
+  ["import meta", 'import type {T} from "types"; import.meta.url; var require; require("user");', ["static-type:types"], []],
+  ["top-level await", 'export type T = string; await user(); var require; require("user");', [], []],
+  ["top-level await iteration", 'export type T = string; for await (const x of user) {} var require; require("user");', [], []],
+  ["nested await leaves mode ambiguous", 'export type T = string; async function f() { await user(); } var require; require("edge");', [], ["commonjs"]],
+  ["nested import meta establishes ESM", 'export type T = string; function f() { return import.meta.url; } var require; require("user");', [], []],
+]) {
+  test(`runtime module syntax: ${name}`, () => {
+    assert.deepEqual(observe(source, "case.ts"), { parseErrorCount: 0, references, unresolved });
+  });
+}

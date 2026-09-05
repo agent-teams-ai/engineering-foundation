@@ -41,7 +41,7 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
       };
     }
 
-    const bindings = new LoaderBindingAnalysis(parsed.program);
+    const bindings = new LoaderBindingAnalysis(parsed.program, file.path);
     const references: SourceDependencyReference[] = [];
     const unresolvedReferences: UnresolvedSourceDependency[] = [];
     const addReference = (

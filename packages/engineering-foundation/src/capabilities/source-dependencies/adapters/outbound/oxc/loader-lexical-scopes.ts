@@ -1,7 +1,7 @@
 import { Visitor, type BindingPattern, type Expression, type Node, type Program } from "oxc-parser";
 
 import {
-  builtinOrigin, childNodes, memberOrigin, patternBindings, propertyName, unwrapExpression,
+  builtinOrigin, childNodes, hasRuntimeModuleSyntax, memberOrigin, patternBindings, propertyName, unwrapExpression,
   type BindingInput, type LexicalBinding, type LexicalScope, type LoaderOrigin
 } from "./loader-syntax.js";
 
@@ -10,14 +10,27 @@ export class LoaderLexicalScopes {
   readonly #nodeScopes = new WeakMap<Node, LexicalScope>();
   readonly #program: LexicalScope = { bindings: new Map(), kind: "program" };
 
-  constructor(program: Program) {
+  constructor(program: Program, path: string) {
     for (const [name, kind] of [
       ["require", "loader"], ["module", "commonjs-module"], ["process", "process"]
     ] as const) {
       this.#program.bindings.set(name, { declaredOrigin: { kind }, inputs: [], mutable: false });
     }
-    // Ambient Node bindings live outside the source's own lexical declarations.
-    this.#collect(program, this.#childScope(this.#program, "program"));
+    // Only CommonJS wrapper parameters survive source-level var redeclarations.
+    // Script syntax alone cannot decide the package's execution mode.
+    const varInitialBindings = new Map<string, LexicalBinding>();
+    const possibleWrapper = program.sourceType !== "module" ||
+      (!/\.m[jt]s$/u.test(path) && !hasRuntimeModuleSyntax(program));
+    if (possibleWrapper && !/\.d\.[cm]?ts$/u.test(path)) {
+      for (const name of ["require", "module"]) {
+        const origin = this.#program.bindings.get(name)?.declaredOrigin;
+        if (origin !== undefined) {
+          varInitialBindings.set(name, { inputs: [], mutable: false,
+            declaredOrigin: { ...origin, ...(program.sourceType === "commonjs" ? {} : { opaque: true }) } });
+        }
+      }
+    }
+    this.#collect(program, { ...this.#childScope(this.#program, "program"), varInitialBindings });
     this.#markMutations(program);
   }
 
@@ -72,6 +85,17 @@ export class LoaderLexicalScopes {
     return current;
   }
 
+  #declareVar(scope: LexicalScope, pattern: BindingPattern): void {
+    for (const { name } of patternBindings(pattern)) {
+      const initialBinding = scope.varInitialBindings?.get(name);
+      if (initialBinding !== undefined && !scope.bindings.has(name)) {
+        // The body receives the parameter's value, not its binding identity.
+        // Body writes cannot change closures evaluated in parameter defaults.
+        scope.bindings.set(name, { inputs: [], mutable: false, initialBinding });
+      }
+    }
+  }
+
   #collectFunction(node: Extract<Node, {
     type: "FunctionDeclaration" | "FunctionExpression" | "TSDeclareFunction" |
       "TSEmptyBodyFunctionExpression" | "ArrowFunctionExpression"
@@ -84,14 +108,22 @@ export class LoaderLexicalScopes {
     if (node.type !== "ArrowFunctionExpression" && node.id !== null) {
       this.#declare(parameters, node.id.name);
     }
+    const varInitialBindings = new Map<string, LexicalBinding>();
     for (const parameter of node.params) {
       const pattern = parameter.type === "TSParameterProperty" ? parameter.parameter : parameter;
-      this.#declarePattern(parameters, pattern.type === "RestElement" ? pattern.argument : pattern);
+      const argument = pattern.type === "RestElement" ? pattern.argument : pattern;
+      this.#declarePattern(parameters, argument);
+      for (const { name } of patternBindings(argument)) {
+        const binding = parameters.bindings.get(name);
+        if (binding !== undefined) {
+          varInitialBindings.set(name, binding);
+        }
+      }
     }
     for (const child of childNodes(node)) {
       // Body var declarations do not shadow expressions evaluated in default parameters.
       this.#collect(child, child.type === "BlockStatement"
-        ? this.#childScope(parameters, "function") : parameters);
+        ? { ...this.#childScope(parameters, "function"), varInitialBindings } : parameters);
     }
   }
 
@@ -146,8 +178,11 @@ export class LoaderLexicalScopes {
       this.#collectImport(node, scope);
     } else if (node.type === "VariableDeclaration") {
       for (const declaration of node.declarations) {
-        this.#declarePattern(node.kind === "var" ? this.#varScope(scope) : scope,
-          declaration.id, declaration.init ?? undefined);
+        const target = node.kind === "var" ? this.#varScope(scope) : scope;
+        if (node.kind === "var" && node.declare !== true) {
+          this.#declareVar(target, declaration.id);
+        }
+        this.#declarePattern(target, declaration.id, declaration.init ?? undefined);
       }
     } else if (node.type === "TSImportEqualsDeclaration" && node.importKind !== "type") {
       const origin = node.moduleReference.type === "TSExternalModuleReference"
@@ -186,16 +221,25 @@ export class LoaderLexicalScopes {
       this.#markObject(target.object, scope, seen);
     } else if (target.type === "Identifier") {
       const binding = this.resolve(target.name, scope);
-      if (binding === undefined || seen.has(binding)) {
-        return;
+      if (binding !== undefined) {
+        this.#markBindingObject(binding, seen);
       }
-      seen.add(binding);
-      binding.mutable = true;
-      // Object aliases share member writes, while reassigning an alias does not.
-      for (const input of binding.inputs) {
-        if (input.properties.length === 0) {
-          this.#markObject(input.expression, this.scope(input.expression), seen);
-        }
+    }
+  }
+
+  #markBindingObject(binding: LexicalBinding, seen: Set<LexicalBinding>): void {
+    if (seen.has(binding)) {
+      return;
+    }
+    seen.add(binding);
+    binding.mutable = true;
+    // Object aliases share member writes, while reassigning an alias does not.
+    if (binding.initialBinding !== undefined) {
+      this.#markBindingObject(binding.initialBinding, seen);
+    }
+    for (const input of binding.inputs) {
+      if (input.properties.length === 0) {
+        this.#markObject(input.expression, this.scope(input.expression), seen);
       }
     }
   }
@@ -235,6 +279,13 @@ export class LoaderLexicalScopes {
   }
 
   #markMutations(program: Program): void {
+    const markIteration = (node: Extract<Node, { type: "ForInStatement" | "ForOfStatement" }>) => {
+      const targets = node.left.type === "VariableDeclaration"
+        ? node.left.declarations.map((declaration) => declaration.id) : [node.left];
+      for (const target of targets) {
+        this.#markTarget(target, this.scope(node));
+      }
+    };
     new Visitor({
       AssignmentExpression: (node) => {
         this.#markTarget(node.left, this.scope(node), { expression: node.right, properties: [] });
@@ -247,16 +298,8 @@ export class LoaderLexicalScopes {
           this.#markTarget(node.argument, this.scope(node));
         }
       },
-      ForInStatement: (node) => {
-        if (node.left.type !== "VariableDeclaration") {
-          this.#markTarget(node.left, this.scope(node));
-        }
-      },
-      ForOfStatement: (node) => {
-        if (node.left.type !== "VariableDeclaration") {
-          this.#markTarget(node.left, this.scope(node));
-        }
-      }
+      ForInStatement: markIteration,
+      ForOfStatement: markIteration
     }).visit(program);
   }
 }

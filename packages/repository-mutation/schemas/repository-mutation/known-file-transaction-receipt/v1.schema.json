@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocol", "planDigest", "outcome", "operations", "receiptDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocol": { "const": "agent-teams.repository-mutation.known-file/v1" },
+    "planDigest": { "$ref": "#/$defs/sha256" },
+    "outcome": { "enum": ["already-satisfied", "applied", "rolled-back"] },
+    "operations": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "outcome"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+          "outcome": { "enum": ["already-satisfied", "created", "replaced", "rolled-back-to-absent", "rolled-back-to-preimage"] },
+          "resultDigest": { "$ref": "#/$defs/sha256" }
+        },
+        "allOf": [{
+          "if": { "properties": { "outcome": { "const": "rolled-back-to-absent" } }, "required": ["outcome"] },
+          "then": { "properties": { "resultDigest": false } },
+          "else": { "required": ["resultDigest"] }
+        }]
+      }
+    },
+    "receiptDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

@@ -1,3 +1,5 @@
+import { fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import {
   cp,
@@ -17,12 +19,12 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { NodeDocumentParentMaterializerV2 } from "../packages/document-authoring/dist/adapters/node/node-document-parent-materializer.js";
-import { captureNodeRepositoryPathAuthority } from "../packages/document-authoring/dist/adapters/node/node-path-authority.js";
-import { NodeDocumentPublisher } from "../packages/document-authoring/dist/adapters/node/node-document-publisher.js";
-import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
-import { envelopeBodyV4 } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-body.js";
-import { materializeDocumentParentDirectories } from "../packages/document-authoring/dist/application/use-cases/document-transaction-continuation.js";
+import { NodeDocumentParentMaterializerV2 } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-parent-materializer.js";
+import { captureNodeRepositoryPathAuthority } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-path-authority.js";
+import { NodeDocumentPublisher } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-publisher.js";
+import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import { envelopeBodyV4 } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-body.js";
+import { materializeDocumentParentDirectories } from "../packages/document-authoring/dist/document-authoring/application/use-cases/document-transaction-continuation.js";
 import {
   planDocumentationDocument,
 } from "../packages/document-authoring/dist/index.js";
@@ -258,7 +260,7 @@ qualified("transaction materialization never journals a successfully replaced mk
     plan: plan.parentMaterialization,
   });
   const envelope = await createDocumentTransactionEnvelope(
-    envelopeBodyV4(plan, parentJournal, { destination: "pending", state: "PREPARED" }),
+    envelopeBodyV4(plan, fixtureKernelArtifact, parentJournal, { destination: "pending", state: "PREPARED" }),
   );
   const identity = {
     adapter: "node-filesystem",
@@ -270,6 +272,7 @@ qualified("transaction materialization never journals a successfully replaced mk
   let currentEnvelope = envelope;
   let replacements = 0;
   const runtime = {
+    schema: { assertSchema },
     coordinator: {},
     journal: {
       async replace({ envelope: replacement }) {
@@ -305,3 +308,5 @@ qualified("transaction materialization never journals a successfully replaced mk
     plan.parentMaterialization.missingDirectories[0],
   );
 });
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }

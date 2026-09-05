@@ -1,20 +1,16 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import type { KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
 import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import {
-  classifyKnownFileOperation,
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  maximumKnownFileEvidenceBytes,
-  observeKnownFile
-} from "./node-known-file-transaction-filesystem.js";
+import { classifyKnownFileOperation, matchesKnownFileImage, maximumKnownFileEvidenceBytes, observeKnownFile } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 
-export async function observeInitialKnownFileJournal(
+export async function observeInitialKnownFileJournal(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   plan: KnownFileTransactionPlanV1
 ): Promise<KnownFileTransactionJournalV1> {
   const operations = [];
   for (const operation of plan.operations) {
-    const observation = await observeKnownFile(
+    const observation = await observeKnownFile(coordination,
       root,
       operation.path,
       maximumKnownFileEvidenceBytes(operation)
@@ -30,25 +26,25 @@ export async function observeInitialKnownFileJournal(
   });
 }
 
-async function verifyKnownFilePostimages(
+async function verifyKnownFilePostimages(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   journal: KnownFileTransactionJournalV1,
   code: "KNOWN_FILE_COMMITTED_DRIFT" | "KNOWN_FILE_PRECOMMIT_DRIFT",
   message: (path: string) => string
 ): Promise<void> {
   for (const operation of journal.plan.operations) {
-    const observation = await observeKnownFile(root, operation.path, operation.postimage.size);
+    const observation = await observeKnownFile(coordination, root, operation.path, operation.postimage.size);
     if (!matchesKnownFileImage(observation, operation.postimage)) {
       throw new KnownFileTransactionError(code, message(operation.path));
     }
   }
 }
 
-export async function verifyApplyingKnownFilePostimages(
+export async function verifyApplyingKnownFilePostimages(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   journal: KnownFileTransactionJournalV1
 ): Promise<void> {
-  await verifyKnownFilePostimages(
+  await verifyKnownFilePostimages(coordination,
     root,
     journal,
     "KNOWN_FILE_PRECOMMIT_DRIFT",
@@ -56,11 +52,11 @@ export async function verifyApplyingKnownFilePostimages(
   );
 }
 
-export async function verifyCommittedKnownFilePostimages(
+export async function verifyCommittedKnownFilePostimages(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   journal: KnownFileTransactionJournalV1
 ): Promise<void> {
-  await verifyKnownFilePostimages(
+  await verifyKnownFilePostimages(coordination,
     root,
     journal,
     "KNOWN_FILE_COMMITTED_DRIFT",

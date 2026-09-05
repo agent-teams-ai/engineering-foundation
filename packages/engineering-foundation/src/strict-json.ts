@@ -1,1 +1,1 @@
-export { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation";
+export { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";

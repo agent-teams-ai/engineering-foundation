@@ -57,8 +57,8 @@ class JsonCursor {
   value(): void {
     this.#space();
     const character = this.#source[this.#offset];
-    if (character === "{") {return this.#object();}
-    if (character === "[") {return this.#array();}
+    if (character === "{") { this.#object(); return; }
+    if (character === "[") { this.#array(); return; }
     if (character === '"') { this.#string(); return; }
     const remainder = this.#source.slice(this.#offset);
     const token = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/u.exec(remainder)?.[0];

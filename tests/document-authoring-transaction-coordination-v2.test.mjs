@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/foundation-transition-evidence.js";

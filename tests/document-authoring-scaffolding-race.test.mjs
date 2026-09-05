@@ -1,3 +1,5 @@
+import { createNodeDocumentAuthority } from "../packages/document-authoring/dist/document-authoring/module.js";
+import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import {
   cp,
@@ -18,8 +20,8 @@ import {
   planDocumentationDocument,
 } from "../packages/document-authoring/dist/index.js";
 import {
-  applyNodeDocumentationPlanPrivately,
-} from "../packages/document-authoring/dist/composition/node-document-writing-private.js";
+  applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority,
+} from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile,
@@ -208,3 +210,7 @@ requiresStrictDirectoryDurability(
     await assertAbsent(statePaths(root).lock);
   }),
 );
+
+function applyNodeDocumentationPlanPrivately(request, operations) { return applyNodeDocumentationPlanWithAuthority(request, createNodeDocumentAuthority(observation), operations); }
+
+const observation = { repository: new FilesystemMarkdownRepository(), readFile: readContainedRegularFile, syntax: readMarkdownSyntax };

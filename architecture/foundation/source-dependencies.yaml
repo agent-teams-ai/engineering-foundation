@@ -814,31 +814,85 @@ boundaries:
   - id: repository-mutation.primitives
     roots:
       - packages/repository-mutation/src/canonical-json.ts
-      - packages/repository-mutation/src/errors.ts
-      - packages/repository-mutation/src/package-version.ts
-      - packages/repository-mutation/src/repository-mutation-envelope.ts
-      - packages/repository-mutation/src/state-contract.ts
       - packages/repository-mutation/src/strict-json.ts
+      - packages/repository-mutation/src/path-identity.ts
     allow:
       boundaries: []
       packages: []
       builtins:
         - node:crypto
-        - node:fs/promises
-        - node:path
-        - node:url
-        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/canonical-json.ts
-      - packages/repository-mutation/src/errors.ts
-      - packages/repository-mutation/src/package-version.ts
-      - packages/repository-mutation/src/repository-mutation-envelope.ts
-      - packages/repository-mutation/src/state-contract.ts
+      - packages/repository-mutation/src/path-identity.ts
       - packages/repository-mutation/src/strict-json.ts
   - id: repository-mutation.application
     roots:
       - packages/repository-mutation/src/repository-mutation/application
+      - packages/repository-mutation/src/repository-mutation/application-api.ts
+    allow:
+      boundaries:
+        - repository-mutation.coordination-application
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/application-api.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/directory-materialization.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/exact-postimage.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-error.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-journal.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/application/model/repository-path.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-receipt.ts
+      - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
+  - id: repository-mutation.node-adapters
+    roots:
+      - packages/repository-mutation/src/repository-mutation/adapters
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.coordination-application
+        - repository-mutation.primitives
+      packages: []
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/adapters/node/known-file-coordination.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
+  - id: repository-mutation.known-file-composition
+    roots:
+      - packages/repository-mutation/src/repository-mutation/composition
+    allow:
+      boundaries:
+        - repository-mutation.node-adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/repository-mutation/composition/node-api.ts
+  - id: repository-mutation.coordination-application
+    roots:
+      - packages/repository-mutation/src/transaction-coordination/application
+      - packages/repository-mutation/src/transaction-coordination/application-api.ts
     allow:
       boundaries:
         - repository-mutation.primitives
@@ -846,106 +900,19 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/repository-mutation/src/repository-mutation/application/model/directory-materialization.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/exact-postimage.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction-journal.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/known-file-transaction.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/path-identity.ts
-      - packages/repository-mutation/src/repository-mutation/application/model/repository-path.ts
-      - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
-      - packages/repository-mutation/src/repository-mutation/application/policies/classify-known-file-recovery-transition.ts
-      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts
-      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
-  - id: repository-mutation.node-adapters
+      - packages/repository-mutation/src/transaction-coordination/application-api.ts
+      - packages/repository-mutation/src/transaction-coordination/application/errors.ts
+      - packages/repository-mutation/src/transaction-coordination/application/file-observation.ts
+      - packages/repository-mutation/src/transaction-coordination/application/journal-slot-profile.ts
+      - packages/repository-mutation/src/transaction-coordination/application/mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/application/ports/mutation-lease-port.ts
+      - packages/repository-mutation/src/transaction-coordination/application/state-contract.ts
+  - id: repository-mutation.coordination-node
     roots:
-      - packages/repository-mutation/src/installed-artifact-identity.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters
     allow:
       boundaries:
-        - repository-mutation.primitives
-        - repository-mutation.application
-      packages: []
-      builtins:
-        - node:crypto
-        - node:fs/promises
-        - node:path
-        - node:url
-        - node:util
-      runtimeReferences: []
-    entrypoints:
-      - packages/repository-mutation/src/installed-artifact-identity.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication-private.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-bounded-regular-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-filesystem.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-publish-prepared-absent-file.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-repository-path.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-terminal-evidence-directory.ts
-  - id: repository-mutation.known-file-composition
-    roots:
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-effects.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-faults.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-observation.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-operation.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-apply-state.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-cleanup.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-executor.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-filesystem.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-observation.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured-cleanup.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage-captured.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-preimage.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-retirement.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-recovery-state.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-    allow:
-      boundaries:
-        - repository-mutation.application
-        - repository-mutation.node-adapters
-        - repository-mutation.primitives
-        - repository-mutation.transaction-coordination
-      packages: []
-      builtins:
-        - node:fs/promises
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
-  - id: repository-mutation.transaction-coordination
-    roots:
-      - packages/repository-mutation/src/transaction-coordination
-    allow:
-      boundaries:
-        - repository-mutation.application
-        - repository-mutation.node-adapters
+        - repository-mutation.coordination-application
         - repository-mutation.primitives
       packages: []
       builtins:
@@ -954,62 +921,151 @@ boundaries:
         - node:fs/promises
         - node:os
         - node:path
+        - node:url
         - node:util
       runtimeReferences: []
     entrypoints:
-      - packages/repository-mutation/src/transaction-coordination/mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/installed-artifact-identity.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-bounded-regular-file.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-mutation-observation.ts
       - packages/repository-mutation/src/transaction-coordination/adapters/node/node-operation-lock.ts
       - packages/repository-mutation/src/transaction-coordination/adapters/node/node-state-directory.ts
-      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-profile.ts
-      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-store.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/node-terminal-evidence-directory.ts
+      - packages/repository-mutation/src/transaction-coordination/adapters/node/package-version.ts
+  - id: repository-mutation.coordination-composition
+    roots:
+      - packages/repository-mutation/src/transaction-coordination/composition
+    allow:
+      boundaries:
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-node
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/transaction-coordination/composition/node-mutation-lease.ts
+      - packages/repository-mutation/src/transaction-coordination/composition/node.ts
+  - id: repository-mutation.composition
+    roots:
+      - packages/repository-mutation/src/composition
+    allow:
+      boundaries:
+        - repository-mutation.coordination-composition
+        - repository-mutation.known-file-composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/composition/node-known-file.ts
   - id: repository-mutation.public-api
-    packageExports:
-      - "."
     roots:
       - packages/repository-mutation/src/index.ts
+    packageExports:
+      - .
     allow:
       boundaries:
         - repository-mutation.application
-        - repository-mutation.known-file-composition
+        - repository-mutation.composition
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-composition
         - repository-mutation.node-adapters
         - repository-mutation.primitives
-        - repository-mutation.transaction-coordination
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/index.ts
   - id: repository-mutation.node-api
-    packageExports:
-      - "./node"
     roots:
       - packages/repository-mutation/src/node.ts
+    packageExports:
+      - ./node
     allow:
       boundaries:
         - repository-mutation.application
+        - repository-mutation.composition
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-composition
+        - repository-mutation.coordination-node
         - repository-mutation.node-adapters
-        - repository-mutation.transaction-coordination
+        - repository-mutation.primitives
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/node.ts
   - id: repository-mutation.qualification
-    packageExports:
-      - "./qualification"
     roots:
       - packages/repository-mutation/src/qualification
+    packageExports:
+      - ./qualification
     allow:
       boundaries:
         - repository-mutation.application
-        - repository-mutation.known-file-composition
+        - repository-mutation.composition
+        - repository-mutation.coordination-application
+        - repository-mutation.coordination-node
         - repository-mutation.node-adapters
-        - repository-mutation.transaction-coordination
+        - repository-mutation.primitives
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/repository-mutation/src/qualification/index.ts
+  - id: repository-mutation.serialization-api
+    roots:
+      - packages/repository-mutation/src/serialization.ts
+    packageExports:
+      - ./serialization
+    allow:
+      boundaries:
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/serialization.ts
+  - id: repository-mutation.path-api
+    roots:
+      - packages/repository-mutation/src/paths.ts
+    packageExports:
+      - ./paths
+    allow:
+      boundaries:
+        - repository-mutation.application
+        - repository-mutation.primitives
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/paths.ts
+  - id: repository-mutation.coordination-api
+    roots:
+      - packages/repository-mutation/src/coordination.ts
+    packageExports:
+      - ./coordination
+    allow:
+      boundaries:
+        - repository-mutation.coordination-application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/coordination.ts
+  - id: repository-mutation.known-file-api
+    roots:
+      - packages/repository-mutation/src/known-file.ts
+    packageExports:
+      - ./known-file
+    allow:
+      boundaries:
+        - repository-mutation.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/repository-mutation/src/known-file.ts
   - id: repository-mutation.tests
     dependencyMode: development
     roots:
@@ -1027,18 +1083,342 @@ boundaries:
         - node:test
       runtimeReferences: []
     entrypoints: []
-  - id: document-authoring.surface
-    packageExports:
-      - "."
-      - "./observation"
-      - "./qualification"
+  - id: document-authoring.binary-order
     roots:
-      - packages/document-authoring/src
+      - packages/document-authoring/src/binary-string-comparator.ts
     allow:
       boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/binary-string-comparator.ts
+  - id: document-authoring.module
+    roots:
+      - packages/document-authoring/src/composition/document-authoring-qualification.ts
+      - packages/document-authoring/src/composition/node-document-authoring.ts
+      - packages/document-authoring/src/index.ts
+      - packages/document-authoring/src/observation.ts
+      - packages/document-authoring/src/qualification/index.ts
+    allow:
+      boundaries:
+        - document-authoring.application
+        - document-authoring.feature-module
+        - document-authoring.observation.application
+        - document-authoring.observation.module
+        - document-authoring.qualification
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/index.ts
+      - packages/document-authoring/src/observation.ts
+      - packages/document-authoring/src/qualification/index.ts
+    packageExports:
+      - .
+      - ./observation
+      - ./qualification
+  - id: document-authoring.outbound
+    roots:
+      - packages/document-authoring/src/document-authoring/adapters/canonical-markdown.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/inspect-document-transaction.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/installed-artifact-identity.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/load-validated-document-authoring-profile.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-authoring-profile-reader-v2.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-contract-validator.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-environment-inspector.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-file-state.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store-faults.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store-private.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-metadata-sidecar-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-parent-materializer.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-planning-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-planning-state-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-publisher-private.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-publisher.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-reachability-projector.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-structure-verifier.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-template-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-transaction-coordinator.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-owner-membership-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-path-authority.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/package-version.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/read-document-authority-file.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/recapture-document-publication-paths.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/schema-catalog.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/strict-yaml.ts
+    allow:
+      boundaries:
+        - document-authoring.application
+        - document-authoring.binary-order
+        - document-authoring.observation.application
       packages:
         - "@agent-teams/repository-mutation"
         - ajv
+        - yaml
+      builtins:
+        - node:crypto
+        - node:fs/promises
+        - node:path
+        - node:url
+        - node:util
+        - node:util/types
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/document-authoring/adapters/canonical-markdown.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/inspect-document-transaction.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/installed-artifact-identity.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-authoring-profile-reader-v2.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-authoring-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-contract-validator.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-environment-inspector.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-file-state.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-metadata-sidecar-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-parent-materializer.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-planning-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-planning-state-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-publisher.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-template-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-transaction-coordinator.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-metadata-instance-validator.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-owner-membership-reader.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-path-authority.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/package-version.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/read-document-authority-file.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/schema-catalog.ts
+  - id: document-authoring.inbound
+    roots:
+      - packages/document-authoring/src/document-authoring/adapters/inbound/cli/document-command-renderer.ts
+      - packages/document-authoring/src/document-authoring/adapters/inbound/cli/find-command.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/describe-document-authoring-profile-v2.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/inspect-document-authoring-environment-v1.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-api.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-planning.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-writing.ts
+    allow:
+      boundaries:
+        - document-authoring.application
+        - document-authoring.binary-order
+        - document-authoring.observation.application
+        - document-authoring.outbound
+      packages: []
+      builtins:
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-api.ts
+      - packages/document-authoring/src/document-authoring/adapters/node/node-document-writing.ts
+  - id: document-authoring.application
+    roots:
+      - packages/document-authoring/src/document-authoring/api.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-authoring-profile-description.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-catalog-error.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-catalog.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-command.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-description-authority.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-environment-request.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-find.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-parent-materialization.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-physical-identity.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-planning-error.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-planning.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-receipt.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-transaction-inspection.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-transaction.ts
+      - packages/document-authoring/src/document-authoring/application/model/errors.ts
+      - packages/document-authoring/src/document-authoring/application/model/state-contract.ts
+      - packages/document-authoring/src/document-authoring/application/model/validated-document-authoring-profile.ts
+      - packages/document-authoring/src/document-authoring/application/policies/assert-artifact-owner-allowed.ts
+      - packages/document-authoring/src/document-authoring/application/policies/assert-v2-planning-profile.ts
+      - packages/document-authoring/src/document-authoring/application/policies/authoring-profile-semantics.ts
+      - packages/document-authoring/src/document-authoring/application/policies/classify-document-recovery.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-authoring-semantic-digests.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-catalog-authority-stability.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-catalog-diagnostics.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-catalog-fields.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-catalog-sidecar.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-command-consumer-root.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-command-projection.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-contract-digests.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-logical-preimage.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-planning-policy-error.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-receipt-policy.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-repository-path.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-temporary-path.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-transaction-digests.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-transaction-envelope-body.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-transaction-envelope-policy.ts
+      - packages/document-authoring/src/document-authoring/application/policies/inspect-catalog-document.ts
+      - packages/document-authoring/src/document-authoring/application/policies/normalize-document-intent.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-catalog-metadata.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-document-authoring-description.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-document-reachability.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-document-transaction-inspection.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-similar-document-advice.ts
+      - packages/document-authoring/src/document-authoring/application/policies/resolve-document-authoring.ts
+      - packages/document-authoring/src/document-authoring/application/policies/same-document-catalog-snapshot.ts
+      - packages/document-authoring/src/document-authoring/application/ports/authoring-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/canonical-document-renderer.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-authority-recompiler.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-contract-validator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-environment-inspector.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-file-state.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-journal-store.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-metadata-sidecar-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-parent-materializer.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-planning-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-planning-state-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-publisher.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-reachability-projector.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-schema-validator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-structure-verifier.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-template-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-transaction-coordinator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/documentation-catalog-reader-v2.ts
+      - packages/document-authoring/src/document-authoring/application/ports/documentation-catalog-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/documentation-search-catalog-reader-v2.ts
+      - packages/document-authoring/src/document-authoring/application/ports/documentation-search-catalog-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/metadata-instance-validator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/owner-membership-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/similar-document-advisor.ts
+      - packages/document-authoring/src/document-authoring/application/projections/document-catalog-projections.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/apply-document-plan.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/apply-document-recovery-receipt.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/build-documentation-catalog.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/compile-document-plan.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/describe-document-authoring-profile.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-authority-recompiler.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-journal-reconciliation.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-parent-materialization-continuation.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-transaction-continuation.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-transaction-error.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-transaction-execution.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-transaction-receipts.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/find-documents.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/load-v2-profile-description.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/plan-documentation-document.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/recover-document-transaction.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/run-document-doctor.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/run-document-new.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/run-document-recover.ts
+    allow:
+      boundaries:
+        - document-authoring.binary-order
+        - document-authoring.observation.application
+      packages:
+        - "@agent-teams/repository-mutation"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/document-authoring/api.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-authoring-profile-description.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-catalog-error.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-catalog.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-command.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-description-authority.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-environment-request.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-find.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-parent-materialization.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-physical-identity.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-planning-error.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-planning.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-receipt.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-transaction-inspection.ts
+      - packages/document-authoring/src/document-authoring/application/model/document-transaction.ts
+      - packages/document-authoring/src/document-authoring/application/model/errors.ts
+      - packages/document-authoring/src/document-authoring/application/model/state-contract.ts
+      - packages/document-authoring/src/document-authoring/application/model/validated-document-authoring-profile.ts
+      - packages/document-authoring/src/document-authoring/application/policies/authoring-profile-semantics.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-contract-digests.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-logical-preimage.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-planning-policy-error.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-repository-path.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-temporary-path.ts
+      - packages/document-authoring/src/document-authoring/application/policies/document-transaction-envelope-policy.ts
+      - packages/document-authoring/src/document-authoring/application/policies/normalize-document-intent.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-catalog-metadata.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-document-reachability.ts
+      - packages/document-authoring/src/document-authoring/application/policies/project-document-transaction-inspection.ts
+      - packages/document-authoring/src/document-authoring/application/policies/resolve-document-authoring.ts
+      - packages/document-authoring/src/document-authoring/application/ports/authoring-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/canonical-document-renderer.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-authority-recompiler.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-contract-validator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-environment-inspector.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-file-state.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-journal-store.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-metadata-sidecar-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-planning-profile-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-planning-state-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-publisher.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-reachability-projector.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-schema-validator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-structure-verifier.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-template-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/document-transaction-coordinator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/documentation-catalog-reader.ts
+      - packages/document-authoring/src/document-authoring/application/ports/metadata-instance-validator.ts
+      - packages/document-authoring/src/document-authoring/application/ports/owner-membership-reader.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/apply-document-plan.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/build-documentation-catalog.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/describe-document-authoring-profile.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-authority-recompiler.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/document-transaction-continuation.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/find-documents.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/plan-documentation-document.ts
+      - packages/document-authoring/src/document-authoring/application/use-cases/recover-document-transaction.ts
+  - id: document-authoring.feature-module
+    roots:
+      - packages/document-authoring/src/document-authoring/module.ts
+    allow:
+      boundaries:
+        - document-authoring.inbound
+        - document-authoring.outbound
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/document-authoring/module.ts
+  - id: document-authoring.qualification
+    roots:
+      - packages/document-authoring/src/document-authoring/testing/api.ts
+      - packages/document-authoring/src/document-authoring/testing/crash-qualification.ts
+    allow:
+      boundaries:
+        - document-authoring.application
+        - document-authoring.inbound
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/document-authoring/testing/api.ts
+  - id: document-authoring.observation.adapters
+    roots:
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/contained-file-reader.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-document-reader.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-filesystem.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-paths.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-reference-resolver.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-tree-observer.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/markdown-document-parser.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/markdown-reference-target.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/markdown-runtime.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/markdown-syntax-reader.ts
+    allow:
+      boundaries:
+        - document-authoring.binary-order
+        - document-authoring.observation.application
+      packages:
         - github-slugger
         - mdast-util-to-string
         - remark-frontmatter
@@ -1048,25 +1428,63 @@ boundaries:
         - unist-util-visit
         - yaml
       builtins:
-        - node:crypto
         - node:fs
         - node:fs/promises
         - node:path
-        - node:url
-        - node:util
-        - node:util/types
       runtimeReferences: []
     entrypoints:
-      - packages/document-authoring/src/index.ts
-      - packages/document-authoring/src/observation.ts
-      - packages/document-authoring/src/qualification/index.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/contained-file-reader.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.ts
+      - packages/document-authoring/src/documentation-observation/adapters/outbound/filesystem/markdown-syntax-reader.ts
+  - id: document-authoring.observation.application
+    roots:
+      - packages/document-authoring/src/documentation-observation/api.ts
+      - packages/document-authoring/src/documentation-observation/application/model/contained-file.ts
+      - packages/document-authoring/src/documentation-observation/application/model/input-problem.ts
+      - packages/document-authoring/src/documentation-observation/application/model/markdown-document.ts
+      - packages/document-authoring/src/documentation-observation/application/model/markdown-syntax.ts
+      - packages/document-authoring/src/documentation-observation/application/policies/cancellation.ts
+      - packages/document-authoring/src/documentation-observation/application/ports/markdown-repository.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/documentation-observation/api.ts
+      - packages/document-authoring/src/documentation-observation/application/model/contained-file.ts
+      - packages/document-authoring/src/documentation-observation/application/model/input-problem.ts
+      - packages/document-authoring/src/documentation-observation/application/model/markdown-document.ts
+      - packages/document-authoring/src/documentation-observation/application/model/markdown-syntax.ts
+      - packages/document-authoring/src/documentation-observation/application/policies/cancellation.ts
+      - packages/document-authoring/src/documentation-observation/application/ports/markdown-repository.ts
+  - id: document-authoring.observation.module
+    roots:
+      - packages/document-authoring/src/documentation-observation/module.ts
+    allow:
+      boundaries:
+        - document-authoring.observation.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/document-authoring/src/documentation-observation/module.ts
   - id: document-authoring.tests
     dependencyMode: development
     roots:
-      - packages/document-authoring/tests
+      - packages/document-authoring/tests/package-boundary.test.mjs
     allow:
       boundaries:
-        - document-authoring.surface
+        - document-authoring.application
+        - document-authoring.binary-order
+        - document-authoring.feature-module
+        - document-authoring.inbound
+        - document-authoring.module
+        - document-authoring.observation.adapters
+        - document-authoring.observation.application
+        - document-authoring.observation.module
+        - document-authoring.outbound
+        - document-authoring.qualification
       packages: []
       builtins:
         - node:assert/strict
@@ -1074,6 +1492,40 @@ boundaries:
         - node:path
         - node:test
       runtimeReferences: []
+    entrypoints: []
+  - id: document-authoring.tests.public-api
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests/public-api-contract.test.mjs
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+      runtimeReferences: []
+    entrypoints: []
+  - id: document-authoring.tests.fault-injection
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests/fixtures/public-api/crash-worker.mjs
+      - packages/document-authoring/tests/fixtures/writer-scheduling.mjs
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+      runtimeReferences:
+        - dynamic
     entrypoints: []
   - id: foundation.transaction-coordination.application
     roots:

@@ -5,15 +5,15 @@ import { hostname } from "node:os";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
-import { RepositoryMutationError } from "../../../errors.js";
-import { LOCAL_OPERATION_LOCK } from "../../../state-contract.js";
+import { RepositoryMutationError } from "../../application/errors.js";
+import { LOCAL_OPERATION_LOCK } from "../../application/state-contract.js";
 import { parseStrictJson } from "../../../strict-json.js";
-import { readBoundedRegularFile } from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
 import {
   assertTerminalEvidenceDirectory,
   ensureTerminalEvidenceDirectory
-} from "../../../repository-mutation/adapters/node/node-terminal-evidence-directory.js";
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+} from "./node-terminal-evidence-directory.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
 import {
   ensureMutationStateDirectory,
   syncMutationStateDirectory

@@ -1,14 +1,11 @@
-import {
-  releaseMutationLease,
-  retainMutationBarrier,
-  type MutationLease
-} from "../../../transaction-coordination/mutation-lease.js";
+import type { KnownFileCoordination } from "./known-file-coordination.js";
+import { type MutationLease } from "../../../transaction-coordination/application-api.js";
 
 /**
  * Releases a known-file lease without allowing a release failure to mask the
  * already-settled primary failure.
  */
-export async function releaseKnownFileTransactionLease(options: {
+export async function releaseKnownFileTransactionLease(coordination: Pick<KnownFileCoordination, "releaseMutationLease" | "retainMutationBarrier">, options: {
   readonly jointFailureMessage: string;
   readonly lease: MutationLease;
   readonly primaryFailure?: { readonly reason: unknown };
@@ -18,8 +15,8 @@ export async function releaseKnownFileTransactionLease(options: {
     jointFailureMessage: options.jointFailureMessage,
     ...(options.primaryFailure === undefined ? {} : { primaryFailure: options.primaryFailure }),
     release: async () => {
-      if (options.retainTransactionBarrier) {retainMutationBarrier(options.lease);}
-      await releaseMutationLease(options.lease);
+      if (options.retainTransactionBarrier) {coordination.retainMutationBarrier(options.lease);}
+      await coordination.releaseMutationLease(options.lease);
     }
   });
 }

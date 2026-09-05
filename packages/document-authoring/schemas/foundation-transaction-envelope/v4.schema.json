@@ -13,7 +13,7 @@
       "additionalProperties": false,
       "required": ["id", "contractVersion"],
       "properties": {
-        "id": { "enum": ["document-authoring", "foundation.document-authoring"] },
+        "id": { "const": "foundation.document-authoring" },
         "contractVersion": { "const": 3 }
       }
     },

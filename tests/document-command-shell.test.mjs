@@ -9,12 +9,12 @@ import { normalizeDocumentIds } from "../packages/docs-protocol/dist/domain/docu
 import {
   renderDocumentCommandJson,
   renderDocumentCommandText,
-} from "../packages/document-authoring/dist/adapters/inbound/cli/document-command-renderer.js";
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+} from "../packages/document-authoring/dist/document-authoring/adapters/inbound/cli/document-command-renderer.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
-import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
-import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
-import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
+import { RunDocumentDoctor } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-doctor.js";
+import { RunDocumentNew } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-new.js";
+import { RunDocumentRecover } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-recover.js";
 
 const cliPath = fileURLToPath(
   new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),

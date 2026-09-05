@@ -5,15 +5,15 @@ import {
   captureFileHandleIdentity,
   pathMatchesRegularFileIdentity,
   readBoundedRegularFile
-} from "../../../repository-mutation/adapters/node/node-bounded-regular-file.js";
+} from "./node-bounded-regular-file.js";
 import { sha256Bytes } from "../../../canonical-json.js";
-import type { PortablePathIdentity } from "../../../repository-mutation/application/model/path-identity.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
 import type {
   JournalSlotAuthority,
   JournalSlotFailureFactory,
   JournalSlotResidueMatcher,
   StoredJournalSlot
-} from "./node-journal-slot-profile.js";
+} from "../../application/journal-slot-profile.js";
 
 const MAXIMUM_DIRECTORY_ENTRIES = 1024;
 

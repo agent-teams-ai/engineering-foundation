@@ -19,7 +19,7 @@ import { createNodeFoundationTransactionSlot } from "../packages/engineering-fou
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 import {
   documentPlanDigest,
-} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import {
   applyFilesystemScaffold,
   planScaffoldFromFile,

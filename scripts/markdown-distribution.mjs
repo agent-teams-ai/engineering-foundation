@@ -11,7 +11,7 @@ import { sha256 } from "./pack-artifact-archive.mjs";
 import { readStableRegularFile } from "./pack-artifact-stage-support.mjs";
 import { markdownDependencies, prepareMarkdownSource } from "./markdown-source-snapshot.mjs";
 
-const runtimePath = "dist/adapters/markdown-runtime.js";
+const runtimePath = "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js";
 const buildOptions = Object.freeze({
   bundle: true, charset: "utf8", format: "esm", legalComments: "none", logLevel: "silent",
   metafile: true, minifyWhitespace: true, platform: "node", sourcemap: false, target: "node24", write: false,

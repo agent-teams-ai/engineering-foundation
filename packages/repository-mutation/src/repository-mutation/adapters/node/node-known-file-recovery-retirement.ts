@@ -1,20 +1,14 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat, mkdir, opendir, rename, rmdir, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
-import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import {
-  deserializeKnownFileIdentity,
-  serializeKnownFileIdentity
-} from "../../application/model/known-file-transaction-journal.js";
-import { pathMatchesRegularFileIdentity } from "./node-bounded-regular-file.js";
+import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity, serializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+
+
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import {
-  knownFileErrorCode,
-  knownFileTemporaryName,
-  KnownFileTransactionError,
-  sameKnownFileIdentity
-} from "./node-known-file-transaction-filesystem.js";
+import { knownFileErrorCode, knownFileTemporaryName, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import type { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 import {
   type KnownFileRecoveryFaultInjector,
@@ -87,14 +81,10 @@ function retirementPath(options: {
   return { captured: join(directory, "captured"), directory, source };
 }
 
-async function createRetirementAuthority(
-  options: RetirementExecutionOptions,
-  operation: KnownFileTransactionPlanV1["operations"][number],
-  parent: string,
-  paths: RetirementPaths,
-  journalOperation: RecoveryJournalOperationWithIdentity
+async function createRetirementAuthority(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  { options, operation, parent, paths, journalOperation }: { readonly options: RetirementExecutionOptions; readonly operation: KnownFileTransactionPlanV1["operations"][number]; readonly parent: string; readonly paths: RetirementPaths; readonly journalOperation: RecoveryJournalOperationWithIdentity }
 ): Promise<RecoveryJournalOperationWithIdentity> {
-  if (await pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity) !== "match") {
+  if (await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity) !== "match") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
       `Identity-bound recovery path changed before retirement: ${operation.path}.`
@@ -147,12 +137,8 @@ async function createRetirementAuthority(
   return updated;
 }
 
-async function reconcileRetirementDirectory(
-  options: RetirementExecutionOptions,
-  operation: KnownFileTransactionPlanV1["operations"][number],
-  paths: RetirementPaths,
-  journalOperation: RecoveryJournalOperationWithIdentity,
-  retirement: RecoveryRetirement
+async function reconcileRetirementDirectory(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  { options, operation, paths, journalOperation, retirement }: { readonly options: RetirementExecutionOptions; readonly operation: KnownFileTransactionPlanV1["operations"][number]; readonly paths: RetirementPaths; readonly journalOperation: RecoveryJournalOperationWithIdentity; readonly retirement: RecoveryRetirement }
 ): Promise<"continue" | "complete"> {
   const expectedDirectory = deserializeKnownFileIdentity(retirement.directoryIdentity);
   const directory = await lstat(paths.directory, { bigint: true }).catch((error: unknown) => {
@@ -161,7 +147,7 @@ async function reconcileRetirementDirectory(
   });
   if (directory === null) {
     if (retirement.state !== "unlink-authorized" ||
-      await pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity) === "match") {
+      await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity) === "match") {
       throw new KnownFileTransactionError(
         "KNOWN_FILE_RECOVERY_CONFLICT",
         `Journal-bound retirement directory disappeared: ${operation.path}.`
@@ -189,7 +175,7 @@ async function reconcileRetirementDirectory(
   return "continue";
 }
 
-async function captureRetirementPath(
+async function captureRetirementPath(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
   options: RetirementExecutionOptions,
   context: {
     readonly operation: KnownFileTransactionPlanV1["operations"][number];
@@ -201,8 +187,8 @@ async function captureRetirementPath(
 ): Promise<RecoveryJournalOperationWithIdentity> {
   const { journalOperation, operation, parent, paths, retirement } = context;
   if (retirement.state !== "ready") {return journalOperation;}
-  const capturedMatch = await pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity);
-  const sourceMatch = await pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity);
+  const capturedMatch = await coordination.pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity);
+  const sourceMatch = await coordination.pathMatchesRegularFileIdentity(paths.source, options.expectedIdentity);
   if (capturedMatch === "missing" && sourceMatch === "match") {
     await rename(paths.source, paths.captured);
     await syncDirectoryStrictly(paths.directory);
@@ -230,7 +216,7 @@ async function captureRetirementPath(
   return updated;
 }
 
-async function authorizeRetirementUnlink(
+async function authorizeRetirementUnlink(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
   options: RetirementExecutionOptions,
   operation: KnownFileTransactionPlanV1["operations"][number],
   paths: RetirementPaths,
@@ -238,7 +224,7 @@ async function authorizeRetirementUnlink(
 ): Promise<RecoveryJournalOperationWithIdentity> {
   const retirement = journalOperation.retirement!;
   if (retirement.state !== "captured") {return journalOperation;}
-  if (await pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity) !== "match") {
+  if (await coordination.pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity) !== "match") {
     throw new KnownFileTransactionError(
       "KNOWN_FILE_RECOVERY_CONFLICT",
       `Journal-bound retired bytes changed: ${operation.path}.`
@@ -261,14 +247,10 @@ async function authorizeRetirementUnlink(
   return updated;
 }
 
-async function removeRetirementEvidence(
-  options: RetirementExecutionOptions,
-  operation: KnownFileTransactionPlanV1["operations"][number],
-  parent: string,
-  paths: RetirementPaths,
-  journalOperation: RecoveryJournalOperationWithIdentity
+async function removeRetirementEvidence(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
+  { options, operation, parent, paths, journalOperation }: { readonly options: RetirementExecutionOptions; readonly operation: KnownFileTransactionPlanV1["operations"][number]; readonly parent: string; readonly paths: RetirementPaths; readonly journalOperation: RecoveryJournalOperationWithIdentity }
 ): Promise<void> {
-  const captured = await pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity);
+  const captured = await coordination.pathMatchesRegularFileIdentity(paths.captured, options.expectedIdentity);
   if (captured === "match") {
     await unlink(paths.captured);
     await syncDirectoryStrictly(paths.directory);
@@ -297,7 +279,7 @@ async function removeRetirementEvidence(
   );
 }
 
-export async function retireJournalBoundPath(options: RetirementExecutionOptions): Promise<void> {
+export async function retireJournalBoundPath(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">, options: RetirementExecutionOptions): Promise<void> {
   const operation = options.stored.envelope.payload.plan.operations[options.operationIndex]!;
   const parent = dirname(join(options.root, ...operation.path.split("/")));
   const paths = retirementPath({
@@ -316,8 +298,8 @@ export async function retireJournalBoundPath(options: RetirementExecutionOptions
   }
   let journalOperation = initial;
   if (journalOperation.retirement === undefined) {
-    journalOperation = await createRetirementAuthority(
-      options, operation, parent, paths, journalOperation
+    journalOperation = await createRetirementAuthority(coordination,
+      { options: options, operation: operation, parent: parent, paths: paths, journalOperation: journalOperation }
     );
   }
   const retirement = journalOperation.retirement!;
@@ -328,14 +310,14 @@ export async function retireJournalBoundPath(options: RetirementExecutionOptions
       `Retirement authority does not match the requested path: ${operation.path}.`
     );
   }
-  if (await reconcileRetirementDirectory(
-    options, operation, paths, journalOperation, retirement
+  if (await reconcileRetirementDirectory(coordination,
+    { options: options, operation: operation, paths: paths, journalOperation: journalOperation, retirement: retirement }
   ) === "complete") {return;}
-  journalOperation = await captureRetirementPath(
+  journalOperation = await captureRetirementPath(coordination,
     options, { journalOperation, operation, parent, paths, retirement }
   );
-  journalOperation = await authorizeRetirementUnlink(
+  journalOperation = await authorizeRetirementUnlink(coordination,
     options, operation, paths, journalOperation
   );
-  await removeRetirementEvidence(options, operation, parent, paths, journalOperation);
+  await removeRetirementEvidence(coordination, { options: options, operation: operation, parent: parent, paths: paths, journalOperation: journalOperation });
 }

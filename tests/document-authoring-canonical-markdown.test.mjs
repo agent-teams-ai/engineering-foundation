@@ -1,3 +1,4 @@
+import { readMarkdownSyntax } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -5,11 +6,11 @@ import test from "node:test";
 
 import {
   CanonicalMarkdownError,
-  parseGovernedTemplateSkeleton,
+  parseGovernedTemplateSkeleton as parseSkeletonWithReader,
   renderCanonicalDocument,
   renderCanonicalFrontmatter,
   YamlCanonicalDocumentRenderer,
-} from "../packages/document-authoring/dist/adapters/canonical-markdown.js";
+} from "../packages/document-authoring/dist/document-authoring/adapters/canonical-markdown.js";
 
 const fixtureRoot = new URL("fixtures/document-authoring-canonical-markdown/", import.meta.url);
 
@@ -33,7 +34,7 @@ const frontmatter = {
 };
 
 test("renders the frozen donor-like document bytes", async () => {
-  const renderer = new YamlCanonicalDocumentRenderer();
+  const renderer = new YamlCanonicalDocumentRenderer(readMarkdownSyntax);
   const template = renderer.parseTemplate(await fixture("adr-template.md"));
   const rendered = renderer.render({
     frontmatter,
@@ -344,4 +345,22 @@ test("bounds template bytes before parsing", () => {
       error instanceof CanonicalMarkdownError &&
       error.failure === "template-limit-exceeded",
   );
+});
+
+function parseGovernedTemplateSkeleton(source) { return parseSkeletonWithReader(source, readMarkdownSyntax); }
+
+test("template parsing accepts an independent syntax observation port", () => {
+  const source = "```markdown\n---\nid: placeholder\n---\n\n# Title\n\nBody\n```";
+  const calls = [];
+  const renderer = new YamlCanonicalDocumentRenderer((text, kind) => {
+    calls.push(kind);
+    if (kind === "code") {
+      assert.equal(text, source);
+      return [{ lang: "markdown", meta: null, position: { start: { offset: 0 }, end: { offset: text.length } } }];
+    }
+    assert.equal(text, "# Title\n\nBody");
+    return [{ depth: 1, position: { start: { offset: 0 }, end: { offset: 7 } } }];
+  });
+  assert.deepEqual(renderer.parseTemplate(source), { body: "Body", placeholderHeading: "Title" });
+  assert.deepEqual(calls, ["code", "heading"]);
 });

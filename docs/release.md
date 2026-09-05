@@ -150,7 +150,7 @@ running a real consumer or mutation flow. Cohort authority remains exactly these
 five packages and continues to reject MCP in its npm and pnpm closures.
 
 The six-package release claim has one separate supporting precondition:
-`@agent-teams/docs-protocol-mcp@0.2.0`. A fresh npm consumer pins that package
+`@agent-teams/docs-protocol-mcp@0.2.1`. A fresh npm consumer pins that package
 beside the Cohort's exact Docs Protocol coordinate. The gate requires the MCP
 version to own `latest`, captures and validates its registry lock and SHA-512
 SRI, verifies its npm signature and SLSA provenance, proves the provenance

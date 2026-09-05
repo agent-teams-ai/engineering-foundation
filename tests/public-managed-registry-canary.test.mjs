@@ -189,6 +189,16 @@ test("supporting MCP precondition has one fixed exact public coordinate", () => 
     },
   };
   assert.deepEqual(supportingMcpCoordinate(packument), supportingMcp);
+  const previous = {
+    ...SUPPORTING_MCP_PACKAGE, version: "0.2.0", dist: { integrity: supportingMcp.integrity },
+  };
+  assert.throws(
+    () => supportingMcpCoordinate({
+      "dist-tags": { latest: previous.version },
+      versions: { [previous.version]: previous },
+    }),
+    /exact latest/u,
+  );
   assert.throws(
     () => supportingMcpCoordinate({ ...packument, "dist-tags": { latest: "0.1.1" } }),
     /exact latest/u,

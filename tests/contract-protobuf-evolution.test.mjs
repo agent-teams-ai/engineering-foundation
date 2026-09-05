@@ -1,4 +1,4 @@
-import { createManagedProcessExecutor, protobufAdapters, readAcceptedArchitectureDecisionEvidence } from "./support/capability-adapters.mjs";
+import { createManagedProcessExecutor, protobufAdapters, readAcceptedArchitectureDecisionEvidence, promoteArchitectureDecisionBaseline } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
@@ -43,16 +43,7 @@ const protobufGovernanceAcl = await import(
     ),
   ).href,
 );
-const governanceModule = await import(
-  pathToFileURL(
-    join(
-      distRoot,
-      "capabilities",
-      "governance-architecture-decisions",
-      "module.js",
-    ),
-  ).href,
-);
+
 const protobufQualification = await import(
   pathToFileURL(
     join(
@@ -294,7 +285,7 @@ async function writeGovernedDecisionEvidence(root, decisionId = "ADR-0042") {
     `---\nid: ${decisionId}\nstatus: accepted\nsupersedes: []\nsuperseded_by: []\n---\n\n# ${decisionId}: Approve Protobuf Contract Break\n\nThe breaking Protobuf contract change is explicitly reviewed.\n`,
     "utf8",
   );
-  await governanceModule.promoteArchitectureDecisionBaseline({
+  await promoteArchitectureDecisionBaseline({
     consumerRoot: root,
     configPath: governanceConfigPath,
   });

@@ -15,9 +15,11 @@ import {
 import { promoteArchitectureDecisionBaseline as promoteBaseline } from "./application/use-cases/promote-architecture-decision-baseline.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadCapabilityConfig, type ArchitectureDecisionConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID };
 
@@ -36,8 +38,9 @@ export async function promoteArchitectureDecisionBaseline(input: {
   readonly consumerRoot: string;
   readonly configPath: string;
   readonly signal?: AbortSignal;
-}) {
+}, assertSchema: ArchitectureDecisionConfigurationDependencies["assertSchema"]) {
   const policy = await loadCapabilityConfig(
+    { readYaml: loadStrictYamlFile, assertSchema },
     input.consumerRoot,
     input.configPath,
     input.signal
@@ -63,10 +66,10 @@ export async function readAcceptedArchitectureDecisionEvidence(input: {
   readonly configPath: string;
   readonly consumerRoot: string;
   readonly signal?: AbortSignal;
-}): Promise<AcceptedArchitectureDecisionEvidence> {
+}, assertSchema: ArchitectureDecisionConfigurationDependencies["assertSchema"]): Promise<AcceptedArchitectureDecisionEvidence> {
   const dependencies = createDependencies();
   const policy = await loadCapabilityConfig(
-    input.consumerRoot,
+    { readYaml: loadStrictYamlFile, assertSchema },    input.consumerRoot,
     input.configPath,
     input.signal
   );
@@ -76,7 +79,9 @@ export async function readAcceptedArchitectureDecisionEvidence(input: {
   }, dependencies);
 }
 
-export function createArchitectureDecisionGovernanceCapability(): CapabilityDefinition {
+export function createArchitectureDecisionGovernanceCapability(input: {
+  readonly assertSchema: ArchitectureDecisionConfigurationDependencies["assertSchema"];
+}): CapabilityDefinition {
   return Object.freeze({
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     id: CAPABILITY_ID,
@@ -84,6 +89,7 @@ export function createArchitectureDecisionGovernanceCapability(): CapabilityDefi
       try {
         const dependencies = createDependencies();
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

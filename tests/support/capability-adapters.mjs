@@ -16,7 +16,8 @@ const [source, workspace, schemas, governance, protobuf, processExecution, workf
   load("features/configuration-input/node.js"),
 ]);
 export const createJsonSchemaInspector = schemas.createJsonSchemaInspector;
-export const readAcceptedArchitectureDecisionEvidence = governance.readAcceptedArchitectureDecisionEvidence;
+export const readAcceptedArchitectureDecisionEvidence = (input) => governance.readAcceptedArchitectureDecisionEvidence(input, schemaCatalog.assertSchema);
+export const promoteArchitectureDecisionBaseline = (input) => governance.promoteArchitectureDecisionBaseline(input, schemaCatalog.assertSchema);
 export const createManagedProcessExecutor = processExecution.createManagedProcessExecutor;
 export const createWorkflowProcess = () => workflow.createProcessExecution(createManagedProcessExecutor());
 export function sourceDependencyAdapters() {

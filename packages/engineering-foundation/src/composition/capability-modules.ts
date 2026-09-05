@@ -23,7 +23,7 @@ import {
 import {
   ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID,
   createArchitectureDecisionGovernanceCapability,
-  readAcceptedArchitectureDecisionEvidence
+  readAcceptedArchitectureDecisionEvidence as readAcceptedEvidence
 } from "../capabilities/governance-architecture-decisions/module.js";
 import {
   createPublicApiCompatibilityCapability,
@@ -56,6 +56,9 @@ import {
 
 export type { RuleExplanation } from "../features/validation-reporting/api.js";
 
+const readAcceptedArchitectureDecisionEvidence = (input: Parameters<typeof readAcceptedEvidence>[0]) =>
+  readAcceptedEvidence(input, assertSchema);
+
 export interface CapabilityModuleDescriptor {
   readonly definition: CapabilityDefinition;
   readonly rules: ReadonlyMap<string, RuleExplanation>;
@@ -87,7 +90,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       EXECUTABLE_SPECIFICATION_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createArchitectureDecisionGovernanceCapability(),
+      createArchitectureDecisionGovernanceCapability({ assertSchema }),
       ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID
     ),
     defineCapabilityModule(

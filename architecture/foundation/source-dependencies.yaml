@@ -2339,6 +2339,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/api.ts
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.core
         - foundation.validation-reporting.application
       packages:
@@ -2346,6 +2347,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/model/architecture-decision.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/accepted-architecture-decision-baseline.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/ports/architecture-decision-baseline-repository.ts
@@ -2359,13 +2361,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/contract
     allow:
-      boundaries:
-        - capability.architecture-decisions.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2376,6 +2372,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters
     allow:
       boundaries:
+        - capability.architecture-decisions.contract
         - capability.architecture-decisions.application
         - foundation.core
         - foundation.validation-reporting.application
@@ -2389,6 +2386,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters/outbound/crypto/node-architecture-decision-fingerprint.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.ts
   - id: capability.architecture-decisions.composition
@@ -2396,6 +2394,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.architecture-decisions.adapters
         - capability.architecture-decisions.application
         - capability.architecture-decisions.contract

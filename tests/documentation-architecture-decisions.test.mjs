@@ -17,11 +17,13 @@ import {
   analyzeArchitectureDecisions,
 } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/analyze-architecture-decisions.js";
 import { promoteArchitectureDecisionBaseline as promoteBaselineUseCase } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/use-cases/promote-architecture-decision-baseline.js";
-import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/contract/config.js";
+import { loadCapabilityConfig as loadWithDependencies } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/inbound/configuration/load-capability-config.js";
+const loadCapabilityConfig = (root, path, signal) => loadWithDependencies(schemaConfigurationDependencies(), root, path, signal);
 import {
+  schemaConfigurationDependencies,
   promoteArchitectureDecisionBaseline,
   readAcceptedArchitectureDecisionEvidence
-} from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
+} from "./support/capability-adapters.mjs";
 import { FilesystemMarkdownRepository } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));

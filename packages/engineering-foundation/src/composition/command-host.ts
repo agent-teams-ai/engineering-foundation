@@ -42,8 +42,8 @@ function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: st
       ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })
     }, processExecutor, assertSchema),
     rules: RULE_REGISTRY,
-    promoteDecisions: promoteArchitectureDecisionBaseline,
-    promotePublicApi: (input) => promotePublicApiRelease(input, readAcceptedArchitectureDecisionEvidence),
+    promoteDecisions: (input) => promoteArchitectureDecisionBaseline(input, assertSchema),
+    promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema)),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../capabilities/contract-protobuf-evolution/qualification/module.js");
       return (input) => qualifyProtobufBreakingEvidence(input, processExecutor);

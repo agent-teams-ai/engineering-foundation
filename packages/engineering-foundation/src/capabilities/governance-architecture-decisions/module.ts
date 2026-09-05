@@ -1,3 +1,4 @@
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../source-inventory/node.js";
 import { resolveAcceptedArchitectureDecisionEvidence } from "./application/use-cases/resolve-accepted-architecture-decision-evidence.js";
 import {
   capabilityFailureReport,
@@ -28,7 +29,10 @@ import type { AcceptedArchitectureDecisionEvidence } from "./api.js";
 
 function createDependencies() {
   return Object.freeze({
-    baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(),
+    baselineRepository: new FilesystemArchitectureDecisionBaselineRepository({
+      read: readContainedRegularFile,
+      pathTraversesSymbolicLink
+    }),
     fingerprint: new NodeArchitectureDecisionFingerprint(),
     markdownRepository: new FilesystemMarkdownRepository()
   });

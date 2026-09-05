@@ -1,3 +1,5 @@
+import { registerBaselineObservationPortCases } from "./governance-architecture-decisions/observation-port-cases.mjs";
+registerBaselineObservationPortCases();
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
@@ -25,6 +27,10 @@ import {
   readAcceptedArchitectureDecisionEvidence
 } from "./support/capability-adapters.mjs";
 import { FilesystemMarkdownRepository } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
+
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+
+const baselineObservation = { read: readContainedRegularFile, pathTraversesSymbolicLink };
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = join(
@@ -74,8 +80,10 @@ const baselineRepositoryModuleUrl = pathToFileURL(
 const concurrentBaselineWriterScript = `
 import { FilesystemArchitectureDecisionBaselineRepository } from ${JSON.stringify(baselineRepositoryModuleUrl)};
 
+import { pathTraversesSymbolicLink, readContainedRegularFile } from ${JSON.stringify(new URL("../packages/engineering-foundation/dist/source-inventory/node.js", import.meta.url).href)};
+const baselineObservation = { read: readContainedRegularFile, pathTraversesSymbolicLink };
 const input = JSON.parse(process.env.FOUNDATION_BASELINE_WRITE_INPUT ?? "");
-const repository = new FilesystemArchitectureDecisionBaselineRepository();
+const repository = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
 process.stdout.write("READY\\n");
 process.stdin.resume();
 process.stdin.once("data", async () => {
@@ -105,6 +113,7 @@ async function withFixture(callback) {
   const root = await mkdtemp(join(tmpdir(), "foundation-architecture-decisions-"));
   try {
     await cp(fixtureRoot, root, { recursive: true });
+    await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Governance baseline test fixture.\n");
     return await callback(root);
   } finally {
     await rm(root, { force: true, recursive: true });
@@ -116,7 +125,7 @@ async function analyze(root) {
   return analyzeArchitectureDecisions(
     { consumerRoot: root, policy },
     {
-      baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(),
+      baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(baselineObservation),
       fingerprint: new NodeArchitectureDecisionFingerprint(),
       markdownRepository: new FilesystemMarkdownRepository()
     }
@@ -128,7 +137,7 @@ async function analyzeEvidence(root) {
   return analyzeArchitectureDecisionEvidence(
     { consumerRoot: root, policy },
     {
-      baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(),
+      baselineRepository: new FilesystemArchitectureDecisionBaselineRepository(baselineObservation),
       fingerprint: new NodeArchitectureDecisionFingerprint(),
       markdownRepository: new FilesystemMarkdownRepository()
     }
@@ -591,7 +600,7 @@ test("refuses to mutate a historical baseline entry during promotion", async () 
 
 test("rejects baseline promotion paths that escape or traverse symbolic links", { skip: process.platform === "win32" }, async () => {
   await withFixture(async (root) => {
-    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const repository = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
     const baseline = {
       algorithm: "sha256",
       decisions: [],
@@ -631,7 +640,7 @@ test("rejects baseline promotion paths that escape or traverse symbolic links", 
 
 test("keeps runtime baseline validation aligned with schema path bounds", async () => {
   await withFixture(async (root) => {
-    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const repository = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
     await assert.rejects(
       repository.write({
         baseline: {
@@ -657,7 +666,7 @@ test("keeps runtime baseline validation aligned with schema path bounds", async 
 
 test("refuses to replace a readable baseline with one above its read limit", async () => {
   await withFixture(async (root) => {
-    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const repository = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
     const current = await repository.read({
       consumerRoot: root,
       path: "architecture/decisions/accepted-decisions.json"
@@ -701,7 +710,7 @@ test("refuses to replace a readable baseline with one above its read limit", asy
 
 test("rejects a baseline write when its expected revision changed concurrently", async () => {
   await withFixture(async (root) => {
-    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const repository = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
     const current = await repository.read({
       consumerRoot: root,
       path: "architecture/decisions/accepted-decisions.json"
@@ -728,7 +737,7 @@ test("rejects a baseline write when its expected revision changed concurrently",
 
 test("serializes concurrent baseline writers across processes", async () => {
   await withFixture(async (root) => {
-    const repository = new FilesystemArchitectureDecisionBaselineRepository();
+    const repository = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
     const current = await repository.read({
       consumerRoot: root,
       path: "architecture/decisions/accepted-decisions.json"

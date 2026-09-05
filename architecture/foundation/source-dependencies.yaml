@@ -759,6 +759,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/effective-instruction-file-observation.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/changed-workflow.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/effective-instructions.ts
@@ -790,8 +791,6 @@ boundaries:
       boundaries:
         - capability.repository-agent-workflow.application
         - foundation.core
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
       packages: []
       builtins:
         - node:fs/promises
@@ -814,6 +813,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition
     allow:
       boundaries:
+        - foundation.source-inventory.composition
         - foundation.configuration-input.composition
         - capability.repository-agent-workflow.adapters
         - capability.repository-agent-workflow.application
@@ -2593,6 +2593,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/ports/architecture-decision-baseline-observation.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/model/architecture-decision.ts
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application/policies/accepted-architecture-decision-baseline.ts
@@ -2622,8 +2623,6 @@ boundaries:
         - capability.architecture-decisions.contract
         - capability.architecture-decisions.application
         - foundation.core
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
       packages:
         - proper-lockfile
       builtins:
@@ -2640,6 +2639,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/governance-architecture-decisions/module.ts
     allow:
       boundaries:
+        - foundation.source-inventory.composition
         - foundation.configuration-input.composition
         - capability.architecture-decisions.adapters
         - capability.architecture-decisions.application

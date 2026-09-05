@@ -1,3 +1,4 @@
+import { inspectContainedRegularFile, readContainedRegularFile } from "../../../source-inventory/node.js";
 import { createProcessExecution } from "../adapters/outbound/process/process-execution.js";
 import type { WorkflowProcessExecutor } from "../application/ports/process-execution.js";
 import { createAgentWorkflowChangedCommand } from "../adapters/inbound/cli/changed-command.js";
@@ -22,6 +23,9 @@ export function createNodeAgentWorkflowCommands(
         { readYaml: loadStrictYamlFile, assertSchema }, consumerRoot, configPath, signal
       )
     }),
-    instructions: createAgentWorkflowInstructionsCommand(new FilesystemEffectiveInstructionsReader())
+    instructions: createAgentWorkflowInstructionsCommand(new FilesystemEffectiveInstructionsReader({
+      read: readContainedRegularFile,
+      inspect: inspectContainedRegularFile
+    }))
   };
 }

@@ -1,3 +1,4 @@
+import { ContainedFileReadError } from "../../../../source-inventory/api.js";
 import { CapabilityInputError, assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { ArchitectureDecisionBaselineExpectedState, ArchitectureDecisionBaselineReadResult } from "../ports/architecture-decision-baseline-repository.js";
 
@@ -50,4 +51,26 @@ export function assertBaselineObservationActive(signal: AbortSignal | undefined)
 
 export function isBaselineInputFailure(error: unknown): boolean {
   return error instanceof CapabilityInputError;
+}
+
+export function baselineObservationFailure(
+  error: unknown,
+  maxBytes: number
+): ArchitectureDecisionBaselineReadResult {
+  if (!(error instanceof ContainedFileReadError)) {
+    throw error;
+  }
+  if (error.failure === "missing") {
+    return { kind: "missing" };
+  }
+  if (error.failure === "invalid") {
+    return {
+      kind: "invalid",
+      message: `Accepted-decision baseline must be a regular JSON file no larger than ${maxBytes} bytes.`
+    };
+  }
+  return {
+    kind: "unsafe",
+    message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading."
+  };
 }

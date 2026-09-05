@@ -1,3 +1,4 @@
+import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../../source-inventory/api.js";
 import { CapabilityInputError, FoundationError, assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 
 export function rejectEffectiveInstructionInput(code: string, message: string): never {
@@ -35,4 +36,12 @@ export function rejectWorkflowExecutor(): never {
     "PROCESS_FAILED",
     "Unable to resolve a shell-free pnpm entrypoint on Windows."
   );
+}
+
+export function assertEffectiveInstructionRepositoryPath(path: string): void {
+  assertRepositoryRelativePath(path, "repository-agent-workflow-effective-instructions");
+}
+
+export function effectiveInstructionFailureDetail(error: unknown): string {
+  return error instanceof ContainedFileReadError ? error.failure : "unavailable";
 }

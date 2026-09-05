@@ -1,9 +1,8 @@
 import { lstat, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, sep, win32 } from "node:path";
 
-import { assertWorkflowObservationActive, rejectEffectiveInstructionInput, isWorkflowInputFailure } from "../../../application/policies/workflow-input.js";
-import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../../../source-inventory/api.js";
-import { inspectContainedRegularFile, readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import { assertEffectiveInstructionRepositoryPath, assertWorkflowObservationActive, effectiveInstructionFailureDetail, rejectEffectiveInstructionInput, isWorkflowInputFailure } from "../../../application/policies/workflow-input.js";
+import type { EffectiveInstructionFileObservation } from "../../../application/ports/effective-instruction-file-observation.js";
 
 import type {
   EffectiveInstructionCandidateObservation,
@@ -121,10 +120,10 @@ async function safeTargetDirectories(
 }
 
 async function readCandidate(
+  observation: EffectiveInstructionFileObservation,
   root: string,
   directory: { readonly absolute: string; readonly repositoryPath: string },
-  name: string,
-  mode: "classify" | "content" | "metadata"
+  { name, mode }: { readonly name: string; readonly mode: "classify" | "content" | "metadata" }
 ): Promise<EffectiveInstructionCandidateObservation> {
   const repositoryPath = directory.repositoryPath === "."
     ? name
@@ -164,15 +163,15 @@ async function readCandidate(
   }
   if (mode === "metadata") {
     try {
-      const observation = await inspectContainedRegularFile({ candidate, root });
+      const metadataObservation = await observation.inspect({ candidate, root });
       return Object.freeze({
         kind: "file",
         path: repositoryPath,
-        sourceBytes: observation.size,
+        sourceBytes: metadataObservation.size,
         bytes: null
       });
     } catch (error) {
-      const detail = error instanceof ContainedFileReadError ? error.failure : "unavailable";
+      const detail = effectiveInstructionFailureDetail(error);
       rejectEffectiveInstructionInput(
         "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
         `The instruction candidate must remain a stable real repository file: ${repositoryPath} (${detail}).`
@@ -180,7 +179,7 @@ async function readCandidate(
     }
   }
   try {
-    const bytes = await readContainedRegularFile({
+    const bytes = await observation.read({
       candidate,
       maxBytes: MAXIMUM_INSTRUCTION_SOURCE_BYTES,
       root
@@ -192,7 +191,7 @@ async function readCandidate(
       bytes
     });
   } catch (error) {
-    const detail = error instanceof ContainedFileReadError ? error.failure : "unavailable";
+    const detail = effectiveInstructionFailureDetail(error);
     rejectEffectiveInstructionInput(
       "REPOSITORY_AGENT_WORKFLOW_INSTRUCTION_UNAVAILABLE",
       `The instruction candidate must be a stable real file no larger than ${MAXIMUM_INSTRUCTION_SOURCE_BYTES} bytes: ${repositoryPath} (${detail}).`
@@ -201,6 +200,8 @@ async function readCandidate(
 }
 
 export class FilesystemEffectiveInstructionsReader implements EffectiveInstructionsReader {
+  constructor(private readonly observation: EffectiveInstructionFileObservation) {}
+
   async discover(input: {
     readonly consumerRoot: string;
     readonly targetPath: string;
@@ -217,10 +218,7 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
         "The target path must be a well-formed repository-relative POSIX path in Unicode NFC without control, bidirectional-formatting, or line-separator characters."
       );
     }
-    assertRepositoryRelativePath(
-      input.targetPath,
-      "repository-agent-workflow-effective-instructions"
-    );
+    assertEffectiveInstructionRepositoryPath(input.targetPath);
     const root = await resolveConsumerRoot(input.consumerRoot);
     const targetDirectory = posix.dirname(input.targetPath);
     const directories = await safeTargetDirectories(root, targetDirectory);
@@ -257,10 +255,7 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
   }): Promise<EffectiveInstructionDirectoryObservation> {
     assertWorkflowObservationActive(input.signal);
     if (input.directory !== ".") {
-      assertRepositoryRelativePath(
-        input.directory,
-        "repository-agent-workflow-effective-instructions"
-      );
+      assertEffectiveInstructionRepositoryPath(input.directory);
     }
     const root = await resolveConsumerRoot(input.consumerRoot);
     const directories = await safeTargetDirectories(root, input.directory);
@@ -278,10 +273,10 @@ export class FilesystemEffectiveInstructionsReader implements EffectiveInstructi
         ? "classify"
         : input.readSelectedBytes ? "content" : "metadata";
       const candidate = await readCandidate(
+        this.observation,
         root,
         directory,
-        name,
-        mode
+        { name, mode }
       );
       candidates.push(candidate);
       selected ||= candidate.kind === "file" || candidate.kind === "symlink";

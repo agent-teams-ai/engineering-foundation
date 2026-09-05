@@ -1,14 +1,24 @@
+import { registerInstructionObservationPortCases } from "./repository-agent-workflow/observation-port-cases.mjs";
+registerInstructionObservationPortCases();
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmod, mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join, resolve as resolvePath } from "node:path";
 import test from "node:test";
 
-import { check, cliPath, withAgentWorkflowFixture } from "./support/capability-fixtures.mjs";
+import { check, cliPath, withAgentWorkflowFixture as withUnmarkedAgentWorkflowFixture } from "./support/capability-fixtures.mjs";
 import { sha256Bytes, sha256Json } from "../packages/repository-mutation/dist/serialization.js";
-import { ContainedFileReadError, inspectContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+import { ContainedFileReadError, inspectContainedRegularFile, readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
 import { FilesystemEffectiveInstructionsReader } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
 import { resolveEffectiveInstructions } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.js";
+
+const instructionObservation = { read: readContainedRegularFile, inspect: inspectContainedRegularFile };
+async function withAgentWorkflowFixture(callback) {
+  return withUnmarkedAgentWorkflowFixture(async (root) => {
+    await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Instruction reader test fixture.\n");
+    return callback(root);
+  });
+}
 
 const instructionSemantics =
   "foundation-safe-codex-default-project-instructions-v1";
@@ -704,7 +714,7 @@ test("rejects unsafe effective-instruction targets and selected symlinks", async
       "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
     );
 
-    const reader = new FilesystemEffectiveInstructionsReader();
+    const reader = new FilesystemEffectiveInstructionsReader(instructionObservation);
     const unavailableRoot = join(consumerRoot, "does-not-exist");
     const unsafeDisplayCharacters = [
       ["NUL", "\u0000"],

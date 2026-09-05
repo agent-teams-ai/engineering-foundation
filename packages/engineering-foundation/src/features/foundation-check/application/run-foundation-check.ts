@@ -1,16 +1,16 @@
+import type { FoundationConfigReader } from "./settings.js";
 import {
   CapabilityInputError,
+  classifyUnexpectedFailure,
   foundationReport,
   readCancellationProblem,
   readCapabilityInputProblem
-} from "./capability-runtime.js";
+} from "../../validation-reporting/api.js";
 import type {
+  CapabilityDefinition,
   FoundationCheckCoverage,
   FoundationCheckReport
-} from "./check-contract.js";
-import { CAPABILITY_REGISTRY } from "./composition/capability-registry.js";
-import { loadFoundationConfig } from "./foundation-config.js";
-import { classifyUnexpectedFailure } from "./unexpected-failure.js";
+} from "../../validation-reporting/api.js";
 
 export interface FoundationCheckInvocation {
   readonly consumerRoot: string;
@@ -52,11 +52,12 @@ function rootProblemReport(
 }
 
 export async function runFoundationCheck(
-  invocation: FoundationCheckInvocation
+  invocation: FoundationCheckInvocation,
+  dependencies: FoundationCheckDependencies
 ): Promise<FoundationCheckReport> {
   const coverage = invocation.capabilityId === undefined ? "full" : "selected";
   try {
-    const config = await loadFoundationConfig(
+    const config = await dependencies.readConfig(
       invocation.consumerRoot,
       invocation.signal
     );
@@ -76,7 +77,7 @@ export async function runFoundationCheck(
 
     const reports = await Promise.all(
       selected.map(async ({ id, configPath }) => {
-        const capability = CAPABILITY_REGISTRY.get(id);
+        const capability = dependencies.capabilities.get(id);
         if (capability === undefined) {
           throw new CapabilityInputError({
             code: "CAPABILITY_UNSUPPORTED",
@@ -100,4 +101,15 @@ export async function runFoundationCheck(
   } catch (error) {
     return rootProblemReport(invocation.foundationVersion, coverage, error);
   }
+}
+
+export interface FoundationCheckDependencies {
+  readonly readConfig: FoundationConfigReader;
+  readonly capabilities: ReadonlyMap<string, CapabilityDefinition>;
+}
+
+export type FoundationCheck = (invocation: FoundationCheckInvocation) => Promise<FoundationCheckReport>;
+
+export function createFoundationCheck(dependencies: FoundationCheckDependencies): FoundationCheck {
+  return (invocation) => runFoundationCheck(invocation, dependencies);
 }

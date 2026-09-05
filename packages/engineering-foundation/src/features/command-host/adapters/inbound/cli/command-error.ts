@@ -1,8 +1,8 @@
-import { CapabilityInputError } from "./capability-runtime.js";
-import { FoundationError } from "./errors.js";
-import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
-import { ScaffoldError } from "./scaffolding/scaffold-error.js";
-import { FoundationTransactionError } from "./transaction-coordination/application/foundation-transaction-error.js";
+import { CapabilityInputError } from "../../../../validation-reporting/api.js";
+import { FoundationError } from "../../../../../errors.js";
+import { ProcessCancellationError } from "../../../../../process-execution/node-process-runner.js";
+import { ScaffoldError } from "../../../../../scaffolding/scaffold-error.js";
+import { FoundationTransactionError } from "../../../../../transaction-coordination/application/foundation-transaction-error.js";
 
 export interface FoundationCommandErrorEnvelope {
   readonly schemaVersion: 1;
@@ -110,4 +110,8 @@ export function foundationCommandFailure(error: unknown): {
     },
     exitCode: 1,
   };
+}
+
+export function foundationCommandFailureJson(error: unknown): string {
+  return JSON.stringify(foundationCommandFailure(error).envelope);
 }

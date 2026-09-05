@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import {
   assertRepositoryRelativePath,

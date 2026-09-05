@@ -1,5 +1,5 @@
 import { sha256Bytes, sha256Json } from "../../../../canonical-json.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type {
   EffectiveInstructionCandidateObservation,
   EffectiveInstructionLayerReport,

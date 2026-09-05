@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemPackageScriptCatalogReader } from "./adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { QUALITY_GATE_RUNNER_RULES_BY_ID } from "./application/rules.js";
 import { analyzeQualityGateRunner } from "./application/use-cases/analyze-quality-gate-runner.js";

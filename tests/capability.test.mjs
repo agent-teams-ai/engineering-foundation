@@ -17,7 +17,7 @@ import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
-import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
+import { runFoundationCheck } from "../packages/engineering-foundation/dist/composition/foundation-check.js";
 import {
   CAPABILITY_REGISTRY,
   createCapabilityRegistry,
@@ -29,7 +29,7 @@ import {
   RULE_REGISTRY,
 } from "../packages/engineering-foundation/dist/composition/rule-registry.js";
 import { isExactVersion } from "../packages/engineering-foundation/dist/semantic-version.js";
-import { createUniqueRegistry } from "../packages/engineering-foundation/dist/unique-registry.js";
+import { createUniqueRegistry } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import {
   acceptedAdrHistoryViolations,
   acceptedAdrHistoryViolationsAtMergeBase,

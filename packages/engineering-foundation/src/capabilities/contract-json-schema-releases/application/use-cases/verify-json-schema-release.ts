@@ -14,7 +14,7 @@ export async function verifyJsonSchemaRelease(
   inspector: JsonSchemaReleaseInspector
 ): Promise<{
   readonly observation: JsonSchemaInspection;
-  readonly diagnostics: readonly import("../../../../check-contract.js").FoundationDiagnostic[];
+  readonly diagnostics: readonly import("../../../../features/validation-reporting/api.js").FoundationDiagnostic[];
 }> {
   const observation = await inspector.inspect({
     consumerRoot: input.consumerRoot,

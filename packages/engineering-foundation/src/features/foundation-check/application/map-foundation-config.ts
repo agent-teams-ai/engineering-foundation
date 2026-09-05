@@ -1,19 +1,7 @@
-import { compareBinaryStrings } from "./binary-string-comparator.js";
-import { CapabilityInputError } from "./capability-runtime.js";
-import { CAPABILITY_REGISTRY } from "./composition/capability-registry.js";
-import { assertSchema } from "./schema-catalog.js";
-import { loadStrictYamlFile } from "./strict-yaml.js";
+import { compareBinaryStrings } from "../../../binary-string-comparator.js";
+import { CapabilityInputError } from "../../validation-reporting/api.js";
 
-const FOUNDATION_CONFIG_PATH = "foundation.config.yaml";
-interface DeclaredCapability {
-  readonly id: string;
-  readonly configPath: string;
-}
-
-export interface FoundationSettings {
-  readonly projectId: string;
-  readonly declaredCapabilities: readonly DeclaredCapability[];
-}
+import type { DeclaredCapability, FoundationSettings } from "./settings.js";
 
 function inputError(message: string): never {
   throw new CapabilityInputError({
@@ -42,24 +30,17 @@ function string(value: unknown, field: string): string {
   return value;
 }
 
-export async function loadFoundationConfig(
-  consumerRoot: string,
-  signal?: AbortSignal
-): Promise<FoundationSettings> {
-  const input = await loadStrictYamlFile(
-    consumerRoot,
-    FOUNDATION_CONFIG_PATH,
-    "foundation-config",
-    signal
-  );
-  await assertSchema("foundation-config/v1", input, "foundation-config");
-
+/** Maps schema-validated, inert input; this function has no filesystem authority. */
+export function mapFoundationConfig(
+  input: unknown,
+  supportedCapabilityIds: ReadonlySet<string>
+): FoundationSettings {
   const root = record(input, "foundation config");
   const project = record(root["project"], "project");
   const capabilities = record(root["capabilities"], "capabilities");
   const declaredCapabilities: DeclaredCapability[] = [];
   for (const [id, declarationInput] of Object.entries(capabilities)) {
-    if (!CAPABILITY_REGISTRY.has(id)) {
+    if (!supportedCapabilityIds.has(id)) {
       inputError(`Unsupported capability declaration: ${id}.`);
     }
     const declaration = record(declarationInput, `capabilities.${id}`);

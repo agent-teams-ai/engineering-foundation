@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { MicrosoftPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
 import { NodeChangeFingerprint } from "./adapters/outbound/crypto/node-change-fingerprint.js";
 import { FilesystemPublicApiRepository } from "./adapters/outbound/filesystem/filesystem-public-api-repository.js";

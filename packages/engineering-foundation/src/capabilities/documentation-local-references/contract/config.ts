@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
 import type { DocumentationLocalReferencesPolicy } from "../application/model/documentation-local-references.js";

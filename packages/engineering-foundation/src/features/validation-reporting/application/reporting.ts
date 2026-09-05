@@ -6,9 +6,9 @@ import type {
   FoundationDiagnostic,
   FoundationOutcome,
   FoundationProblem
-} from "./check-contract.js";
-import { compareBinaryStrings } from "./binary-string-comparator.js";
-import { FOUNDATION_REPORT_SCHEMA_VERSION } from "./check-contract.js";
+} from "./model.js";
+import { compareBinaryStrings } from "../../../binary-string-comparator.js";
+import { FOUNDATION_REPORT_SCHEMA_VERSION } from "./model.js";
 import {
   classifyUnexpectedFailure,
   isProcessCancellationFailure

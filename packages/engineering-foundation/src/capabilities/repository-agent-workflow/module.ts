@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemRepositoryAgentWorkflowReader } from "./adapters/outbound/filesystem/filesystem-repository-agent-workflow-reader.js";
 import { REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID } from "./application/rules.js";
 import { analyzeRepositoryAgentWorkflow } from "./application/use-cases/analyze-repository-agent-workflow.js";

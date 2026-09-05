@@ -21,7 +21,7 @@ import {
   NodeProcessRunner as PublicNodeProcessRunner
 } from "../packages/engineering-foundation/dist/local-mode/index.js";
 import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/process-runner.js";
-import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
+import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/command-error.js";
 import {
   ProcessCancellationError,
   ProcessTimeoutError

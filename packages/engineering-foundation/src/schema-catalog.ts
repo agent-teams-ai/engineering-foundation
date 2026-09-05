@@ -11,7 +11,7 @@ import {
   readDocumentAuthoringSchema
 } from "@agent-teams/document-authoring";
 
-import { CapabilityInputError } from "./capability-runtime.js";
+import { CapabilityInputError } from "./features/validation-reporting/api.js";
 import {
   FOUNDATION_SCHEMA_IDS,
   type FoundationSchemaCatalogId,

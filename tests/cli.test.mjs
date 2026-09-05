@@ -260,3 +260,59 @@ test("SIGTERM cancels Buf qualification with exit code 130", {
     await rm(root, { force: true, recursive: true });
   }
 });
+
+test("command host dispatches once, preserves handler precedence and propagates failures", async () => {
+  const { dispatchFoundationCommand } = await import("../packages/engineering-foundation/dist/features/command-host/api.js");
+  const { FoundationError } = await import("../packages/engineering-foundation/dist/errors.js");
+  const input = Object.freeze({ command: "fixture", positional: [], consumerRoot: "/inert", configPath: "unused", format: "json", write: false });
+  const calls = [];
+  await dispatchFoundationCommand(input, [
+    async invocation => { assert.equal(invocation, input); calls.push("declined"); return false; },
+    async () => { calls.push("handled"); return true; },
+    async () => { assert.fail("no dispatch after handling"); },
+  ]);
+  assert.deepEqual(calls, ["declined", "handled"]);
+  await assert.rejects(dispatchFoundationCommand(input, [async () => false]), error => {
+    assert.ok(error instanceof FoundationError);
+    assert.equal(error.code, "CONSUMER_INVALID");
+    assert.equal(error.message, "Unknown command: fixture.");
+    return true;
+  });
+  const failure = new Error("handler failed");
+  await assert.rejects(dispatchFoundationCommand(input, [
+    async () => { throw failure; },
+    async () => { assert.fail("no fallback after failure"); },
+  ]), error => error === failure);
+});
+
+test("command cancellation composes exact signal subscriptions and disposes on success and failure", async () => {
+  const { nodeCommandCancellation } = await import("../packages/engineering-foundation/dist/features/command-host/module.js");
+  const before = { SIGINT: process.listenerCount("SIGINT"), SIGTERM: process.listenerCount("SIGTERM") };
+  await nodeCommandCancellation.withSignal(["SIGINT"], async signal => {
+    assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
+    assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM);
+    process.emit("SIGINT");
+    assert.equal(signal.aborted, true);
+  });
+  const error = new Error("lifecycle failure");
+  await assert.rejects(nodeCommandCancellation.withSignal(["SIGINT", "SIGTERM"], async signal => {
+    assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
+    assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM + 1);
+    process.emit("SIGTERM");
+    assert.equal(signal.aborted, true);
+    throw error;
+  }), failure => failure === error);
+  assert.equal(process.listenerCount("SIGINT"), before.SIGINT);
+  assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM);
+});
+
+test("self-check resolves package metadata from the executable after command-host relocation", () => {
+  const result = spawnSync(process.execPath, [cliPath, "self-check", "--json"], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+  const metadata = JSON.parse(result.stdout);
+  assert.equal(metadata.ok, true);
+  assert.equal(metadata.packageName, "@agent-teams/engineering-foundation");
+});

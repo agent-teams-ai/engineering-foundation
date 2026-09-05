@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 
 export function repositorySecurityInputError(code: string, message: string): never {
   throw new CapabilityInputError({

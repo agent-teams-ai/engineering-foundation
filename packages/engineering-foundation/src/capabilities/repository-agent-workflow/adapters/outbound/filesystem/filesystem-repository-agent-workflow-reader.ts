@@ -1,7 +1,7 @@
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import type {
   AgentInstructionPaths,

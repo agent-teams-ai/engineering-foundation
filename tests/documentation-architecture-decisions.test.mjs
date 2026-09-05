@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
+import { CapabilityInputError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import { NodeArchitectureDecisionFingerprint } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/crypto/node-architecture-decision-fingerprint.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { immutableArchitectureDecisionPayload } from "../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/application/model/architecture-decision.js";

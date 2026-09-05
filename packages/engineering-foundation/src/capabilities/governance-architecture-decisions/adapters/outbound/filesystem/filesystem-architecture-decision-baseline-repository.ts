@@ -12,7 +12,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { lock } from "proper-lockfile";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 import {
   ContainedFileReadError,
   pathTraversesSymbolicLink,

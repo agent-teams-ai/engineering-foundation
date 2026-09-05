@@ -1,39 +1,33 @@
-import { CapabilityInputError } from "./capability-runtime.js";
-import {
-  createNodeQualityGateCommand,
-  type QualityGateCommand
-} from "./capabilities/quality-gate-runner/gate-command.js";
-import {
-  NodeSignalQualityGateCancellationSource
-} from "./capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.js";
+import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
+import type { QualityGateCommand } from "../../../api.js";
 import {
   projectQualityGateRun,
   projectQualityGateSetupCancellation,
   type QualityGateCancellationSource,
   type QualityGateCliProjection,
   type QualityGateOperatorCancellation
-} from "./capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.js";
-import type { ParsedArguments } from "./cli-arguments.js";
-import { foundationCommandFailure } from "./command-error.js";
-import { FoundationError } from "./errors.js";
-import {
-  loadFoundationConfig,
-  type FoundationSettings
-} from "./foundation-config.js";
+} from "./quality-gate-cli.js";
+import { FoundationError } from "../../../../../errors.js";
+import type { FoundationConfigReader } from "../../../../../features/foundation-check/api.js";
 
-interface QualityGateCliCommandDependencies {
+export interface QualityGateCliCommandDependencies {
+  readonly failureJson: (error: unknown) => string;
   readonly cancellationSource: QualityGateCancellationSource;
   readonly commandFactory: (
     environment: NodeJS.ProcessEnv
   ) => QualityGateCommand;
-  readonly foundationConfigLoader: (
-    consumerRoot: string,
-    signal?: AbortSignal
-  ) => Promise<FoundationSettings>;
+  readonly foundationConfigLoader: FoundationConfigReader;
 }
 
-type QualityGateCliCommand = (
-  parsed: ParsedArguments,
+export interface QualityGateCliArguments {
+  readonly command: string;
+  readonly positional: readonly string[];
+  readonly consumerRoot: string;
+  readonly format: "json" | "text";
+}
+
+export type QualityGateCliCommand = (
+  parsed: QualityGateCliArguments,
   environment: NodeJS.ProcessEnv
 ) => Promise<boolean>;
 
@@ -42,14 +36,14 @@ function isExecutionCancellation(error: unknown): boolean {
     error.problem.code === "EXECUTION_CANCELLED";
 }
 
-function setupCancellationFailureJson(): string {
+function setupCancellationFailureJson(failureJson: (error: unknown) => string): string {
   const error = new CapabilityInputError({
     code: "EXECUTION_CANCELLED",
     message: "Quality gate execution was cancelled.",
     phase: "quality-gate-runner-command",
     retryable: false
   });
-  return JSON.stringify(foundationCommandFailure(error).envelope);
+  return failureJson(error);
 }
 
 function writeProjection(
@@ -92,7 +86,7 @@ export function createQualityGateCliCommand(
           projectQualityGateSetupCancellation(
             parsed.format,
             cancellation,
-            setupCancellationFailureJson()
+            setupCancellationFailureJson(dependencies.failureJson)
           )
         );
         return true;
@@ -120,7 +114,7 @@ export function createQualityGateCliCommand(
           projectQualityGateSetupCancellation(
             parsed.format,
             cancellation,
-            setupCancellationFailureJson()
+            setupCancellationFailureJson(dependencies.failureJson)
           )
         );
         return true;
@@ -132,13 +126,3 @@ export function createQualityGateCliCommand(
   };
 }
 
-export async function tryRunQualityGateCliCommand(
-  parsed: ParsedArguments,
-  environment: NodeJS.ProcessEnv
-): Promise<boolean> {
-  return createQualityGateCliCommand({
-    cancellationSource: new NodeSignalQualityGateCancellationSource(),
-    commandFactory: createNodeQualityGateCommand,
-    foundationConfigLoader: loadFoundationConfig
-  })(parsed, environment);
-}

@@ -4,7 +4,7 @@ import { isAbsolute, resolve } from "node:path";
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
 import { assertNotCancelled } from "./cancellation.js";
-import { CapabilityInputError } from "./capability-runtime.js";
+import { CapabilityInputError } from "./features/validation-reporting/api.js";
 import {
   ContainedFileReadError,
   readContainedRegularFile

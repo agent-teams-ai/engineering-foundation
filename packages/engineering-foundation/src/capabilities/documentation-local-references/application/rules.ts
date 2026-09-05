@@ -1,5 +1,5 @@
-import type { DiagnosticSeverity } from "../../../check-contract.js";
-import { createUniqueRegistry } from "../../../unique-registry.js";
+import type { DiagnosticSeverity } from "../../../features/validation-reporting/api.js";
+import { createUniqueRegistry } from "../../../features/validation-reporting/api.js";
 
 export interface DocumentationLocalReferencesRuleMetadata {
   readonly documentation: string;

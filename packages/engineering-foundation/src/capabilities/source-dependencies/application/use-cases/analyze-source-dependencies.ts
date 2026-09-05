@@ -1,7 +1,7 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { assertNotCancelled } from "../../../../cancellation.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../../source-inventory/application/ports/source-tree-reader.js";
 import type {

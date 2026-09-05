@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
 import type {

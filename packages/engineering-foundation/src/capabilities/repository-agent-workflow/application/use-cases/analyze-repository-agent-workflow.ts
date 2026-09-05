@@ -1,4 +1,4 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { RepositoryAgentWorkflowPolicy } from "../model/repository-agent-workflow.js";
 import { evaluateRepositoryAgentWorkflow } from "../policies/evaluate-repository-agent-workflow.js";

@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
 import { FilesystemBufBreakingQualificationEvidence } from "./adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
 import {

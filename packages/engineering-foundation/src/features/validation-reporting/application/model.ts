@@ -70,3 +70,11 @@ export interface FoundationCheckReport {
   readonly capabilities: readonly CapabilityReport[];
   readonly problem?: FoundationProblem;
 }
+
+export interface RuleExplanation {
+  readonly id: string;
+  readonly rationale: string;
+  readonly remediation: string;
+  readonly documentation: string;
+}
+

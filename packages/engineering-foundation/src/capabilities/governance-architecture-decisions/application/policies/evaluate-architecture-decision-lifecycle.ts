@@ -1,4 +1,4 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type { ArchitectureDecision } from "../model/architecture-decision.js";
 import { ARCHITECTURE_DECISION_GOVERNANCE_RULES } from "../rules.js";
 import { architectureDecisionDiagnostic } from "./architecture-decision-diagnostic.js";

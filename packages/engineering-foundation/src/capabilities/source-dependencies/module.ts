@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemSourceTreeReader } from "../../source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js";
 import { PnpmWorkspaceInventoryReader } from "../../workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
 import { NodeSourceDependencyResolver } from "./adapters/outbound/node/node-source-dependency-resolver.js";

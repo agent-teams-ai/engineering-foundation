@@ -4,7 +4,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemMarkdownRepository } from "@agent-teams/document-authoring/observation";
 import { NodeArchitectureDecisionFingerprint } from "./adapters/outbound/crypto/node-architecture-decision-fingerprint.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "./adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";

@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 import type { JsonSchemaReleaseInspector } from "./application/ports/json-schema-release-inspector.js";
 import { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";

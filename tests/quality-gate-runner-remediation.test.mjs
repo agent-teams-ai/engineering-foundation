@@ -10,14 +10,15 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 
 import {
   createQualityGateCommand,
-} from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
+} from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/api.js";
 import { NodeSignalQualityGateCancellationSource } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.js";
 import { runQualityGateProfile } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/use-cases/run-quality-gate-profile.js";
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
-import { CapabilityInputError } from "../packages/engineering-foundation/dist/capability-runtime.js";
-import { parseArguments } from "../packages/engineering-foundation/dist/cli-arguments.js";
+import { CapabilityInputError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
+import { parseArguments } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/cli-arguments.js";
 import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
-import { createQualityGateCliCommand } from "../packages/engineering-foundation/dist/quality-gate-cli-command.js";
+import { foundationCommandFailureJson } from "../packages/engineering-foundation/dist/features/command-host/module.js";
+import { createQualityGateCliCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.js";
 import {
   cleanupSyntheticFixture,
   createControlledQgrCancellationSource,
@@ -103,6 +104,7 @@ test("entrypoint retains config-load SIGTERM through canonical JSON and concise 
     let observedSignal;
     const started = new Promise((resolve) => { configLoadStarted = resolve; });
     const entrypoint = createQualityGateCliCommand({
+      failureJson: foundationCommandFailureJson,
       cancellationSource: new NodeSignalQualityGateCancellationSource(),
       commandFactory() {
         throw new Error("QGR command must not start after configuration cancellation.");
@@ -187,6 +189,7 @@ test("entrypoint keeps an observed output-limit failure above concurrent cancell
     },
   });
   const entrypoint = createQualityGateCliCommand({
+      failureJson: foundationCommandFailureJson,
     cancellationSource,
     commandFactory: () => command,
     async foundationConfigLoader(_consumerRoot, signal) {
@@ -328,11 +331,15 @@ test("QGR setup cancellation delegates its JSON envelope to the canonical Founda
     import.meta.url,
   ), "utf8");
   const commandSource = await readFile(new URL(
-    "../packages/engineering-foundation/src/quality-gate-cli-command.ts",
+    "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.ts",
     import.meta.url,
   ), "utf8");
   assert.doesNotMatch(projectionSource, /schemaVersion|EXECUTION_CANCELLED/u);
-  assert.match(commandSource, /foundationCommandFailure\(error\)\.envelope/u);
+  assert.match(commandSource, /failureJson\(error\)/u);
+  const compositionSource = await readFile(new URL(
+    "../packages/engineering-foundation/src/composition/command-host.ts", import.meta.url,
+  ), "utf8");
+  assert.match(compositionSource, /failureJson: foundationCommandFailureJson/u);
 });
 
 test("real SIGINT cancellation projects canonical JSON and exits 130", {

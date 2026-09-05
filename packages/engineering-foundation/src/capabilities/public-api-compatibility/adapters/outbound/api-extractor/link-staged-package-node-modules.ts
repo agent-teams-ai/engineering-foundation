@@ -1,7 +1,7 @@
 import { stat, symlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 
 function inputError(code: string, message: string): never {
   throw new CapabilityInputError({

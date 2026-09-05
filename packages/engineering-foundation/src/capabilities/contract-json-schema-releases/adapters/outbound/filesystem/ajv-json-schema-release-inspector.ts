@@ -6,7 +6,7 @@ import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
 import {
   ContainedFileReadError,
   readContainedRegularFile

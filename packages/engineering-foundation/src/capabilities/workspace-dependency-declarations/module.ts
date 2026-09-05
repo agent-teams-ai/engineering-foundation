@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { PnpmWorkspaceReader } from "./adapters/outbound/pnpm-workspace/pnpm-workspace-reader.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,

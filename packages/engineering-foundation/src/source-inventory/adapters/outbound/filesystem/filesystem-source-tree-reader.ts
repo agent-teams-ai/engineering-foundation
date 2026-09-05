@@ -1,7 +1,7 @@
 import { opendir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import {
   ContainedFileReadError,
   pathTraversesSymbolicLink,

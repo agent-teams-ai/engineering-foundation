@@ -1,4 +1,4 @@
-import type { DiagnosticSeverity, FoundationDiagnostic } from "../../../../check-contract.js";
+import type { DiagnosticSeverity, FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type { RepositorySecurityRuleMetadata } from "../rules.js";
 
 export function repositorySecurityDiagnostic(input: {

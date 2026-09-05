@@ -2,7 +2,7 @@ import { open, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CapabilityInputError } from "../../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
 import { readContainedRegularFile } from "../../../../../../filesystem-path-safety.js";
 import { assertNotCancelled } from "../../../../../../strict-yaml.js";
 import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";

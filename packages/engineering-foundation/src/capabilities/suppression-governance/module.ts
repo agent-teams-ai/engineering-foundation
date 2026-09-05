@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemSourceTreeReader } from "../../source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js";
 import { OxcSuppressionScanner } from "./adapters/outbound/oxc/oxc-suppression-scanner.js";
 import { SystemCalendarClock } from "./adapters/outbound/time/system-clock.js";

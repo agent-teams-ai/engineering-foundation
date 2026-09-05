@@ -1,4 +1,4 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type { SourceTreeReader } from "../../../../source-inventory/application/ports/source-tree-reader.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { SuppressionGovernancePolicy } from "../model/suppression-governance.js";

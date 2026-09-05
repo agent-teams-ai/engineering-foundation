@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { ExecutableSpecificationCatalog } from "../model/executable-specification.js";
 import {

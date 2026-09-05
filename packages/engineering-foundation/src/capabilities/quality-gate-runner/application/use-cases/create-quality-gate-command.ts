@@ -1,20 +1,11 @@
-import { CapabilityInputError } from "../../capability-runtime.js";
-import type { QualityGateRunReport } from "./application/model/quality-gate-report.js";
-import type { MonotonicClock } from "./application/ports/monotonic-clock.js";
-import type { PackageScriptCatalogReader } from "./application/ports/package-script-catalog-reader.js";
-import type { PackageScriptExecutor } from "./application/ports/package-script-executor.js";
-import { evaluateQualityGateScripts } from "./application/policies/evaluate-quality-gate-scripts.js";
-import { runQualityGateProfile } from "./application/use-cases/run-quality-gate-profile.js";
-import { FilesystemPackageScriptCatalogReader } from "./adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
-import { PnpmQualityGateScriptExecutor } from "./adapters/outbound/pnpm/pnpm-package-script-executor.js";
-import { performanceMonotonicClock } from "./adapters/outbound/time/performance-monotonic-clock.js";
-import {
-  loadQualityGatePolicy,
-  type QualityGatePolicyLoader
-} from "./contract/config.js";
-
-const ACTIVE_GATE_ENVIRONMENT_VARIABLE =
-  "AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
+import type { QualityGateRunReport } from "../model/quality-gate-report.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
+import type { PackageScriptCatalogReader } from "../ports/package-script-catalog-reader.js";
+import type { PackageScriptExecutor } from "../ports/package-script-executor.js";
+import { evaluateQualityGateScripts } from "../policies/evaluate-quality-gate-scripts.js";
+import { runQualityGateProfile } from "./run-quality-gate-profile.js";
+import type { QualityGatePolicyLoader } from "../ports/quality-gate-policy-loader.js";
 
 function inputError(code: string, message: string): never {
   throw new CapabilityInputError({
@@ -101,30 +92,3 @@ export function createQualityGateCommand(
   };
 }
 
-export function createNodeQualityGateCommand(
-  environment: NodeJS.ProcessEnv
-): QualityGateCommand {
-  const snapshot = Object.freeze({ ...environment });
-  return async (input) => createQualityGateCommand({
-    catalogReader: new FilesystemPackageScriptCatalogReader(),
-    clock: performanceMonotonicClock,
-    executor: new PnpmQualityGateScriptExecutor({
-      childEnvironment: Object.freeze({
-        ...snapshot,
-        [ACTIVE_GATE_ENVIRONMENT_VARIABLE]: input.profileId
-      }),
-      ...(snapshot.npm_execpath === undefined
-        ? {}
-        : { npmExecPath: snapshot.npm_execpath }),
-      ...(snapshot.PNPM_HOME === undefined
-        ? {}
-        : { pnpmHome: snapshot.PNPM_HOME }),
-      ...(snapshot.PATH === undefined
-        ? {}
-        : { pathValue: snapshot.PATH })
-    }),
-    policyLoader: loadQualityGatePolicy,
-    qualityGateActive:
-      snapshot[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined
-  })(input);
-}

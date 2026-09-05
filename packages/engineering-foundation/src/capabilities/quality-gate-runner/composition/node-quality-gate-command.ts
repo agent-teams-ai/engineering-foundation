@@ -1,0 +1,35 @@
+import { createQualityGateCommand, type QualityGateCommand } from "../api.js";
+import { FilesystemPackageScriptCatalogReader } from "../adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
+import { PnpmQualityGateScriptExecutor } from "../adapters/outbound/pnpm/pnpm-package-script-executor.js";
+import { performanceMonotonicClock } from "../adapters/outbound/time/performance-monotonic-clock.js";
+import { loadQualityGatePolicy } from "../contract/config.js";
+
+const ACTIVE_GATE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE";
+
+export function createNodeQualityGateCommand(
+  environment: NodeJS.ProcessEnv
+): QualityGateCommand {
+  const snapshot = Object.freeze({ ...environment });
+  return async (input) => createQualityGateCommand({
+    catalogReader: new FilesystemPackageScriptCatalogReader(),
+    clock: performanceMonotonicClock,
+    executor: new PnpmQualityGateScriptExecutor({
+      childEnvironment: Object.freeze({
+        ...snapshot,
+        [ACTIVE_GATE_ENVIRONMENT_VARIABLE]: input.profileId
+      }),
+      ...(snapshot.npm_execpath === undefined
+        ? {}
+        : { npmExecPath: snapshot.npm_execpath }),
+      ...(snapshot.PNPM_HOME === undefined
+        ? {}
+        : { pnpmHome: snapshot.PNPM_HOME }),
+      ...(snapshot.PATH === undefined
+        ? {}
+        : { pathValue: snapshot.PATH })
+    }),
+    policyLoader: loadQualityGatePolicy,
+    qualityGateActive:
+      snapshot[ACTIVE_GATE_ENVIRONMENT_VARIABLE] !== undefined
+  })(input);
+}

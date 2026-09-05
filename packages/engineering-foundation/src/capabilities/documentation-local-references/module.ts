@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemMarkdownRepository } from "@agent-teams/document-authoring/observation";
 import { DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID } from "./application/rules.js";
 import { analyzeDocumentationLocalReferences } from "./application/use-cases/analyze-documentation-local-references.js";

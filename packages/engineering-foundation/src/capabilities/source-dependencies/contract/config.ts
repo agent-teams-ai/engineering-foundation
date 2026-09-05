@@ -1,6 +1,6 @@
 import { compareBinaryStrings } from "../../../binary-string-comparator.js";
 import { assertNotCancelled } from "../../../cancellation.js";
-import { CapabilityInputError } from "../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { loadStrictYamlFile } from "../../../strict-yaml.js";
 import {

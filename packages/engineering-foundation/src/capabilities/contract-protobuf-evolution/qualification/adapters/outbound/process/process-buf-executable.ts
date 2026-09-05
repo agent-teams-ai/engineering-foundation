@@ -1,7 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { CapabilityInputError } from "../../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
 import { executeManagedProcess } from "../../../../../../process-execution/node-process-runner.js";
 import { assertNotCancelled } from "../../../../../../strict-yaml.js";
 import type {

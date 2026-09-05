@@ -3,7 +3,7 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemRepositorySecurityReader } from "./adapters/outbound/filesystem/filesystem-repository-security-reader.js";
 import { REPOSITORY_SECURITY_RULES_BY_ID } from "./application/rules.js";
 import { analyzeRepositorySecurity } from "./application/use-cases/analyze-repository-security.js";

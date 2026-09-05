@@ -4,7 +4,7 @@ import { setTimeout as wait } from "node:timers/promises";
 
 import { lock } from "proper-lockfile";
 
-import { CapabilityInputError } from "../../../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../../../cancellation.js";
 import {
   ContainedFileReadError,

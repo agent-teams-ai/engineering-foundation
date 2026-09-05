@@ -1,7 +1,7 @@
 import type {
   FoundationCheckReport,
   FoundationDiagnostic
-} from "./check-contract.js";
+} from "../../../../validation-reporting/api.js";
 
 function renderDiagnostic(diagnostic: FoundationDiagnostic): string {
   const location = diagnostic.location.start === undefined

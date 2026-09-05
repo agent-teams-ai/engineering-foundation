@@ -1,4 +1,4 @@
-import type { CapabilityDefinition } from "../capability-runtime.js";
+import type { CapabilityDefinition, RuleExplanation } from "../features/validation-reporting/api.js";
 import {
   createJsonSchemaReleaseCapability,
   JSON_SCHEMA_RELEASE_RULES_BY_ID
@@ -48,12 +48,7 @@ import {
   RULES_BY_ID as WORKSPACE_RULES_BY_ID
 } from "../capabilities/workspace-dependency-declarations/module.js";
 
-export interface RuleExplanation {
-  readonly id: string;
-  readonly rationale: string;
-  readonly remediation: string;
-  readonly documentation: string;
-}
+export type { RuleExplanation } from "../features/validation-reporting/api.js";
 
 export interface CapabilityModuleDescriptor {
   readonly definition: CapabilityDefinition;

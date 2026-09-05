@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
 import { loadStrictYamlFile } from "../../../strict-yaml.js";
 import type {
@@ -14,11 +14,7 @@ import {
 export const CAPABILITY_ID = "quality.gate-runner" as const;
 export const CAPABILITY_CONFIG_SCHEMA_VERSION = 1 as const;
 
-export type QualityGatePolicyLoader = (
-  consumerRoot: string,
-  configPath: string,
-  signal?: AbortSignal
-) => Promise<QualityGatePolicy>;
+export type { QualityGatePolicyLoader } from "../api.js";
 
 function inputError(message: string): never {
   throw new CapabilityInputError({

@@ -1,4 +1,4 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../strict-yaml.js";
 import type { PublicApiCompatibilityPolicy } from "../model/public-api.js";
 import type { AcceptedDecisionEvidencePort } from "../ports/accepted-decision-evidence.js";

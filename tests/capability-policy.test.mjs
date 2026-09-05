@@ -437,3 +437,127 @@ test("rejects expired and overlong exact waivers", async () => {
     );
   });
 });
+
+test("foundation-check pure mapping preserves ordered settings and mapping diagnostics", async () => {
+  const { mapFoundationConfig } = await import("../packages/engineering-foundation/dist/features/foundation-check/application/map-foundation-config.js");
+  const supported = new Set(["z.check", "a.check"]);
+  const input = { project: { id: "fixture" }, capabilities: {
+    "z.check": { configPath: "z.yaml" }, "a.check": { configPath: "a.yaml" },
+  }};
+  const settings = mapFoundationConfig(input, supported);
+  assert.deepEqual(settings, { projectId: "fixture", declaredCapabilities: [
+    { id: "a.check", configPath: "a.yaml" }, { id: "z.check", configPath: "z.yaml" },
+  ] });
+  assert.equal(Object.isFrozen(settings), true);
+  assert.equal(Object.isFrozen(settings.declaredCapabilities), true);
+  assert.deepEqual(Object.keys(input.capabilities), ["z.check", "a.check"]);
+  for (const [value, message] of [
+    [null, "foundation config must be an object."],
+    [{ project: false }, "project must be an object."],
+    [{ project: {}, capabilities: [] }, "capabilities must be an object."],
+    [{ project: {}, capabilities: { "x.check": {} } }, "Unsupported capability declaration: x.check."],
+    [{ project: {}, capabilities: { "a.check": [] } }, "capabilities.a.check must be an object."],
+    [{ project: {}, capabilities: { "a.check": { configPath: 1 } } }, "capabilities.a.check.configPath must be a string."],
+    [{ project: {}, capabilities: {} }, "project.id must be a string."],
+  ]) {
+    assert.throws(() => mapFoundationConfig(value, supported), (error) => {
+      assert.deepEqual(error.problem, { code: "FOUNDATION_CONFIG_INVALID", message, phase: "foundation-config", retryable: false });
+      return true;
+    });
+  }
+});
+
+test("foundation-check runs injected independent capabilities concurrently and orders their reports", async () => {
+  const { createFoundationCheck } = await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
+  const { capabilityReport } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const started = [];
+  const releases = new Map();
+  const controller = new AbortController();
+  const read = Promise.withResolvers();
+  const runner = createFoundationCheck({
+    readConfig: (root, signal) => {
+      assert.equal(root, "no-filesystem-authority");
+      assert.equal(signal, controller.signal);
+      return read.promise;
+    },
+    capabilities: new Map(["z.check", "a.check"].map((id) => [id, {
+      id, configSchemaVersion: 1,
+      run: (input) => {
+        assert.deepEqual(input, { consumerRoot: "no-filesystem-authority", configPath: `${id}.yaml`, signal: controller.signal });
+        started.push(id);
+        const deferred = Promise.withResolvers();
+        releases.set(id, () => deferred.resolve(capabilityReport({ capabilityId: id, capabilityConfigSchemaVersion: 1 })));
+        return deferred.promise;
+      },
+    }])),
+  });
+  const result = runner({ consumerRoot: "no-filesystem-authority", foundationVersion: "1.2.3", signal: controller.signal });
+  assert.deepEqual(started, []);
+  read.resolve({ projectId: "fixture", declaredCapabilities: ["z.check", "a.check"].map(id => ({ id, configPath: `${id}.yaml` })) });
+  await Promise.resolve();
+  assert.deepEqual(started, ["z.check", "a.check"]);
+  releases.get("a.check")();
+  releases.get("z.check")();
+  const report = await result;
+  assert.equal(report.outcome, "passed");
+  assert.equal(report.coverage, "full");
+  assert.equal(report.foundationVersion, "1.2.3");
+  assert.deepEqual(report.capabilities.map(({ capabilityId }) => capabilityId), ["a.check", "z.check"]);
+});
+
+test("foundation-check preserves full versus selected scope and every aggregate outcome", async () => {
+  const { createFoundationCheck } = await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
+  const { capabilityReport, exitCodeForOutcome } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const outcomes = ["passed", "violations", "invalid-input", "failed", "cancelled"];
+  const exits = [0, 1, 2, 3, 130];
+  for (const [index, outcome] of outcomes.entries()) {
+    const calls = [];
+    const runner = createFoundationCheck({
+      readConfig: async () => ({ projectId: "fixture", declaredCapabilities: ["a.check", "b.check"].map(id => ({ id, configPath: `${id}.yaml` })) }),
+      capabilities: new Map(["a.check", "b.check"].map(id => [id, { id, configSchemaVersion: 1, run: async () => {
+        calls.push(id);
+        return capabilityReport({ capabilityId: id, capabilityConfigSchemaVersion: 1, outcome: id === "a.check" ? outcome : "passed" });
+      } }])),
+    });
+    const input = { consumerRoot: "inert", foundationVersion: "1.2.3" };
+    const full = await runner(input);
+    assert.equal(full.outcome, outcome);
+    assert.equal(full.coverage, "full");
+    assert.equal(exitCodeForOutcome(full.outcome), exits[index]);
+    assert.deepEqual(calls, ["a.check", "b.check"]);
+    calls.length = 0;
+    const selected = await runner({ ...input, capabilityId: "b.check" });
+    assert.equal(selected.outcome, "passed");
+    assert.equal(selected.coverage, "selected");
+    assert.deepEqual(calls, ["b.check"]);
+    calls.length = 0;
+    const missing = await runner({ ...input, capabilityId: "missing.check" });
+    assert.equal(missing.coverage, "selected");
+    assert.equal(missing.problem.code, "CAPABILITY_NOT_DECLARED");
+    assert.deepEqual(calls, []);
+  }
+});
+
+test("foundation-check injected input failures retain cancellation and sanitized root failures", async () => {
+  const { createFoundationCheck } = await import("../packages/engineering-foundation/dist/features/foundation-check/api.js");
+  const { CapabilityInputError } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const input = { consumerRoot: "inert", foundationVersion: "1.2.3", capabilityId: "a.check" };
+  for (const [error, outcome, code] of [
+    [new CapabilityInputError({ code: "EXECUTION_CANCELLED", message: "Cancelled.", phase: "fixture", retryable: false }), "cancelled", "EXECUTION_CANCELLED"],
+    [Object.assign(new Error("private"), { name: "ProcessCancellationError" }), "cancelled", "EXECUTION_CANCELLED"],
+    [new TypeError("private"), "failed", "UNEXPECTED_CONTRACT_FAILURE"],
+    [new CapabilityInputError({ code: "CONFIG_FILE_UNAVAILABLE", message: "Missing.", phase: "foundation-config", retryable: false }), "invalid-input", "CONFIG_FILE_UNAVAILABLE"],
+  ]) {
+    const report = await createFoundationCheck({ readConfig: async () => { throw error; }, capabilities: new Map() })(input);
+    assert.equal(report.coverage, "selected");
+    assert.equal(report.outcome, outcome);
+    assert.equal(report.problem.code, code);
+    assert.deepEqual(report.capabilities, []);
+    assert.equal(JSON.stringify(report).includes("private"), false);
+  }
+  const unsupported = await createFoundationCheck({
+    readConfig: async () => ({ projectId: "fixture", declaredCapabilities: [{ id: "a.check", configPath: "a.yaml" }] }),
+    capabilities: new Map(),
+  })(input);
+  assert.equal(unsupported.problem.code, "CAPABILITY_UNSUPPORTED");
+});

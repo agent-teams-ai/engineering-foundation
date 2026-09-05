@@ -155,7 +155,7 @@ export function documentFindFailure(
       exitCode: authorityStale ? 1 : 2
     });
   }
-  if (error instanceof DocumentAuthoringError && error.code === "CONSUMER_INVALID") {
+  if (error instanceof DocumentAuthoringError) {
     return Object.freeze({
       envelope: envelope({
         diagnostics: [

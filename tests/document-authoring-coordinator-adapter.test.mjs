@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/adapters/node/node-document-transaction-coordinator.js";
 import { canonicalJson, sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
@@ -18,6 +20,21 @@ const contract = JSON.parse(await readFile(
 const stateDirectory = ".agent-teams-local";
 const journalName = "scaffolding-transaction.json";
 const lockName = "foundation-operation.lock";
+
+for (const operation of ["apply", "recover"]) {
+  test(`${operation} composition preserves the microtask before writer initialization`, () => {
+    const child = spawnSync(process.execPath, [
+      "--experimental-test-module-mocks",
+      fileURLToPath(new URL(
+        "../packages/document-authoring/tests/fixtures/writer-scheduling.mjs", import.meta.url
+      )),
+      operation
+    ], { encoding: "utf8", timeout: 30_000 });
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, 0, child.stdout + child.stderr);
+    assert.deepEqual(JSON.parse(child.stdout), { operation, outcome: "passed" });
+  });
+}
 
 async function withRoot(run) {
   const root = await mkdtemp(join(tmpdir(), "document-coordinator-adapter-"));

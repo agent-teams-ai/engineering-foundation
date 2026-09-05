@@ -100,8 +100,7 @@ export function projectDocumentCommandFailure(input: {
       outcome
     };
   }
-  if (error instanceof CapabilityInputError ||
-    (error instanceof DocumentAuthoringError && error.code === "CONSUMER_INVALID")) {
+  if (error instanceof CapabilityInputError || error instanceof DocumentAuthoringError) {
     return {
       diagnostic: {
         ruleId: `${command}.invalid-input`, severity: "error", phase: "input",

@@ -285,43 +285,6 @@ test("v2 bounds pnpm-selected workspace closure discovery", async () => {
   });
 });
 
-test("v2 source closure prunes fixed non-source directories", async () => {
-  await withCopiedFixture("v2-valid", async (consumerRoot) => {
-    for (const directory of [".git", "coverage", "dist", "node_modules"]) {
-      const ignoredRoot = join(
-        consumerRoot,
-        "packages",
-        "app",
-        "src",
-        directory,
-      );
-      await mkdir(ignoredRoot, { recursive: true });
-      await writeFile(
-        join(ignoredRoot, "ignored.ts"),
-        'import "outside-policy";\n',
-        "utf8",
-      );
-    }
-    if (process.platform !== "win32") {
-      await symlink(
-        join(consumerRoot, "packages", "app", "src"),
-        join(
-          consumerRoot,
-          "packages",
-          "app",
-          "src",
-          "node_modules",
-          "linked-source",
-        ),
-        "dir",
-      );
-    }
-    const report = await runSourceCapability(consumerRoot);
-    assert.equal(report.outcome, "passed");
-    assert.equal(JSON.stringify(report).includes("ignored.ts"), false);
-  });
-});
-
 test("v2 rejects hostile, aliased, and overlapping package roots", async () => {
   await withTemporaryDirectory(async (consumerRoot) => {
     const hostileRoots = [

@@ -1,6 +1,6 @@
 import { docsContextV1, docsFindV3, docsInfoV2 } from "@agent-teams/docs-protocol";
 
-import type { DocsReader } from "./contracts.js";
+import type { DocsReader } from "../../application/ports/docs-reader.js";
 
 export class NodeDocsReader implements DocsReader {
   info(input: Parameters<DocsReader["info"]>[0]) {

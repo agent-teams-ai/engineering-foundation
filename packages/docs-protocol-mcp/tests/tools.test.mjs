@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -308,7 +309,7 @@ test("docs_find requires a bounded valid query", async () => {
   assert.ok("value" in await validate({ text: "ADR", maxResults: 100 }));
 });
 
-test("advertised schemas require find queries and fuzzy text without requiring context filters", () => {
+test("advertised schemas require find queries and fuzzy text without requiring context filters", async () => {
   const reader = {
     async info() { return execution("docs.info", {}); },
     async find() { return execution("docs.find", { documents: [] }); },
@@ -324,6 +325,9 @@ test("advertised schemas require find queries and fuzzy text without requiring c
   for (const advertised of [advertisedFind, advertisedContext]) {
     assert.deepEqual(advertised.allOf[0].if, { properties: { fuzzy: { const: true } }, required: ["fuzzy"] });
     assert.deepEqual(advertised.allOf[0]["then"], { required: ["text"] });
+    assert.equal(await Promise.resolve(advertised.allOf[0]), advertised.allOf[0]);
+    assert.ok(Object.isFrozen(advertised.allOf[0]));
+    assert.ok(Object.isFrozen(advertised.allOf[0]["then"].required));
     for (const field of ["id", "owner", "related", "blockedBy"]) {
       assert.deepEqual(advertised.properties[field], {
         type: "string",
@@ -394,4 +398,49 @@ test("docs_context returns llms.txt through the package projection and validates
   assert.ok("value" in await context.inputSchema["~standard"].validate({ fuzzy: false }));
   assert.ok("value" in await context.inputSchema["~standard"].validate({ maxBytes: 4096, maxDocuments: 2 }));
   assert.ok("value" in await context.inputSchema["~standard"].validate({ text: "docs", maxBytes: 4096, maxDocuments: 2 }));
+});
+
+// Captured before the loader/topology fix from candidate 9c5199db73547f39b8959aba123887f89f51ce60.
+// These published V1 JSON bytes must survive internal schema assembly changes.
+test("published MCP schemas retain their exact V1 serialization", () => {
+  const schemas = [DOCS_INFO_OUTPUT_SCHEMA_V1, DOCS_FIND_OUTPUT_SCHEMA_V1,
+    DOCS_CONTEXT_OUTPUT_SCHEMA_V1, DOCS_ERROR_OUTPUT_SCHEMA_V1,
+    ...createDocsTools({}, BINDING).map(advertisedSchema)];
+  assert.deepEqual(schemas.map((schema) => createHash("sha256").update(JSON.stringify(schema)).digest("hex")),
+    [
+    "a23b0c457a497e29127287a231d685781c5fd556a0d50284dde2e52428004839",
+    "b6851e7950b2e5b09db6a9bb1211d5d4cb7b48ea16a79120028e39bf86cc7107",
+    "9bcbc756edec6e5fd690e51f726f9da7d612d202abe8166720377302a69c6a57",
+    "970a1c355bb8d9413174dbf4cb772f5f574e4facb8bab28f074b409b227a4184",
+    "b151588b27a9a7b6d0808c5c25073aa15d449cea66fba5bf47357ce04962f141",
+    "185327799c27783dfabe5d95b27dd9c18ba5b4a8ddd918b9777ed46a709681c1",
+    "4010d2323d67a096e8bf827edd1fdba8bbf32186abb0381f746daaf960ff214a"
+]);
+});
+
+test("validated transport arguments preserve fields and map only explicit query authority", async () => {
+  const calls = [];
+  const reader = {
+    async info() { return execution("docs.info", {}); },
+    async find(input) { calls.push(input); return execution("docs.find", { documents: [] }); },
+    async context(input) { calls.push(input); return execution("docs.context", { format: "llms.txt", content: "" }); }
+  };
+  const [, find, context] = createDocsTools(reader, BINDING);
+  const query = { blockedBy: "TASK-1", id: "ADR-1", owner: "@docs/team", related: "ADR-2", status: "active", text: "docs", type: "adr" };
+  const signal = new AbortController().signal;
+  for (const [tool, limits] of [[find, { maxResults: 3 }], [context, { maxBytes: 4096, maxDocuments: 2 }]]) {
+    const input = { ...query, ...limits, fuzzy: true };
+    const parsed = await tool.inputSchema["~standard"].validate(input);
+    assert.deepEqual(parsed, { value: input });
+    assert.ok(Object.isFrozen(parsed.value));
+    const result = await tool.run(parsed.value, signal);
+    assert.deepEqual(result.structuredContent, parseResult(result));
+  }
+  for (const call of calls) {
+    assert.deepEqual(call.query, { ...query, ranking: "fuzzy-advisory" });
+    assert.equal(call.consumerRoot, BINDING.consumerRoot);
+    assert.equal(call.profilePath, BINDING.profilePath);
+    assert.equal(call.signal, signal);
+  }
+  assert.deepEqual(calls[1].limits, { maxBytes: 4096, maxDocuments: 2 });
 });

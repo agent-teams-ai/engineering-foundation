@@ -73,6 +73,16 @@ order with a fresh token for each package. Disable the bootstrap repository
 variable after the approved batch and confirm cleanup before merging the release
 PR.
 
+Ordinary `published-compatibility:e2e`, including CI and `pnpm verify`, checks
+bootstrap baselines, pinned old Foundation transaction barriers, published
+document authoring, and scaffolding compatibility. It explicitly defers current
+public Docs completion: npm publication may precede the Git tags and GitHub
+releases that the ordered publisher must reconcile. To require current public
+completion explicitly, run `pnpm published-compatibility:e2e --require-public-docs`.
+That opt-in fails closed for unavailable coordinates or any failed public gate.
+`release:publish` retains the required `public-docs-release:e2e` after the ordered
+publisher and GitHub reconciliation.
+
 The ordered release command does not complete after npm publication alone. Its
 final required phase resolves the canonical public Docs Protocol coordinates and
 installs docs-only plus docs-and-MCP profiles through both npm and pnpm in fresh

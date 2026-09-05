@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { main as runPublishedCompatibility } from "../scripts/published-compatibility-e2e.mjs";
+
 import { verifyGithubTagRelease } from "../scripts/github-release-reconciliation.mjs";
 import { npmPurlName } from "../scripts/release-publish-ordered.mjs";
 import {
@@ -535,4 +537,85 @@ test("exact target rejects when public coordinates remain pending", async () => 
     }),
     write: () => {},
   }), /Required public Docs Protocol coordinates are not available/u);
+});
+
+function strictCompatibilityOptions(qualifyPublicDocs) {
+  return {
+    args: ["--require-public-docs"],
+    qualifyPublicDocs,
+    verifyAuthoring: async () => {},
+    verifyBootstrap: async () => [],
+    verifyScaffolding: async () => {},
+    verifyTransactions: async () => {},
+    write: () => {},
+  };
+}
+
+function publicCompletionFixture({ refCommit = "a".repeat(40), missing = false, mutate } = {}) {
+  return (input, options) => verifyPublicExactDocsCoordinates(input, {
+    ...options,
+    auditSignatures: async () => ({}),
+    installAndQualify: async ({ temporaryRoot, matrixEntry }) => ({
+      root: join(temporaryRoot, matrixEntry.id),
+      userConfigPath: join(temporaryRoot, matrixEntry.id, "npmrc"),
+    }),
+    observePublishedPackages: async (coordinates) => publishedEvidence(coordinates, mutate),
+    verifyGithub: (tag, commit, githubOptions) => verifyGithubTagRelease(tag, commit, {
+      ...githubOptions,
+      attempts: 1,
+      request: (args) => {
+        assert.equal(args.includes("--method"), false);
+        if (missing) {
+          return;
+        }
+        if (args[0].includes("/git/ref/tags/")) {
+          return { object: { sha: refCommit, type: "commit" } };
+        }
+        if (args[0].includes("/releases/tags/")) {
+          return { draft: false, prerelease: false, tag_name: tag };
+        }
+        throw new Error(`Unexpected route ${args[0]}`);
+      },
+    }),
+    verifyProvenance: () => ({ commit: "a".repeat(40) }),
+  });
+}
+
+test("strict compatibility and final release completion reject absent or wrong tags and SRI", async () => {
+  const release = releaseFixture({
+    [releaseAuthorityFixture.packages.cli.name]: "0.5.0",
+    [releaseAuthorityFixture.packages.mcp.name]: "0.2.0",
+  });
+  const runFinal = (qualify) => runPublicDocsReleaseQualification({
+    inspectReleaseState: async () => release,
+    loadAuthority: async () => releaseAuthorityFixture,
+    qualify,
+    write: () => {},
+  });
+  for (const [scenario, expected] of [
+    [{ missing: true }, /remained absent/u],
+    [{ refCommit: "b".repeat(40) }, /Git tag is not bound/u],
+    [{ mutate: (value) => ({ ...value, integrity: "sha512-invalid" }) }, /integrity/u],
+    [{ mutate: (value) => ({ ...value, latest: "9.9.9" }) }, /latest dist-tag drifted/u],
+  ]) {
+    const qualify = publicCompletionFixture(scenario);
+    await assert.rejects(runPublishedCompatibility(strictCompatibilityOptions(qualify)), expected);
+    await assert.rejects(runFinal(qualify), expected);
+  }
+  const qualify = publicCompletionFixture();
+  assert.equal((await runPublishedCompatibility(strictCompatibilityOptions(qualify))).publicDocs.status, "ready");
+  assert.equal((await runFinal(qualify)).qualification.status, "ready");
+});
+
+test("strict compatibility requires available coordinates and propagates observation failures", async () => {
+  await assert.rejects(runPublishedCompatibility(strictCompatibilityOptions(async (_input, options) => {
+    assert.equal(options.observationAttempts, 5);
+    return { missing: [], status: "pending" };
+  })), /Required public Docs Protocol coordinates are not available/u);
+  for (const message of ["HTTP 401", "HTTP 403", "network unavailable", "conflicting GitHub release", "invalid npm signature"]) {
+    const failure = new Error(message);
+    await assert.rejects(runPublishedCompatibility(strictCompatibilityOptions(async () => {
+      throw failure;
+    })), (error) => error === failure);
+  }
 });

@@ -27,6 +27,8 @@ import {
   verifiedProvenanceFromNpmAudit,
 } from "../scripts/release-publish-ordered-runtime.mjs";
 
+import { main as runPublishedCompatibility } from "../scripts/published-compatibility-e2e.mjs";
+
 const source = {
   commit: "a".repeat(40),
   ref: "refs/heads/main",
@@ -608,7 +610,7 @@ test("retries signature verification without republishing Foundation", async () 
   );
 });
 
-test("later unrelated main verifies a trusted ancestor release with zero writes and no action output", async () => {
+test("six published npm versions reach reconciliation after preflight on a later main without npm writes", async () => {
   const runtime = harness(publishedState(
     mutation,
     authoring,
@@ -617,6 +619,16 @@ test("later unrelated main verifies a trusted ancestor release with zero writes 
     docsAdapter,
     docsMcp,
   ));
+  const historical = [];
+  await runPublishedCompatibility({
+    args: [],
+    qualifyPublicDocs: async () => { throw new Error("GitHub tags remain absent before reconciliation"); },
+    ...Object.fromEntries(["verifyBootstrap", "verifyTransactions", "verifyAuthoring", "verifyScaffolding"].map(
+      (name) => [name, async () => { historical.push(name); return []; }],
+    )),
+    write: () => {},
+  });
+  assert.deepEqual(historical, ["verifyBootstrap", "verifyTransactions", "verifyAuthoring", "verifyScaffolding"]);
   const laterSource = {
     ...source,
     commit: "b".repeat(40),
@@ -625,6 +637,7 @@ test("later unrelated main verifies a trusted ancestor release with zero writes 
   const released = await run(runtime, {
     source: laterSource,
   });
+  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 6);
   assert.equal(changesetsReleaseOutput(released), "");
   assert.equal(runtime.calls.some((entry) => /^(?:publish|tag|untag):/u.test(entry)), false);
 });

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#224](https://github.com/agent-teams-ai/engineering-foundation/pull/224) [`4e22962`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e229623ff555b655e7df24f9d1502ec5b968911) Thanks [@777genius](https://github.com/777genius)! - Qualify the public transport API for the new-only portable boundary.
+
+### Patch Changes
+
+- Updated dependencies [[`4e22962`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e229623ff555b655e7df24f9d1502ec5b968911), [`588a50d`](https://github.com/agent-teams-ai/engineering-foundation/commit/588a50d99fcb02dce5389407ebd5eba9d901b6b3), [`e486355`](https://github.com/agent-teams-ai/engineering-foundation/commit/e4863550a0e44769987a98a9f98fa6ccc9b1d014), [`4e22962`](https://github.com/agent-teams-ai/engineering-foundation/commit/4e229623ff555b655e7df24f9d1502ec5b968911)]:
+  - @agent-teams/docs-protocol@0.5.0
+
 ## 0.1.1
 
 ### Patch Changes

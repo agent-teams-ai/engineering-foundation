@@ -72,7 +72,10 @@ function requireTimestamp(value, label) {
 function validateObservationState(value, label, options = {}) {
   const status = requireString(value.status, `${label} status`);
   if (status === "completed") {
-    if (value.conclusion !== "success") {
+    if (
+      value.conclusion !== "success" &&
+      !(options.allowNeutral === true && value.conclusion === "neutral")
+    ) {
       throw new Error(`${label} did not succeed.`);
     }
     return "completed";
@@ -454,10 +457,11 @@ function validateCheck(
   ) {
     throw new Error("GitHub Advanced Security CodeQL check identity differs.");
   }
+  // The separately bound attestation category may produce a neutral GHAS receipt.
   const state = validateObservationState(
     codeqlCheck,
     "GitHub Advanced Security CodeQL check",
-    options,
+    { ...options, allowNeutral: true },
   );
   if (state === "pending") {
     return { checkId, checkSuiteId, state };
@@ -479,16 +483,24 @@ function validateCheck(
       "GitHub Advanced Security check is outside the dispatched analyze job.",
     );
   }
-  return { checkCompletedAt, checkId, checkStartedAt, checkSuiteId, state };
+  return {
+    checkCompletedAt,
+    checkId,
+    checkStartedAt,
+    checkSuiteId,
+    conclusion: codeqlCheck.conclusion,
+    state,
+  };
 }
 
 function validateSuite(
   checkSuite,
   expected,
   analyzeWindow,
-  checkSuiteId,
+  check,
   options = {},
 ) {
+  const { checkSuiteId } = check;
   requireObject(checkSuite, "GitHub Advanced Security CodeQL check suite");
   requirePositiveSafeInteger(
     checkSuite.id,
@@ -538,10 +550,13 @@ function validateSuite(
   const state = validateObservationState(
     checkSuite,
     "GitHub Advanced Security CodeQL check suite",
-    options,
+    { ...options, allowNeutral: true },
   );
   if (state === "pending") {
     return { state };
+  }
+  if (checkSuite.conclusion !== check.conclusion) {
+    throw new Error("GitHub Advanced Security check and suite conclusions differ.");
   }
   const suiteCreatedAt = requireTimestamp(
     checkSuite.created_at,
@@ -695,7 +710,7 @@ export function validateReleaseCodeqlObservation(phase, payload, expected) {
       payload?.checkSuite,
       normalized,
       analyze,
-      check.checkSuiteId,
+      check,
       { allowPending: true },
     );
   }
@@ -739,7 +754,7 @@ export function validateReleaseCodeqlEvidence(payload, expected, priorReceipt) {
     checkSuite,
     normalized,
     analyze,
-    check.checkSuiteId,
+    check,
     { analysisCreatedAt: analysis.analysisCreatedAt },
   );
   assertIndependentProducerIdentities(analyze, analyzeCheckEvidence, check);

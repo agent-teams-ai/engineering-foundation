@@ -1,4 +1,4 @@
-import { flatBindings } from "./factory-origins.mjs";
+import { flatBindings, forwardedArguments, forwardingParameters, synchronousVoidStatement } from "./factory-origins.mjs";
 import { isPublicAssemblyFacade } from "./assembly-facade.mjs";
 
 const lifecycle = new Set(["start", "ready", "stop", "dispose", "close"]);
@@ -67,8 +67,7 @@ function resourceDelegation(node, context) {
   if (node?.type !== "CallExpression" || node.optional) {return false;}
   const target = staticMember(node.callee) ? node.callee.object : undefined;
   return identifier(target) && context.names.get(target.name) === "resource" &&
-    node.callee.property.name === context.wrapperName && node.arguments.length === context.wrapperParameters.length &&
-    node.arguments.every((argument, index) => identifier(argument) && argument.name === context.wrapperParameters[index].name);
+    node.callee.property.name === context.wrapperName && forwardedArguments(context.wrapperParameters, node.arguments);
 }
 function delegation(node, context, returnPosition = false) {
   if (returnPosition && resourceDelegation(node, context)) {return true;}
@@ -88,11 +87,13 @@ function containsOrigin(node, context) {
 }
 function wrapper(node, context) {
   const nested = { ...context, names: new Map(context.names), wrapperName: node.id?.name, wrapperParameters: node.params };
-  if (!node.params.every(identifier) || node.declare || node.generator || !node.body) {return false;}
+  const parameters = forwardingParameters(node.params);
+  if (!parameters || node.declare || node.generator || !node.body) {return false;}
   if (node.type === "FunctionExpression" && node.id) {nested.names.set(node.id.name, "input");}
-  for (const param of node.params) {nested.names.set(param.name, "input");}
+  for (const name of parameters) {nested.names.set(name, "input");}
   if (node.body.type !== "BlockStatement") {return delegation(node.body, nested, true);}
   if (!node.body.body.length) {return false;}
+  if (resourceDelegation(synchronousVoidStatement(node, node.body.body), nested)) {return true;}
   if (!nested.executable && node.body.body.at(-1).type !== "ReturnStatement") {return false;}
   return node.body.body.every((statement) => statement.type === "ReturnStatement"
     ? delegation(statement.argument, nested, true) : statement.type === "VariableDeclaration"

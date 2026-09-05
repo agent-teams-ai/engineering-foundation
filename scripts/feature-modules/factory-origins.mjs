@@ -76,21 +76,38 @@ function factoryFrame(origin, call) {
   return { path: origin.path, node: body.at(-1).argument, locals };
 }
 
+export function forwardingParameters(params) {
+  const names = params.map((param, index) => identifier(param) ? param.name :
+    param.type === "RestElement" && index === params.length - 1 && identifier(param.argument) ? param.argument.name : undefined);
+  return names.every((name) => name !== undefined) ? names : undefined;
+}
+export function forwardedArguments(params, args) {
+  const names = forwardingParameters(params);
+  return names !== undefined && args.length === params.length && args.every((argument, index) =>
+    params[index].type === "RestElement" ? argument.type === "SpreadElement" && identifier(argument.argument) && argument.argument.name === names[index] :
+      identifier(argument) && argument.name === names[index]);
+}
+export function synchronousVoidStatement(fn, body) {
+  return !fn.async && fn.returnType?.typeAnnotation?.type === "TSVoidKeyword" && body.length === 1 && body[0].type === "ExpressionStatement"
+    ? body[0].expression : undefined;
+}
+
 function forwardsArguments(fn, call) {
   if (staticMember(call?.callee) && call.callee.property.name !== fn.id?.name) {return false;}
   return call?.type === "CallExpression" && !call.optional && (identifier(call.callee) || staticMember(call.callee)) &&
-    call.arguments.length === fn.params.length && call.arguments.every((argument, index) => identifier(argument) && argument.name === fn.params[index].name);
+    forwardedArguments(fn.params, call.arguments);
 }
 function forwardedCall(value) {
   const fn = value.node;
-  if (!fn.params.every(identifier) || fn.generator || !fn.body) {return;}
+  const names = forwardingParameters(fn.params);
+  if (!names || fn.generator || !fn.body) {return;}
   const body = fn.body.type === "BlockStatement" ? fn.body.body : [{ type: "ReturnStatement", argument: fn.body }];
-  if (body.length !== 1 || body[0].type !== "ReturnStatement") {return;}
-  const returned = body[0].argument;
+  if (body.length !== 1) {return;}
+  const returned = body[0].type === "ReturnStatement" ? body[0].argument : synchronousVoidStatement(fn, body);
   const call = returned?.type === "AwaitExpression" ? returned.argument : returned;
   if (!forwardsArguments(fn, call)) {return;}
   const locals = new Map(value.locals);
-  for (const param of fn.params) {locals.set(param.name, { path: value.path, node: undefined });}
+  for (const name of names) {locals.set(name, { path: value.path, node: undefined });}
   return { ...value, node: call.callee, locals };
 }
 

@@ -31,6 +31,40 @@ export function registerFactorySurfaceCases({ test, assert, workspaceSurface, re
     });
   }
 
+  for (const [label, wrapper] of [
+    ["exact rest forwarding", "export function execute(first: string, ...rest: readonly string[]) { return api.execute(first, ...rest); }"],
+    ["exact rest awaited forwarding", "export async function execute(first: string, ...rest: readonly string[]) { return await api.execute(first, ...rest); }"],
+    ["explicit synchronous void forwarding", "export function execute(value: string): void { api.execute(value); }"],
+    ["explicit zero-argument void forwarding", "export function execute(): void { api.execute(); }"]
+  ]) {
+    for (const role of ["adapters", "application"]) {
+      test(`factory surface ${role} consumer of ${label}`, async (t) => {
+        const f = await prepared(t, { role, surface: `${importFactory} const api = createApi(); ${wrapper}` });
+        if (role === "adapters") { await expectPass(f); }
+        else {
+          const result = await f.check();
+          assert.ok(result.problems.some(({ code, message }) => code === "layer-direction" && message.includes(factoryPath)), JSON.stringify(result));
+          assert.ok(!result.problems.some(({ code }) => code === "surface-ownership"), JSON.stringify(result));
+        }
+      });
+    }
+  }
+  for (const [label, wrapper] of [
+    ["rest passed as one argument", "export function execute(...args: string[]) { return api.execute(args); }"],
+    ["rest replaced by another spread", "export function execute(...args: string[]) { return api.execute(...[]); }"],
+    ["rest duplicated", "export function execute(...args: string[]) { return api.execute(...args, ...args); }"],
+    ["rest wrapper default argument", "export function execute(first = \"changed\", ...args: string[]) { return api.execute(first, ...args); }"],
+    ["void wrapper changes argument", "export function execute(value: string): void { api.execute(value + \"!\"); }"],
+    ["void wrapper calls different member", "export function execute(value: string): void { api.other(value); }"],
+    ["void wrapper adds side effect", "export function execute(value: string): void { api.execute(value); console.log(value); }"],
+    ["async void wrapper loses completion", "export async function execute(value: string): Promise<void> { api.execute(value); }"],
+    ["untyped wrapper discards return", "export function execute(value: string) { api.execute(value); }"]
+  ]) {
+    test(`factory surface keeps assembly rejection for ${label}`, async (t) => {
+      await rejects(await prepared(t, { surface: `${importFactory} const api = createApi(); ${wrapper}` }), "assembly-behavior");
+    });
+  }
+
   const importedAdapter = 'import {read} from "./features/storage/adapters/index.js";';
   const factoryImport = 'import {createApi} from "./features/storage/application/factory.js";';
   test("factory surface preserves an injected adapter instead of the application factory owner", async (t) => {

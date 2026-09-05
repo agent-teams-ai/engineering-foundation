@@ -5,7 +5,7 @@ import { compareBinaryStrings } from "../../../../../binary-string-comparator.js
 import { CapabilityInputError } from "../../../../../capability-runtime.js";
 import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import type { WorkspacePackage } from "../../../../../workspace-inventory/application/model/workspace-inventory.js";
-import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
+import { portablePathIsInside, portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type { SourceWorkspacePackageTopology } from "../../../application/model/source-workspace-topology.js";
 import {
   assertSafeRepositoryPath,
@@ -26,12 +26,8 @@ const SOURCE_EXTENSIONS = new Set([
   ".ts",
   ".tsx"
 ]);
-const IGNORED_DIRECTORY_NAMES = new Set([
-  ".git",
-  "coverage",
-  "dist",
-  "node_modules"
-]);
+const REPOSITORY_METADATA_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
+const PACKAGE_GENERATED_DIRECTORY_NAMES = new Set(["coverage", "dist"]);
 
 export interface SourceWorkspaceDiscoveryLimits {
   readonly maxDirectoryEntries: number;
@@ -250,6 +246,53 @@ function childRepositoryPath(parent: string, name: string): string {
   return parent === "." ? name : posix.join(parent, name);
 }
 
+function isExcludedDirectory(
+  name: string,
+  parentIsPackageRoot: boolean
+): boolean {
+  if (REPOSITORY_METADATA_DIRECTORY_NAMES.has(name)) {
+    return true;
+  }
+  return parentIsPackageRoot && PACKAGE_GENERATED_DIRECTORY_NAMES.has(name);
+}
+
+function isRootOrAncestor(
+  repositoryPath: string,
+  rootIdentities: ReadonlySet<string>
+): boolean {
+  const identity = portableRepositoryPathIdentity(repositoryPath);
+  for (const root of rootIdentities) {
+    if (root === identity || root.startsWith(`${identity}/`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isPackageRootLocation(
+  repositoryPath: string,
+  repositoryRootIdentities: ReadonlySet<string>
+): boolean {
+  const identity = portableRepositoryPathIdentity(repositoryPath);
+  return (
+    repositoryRootIdentities.has(identity) ||
+    repositoryRootIdentities.has(posix.dirname(identity))
+  );
+}
+
+function explicitSourceRootIdentities(
+  governedRoots: readonly string[] = [],
+  boundaryRoots: readonly string[] = []
+): ReadonlySet<string> {
+  // Boundary roots can identify source beneath a broad governed package root.
+  // They only reopen routes within that scope, never add traversal starting points.
+  return new Set(
+    [...governedRoots, ...boundaryRoots.filter((root) =>
+      governedRoots.some((governedRoot) => portablePathIsInside(root, governedRoot))
+    )].map(portableRepositoryPathIdentity)
+  );
+}
+
 function assertPortablePaths(paths: readonly string[], kind: string): void {
   const identities = new Map<string, string>();
   for (const path of paths) {
@@ -272,6 +315,8 @@ export async function discoverSourceWorkspacePaths(
   options: {
     readonly repositoryRoots: readonly string[];
     readonly selectedPackageRoots?: readonly string[];
+    readonly governedRoots?: readonly string[];
+    readonly boundaryRoots?: readonly string[];
     readonly fileSystem?: Partial<SourceWorkspaceFileSystem>;
     readonly hooks?: SourceWorkspaceDiscoveryHooks;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
@@ -289,12 +334,10 @@ export async function discoverSourceWorkspacePaths(
   const selectedPackageRootIdentities = new Set(
     (options.selectedPackageRoots ?? []).map(portableRepositoryPathIdentity)
   );
-  const isSelectedPackageRootOrAncestor = (repositoryPath: string): boolean => {
-    const identity = portableRepositoryPathIdentity(repositoryPath);
-    return [...selectedPackageRootIdentities].some(
-      (selected) => selected === identity || selected.startsWith(`${identity}/`)
-    );
-  };
+  const repositoryRootIdentities = new Set(
+    options.repositoryRoots.map(portableRepositoryPathIdentity)
+  );
+  const sourceRootIdentities = explicitSourceRootIdentities(options.governedRoots, options.boundaryRoots);
   const directories: DirectoryCursor[] = options.repositoryRoots
     .toSorted(compareBinaryStrings)
     .toReversed()
@@ -324,13 +367,20 @@ export async function discoverSourceWorkspacePaths(
       ...(options.signal === undefined ? {} : { signal: options.signal })
     });
     directorySnapshots.push(captured);
+    // A package root is the configured path or a manifest-bearing direct child.
+    // Nested source/type scopes cannot turn their coverage/dist into build output.
+    const cursorIsPackageRoot =
+      isPackageRootLocation(cursor.repositoryPath, repositoryRootIdentities) &&
+      entries.some((entry) => entry.name === "package.json" && entry.isFile());
     const childDirectories: DirectoryCursor[] = [];
     for (const entry of entries) {
       assertNotCancelled(options.signal);
       const repositoryPath = childRepositoryPath(cursor.repositoryPath, entry.name);
       if (
-        IGNORED_DIRECTORY_NAMES.has(entry.name) &&
-        !isSelectedPackageRootOrAncestor(repositoryPath)
+        isExcludedDirectory(entry.name, cursorIsPackageRoot) &&
+        !isRootOrAncestor(repositoryPath, selectedPackageRootIdentities) &&
+        !(PACKAGE_GENERATED_DIRECTORY_NAMES.has(entry.name) &&
+          isRootOrAncestor(repositoryPath, sourceRootIdentities))
       ) {
         if (entry.name === "dist" && entry.isSymbolicLink()) {
           symbolicLinkPaths.add(repositoryPath);

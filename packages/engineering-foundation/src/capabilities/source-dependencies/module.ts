@@ -14,13 +14,16 @@ import { analyzeSourceDependencies } from "./application/use-cases/analyze-sourc
 import { SOURCE_DEPENDENCY_RULES_BY_ID } from "./application/rules.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadCapabilityConfig, type SourceArchitectureConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
 
 export interface SourceDependenciesCapabilityDependencies {
+  readonly assertSchema: SourceArchitectureConfigurationDependencies["assertSchema"];
   readonly inventoryReader: WorkspaceInventoryReader & SourceWorkspaceInventorySnapshotReader;
   readonly sourceReader: SourceTreeReader;
 }
@@ -41,6 +44,7 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
       let requestedSchemaVersion: 1 | 2 = CAPABILITY_CONFIG_SCHEMA_VERSION;
       try {
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal,

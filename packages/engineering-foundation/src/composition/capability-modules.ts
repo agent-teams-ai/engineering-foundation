@@ -107,7 +107,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       REPOSITORY_SECURITY_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createSourceDependenciesCapability({ inventoryReader: createWorkspaceInventoryReader(), sourceReader: createSourceTreeReader() }),
+      createSourceDependenciesCapability({ inventoryReader: createWorkspaceInventoryReader(), sourceReader: createSourceTreeReader(), assertSchema }),
       SOURCE_DEPENDENCY_RULES_BY_ID
     ),
     defineCapabilityModule(

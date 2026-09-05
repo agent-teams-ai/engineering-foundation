@@ -1941,6 +1941,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/repository-path.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace-topology.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-workspace.ts
@@ -2099,12 +2100,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/source-dependencies/contract
     allow:
-      boundaries:
-        - capability.source-dependencies.application
-        - foundation.validation-reporting.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2130,6 +2126,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.ts
@@ -2138,6 +2135,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.source-dependencies.adapters
         - capability.source-dependencies.application
         - capability.source-dependencies.contract

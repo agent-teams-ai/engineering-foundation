@@ -1,4 +1,4 @@
-import { sourceDependencyAdapters } from "../support/capability-adapters.mjs";
+import { sourceDependencyAdapters, sourceConfigurationDependencies } from "../support/capability-adapters.mjs";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -24,7 +24,7 @@ const [
 ] = await Promise.all([
   import(
     pathToFileURL(
-      join(distRoot, "capabilities/source-dependencies/contract/config.js"),
+      join(distRoot, "capabilities/source-dependencies/adapters/inbound/configuration/load-capability-config.js"),
     ).href
   ),
   import(
@@ -56,7 +56,9 @@ const [
   ),
 ]);
 
-export const loadCapabilityConfig = loadSourceDependencyCapabilityConfig;
+export const loadCapabilityConfig = (root, path, signal, observeSchemaVersion) => loadSourceDependencyCapabilityConfig(
+  sourceConfigurationDependencies(), root, path, signal, observeSchemaVersion
+);
 export { PnpmWorkspaceInventoryReader };
 export { revalidateStableRepositoryPath };
 

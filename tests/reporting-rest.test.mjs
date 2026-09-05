@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -33,7 +33,7 @@ function problem(expected) {
   };
 }
 async function fixture(t) {
-  const root = await mkdtemp(join(tmpdir(), "foundation-reporting-rest-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-reporting-rest-")));
   t.after(() => rm(root, { recursive: true, force: true }));
   return root;
 }

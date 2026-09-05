@@ -1,4 +1,4 @@
-import { createJsonSchemaInspector, executableSpecificationAdapters } from "./support/capability-adapters.mjs";
+import { createJsonSchemaInspector, executableArtifactFiles as artifactFiles, executableSpecificationAdapters } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -547,7 +547,7 @@ test("rejects selected workspace manifest aliases before reading them", async ()
       async discoverManifestPaths() {
         return ["package.json", "DOCS/WORKFLOW.MD"];
       },
-    }, createJsonSchemaInspector);
+    }, createJsonSchemaInspector, artifactFiles);
     await assert.rejects(
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
@@ -566,7 +566,7 @@ test("rejects exact owner-manifest reuse and root package case aliases before re
         async discoverManifestPaths() {
           return ["package.json", manifestPath];
         },
-      }, createJsonSchemaInspector);
+      }, createJsonSchemaInspector, artifactFiles);
       await assert.rejects(
         capabilityModule.analyzeExecutableSpecifications(
           { consumerRoot: root, catalog: catalogOf(specification()) },
@@ -585,7 +585,7 @@ test("rejects non-ASCII selected workspace manifests before reading them", async
       async discoverManifestPaths() {
         return ["package.json", "packages/\u03a3/package.json"];
       },
-    }, createJsonSchemaInspector);
+    }, createJsonSchemaInspector, artifactFiles);
     await assert.rejects(
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
@@ -614,7 +614,7 @@ test("uses one workspace inventory snapshot for a multi-specification catalog", 
       },
     };
     const inspector = new capabilityModule.FilesystemExecutableSpecificationInspector(
-      inventoryReader, createJsonSchemaInspector,
+      inventoryReader, createJsonSchemaInspector, artifactFiles,
     );
     const diagnostics = await capabilityModule.analyzeExecutableSpecifications(
       { consumerRoot: root, catalog: catalogOf(specification(), second) },
@@ -668,7 +668,7 @@ test("enforces the shared aggregate byte budget at its exact boundary without re
       await capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog },
         new capabilityModule.FilesystemExecutableSpecificationInspector(
-          inventoryReader, createJsonSchemaInspector, exactBytes,
+          inventoryReader, createJsonSchemaInspector, artifactFiles, exactBytes,
         ),
       ),
       [],
@@ -677,7 +677,7 @@ test("enforces the shared aggregate byte budget at its exact boundary without re
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog },
         new capabilityModule.FilesystemExecutableSpecificationInspector(
-          inventoryReader, createJsonSchemaInspector, exactBytes - 1,
+          inventoryReader, createJsonSchemaInspector, artifactFiles, exactBytes - 1,
         ),
       ),
       ({ problem }) =>
@@ -750,7 +750,7 @@ test("charges workspace manifests before parsing beyond the aggregate budget", a
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
         new capabilityModule.FilesystemExecutableSpecificationInspector(
-          reader, createJsonSchemaInspector,
+          reader, createJsonSchemaInspector, artifactFiles,
           manifestBytes - 1,
         ),
       ),
@@ -773,7 +773,7 @@ test("rejects an oversized workspace manifest set before reading package files",
     await assert.rejects(
       capabilityModule.analyzeExecutableSpecifications(
         { consumerRoot: root, catalog: catalogOf(specification()) },
-        new capabilityModule.FilesystemExecutableSpecificationInspector(reader, createJsonSchemaInspector),
+        new capabilityModule.FilesystemExecutableSpecificationInspector(reader, createJsonSchemaInspector, artifactFiles),
       ),
       ({ problem }) =>
         problem?.code === "EXECUTABLE_SPECIFICATION_ARTIFACT_COUNT_EXCEEDED",

@@ -4,7 +4,7 @@ import { join } from "node:path";
 const distRoot = process.env.FOUNDATION_DIST_ROOT ?? process.env.ENGINEERING_FOUNDATION_DIST_ROOT ??
   fileURLToPath(new URL("../../packages/engineering-foundation/dist/", import.meta.url));
 const load = (path) => import(pathToFileURL(join(distRoot, path)).href);
-const [source, workspace, schemas, governance, protobuf, processExecution, workflow, schemaCatalog, configurationInput] = await Promise.all([
+const [source, workspace, schemas, governance, protobuf, processExecution, workflow, schemaCatalog, configurationInput, fileSafety] = await Promise.all([
   load("source-inventory/module.js"),
   load("workspace-inventory/module.js"),
   load("capabilities/contract-json-schema-releases/module.js"),
@@ -14,7 +14,9 @@ const [source, workspace, schemas, governance, protobuf, processExecution, workf
   load("capabilities/repository-agent-workflow/adapters/outbound/process/process-execution.js"),
   load("schema-catalog.js"),
   load("features/configuration-input/node.js"),
+  load("source-inventory/node.js"),
 ]);
+export const executableArtifactFiles = { read: fileSafety.readContainedRegularFile };
 export const createJsonSchemaInspector = schemas.createJsonSchemaInspector;
 export const readAcceptedArchitectureDecisionEvidence = (input) => governance.readAcceptedArchitectureDecisionEvidence(input, schemaCatalog.assertSchema);
 export const promoteArchitectureDecisionBaseline = (input) => governance.promoteArchitectureDecisionBaseline(input, schemaCatalog.assertSchema);

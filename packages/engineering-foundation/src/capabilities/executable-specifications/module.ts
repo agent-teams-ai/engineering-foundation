@@ -14,6 +14,9 @@ import {
 import { loadCapabilityConfig, type ExecutableConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 import { readContainedRegularFile } from "../../source-inventory/node.js";
+import type { ExecutableArtifactFileReader } from "./api.js";
+
+const artifactFiles: ExecutableArtifactFileReader = { read: readContainedRegularFile };
 
 export { FilesystemExecutableSpecificationInspector } from "./adapters/outbound/filesystem/filesystem-executable-specification-inspector.js";
 export type {
@@ -43,7 +46,7 @@ export function createExecutableSpecificationsCapability(dependencies: {
   readonly createJsonSchemaInspector: import("./application/ports/json-schema-inspector-factory.js").JsonSchemaInspectorFactory;
 }): CapabilityDefinition {
   const inspector = new FilesystemExecutableSpecificationInspector(
-    dependencies.workspaceManifestPathReader, dependencies.createJsonSchemaInspector
+    dependencies.workspaceManifestPathReader, dependencies.createJsonSchemaInspector, artifactFiles
   );
   return Object.freeze({
     id: CAPABILITY_ID,

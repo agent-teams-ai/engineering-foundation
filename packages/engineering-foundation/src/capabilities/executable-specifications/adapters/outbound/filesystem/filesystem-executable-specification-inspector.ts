@@ -2,9 +2,13 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
-import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
-import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import {
+  assertExecutableArtifactSize,
+  assertExecutableInspectionActive as assertNotCancelled,
+  executableArtifactReadFailure,
+  executableInspectionInputError as inputError,
+  type ExecutableArtifactFileReader
+} from "../../../api.js";
 import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 import type { JsonSchemaInspectorFactory } from "../../../application/ports/json-schema-inspector-factory.js";
 import type { WorkspaceManifestPathReader } from "../../../application/ports/workspace-manifest-path-reader.js";
@@ -32,15 +36,6 @@ interface PackageScripts {
 }
 
 
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "executable-specification-inspection",
-    retryable: false
-  });
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -66,26 +61,22 @@ function canonicalJson(value: unknown): string {
 
 async function readArtifact(
   root: string,
-  repositoryPath: string
+  repositoryPath: string,
+  files: ExecutableArtifactFileReader
 ): Promise<Buffer | undefined> {
+  let bytes: Uint8Array;
   try {
-    return await readContainedRegularFile({
+    bytes = await files.read({
       candidate: resolve(root, repositoryPath),
       maxBytes: MAX_ARTIFACT_BYTES,
       root
     });
   } catch (error) {
-    if (error instanceof ContainedFileReadError) {
-      if (error.failure === "missing") {
-        return undefined;
-      }
-      inputError(
-        `EXECUTABLE_SPECIFICATION_ARTIFACT_${error.failure.toUpperCase()}`,
-        `Specification artifact is not a safe contained regular file: ${repositoryPath}.`
-      );
-    }
-    throw error;
+    executableArtifactReadFailure(error, repositoryPath);
+    return undefined;
   }
+  assertExecutableArtifactSize(bytes.byteLength, MAX_ARTIFACT_BYTES, repositoryPath);
+  return Buffer.from(bytes);
 }
 
 class ArtifactReadSession {
@@ -97,7 +88,8 @@ class ArtifactReadSession {
 
   constructor(
     private readonly root: string,
-    private readonly maxAggregateBytes: number
+    private readonly maxAggregateBytes: number,
+    private readonly files: ExecutableArtifactFileReader
   ) {}
 
   async read(repositoryPath: string): Promise<Buffer | undefined> {
@@ -112,7 +104,7 @@ class ArtifactReadSession {
       }
       return cached.result;
     }
-    const result = readArtifact(this.root, repositoryPath).then((bytes) => {
+    const result = readArtifact(this.root, repositoryPath, this.files).then((bytes) => {
       if (bytes !== undefined) {
         if (bytes.byteLength > this.maxAggregateBytes - this.#aggregateBytes) {
           inputError(
@@ -215,6 +207,7 @@ export class FilesystemExecutableSpecificationInspector
   constructor(
     workspaceManifestPathReader: WorkspaceManifestPathReader,
     private readonly createJsonSchemaInspector: JsonSchemaInspectorFactory,
+    private readonly artifactFiles: ExecutableArtifactFileReader,
     maxAggregateArtifactBytes = MAX_AGGREGATE_ARTIFACT_BYTES
   ) {
     if (
@@ -236,7 +229,8 @@ export class FilesystemExecutableSpecificationInspector
     assertNotCancelled(input.signal);
     const artifacts = new ArtifactReadSession(
       input.consumerRoot,
-      this.#maxAggregateArtifactBytes
+      this.#maxAggregateArtifactBytes,
+      this.artifactFiles
     );
     const jsonSchemaInspector = this.createJsonSchemaInspector((repositoryPath) =>
       artifacts.read(repositoryPath)

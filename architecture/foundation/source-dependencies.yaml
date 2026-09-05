@@ -2579,9 +2579,6 @@ boundaries:
       boundaries:
         - capability.executable-specifications.application
         - foundation.core
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
       packages: [ "@agent-teams/repository-mutation" ]
       builtins:
         - node:crypto

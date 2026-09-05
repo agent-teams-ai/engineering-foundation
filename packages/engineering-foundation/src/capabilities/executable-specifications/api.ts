@@ -19,3 +19,10 @@ export { analyzeExecutableSpecifications } from "./application/use-cases/analyze
 
 export type { JsonSchemaInspectorFactory } from "./application/ports/json-schema-inspector-factory.js";
 export type { WorkspaceManifestPathReader } from "./application/ports/workspace-manifest-path-reader.js";
+export type { ExecutableArtifactFileReader } from "./application/ports/executable-artifact-file-reader.js";
+export {
+  assertExecutableArtifactSize,
+  assertExecutableInspectionActive,
+  executableArtifactReadFailure,
+  executableInspectionInputError
+} from "./application/policies/executable-artifact-evidence.js";

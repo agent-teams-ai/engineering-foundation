@@ -352,6 +352,9 @@ function validateAnalyze(jobs, expected, runUrls, options = {}) {
   ) {
     throw new Error("CodeQL analyze job identity differs.");
   }
+  if (analyzeCheckId !== analyzeId) {
+    throw new Error("CodeQL analyze job and check identities differ.");
+  }
   const state = validateObservationState(analyze, "CodeQL analyze job", options);
   if (state === "pending") {
     return {

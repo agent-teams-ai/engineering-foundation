@@ -559,7 +559,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/458";
   assert.throws(
     () => validateReleaseCodeqlEvidence(changedAnalyzeCheck, expectation),
-    /analyze check run identity differs/u,
+    /analyze job and check identities differ/u,
   );
 
   const aliasedAnalyzeCheck = structuredClone(evidence);
@@ -570,7 +570,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
   assert.throws(
     () => validateReleaseCodeqlEvidence(aliasedAnalyzeCheck, expectation),
-    /analyze check run identity differs/u,
+    /analyze job and check identities differ/u,
   );
 
   const duplicateAnalyze = structuredClone(evidence);
@@ -1139,6 +1139,25 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
     () => observe("analyses", { analyses: absentExactAnalysis }),
     /entry 0 identity differs/u,
   );
+});
+
+test("release CodeQL rejects contradictory Analyze job/check IDs before retry", () => {
+  const evidence = exactCodeqlEvidence();
+  const expected = { ...exactRunExpectation, runId: 123 };
+  for (const [status, conclusion] of [
+    ["completed", "success"],
+    ["queued", null],
+  ]) {
+    const contradictory = structuredClone(evidence);
+    contradictory.jobs.jobs[0].check_run_url =
+      "https://api.github.com/repos/agent-teams-ai/engineering-foundation/check-runs/458";
+    contradictory.jobs.jobs[0].status = status;
+    contradictory.jobs.jobs[0].conclusion = conclusion;
+    assert.throws(
+      () => validateReleaseCodeqlObservation("jobs", contradictory, expected),
+      /analyze job and check identities differ/u,
+    );
+  }
 });
 
 test("release CI selection reuses only one exact attempt-1 pull request run", () => {

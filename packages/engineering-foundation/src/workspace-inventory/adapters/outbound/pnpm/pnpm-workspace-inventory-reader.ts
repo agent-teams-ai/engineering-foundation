@@ -342,21 +342,34 @@ async function readPnpmWorkspaceInventoryFromManifestPaths(
     );
   }
   const containedManifestPaths = manifestPaths.map(validatedGlobManifestPath);
+  if (
+    Object.hasOwn(workspaceManifest, "catalog") &&
+    isRecord(workspaceManifest["catalogs"]) &&
+    Object.hasOwn(workspaceManifest["catalogs"], "default")
+  ) {
+    inputError(
+      "PNPM_WORKSPACE_INVALID",
+      "The default catalog must use either catalog or catalogs.default, not both.",
+      "workspace-manifest"
+    );
+  }
+  const catalogs = [
+    ...parseCatalog(workspaceManifest, "catalog"),
+    ...parseCatalog(workspaceManifest, "catalogs")
+  ].toSorted(
+    (left, right) =>
+      compareBinaryStrings(left.catalogName, right.catalogName) ||
+      compareBinaryStrings(left.dependencyName, right.dependencyName)
+  );
   return {
     ...(typeof workspaceManifest["catalogMode"] === "string"
       ? { catalogMode: workspaceManifest["catalogMode"] }
       : {}),
-    catalogs: [
-      ...parseCatalog(workspaceManifest, "catalog"),
-      ...parseCatalog(workspaceManifest, "catalogs")
-    ].toSorted(
-      (left, right) =>
-        compareBinaryStrings(left.catalogName, right.catalogName) ||
-        compareBinaryStrings(left.dependencyName, right.dependencyName)
-    ),
+    catalogs,
     packages: await readPnpmPackageManifestSnapshots(
       consumerRoot,
       containedManifestPaths,
+      catalogs,
       signal
     )
   };

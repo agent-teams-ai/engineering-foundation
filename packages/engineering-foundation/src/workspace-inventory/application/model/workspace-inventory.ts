@@ -5,14 +5,28 @@ export const DEPENDENCY_SECTIONS = [
   "peerDependencies"
 ] as const;
 
-type DependencySection = (typeof DEPENDENCY_SECTIONS)[number];
+export type DependencySection = (typeof DEPENDENCY_SECTIONS)[number];
+
+type DependencyDeclarationProvenance =
+  | { readonly kind: "manifest" }
+  | { readonly kind: "catalog"; readonly catalogName: string };
 
 export interface DependencyDeclaration {
   readonly packageName: string;
   readonly manifestPath: string;
   readonly section: DependencySection;
   readonly dependencyName: string;
+  /** Raw manifest specifier, retained independently from its effective value. */
   readonly specifier: string;
+  /** Package installed at the declaration slot after resolving a valid npm alias. */
+  readonly targetPackageName: string;
+  /** Catalog-resolved specifier before npm-alias interpretation. */
+  readonly effectiveSpecifier: string;
+  /** Version/range portion governing the resolved target. */
+  readonly effectiveVersionSpecifier: string;
+  /** Malformed alias bytes remain evidence and cannot authorize a package edge. */
+  readonly normalizationProblem?: "invalid-npm-alias";
+  readonly provenance: DependencyDeclarationProvenance;
 }
 
 export interface PackageExportEntry {
@@ -35,6 +49,8 @@ interface PackageExportConditions {
 
 export interface PackageExportSurface {
   readonly explicit: boolean;
+  /** A top-level null exports value disables Node's self-reference lookup. */
+  readonly selfReferenceDisabled?: true;
   readonly entries: readonly PackageExportEntry[];
 }
 

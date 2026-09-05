@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { FoundationError } from "../../application/errors/foundation-error.js";
+import { FoundationError } from "../../../features/validation-reporting/foundation-error.js";
 import { FOUNDATION_REQUIRED_ARTIFACT_PATHS, packageMetadata, validatePackageManifest } from "../../application/package-metadata.js";
 import type { FoundationPackageSelfCheck } from "../../application/package-metadata.js";
 

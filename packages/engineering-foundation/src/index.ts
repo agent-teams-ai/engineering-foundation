@@ -4,8 +4,8 @@ export {
   parseFoundationPackageSelfCheck
 } from "./local-mode/application/package-metadata.js";
 export type { FoundationPackageSelfCheck } from "./local-mode/application/package-metadata.js";
-export { FoundationError } from "./local-mode/application/errors/foundation-error.js";
-export type { FoundationErrorCode } from "./local-mode/application/errors/foundation-error.js";
+export { FoundationError } from "./features/validation-reporting/foundation-error.js";
+export type { FoundationErrorCode } from "./features/validation-reporting/foundation-error.js";
 /** @deprecated Import `@agent-teams/engineering-foundation/local-mode` directly. */
 export * as localMode from "./local-mode/index.js";
 export { inspectFoundationTransactionAwareMode } from "./local-mode/composition/inspection.js";

@@ -10,7 +10,7 @@ import {
   capabilityReport,
   foundationReport,
 } from "../packages/engineering-foundation/dist/capability-runtime.js";
-import { FoundationError } from "../packages/engineering-foundation/dist/local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "../packages/engineering-foundation/dist/features/validation-reporting/foundation-error.js";
 import { classifyUnexpectedFailure } from "../packages/engineering-foundation/dist/unexpected-failure.js";
 
 const classifications = [

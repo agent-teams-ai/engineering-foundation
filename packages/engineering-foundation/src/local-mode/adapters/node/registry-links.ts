@@ -1,6 +1,6 @@
 import { appendFile, lstat, mkdir, readFile, realpath, rename, rm, symlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { FoundationError } from "../../application/errors/foundation-error.js";
+import { FoundationError } from "../../../features/validation-reporting/foundation-error.js";
 import { pathEntryExists, restoreRegistryEntry } from "./registry-recovery.js";
 import type { FoundationLinkState, ProcessRunner } from "../../application/model.js";
 import { FOUNDATION_PACKAGE_NAME, LOCAL_REGISTRY_BACKUP, LOCAL_STATE_DIRECTORY } from "../../application/model.js";

@@ -1,1 +1,1 @@
-export { installedFoundationVersion } from "../../../local-mode/adapters/node/installed-package-version.js";
+export { installedFoundationVersion } from "../../../transaction-coordination/adapters/node/installed-foundation-version.js";

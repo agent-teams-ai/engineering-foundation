@@ -1,4 +1,4 @@
-import { FoundationError } from "./local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "./features/validation-reporting/foundation-error.js";
 
 type UnexpectedFailureCauseKind =
   | "filesystem"

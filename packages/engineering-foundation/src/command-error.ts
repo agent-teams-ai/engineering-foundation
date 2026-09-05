@@ -1,5 +1,5 @@
 import { CapabilityInputError } from "./capability-runtime.js";
-import { FoundationError } from "./local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "./features/validation-reporting/foundation-error.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { ScaffoldError } from "./scaffolding/scaffold-error.js";
 import { FoundationTransactionError } from "./transaction-coordination/application/foundation-transaction-error.js";

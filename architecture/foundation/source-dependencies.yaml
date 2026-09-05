@@ -409,7 +409,7 @@ boundaries:
         - foundation.local-mode.adapters
         - foundation.local-mode.application
         - foundation.local-mode.composition
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
         - foundation.core
         - foundation.local-mode
         - foundation.property-testing-support
@@ -429,7 +429,7 @@ boundaries:
         - foundation.local-mode.adapters
         - foundation.local-mode.application
         - foundation.local-mode.composition
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
         - capability.architecture-decisions.composition
         - capability.contract-protobuf.qualification.composition
         - capability.public-api-compatibility.composition
@@ -525,7 +525,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters
     allow:
       boundaries:
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
         - capability.repository-agent-workflow.application
         - foundation.core
         - foundation.process-execution
@@ -598,11 +598,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters
     allow:
       boundaries:
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
         - capability.quality-gate-runner.application
         - foundation.cancellation
         - foundation.core
         - foundation.process-execution
+        - foundation.process-execution.port
         - foundation.repository-input
       packages: []
       builtins:
@@ -644,7 +645,7 @@ boundaries:
       - packages/engineering-foundation/src/unique-registry.ts
     allow:
       boundaries:
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
       packages: []
       builtins: []
       runtimeReferences: []
@@ -762,7 +763,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/application/policies/legacy-scaffolding-repository-path.ts
   - id: foundation.package-identity
     roots:
-      - packages/engineering-foundation/src/local-mode/adapters/node/installed-package-version.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-version.ts
     allow:
       boundaries: []
       packages: []
@@ -771,7 +772,7 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/local-mode/adapters/node/installed-package-version.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-version.ts
   - id: repository-mutation.primitives
     roots:
       - packages/repository-mutation/src/canonical-json.ts
@@ -1054,10 +1055,24 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-slot.ts
   - id: foundation.transaction-coordination.adapters
     roots:
-      - packages/engineering-foundation/src/transaction-coordination/adapters
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/document-envelope-bindings.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/document-temporary-identity.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/document-transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/foundation-scaffold-envelope.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/foundation-transition-evidence.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-build-identity.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/known-file-transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-document-envelope-v2.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-scaffolding-transaction-validation.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-operation-lock.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/schema6-transaction-status.ts
     allow:
       boundaries:
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
         - foundation.canonical-json
         - foundation.core
         - foundation.package-identity
@@ -1209,16 +1224,16 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/canonical-api.ts
       - packages/engineering-foundation/src/scaffolding/cli-command.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
-  - id: foundation.local-mode.errors
+  - id: foundation.validation-reporting.error
     roots:
-      - packages/engineering-foundation/src/local-mode/application/errors
+      - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
     allow:
       boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/local-mode/application/errors/foundation-error.ts
+      - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
   - id: foundation.local-mode.application
     roots:
       - packages/engineering-foundation/src/local-mode/application/attach-transaction.ts
@@ -1231,8 +1246,8 @@ boundaries:
     allow:
       boundaries:
         - foundation.core
-        - foundation.local-mode.errors
-        - foundation.process-execution
+        - foundation.validation-reporting.error
+        - foundation.process-execution.port
         - foundation.transaction-coordination.application
       packages: []
       builtins: []
@@ -1257,7 +1272,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.local-mode.application
-        - foundation.local-mode.errors
+        - foundation.validation-reporting.error
         - foundation.transaction-coordination.application
       packages:
         - yaml
@@ -1286,6 +1301,7 @@ boundaries:
         - foundation.local-mode.adapters
         - foundation.package-identity
         - foundation.process-execution
+        - foundation.process-execution.port
         - foundation.transaction-coordination.adapters
       packages: []
       builtins: []
@@ -1311,10 +1327,15 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/index.ts
   - id: foundation.process-execution
     roots:
-      - packages/engineering-foundation/src/process-execution
+      - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/types.ts
+      - packages/engineering-foundation/src/process-execution/windows-managed-process.ts
+      - packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts
+      - packages/engineering-foundation/src/process-execution/windows-process-host.ts
     allow:
       boundaries:
-        - foundation.local-mode.errors
+        - foundation.process-execution.port
+        - foundation.validation-reporting.error
         - foundation.core
       packages: []
       builtins:
@@ -1331,6 +1352,16 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
       - packages/engineering-foundation/src/process-execution/types.ts
+  - id: foundation.process-execution.port
+    roots:
+      - packages/engineering-foundation/src/process-execution/ports
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/process-execution/ports/process-runner.ts
   - id: foundation.workspace-inventory.application
     roots:
       - packages/engineering-foundation/src/workspace-inventory/application

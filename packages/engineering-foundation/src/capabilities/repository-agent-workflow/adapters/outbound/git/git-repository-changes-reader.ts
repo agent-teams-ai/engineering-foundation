@@ -1,7 +1,7 @@
 import { lstat, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import { FoundationError } from "../../../../../local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "../../../../../features/validation-reporting/foundation-error.js";
 import type { RepositoryChangesReader } from "../../../application/ports/changed-workflow.js";
 import type {
   RepositoryChangeGroup,

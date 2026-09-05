@@ -1,4 +1,4 @@
-import { FoundationError } from "./errors/foundation-error.js";
+import { FoundationError } from "../../features/validation-reporting/foundation-error.js";
 import { attachFoundation } from "./attach-transaction.js";
 import { isExactVersion } from "../../semantic-version.js";
 import { releaseFoundationTransactionLeaseSafely } from "../../transaction-coordination/application/release-foundation-transaction-lease.js";

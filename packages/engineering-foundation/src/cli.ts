@@ -12,7 +12,7 @@ import { runFoundationCheck } from "./check-runner.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
 import { RULE_REGISTRY } from "./composition/rule-registry.js";
-import { FoundationError } from "./local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "./features/validation-reporting/foundation-error.js";
 import { ProcessCancellationError } from "./process-execution/node-process-runner.js";
 import { loadFoundationConfig } from "./foundation-config.js";
 import { systemNow } from "./local-mode/adapters/outbound/time/system-clock.js";
@@ -24,7 +24,7 @@ import type {
   FoundationTransactionAwareStatus
 } from "./local-mode/application/model.js";
 import { inspectFoundationPackage } from "./local-mode/adapters/node/package-inspection.js";
-import { installedFoundationVersion } from "./local-mode/adapters/node/installed-package-version.js";
+import { installedFoundationVersion } from "./transaction-coordination/adapters/node/installed-foundation-version.js";
 import { tryRunQualityGateCliCommand } from "./quality-gate-cli-command.js";
 import { renderFoundationReportText } from "./report-renderer.js";
 import { runScaffoldingCliCommand } from "./scaffolding/cli-command.js";

@@ -12,7 +12,7 @@ export type {
   ProcessRequest,
   ProcessResult,
   ProcessRunner
-} from "../../process-execution/types.js";
+} from "../../process-execution/ports/process-runner.js";
 import type { FoundationTransactionStatus } from "../../transaction-coordination/application/model/transaction-status.js";
 
 export type {

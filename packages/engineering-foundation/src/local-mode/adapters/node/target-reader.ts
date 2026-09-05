@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { FoundationError } from "../../application/errors/foundation-error.js";
+import { FoundationError } from "../../../features/validation-reporting/foundation-error.js";
 import { inspectFoundationPackage } from "./package-inspection.js";
 import { parseFoundationPackageSelfCheck } from "../../application/package-metadata.js";
 import { resolveTargetPackageRoot } from "./registry-recovery.js";

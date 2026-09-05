@@ -7,14 +7,20 @@ import {
   open,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import {
+  actualSourceDependenciesCLI,
+  copySourcePolicyFixture,
+  observeFoundationFeatureGraph
+} from "./helpers/local-mode-boundaries.mjs";
 import { spawnSync } from "node:child_process";
-import { installedFoundationVersion } from "../packages/engineering-foundation/dist/local-mode/adapters/node/installed-package-version.js";
+import { installedFoundationVersion } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
 
 import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
 import { FoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
@@ -366,14 +372,55 @@ test("local lifecycle application has no concrete provider dependencies", async 
   }
 });
 
+test("local lifecycle and its providers have no runtime or type feature cycle", async () => {
+  const graph = await observeFoundationFeatureGraph();
+  assert.deepEqual(graph.missing, []);
+  for (const cycles of [graph.runtimeCycles, graph.combinedCycles]) {
+    // The independently owned scaffolding/coordination cycle remains visible.
+    for (const cycle of cycles) {
+      assert.deepEqual(cycle, ["scaffolding", "transaction-coordination"]);
+    }
+  }
+});
+
+test("source policy admits the process port and denies concrete providers to local application", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-local-boundaries-"));
+  try {
+    await copySourcePolicyFixture(root);
+    const service = join(root, "packages/engineering-foundation/src/local-mode/application/service.ts");
+    const original = await readFile(service, "utf8");
+    const cases = [
+      ["", 0],
+      ['export type { ProcessRunner as Port } from "../../process-execution/ports/process-runner.js";', 0],
+      ['export { NodeProcessRunner as ConcreteAdapterLeak } from "../../process-execution/node-process-runner.js";', 1],
+      ['export type { NodeProcessRunner as ConcreteAdapterLeak } from "../../process-execution/node-process-runner.js";', 1],
+      ['export { NodeFoundationOperationLock as ConcreteAdapterLeak } from "../../transaction-coordination/adapters/node/node-foundation-operation-lock.js";', 1]
+    ];
+    for (const [addition, expectedExit] of cases) {
+      await writeFile(service, `${original}\n${addition}\n`);
+      const result = actualSourceDependenciesCLI(root);
+      assert.equal(result.exitCode, expectedExit, JSON.stringify({ addition, result }));
+      assert.equal(result.report.outcome, expectedExit === 0 ? "passed" : "violations");
+      const diagnostics = result.report.capabilities.flatMap((capability) => capability.diagnostics);
+      if (expectedExit === 0) {assert.deepEqual(diagnostics, []);}
+      else {assert.ok(diagnostics.some((diagnostic) =>
+        diagnostic.ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" &&
+        diagnostic.location.path.endsWith("local-mode/application/service.ts")
+      ), JSON.stringify(diagnostics));}
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 
 test("installed package version follows its relocated module URL independently of cwd", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-installed-version-"));
   try {
     const packageRoot = join(root, "node_modules", "@agent-teams", "engineering-foundation");
-    const modulePath = join(packageRoot, "dist/local-mode/adapters/node/installed-package-version.js");
+    const modulePath = join(packageRoot, "dist/transaction-coordination/adapters/node/installed-foundation-version.js");
     await mkdir(dirname(modulePath), { recursive: true });
-    await cp(join(repositoryRoot, "packages/engineering-foundation/dist/local-mode/adapters/node/installed-package-version.js"), modulePath);
+    await cp(join(repositoryRoot, "packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js"), modulePath);
     await writeJson(join(packageRoot, "package.json"), { type: "module", version: "6.7.8-installed.2" });
     await writeJson(join(root, "package.json"), { version: "1.0.0-unrelated" });
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", `import { installedFoundationVersion } from ${JSON.stringify(pathToFileURL(modulePath).href)}; process.stdout.write(await installedFoundationVersion());`], { cwd: root, encoding: "utf8" });
@@ -381,6 +428,60 @@ test("installed package version follows its relocated module URL independently o
     assert.equal(result.stdout, "6.7.8-installed.2");
     const manifest = JSON.parse(await readFile(join(repositoryRoot, "packages/engineering-foundation/package.json"), "utf8"));
     assert.equal(await installedFoundationVersion(), manifest.version);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("installed lifecycle, reporting and coordination retain identities and relative artifact paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-installed-identities-"));
+  try {
+    const source = join(repositoryRoot, "packages/engineering-foundation");
+    const installed = join(root, "node_modules/@agent-teams/engineering-foundation");
+    await mkdir(installed, { recursive: true });
+    for (const path of ["dist", "schemas", "presets", "assets", "package.json"]) {
+      await cp(join(source, path), join(installed, path), { recursive: true });
+    }
+    await symlink(join(source, "node_modules"), join(installed, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+    const manifest = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
+    await writeJson(join(installed, "package.json"), { ...manifest, version: "6.7.8-installed.2" });
+    await writeJson(join(root, "package.json"), { type: "module", version: "99.88.77-cwd" });
+    const script = `
+      import assert from "node:assert/strict";
+      import { readFile } from "node:fs/promises";
+      import { FoundationError, localMode } from "@agent-teams/engineering-foundation";
+      import { FoundationLocalModeService, NodeProcessRunner } from "@agent-teams/engineering-foundation/local-mode";
+      import { FoundationError as ReportError } from "./node_modules/@agent-teams/engineering-foundation/dist/features/validation-reporting/foundation-error.js";
+      import { ProcessCancellationError, ProcessTimeoutError } from "./node_modules/@agent-teams/engineering-foundation/dist/process-execution/node-process-runner.js";
+      import { installedFoundationVersion } from "./node_modules/@agent-teams/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
+      import { installedFoundationVersion as scaffoldVersion } from "./node_modules/@agent-teams/engineering-foundation/dist/scaffolding/adapters/node/installed-foundation-version.js";
+      import { computeFoundationBuildIdentity, installedFoundationBuildIdentity } from "./node_modules/@agent-teams/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
+      assert.equal(FoundationError, ReportError);
+      assert.equal(localMode.FoundationLocalModeService, FoundationLocalModeService);
+      assert.equal(localMode.NodeProcessRunner, NodeProcessRunner);
+      assert(new ProcessCancellationError("cancelled") instanceof FoundationError);
+      assert(new ProcessTimeoutError(1) instanceof FoundationError);
+      const cause = new Error("cause");
+      const failure = new FoundationError("CONFIG_INVALID", "message", { cause });
+      assert.equal(failure.cause, cause);
+      assert.equal(failure.name, "FoundationError");
+      assert.equal(failure.code, "CONFIG_INVALID");
+      assert.equal(await installedFoundationVersion(), "6.7.8-installed.2");
+      assert.equal(await scaffoldVersion(), "6.7.8-installed.2");
+      assert.equal(await installedFoundationBuildIdentity(), await computeFoundationBuildIdentity(${JSON.stringify(installed)}));
+      const adapter = new URL("./node_modules/@agent-teams/engineering-foundation/dist/process-execution/windows-managed-process.js", import.meta.url);
+      const source = await readFile(adapter, "utf8");
+      const paths = [...source.matchAll(/new URL\\("([^"]+)", import.meta.url\\)/gu)].map((match) => match[1]);
+      assert.deepEqual(paths, ["../../assets/windows-managed-process/bootstrap.ps1", "./windows-process-host.js"]);
+      for (const path of paths) assert((await readFile(new URL(path, adapter))).length > 0);
+      console.log("installed identities and artifact paths passed");
+    `;
+    await writeFile(join(root, "inspect.mjs"), script);
+    const result = spawnSync(process.execPath, ["inspect.mjs"], { cwd: root, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const cli = spawnSync(process.execPath, [join(installed, "dist/cli.js"), "self-check", "--json"], { cwd: root, encoding: "utf8" });
+    assert.equal(cli.status, 0, cli.stderr);
+    assert.equal(JSON.parse(cli.stdout).packageVersion, "6.7.8-installed.2");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

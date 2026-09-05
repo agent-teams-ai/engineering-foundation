@@ -1,7 +1,7 @@
 import { lstat, mkdir, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { FoundationError } from "../../application/errors/foundation-error.js";
+import { FoundationError } from "../../../features/validation-reporting/foundation-error.js";
 import type { FoundationLinkState } from "../../application/model.js";
 import {
   FOUNDATION_PACKAGE_NAME,

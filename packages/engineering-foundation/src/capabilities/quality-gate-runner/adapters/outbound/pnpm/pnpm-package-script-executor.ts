@@ -1,16 +1,14 @@
 import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
-import { FoundationError } from "../../../../../local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "../../../../../features/validation-reporting/foundation-error.js";
 import {
   executeManagedProcess,
   ProcessCancellationError,
   ProcessTimeoutError
 } from "../../../../../process-execution/node-process-runner.js";
-import type {
-  ManagedProcessResult,
-  ProcessRequest
-} from "../../../../../process-execution/types.js";
+import type { ProcessRequest } from "../../../../../process-execution/ports/process-runner.js";
+import type { ManagedProcessResult } from "../../../../../process-execution/types.js";
 import {
   PackageScriptCancellationError,
   PackageScriptTimeoutError,

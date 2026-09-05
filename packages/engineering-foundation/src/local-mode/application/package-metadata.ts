@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../binary-string-comparator.js";
-import { FoundationError } from "./errors/foundation-error.js";
+import { FoundationError } from "../../features/validation-reporting/foundation-error.js";
 import { FOUNDATION_SCHEMA_IDS } from "../../schema-ids.js";
 import { isExactVersion } from "../../semantic-version.js";
 import { FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION, FOUNDATION_PACKAGE_NAME } from "./model.js";

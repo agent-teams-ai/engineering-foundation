@@ -10,7 +10,7 @@ import {
   type RepositoryMutationEnvelope
 } from "@agent-teams/repository-mutation";
 
-import { installedFoundationVersion } from "../../../local-mode/adapters/node/installed-package-version.js";
+import { installedFoundationVersion } from "./installed-foundation-version.js";
 import type { AuthorityScaffoldJournal } from "../../../scaffolding/contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../../../scaffolding/kernel/authority-journal-validation.js";
 import { installedFoundationBuildIdentity } from "./installed-foundation-build-identity.js";

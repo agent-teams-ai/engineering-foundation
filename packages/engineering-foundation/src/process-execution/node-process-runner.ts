@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { FoundationError } from "../local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "../features/validation-reporting/foundation-error.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   managedProcessCleanupFailure,
@@ -11,11 +11,11 @@ import {
   waitForWindowsManagedProcessContainment
 } from "./windows-managed-process.js";
 import type {
-  ManagedProcessResult,
   ProcessRequest,
   ProcessResult,
   ProcessRunner
-} from "./types.js";
+} from "./ports/process-runner.js";
+import type { ManagedProcessResult } from "./types.js";
 
 const MAX_PROCESS_TIMEOUT_MS = 2_147_483_647;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;

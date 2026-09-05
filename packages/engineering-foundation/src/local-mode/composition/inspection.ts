@@ -1,5 +1,5 @@
 import { createNodeModeInspector } from "../adapters/node/mode-inspection.js";
-import { installedFoundationVersion } from "../adapters/node/installed-package-version.js";
+import { installedFoundationVersion } from "../../transaction-coordination/adapters/node/installed-foundation-version.js";
 import { installedFoundationBuildIdentity } from "../../transaction-coordination/adapters/node/installed-foundation-build-identity.js";
 import { NodeFoundationTransactionSlot } from "../../transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import type { FoundationStatus, FoundationTransactionAwareStatus } from "../application/model.js";

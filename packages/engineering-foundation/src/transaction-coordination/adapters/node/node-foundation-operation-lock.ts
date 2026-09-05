@@ -10,7 +10,7 @@ import type {
   FoundationOperationLock,
   FoundationOperationReleaseOptions
 } from "../../application/ports/foundation-operation-lock.js";
-import { FoundationError } from "../../../local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "../../../features/validation-reporting/foundation-error.js";
 
 export class NodeFoundationOperationLock implements FoundationOperationLock {
   readonly #consumerRoot: string;

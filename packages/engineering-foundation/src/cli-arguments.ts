@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { FoundationError } from "./local-mode/application/errors/foundation-error.js";
+import { FoundationError } from "./features/validation-reporting/foundation-error.js";
 import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffolding/scaffold-defaults.js";
 
 type OutputFormat = "json" | "text";

@@ -1,6 +1,5 @@
 // oxlint-disable max-lines -- workflow contract coverage remains one auditable suite.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
@@ -17,6 +16,7 @@ import {
 import {
   validateReleaseCodeqlCollectionEntries,
   validateReleaseCodeqlEvidence,
+  validateReleaseCodeqlObservation,
 } from "../scripts/check-release-codeql-evidence.mjs";
 import { selectReleaseCiRun } from "../scripts/select-release-ci-run.mjs";
 
@@ -238,11 +238,14 @@ function assertPaginatedEvidenceFailClosed(attestationSource) {
     (attestationSource.match(/if ! validate_codeql_collection /gu) ?? []).length,
     6,
   );
-  assert.match(attestationSource, /codeql_status_is_pending\(\) \{/u);
+  assert.match(attestationSource, /validate_codeql_observation\(\) \{/u);
   assert.equal(
-    (attestationSource.match(/if codeql_status_is_pending /gu) ?? []).length,
-    4,
+    (attestationSource.match(
+      /validate_codeql_observation (?:run|jobs|analyze-check|check-runs|check-suite|analyses)/gu,
+    ) ?? []).length,
+    6,
   );
+  assert.doesNotMatch(attestationSource, /codeql_status_is_pending/u);
   const firstJobsValidation = attestationSource.indexOf(
     'validate_codeql_collection jobs <<<"${codeql_jobs}"',
   );
@@ -264,42 +267,24 @@ function assertPaginatedEvidenceFailClosed(attestationSource) {
   assert.ok(firstJobsValidation < firstAnalyzeCheckRead);
   assert.ok(firstChecksValidation < firstSuiteRead);
   assert.ok(firstAnalysesValidation < initialReceiptValidation);
+  assert.ok(
+    attestationSource.indexOf("validate_codeql_observation run") <
+      attestationSource.indexOf("codeql_job_pages"),
+  );
+  assert.ok(
+    attestationSource.indexOf("validate_codeql_observation jobs") <
+      firstAnalyzeCheckRead,
+  );
+  assert.ok(
+    attestationSource.indexOf("validate_codeql_observation check-runs") <
+      firstSuiteRead,
+  );
   assert.match(
     attestationSource,
     /if codeql_receipt="\$\(jq -n[\s\S]*?then\n\s+break\n\s+fi\n\s+cat "\$\{codeql_evidence_error\}" >&2\n\s+fail_attestation "Release PR exact CodeQL evidence is malformed"/u,
   );
-  assert.doesNotMatch(
-    attestationSource,
-    /\| \\\n\s+\[length, first\.check_run_url/u,
-  );
-  if (process.platform !== "win32") {
-    const analyzeMarker = "read -r codeql_analyze_count";
-    const analyzeBlock = attestationSource.slice(
-      attestationSource.indexOf(analyzeMarker),
-    );
-    const selectorStart = analyzeBlock.indexOf("'[") + 1;
-    const selectorEnd = analyzeBlock.indexOf("' \\", selectorStart);
-    assert.ok(selectorStart > 0 && selectorEnd > selectorStart);
-    const executed = spawnSync(
-      "jq",
-      ["-r", analyzeBlock.slice(selectorStart, selectorEnd)],
-      {
-        encoding: "utf8",
-        input: JSON.stringify({
-          jobs: [{
-            name: "analyze",
-            check_run_url: "https://api.github.test/check-runs/789",
-            status: "completed",
-          }],
-        }),
-      },
-    );
-    assert.equal(executed.status, 0, executed.stderr);
-    assert.equal(
-      executed.stdout.trim(),
-      "1\thttps://api.github.test/check-runs/789\tcompleted",
-    );
-  }
+  assert.doesNotMatch(attestationSource, /read -r codeql_analyze_count/u);
+  assert.doesNotMatch(attestationSource, /read -r codeql_check_count/u);
 }
 
 function exactPullRequestRun(overrides = {}) {
@@ -523,7 +508,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
     malformedRun.run.id = malformedId;
     assert.throws(
       () => validateReleaseCodeqlEvidence(malformedRun, expectation),
-      /workflow run identity differs/u,
+      /workflow run (?:ID is malformed|identity differs)/u,
     );
   }
 
@@ -826,6 +811,132 @@ test("release CodeQL collection validation rejects malformed entries before retr
   );
 });
 
+test("release CodeQL observations retry only absent or valid pending evidence", () => {
+  const evidence = exactCodeqlEvidence();
+  const expected = { ...exactRunExpectation, runId: 123 };
+  const observe = (phase, overrides = {}) => validateReleaseCodeqlObservation(
+    phase,
+    {
+      run: evidence.run,
+      jobs: evidence.jobs,
+      analyzeCheck: evidence.analyzeCheck,
+      checkRuns: evidence.checkRuns,
+      checkSuite: evidence.checkSuite,
+      analyses: evidence.analyses,
+      ...overrides,
+    },
+    expected,
+  );
+
+  for (const phase of [
+    "run",
+    "jobs",
+    "analyze-check",
+    "check-runs",
+    "check-suite",
+    "analyses",
+  ]) {
+    assert.equal(observe(phase).state, "completed");
+  }
+
+  const pendingRun = structuredClone(evidence.run);
+  pendingRun.status = "in_progress";
+  pendingRun.conclusion = null;
+  assert.deepEqual(observe("run", { run: pendingRun }), { state: "pending" });
+  pendingRun.id = "123";
+  assert.throws(
+    () => observe("run", { run: pendingRun }),
+    /workflow run ID is malformed/u,
+  );
+
+  const absentAnalyze = structuredClone(evidence.jobs);
+  absentAnalyze.jobs[0].name = "setup";
+  assert.equal(observe("jobs", { jobs: absentAnalyze }).state, "pending");
+  absentAnalyze.jobs[0].url = "https://example.test/jobs/456";
+  assert.throws(
+    () => observe("jobs", { jobs: absentAnalyze }),
+    /entry 0 identity differs/u,
+  );
+
+  const pendingAnalyze = structuredClone(evidence.jobs);
+  pendingAnalyze.jobs[0].status = "queued";
+  pendingAnalyze.jobs[0].conclusion = null;
+  assert.equal(observe("jobs", { jobs: pendingAnalyze }).state, "pending");
+  pendingAnalyze.jobs[0].id = { value: 456 };
+  assert.throws(
+    () => observe("jobs", { jobs: pendingAnalyze }),
+    /entry 0 ID is malformed/u,
+  );
+
+  const failedAnalyze = structuredClone(evidence.jobs);
+  failedAnalyze.jobs[0].conclusion = "failure";
+  assert.throws(
+    () => observe("jobs", { jobs: failedAnalyze }),
+    /analyze job did not succeed/u,
+  );
+
+  const pendingAnalyzeCheck = structuredClone(evidence.analyzeCheck);
+  pendingAnalyzeCheck.status = "pending";
+  pendingAnalyzeCheck.conclusion = null;
+  assert.equal(
+    observe("analyze-check", { analyzeCheck: pendingAnalyzeCheck }).state,
+    "pending",
+  );
+  pendingAnalyzeCheck.id = "456";
+  assert.throws(
+    () => observe("analyze-check", { analyzeCheck: pendingAnalyzeCheck }),
+    /Analyze check run ID is malformed/u,
+  );
+  const failedAnalyzeCheck = structuredClone(evidence.analyzeCheck);
+  failedAnalyzeCheck.conclusion = "failure";
+  assert.throws(
+    () => observe("analyze-check", { analyzeCheck: failedAnalyzeCheck }),
+    /Analyze check run did not succeed/u,
+  );
+
+  const absentCheck = { check_runs: [] };
+  assert.equal(observe("check-runs", { checkRuns: absentCheck }).state, "pending");
+  const pendingCheck = structuredClone(evidence.checkRuns);
+  pendingCheck.check_runs[0].status = "requested";
+  pendingCheck.check_runs[0].conclusion = null;
+  assert.equal(observe("check-runs", { checkRuns: pendingCheck }).state, "pending");
+  pendingCheck.check_runs[0].status = "completed";
+  pendingCheck.check_runs[0].conclusion = "failure";
+  assert.throws(
+    () => observe("check-runs", { checkRuns: pendingCheck }),
+    /check did not succeed/u,
+  );
+
+  const pendingSuite = structuredClone(evidence.checkSuite);
+  pendingSuite.status = "waiting";
+  pendingSuite.conclusion = null;
+  assert.equal(observe("check-suite", { checkSuite: pendingSuite }).state, "pending");
+  pendingSuite.id = 2 ** 53;
+  assert.throws(
+    () => observe("check-suite", { checkSuite: pendingSuite }),
+    /check suite ID is malformed/u,
+  );
+  const failedSuite = structuredClone(evidence.checkSuite);
+  failedSuite.conclusion = "failure";
+  assert.throws(
+    () => observe("check-suite", { checkSuite: failedSuite }),
+    /check suite did not succeed/u,
+  );
+
+  assert.equal(observe("analyses", { analyses: [] }).state, "pending");
+  const absentExactAnalysis = structuredClone(evidence.analyses);
+  absentExactAnalysis[0].ref = "refs/heads/unrelated";
+  assert.equal(
+    observe("analyses", { analyses: absentExactAnalysis }).state,
+    "pending",
+  );
+  absentExactAnalysis[0].url = "https://example.test/analyses/901";
+  assert.throws(
+    () => observe("analyses", { analyses: absentExactAnalysis }),
+    /entry 0 identity differs/u,
+  );
+});
+
 test("release CI selection reuses only one exact attempt-1 pull request run", () => {
   assert.deepEqual(
     selectReleaseCiRun({ workflow_runs: [exactPullRequestRun()] }, exactRunExpectation),
@@ -1036,10 +1147,10 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(
     (attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length,
-    3,
+    4,
   );
   assert.match(attestation.run, /check_name=CodeQL/u);
-  assert.match(attestation.run, /\.app\.id == 57789/u);
+  assert.match(attestation.run, /validate_codeql_observation check-runs/u);
   assert.match(attestation.run, /code-scanning\/analyses/u);
   assertPaginatedEvidenceFailClosed(attestation.run);
   assert.match(attestation.run, /check-suites\/\$\{codeql_check_suite_id\}/u);
@@ -1068,7 +1179,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(
     (attestation.run.match(/--argjson analyzeCheck/gu) ?? []).length,
-    2,
+    3,
   );
   assert.match(
     attestation.run,

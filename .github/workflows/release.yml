@@ -260,9 +260,18 @@ jobs:
               --collection "${collection}"
           }
 
-          codeql_status_is_pending() {
-            [[ "$1" == "queued" || "$1" == "in_progress" || \
-              "$1" == "pending" || "$1" == "waiting" || "$1" == "requested" ]]
+          validate_codeql_observation() {
+            local observation="$1"
+            node scripts/check-release-codeql-evidence.mjs \
+              --observation "${observation}" \
+              --api "${GITHUB_API_URL}" \
+              --repository "${GITHUB_REPOSITORY}" \
+              --server "${GITHUB_SERVER_URL}" \
+              --run "${codeql_run_id}" \
+              --pr "${RELEASE_PULL_REQUEST}" \
+              --branch changeset-release/main \
+              --base "${base_sha}" \
+              --head "${head_sha}"
           }
 
           trap mark_attestation_error ERR
@@ -498,12 +507,16 @@ jobs:
               sleep 5
               continue
             fi
-            if [[ "$(jq -r '.status' <<<"${codeql_run}")" != "completed" ]]; then
+            : > "${codeql_evidence_error}"
+            if ! codeql_observation="$(jq -n --argjson run "${codeql_run}" \
+              '{run: $run}' | validate_codeql_observation run \
+              2>"${codeql_evidence_error}")"; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Release PR CodeQL workflow evidence is malformed"
+            fi
+            if [[ "$(jq -r '.state' <<<"${codeql_observation}")" == "pending" ]]; then
               sleep 5
               continue
-            fi
-            if [[ "$(jq -r '.conclusion // ""' <<<"${codeql_run}")" != "success" ]]; then
-              fail_attestation "Release PR CodeQL workflow did not succeed"
             fi
             if ! codeql_job_pages="$(fetch_paginated_pages \
               -H 'Accept: application/vnd.github+json' \
@@ -518,42 +531,41 @@ jobs:
             if ! validate_codeql_collection jobs <<<"${codeql_jobs}"; then
               fail_attestation "Release PR CodeQL jobs evidence is malformed"
             fi
-            read -r codeql_analyze_count codeql_analyze_check_id \
-              codeql_analyze_status < <(jq -r \
-              '[.jobs[] | select(.name == "analyze")] |
-              [length, first.check_run_url // "missing",
-                first.status // "missing"] | @tsv' \
-              <<<"${codeql_jobs}")
-            codeql_analyze_check_id="${codeql_analyze_check_id##*/}"
-            if [[ "${codeql_analyze_count}" == "0" ]]; then
+            : > "${codeql_evidence_error}"
+            if ! codeql_observation="$(jq -n \
+              --argjson run "${codeql_run}" \
+              --argjson jobs "${codeql_jobs}" \
+              '{run: $run, jobs: $jobs}' | validate_codeql_observation jobs \
+              2>"${codeql_evidence_error}")"; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Release PR CodeQL jobs evidence is malformed"
+            fi
+            if [[ "$(jq -r '.state' <<<"${codeql_observation}")" == "pending" ]]; then
               sleep 5
               continue
             fi
-            if [[ "${codeql_analyze_count}" != "1" || \
-              ! "${codeql_analyze_check_id}" =~ ^[1-9][0-9]*$ ]]; then
-              fail_attestation "Release PR CodeQL analyze identity is ambiguous"
-            fi
-            if [[ "${codeql_analyze_status}" != "completed" ]]; then
-              if codeql_status_is_pending "${codeql_analyze_status}"; then
-                sleep 5
-                continue
-              fi
-              fail_attestation "Release PR CodeQL analyze status is malformed"
-            fi
+            codeql_analyze_check_id="$(jq -r '.analyzeCheckId' \
+              <<<"${codeql_observation}")"
             if ! codeql_analyze_check="$(gh api \
               -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/check-runs/${codeql_analyze_check_id}")"; then
               sleep 5
               continue
             fi
-            codeql_analyze_check_status="$(jq -r '.status // "missing"' \
-              <<<"${codeql_analyze_check}")"
-            if [[ "${codeql_analyze_check_status}" != "completed" ]]; then
-              if codeql_status_is_pending "${codeql_analyze_check_status}"; then
-                sleep 5
-                continue
-              fi
-              fail_attestation "Release PR CodeQL analyze check status is malformed"
+            : > "${codeql_evidence_error}"
+            if ! codeql_observation="$(jq -n \
+              --argjson run "${codeql_run}" \
+              --argjson jobs "${codeql_jobs}" \
+              --argjson analyzeCheck "${codeql_analyze_check}" \
+              '{run: $run, jobs: $jobs, analyzeCheck: $analyzeCheck}' | \
+              validate_codeql_observation analyze-check \
+              2>"${codeql_evidence_error}")"; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Release PR CodeQL analyze check evidence is malformed"
+            fi
+            if [[ "$(jq -r '.state' <<<"${codeql_observation}")" == "pending" ]]; then
+              sleep 5
+              continue
             fi
             if ! codeql_check_pages="$(fetch_paginated_pages --method GET \
               -H 'Accept: application/vnd.github+json' \
@@ -569,38 +581,44 @@ jobs:
             if ! validate_codeql_collection check-runs <<<"${codeql_checks}"; then
               fail_attestation "Release PR CodeQL check runs evidence is malformed"
             fi
-            read -r codeql_check_count codeql_check_suite_id codeql_check_status < <(jq -r \
-              '[.check_runs[] | select(.name == "CodeQL" and .app.id == 57789)] |
-              [length, first.check_suite.id // "missing", first.status // "missing"] |
-              @tsv' <<<"${codeql_checks}")
-            if [[ "${codeql_check_count}" == "0" ]]; then
+            : > "${codeql_evidence_error}"
+            if ! codeql_observation="$(jq -n \
+              --argjson run "${codeql_run}" \
+              --argjson jobs "${codeql_jobs}" \
+              --argjson checkRuns "${codeql_checks}" \
+              '{run: $run, jobs: $jobs, checkRuns: $checkRuns}' | \
+              validate_codeql_observation check-runs \
+              2>"${codeql_evidence_error}")"; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Release PR CodeQL check runs evidence is malformed"
+            fi
+            if [[ "$(jq -r '.state' <<<"${codeql_observation}")" == "pending" ]]; then
               sleep 5
               continue
             fi
-            if [[ "${codeql_check_count}" != "1" || \
-              ! "${codeql_check_suite_id}" =~ ^[1-9][0-9]*$ ]]; then
-              fail_attestation "Release PR CodeQL check identity is ambiguous"
-            fi
-            if [[ "${codeql_check_status}" != "completed" ]]; then
-              if codeql_status_is_pending "${codeql_check_status}"; then
-                sleep 5
-                continue
-              fi
-              fail_attestation "Release PR CodeQL check status is malformed"
-            fi
+            codeql_check_suite_id="$(jq -r '.checkSuiteId' \
+              <<<"${codeql_observation}")"
             if ! codeql_check_suite="$(gh api -H 'Accept: application/vnd.github+json' \
               "repos/${GITHUB_REPOSITORY}/check-suites/${codeql_check_suite_id}")"; then
               sleep 5
               continue
             fi
-            codeql_check_suite_status="$(jq -r '.status // "missing"' \
-              <<<"${codeql_check_suite}")"
-            if [[ "${codeql_check_suite_status}" != "completed" ]]; then
-              if codeql_status_is_pending "${codeql_check_suite_status}"; then
-                sleep 5
-                continue
-              fi
-              fail_attestation "Release PR CodeQL check suite status is malformed"
+            : > "${codeql_evidence_error}"
+            if ! codeql_observation="$(jq -n \
+              --argjson run "${codeql_run}" \
+              --argjson jobs "${codeql_jobs}" \
+              --argjson checkRuns "${codeql_checks}" \
+              --argjson checkSuite "${codeql_check_suite}" \
+              '{run: $run, jobs: $jobs, checkRuns: $checkRuns,
+                checkSuite: $checkSuite}' | \
+              validate_codeql_observation check-suite \
+              2>"${codeql_evidence_error}")"; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Release PR CodeQL check suite evidence is malformed"
+            fi
+            if [[ "$(jq -r '.state' <<<"${codeql_observation}")" == "pending" ]]; then
+              sleep 5
+              continue
             fi
             if ! codeql_analysis_pages="$(fetch_paginated_pages --method GET \
               -H 'Accept: application/vnd.github+json' \
@@ -616,19 +634,20 @@ jobs:
             if ! validate_codeql_collection analyses <<<"${codeql_analyses}"; then
               fail_attestation "Release PR CodeQL analyses evidence is malformed"
             fi
-            codeql_analysis_count="$(jq -r --arg ref "refs/heads/changeset-release/main" \
-              --arg head "${head_sha}" \
-              --arg category "release-attestation-${codeql_run_id}-1" \
-              '[.[] | select(.ref == $ref and .commit_sha == $head and
-                .analysis_key == ".github/workflows/codeql.yml:analyze" and
-                .category == $category and .tool.name == "CodeQL")] | length' \
-              <<<"${codeql_analyses}")"
-            if [[ "${codeql_analysis_count}" == "0" ]]; then
+            : > "${codeql_evidence_error}"
+            if ! codeql_observation="$(jq -n \
+              --argjson run "${codeql_run}" \
+              --argjson jobs "${codeql_jobs}" \
+              --argjson analyses "${codeql_analyses}" \
+              '{run: $run, jobs: $jobs, analyses: $analyses}' | \
+              validate_codeql_observation analyses \
+              2>"${codeql_evidence_error}")"; then
+              cat "${codeql_evidence_error}" >&2
+              fail_attestation "Release PR CodeQL analyses evidence is malformed"
+            fi
+            if [[ "$(jq -r '.state' <<<"${codeql_observation}")" == "pending" ]]; then
               sleep 5
               continue
-            fi
-            if [[ "${codeql_analysis_count}" != "1" ]]; then
-              fail_attestation "Release PR CodeQL analysis identity is ambiguous"
             fi
             : > "${codeql_evidence_error}"
             if codeql_receipt="$(jq -n \

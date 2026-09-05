@@ -2246,6 +2246,8 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/configuration-input.ts
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/model/workspace-dependency-settings.ts
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/model/workspace-dependency-policy.ts
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/model/workspace-snapshot.ts
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application/policies/evaluate-workspace-dependencies.ts
@@ -2255,13 +2257,8 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/contract
     allow:
-      boundaries:
-        - capability.workspace-dependencies.application
-        - foundation.core
-        - foundation.configuration-input.composition
-        - foundation.validation-reporting.application
-      packages:
-        - ajv
+      boundaries: []
+      packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -2272,10 +2269,7 @@ boundaries:
     allow:
       boundaries:
         - capability.workspace-dependencies.application
-        - capability.workspace-dependencies.contract
-        - foundation.schema-validation
-        - foundation.configuration-input.composition
-      packages: []
+      packages: [ "ajv" ]
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -2286,6 +2280,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.workspace-dependencies.adapters
         - capability.workspace-dependencies.application
         - capability.workspace-dependencies.contract

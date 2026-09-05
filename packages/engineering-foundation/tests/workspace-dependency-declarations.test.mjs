@@ -4,13 +4,16 @@ import { join } from "node:path";
 import test from "node:test";
 import { parse, stringify } from "yaml";
 
+import { readFoundationSchema } from "../dist/schema-catalog.js";
+import { loadStrictYamlFile } from "../dist/features/configuration-input/node.js";
+
 import { createWorkspaceDependencyDeclarationsCapability } from "../dist/capabilities/workspace-dependency-declarations/module.js";
 import { PnpmWorkspaceInventoryReader } from "../dist/workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
 import { check, withFixture } from "./support/dependency-fixtures.mjs";
 import { normalizeDependencyDeclaration, parseNpmAlias } from "../dist/workspace-inventory/application/policies/normalize-dependency-declaration.js";
 
 const configPath = "architecture/foundation/dependency-declarations.yaml";
-const run = (consumerRoot) => createWorkspaceDependencyDeclarationsCapability(new PnpmWorkspaceInventoryReader()).run({ consumerRoot, configPath });
+const run = (consumerRoot) => createWorkspaceDependencyDeclarationsCapability(new PnpmWorkspaceInventoryReader(), readFoundationSchema).run({ consumerRoot, configPath });
 const rule = (suffix) => `workspace.dependency-declarations.${suffix}`;
 const has = (report, suffix, slot, section = "dependencies") => report.diagnostics.some(
   (entry) => entry.ruleId === rule(suffix) && entry.subject === `@fixture/app:${section}:${slot}`,
@@ -131,7 +134,7 @@ for (const specifier of ["npm:", "npm:foo", "npm:@scope@1.2.3", "npm:@scope/pkg@
 // Captured by executing originalBase, independent of the migrated loader/parser.
 const configBaseline = JSON.parse(await readFile(new URL("./fixtures/workspace-dependency-declarations/config-baseline.json", import.meta.url), "utf8"));
 const configSchema = JSON.parse(await readFile(new URL("../schemas/workspace-dependency-declarations/v1.schema.json", import.meta.url), "utf8"));
-import { parseCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/contract/config.js";
+import { parseCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/parse-capability-config.js";
 import { loadCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/load-capability-config.js";
 for (const entry of configBaseline.cases) {
   test(`original-base config byte/diagnostic parity: ${entry.name}`, async () => {
@@ -150,7 +153,7 @@ for (const entry of configBaseline.cases) {
           assert.ok(Object.isFrozen(actual.policy.developmentOnlyPackages));
         }
       };
-      await settings(() => loadCapabilityConfig(root, configPath));
+      await settings(() => loadCapabilityConfig({ readYaml: loadStrictYamlFile, readSchema: readFoundationSchema }, root, configPath));
       if (!entry.loaderOnly) {
         await settings(async () => parseCapabilityConfig(parse(entry.yaml), configSchema));
       }

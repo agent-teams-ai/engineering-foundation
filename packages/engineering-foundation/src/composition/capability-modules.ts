@@ -1,4 +1,4 @@
-import { assertSchema } from "../schema-catalog.js";
+import { assertSchema, readFoundationSchema } from "../schema-catalog.js";
 import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import type { CapabilityDefinition, RuleExplanation } from "../features/validation-reporting/api.js";
@@ -115,7 +115,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       SUPPRESSION_GOVERNANCE_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader()),
+      createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), readFoundationSchema),
       WORKSPACE_RULES_BY_ID
     )
   ]);

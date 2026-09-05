@@ -132,6 +132,10 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.equal(deadlines.size, 2);
   assert.equal(primaryDeadlineSeconds, 55 * 60);
   assert.equal(finalVerificationSeconds, 60);
+  assert.ok(
+    ci.jobs["macos-qualification"]["timeout-minutes"] >= 30,
+    "macOS package and hermetic registry qualification needs at least 30 minutes",
+  );
   assert.equal(primaryDeadlineSeconds - longestRequiredCiPathSeconds, 3 * 60);
   assert.match(attestation.run, /actions\/workflows\/ci\.yml\/dispatches/u);
   assert.match(attestation.run, /-F return_run_details=true/u);

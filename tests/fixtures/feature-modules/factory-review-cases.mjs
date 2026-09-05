@@ -76,6 +76,7 @@ export function registerFactoryReviewCases({ test, assert }) {
     ["temporary returned update", 'function expose(){return state;} expose().execute++;'],
     ["temporary returned delete", 'function expose(){return state;} delete expose().execute;'],
     ["throw catch alias", 'try{throw state;}catch(alias){alias.execute=read;}'],
+    ["throw constructor returned alias", 'class Expose{constructor(){return state;}} try{throw new Expose();}catch(alias){alias.execute=read;}'],
     ["throw returned alias", 'function expose(){return state;} try{throw expose();}catch(alias){alias.execute=read;}'],
     ["returned alias write", 'function expose(){return state;} const alias=expose(); alias.execute=read;'],
     ["arrow returned alias write", 'const expose=()=>state; const alias=expose(); alias.execute=read;'],
@@ -299,6 +300,16 @@ function registerFactoryValueCases({test, assert, unknown, owned, importedFactor
   })));
   test("factory review reassigned primitive remains unknown", () => unknown(inspect({
     code:importedFactory,factory:'let marker="safe"; marker="changed"; export function createApi(){return {execute:marker};}'
+  })));
+  test("factory review thrown imported error retains constructor identity", () => {
+    const result=inspect({code:'import {Fault} from "../domain/index.js"; function fail(){throw new Fault();} export const execute=Fault;',extra:{[domain]:'export class Fault extends Error {}'}});
+    owned(result,domain,"domain"); assert.deepEqual(result.problems,[]);
+  });
+  test("factory review escaped class is not a callable factory", () => unknown(inspect({
+    code:'import {Fault} from "../domain/index.js"; function fail(){throw new Fault();} export const {execute}=Fault();',extra:{[domain]:'export class Fault extends Error {}'}
+  })));
+  test("factory review reassigned class stays unknown", () => unknown(inspect({
+    code:importedFactory,factory:'class Fault {} Fault=class Other {}; export function createApi(){return {execute:Fault};}'
   })));
   for (const selection of ['namespace', 'namespace()']) {
     test(`factory review escaped namespace is not a stable scalar ${selection}`, () => unknown(inspect({

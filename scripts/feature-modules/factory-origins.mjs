@@ -6,7 +6,7 @@ const unknown = () => [undefined];
 // A terminal selector for runtime identity, distinct from object enumeration.
 export const callableSelection = Symbol("callable");
 export const stableIdentitySelection = Symbol("stable-identity");
-const immutableIdentity = (node) => functions.has(node.type) || (node.type === "Literal" && !node.regex);
+const immutableIdentity = (node) => functions.has(node.type) || node.type === "ClassDeclaration" || (node.type === "Literal" && !node.regex);
 const propertyName = (node) => node?.type === "Identifier" ? node.name : node?.type === "Literal" && ["string", "number"].includes(typeof node.value) ? String(node.value) : undefined;
 
 export function flatBindings(pattern) {
@@ -154,8 +154,9 @@ export function factoryOrigins(hooks) {
     if (identifier(node)) {return hooks.identifier(value, selection, next);}
     if (["TSAsExpression", "TSSatisfiesExpression"].includes(node.type)) {return resolve({ ...value, node: node.expression }, selection, next);}
     if (staticMember(node)) {return resolve({ ...value, node: node.object }, [node.property.name, ...selection], next);}
-    // Copying or passing a primitive cannot mutate its value. RegExp literals
-    // are objects; binding reassignment is still rejected above for every type.
+    // A primitive value or function/class implementation retains its identity.
+    // This does not prove object member stability or class callability. RegExp
+    // literals are objects; binding reassignment is rejected for every type.
     const immutableValue = immutableIdentity(node);
     // A bounded factory may return an immutable function or primitive. Resolve
     // that result before applying escape flags; do not discard those flags.

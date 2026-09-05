@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/document-authoring",
-  "packageVersion": "0.1.0",
+  "packageVersion": "0.2.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -2035,7 +2035,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function applyDocumentationPlan(request: ApplyDocumentPlanRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceipt>;"
+          "signature": "export declare function applyDocumentationPlan(request: ApplyDocumentPlanRequest): Promise<DocumentReceiptContract>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!applyDocumentationPlanV2:function(1)",
@@ -2119,7 +2119,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function planDocumentationDocument(request: PlanDocumentationDocumentRequest): Promise<import(\"./application/model/document-planning.js\").DocumentPlan>;"
+          "signature": "export declare function planDocumentationDocument(request: PlanDocumentationDocumentRequestContract): Promise<DocumentPlanContract>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!planDocumentationDocumentV2:function(1)",
@@ -2147,14 +2147,14 @@
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function recoverDocumentationTransaction(request: RecoverDocumentTransactionRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceipt>;"
+          "signature": "export declare function recoverDocumentationTransaction(request: RecoverDocumentTransactionRequest): Promise<DocumentReceiptContract>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!recoverDocumentationTransactionV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function recoverDocumentationTransactionV2(request: RecoverDocumentTransactionRequest): Promise<import(\"./application/model/document-receipt.js\").DocumentReceiptContract>;"
+          "signature": "export declare function recoverDocumentationTransactionV2(request: RecoverDocumentTransactionRequest): Promise<DocumentReceiptContract>;"
         }
       ]
     },

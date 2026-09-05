@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol-agent-teams",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent Teams managed integration adapter for the portable Docs Protocol.",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1
+
+### Patch Changes
+
+- [#257](https://github.com/agent-teams-ai/engineering-foundation/pull/257) [`c99caa1`](https://github.com/agent-teams-ai/engineering-foundation/commit/c99caa1a785cfc7c876c79bf6934e228555e6afd) Thanks [@777genius](https://github.com/777genius)! - Publish a coordinated patch wave to obtain a new release provenance origin for managed Cohort qualification, preserving existing package behavior and exact internal dependency alignment.
+
+- Updated dependencies [[`c99caa1`](https://github.com/agent-teams-ai/engineering-foundation/commit/c99caa1a785cfc7c876c79bf6934e228555e6afd)]:
+  - @agent-teams/repository-mutation@0.1.1
+  - @agent-teams/docs-protocol@0.5.1
+
 ## 0.1.0
 
 ### Minor Changes

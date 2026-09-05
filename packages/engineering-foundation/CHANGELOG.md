@@ -1,5 +1,19 @@
 # @agent-teams/engineering-foundation
 
+## 1.0.1
+
+### Patch Changes
+
+- [#251](https://github.com/agent-teams-ai/engineering-foundation/pull/251) [`24443cf`](https://github.com/agent-teams-ai/engineering-foundation/commit/24443cff28ecc9b2fb993541dbbbdcdec353b12e) Thanks [@777genius](https://github.com/777genius)! - Inspect governed source inside nested coverage and dist directories and explicitly selected generated-name roots while preserving ordinary package-root generated outputs and explicit source-dependency scope.
+
+  Include explicit boundary source roots beneath broader governed roots when traversing coverage and dist routes, including source-file roots and diagnostic fallback discovery. Keep generated siblings excluded and retain v1 governed-only and v2 selected-package coverage.
+
+- [#257](https://github.com/agent-teams-ai/engineering-foundation/pull/257) [`c99caa1`](https://github.com/agent-teams-ai/engineering-foundation/commit/c99caa1a785cfc7c876c79bf6934e228555e6afd) Thanks [@777genius](https://github.com/777genius)! - Publish a coordinated patch wave to obtain a new release provenance origin for managed Cohort qualification, preserving existing package behavior and exact internal dependency alignment.
+
+- Updated dependencies [[`c99caa1`](https://github.com/agent-teams-ai/engineering-foundation/commit/c99caa1a785cfc7c876c79bf6934e228555e6afd), [`0c61b76`](https://github.com/agent-teams-ai/engineering-foundation/commit/0c61b7639029494e44582212f0d3e586887a4eac)]:
+  - @agent-teams/repository-mutation@0.1.1
+  - @agent-teams/document-authoring@0.2.0
+
 ## 1.0.0
 
 ### Major Changes

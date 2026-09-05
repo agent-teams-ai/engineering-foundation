@@ -265,6 +265,9 @@ function validateAnalyze(jobs, expected, runUrls, options = {}) {
       validateJobEntryShape(job, label);
       const jobId = job.id;
       if (
+        job.run_id !== expected.runId ||
+        job.run_attempt !== 1 ||
+        job.head_sha !== expected.headSha ||
         job.url !== `${jobUrlPrefix}/${jobId}` ||
         job.html_url !== `${runUrls.expectedRunUrl}/job/${jobId}` ||
         job.run_url !== runUrls.expectedRunApiUrl ||
@@ -366,6 +369,7 @@ function validateCheck(
       validateCheckRunEntryShape(check, label);
       const checkId = check.id;
       if (
+        check.head_sha !== expected.headSha ||
         check.url !==
           `${expected.apiUrl}/repos/${expected.repository}/check-runs/${checkId}`
       ) {

@@ -589,7 +589,7 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   wrongCheckHead.checkRuns.check_runs[0].head_sha = "c".repeat(40);
   assert.throws(
     () => validateReleaseCodeqlEvidence(wrongCheckHead, expectation),
-    /check identity differs/u,
+    /check runs entry 0 identity differs/u,
   );
 
   const contradictoryAnalysisUrl = structuredClone(evidence);
@@ -857,6 +857,18 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
     () => observe("jobs", { jobs: absentAnalyze }),
     /entry 0 identity differs/u,
   );
+  for (const incompatible of [
+    { run_id: 124 },
+    { run_attempt: 2 },
+    { head_sha: "d".repeat(40) },
+  ]) {
+    const unrelatedJob = structuredClone(evidence.jobs);
+    unrelatedJob.jobs[0] = { ...unrelatedJob.jobs[0], name: "setup", ...incompatible };
+    assert.throws(
+      () => observe("jobs", { jobs: unrelatedJob }),
+      /entry 0 identity differs/u,
+    );
+  }
 
   const pendingAnalyze = structuredClone(evidence.jobs);
   pendingAnalyze.jobs[0].status = "queued";
@@ -896,6 +908,13 @@ test("release CodeQL observations retry only absent or valid pending evidence", 
 
   const absentCheck = { check_runs: [] };
   assert.equal(observe("check-runs", { checkRuns: absentCheck }).state, "pending");
+  const unrelatedCheck = structuredClone(evidence.checkRuns);
+  unrelatedCheck.check_runs[0].name = "setup";
+  unrelatedCheck.check_runs[0].head_sha = "d".repeat(40);
+  assert.throws(
+    () => observe("check-runs", { checkRuns: unrelatedCheck }),
+    /entry 0 identity differs/u,
+  );
   const pendingCheck = structuredClone(evidence.checkRuns);
   pendingCheck.check_runs[0].status = "requested";
   pendingCheck.check_runs[0].conclusion = null;

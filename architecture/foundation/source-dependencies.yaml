@@ -542,6 +542,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.core
         - foundation.validation-reporting.application
         - foundation.process-execution.application
@@ -549,6 +550,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/changed-workflow.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/effective-instructions.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/repository-agent-workflow.ts
@@ -565,13 +567,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract
     allow:
-      boundaries:
-        - capability.repository-agent-workflow.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -594,6 +590,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/configuration/load-agent-workflow-policy.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/report-renderer.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-repository-agent-workflow-reader.ts
@@ -609,6 +606,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.repository-agent-workflow.adapters
         - capability.repository-agent-workflow.application
         - capability.repository-agent-workflow.contract

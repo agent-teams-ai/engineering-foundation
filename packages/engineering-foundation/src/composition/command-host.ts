@@ -40,7 +40,7 @@ function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: st
       ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),
       ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })
-    }, processExecutor),
+    }, processExecutor, assertSchema),
     rules: RULE_REGISTRY,
     promoteDecisions: promoteArchitectureDecisionBaseline,
     promotePublicApi: (input) => promotePublicApiRelease(input, readAcceptedArchitectureDecisionEvidence),

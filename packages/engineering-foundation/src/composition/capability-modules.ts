@@ -99,7 +99,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       QUALITY_GATE_RUNNER_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createRepositoryAgentWorkflowCapability(),
+      createRepositoryAgentWorkflowCapability({ assertSchema }),
       REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID
     ),
     defineCapabilityModule(

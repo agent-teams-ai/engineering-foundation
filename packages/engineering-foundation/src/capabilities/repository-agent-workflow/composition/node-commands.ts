@@ -5,15 +5,22 @@ import { createAgentWorkflowInstructionsCommand } from "../adapters/inbound/cli/
 import { GitRepositoryChangesReader } from "../adapters/outbound/git/git-repository-changes-reader.js";
 import { PnpmPackageScriptRunner, type PnpmProcessEnvironment } from "../adapters/outbound/pnpm/pnpm-package-script-runner.js";
 import { FilesystemEffectiveInstructionsReader } from "../adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
-import { loadAgentWorkflowPolicy } from "../contract/config.js";
+import { loadAgentWorkflowPolicy, type AgentWorkflowConfigurationDependencies } from "../adapters/inbound/configuration/load-agent-workflow-policy.js";
+import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 
-export function createNodeAgentWorkflowCommands(environment: PnpmProcessEnvironment, executor: WorkflowProcessExecutor) {
+export function createNodeAgentWorkflowCommands(
+  environment: PnpmProcessEnvironment,
+  executor: WorkflowProcessExecutor,
+  assertSchema: AgentWorkflowConfigurationDependencies["assertSchema"]
+) {
   const execute = createProcessExecution(executor);
   return {
     changed: createAgentWorkflowChangedCommand({
       changesReader: new GitRepositoryChangesReader(execute),
       scriptRunner: new PnpmPackageScriptRunner(environment, execute),
-      loadPolicy: loadAgentWorkflowPolicy
+      loadPolicy: (consumerRoot, configPath, signal) => loadAgentWorkflowPolicy(
+        { readYaml: loadStrictYamlFile, assertSchema }, consumerRoot, configPath, signal
+      )
     }),
     instructions: createAgentWorkflowInstructionsCommand(new FilesystemEffectiveInstructionsReader())
   };

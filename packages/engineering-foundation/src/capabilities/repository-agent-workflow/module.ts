@@ -9,13 +9,17 @@ import { REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID } from "./application/rules.js";
 import { analyzeRepositoryAgentWorkflow } from "./application/use-cases/analyze-repository-agent-workflow.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadAgentWorkflowPolicy
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadAgentWorkflowPolicy, type AgentWorkflowConfigurationDependencies } from "./adapters/inbound/configuration/load-agent-workflow-policy.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID };
 
-export function createRepositoryAgentWorkflowCapability(): CapabilityDefinition {
+export function createRepositoryAgentWorkflowCapability(input: {
+  readonly assertSchema: AgentWorkflowConfigurationDependencies["assertSchema"];
+}): CapabilityDefinition {
   const reader = new FilesystemRepositoryAgentWorkflowReader();
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -23,6 +27,7 @@ export function createRepositoryAgentWorkflowCapability(): CapabilityDefinition 
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadAgentWorkflowPolicy(
+          { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

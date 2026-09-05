@@ -1,4 +1,4 @@
-import { unstableFactoryBindings } from "./factory-stability.mjs";
+import { stabilizeModuleFrames } from "./factory-effects.mjs";
 import { callableSelection, stableIdentitySelection, factoryOrigins, flatBindings, inheritStability } from "./factory-origins.mjs";
 import { parseSync } from "oxc-parser";
 import { classify, problem, sourceTarget, within } from "./profile.mjs";
@@ -18,6 +18,16 @@ function typeOrigin(node) {
   if (node?.type === "TSArrayType") {return typeOrigin(node.elementType);}
   if (node?.type === "TSTypeOperator") {return typeOrigin(node.typeAnnotation);}
   return node?.typeName ?? node?.exprName;
+}
+function localValue(values, value, selection, active) {
+  const prefix = value.selection ?? [];
+  if (!prefix.length || (!value.contentsUnstable && !value.receiverUnstable)) {return values(value, [...prefix, ...selection], active);}
+  // An escape of a destructured binding affects that selected value, not its
+  // containing factory result. Retain only immutable identity before applying
+  // further projections, just as for an escaped imported binding.
+  const stable = { ...value, contentsUnstable: false, receiverUnstable: false };
+  return values(stable, [...prefix, stableIdentitySelection], active).flatMap((entry) =>
+    entry ? values(inheritStability(entry, value), selection, active) : [undefined]);
 }
 
 function indexProgram(program) {
@@ -127,9 +137,6 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
         if (projection) {locals.set(name, { path, node: init, locals, selection: projection.selection, unstable: declaration.kind !== "const" });}
       }
     }
-    for (const [name, instability] of unstableFactoryBindings(surface?.program.body ?? [], locals)) {
-      locals.set(name, { ...locals.get(name), ...instability });
-    }
     return locals;
   }
   function importValue(value, selection, active) {
@@ -159,7 +166,7 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
       if (binding) {
         const resolved = inheritStability(binding, value);
         return resolved.imported ? importValue({ ...resolved, name: value.node.name }, selection, active)
-          : values(resolved, [...(binding.selection ?? []), ...selection], active);
+          : localValue(values, resolved, selection, active);
       }
       return localAlias(value.path, value.node.name, active, selection);
     }
@@ -170,7 +177,7 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     if (!value) {return [undefined];}
     if (value.imported) {return importValue({ ...value, name }, selection, active);}
     const declaration = surface.locals.get(name);
-    if (declaration.type === "VariableDeclaration") {return values(value, [...(value.selection ?? []), ...selection], active);}
+    if (declaration.type === "VariableDeclaration") {return localValue(values, value, selection, active);}
     const alias = typeOrigin(declaration.typeAnnotation);
     if (alias?.type === "Identifier" && alias.name !== name &&
         (surface.imports.has(alias.name) || surface.locals.has(alias.name))) {return localAlias(path, alias.name, active, selection);}
@@ -193,7 +200,7 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     if (!binding) {return [undefined];}
     if (binding.namespace && !curatedNamespace(path, binding.namespace)) {return [undefined];}
     if (binding.source) {return imported(path, binding.source, binding.local, next, selection).map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || binding.typeOnly }));}
-    const origins = binding.declaration ? values({ path, node: binding.declaration, locals: moduleFrame(path) }, selection, next) : localAlias(path, binding.local, next, selection);
+    const origins = binding.declaration ? values({ ...declarationEffects.get(path), path, node: binding.declaration, locals: moduleFrame(path) }, selection, next) : localAlias(path, binding.local, next, selection);
     return origins.map((entry) => entry && ({ ...entry, typeOnly: entry.typeOnly || binding.typeOnly }));
   }
   function selected(observation) {
@@ -205,6 +212,10 @@ export function surfaceBindings(profile, policy, observations, sources, packageE
     if (node?.type === "TSImportType" && node.qualifier?.type === "Identifier") {return [node.qualifier.name];}
     return ["*"];
   }
+  const declarationEffects = stabilizeModuleFrames(sources, moduleFrame, (path, source) => {
+    const observation = byReference.get(`${path}:${source.start}`);
+    return observation ? targets(observation) : [];
+  });
   return {
     targets,
     curatedNamespace,

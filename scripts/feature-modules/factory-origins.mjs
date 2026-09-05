@@ -65,6 +65,11 @@ function functionLocals(origin) {
   }
   return locals;
 }
+function escapedReturns(origin, node) {
+  const reason = origin.contentsUnstable || origin.resultContentsUnstable ? "contentsUnstable"
+    : origin.receiverUnstable || origin.resultReceiverUnstable ? "receiverUnstable" : undefined;
+  return reason ? [[node, reason]] : [];
+}
 function factoryFrame(origin, call) {
   const fn = origin.node;
   if (origin.typeOnly || !functions.has(fn?.type) || !fn.body || fn.async || fn.generator || !fn.params.every(identifier) || fn.params.length !== call.node.arguments.length || call.node.arguments.some((argument) => argument.type === "SpreadElement")) {return;}
@@ -81,7 +86,9 @@ function factoryFrame(origin, call) {
     const bindings = declaration.type === "FunctionDeclaration" ? [{ id: declaration.id, init: declaration }] : declaration.declarations;
     for (const { id, init } of bindings) {locals.set(id.name, { path: origin.path, node: init, locals });}
   }
-  for (const [name, instability] of unstableFactoryBindings(body, locals)) {
+  // Apply transported result effects in this invocation's lexical environment.
+  const escapes = escapedReturns(origin, body.at(-1).argument);
+  for (const [name, instability] of unstableFactoryBindings(body, locals, escapes)) {
     locals.set(name, { ...locals.get(name), ...instability });
   }
   return { path: origin.path, node: body.at(-1).argument, locals };
@@ -133,7 +140,9 @@ function receiverIndependent(node) {
 export function inheritStability(value, source) {
   return { ...value, unstable: value.unstable || source.unstable,
     contentsUnstable: value.contentsUnstable || source.contentsUnstable,
-    receiverUnstable: value.receiverUnstable || source.receiverUnstable };
+    receiverUnstable: value.receiverUnstable || source.receiverUnstable,
+    resultContentsUnstable: value.resultContentsUnstable || source.resultContentsUnstable,
+    resultReceiverUnstable: value.resultReceiverUnstable || source.resultReceiverUnstable };
 }
 
 /** Resolve a finite value projection; unsupported execution never establishes ownership. */
@@ -184,7 +193,8 @@ export function factoryOrigins(hooks) {
     if (selection.length) {return selection.length === 1 && selection[0] === callableSelection && functions.has(node.type) ? hooks.owned(value) : unknown();}
     if (functions.has(node.type) && hooks.isComposition(value.path)) {
       const forwarded = forwardedCall(value);
-      if (forwarded) {return resolve(forwarded, [], next);}
+      // The function's identity escape does not mutate its forwarding receiver.
+      if (forwarded) {return resolve({ ...forwarded, contentsUnstable: false, receiverUnstable: false }, [], next);}
     }
     return functions.has(node.type) || ["Literal", "ClassDeclaration", "TSInterfaceDeclaration", "TSTypeAliasDeclaration", "TSEnumDeclaration", "TSDeclareFunction"].includes(node.type)
       ? hooks.owned(value) : unknown();

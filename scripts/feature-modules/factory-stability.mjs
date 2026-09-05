@@ -42,7 +42,7 @@ function nestedScope(node, hidden) {
   let scope = hidden;
   if (functionNode(node)) {
     scope = parameterScope(node, hidden);
-    declarations(node.body?.body ?? [], true, scope);
+    if (node.body?.type === "BlockStatement") {declarations(node.body.body, true, scope);}
   } else if (node.type === "BlockStatement") {scope = declarations(node.body, false, new Set(hidden));}
   else if (node.type === "CatchClause") {scope = bindingNames(node.param, new Set(hidden));}
   else if (["ForStatement", "ForInStatement", "ForOfStatement"].includes(node.type)) {
@@ -60,7 +60,7 @@ function children(node) {
 }
 
 /** Track writes and escapes of enclosing bindings without confusing inner shadows. */
-export function unstableFactoryBindings(body, bindings) {
+export function unstableFactoryBindings(body, bindings, escapes = []) {
   const names = new Set(bindings.keys());
   const unstable = new Map();
   const pending = [];
@@ -91,6 +91,8 @@ export function unstableFactoryBindings(body, bindings) {
   // Defaults execute outside body var/function declarations. Real parameters
   // and named expression self bindings shadow enclosing names.
   function scanFunction(node, hidden, escaped) {
+    if (escaped === "resultContentsUnstable") {escaped = "contentsUnstable";}
+    if (escaped === "resultReceiverUnstable") {escaped = "receiverUnstable";}
     // Promise/iterator methods receive a wrapper, not the returned object. That
     // object's contents can escape through then/next callbacks or yielded values.
     if (escaped === "receiverUnstable" && (node.async || node.generator)) {escaped = "contentsUnstable";}
@@ -136,7 +138,10 @@ export function unstableFactoryBindings(body, bindings) {
     scanEffects(node, scope);
     if (["CallExpression", "NewExpression"].includes(node.type)) {
       if (node.callee.type === "MemberExpression") {mark(node.callee.object, scope, "receiverUnstable");}
-      scan(node.callee, scope, escaped);
+      // Escaping a call result does not mutate the callee or its container.
+      // Follow its returns separately, including through imported aliases.
+      const resultEscape = escaped && (["receiverUnstable", "resultReceiverUnstable"].includes(escaped) ? "resultReceiverUnstable" : "resultContentsUnstable");
+      scan(node.callee, scope, resultEscape);
       for (const argument of node.arguments) {scan(argument, scope, "contentsUnstable");}
       return;
     }
@@ -145,6 +150,7 @@ export function unstableFactoryBindings(body, bindings) {
 
   // The enclosing declarations are the tracked bindings, not shadows.
   for (const statement of body) {scan(statement, new Set());}
+  for (const [node, reason] of escapes) {scan(node, new Set(), reason);}
   // Follow alias initializers and escaped closures in their original lexical
   // frame. A supplied argument belongs to its caller, so do not reinterpret it
   // under coincidentally equal parameter names in this factory.

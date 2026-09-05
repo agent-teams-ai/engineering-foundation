@@ -3244,6 +3244,7 @@ boundaries:
       runtimeReferences: []
   - id: capability.documentation-local-references.config-adapter
     roots:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/parse-capability-config.ts
       - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts
     entrypoints:
       - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts

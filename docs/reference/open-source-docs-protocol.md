@@ -145,20 +145,24 @@ Preview a new document, keeping all caller inputs explicit:
 
 ```bash
 docs-protocol new --type adr --id ADR-0083 \
-  --title "Tenant isolation" --owner architecture/tooling \
+  --title "Tenant isolation" --owner documentation/team \
   --summary "Defines the tenant-isolation boundary." --dry-run
 ```
 
 After reviewing destination, metadata, relations, diagnostics, and any manual
-reachability instruction, repeat identical authoring inputs with `--apply`:
+reachability instruction, repeat identical authoring inputs with `--apply` and
+`--expect`. Use the **new-document preview's Plan digest**, printed as `Plan:`;
+this is not the earlier init digest:
 
 ```bash
 docs-protocol new --type adr --id ADR-0083 \
-  --title "Tenant isolation" --owner architecture/tooling \
-  --summary "Defines the tenant-isolation boundary." --apply
+  --title "Tenant isolation" --owner documentation/team \
+  --summary "Defines the tenant-isolation boundary." --apply \
+  --expect sha256:PLAN_DIGEST_FROM_DRY_RUN
 ```
 
-Finish with the repository check:
+Complete the returned manual reachability instruction by adding its exact
+Markdown link to its named index, then finish with the repository check:
 
 ```bash
 docs-protocol check

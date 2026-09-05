@@ -9,13 +9,13 @@ import {
   compilePortableBootstrap,
   inspectPortableBootstrap,
   recoverPortableBootstrap
-} from "../dist/community/bootstrap/index.js";
+} from "../dist/features/portable-bootstrap/composition/portable-bootstrap.js";
 import { compileKnownFileTransactionPlan } from "@agent-teams/repository-mutation";
 import { applyKnownFileTransaction } from "@agent-teams/repository-mutation/qualification";
-import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
-import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
-import { DOCS_ADOPTION_MAX_ROUTING_BYTES } from "../dist/domain/model.js";
-import { docsCheckV2, docsInfoV2, docsNewV2 } from "../dist/composition/node-docs-api.js";
+import { NodeDocsProfileReader } from "../dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
+import { NodeDocsAdoptionInspector } from "../dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js";
+import { DOCS_ADOPTION_MAX_ROUTING_BYTES } from "../dist/features/portable-documentation/application/model.js";
+import { docsCheckV2, docsInfoV2, docsNewV2 } from "../dist/features/docs-command/sdk.js";
 
 const input = (consumerRoot, mode = "dry-run") => ({
   consumerRoot,
@@ -41,12 +41,20 @@ test("portable bootstrap compiles a bounded deterministic create-only plan", asy
   assert.equal(first.outcome, "change-required");
   assert.equal(first.files.length, 17);
   assert.ok(first.files.length <= 32);
-  assert.equal(first.transactionPlan.operations.length, 17);
+  assert.equal(JSON.parse(first.transactionPlan.serializedPlan).operations.length, 17);
   assert.equal(first.files.find(({ path }) => path === "AGENTS.md").ownership, "managed-block");
   assert.ok(first.files.filter(({ path }) => path !== "AGENTS.md").every(({ ownership }) =>
     ownership === "create-only"
   ));
 }));
+
+test("bootstrap rejects invalid modes from untyped callers before filesystem access", async () => {
+  for (const mode of ["preview", "APPLY", "", null, undefined, false, 2]) {
+    await assert.rejects(compilePortableBootstrap({ ...input("/unobserved-consumer"), mode }), {
+      name: "TypeError", message: "mode must be dry-run or apply."
+    });
+  }
+});
 
 test("apply is atomic, preserves AGENTS.md exterior bytes, and reruns idempotently", async () => fixture(async (root) => {
   const exterior = Buffer.from("# Local rules\r\n\r\nKeep this byte-for-byte.\r\n", "utf8");
@@ -71,18 +79,25 @@ test("apply is atomic, preserves AGENTS.md exterior bytes, and reruns idempotent
   assert.equal(applied.plan.planDigest, dry.planDigest);
 
   const config = await readFile(join(root, "docs.config.yaml"), "utf8");
-  assert.match(config, /^schemaVersion: 3$/mu);
+  assert.match(config, /^schemaVersion: 4$/mu);
   assert.doesNotMatch(config, /^projectId:/mu);
   const profile = await new NodeDocsProfileReader().read({
     consumerRoot: root,
     profilePath: "docs.config.yaml"
   });
   assert.equal(profile.adoptionPolicy, "portable-v1");
+  assert.equal(profile.schemaVersion, 4);
+  assert.deepEqual(profile.relations.blockers, {
+    types: ["adr", "explanation", "how-to", "reference", "tutorial"],
+    statuses: ["proposed"],
+    subjectIncompatibleStatuses: ["accepted", "active", "deprecated", "superseded"]
+  });
   const skill = await readFile(join(root, ".agents/skills/docs-authoring/SKILL.md"), "utf8");
   assert.match(skill, /docs-protocol find .*--text QUERY/u);
   assert.equal(skill.includes("--query"), false);
   assert.equal((skill.match(/--id ID --title "TITLE" --owner OWNER_ID --summary "SUMMARY"/gu) ?? []).length, 2);
   assert.match(skill, /manual-required.*markdownLink.*indexPath/u);
+  assert.match(skill, /--apply --expect sha256:PLAN_DIGEST_FROM_DRY_RUN/u);
   const info = await docsInfoV2({ consumerRoot: root, profilePath: "docs.config.yaml" });
   assert.equal(info.envelope.diagnostics.some(({ severity }) => severity === "error"), false);
 
@@ -276,7 +291,7 @@ test("bootstrap enforces the shared AGENTS.md routing bound on exact final bytes
     const boundary = await compilePortableBootstrap(input(root));
     assert.equal(boundary.outcome, "change-required");
     assert.equal(
-      boundary.transactionPlan.operations.find(({ path }) => path === "AGENTS.md").postimage.size,
+      JSON.parse(boundary.transactionPlan.serializedPlan).operations.find(({ path }) => path === "AGENTS.md").postimage.size,
       DOCS_ADOPTION_MAX_ROUTING_BYTES
     );
   });
@@ -386,3 +401,22 @@ test("portable recovery routes an interrupted known-file transaction", async () 
   assert.equal(receipt.outcome, "rolled-back");
   assert.equal((await inspectPortableBootstrap({ consumerRoot: root })).state, "idle");
 }));
+
+test("bootstrap planning uses injected observations and transaction compilation", async () => {
+  const observed = [];
+  let operations;
+  const ports = {
+    repository: {
+      async canonicalRoot(root) { assert.equal(root, "/virtual-bootstrap"); return root; },
+      async observe(root, path) { assert.equal(root, "/virtual-bootstrap"); observed.push(path); }
+    },
+    transactions: {
+      compile(inputOperations) { operations = inputOperations; return { planDigest: `sha256:${"1".repeat(64)}`, serializedPlan: "{}" }; }
+    }
+  };
+  const result = await (await import("../dist/features/portable-bootstrap/application/portable-bootstrap.js")).compilePortableBootstrap(input("/virtual-bootstrap"), ports);
+  assert.equal(result.outcome, "change-required");
+  assert.equal(observed.length, 17);
+  assert.equal(operations.length, 17);
+  assert.equal(typeof operations[0].postimage.contentBase64, "string");
+});

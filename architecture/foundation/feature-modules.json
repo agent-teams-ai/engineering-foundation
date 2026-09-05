@@ -226,7 +226,7 @@
       "moduleAssembly": [
         "packages/docs-protocol/src/index.ts",
         "packages/docs-protocol/src/cli.ts",
-        "packages/docs-protocol/src/composition"
+        "packages/docs-protocol/src/qualification/index.ts"
       ],
       "generatedRoots": [],
       "exceptions": [],
@@ -238,26 +238,43 @@
             {
               "role": "domain",
               "roots": [
-                "packages/docs-protocol/src/domain"
+                "packages/docs-protocol/src/features/portable-documentation/domain",
+                "packages/docs-protocol/src/features/portable-documentation/domain.ts"
               ]
             },
             {
               "role": "application",
               "roots": [
-                "packages/docs-protocol/src/application",
-                "packages/docs-protocol/src/community/context"
+                "packages/docs-protocol/src/features/portable-documentation/application",
+                "packages/docs-protocol/src/features/portable-documentation/application.ts"
               ]
             },
             {
               "role": "adapters",
               "roots": [
-                "packages/docs-protocol/src/adapters"
+                "packages/docs-protocol/src/features/portable-documentation/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/docs-protocol/src/features/portable-documentation/composition",
+                "packages/docs-protocol/src/features/portable-documentation/sdk.ts",
+                "packages/docs-protocol/src/features/portable-documentation/composition.ts",
+                "packages/docs-protocol/src/features/portable-documentation/qualification.ts"
               ]
             }
           ],
           "testRoots": [
             "packages/docs-protocol/tests/docs-protocol.test.mjs",
-            "packages/docs-protocol/tests/community-context.test.mjs"
+            "packages/docs-protocol/tests/authority-handshake.test.mjs",
+            "packages/docs-protocol/tests/adoption.test.mjs",
+            "packages/docs-protocol/tests/code-anchor.test.mjs",
+            "packages/docs-protocol/tests/community-context.test.mjs",
+            "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+            "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",
+            "packages/docs-protocol/tests/profile-policy.test.mjs",
+            "packages/docs-protocol/tests/reviewed-authoring.test.mjs"
           ]
         },
         {
@@ -265,9 +282,24 @@
           "role": "integration",
           "layers": [
             {
+              "role": "application",
+              "roots": [
+                "packages/docs-protocol/src/features/portable-bootstrap/application",
+                "packages/docs-protocol/src/features/portable-bootstrap/application.ts"
+              ]
+            },
+            {
               "role": "adapters",
               "roots": [
-                "packages/docs-protocol/src/community/bootstrap"
+                "packages/docs-protocol/src/features/portable-bootstrap/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/docs-protocol/src/features/portable-bootstrap/composition",
+                "packages/docs-protocol/src/features/portable-bootstrap/sdk.ts",
+                "packages/docs-protocol/src/features/portable-bootstrap/composition.ts"
               ]
             }
           ],
@@ -276,13 +308,50 @@
           ]
         },
         {
-          "id": "portable-qualification",
+          "id": "docs-command",
+          "role": "sdk",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/docs-protocol/src/features/docs-command/application"
+              ]
+            },
+            {
+              "role": "contracts",
+              "roots": [
+                "packages/docs-protocol/src/features/docs-command/contracts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/docs-protocol/src/features/docs-command/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/docs-protocol/src/features/docs-command/composition",
+                "packages/docs-protocol/src/features/docs-command/sdk.ts",
+                "packages/docs-protocol/src/features/docs-command/index.ts",
+                "packages/docs-protocol/src/features/docs-command/qualification.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol/tests/cli-contract.test.mjs",
+            "packages/docs-protocol/tests/envelope-schema.test.mjs"
+          ]
+        },
+        {
+          "id": "qualification",
           "role": "testing",
           "layers": [
             {
               "role": "testing",
               "roots": [
-                "packages/docs-protocol/src/qualification"
+                "packages/docs-protocol/src/features/qualification"
               ]
             }
           ],

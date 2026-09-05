@@ -21,116 +21,277 @@ governedRoots:
   - packages/docs-protocol-mcp/tests
   - spikes/source-dependency-parser
 boundaries:
-  - id: docs-protocol.community.context
+  - id: docs-protocol.module
     roots:
-      - packages/docs-protocol/src/community/context
+      - packages/docs-protocol/src/index.ts
+      - packages/docs-protocol/src/cli.ts
+      - packages/docs-protocol/src/qualification/index.ts
     allow:
       boundaries:
-        - docs-protocol.domain
-      packages:
-        - minisearch
+        - docs-protocol.docs-command.composition
+        - docs-protocol.portable-bootstrap.composition
+        - docs-protocol.portable-documentation.composition
+        - docs-protocol.qualification
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
+    packageExports:
+      - .
+      - ./qualification
+  - id: docs-protocol.portable-documentation.domain
+    roots:
+      - packages/docs-protocol/src/features/portable-documentation/domain
+      - packages/docs-protocol/src/features/portable-documentation/domain.ts
+    allow:
+      boundaries: []
+      packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/community/context/index.ts
-  - id: docs-protocol.community.bootstrap
+      - packages/docs-protocol/src/features/portable-documentation/domain.ts
+      - packages/docs-protocol/src/features/portable-documentation/domain/blocker-policy.ts
+      - packages/docs-protocol/src/features/portable-documentation/domain/document-semantics.ts
+      - packages/docs-protocol/src/features/portable-documentation/domain/documentation-model.ts
+      - packages/docs-protocol/src/features/portable-documentation/domain/metadata.ts
+      - packages/docs-protocol/src/features/portable-documentation/domain/plan-approval.ts
+      - packages/docs-protocol/src/features/portable-documentation/domain/profile-error.ts
+  - id: docs-protocol.portable-documentation.application
     roots:
-      - packages/docs-protocol/src/community/bootstrap
+      - packages/docs-protocol/src/features/portable-documentation/application
+      - packages/docs-protocol/src/features/portable-documentation/application.ts
     allow:
       boundaries:
-        - docs-protocol.domain
+        - docs-protocol.portable-documentation.domain
       packages:
-        - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
       builtins:
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/portable-documentation/application.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/authoring-observation.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/compiled-output-reader.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/context.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/docs-protocol.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/model-v2.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/model-v3.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/model.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/profile-policy.ts
+      - packages/docs-protocol/src/features/portable-documentation/application/ranked-search.ts
+  - id: docs-protocol.portable-documentation.adapters
+    roots:
+      - packages/docs-protocol/src/features/portable-documentation/adapters
+    allow:
+      boundaries:
+        - docs-protocol.portable-documentation.application
+        - docs-protocol.portable-documentation.domain
+      packages:
+        - "@agent-teams/document-authoring"
+        - ajv
+        - ajv-formats
+        - minisearch
+        - yaml
+      builtins:
+        - node:fs
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/portable-documentation/adapters/outbound/document-authoring-port.ts
+      - packages/docs-protocol/src/features/portable-documentation/adapters/outbound/minisearch-adapter.ts
+      - packages/docs-protocol/src/features/portable-documentation/adapters/outbound/node-adoption-inspector.ts
+      - packages/docs-protocol/src/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.ts
+      - packages/docs-protocol/src/features/portable-documentation/adapters/outbound/node-profile-reader.ts
+      - packages/docs-protocol/src/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.ts
+  - id: docs-protocol.portable-documentation.composition
+    roots:
+      - packages/docs-protocol/src/features/portable-documentation/composition
+      - packages/docs-protocol/src/features/portable-documentation/sdk.ts
+      - packages/docs-protocol/src/features/portable-documentation/composition.ts
+      - packages/docs-protocol/src/features/portable-documentation/qualification.ts
+    allow:
+      boundaries:
+        - docs-protocol.portable-documentation.adapters
+        - docs-protocol.portable-documentation.application
+        - docs-protocol.portable-documentation.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/portable-documentation/composition.ts
+      - packages/docs-protocol/src/features/portable-documentation/qualification.ts
+      - packages/docs-protocol/src/features/portable-documentation/sdk.ts
+  - id: docs-protocol.portable-bootstrap.application
+    roots:
+      - packages/docs-protocol/src/features/portable-bootstrap/application
+      - packages/docs-protocol/src/features/portable-bootstrap/application.ts
+    allow:
+      boundaries:
+        - docs-protocol.portable-documentation.domain
+      packages: []
+      builtins:
+        - node:crypto
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/portable-bootstrap/application.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/application/bootstrap-model.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/application/docs-init-model.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/application/docs-init.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/application/portable-bootstrap.ts
+  - id: docs-protocol.portable-bootstrap.adapters
+    roots:
+      - packages/docs-protocol/src/features/portable-bootstrap/adapters
+    allow:
+      boundaries:
+        - docs-protocol.portable-bootstrap.application
+      packages:
+        - "@agent-teams/repository-mutation"
+      builtins:
+        - node:fs
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/portable-bootstrap/adapters/outbound/node-bootstrap-repository.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/adapters/outbound/node-bootstrap-transactions.ts
+  - id: docs-protocol.portable-bootstrap.composition
+    roots:
+      - packages/docs-protocol/src/features/portable-bootstrap/composition
+      - packages/docs-protocol/src/features/portable-bootstrap/sdk.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/composition.ts
+    allow:
+      boundaries:
+        - docs-protocol.portable-bootstrap.adapters
+        - docs-protocol.portable-bootstrap.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/portable-bootstrap/composition.ts
+      - packages/docs-protocol/src/features/portable-bootstrap/sdk.ts
+  - id: docs-protocol.docs-command.application
+    roots:
+      - packages/docs-protocol/src/features/docs-command/application
+    allow:
+      boundaries:
+        - docs-protocol.portable-bootstrap.application
+        - docs-protocol.portable-documentation.application
+        - docs-protocol.portable-documentation.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/docs-command/application/command-operations.ts
+  - id: docs-protocol.docs-command.contracts
+    roots:
+      - packages/docs-protocol/src/features/docs-command/contracts
+    allow:
+      boundaries:
+        - docs-protocol.docs-command.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/docs-command/contracts/command.ts
+  - id: docs-protocol.docs-command.adapters
+    roots:
+      - packages/docs-protocol/src/features/docs-command/adapters
+    allow:
+      boundaries:
+        - docs-protocol.docs-command.application
+        - docs-protocol.docs-command.contracts
+      packages:
+        - "@agent-teams/document-authoring"
+        - ajv
+      builtins:
+        - node:fs/promises
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/docs-command/adapters/inbound/cli.ts
+      - packages/docs-protocol/src/features/docs-command/adapters/inbound/docs-cli-machine.ts
+      - packages/docs-protocol/src/features/docs-command/adapters/inbound/docs-human-renderer.ts
+      - packages/docs-protocol/src/features/docs-command/adapters/inbound/node-docs-api.ts
+      - packages/docs-protocol/src/features/docs-command/adapters/inbound/protocol-api.ts
+  - id: docs-protocol.docs-command.composition
+    roots:
+      - packages/docs-protocol/src/features/docs-command/composition
+      - packages/docs-protocol/src/features/docs-command/sdk.ts
+      - packages/docs-protocol/src/features/docs-command/index.ts
+      - packages/docs-protocol/src/features/docs-command/qualification.ts
+    allow:
+      boundaries:
+        - docs-protocol.docs-command.adapters
+        - docs-protocol.docs-command.contracts
+        - docs-protocol.portable-bootstrap.composition
+        - docs-protocol.portable-documentation.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/docs-protocol/src/features/docs-command/index.ts
+      - packages/docs-protocol/src/features/docs-command/qualification.ts
+      - packages/docs-protocol/src/features/docs-command/sdk.ts
+  - id: docs-protocol.qualification
+    roots:
+      - packages/docs-protocol/src/features/qualification
+    allow:
+      boundaries:
+        - docs-protocol.docs-command.composition
+        - docs-protocol.portable-bootstrap.application
+        - docs-protocol.portable-documentation.application
+        - docs-protocol.portable-documentation.composition
+        - docs-protocol.portable-documentation.domain
+      packages:
+        - "@agent-teams/document-authoring"
+      builtins:
+        - node:child_process
         - node:crypto
         - node:fs
         - node:fs/promises
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol/src/community/bootstrap/index.ts
-      - packages/docs-protocol/src/community/bootstrap/portable-bootstrap-assets.ts
-  - id: docs-protocol.domain
-    roots:
-      - packages/docs-protocol/src/domain
-    allow:
-      boundaries: []
-      packages:
-        - "@agent-teams/document-authoring"
-        - "@agent-teams/repository-mutation"
-      builtins:
-        - node:path
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol/src/domain/document-semantics.ts
-      - packages/docs-protocol/src/domain/model.ts
-      - packages/docs-protocol/src/domain/model-v2.ts
-      - packages/docs-protocol/src/domain/model-v3.ts
-      - packages/docs-protocol/src/domain/profile-policy.ts
-  - id: docs-protocol.application
-    roots:
-      - packages/docs-protocol/src/application
-    allow:
-      boundaries:
-        - docs-protocol.community.context
-        - docs-protocol.domain
-      packages:
-        - "@agent-teams/document-authoring"
-        - "@agent-teams/repository-mutation"
-        - yaml
-      builtins: []
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol/src/application/docs-protocol.ts
-  - id: docs-protocol.adapters
-    roots:
-      - packages/docs-protocol/src/adapters
-    allow:
-      boundaries:
-        - docs-protocol.application
-        - docs-protocol.domain
-      packages:
-        - "@agent-teams/document-authoring"
-        - "@agent-teams/repository-mutation"
-        - ajv
-        - ajv-formats
-        - yaml
-      builtins:
-        - node:fs
-        - node:fs/promises
+        - node:os
         - node:path
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts
-      - packages/docs-protocol/src/adapters/document-authoring-port.ts
-      - packages/docs-protocol/src/adapters/node-adoption-inspector.ts
-      - packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts
-      - packages/docs-protocol/src/adapters/node-profile-reader.ts
-      - packages/docs-protocol/src/adapters/node-profile-discovery.ts
-  - id: docs-protocol.composition
-    packageExports:
-      - "."
+      - packages/docs-protocol/src/features/qualification/index.ts
+  - id: docs-protocol.tests
+    dependencyMode: development
     roots:
-      - packages/docs-protocol/src/composition
-      - packages/docs-protocol/src/index.ts
-      - packages/docs-protocol/src/cli.ts
+      - packages/docs-protocol/tests
     allow:
       boundaries:
-        - docs-protocol.adapters
-        - docs-protocol.application
-        - docs-protocol.community.bootstrap
-        - docs-protocol.community.context
-        - docs-protocol.domain
+        - docs-protocol.docs-command.adapters
+        - docs-protocol.docs-command.application
+        - docs-protocol.docs-command.composition
+        - docs-protocol.docs-command.contracts
+        - docs-protocol.module
+        - docs-protocol.portable-bootstrap.adapters
+        - docs-protocol.portable-bootstrap.application
+        - docs-protocol.portable-bootstrap.composition
+        - docs-protocol.portable-documentation.adapters
+        - docs-protocol.portable-documentation.application
+        - docs-protocol.portable-documentation.composition
+        - docs-protocol.portable-documentation.domain
         - docs-protocol.qualification
       packages:
         - "@agent-teams/document-authoring"
-      builtins: []
+        - "@agent-teams/repository-mutation"
+        - ajv
+        - yaml
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:crypto
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+        - node:util
       runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol/src/index.ts
-      - packages/docs-protocol/src/cli.ts
+    entrypoints: []
   - id: docs-protocol-mcp.application
     roots:
       - packages/docs-protocol-mcp/src/read-only-docs/application
@@ -237,60 +398,6 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints: []
-  - id: docs-protocol.tests
-    dependencyMode: development
-    roots:
-      - packages/docs-protocol/tests
-    allow:
-      boundaries:
-        - docs-protocol.adapters
-        - docs-protocol.application
-        - docs-protocol.community.bootstrap
-        - docs-protocol.community.context
-        - docs-protocol.composition
-        - docs-protocol.domain
-        - docs-protocol.qualification
-      packages:
-        - "@agent-teams/document-authoring"
-        - "@agent-teams/repository-mutation"
-        - ajv
-      builtins:
-        - node:assert/strict
-        - node:child_process
-        - node:crypto
-        - node:fs
-        - node:fs/promises
-        - node:os
-        - node:path
-        - node:test
-        - node:util
-      runtimeReferences: []
-    entrypoints: []
-  - id: docs-protocol.qualification
-    packageExports:
-      - "./qualification"
-    roots:
-      - packages/docs-protocol/src/qualification
-    allow:
-      boundaries:
-        - docs-protocol.adapters
-        - docs-protocol.application
-        - docs-protocol.community.bootstrap
-        - docs-protocol.domain
-      packages:
-        - "@agent-teams/document-authoring"
-        - ajv
-      builtins:
-        - node:child_process
-        - node:crypto
-        - node:fs
-        - node:fs/promises
-        - node:os
-        - node:path
-        - node:url
-      runtimeReferences: []
-    entrypoints:
-      - packages/docs-protocol/src/qualification/index.ts
   - id: docs-protocol-agent-teams.domain
     roots:
       - packages/docs-protocol-agent-teams/src/consumer-integration/domain
@@ -3269,10 +3376,11 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/composition/node-scaffolding.ts
-  - id: foundation.tests.repository-mutation-public-api
+  - id: foundation.tests.public-api-contracts
     dependencyMode: development
     roots:
       - packages/engineering-foundation/tests/repository-mutation-public-api.test.mjs
+      - packages/engineering-foundation/tests/docs-protocol-public-api.test.mjs
     allow:
       boundaries:
         - capability.public-api-compatibility.adapters

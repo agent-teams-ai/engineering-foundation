@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { completeDocsNewApply } from "../dist/application/docs-new-completion.js";
+import { completeDocsNewApply } from "../dist/features/portable-documentation/application/docs-new-completion.js";
 
 const plan = {
   destination: "docs/decisions/0083-tenant-isolation.md",

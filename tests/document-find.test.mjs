@@ -18,7 +18,7 @@ import {
 } from "../packages/document-authoring/dist/document-authoring/adapters/inbound/cli/find-command.js";
 import { DocumentCatalogError } from "../packages/document-authoring/dist/document-authoring/application/model/document-catalog-error.js";
 import { DocumentAuthoringError } from "../packages/document-authoring/dist/document-authoring/application/model/errors.js";
-import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
+import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
 
 const cliPath = fileURLToPath(
   new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),

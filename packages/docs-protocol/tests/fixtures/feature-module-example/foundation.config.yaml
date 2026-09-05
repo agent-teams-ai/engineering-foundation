@@ -1,0 +1,5 @@
+schemaVersion: 1
+project: {id: workshop-example}
+capabilities:
+  architecture.source-dependencies:
+    configPath: source-dependencies.yaml

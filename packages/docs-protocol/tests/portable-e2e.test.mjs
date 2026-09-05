@@ -13,7 +13,7 @@ import {
 import {
   applyKnownFileTransaction as applyKnownFileTransactionWithFaults,
 } from "@agent-teams/repository-mutation/qualification";
-import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-envelope-schema-validator.js";
+import { assertDocsCommandEnvelopeSchema } from "../dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
@@ -21,7 +21,7 @@ const ignoredSnapshotPaths = new Set([
   ".agent-teams-local/foundation-operation-lock.completed-evidence",
 ]);
 const ignoredSnapshotPrefixes = [
-  ".agent-teams-local/foundation-operation-lock.completed-evidence/",
+  ".agent-teams-local/foundation-operation-lock.completed-evidence",
 ];
 
 async function runJson(arguments_) {

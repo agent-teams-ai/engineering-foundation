@@ -4,14 +4,14 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { Arguments, CliInputError } from "../packages/docs-protocol/dist/composition/cli-input.js";
-import { normalizeDocumentIds } from "../packages/docs-protocol/dist/domain/document-semantics.js";
+import { normalizeDocumentIds } from "../packages/docs-protocol/dist/features/portable-documentation/domain/document-semantics.js";
+import { Arguments, CliInputError } from "../packages/docs-protocol/dist/features/docs-command/adapters/inbound/cli-input.js";
 import {
   renderDocumentCommandJson,
   renderDocumentCommandText,
 } from "../packages/document-authoring/dist/document-authoring/adapters/inbound/cli/document-command-renderer.js";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
-import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
+import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
 import { RunDocumentDoctor } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-doctor.js";
 import { RunDocumentNew } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-recover.js";

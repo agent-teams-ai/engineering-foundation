@@ -1,3 +1,6 @@
+import { DocsProtocol } from "../dist/features/portable-documentation/application/docs-protocol.js";
+import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
+import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -8,8 +11,8 @@ import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import { DocsProtocol } from "../dist/application/docs-protocol.js";
-import { parseDocsProtocolProfile } from "../dist/domain/profile-policy.js";
+import { createDocsProtocolApi } from "../dist/features/docs-command/adapters/inbound/protocol-api.js";
+import { parseDocsProtocolProfile } from "../dist/features/portable-documentation/application/profile-policy.js";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
@@ -189,12 +192,12 @@ test("schema accepts an emitted recovery-required doctor envelope", async () => 
       };
     }
   };
-  const protocol = new DocsProtocol({
+  const protocol = createDocsProtocolApi(new DocsProtocol({ compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(),
     adoption: { async inspect() { return []; } },
     anchors: { async matchedPatterns() { return []; } },
     foundation,
     profiles: { async read() { return profile; } }
-  });
+  }));
   const execution = await protocol.doctorV2({ consumerRoot: ".", profilePath: "docs.config.yaml" });
   assert.equal(execution.exitCode, 1);
   assert.equal(execution.envelope.outcome, "recovery-required");

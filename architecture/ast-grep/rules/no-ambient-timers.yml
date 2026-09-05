@@ -6,7 +6,7 @@ note: Model timers as commands or use a scheduler port.
 files:
   - "packages/*/src/**/*.ts"
 ignores:
-  - "packages/docs-protocol/src/qualification/crash-driver.ts"
+  - "packages/docs-protocol/src/features/qualification/adapters/crash-driver.ts"
 rule:
   any:
     - pattern: setTimeout($$$ARGS)

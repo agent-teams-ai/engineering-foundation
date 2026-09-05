@@ -290,7 +290,11 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
     assert.ok(!boundary.allow.packages.includes(docsProtocolAgentTeamsName), boundary.id);
   }
   const foundationLocalMode = policy.boundaries.find(({ id }) => id === "foundation.local-mode");
-  assert.deepEqual(foundationLocalMode.allow.builtins, [
+  const localModeApplication = policy.boundaries.find(({ id }) => id === "foundation.local-mode.application");
+  const localModeAdapters = policy.boundaries.find(({ id }) => id === "foundation.local-mode.adapters");
+  assert.deepEqual(foundationLocalMode.allow.builtins, []);
+  assert.deepEqual(localModeApplication.allow.builtins, []);
+  assert.deepEqual(localModeAdapters.allow.builtins, [
     "node:fs/promises",
     "node:module",
     "node:path",
@@ -328,15 +332,8 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "architecture/foundation/source-dependencies.yaml",
   ), "utf8"));
   const boundaries = Object.fromEntries(policy.boundaries
-    .filter(({ id }) => [
-      "docs-protocol.adapters",
-      "docs-protocol.application",
-      "docs-protocol.composition",
-      "docs-protocol.community.bootstrap",
-      "docs-protocol.community.context",
-      "docs-protocol.domain",
-      "docs-protocol.qualification",
-    ].includes(id))
+    .filter(({ roots }) => roots.some((root) =>
+      root === "packages/docs-protocol/src" || root.startsWith("packages/docs-protocol/src/")))
     .map(({ id, roots, allow, entrypoints }) => [id, {
       roots,
       boundaries: allow.boundaries,
@@ -344,100 +341,10 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       builtins: allow.builtins,
       entrypoints,
     }]));
-  assert.deepEqual(boundaries, {
-    "docs-protocol.domain": {
-      roots: ["packages/docs-protocol/src/domain"],
-      boundaries: [],
-      packages: [documentAuthoringName, repositoryMutationName],
-      builtins: ["node:path"],
-      entrypoints: [
-        "packages/docs-protocol/src/domain/document-semantics.ts",
-        "packages/docs-protocol/src/domain/model.ts",
-        "packages/docs-protocol/src/domain/model-v2.ts",
-        "packages/docs-protocol/src/domain/model-v3.ts",
-        "packages/docs-protocol/src/domain/profile-policy.ts",
-      ],
-    },
-    "docs-protocol.application": {
-      roots: ["packages/docs-protocol/src/application"],
-      boundaries: ["docs-protocol.community.context", "docs-protocol.domain"],
-      packages: [documentAuthoringName, repositoryMutationName, "yaml"],
-      builtins: [],
-      entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
-    },
-    "docs-protocol.adapters": {
-      roots: ["packages/docs-protocol/src/adapters"],
-      boundaries: ["docs-protocol.application", "docs-protocol.domain"],
-      packages: [documentAuthoringName, repositoryMutationName, "ajv", "ajv-formats", "yaml"],
-      builtins: ["node:fs", "node:fs/promises", "node:path", "node:url"],
-      entrypoints: [
-        "packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts",
-        "packages/docs-protocol/src/adapters/document-authoring-port.ts",
-        "packages/docs-protocol/src/adapters/node-adoption-inspector.ts",
-        "packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts",
-        "packages/docs-protocol/src/adapters/node-profile-reader.ts",
-        "packages/docs-protocol/src/adapters/node-profile-discovery.ts",
-      ],
-    },
-    "docs-protocol.composition": {
-      roots: [
-        "packages/docs-protocol/src/composition",
-        "packages/docs-protocol/src/index.ts",
-        "packages/docs-protocol/src/cli.ts",
-      ],
-      boundaries: [
-        "docs-protocol.adapters",
-        "docs-protocol.application",
-        "docs-protocol.community.bootstrap",
-        "docs-protocol.community.context",
-        "docs-protocol.domain",
-        "docs-protocol.qualification",
-      ],
-      packages: [documentAuthoringName],
-      builtins: [],
-      entrypoints: [
-        "packages/docs-protocol/src/index.ts",
-        "packages/docs-protocol/src/cli.ts",
-      ],
-    },
-    "docs-protocol.community.context": {
-      roots: ["packages/docs-protocol/src/community/context"],
-      boundaries: ["docs-protocol.domain"],
-      packages: ["minisearch"],
-      builtins: [],
-      entrypoints: ["packages/docs-protocol/src/community/context/index.ts"],
-    },
-    "docs-protocol.community.bootstrap": {
-      roots: ["packages/docs-protocol/src/community/bootstrap"],
-      boundaries: ["docs-protocol.domain"],
-      packages: [documentAuthoringName, repositoryMutationName],
-      builtins: ["node:crypto", "node:fs", "node:fs/promises", "node:path"],
-      entrypoints: [
-        "packages/docs-protocol/src/community/bootstrap/index.ts",
-        "packages/docs-protocol/src/community/bootstrap/portable-bootstrap-assets.ts",
-      ],
-    },
-    "docs-protocol.qualification": {
-      roots: ["packages/docs-protocol/src/qualification"],
-      boundaries: [
-        "docs-protocol.adapters",
-        "docs-protocol.application",
-        "docs-protocol.community.bootstrap",
-        "docs-protocol.domain",
-      ],
-      packages: [documentAuthoringName, "ajv"],
-      builtins: [
-        "node:child_process",
-        "node:crypto",
-        "node:fs",
-        "node:fs/promises",
-        "node:os",
-        "node:path",
-        "node:url",
-      ],
-      entrypoints: ["packages/docs-protocol/src/qualification/index.ts"],
-    },
-  });
+  const expected = JSON.parse(await readFile(new URL(
+    "./fixtures/docs-protocol-boundaries.json", import.meta.url,
+  ), "utf8"));
+  assert.deepEqual(boundaries, expected);
 });
 
 test("Docs Protocol MCP retains six governed read-only feature boundaries", async () => {
@@ -485,10 +392,10 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
       "architecture/foundation/source-dependencies.yaml",
     ), "utf8"));
     const layerIds = new Set([
-      "docs-protocol.adapters",
-      "docs-protocol.application",
-      "docs-protocol.composition",
-      "docs-protocol.domain",
+      "docs-protocol.portable-documentation.adapters",
+      "docs-protocol.portable-documentation.application",
+      "docs-protocol.portable-documentation.composition",
+      "docs-protocol.portable-documentation.domain",
     ]);
     const layers = ["domain", "application", "adapters", "composition"];
     const fixturePolicy = {

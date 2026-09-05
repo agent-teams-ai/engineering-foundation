@@ -1,4 +1,4 @@
-import { runDocsCli } from "../../dist/composition/cli.js";
+import { runDocsCli } from "../../dist/features/docs-command/composition/cli.js";
 
 const baseline = {
   SIGINT: process.listenerCount("SIGINT"),

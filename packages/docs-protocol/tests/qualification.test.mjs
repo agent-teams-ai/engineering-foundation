@@ -1,3 +1,6 @@
+import { DocsProtocol } from "../dist/features/portable-documentation/application/docs-protocol.js";
+import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
+import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import assert from "node:assert/strict";
 import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -5,16 +8,16 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { planDocumentationDocument } from "@agent-teams/document-authoring";
-import { DocsProtocol } from "../dist/application/docs-protocol.js";
-import { NodeCodeAnchorMatcher } from "../dist/adapters/node-code-anchor-matcher.js";
-import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
-import { NodeDocsProfileReader } from "../dist/adapters/node-profile-reader.js";
-import { NodeDocumentAuthoringPort } from "../dist/adapters/document-authoring-port.js";
-import { runDocsProtocolQualification } from "../dist/qualification/index.js";
+import { createDocsProtocolApi } from "../dist/features/docs-command/adapters/inbound/protocol-api.js";
+import { NodeCodeAnchorMatcher } from "../dist/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.js";
+import { NodeDocsAdoptionInspector } from "../dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js";
+import { NodeDocsProfileReader } from "../dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
+import { NodeDocumentAuthoringPort } from "../dist/features/portable-documentation/adapters/outbound/document-authoring-port.js";
+import { runDocsProtocolQualification } from "../dist/features/qualification/adapters/run-qualification.js";
 import {
   crashAfterDurablePublication,
   crashAtDurablePublishing
-} from "../dist/qualification/crash-driver.js";
+} from "../dist/features/qualification/adapters/crash-driver.js";
 import {
   fileSnapshot,
   isQualificationEvidenceExcludedPath,
@@ -22,7 +25,7 @@ import {
   isQualificationSourceCopyExcludedPath,
   qualificationEvidencePolicy,
   snapshot,
-} from "../dist/qualification/filesystem-evidence.js";
+} from "../dist/features/qualification/adapters/filesystem-evidence.js";
 
 const fixtureRoot = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
 
@@ -205,12 +208,12 @@ async function withCorruptedProfileCrash(crash, callback) {
     await crash(consumerRoot, plan);
     await writeFile(join(consumerRoot, "docs.config.yaml"), "not: [valid\n", "utf8");
     await writeFile(join(consumerRoot, ".docs-protocol/document-authoring.yaml"), "not: [valid\n", "utf8");
-    await callback({ consumerRoot, plan, protocol: new DocsProtocol({
+    await callback({ consumerRoot, plan, protocol: createDocsProtocolApi(new DocsProtocol({ compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(),
       adoption: new NodeDocsAdoptionInspector(),
       anchors: new NodeCodeAnchorMatcher(),
       foundation: new NodeDocumentAuthoringPort(),
       profiles: new NodeDocsProfileReader()
-    }) });
+    })) });
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

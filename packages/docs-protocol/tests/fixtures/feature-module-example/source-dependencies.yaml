@@ -1,0 +1,37 @@
+schemaVersion: 2
+workspace: {kind: pnpm, manifest: pnpm-workspace.yaml}
+packageRoots: [packages]
+governedRoots: [packages/stock/src]
+boundaries:
+  - id: stock.availability.domain
+    roots: [packages/stock/src/features/availability/domain, packages/stock/src/features/availability/domain.ts]
+    entrypoints: [packages/stock/src/features/availability/domain.ts]
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stock.availability.application
+    roots: [packages/stock/src/features/availability/application, packages/stock/src/features/availability/application.ts]
+    entrypoints: [packages/stock/src/features/availability/application.ts]
+    allow:
+      boundaries: [stock.availability.domain]
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stock.availability.adapters
+    roots: [packages/stock/src/features/availability/adapters]
+    entrypoints: [packages/stock/src/features/availability/adapters/memory.ts]
+    allow:
+      boundaries: [stock.availability.application]
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stock.composition
+    roots: [packages/stock/src/index.ts]
+    entrypoints: [packages/stock/src/index.ts]
+    allow:
+      boundaries: [stock.availability.application, stock.availability.adapters]
+      packages: []
+      builtins: []
+      runtimeReferences: []

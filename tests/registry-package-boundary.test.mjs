@@ -23,7 +23,7 @@ import {
 } from "../scripts/registry-document-authoring-e2e.mjs";
 import {
   NodeDocsProfileReader
-} from "../packages/docs-protocol/dist/adapters/node-profile-reader.js";
+} from "../packages/docs-protocol/dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
 import { docsCheckV2, docsContextV1 } from "../packages/docs-protocol/dist/index.js";
 import { canonicalDocsScripts } from "../packages/docs-protocol-agent-teams/dist/index.js";
 

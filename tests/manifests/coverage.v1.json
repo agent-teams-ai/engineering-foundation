@@ -141,7 +141,9 @@
     "tests/source-dependency-workspace-discovery.test.mjs",
     "tests/source-dependency-workspace-topology.test.mjs",
     "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
-    "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs"
+    "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
+    "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
+    "packages/docs-protocol/tests/portable-dx.test.mjs"
   ],
   "thresholds": {
     "lines": 36,

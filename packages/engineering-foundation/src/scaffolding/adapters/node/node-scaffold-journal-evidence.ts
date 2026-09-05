@@ -15,7 +15,7 @@ import type {
 import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
 import { canonicalJson } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { assertSchema } from "../../../schema-catalog.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 import {
   compileFoundationScaffoldEnvelope,
@@ -56,7 +56,8 @@ export function scaffoldJournalRecoveryRequired(
 }
 
 export async function serializeScaffoldJournal(
-  journal: AuthorityScaffoldJournal
+  journal: AuthorityScaffoldJournal,
+  assertSchema: ScaffoldSchemaValidator
 ): Promise<Buffer> {
   try {
     await assertSchema(
@@ -101,7 +102,8 @@ function isSchema6Envelope(value: unknown): boolean {
  * recoverable evidence rather than an opaque file.
  */
 export async function parseScaffoldJournal(
-  bytes: Buffer
+  bytes: Buffer,
+  assertSchema: ScaffoldSchemaValidator
 ): Promise<AuthorityScaffoldJournal> {
   let journal: AuthorityScaffoldJournal;
   let schema6 = false;
@@ -131,7 +133,7 @@ export async function parseScaffoldJournal(
     );
   }
   const expectedBytes = schema6
-    ? await serializeScaffoldJournal(journal)
+    ? await serializeScaffoldJournal(journal, assertSchema)
     : Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
   if (!bytes.equals(expectedBytes)) {
     throw scaffoldJournalRecoveryRequired(

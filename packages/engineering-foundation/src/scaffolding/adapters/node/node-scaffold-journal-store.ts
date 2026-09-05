@@ -1,3 +1,5 @@
+import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import { join } from "node:path";
 
 import {
@@ -175,18 +177,22 @@ function mapFaultPoint(
  * names, and the completed-scaffold terminal root are unchanged, so released
  * recovery evidence remains recognizable.
  */
-export class NodeScaffoldJournalStore {
+export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
   readonly #store: NodeJournalSlotStore<AuthorityScaffoldJournal>;
 
   public constructor(
     consumerRoot: string,
+    assertSchema: ScaffoldSchemaValidator,
     operations: NodeScaffoldJournalStoreOperations = {}
   ) {
     const parent = join(consumerRoot, LOCAL_STATE_DIRECTORY);
     const { faultInjector } = operations;
     this.#store = new NodeJournalSlotStore<AuthorityScaffoldJournal>({
       canonicalPath: join(parent, FOUNDATION_TRANSACTION_FILE),
-      codec: { parse: parseScaffoldJournal, serialize: serializeScaffoldJournal },
+      codec: {
+        parse: (bytes) => parseScaffoldJournal(bytes, assertSchema),
+        serialize: (journal) => serializeScaffoldJournal(journal, assertSchema)
+      },
       failure: scaffoldJournalFailure,
       ...(faultInjector === undefined
         ? {}

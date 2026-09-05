@@ -1636,6 +1636,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/assert-authority-scaffold-journal.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-catalog.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-journal-store.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-filesystem-dependencies.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-selection.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/create-scaffolding-api.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/scaffolding-cli-command.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/schema-validation.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/plan-authority-scaffold-from-file.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.ts
@@ -1661,7 +1667,6 @@ boundaries:
         - foundation.scaffolding.transactions
         - foundation.core
         - foundation.local-mode
-        - foundation.schema-validation
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
         - foundation.scaffolding.shared-adapters
@@ -1682,6 +1687,12 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/assert-authority-scaffold-journal.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-catalog.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-journal-store.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-filesystem-dependencies.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-selection.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/create-scaffolding-api.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/inbound/scaffolding-cli-command.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/schema-validation.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/plan-authority-scaffold-from-file.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.ts
@@ -1702,12 +1713,13 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
   - id: foundation.scaffolding.canonical-composition
     roots:
-      - packages/engineering-foundation/src/scaffolding/canonical-api.ts
-      - packages/engineering-foundation/src/scaffolding/cli-command.ts
+      - packages/engineering-foundation/src/composition/scaffolding-api.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
     allow:
       boundaries:
         - foundation.transactions.composition
+        - foundation.schema-validation
+        - foundation.scaffolding.node-composition
         - foundation.scaffolding.canonical-adapters
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
@@ -1718,8 +1730,7 @@ boundaries:
         - node:url
       runtimeReferences: []
     entrypoints:
-      - packages/engineering-foundation/src/scaffolding/canonical-api.ts
-      - packages/engineering-foundation/src/scaffolding/cli-command.ts
+      - packages/engineering-foundation/src/composition/scaffolding-api.ts
       - packages/engineering-foundation/src/scaffolding/index.ts
   - id: foundation.validation-reporting.error
     roots:
@@ -2733,6 +2744,7 @@ boundaries:
         - foundation.schema-validation
         - foundation.package-identity
         - foundation.scaffolding.canonical-adapters
+        - foundation.scaffolding.node-composition
         - foundation.scaffolding.core
         - foundation.scaffolding.transactions
         - foundation.transaction-coordination.adapters
@@ -2876,6 +2888,7 @@ boundaries:
         - foundation.local-mode
         - foundation.package-identity
         - foundation.scaffolding.canonical-composition
+        - foundation.scaffolding.canonical-adapters
         - foundation.schema-validation
         - foundation.composition
         - capability.contract-protobuf.qualification.composition
@@ -3237,3 +3250,15 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+  - id: foundation.scaffolding.node-composition
+    roots:
+      - packages/engineering-foundation/src/scaffolding/composition/node-scaffolding.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.canonical-adapters
+        - foundation.scaffolding.transactions
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/composition/node-scaffolding.ts

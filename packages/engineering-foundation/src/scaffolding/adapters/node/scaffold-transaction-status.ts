@@ -1,6 +1,6 @@
 import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
 import { assertEnvelopeDigests } from "../../../transaction-coordination/adapters/node/legacy-envelope-digests.js";
-import { assertSchema } from "../../../schema-catalog.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import type {
   AuthorityScaffoldJournal
 } from "../../contract/types.js";
@@ -53,7 +53,7 @@ export async function inspectLegacyScaffoldingJournal(options: {
   readonly value: Record<string, unknown>;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}): Promise<InternalFoundationTransactionStatus> {
+}, assertSchema: ScaffoldSchemaValidator): Promise<InternalFoundationTransactionStatus> {
   await assertSchema(
     "scaffold-recovery-journal/v1",
     options.value,
@@ -101,7 +101,8 @@ export async function inspectCurrentScaffoldingTransaction(options: {
 }
 
 export async function inspectLegacyScaffoldingEnvelope(
-  value: Record<string, unknown>
+  value: Record<string, unknown>,
+  assertSchema: ScaffoldSchemaValidator
 ): Promise<InternalFoundationTransactionStatus> {
   await assertSchema("foundation-transaction-envelope/v2", value, "foundation-transaction-slot");
   assertEnvelopeDigests(value);

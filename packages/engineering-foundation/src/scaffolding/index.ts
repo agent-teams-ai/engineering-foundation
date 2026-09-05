@@ -51,7 +51,7 @@ export {
   readScaffoldPlanFile,
   recoverFilesystemScaffold,
   validateScaffoldReceipt
-} from "./canonical-api.js";
+} from "../composition/scaffolding-api.js";
 export { ScaffoldError } from "./scaffold-error.js";
 export type { ScaffoldErrorCode } from "./scaffold-error.js";
 export { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "./scaffold-defaults.js";

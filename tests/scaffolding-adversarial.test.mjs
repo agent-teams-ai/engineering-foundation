@@ -1,3 +1,5 @@
+import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
@@ -8,6 +10,7 @@ import {
   open,
   readFile,
   readdir,
+  realpath,
   rename,
   rm,
   stat,
@@ -74,6 +77,7 @@ test("detects authority mutation between initial and stability source reads", as
     const assessment = await assessScaffoldPlanAuthority(
       root,
       scaffoldPlan,
+      assertSchema,
       async (point) => {
         if (point.phase === "before-authority-source-stability-check") {
           await setOwnerStatus(root, "proposed");
@@ -537,8 +541,9 @@ test("scaffolding uses alternate coordinator, lease and cleanup ports through ap
   const root = await createConsumer();
   await mkdir(join(root, ".agent-teams-local"));
   const calls = [];
+  const expectedCanonicalRoot = await realpath(root);
   const provider = async (canonicalRoot) => {
-    assert.equal(canonicalRoot, root);
+    assert.equal(canonicalRoot, expectedCanonicalRoot);
     return {
       coordinator: {
         acquire: async (request) => {
@@ -560,9 +565,9 @@ test("scaffolding uses alternate coordinator, lease and cleanup ports through ap
     const scaffoldPlan = await plan(root);
     await assert.rejects(apply(root, scaffoldPlan, ({ phase }) => {
       if (phase === "after-journal-prepared") { throw new Error("interrupted"); }
-    }, provider), /interrupted/u);
+    }, createScaffoldFilesystemDependencies(assertSchema, provider)), /interrupted/u);
     assert.deepEqual(calls, ["acquire", "retain"]);
-    const receipt = await recover(root, undefined, undefined, provider);
+    const receipt = await recover(root, undefined, undefined, createScaffoldFilesystemDependencies(assertSchema, provider));
     assert.equal(receipt.outcome, "failed-recovered");
     assert.equal(calls.at(-1), "release");
     assert.equal(calls.filter((x) => x === "cleanup-begin").length, scaffoldPlan.operations.length);

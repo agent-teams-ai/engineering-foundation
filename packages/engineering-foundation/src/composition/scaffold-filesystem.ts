@@ -1,3 +1,5 @@
+import { assertSchema } from "../schema-catalog.js";
+import { createScaffoldFilesystemDependencies } from "../scaffolding/composition/node-scaffolding.js";
 import type { ScaffoldTransactions } from "../scaffolding/application/ports/scaffold-transactions.js";
 import type {
   AuthorityScaffoldPlan
@@ -17,7 +19,7 @@ import { createNodeFoundationCleanupTransition } from "../transaction-coordinati
 import { syncFoundationStateDirectory } from "../transaction-coordination/adapters/node/node-foundation-state-directory.js";
 import { createNodeFoundationTransactionCoordinator } from "./node-foundation-transaction-coordinator.js";
 
-async function transactions(root: string): Promise<ScaffoldTransactions> {
+export async function createScaffoldTransactions(root: string): Promise<ScaffoldTransactions> {
   return {
     coordinator: await createNodeFoundationTransactionCoordinator(root),
     createCleanupTransition: (transactionId) => createNodeFoundationCleanupTransition(
@@ -32,7 +34,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   plan: AuthorityScaffoldPlan,
   faultInjector?: ScaffoldAuthorityFaultInjector
 ): Promise<AuthorityScaffoldReceipt> {
-  return apply(consumerRoot, plan, faultInjector, transactions);
+  return apply(consumerRoot, plan, faultInjector, createScaffoldFilesystemDependencies(assertSchema, createScaffoldTransactions));
 }
 
 export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
@@ -40,5 +42,5 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
   scope?: AuthorityScaffoldRecoveryScope,
   faultInjector?: ScaffoldAuthorityFaultInjector
 ): Promise<AuthorityScaffoldReceipt | undefined> {
-  return recover(consumerRoot, scope, faultInjector, transactions);
+  return recover(consumerRoot, scope, faultInjector, createScaffoldFilesystemDependencies(assertSchema, createScaffoldTransactions));
 }

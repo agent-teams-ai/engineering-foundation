@@ -375,12 +375,8 @@ test("local lifecycle application has no concrete provider dependencies", async 
 test("local lifecycle and its providers have no runtime or type feature cycle", async () => {
   const graph = await observeFoundationFeatureGraph();
   assert.deepEqual(graph.missing, []);
-  for (const cycles of [graph.runtimeCycles, graph.combinedCycles]) {
-    // The independently owned scaffolding/coordination cycle remains visible.
-    for (const cycle of cycles) {
-      assert.deepEqual(cycle, ["scaffolding", "transaction-coordination"]);
-    }
-  }
+  assert.deepEqual(graph.runtimeCycles, []);
+  assert.deepEqual(graph.combinedCycles, []);
 });
 
 test("source policy admits the process port and denies concrete providers to local application", async () => {

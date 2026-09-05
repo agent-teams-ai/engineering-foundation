@@ -1,4 +1,4 @@
-import type { ScaffoldTransactionProvider } from "../../application/ports/scaffold-transactions.js";
+import type { ScaffoldFilesystemDependencies } from "./scaffold-filesystem-dependencies.js";
 import { realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
@@ -18,7 +18,6 @@ import {
   continueAuthorityScaffoldJournal,
   type ScaffoldAuthorityFaultInjector
 } from "./filesystem-authority-workspace.js";
-import { NodeScaffoldJournalStore } from "./node-scaffold-journal-store.js";
 import { scaffoldTransactionEvidenceExists } from "./node-scaffold-journal-transaction-evidence.js";
 
 /** Internal conformance seam. It is intentionally absent from package exports. */
@@ -26,7 +25,7 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
   consumerRoot: string,
   scope: AuthorityScaffoldRecoveryScope | undefined,
   faultInjector: ScaffoldAuthorityFaultInjector | undefined,
-  createTransactions: ScaffoldTransactionProvider
+  dependencies: ScaffoldFilesystemDependencies
 ): Promise<AuthorityScaffoldReceipt | undefined> {
   const canonicalRoot = await realpath(resolve(consumerRoot));
   const journalPath = join(
@@ -34,10 +33,10 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
     LOCAL_STATE_DIRECTORY,
     SCAFFOLD_JOURNAL_FILE
   );
-  const transactions = await createTransactions(canonicalRoot);
+  const transactions = await dependencies.createTransactions(canonicalRoot);
   const lease = await acquireScaffoldingTransaction(transactions.coordinator);
   try {
-    const journalStore = new NodeScaffoldJournalStore(canonicalRoot);
+    const journalStore = dependencies.createJournalStore(canonicalRoot);
     const record = await journalStore.read();
     if (record === undefined) {
       return undefined;
@@ -48,6 +47,7 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
     }
     assertSafeOperationPaths(record.journal.plan);
     return await continueAuthorityScaffoldJournal({
+      assessPlanAuthority: dependencies.assessPlanAuthority,
       transactions,
       root: canonicalRoot,
       journalPath,

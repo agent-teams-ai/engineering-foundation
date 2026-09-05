@@ -18,8 +18,8 @@ export function createFoundationTransactionInspection(
   installed: InstalledFoundationInspectionIdentity
 ): FoundationTransactionInspection {
   return createInspection(installed, {
-    legacyScaffoldingJournal: inspectLegacyScaffoldingJournal,
-    legacyScaffoldingEnvelope: inspectLegacyScaffoldingEnvelope,
+    legacyScaffoldingJournal: (input) => inspectLegacyScaffoldingJournal(input, assertSchema),
+    legacyScaffoldingEnvelope: (value) => inspectLegacyScaffoldingEnvelope(value, assertSchema),
     legacyDocument: (value) => inspectLegacyDocumentTransaction(value, assertSchema),
     document: inspectDocumentTransactionStatus,
     knownFile: inspectKnownFileTransactionStatus,

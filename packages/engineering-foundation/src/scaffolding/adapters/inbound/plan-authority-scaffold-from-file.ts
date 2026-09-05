@@ -1,3 +1,4 @@
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import {
   loadAuthorityScaffoldCompilationInputFromFile
 } from "../node/node-authority-input-loader.js";
@@ -13,12 +14,12 @@ export async function planAuthorityScaffoldFromFile(options: {
   readonly consumerRoot: string;
   readonly intentPath: string;
   readonly configPath?: string;
-}): Promise<AuthorityScaffoldPlan> {
+}, assertSchema: ScaffoldSchemaValidator): Promise<AuthorityScaffoldPlan> {
   const input = await loadAuthorityScaffoldCompilationInputFromFile({
     consumerRoot: options.consumerRoot,
     configPath: options.configPath ?? DEFAULT_SCAFFOLDING_CONFIG_PATH,
     intentPath: options.intentPath,
     foundationVersion: await installedFoundationVersion()
-  });
+  }, assertSchema);
   return compileAuthorityScaffoldPlan(input, createAuthorityScaffoldRegistry());
 }

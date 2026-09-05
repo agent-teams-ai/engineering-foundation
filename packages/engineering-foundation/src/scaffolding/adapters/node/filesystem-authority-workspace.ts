@@ -1,3 +1,4 @@
+import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
 import { realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
@@ -13,13 +14,12 @@ import type {
 } from "../../contract/receipt-authority-types.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { assertSchema } from "../../../schema-catalog.js";
+import type { AssessScaffoldPlanAuthority, ScaffoldFilesystemDependencies } from "./scaffold-filesystem-dependencies.js";
 import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
-import type { ScaffoldTransactions, ScaffoldTransactionProvider } from "../../application/ports/scaffold-transactions.js";
+import type { ScaffoldTransactions } from "../../application/ports/scaffold-transactions.js";
 import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
 import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
-import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 import {
   assertSafeExistingAncestors, assertSafeOperationPaths
 } from "./filesystem-path-guard.js";
@@ -49,7 +49,6 @@ import {
   replaceScaffoldJournalReconciled
 } from "./node-scaffold-journal-gateway.js";
 import {
-  NodeScaffoldJournalStore,
   type ScaffoldJournalAuthority,
   type StoredScaffoldJournal
 } from "./node-scaffold-journal-store.js";
@@ -88,11 +87,12 @@ function recoveryRequired(
 }
 
 interface AuthorityContinuationOptions {
+  readonly assessPlanAuthority: AssessScaffoldPlanAuthority;
   readonly transactions: ScaffoldTransactions;
   readonly root: string;
   readonly journalPath: string;
   readonly record: StoredScaffoldJournal;
-  readonly journalStore: NodeScaffoldJournalStore;
+  readonly journalStore: ScaffoldJournalStore;
   readonly journalFaultContext: ScaffoldJournalFaultContext;
   readonly recovered: boolean;
   readonly faultInjector?: ScaffoldAuthorityFaultInjector;
@@ -342,10 +342,10 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   consumerRoot: string,
   callerPlan: AuthorityScaffoldPlan,
   faultInjector: ScaffoldAuthorityFaultInjector | undefined,
-  createTransactions: ScaffoldTransactionProvider
+  dependencies: ScaffoldFilesystemDependencies
 ): Promise<AuthorityScaffoldReceipt> {
   const plan = snapshotAuthorityScaffoldPlan(callerPlan);
-  await assertSchema("scaffold-plan/v1", plan, "scaffold-apply-plan");
+  await dependencies.assertPlanSchema(plan);
   assertAuthorityScaffoldPlanDigest(plan);
   assertSafeOperationPaths(plan);
   const canonicalRoot = await realpath(resolve(consumerRoot));
@@ -355,7 +355,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     SCAFFOLD_JOURNAL_FILE
   );
   const journalFaultContext: ScaffoldJournalFaultContext = {};
-  const journalStore = new NodeScaffoldJournalStore(canonicalRoot, {
+  const journalStore = dependencies.createJournalStore(canonicalRoot, {
     faultInjector: async (point) => {
       if (point.phase === "after-candidate-synced") {
         await faultInjector?.({
@@ -374,7 +374,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       }
     }
   });
-  const transactions = await createTransactions(canonicalRoot);
+  const transactions = await dependencies.createTransactions(canonicalRoot);
   const lease = await acquireScaffoldingTransaction(transactions.coordinator);
   try {
     const existing = await readScaffoldJournal(journalStore);
@@ -386,6 +386,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
         );
       }
       return await continueAuthorityScaffoldJournal({
+      assessPlanAuthority: dependencies.assessPlanAuthority,
         transactions,
         root: canonicalRoot,
         journalPath,
@@ -399,7 +400,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
         ...(faultInjector === undefined ? {} : { faultInjector })
       });
     }
-    const authority = await assessScaffoldPlanAuthority(canonicalRoot, plan);
+    const authority = await dependencies.assessPlanAuthority(canonicalRoot, plan);
     if (authority.state === "stale") {
       return staleBeforeJournal(plan);
     }
@@ -450,6 +451,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     }
     if (classifications.every(({ state }) => state === "after")) {
       return await verifyAlreadyAppliedScaffold({
+        assessPlanAuthority: dependencies.assessPlanAuthority,
         root: canonicalRoot,
         journalPath,
         journalStore,
@@ -469,6 +471,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
     );
     await faultInjector?.({ phase: "after-journal-prepared" });
     return await continueAuthorityScaffoldJournal({
+      assessPlanAuthority: dependencies.assessPlanAuthority,
       transactions,
       root: canonicalRoot,
       journalPath,

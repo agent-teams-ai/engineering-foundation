@@ -1,20 +1,17 @@
-import { mapAuthorityCatalog } from "../inbound/map-authority-catalog.js";
+import { mapAuthoritySelection } from "../inbound/map-authority-selection.js";
 import type {
   AuthorityScaffoldReadSet,
   ScaffoldAuthorityEvidenceV1,
-  ScaffoldAuthorityVerifierV1,
   AuthorityScaffoldCompilationInput,
   AuthorityScaffoldPlan,
   AuthorityScaffoldTarget,
-  ScaffoldRenderingIntent,
   AuthorityScaffoldingConfig,
   AuthorityScaffoldTargetCatalog
 } from "../../application/model/scaffold-compilation.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { createScaffoldAuthorityEvidence } from "../../kernel/authority-evidence.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
-import { ScaffoldError } from "../../scaffold-error.js";
-import { assertSchema } from "../../../schema-catalog.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import { parseStrictYamlSource } from "../../../features/configuration-input/yaml.js";
 import {
   assertion,
@@ -28,18 +25,6 @@ import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 export type ScaffoldAuthorityInputFaultInjector = (
   point: { readonly phase: "before-authority-source-stability-check" }
 ) => Promise<void> | void;
-
-function requireExactlyOne<T>(
-  values: readonly T[],
-  predicate: (value: T) => boolean,
-  message: string
-): T {
-  const matches = values.filter(predicate);
-  if (matches.length !== 1) {
-    throw new ScaffoldError("SCAFFOLD_INPUT_INVALID", message);
-  }
-  return matches[0] as T;
-}
 
 async function assertAuthoritySourceSetStable(options: {
   readonly consumerRoot: string;
@@ -96,7 +81,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
   readonly configFile: LoadedRepositoryFile;
   readonly configValue: unknown;
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
-}): Promise<AuthorityScaffoldCompilationInput> {
+}, assertSchema: ScaffoldSchemaValidator): Promise<AuthorityScaffoldCompilationInput> {
   await Promise.all([
     assertSchema("scaffolding-config/v1", options.configValue, "scaffolding-config"),
     assertSchema("scaffold-intent/v1", options.intent, "scaffold-intent")
@@ -116,32 +101,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     catalogValue,
     "scaffold-target-catalog"
   );
-  const unresolvedCatalog = mapAuthorityCatalog(catalogValue);
-  const intent = options.intent as ScaffoldRenderingIntent;
-  const composition = requireExactlyOne(
-    config.compositions,
-    (candidate) => candidate.id === intent.compositionId,
-    `Composition must exist exactly once: ${intent.compositionId}.`
-  );
-  const target = requireExactlyOne(
-    unresolvedCatalog.packages,
-    (candidate) => candidate.id === intent.targetRef,
-    `Scaffold target must exist exactly once: ${intent.targetRef}.`
-  );
-  const authorityVerifiers = composition.authorityVerifiers as readonly ScaffoldAuthorityVerifierV1[];
-  if (authorityVerifiers.length !== 1) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "The selected Composition must contain exactly one authority verifier."
-    );
-  }
-  const verifier = authorityVerifiers[0];
-  if (verifier === undefined) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "The selected Composition must admit exactly one supported authority verifier."
-    );
-  }
+  const { intent, target, verifier } = mapAuthoritySelection(config, catalogValue, options.intent);
   const owner = await resolveOwnerDocument({
     consumerRoot: options.consumerRoot,
     documentRoots: verifier.parameters.documentRoots,
@@ -220,7 +180,7 @@ export async function loadAuthorityScaffoldCompilationInputFromFile(options: {
   readonly intentPath: string;
   readonly foundationVersion: string;
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
-}): Promise<AuthorityScaffoldCompilationInput> {
+}, assertSchema: ScaffoldSchemaValidator): Promise<AuthorityScaffoldCompilationInput> {
   const [configFile, intentFile] = await Promise.all([
     readContainedRepositoryFile(
       options.consumerRoot,
@@ -243,7 +203,7 @@ export async function loadAuthorityScaffoldCompilationInputFromFile(options: {
     ...(options.faultInjector === undefined
       ? {}
       : { faultInjector: options.faultInjector })
-  });
+  }, assertSchema);
 }
 
 export async function loadAuthorityScaffoldCompilationInputFromIntent(options: {
@@ -252,7 +212,7 @@ export async function loadAuthorityScaffoldCompilationInputFromIntent(options: {
   readonly foundationVersion: string;
   readonly intent: unknown;
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
-}): Promise<AuthorityScaffoldCompilationInput> {
+}, assertSchema: ScaffoldSchemaValidator): Promise<AuthorityScaffoldCompilationInput> {
   const configFile = await readContainedRepositoryFile(
     options.consumerRoot,
     options.configPath,
@@ -268,12 +228,13 @@ export async function loadAuthorityScaffoldCompilationInputFromIntent(options: {
     ...(options.faultInjector === undefined
       ? {}
       : { faultInjector: options.faultInjector })
-  });
+  }, assertSchema);
 }
 
 export async function readAuthorityScaffoldPlanFile(
   consumerRoot: string,
-  planPath: string
+  planPath: string,
+  assertSchema: ScaffoldSchemaValidator
 ): Promise<AuthorityScaffoldPlan> {
   const planFile = await readContainedRepositoryFile(
     consumerRoot,

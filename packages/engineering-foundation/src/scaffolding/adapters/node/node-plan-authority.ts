@@ -1,5 +1,7 @@
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import type {
-  AuthorityScaffoldPlan
+  AuthorityScaffoldPlan,
+  ScaffoldAuthorityAssessment
 } from "../../application/model/scaffold-compilation.js";
 import { createAuthorityScaffoldRegistry } from "../../composition/scaffold-registry.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
@@ -10,14 +12,10 @@ import {
   type ScaffoldAuthorityInputFaultInjector
 } from "./node-authority-input-loader.js";
 
-export type ScaffoldAuthorityAssessment =
-  | { readonly state: "current" }
-  | { readonly state: "stale" }
-  | { readonly state: "unverifiable" };
-
 async function assertPlanMatchesConsumerAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
+  assertSchema: ScaffoldSchemaValidator,
   authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<void> {
   const input = await loadAuthorityScaffoldCompilationInputFromIntent({
@@ -28,7 +26,7 @@ async function assertPlanMatchesConsumerAuthority(
     ...(authorityFaultInjector === undefined
       ? {}
       : { faultInjector: authorityFaultInjector })
-  });
+  }, assertSchema);
   const expected = compileAuthorityScaffoldPlan(
     input,
     createAuthorityScaffoldRegistry()
@@ -47,12 +45,14 @@ async function assertPlanMatchesConsumerAuthority(
 export async function assessScaffoldPlanAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
+  assertSchema: ScaffoldSchemaValidator,
   faultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<ScaffoldAuthorityAssessment> {
   try {
     await assertPlanMatchesConsumerAuthority(
       consumerRoot,
       plan,
+      assertSchema,
       faultInjector
     );
     return { state: "current" };

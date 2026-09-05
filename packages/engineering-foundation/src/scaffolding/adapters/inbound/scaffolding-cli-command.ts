@@ -1,14 +1,9 @@
-import {
-  applyFilesystemScaffold,
-  planScaffoldFromFile,
-  readScaffoldPlanFile,
-  recoverFilesystemScaffold
-} from "./canonical-api.js";
+import type { ScaffoldingApi } from "./create-scaffolding-api.js";
 import type {
   ScaffoldPlan,
   ScaffoldReceipt
-} from "./contract/scaffold-contract.js";
-import { ScaffoldError } from "./scaffold-error.js";
+} from "../../contract/scaffold-contract.js";
+import { ScaffoldError } from "../../scaffold-error.js";
 
 export interface ScaffoldCliArguments {
   readonly command: string;
@@ -35,7 +30,8 @@ function exitCode(receipt: ScaffoldReceipt): number {
 
 export async function runScaffoldingCliCommand(
   parsed: ScaffoldCliArguments,
-  json: boolean
+  json: boolean,
+  api: Pick<ScaffoldingApi, "planScaffoldFromFile" | "applyFilesystemScaffold" | "readScaffoldPlanFile" | "recoverFilesystemScaffold">
 ): Promise<boolean> {
   switch (parsed.command) {
     case "scaffold-apply": {
@@ -46,8 +42,8 @@ export async function runScaffoldingCliCommand(
           "scaffold-apply requires a repository-relative Plan path."
         );
       }
-      const plan = await readScaffoldPlanFile(parsed.consumerRoot, planPath);
-      const receipt = await applyFilesystemScaffold(parsed.consumerRoot, plan);
+      const plan = await api.readScaffoldPlanFile(parsed.consumerRoot, planPath);
+      const receipt = await api.applyFilesystemScaffold(parsed.consumerRoot, plan);
       process.stdout.write(
         json ? `${JSON.stringify(receipt, null, 2)}\n` : renderReceipt(receipt)
       );
@@ -62,7 +58,7 @@ export async function runScaffoldingCliCommand(
           "scaffold-plan requires a repository-relative Intent path."
         );
       }
-      const plan = await planScaffoldFromFile({
+      const plan = await api.planScaffoldFromFile({
         consumerRoot: parsed.consumerRoot,
         intentPath,
         configPath: parsed.configPath
@@ -73,7 +69,7 @@ export async function runScaffoldingCliCommand(
       return true;
     }
     case "scaffold-recover": {
-      const receipt = await recoverFilesystemScaffold(parsed.consumerRoot);
+      const receipt = await api.recoverFilesystemScaffold(parsed.consumerRoot);
       if (receipt === undefined) {
         process.stdout.write(
           json

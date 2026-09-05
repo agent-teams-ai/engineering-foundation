@@ -94,6 +94,7 @@
         "tests/governance-configuration.test.mjs",
         "tests/protobuf-configuration.test.mjs",
         "tests/public-api-configuration.test.mjs",
+        "tests/scaffolding-schema-boundary.test.mjs",
         "tests/transaction-schema-boundary.test.mjs",
         "tests/json-schema-configuration.test.mjs",
         "tests/executable-configuration.test.mjs",

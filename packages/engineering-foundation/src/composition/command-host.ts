@@ -1,3 +1,4 @@
+import { scaffoldingApi } from "./scaffolding-api.js";
 import type { FoundationCommandServices } from "../features/command-host/api.js";
 import type { FoundationSchemaId } from "../schema-ids.js";
 import { renderFoundationReportText } from "../features/foundation-check/module.js";
@@ -14,7 +15,7 @@ import { createNodeProcessRunner } from "../local-mode/composition/process-runne
 import { FoundationLocalModeService } from "./local-mode-service.js";
 import { inspectFoundationPackage } from "./local-package-inspection.js";
 import { installedFoundationVersion } from "../transaction-coordination/adapters/node/installed-foundation-version.js";
-import { runScaffoldingCliCommand } from "../scaffolding/cli-command.js";
+import { runScaffoldingCliCommand } from "../scaffolding/adapters/inbound/scaffolding-cli-command.js";
 import { assertSchema, isFoundationSchemaId, readFoundationSchema } from "../schema-catalog.js";
 import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js";
 import { RULE_REGISTRY } from "./rule-registry.js";
@@ -48,7 +49,7 @@ function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: st
       const { qualifyProtobufBreakingEvidence } = await import("../capabilities/contract-protobuf-evolution/qualification/module.js");
       return (input) => qualifyProtobufBreakingEvidence(input, processExecutor, assertSchema);
     },
-    scaffold: runScaffoldingCliCommand,
+    scaffold: (parsed, json) => runScaffoldingCliCommand(parsed, json, scaffoldingApi),
     inspectPackage: () => inspectFoundationPackage(packageRoot),
     installedVersion: installedFoundationVersion,
     isSchemaId: isFoundationSchemaId,

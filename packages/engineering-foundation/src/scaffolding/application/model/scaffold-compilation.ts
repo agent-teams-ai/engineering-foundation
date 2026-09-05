@@ -226,3 +226,8 @@ export interface ScaffoldFileContribution {
   readonly content: string;
   readonly causes: readonly string[];
 }
+
+export type ScaffoldAuthorityAssessment =
+  | { readonly state: "current" }
+  | { readonly state: "stale" }
+  | { readonly state: "unverifiable" };

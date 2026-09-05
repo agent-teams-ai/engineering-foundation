@@ -3,8 +3,8 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { FoundationError } from "../../../features/validation-reporting/api.js";
-import { FOUNDATION_REQUIRED_ARTIFACT_PATHS, packageMetadata, validatePackageManifest } from "../../application/package-metadata.js";
-import type { FoundationPackageSelfCheck } from "../../application/package-metadata.js";
+import { packageMetadata, validatePackageManifest } from "../../application/package-metadata.js";
+import type { FoundationPackageArtifactPolicy, FoundationPackageSelfCheck } from "../../application/package-metadata.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -57,7 +57,8 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
 }
 
 export async function inspectFoundationPackage(
-  packageRoot: string
+  packageRoot: string,
+  artifactPolicy: FoundationPackageArtifactPolicy
 ): Promise<FoundationPackageSelfCheck> {
   let manifest: unknown;
   try {
@@ -71,8 +72,8 @@ export async function inspectFoundationPackage(
       { cause: error }
     );
   }
-  validatePackageManifest(manifest);
-  for (const outputPath of FOUNDATION_REQUIRED_ARTIFACT_PATHS) {
+  validatePackageManifest(manifest, artifactPolicy.packageFileAllowlist);
+  for (const outputPath of artifactPolicy.requiredArtifactPaths) {
     try {
       const metadata = await lstat(join(packageRoot, outputPath));
       if (metadata.isSymbolicLink() || !metadata.isFile()) {

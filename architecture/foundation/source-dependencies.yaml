@@ -485,6 +485,7 @@ boundaries:
         - foundation.property-testing-support
         - foundation.scaffolding.canonical-composition
         - foundation.validation-reporting.application
+        - foundation.local-mode.assembly
       packages: []
       builtins: []
       runtimeReferences: []
@@ -1112,6 +1113,7 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/installed-foundation-transaction-artifacts.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-envelope-digests.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-document-transaction-status.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/inspect-installed-foundation-transaction.ts
     allow:
       boundaries:
         - foundation.validation-reporting.error
@@ -1149,6 +1151,7 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-cleanup-transition.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-state-directory.ts
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts
+      - packages/engineering-foundation/src/transaction-coordination/adapters/node/inspect-installed-foundation-transaction.ts
   - id: foundation.scaffolding.canonical-kernel
     roots:
       - packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts
@@ -1307,6 +1310,7 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/application/package-metadata.ts
       - packages/engineering-foundation/src/local-mode/application/ports.ts
       - packages/engineering-foundation/src/local-mode/application/service.ts
+      - packages/engineering-foundation/src/local-mode/api.ts
     allow:
       boundaries:
         - foundation.state-assembly
@@ -1326,6 +1330,7 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/application/package-metadata.ts
       - packages/engineering-foundation/src/local-mode/application/ports.ts
       - packages/engineering-foundation/src/local-mode/application/service.ts
+      - packages/engineering-foundation/src/local-mode/api.ts
   - id: foundation.local-mode.adapters
     roots:
       - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
@@ -1363,6 +1368,7 @@ boundaries:
   - id: foundation.local-mode.composition
     roots:
       - packages/engineering-foundation/src/local-mode/composition
+      - packages/engineering-foundation/src/local-mode/node.ts
     allow:
       boundaries:
         - foundation.local-mode.application
@@ -1371,6 +1377,7 @@ boundaries:
         - foundation.process-execution
         - foundation.process-execution.application
         - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -1379,6 +1386,7 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/composition/process-runner.ts
       - packages/engineering-foundation/src/local-mode/composition/service.ts
       - packages/engineering-foundation/src/local-mode/composition/operation-lock.ts
+      - packages/engineering-foundation/src/local-mode/node.ts
   - id: foundation.local-mode
     roots:
       - packages/engineering-foundation/src/local-mode/index.ts
@@ -1390,6 +1398,7 @@ boundaries:
         - foundation.local-mode.composition
         - foundation.schema-identities
         - foundation.process-execution.application
+        - foundation.local-mode.assembly
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2332,6 +2341,7 @@ boundaries:
       - packages/engineering-foundation/src/composition/node-foundation-transaction-coordinator.ts
       - packages/engineering-foundation/src/composition/node-foundation-transaction-slot.ts
       - packages/engineering-foundation/src/composition/scaffold-filesystem.ts
+      - packages/engineering-foundation/src/composition/foundation-transaction-inspection.ts
   - id: foundation.state-assembly
     roots:
       - packages/engineering-foundation/src/foundation-state-contract.ts
@@ -2467,6 +2477,7 @@ boundaries:
         - foundation.process-execution.composition
         - foundation.local-mode.adapters
         - foundation.local-mode.composition
+        - foundation.local-mode.assembly
       packages: []
       builtins:
         - node:path
@@ -2784,3 +2795,37 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/process-execution/module.ts
+  - id: foundation.transaction-coordination.node
+    roots:
+      - packages/engineering-foundation/src/transaction-coordination/node.ts
+    entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/node.ts
+    allow:
+      boundaries:
+        - foundation.transaction-coordination.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.local-mode.assembly
+    roots:
+      - packages/engineering-foundation/src/composition/local-package-artifacts.ts
+      - packages/engineering-foundation/src/composition/local-package-inspection.ts
+      - packages/engineering-foundation/src/composition/local-mode-inspection.ts
+      - packages/engineering-foundation/src/composition/local-mode-ports.ts
+      - packages/engineering-foundation/src/composition/local-mode-service.ts
+    entrypoints:
+      - packages/engineering-foundation/src/composition/local-package-artifacts.ts
+      - packages/engineering-foundation/src/composition/local-package-inspection.ts
+      - packages/engineering-foundation/src/composition/local-mode-inspection.ts
+      - packages/engineering-foundation/src/composition/local-mode-ports.ts
+      - packages/engineering-foundation/src/composition/local-mode-service.ts
+    allow:
+      boundaries:
+        - foundation.local-mode.application
+        - foundation.local-mode.composition
+        - foundation.schema-identities
+        - foundation.transactions.composition
+        - foundation.transaction-coordination.node
+      packages: []
+      builtins: []
+      runtimeReferences: []

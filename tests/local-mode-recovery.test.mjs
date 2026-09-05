@@ -24,7 +24,7 @@ import {
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
-} from "../packages/engineering-foundation/dist/local-mode/application/package-metadata.js";
+} from "../packages/engineering-foundation/dist/composition/local-package-artifacts.js";
 import { createNodeProcessRunner } from "../packages/engineering-foundation/dist/local-mode/composition/process-runner.js";
 
 function NodeProcessRunner() {

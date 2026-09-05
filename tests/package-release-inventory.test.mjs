@@ -9,8 +9,8 @@ import { parse as parseYaml } from "yaml";
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
-} from "../packages/engineering-foundation/dist/local-mode/application/package-metadata.js";
-import { inspectFoundationPackage } from "../packages/engineering-foundation/dist/local-mode/adapters/node/package-inspection.js";
+} from "../packages/engineering-foundation/dist/composition/local-package-artifacts.js";
+import { inspectFoundationPackage } from "../packages/engineering-foundation/dist/composition/local-package-inspection.js";
 import { FOUNDATION_SCHEMA_IDS } from "../packages/engineering-foundation/dist/schema-ids.js";
 import {
   assertArchiveListing,

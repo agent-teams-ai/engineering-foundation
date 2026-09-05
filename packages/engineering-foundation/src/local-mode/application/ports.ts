@@ -1,5 +1,5 @@
 import type { FoundationTransactionCoordinator } from "../../transaction-coordination/application/foundation-transaction-coordinator.js";
-import type { FoundationDevOnlyStatus, FoundationLinkState, FoundationStatus } from "./model.js";
+import type { FoundationDevOnlyStatus, FoundationLinkState, FoundationStatus, ProcessRunner } from "./model.js";
 
 export interface LocalModeInspector {
   mode(consumerPath: string, options?: { readonly ignoreOperationLock?: boolean }): Promise<FoundationStatus>;
@@ -40,4 +40,9 @@ export interface LocalPackageLifecyclePorts {
   readonly state: LocalLinkStateStore;
   readonly links: RegistryLinks;
   readonly coordinator: (consumerPath: string) => Promise<Pick<FoundationTransactionCoordinator, "acquire" | "inspect">>;
+}
+
+export interface FoundationLocalModeServiceOptions {
+  readonly runner: ProcessRunner;
+  readonly now: () => Date;
 }

@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { LocalPackageLifecycle } from "../packages/engineering-foundation/dist/local-mode/application/service.js";
-import { createNodeLocalPackageLifecyclePorts } from "../packages/engineering-foundation/dist/local-mode/composition/service.js";
+import { createNodeLocalPackageLifecyclePorts } from "../packages/engineering-foundation/dist/composition/local-mode-ports.js";
 import { inspectConsumerManifest, inspectLockfile } from "../packages/engineering-foundation/dist/local-mode/application/consumer-policy.js";
 import { parseDocument } from "yaml";
 
@@ -29,7 +29,7 @@ import {
 import {
   FOUNDATION_PACKAGE_FILE_ALLOWLIST,
   FOUNDATION_REQUIRED_ARTIFACT_PATHS,
-} from "../packages/engineering-foundation/dist/local-mode/application/package-metadata.js";
+} from "../packages/engineering-foundation/dist/composition/local-package-artifacts.js";
 import {
   compileKnownFileTransactionPlan,
 } from "../packages/repository-mutation/dist/index.js";

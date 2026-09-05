@@ -10,8 +10,8 @@ import { createNodeAgentWorkflowCommands } from "../capabilities/repository-agen
 import { createQualityGateCliCommand, createNodeQualityGateCommand, NodeSignalQualityGateCancellationSource } from "../capabilities/quality-gate-runner/command-module.js";
 import { systemNow } from "../local-mode/adapters/outbound/time/system-clock.js";
 import { createNodeProcessRunner } from "../local-mode/composition/process-runner.js";
-import { FoundationLocalModeService } from "../local-mode/composition/service.js";
-import { inspectFoundationPackage } from "../local-mode/adapters/node/package-inspection.js";
+import { FoundationLocalModeService } from "./local-mode-service.js";
+import { inspectFoundationPackage } from "./local-package-inspection.js";
 import { installedFoundationVersion } from "../transaction-coordination/adapters/node/installed-foundation-version.js";
 import { runScaffoldingCliCommand } from "../scaffolding/cli-command.js";
 import { isFoundationSchemaId, readFoundationSchema } from "../schema-catalog.js";

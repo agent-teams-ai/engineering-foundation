@@ -1,6 +1,5 @@
 import { compareBinaryStrings } from "../../binary-string-comparator.js";
 import { FoundationError } from "../../features/validation-reporting/api.js";
-import { FOUNDATION_SCHEMA_IDS } from "../../schema-ids.js";
 import { isExactVersion } from "../../semantic-version.js";
 import { FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION, FOUNDATION_PACKAGE_NAME } from "./model.js";
 
@@ -14,32 +13,40 @@ const FOUNDATION_REQUIRED_PRESET_PATHS = [
   "presets/typescript/base.json",
   "presets/typescript/node.json"
 ] as const;
-const historicalDocumentPlanPath = "assets/transaction-coordination/historical/document-plan-v1.schema.json";
-export const FOUNDATION_REQUIRED_ARTIFACT_PATHS = [
-  historicalDocumentPlanPath,
-  "dist/cli.js",
-  "dist/index.d.ts",
-  "dist/index.js",
-  "dist/public-api-surface.d.ts",
-  "dist/local-mode/index.d.ts",
-  "dist/local-mode/index.js",
-  "dist/scaffolding/index.d.ts",
-  "dist/scaffolding/index.js",
-  ...FOUNDATION_REQUIRED_PRESET_PATHS,
-  ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`),
-  "assets/windows-managed-process/bootstrap.ps1",
-  "assets/windows-managed-process/WindowsManagedProcess.cs"
-] as const;
-export const FOUNDATION_PACKAGE_FILE_ALLOWLIST = [
-  "dist",
-  historicalDocumentPlanPath,
-  ...FOUNDATION_REQUIRED_PRESET_PATHS,
-  ...FOUNDATION_SCHEMA_IDS.map((schemaId) => `schemas/${schemaId}.schema.json`),
-  "assets/windows-managed-process/bootstrap.ps1",
-  "assets/windows-managed-process/WindowsManagedProcess.cs",
-  "LICENSE",
-  "README.md"
-] as const;
+export interface FoundationPackageArtifactPolicy {
+  readonly requiredArtifactPaths: readonly string[];
+  readonly packageFileAllowlist: readonly string[];
+}
+
+export function createFoundationPackageArtifactPolicy(schemaIds: readonly string[]): FoundationPackageArtifactPolicy {
+  const historicalDocumentPlanPath = "assets/transaction-coordination/historical/document-plan-v1.schema.json";
+  const requiredArtifactPaths = [
+    historicalDocumentPlanPath,
+    "dist/cli.js",
+    "dist/index.d.ts",
+    "dist/index.js",
+    "dist/public-api-surface.d.ts",
+    "dist/local-mode/index.d.ts",
+    "dist/local-mode/index.js",
+    "dist/scaffolding/index.d.ts",
+    "dist/scaffolding/index.js",
+    ...FOUNDATION_REQUIRED_PRESET_PATHS,
+    ...schemaIds.map((schemaId) => `schemas/${schemaId}.schema.json`),
+    "assets/windows-managed-process/bootstrap.ps1",
+    "assets/windows-managed-process/WindowsManagedProcess.cs"
+  ] as const;
+  const packageFileAllowlist = [
+    "dist",
+    historicalDocumentPlanPath,
+    ...FOUNDATION_REQUIRED_PRESET_PATHS,
+    ...schemaIds.map((schemaId) => `schemas/${schemaId}.schema.json`),
+    "assets/windows-managed-process/bootstrap.ps1",
+    "assets/windows-managed-process/WindowsManagedProcess.cs",
+    "LICENSE",
+    "README.md"
+  ] as const;
+  return { requiredArtifactPaths, packageFileAllowlist };
+}
 
 export interface FoundationPackageSelfCheck {
   readonly ok: true;
@@ -179,7 +186,7 @@ function parseProtocolMetadata(manifest: Record<string, unknown>): {
   };
 }
 
-export function validatePackageManifest(manifest: unknown): asserts manifest is Record<string, unknown> & { readonly version: string; readonly exports: Record<string, unknown> } {
+export function validatePackageManifest(manifest: unknown, packageFileAllowlist: readonly string[]): asserts manifest is Record<string, unknown> & { readonly version: string; readonly exports: Record<string, unknown> } {
   if (!isRecord(manifest)) {
     throw new FoundationError(
       "PACKAGE_INVALID",
@@ -209,7 +216,7 @@ export function validatePackageManifest(manifest: unknown): asserts manifest is 
   assertExactStringArray(
     manifest.files,
     "files",
-    FOUNDATION_PACKAGE_FILE_ALLOWLIST
+    packageFileAllowlist
   );
 
   if (!isRecord(manifest.exports)) {

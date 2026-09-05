@@ -2,12 +2,12 @@ export {
   FOUNDATION_METADATA_SCHEMA_VERSION,
   parseFoundationPackageSelfCheck
 } from "./local-mode/application/package-metadata.js";
-export { inspectFoundationPackage } from "./local-mode/adapters/node/package-inspection.js";
+export { inspectFoundationPackage } from "./composition/local-package-inspection.js";
 export type { FoundationPackageSelfCheck } from "./local-mode/application/package-metadata.js";
 export { FoundationError } from "./features/validation-reporting/api.js";
 export type { FoundationErrorCode } from "./features/validation-reporting/api.js";
 export * as localMode from "./local-mode/index.js";
-export { inspectFoundationTransactionAwareMode } from "./local-mode/composition/inspection.js";
+export { inspectFoundationTransactionAwareMode } from "./composition/local-mode-inspection.js";
 export type {
   FoundationManualRecoveryReason,
   FoundationRecoveryRoute,

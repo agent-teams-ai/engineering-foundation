@@ -1,8 +1,7 @@
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { FoundationError } from "../../../features/validation-reporting/api.js";
-import { inspectFoundationPackage } from "./package-inspection.js";
-import { parseFoundationPackageSelfCheck } from "../../application/package-metadata.js";
+import { parseFoundationPackageSelfCheck, type FoundationPackageSelfCheck } from "../../application/package-metadata.js";
 import { resolveTargetPackageRoot } from "./registry-recovery.js";
 import type { ProcessRunner } from "../../application/model.js";
 import type { LocalTargetReader } from "../../application/ports.js";
@@ -10,13 +9,14 @@ import type { LocalTargetReader } from "../../application/ports.js";
 async function verifyTargetPackage(
   runner: ProcessRunner,
   consumerRoot: string,
-  targetPath: string
+  targetPath: string,
+  inspectPackage: (packageRoot: string) => Promise<FoundationPackageSelfCheck>
 ): Promise<{ readonly targetPackageRoot: string; readonly packageVersion: string }> {
   const targetPackageRoot = await resolveTargetPackageRoot(targetPath);
   if (targetPackageRoot === consumerRoot) {
     throw new FoundationError("PACKAGE_INVALID", "Foundation target cannot be the consumer repository.");
   }
-  const expected = await inspectFoundationPackage(targetPackageRoot);
+  const expected = await inspectPackage(targetPackageRoot);
   const result = await runner.run({
     command: process.execPath,
     args: [join(targetPackageRoot, "dist", "cli.js"), "self-check", "--json"],
@@ -59,9 +59,9 @@ async function readGitEvidence(
   return { gitCommit, gitDirty };
 }
 
-export function createNodeLocalTargetReader(runner: ProcessRunner): LocalTargetReader {
+export function createNodeLocalTargetReader(runner: ProcessRunner, inspectPackage: (packageRoot: string) => Promise<FoundationPackageSelfCheck>): LocalTargetReader {
   return {
-    verify: (consumerRoot, targetPath) => verifyTargetPackage(runner, consumerRoot, targetPath),
+    verify: (consumerRoot, targetPath) => verifyTargetPackage(runner, consumerRoot, targetPath, inspectPackage),
     git: (consumerRoot, targetPackageRoot) => readGitEvidence(runner, consumerRoot, targetPackageRoot)
   };
 }

@@ -391,7 +391,8 @@ test("source policy admits the process port and denies concrete providers to loc
     const original = await readFile(service, "utf8");
     const cases = [
       ["", 0],
-      ['export type { ProcessRunner as Port } from "../../process-execution/ports/process-runner.js";', 0],
+      ['export type { ProcessRunner as Port } from "../../process-execution/api.js";', 0],
+      ['export { FOUNDATION_SCHEMA_IDS as ModuleAssemblyLeak } from "../../schema-ids.js";', 1],
       ['export { NodeProcessRunner as ConcreteAdapterLeak } from "../../process-execution/node-process-runner.js";', 1],
       ['export type { NodeProcessRunner as ConcreteAdapterLeak } from "../../process-execution/node-process-runner.js";', 1],
       ['export { NodeFoundationOperationLock as ConcreteAdapterLeak } from "../../transaction-coordination/adapters/node/node-foundation-operation-lock.js";', 1]
@@ -407,6 +408,19 @@ test("source policy admits the process port and denies concrete providers to loc
         diagnostic.ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" &&
         diagnostic.location.path.endsWith("local-mode/application/service.ts")
       ), JSON.stringify(diagnostics));}
+    }
+    await writeFile(service, original);
+    for (const name of ["service", "inspection"]) {
+      const compositionPath = join(root, `packages/engineering-foundation/src/local-mode/composition/${name}.ts`);
+      const source = await readFile(compositionPath, "utf8");
+      await writeFile(compositionPath, `${source}\nexport { createNodeFoundationTransactionCoordinator as ModuleAssemblyLeak } from "../../composition/node-foundation-transaction-coordinator.js";\n`);
+      const result = actualSourceDependenciesCLI(root);
+      assert.equal(result.exitCode, 1, JSON.stringify(result));
+      assert.ok(result.report.capabilities.flatMap((capability) => capability.diagnostics).some((diagnostic) =>
+        diagnostic.ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" &&
+        diagnostic.location.path.endsWith(`local-mode/composition/${name}.ts`)
+      ), JSON.stringify(result.report));
+      await writeFile(compositionPath, source);
     }
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -452,7 +466,7 @@ test("installed lifecycle, reporting and coordination retain identities and rela
       import { FoundationError, localMode } from "@agent-teams/engineering-foundation";
       import { FoundationLocalModeService, NodeProcessRunner } from "@agent-teams/engineering-foundation/local-mode";
       import { FoundationError as ReportError } from "./node_modules/@agent-teams/engineering-foundation/dist/features/validation-reporting/foundation-error.js";
-      import { ProcessCancellationError, ProcessTimeoutError } from "./node_modules/@agent-teams/engineering-foundation/dist/process-execution/node-process-runner.js";
+      import { ProcessCancellationError, ProcessTimeoutError } from "./node_modules/@agent-teams/engineering-foundation/dist/process-execution/api.js";
       import { installedFoundationVersion } from "./node_modules/@agent-teams/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
       import { installedFoundationVersion as scaffoldVersion } from "./node_modules/@agent-teams/engineering-foundation/dist/scaffolding/adapters/node/installed-foundation-version.js";
       import { computeFoundationBuildIdentity, installedFoundationBuildIdentity } from "./node_modules/@agent-teams/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";

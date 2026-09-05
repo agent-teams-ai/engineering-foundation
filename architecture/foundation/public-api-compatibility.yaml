@@ -9,6 +9,14 @@ packages:
     entrypoints:
       - exportPath: "."
         declarationEntryPoint: packages/repository-mutation/dist/index.d.ts
+      - exportPath: "./coordination"
+        declarationEntryPoint: packages/repository-mutation/dist/coordination.d.ts
+      - exportPath: "./known-file"
+        declarationEntryPoint: packages/repository-mutation/dist/known-file.d.ts
+      - exportPath: "./paths"
+        declarationEntryPoint: packages/repository-mutation/dist/paths.d.ts
+      - exportPath: "./serialization"
+        declarationEntryPoint: packages/repository-mutation/dist/serialization.d.ts
       - exportPath: "./node"
         declarationEntryPoint: packages/repository-mutation/dist/node.d.ts
       - exportPath: "./qualification"

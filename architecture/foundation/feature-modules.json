@@ -917,6 +917,7 @@
       "moduleAssembly": [
         "packages/engineering-foundation/src/index.ts",
         "packages/engineering-foundation/src/public-api-surface.ts",
+        "packages/engineering-foundation/src/scaffolding/index.ts",
         "packages/engineering-foundation/src/cli.ts",
         "packages/engineering-foundation/src/composition",
         "packages/engineering-foundation/src/schema-catalog.ts",
@@ -1208,14 +1209,14 @@
             {
               "role": "composition",
               "roots": [
-                "packages/engineering-foundation/src/scaffolding/composition",
-                "packages/engineering-foundation/src/scaffolding/index.ts"
+                "packages/engineering-foundation/src/scaffolding/composition"
               ]
             }
           ],
           "testRoots": [
             "tests/scaffolding-canonical-contract.test.mjs",
-            "tests/scaffolding-authority.test.mjs"
+            "tests/scaffolding-authority.test.mjs",
+            "tests/scaffolding-owner-composition.test.mjs"
           ]
         },
         {

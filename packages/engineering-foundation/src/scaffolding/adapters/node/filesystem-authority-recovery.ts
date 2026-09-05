@@ -10,11 +10,10 @@ import type {
 } from "../../application/model/recovery-scope.js";
 import { assertScaffoldRecoveryScopeMatchesPlan } from "../../kernel/recovery-scope.js";
 import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
-import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
+import { acquireScaffoldingTransaction } from "../../application/policies/scaffold-transaction.js";
 import { assertSafeOperationPaths } from "./filesystem-path-guard.js";
 import { SCAFFOLD_JOURNAL_FILE } from "./node-scaffold-journal-evidence.js";
 import {
-  acquireScaffoldingTransaction,
   continueAuthorityScaffoldJournal,
   type ScaffoldAuthorityFaultInjector
 } from "./filesystem-authority-workspace.js";
@@ -58,10 +57,6 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
       ...(faultInjector === undefined ? {} : { faultInjector })
     });
   } finally {
-    await releaseFoundationTransactionLeaseSafely({
-      lease,
-      inspectRetainTransactionBarrier: () =>
-        scaffoldTransactionEvidenceExists(journalPath)
-    });
+    await lease.releaseAfterInspection(() => scaffoldTransactionEvidenceExists(journalPath));
   }
 }

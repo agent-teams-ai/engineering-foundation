@@ -10,3 +10,17 @@ export interface ScaffoldTransactions {
 export type ScaffoldTransactionProvider = (
   canonicalRoot: string
 ) => Promise<ScaffoldTransactions>;
+
+export interface ScaffoldTransactionDependencies {
+  readonly createCoordinator: (
+    canonicalRoot: string
+  ) => Promise<ScaffoldTransactions["coordinator"]>;
+  readonly createCleanupTransition: (
+    canonicalRoot: string,
+    transactionId: string
+  ) => OwnedTemporaryCleanupTransitionPort;
+}
+
+export interface ScaffoldTransactionLease {
+  releaseAfterInspection(inspectEvidence: () => Promise<boolean>): Promise<void>;
+}

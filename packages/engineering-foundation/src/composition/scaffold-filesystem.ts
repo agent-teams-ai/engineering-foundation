@@ -1,6 +1,6 @@
 import { assertSchema } from "../schema-catalog.js";
-import { createScaffoldFilesystemDependencies } from "../scaffolding/composition/node-scaffolding.js";
-import type { ScaffoldTransactions } from "../scaffolding/application/ports/scaffold-transactions.js";
+import { createNodeScaffoldFilesystem } from "../scaffolding/composition/node-scaffolding.js";
+import { createNodeScaffoldTransactionProvider } from "../scaffolding/composition/scaffold-transactions.js";
 import type {
   AuthorityScaffoldPlan
 } from "../scaffolding/application/model/scaffold-compilation.js";
@@ -10,23 +10,19 @@ import type {
 import type {
   AuthorityScaffoldRecoveryScope
 } from "../scaffolding/application/model/recovery-scope.js";
-import {
-  applyAuthorityFilesystemScaffoldWithFaultInjection as apply,
-  type ScaffoldAuthorityFaultInjector
+import type {
+  ScaffoldAuthorityFaultInjector
 } from "../scaffolding/adapters/node/filesystem-authority-workspace.js";
-import { recoverAuthorityFilesystemScaffoldWithFaultInjection as recover } from "../scaffolding/adapters/node/filesystem-authority-recovery.js";
 import { createNodeFoundationCleanupTransition } from "../transaction-coordination/adapters/node/node-foundation-cleanup-transition.js";
 import { syncFoundationStateDirectory } from "../transaction-coordination/adapters/node/node-foundation-state-directory.js";
 import { createNodeFoundationTransactionCoordinator } from "./node-foundation-transaction-coordinator.js";
 
-export async function createScaffoldTransactions(root: string): Promise<ScaffoldTransactions> {
-  return {
-    coordinator: await createNodeFoundationTransactionCoordinator(root),
-    createCleanupTransition: (transactionId) => createNodeFoundationCleanupTransition(
-      root, transactionId, { syncStateDirectory: syncFoundationStateDirectory }
-    )
-  };
-}
+export const createScaffoldTransactions = createNodeScaffoldTransactionProvider(
+  createNodeFoundationTransactionCoordinator,
+  createNodeFoundationCleanupTransition,
+  syncFoundationStateDirectory
+);
+const filesystem = createNodeScaffoldFilesystem(assertSchema, createScaffoldTransactions);
 
 /** Private composition for production and fault-injection conformance. */
 export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
@@ -34,7 +30,7 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
   plan: AuthorityScaffoldPlan,
   faultInjector?: ScaffoldAuthorityFaultInjector
 ): Promise<AuthorityScaffoldReceipt> {
-  return apply(consumerRoot, plan, faultInjector, createScaffoldFilesystemDependencies(assertSchema, createScaffoldTransactions));
+  return filesystem.applyAuthorityFilesystemScaffoldWithFaultInjection(consumerRoot, plan, faultInjector);
 }
 
 export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
@@ -42,5 +38,5 @@ export async function recoverAuthorityFilesystemScaffoldWithFaultInjection(
   scope?: AuthorityScaffoldRecoveryScope,
   faultInjector?: ScaffoldAuthorityFaultInjector
 ): Promise<AuthorityScaffoldReceipt | undefined> {
-  return recover(consumerRoot, scope, faultInjector, createScaffoldFilesystemDependencies(assertSchema, createScaffoldTransactions));
+  return filesystem.recoverAuthorityFilesystemScaffoldWithFaultInjection(consumerRoot, scope, faultInjector);
 }

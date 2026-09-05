@@ -16,10 +16,8 @@ import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.
 import { ScaffoldError } from "../../scaffold-error.js";
 import type { AssessScaffoldPlanAuthority, ScaffoldFilesystemDependencies } from "./scaffold-filesystem-dependencies.js";
 import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import { acquireScaffoldingTransaction } from "../../application/policies/scaffold-transaction.js";
 import type { ScaffoldTransactions } from "../../application/ports/scaffold-transactions.js";
-import { FoundationTransactionError } from "../../../transaction-coordination/application/foundation-transaction-error.js";
-import type { FoundationTransactionLease } from "../../../transaction-coordination/application/foundation-transaction-coordinator.js";
-import { releaseFoundationTransactionLeaseSafely } from "../../../transaction-coordination/application/release-foundation-transaction-lease.js";
 import {
   assertSafeExistingAncestors, assertSafeOperationPaths
 } from "./filesystem-path-guard.js";
@@ -131,29 +129,6 @@ function snapshotAuthorityScaffoldPlan(
     );
   }
   return snapshot;
-}
-
-export async function acquireScaffoldingTransaction(
-  coordinator: ScaffoldTransactions["coordinator"]
-): Promise<FoundationTransactionLease> {
-  try {
-    return await coordinator.acquire({
-      requestedMutation: "scaffolding",
-      allowRecoveryOf: "scaffolding"
-    });
-  } catch (error) {
-    if (!(error instanceof FoundationTransactionError)) {
-      throw error;
-    }
-    const message =
-      error.status.state === "manual-recovery-required" &&
-      error.status.reason === "orphan-temporary"
-      ? "Scaffolding journal temporary cannot be proven transaction-owned; it was preserved and requires manual recovery."
-      : error.message;
-    throw new ScaffoldError("SCAFFOLD_RECOVERY_REQUIRED", message, [], {
-      cause: error
-    });
-  }
 }
 
 async function prepareJournal(
@@ -482,9 +457,6 @@ export async function applyAuthorityFilesystemScaffoldWithFaultInjection(
       ...(faultInjector === undefined ? {} : { faultInjector })
     });
   } finally {
-    await releaseFoundationTransactionLeaseSafely({
-      lease,
-      inspectRetainTransactionBarrier: () => scaffoldTransactionEvidenceExists(journalPath)
-    });
+    await lease.releaseAfterInspection(() => scaffoldTransactionEvidenceExists(journalPath));
   }
 }

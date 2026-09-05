@@ -601,7 +601,7 @@ boundaries:
         - foundation.core
         - foundation.local-mode
         - foundation.property-testing-support
-        - foundation.scaffolding.canonical-composition
+        - foundation.scaffolding.public
         - foundation.validation-reporting.application
         - foundation.local-mode.assembly
       packages: []
@@ -1796,7 +1796,6 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
     allow:
       boundaries:
-        - foundation.scaffolding.parameters
         - foundation.scaffolding.transactions
         - foundation.core
         - foundation.local-mode
@@ -1844,10 +1843,21 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store-faults.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-store.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
+  - id: foundation.scaffolding.public
+    roots:
+      - packages/engineering-foundation/src/scaffolding/index.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.canonical-composition
+        - foundation.scaffolding.core
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/index.ts
   - id: foundation.scaffolding.canonical-composition
     roots:
       - packages/engineering-foundation/src/composition/scaffolding-api.ts
-      - packages/engineering-foundation/src/scaffolding/index.ts
     allow:
       boundaries:
         - foundation.transactions.composition
@@ -1864,7 +1874,6 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/composition/scaffolding-api.ts
-      - packages/engineering-foundation/src/scaffolding/index.ts
   - id: foundation.validation-reporting.error
     roots:
       - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
@@ -2837,7 +2846,6 @@ boundaries:
   - id: foundation.scaffolding.parameters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/outbound/ajv-parameter-validation.ts
-      - packages/engineering-foundation/src/scaffolding/composition/scaffold-registry.ts
     allow:
       boundaries:
         - foundation.scaffolding.core
@@ -2846,12 +2854,26 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/scaffolding/adapters/outbound/ajv-parameter-validation.ts
+  - id: foundation.scaffolding.registry-composition
+    roots:
+      - packages/engineering-foundation/src/scaffolding/composition/scaffold-registry.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.core
+        - foundation.scaffolding.parameters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
       - packages/engineering-foundation/src/scaffolding/composition/scaffold-registry.ts
   - id: foundation.scaffolding.transactions
     roots:
       - packages/engineering-foundation/src/scaffolding/application/ports/scaffold-transactions.ts
+      - packages/engineering-foundation/src/scaffolding/application/policies/scaffold-transaction.ts
     allow:
       boundaries:
+        - foundation.scaffolding.core
         - foundation.transaction-coordination.application
       packages:
         - "@agent-teams/repository-mutation"
@@ -2859,6 +2881,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/application/ports/scaffold-transactions.ts
+      - packages/engineering-foundation/src/scaffolding/application/policies/scaffold-transaction.ts
   - id: foundation.transactions.composition
     roots:
       - packages/engineering-foundation/src/composition/foundation-transaction-inspection.ts
@@ -3379,15 +3402,19 @@ boundaries:
   - id: foundation.scaffolding.node-composition
     roots:
       - packages/engineering-foundation/src/scaffolding/composition/node-scaffolding.ts
+      - packages/engineering-foundation/src/scaffolding/composition/scaffold-transactions.ts
     allow:
       boundaries:
         - foundation.scaffolding.canonical-adapters
         - foundation.scaffolding.transactions
+        - foundation.scaffolding.core
+        - foundation.scaffolding.registry-composition
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/scaffolding/composition/node-scaffolding.ts
+      - packages/engineering-foundation/src/scaffolding/composition/scaffold-transactions.ts
   - id: foundation.tests.public-api-contracts
     dependencyMode: development
     roots:

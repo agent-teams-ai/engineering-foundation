@@ -3,7 +3,7 @@ import type {
   AuthorityScaffoldPlan,
   ScaffoldAuthorityAssessment
 } from "../../application/model/scaffold-compilation.js";
-import { createAuthorityScaffoldRegistry } from "../../composition/scaffold-registry.js";
+import type { ScaffoldDefinitionRegistry } from "../../kernel/definition-registry.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
 import { installedFoundationVersion } from "./installed-foundation-version.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
@@ -16,6 +16,7 @@ async function assertPlanMatchesConsumerAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
   assertSchema: ScaffoldSchemaValidator,
+  createRegistry: () => ScaffoldDefinitionRegistry,
   authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<void> {
   const input = await loadAuthorityScaffoldCompilationInputFromIntent({
@@ -29,7 +30,7 @@ async function assertPlanMatchesConsumerAuthority(
   }, assertSchema);
   const expected = compileAuthorityScaffoldPlan(
     input,
-    createAuthorityScaffoldRegistry()
+    createRegistry()
   );
   if (expected.planDigest !== plan.planDigest) {
     throw new ScaffoldAuthorityStaleError(
@@ -46,6 +47,7 @@ export async function assessScaffoldPlanAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
   assertSchema: ScaffoldSchemaValidator,
+  createRegistry: () => ScaffoldDefinitionRegistry,
   faultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<ScaffoldAuthorityAssessment> {
   try {
@@ -53,6 +55,7 @@ export async function assessScaffoldPlanAuthority(
       consumerRoot,
       plan,
       assertSchema,
+      createRegistry,
       faultInjector
     );
     return { state: "current" };

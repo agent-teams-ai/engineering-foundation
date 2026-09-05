@@ -1,3 +1,4 @@
+import { createAuthorityScaffoldRegistry } from "../packages/engineering-foundation/dist/scaffolding/composition/scaffold-registry.js";
 import assert from "node:assert/strict";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -74,7 +75,7 @@ test("schema rejection precedes apply filesystem access and keeps the caller Pla
 
 test("authority validation failures remain unverifiable rather than stale", async () => withFixture(async (root) => {
   const value = await plan(root);
-  assert.deepEqual(await assessScaffoldPlanAuthority(root, value, async () => { throw new Error("schema unavailable"); }), { state: "unverifiable" });
+  assert.deepEqual(await assessScaffoldPlanAuthority(root, value, async () => { throw new Error("schema unavailable"); }, createAuthorityScaffoldRegistry), { state: "unverifiable" });
 }));
 
 test("receipt validation preserves the delegated schema failure and input identity", async () => {

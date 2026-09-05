@@ -1,3 +1,5 @@
+import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../adapters/node-consumer-restoration.js";
+import type { ConsumerRestorationOptions, RestorableConsumerUpgradeExecution } from "../application/model/consumer-restoration.js";
 import { foundationKnownFileTransaction } from "../adapters/foundation-known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
 import {
@@ -35,6 +37,7 @@ const useCases = createConsumerIntegrationUseCases({
 const upgrade = createConsumerUpgradeUseCase({
   assets: packageConsumerAssetCatalogReader,
   authority: githubCohortAuthorityReader,
+  restoration: consumerRestorationRecorder(githubCohortAuthorityReader),
   input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
   sandbox: nodeConsumerUpgradeSandbox,
@@ -82,7 +85,13 @@ export function upgradeConsumerIntegrationToGeneration(options: {
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
   readonly targetGeneration: 1 | 2;
+  readonly sourceGeneration?: 1;
+  readonly restorationProofPath?: string;
   readonly to: string;
-}): Promise<ConsumerUpgradeExecutionV1> {
+}): Promise<RestorableConsumerUpgradeExecution> {
   return upgrade(options);
+}
+
+export function restoreConsumerIntegration(options: ConsumerRestorationOptions) {
+  return restoreNodeConsumerIntegration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
 }

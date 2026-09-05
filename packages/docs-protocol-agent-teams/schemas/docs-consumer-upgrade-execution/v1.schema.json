@@ -36,6 +36,13 @@
         "qualificationEventDigest": { "$ref": "#/$defs/sha256" }
       }
     },
+    "restoration": {
+      "type": "object", "additionalProperties": false, "required": ["path", "digest"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "receipt": { "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1" }
   },
   "$defs": {

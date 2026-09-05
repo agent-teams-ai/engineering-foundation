@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
+import { registerRestorationAuthorityTest } from "./consumer-restoration-cases.mjs";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import {
-  assertConsumerUpgradeExecutionSchema
-} from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
+import { assertConsumerUpgradeExecutionSchema } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
 import {
   projectPnpmWorkspaceMigrationExclusionsV1
 } from "../dist/consumer-integration/adapters/consumer-upgrade-file-projectors.js";
@@ -523,3 +522,5 @@ minimumReleaseAgeExclude:
   assert.equal(projected.split(foundation).length - 1, 1);
   assert.match(projected, /unrelated@1\.0\.0/u);
 });
+
+registerRestorationAuthorityTest({ sourceCohort, v2Cohort, centralRegistry, v2Registry, authorityDigest, REPOSITORY });

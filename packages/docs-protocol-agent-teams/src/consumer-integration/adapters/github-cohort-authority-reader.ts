@@ -142,7 +142,7 @@ async function readAuthorityRegistry(
 function selectedLifecycleState(
   events: readonly unknown[],
   cohortId: string
-): { readonly qualificationEventDigest: string; readonly state: string } {
+): { readonly qualificationEventDigest: string; readonly state: string; readonly supportUntil: unknown } {
   const selected = events.map((value) => record(value, "Cohort lifecycle event"))
     .filter((event) => event["cohort_id"] === cohortId)
     .map((event) => {
@@ -175,7 +175,8 @@ function selectedLifecycleState(
       qualification[0]!.event["event_digest"],
       "QUALIFIED event digest"
     ),
-    state: string(last.event["state"], "Current Cohort lifecycle state")
+    state: string(last.event["state"], "Current Cohort lifecycle state"),
+    supportUntil: last.event["support_until"]
   };
 }
 
@@ -388,6 +389,7 @@ export function projectQualifiedCohortAuthority(input: {
   readonly registry: Record<string, unknown>;
   readonly repository: ConsumerIntegrationDesiredState["repository"];
   readonly revision: string;
+  readonly restorationBinding?: "origin" | "source";
 }): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
   if (input.registry["schema_version"] !== 1) {
     throw new ConsumerIntegrationNodeError(
@@ -412,7 +414,14 @@ export function projectQualifiedCohortAuthority(input: {
     array(input.registry["events"], "Cohort lifecycle events"),
     input.cohortId
   );
-  assertSelectable(source, lifecycle.state, input.repository);
+  if (input.restorationBinding !== undefined && lifecycle.state === "SUPERSEDED") {
+    const until = typeof lifecycle.supportUntil === "string" ? Date.parse(lifecycle.supportUntil) : NaN;
+    if (!Number.isFinite(until) || Date.now() >= until) {
+      throw new ConsumerIntegrationNodeError("DOCS_CONSUMER_COHORT_NOT_SELECTABLE", "Recorded binding support has expired.");
+    }
+  } else if (!(input.restorationBinding === "source" && lifecycle.state === "SUSPENDED")) {
+    assertSelectable(source, lifecycle.state, input.repository);
+  }
   const cohort = cohortProjection(source, lifecycle.qualificationEventDigest, input.generation);
   return Object.freeze({
     repository: AUTHORITY_REPOSITORY,
@@ -427,6 +436,23 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
 
   public constructor(fetcher: AuthorityFetch = globalThis.fetch) {
     this.#fetcher = fetcher;
+  }
+
+  public async readRestoration(options: {
+    readonly source: QualifiedDocsCohortBindingV2;
+    readonly origin: QualifiedDocsCohortBindingV1;
+    readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
+  }): Promise<{ readonly source: AuthorityProjection; readonly target: AuthorityProjection }> {
+    const revision = await resolveAuthorityRevision(this.#fetcher);
+    const registry = await readAuthorityRegistry(this.#fetcher, revision);
+    const common = { registry, revision, repository: options.repository };
+    const source = projectQualifiedCohortAuthority({ ...common,
+      cohortId: options.source.cohortId, generation: 2, restorationBinding: "source"
+    });
+    const target = projectQualifiedCohortAuthority({ ...common,
+      cohortId: options.origin.cohortId, generation: 1, restorationBinding: "origin"
+    });
+    return { source, target };
   }
 
   public async read(options: {
@@ -453,5 +479,5 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
   }
 }
 
-export const githubCohortAuthorityReader: ConsumerUpgradeAuthorityReader =
+export const githubCohortAuthorityReader =
   Object.freeze(new GitHubCohortAuthorityReader());

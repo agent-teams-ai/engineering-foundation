@@ -78,11 +78,13 @@ function execute(
   executable: string,
   args: readonly string[],
   cwd: string,
-  allowedExitCodes: readonly number[] = [0]
+  allowedExitCodes: readonly number[] = [0],
+  environment?: NodeJS.ProcessEnv
 ): Promise<ProcessResult> {
   return new Promise((resolve, reject) => {
     execFile(executable, [...args], {
       cwd,
+      ...(environment === undefined ? {} : { env: environment }),
       encoding: "utf8",
       maxBuffer: MAXIMUM_PROCESS_OUTPUT_BYTES,
       signal: AbortSignal.timeout(10 * 60 * 1000),
@@ -125,7 +127,8 @@ async function writeProjectedFile(root: string, path: string, bytes: Uint8Array)
 }
 
 async function runPnpm(root: string, args: readonly string[]): Promise<void> {
-  await execute("corepack", ["pnpm", ...args], root);
+  await execute("corepack", ["pnpm", ...args], root, [0], args.includes("--offline")
+    ? { ...process.env, COREPACK_ENABLE_NETWORK: "0" } : undefined);
 }
 
 

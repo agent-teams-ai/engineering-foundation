@@ -1,5 +1,6 @@
 /* oxlint-disable max-lines, max-lines-per-function -- Disposable E2E keeps setup and cleanup local. */
 import assert from "node:assert/strict";
+import { registerConsumerRestorationTests } from "./consumer-restoration-cases.mjs";
 import { readFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -98,6 +99,9 @@ test("historical recovery selects only the explicit source CLI without adapter f
     await assert.rejects(assertInstalledHistoricalIntegrationCurrent(root, async () => ({
       code: 1, stdout: '{"outcome":"blocked"}', stderr: ""
     })), (error) => error?.code === "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT");
+    await assert.rejects(assertInstalledHistoricalIntegrationCurrent(root, async () => ({
+      code: 1, stdout: '{"outcome":"current"}', stderr: ""
+    })), /nonzero exit/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -1373,3 +1377,5 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
     });
   }
 });
+
+registerConsumerRestorationTests({ cohortV2, desired, rawRegistry, sourceCohort });

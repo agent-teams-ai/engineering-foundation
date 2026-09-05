@@ -1,18 +1,18 @@
+import type { ConsumerRestorationExecution, RestorableConsumerUpgradeExecution } from "../application/model/consumer-restoration.js";
 import {
   applyConsumerIntegration,
   checkConsumerIntegration,
   planNodeConsumerIntegration,
   recoverConsumerIntegration,
+  restoreConsumerIntegration,
   upgradeConsumerIntegrationToGeneration,
   type ConsumerIntegrationExecutionV1
 } from "./node-consumer-integration.js";
 import {
   assertConsumerIntegrationExecutionSchema,
+  assertConsumerRestorationExecutionSchema,
   assertConsumerUpgradeExecutionSchema
 } from "../adapters/consumer-integration-schema-validator.js";
-import type {
-  ConsumerUpgradeExecutionV1
-} from "../application/model/consumer-upgrade-execution.js";
 
 class ConsumerCliInputError extends Error {
   readonly code = "DOCS_CONSUMER_CLI_INVALID";
@@ -67,7 +67,7 @@ class Arguments {
   }
 }
 
-type ConsumerExecution = ConsumerIntegrationExecutionV1 | ConsumerUpgradeExecutionV1;
+type ConsumerExecution = ConsumerIntegrationExecutionV1 | RestorableConsumerUpgradeExecution | ConsumerRestorationExecution;
 
 function failure(command: string, error: unknown): ConsumerExecution {
   const candidateCode = typeof error === "object" && error !== null && "code" in error &&
@@ -85,10 +85,10 @@ function failure(command: string, error: unknown): ConsumerExecution {
       : character;
   }
   safeMessage = safeMessage.slice(0, 4096);
-  if (command === "upgrade") {
+  if (command === "upgrade" || command === "restore") {
     return {
       schemaVersion: 1,
-      command: "consumer.upgrade",
+      command: command === "upgrade" ? "consumer.upgrade" : "consumer.restore",
       outcome: "blocked",
       issues: [{ code, severity: "error", subject: command, message: safeMessage }]
     };
@@ -111,7 +111,7 @@ function failure(command: string, error: unknown): ConsumerExecution {
 
 function human(execution: ConsumerExecution): string {
   const lines = [`${execution.command}: ${execution.outcome}`];
-  if (execution.command !== "consumer.upgrade" && execution.plan !== undefined) {
+  if (execution.command !== "consumer.upgrade" && execution.command !== "consumer.restore" && execution.plan !== undefined) {
     lines.push(`Cohort: ${execution.plan.cohortId}`);
     lines.push(`Plan: ${execution.plan.planDigest}`);
     for (const asset of execution.plan.assets) {
@@ -122,12 +122,17 @@ function human(execution: ConsumerExecution): string {
       }
     }
   }
+  if (execution.command === "consumer.upgrade" && execution.restoration !== undefined) {
+    lines.push(`Restoration proof: ${execution.restoration.path}`, `Retain digest separately: ${execution.restoration.digest}`);
+  }
   if (execution.receipt !== undefined) {
     lines.push(`Receipt: ${execution.receipt.receiptDigest}`);
   }
   for (const issue of execution.issues) {
     lines.push(`${issue.severity.toUpperCase()} ${issue.code} [${issue.subject}]: ${issue.message}`);
-    lines.push(issue.code === "DOCS_CONSUMER_STALE_PLAN"
+    lines.push(execution.command === "consumer.restore"
+      ? "Next: retain the proof, recover active kernel evidence, then use restore --activation-only for exact V1 bytes."
+      : issue.code === "DOCS_CONSUMER_STALE_PLAN"
       ? "Next: run agent-teams-docs-managed plan again and review the new digest."
       : issue.code.includes("RECOVERY") || issue.code.startsWith("KNOWN_FILE")
         ? "Next: run agent-teams-docs-managed recover, then repeat check and plan."
@@ -137,7 +142,7 @@ function human(execution: ConsumerExecution): string {
 }
 
 function exitCode(execution: ConsumerExecution): number {
-  if (["applied", "current", "recovered", "upgraded"].includes(execution.outcome)) {return 0;}
+  if (["applied", "current", "recovered", "upgraded", "restored", "activated-v1"].includes(execution.outcome)) {return 0;}
   if (execution.outcome === "change-required") {return 1;}
   const codes = new Set(execution.issues.map(({ code }) => code));
   if (codes.has("DOCS_CONSUMER_CLI_INVALID")) {return 2;}
@@ -164,11 +169,14 @@ Commands:
   plan --to COHORT              Print a deterministic, write-free semantic plan
   apply --expect SHA256         Rebuild and apply the reviewed plan through Foundation
   upgrade --to COHORT --target-generation 1|2  Project authority, pins, lockfile, and assets
+  restore --from V2 --to V1 --source-generation 2 --target-generation 1
+          --proof PATH --expect SHA256 [--activation-only]  Restore recorded V1
   recover                       Recover the Foundation transaction (profile not read)
 
 Options:
   --consumer PATH               Git repository root (default: .)
   --authority-revision SHA      Optional exact protected .github revision
+  --source-generation 1 --restoration-proof PATH  Retain a successful 1->2 upgrade proof
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
 `;
@@ -216,24 +224,48 @@ export async function runManagedConsumerCommand(argv: readonly string[]): Promis
       if (generation !== "1" && generation !== "2") {
         throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
       }
+      const restorationProofPath = args.one("--restoration-proof");
+      const sourceGeneration = args.one("--source-generation");
+      if (sourceGeneration !== undefined && sourceGeneration !== "1") {
+        throw new ConsumerCliInputError("Restorable upgrade requires --source-generation 1.");
+      }
       args.assertConsumed();
       execution = await upgradeConsumerIntegrationToGeneration({
         consumerRoot,
         to,
         targetGeneration: Number(generation) as 1 | 2,
+        ...(sourceGeneration === undefined ? {} : { sourceGeneration: 1 }),
+        ...(restorationProofPath === undefined ? {} : { restorationProofPath }),
         ...(authorityRevision === undefined ? {} : { authorityRevision })
       });
+    } else if (command === "restore") {
+      const from = args.one("--from", true)!;
+      const to = args.one("--to", true)!;
+      const sourceGeneration = args.one("--source-generation", true);
+      const targetGeneration = args.one("--target-generation", true);
+      const proofPath = args.one("--proof", true)!;
+      const expect = args.one("--expect", true)!;
+      const activationOnly = args.flag("--activation-only");
+      if (!COHORT_ID.test(from) || !COHORT_ID.test(to) || !SHA256.test(expect) ||
+        sourceGeneration !== "2" || targetGeneration !== "1") {
+        throw new ConsumerCliInputError("Restore requires exact Cohorts, proof digest and explicit generations 2->1.");
+      }
+      args.assertConsumed();
+      execution = await restoreConsumerIntegration({ consumerRoot, from, to, proofPath,
+        expect, sourceGeneration: 2, targetGeneration: 1, activationOnly });
     } else if (command === "recover") {
       args.assertConsumed();
       execution = await recoverConsumerIntegration({ consumerRoot });
     } else {
-      throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, or recover.");
+      throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, restore, or recover.");
     }
   } catch (error) {
     execution = failure(command || "check", error);
   }
   try {
-    if (execution.command === "consumer.upgrade") {
+    if (execution.command === "consumer.restore") {
+      await assertConsumerRestorationExecutionSchema(execution);
+    } else if (execution.command === "consumer.upgrade") {
       await assertConsumerUpgradeExecutionSchema(execution);
     } else {
       await assertConsumerIntegrationExecutionSchema(execution);

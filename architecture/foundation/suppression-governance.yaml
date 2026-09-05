@@ -8,7 +8,7 @@ nonWaivableRulePrefixes:
 waivers:
   - id: DOCS-CONSUMER-UPGRADE-GENERATION-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
-    line: 174
+    line: 200
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
@@ -38,7 +38,7 @@ waivers:
     decisionRef: ADR-0032
   - id: DOCS-CONSUMER-CLI-ROUTER-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-cli.ts
-    line: 177
+    line: 185
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers

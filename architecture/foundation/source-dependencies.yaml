@@ -326,12 +326,15 @@ boundaries:
     entrypoints:
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-integration-execution.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-upgrade-execution.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/model/consumer-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-restoration-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/qualified-docs-cohort-v2.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-lifecycle.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-integration-planners.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-upgrade.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/compile-consumer-integration-v3.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/run-consumer-integration.ts
@@ -356,6 +359,7 @@ boundaries:
         - node:fs/promises
         - node:os
         - node:path
+        - node:url
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
@@ -364,6 +368,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
@@ -444,6 +449,7 @@ boundaries:
         - docs-protocol-agent-teams.consumer-integration.composition
         - docs-protocol-agent-teams.qualification
       packages:
+        - "@agent-teams/repository-mutation"
         - ajv
         - yaml
       builtins:
@@ -452,10 +458,12 @@ boundaries:
         - node:crypto
         - node:fs
         - node:fs/promises
+        - node:http
         - node:module
         - node:os
         - node:path
         - node:test
+        - node:url
       runtimeReferences: []
     entrypoints: []
   - id: docs-protocol-agent-teams.scripts

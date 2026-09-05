@@ -226,6 +226,7 @@ export async function capturePnpmSourceWorkspaceSnapshot(
       await discoverSourceWorkspacePaths(canonicalConsumerRoot, {
         repositoryRoots: input.packageRoots,
         governedRoots: input.governedRoots,
+        boundaryRoots: input.boundaryRoots.map(({ path }) => path),
         fileSystem,
         limits: snapshotInput.limits,
         ...(snapshotInput.hooks === undefined ? {} : { hooks: snapshotInput.hooks }),
@@ -246,6 +247,7 @@ export async function capturePnpmSourceWorkspaceSnapshot(
   const discovered = await discoverSourceWorkspacePaths(canonicalConsumerRoot, {
     repositoryRoots: input.packageRoots,
     governedRoots: input.governedRoots,
+    boundaryRoots: input.boundaryRoots.map(({ path }) => path),
     selectedPackageRoots: selectedWorkspacePackageRoots,
     fileSystem,
     limits: snapshotInput.limits,

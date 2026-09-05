@@ -4,7 +4,7 @@ import { join, posix } from "node:path";
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import { CapabilityInputError,assertNotCancelled } from "../../../../../features/validation-reporting/api.js";
 import type { WorkspacePackage } from "../../../application/model/workspace-inventory.js";
-import { portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
+import { portablePathIsInside, portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
 import type { SourceWorkspacePackageTopology } from "../../../application/model/source-workspace-topology.js";
 import {
   assertSafeRepositoryPath,
@@ -279,6 +279,19 @@ function isPackageRootLocation(
   );
 }
 
+function explicitSourceRootIdentities(
+  governedRoots: readonly string[] = [],
+  boundaryRoots: readonly string[] = []
+): ReadonlySet<string> {
+  // Boundary roots can identify source beneath a broad governed package root.
+  // They only reopen routes within that scope, never add traversal starting points.
+  return new Set(
+    [...governedRoots, ...boundaryRoots.filter((root) =>
+      governedRoots.some((governedRoot) => portablePathIsInside(root, governedRoot))
+    )].map(portableRepositoryPathIdentity)
+  );
+}
+
 function assertPortablePaths(paths: readonly string[], kind: string): void {
   const identities = new Map<string, string>();
   for (const path of paths) {
@@ -302,6 +315,7 @@ export async function discoverSourceWorkspacePaths(
     readonly repositoryRoots: readonly string[];
     readonly selectedPackageRoots?: readonly string[];
     readonly governedRoots?: readonly string[];
+    readonly boundaryRoots?: readonly string[];
     readonly fileSystem?: Partial<SourceWorkspaceFileSystem>;
     readonly hooks?: SourceWorkspaceDiscoveryHooks;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
@@ -322,9 +336,7 @@ export async function discoverSourceWorkspacePaths(
   const repositoryRootIdentities = new Set(
     options.repositoryRoots.map(portableRepositoryPathIdentity)
   );
-  const governedRootIdentities = new Set(
-    (options.governedRoots ?? []).map(portableRepositoryPathIdentity)
-  );
+  const sourceRootIdentities = explicitSourceRootIdentities(options.governedRoots, options.boundaryRoots);
   const directories: DirectoryCursor[] = options.repositoryRoots
     .toSorted(compareBinaryStrings)
     .toReversed()
@@ -367,7 +379,7 @@ export async function discoverSourceWorkspacePaths(
         isExcludedDirectory(entry.name, cursorIsPackageRoot) &&
         !isRootOrAncestor(repositoryPath, selectedPackageRootIdentities) &&
         !(PACKAGE_GENERATED_DIRECTORY_NAMES.has(entry.name) &&
-          isRootOrAncestor(repositoryPath, governedRootIdentities))
+          isRootOrAncestor(repositoryPath, sourceRootIdentities))
       ) {
         if (entry.name === "dist" && entry.isSymbolicLink()) {
           symbolicLinkPaths.add(repositoryPath);

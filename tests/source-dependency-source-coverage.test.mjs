@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdir, opendir, readFile, realpath, rename, stat, symlink, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
@@ -34,10 +34,354 @@ function checkWithCli(consumerRoot, expectedStatus) {
   assert.equal(result.status, expectedStatus, result.stdout);
   const report = JSON.parse(result.stdout);
   assert.equal(report.coverage, "full");
-  assert.equal(report.outcome, expectedStatus === 0 ? "passed" : "violations");
+  assert.equal(report.outcome, ["passed", "violations", "invalid-input"][expectedStatus]);
   assert.equal(report.capabilities.length, 1);
   return report.capabilities[0];
 }
+
+const boundarySelections = [
+  { name: "v1", schemaVersion: 1 },
+  { name: "v2 collection", schemaVersion: 2, packageRoots: ["packages"] },
+  { name: "v2 individual", schemaVersion: 2, packageRoots: ["packages/app", "packages/core"] },
+  { name: "v2 collection without globs", schemaVersion: 2, packageRoots: ["packages"], noGlobs: true },
+  { name: "v2 individual without globs", schemaVersion: 2, packageRoots: ["packages/app", "packages/core"], noGlobs: true },
+  { name: "v1 root package", schemaVersion: 1, rootPackage: true },
+];
+const generatedSourceRoutes = ["coverage", "dist", "coverage/nested/dist", "dist/nested/coverage"];
+
+function sourceBoundary(id, root, packages = []) {
+  return {
+    id, roots: [root], entrypoints: [`${root}/index.ts`],
+    allow: { boundaries: [], packages, builtins: ["node:path"], runtimeReferences: [] },
+  };
+}
+
+async function withBoundaryFixture(selection, callback) {
+  const withFixture = selection.rootPackage ? withTemporaryDirectory
+    : (run) => withCopiedFixture("v2-valid", run);
+  await withFixture(async (consumerRoot) => {
+    const appRoot = selection.rootPackage ? "." : "packages/app";
+    const src = posix.join(appRoot, "src");
+    const policy = {
+      schemaVersion: selection.schemaVersion,
+      workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      ...(selection.packageRoots === undefined ? {} : { packageRoots: selection.packageRoots }),
+      governedRoots: selection.rootPackage ? [src] : [appRoot, "packages/core/src"],
+      boundaries: [sourceBoundary("app.surface", src, selection.rootPackage ? [] : ["@fixture/core"])],
+    };
+    if (selection.rootPackage) {
+      await writeSourceFixture(consumerRoot, "package.json", JSON.stringify({
+        name: "@fixture/root", version: "0.0.0", private: true, type: "module",
+        exports: { ".": "./dist/index.js" },
+      }));
+      await writeSourceFixture(consumerRoot, `${src}/index.ts`);
+    } else {
+      policy.boundaries.push(sourceBoundary("core.surface", "packages/core/src"));
+    }
+    if (selection.rootPackage || selection.noGlobs) {
+      await writeSourceFixture(consumerRoot, "pnpm-workspace.yaml", "{}\n");
+    }
+    await writeSourceFixture(consumerRoot, "foundation.config.yaml", JSON.stringify({
+      schemaVersion: 1, project: { id: "boundary-source-fixture" },
+      capabilities: { "architecture.source-dependencies": { configPath: "architecture/foundation/source-dependencies.yaml" } },
+    }));
+    const save = () => writeSourceFixture(consumerRoot,
+      "architecture/foundation/source-dependencies.yaml", `${JSON.stringify(policy)}\n`);
+    await save();
+    await callback({ consumerRoot, appRoot, src, policy, save });
+  });
+}
+
+function assertForbiddenSource(report, path) {
+  assert.deepEqual(report.diagnostics.map(({ ruleId, location }) => ({ ruleId, path: location.path })), [
+    { ruleId: "architecture.source-dependencies.forbidden-package-dependency", path },
+    { ruleId: "architecture.source-dependencies.undeclared-external-dependency", path },
+  ]);
+}
+
+// The finite relation matrix is: generated directory equals/ancestors B; B is
+// a directory or file; E is inside B or another root of that same boundary.
+// Broad parent B alone keeps package output pruned (separate control below).
+for (const selection of boundarySelections) {
+  for (const route of generatedSourceRoutes) {
+    test(`${selection.name} CLI governed scope discovers explicit boundary ${route}`, async () => {
+      await withBoundaryFixture(selection, async ({ consumerRoot, appRoot, src, policy, save }) => {
+        const root = posix.join(appRoot, route);
+        const path = `${root}/hidden.ts`;
+        const sibling = posix.join(appRoot, route.startsWith("coverage") ? "dist" : "coverage");
+        if (selection.rootPackage) {
+          // The immutable schemas reject literal '.'. V1 can govern named
+          // directories owned by the root manifest without governing '.'.
+          policy.governedRoots = [src, route.split("/")[0]];
+        }
+        // V1 already scans all of its broad governed root, including output.
+        if (selection.schemaVersion === 2) {
+          await writeSourceFixture(consumerRoot, `${sibling}/generated.ts`, 'import "outside-policy";\n');
+        }
+        for (const relationship of ["directory", "entrypoint", "file"]) {
+          policy.boundaries[0].roots = [src, relationship === "file" ? path : root];
+          policy.boundaries[0].entrypoints = [relationship === "directory" ? `${src}/index.ts` : path];
+          await save();
+          await writeSourceFixture(consumerRoot, path, 'import "node:path";\n');
+          const positive = checkWithCli(consumerRoot, 0);
+          assert.equal(positive.capabilityConfigSchemaVersion, selection.schemaVersion);
+          assert.deepEqual(positive.diagnostics, []);
+          if (selection.schemaVersion === 2) {
+            const topology = await inspectV2Topology(consumerRoot);
+            assert.deepEqual(topology.packages.flatMap(({ sourcePaths }) => sourcePaths).toSorted(),
+              [path, `${src}/index.ts`, ...(selection.rootPackage ? [] : ["packages/core/src/index.ts"])].toSorted());
+          }
+          await writeSourceFixture(consumerRoot, path, 'import "outside-policy";\n');
+          assertForbiddenSource(checkWithCli(consumerRoot, 1), path);
+        }
+      });
+    });
+  }
+}
+
+test("CLI parent boundary roots preserve output pruning and fail closed on excluded entrypoints", async () => {
+  for (const selection of boundarySelections.filter(({ noGlobs, rootPackage, name }) => !noGlobs && !rootPackage && !name.includes("individual"))) {
+    for (const route of ["coverage", "dist"]) {
+      await withBoundaryFixture(selection, async ({ consumerRoot, appRoot, policy, save }) => {
+        const path = posix.join(appRoot, route, "hidden.ts");
+        policy.boundaries[0].roots = [appRoot];
+        await save();
+        await writeSourceFixture(consumerRoot, path, 'import "node:path";\n');
+        assert.deepEqual(checkWithCli(consumerRoot, 0).diagnostics, []);
+        await writeSourceFixture(consumerRoot, path, 'import "outside-policy";\n');
+        if (selection.schemaVersion === 1) {
+          assertForbiddenSource(checkWithCli(consumerRoot, 1), path);
+        } else {
+          assert.deepEqual(checkWithCli(consumerRoot, 0).diagnostics, []);
+        }
+        policy.boundaries[0].entrypoints = [path];
+        await save();
+        for (const forbidden of [false, true]) {
+          await writeSourceFixture(consumerRoot, path, forbidden ? 'import "outside-policy";\n' : 'import "node:path";\n');
+          const report = checkWithCli(consumerRoot, selection.schemaVersion === 1 && !forbidden ? 0 : 1);
+          if (selection.schemaVersion === 2) {
+            assert.deepEqual(report.diagnostics.map(({ ruleId }) => ruleId),
+              ["architecture.source-dependencies.invalid-boundary-entrypoint"]);
+          } else if (forbidden) {
+            assertForbiddenSource(report, path);
+          }
+        }
+      });
+    }
+  }
+});
+
+test("CLI boundary roots cannot expand governed or selected package scope", async () => {
+  for (const selection of [boundarySelections[0], boundarySelections[1]]) {
+    const relationships = selection.schemaVersion === 1 ? ["sibling", "parent"] : ["sibling", "parent", "outside-selection"];
+    for (const relationship of relationships) {
+      await withBoundaryFixture(selection, async ({ consumerRoot, policy, save }) => {
+        const root = relationship === "outside-selection" ? "tools/coverage" : "packages/app/coverage";
+        const path = `${root}/hidden.ts`;
+        policy.governedRoots = [relationship === "outside-selection" ? "tools" : "packages/app/src", "packages/core/src"];
+        policy.boundaries[0].roots = [relationship === "parent" ? "packages/app" : root];
+        policy.boundaries[0].entrypoints = [path];
+        await save();
+        for (const forbidden of [false, true]) {
+          await writeSourceFixture(consumerRoot, path, forbidden ? 'import "outside-policy";\n' : 'import "node:path";\n');
+          const report = checkWithCli(consumerRoot, 2);
+          assert.equal(report.problem.code, relationship === "outside-selection"
+            ? "SOURCE_ROOT_OUTSIDE_WORKSPACE" : "SOURCE_ARCHITECTURE_CONFIG_INVALID");
+          assert.deepEqual(report.diagnostics, []);
+        }
+      });
+    }
+  }
+});
+
+test("CLI root manifest inventory does not select its generated-name source", async () => {
+  await withBoundaryFixture(boundarySelections[1], async ({ consumerRoot, policy, save }) => {
+    const path = "coverage/nested/dist/hidden.ts";
+    for (const selected of [false, true]) {
+      if (selected) {
+        policy.governedRoots.push("coverage");
+        policy.boundaries.push(sourceBoundary("root.surface", "coverage"));
+        policy.boundaries.at(-1).entrypoints = [path];
+      }
+      await save();
+      for (const source of ['import "node:path";\n', 'import "outside-policy";\n']) {
+        await writeSourceFixture(consumerRoot, path, source);
+        const report = checkWithCli(consumerRoot, selected ? 2 : 0);
+        assert.deepEqual(report.diagnostics, []);
+        if (selected) {
+          assert.equal(report.problem.code, "SOURCE_ROOT_OUTSIDE_WORKSPACE");
+        }
+      }
+    }
+  });
+});
+
+test("CLI rejects literal root selection while the internal traversal retains root-package containment", async () => {
+  for (const schemaVersion of [1, 2]) {
+    const selection = { schemaVersion, rootPackage: true,
+      ...(schemaVersion === 2 ? { packageRoots: ["."] } : {}) };
+    await withBoundaryFixture(selection, async ({ consumerRoot, policy, save }) => {
+      if (schemaVersion === 1) {
+        policy.governedRoots = ["."];
+      }
+      await save();
+      for (const source of ['import "node:path";\n', 'import "outside-policy";\n']) {
+        await writeSourceFixture(consumerRoot, "src/index.ts", source);
+        assert.equal(checkWithCli(consumerRoot, 2).problem.code, "SCHEMA_INVALID");
+      }
+      // '.' is an internal path identity, not a newly admitted wire value.
+      await writeSourceFixture(consumerRoot, "coverage/nested/dist/hidden.ts");
+      await writeSourceFixture(consumerRoot, "dist/generated.ts", 'import "outside-policy";\n');
+      const discovered = await discoverSourceWorkspacePaths(await realpath(consumerRoot), {
+        repositoryRoots: ["."], governedRoots: ["."], boundaryRoots: ["coverage/nested/dist/hidden.ts"],
+      });
+      assert.deepEqual(discovered.sourcePaths, ["coverage/nested/dist/hidden.ts", "src/index.ts"]);
+    });
+  }
+});
+
+test("CLI diagnostic fallback receives boundary roots for collection and individual package selections", async (t) => {
+  if (process.platform === "win32") {
+    t.skip("case-distinct directory qualification runs on POSIX");
+    return;
+  }
+  const caseSensitive = await withTemporaryDirectory(async (root) => {
+    await mkdir(join(root, "case"));
+    try {
+      await stat(join(root, "CASE"));
+      return false;
+    } catch (error) {
+      assert.equal(error.code, "ENOENT");
+      return true;
+    }
+  });
+  if (!caseSensitive) {
+    t.skip("case-distinct directory qualification requires a case-sensitive filesystem");
+    return;
+  }
+  for (const selection of [boundarySelections[1], boundarySelections[2]]) {
+    for (const route of generatedSourceRoutes) {
+      await withBoundaryFixture(selection, async ({ consumerRoot, appRoot, src, policy, save }) => {
+        const root = posix.join(appRoot, route);
+        for (const spelling of ["A", "a"]) {
+          await writeSourceFixture(consumerRoot, `${root}/${spelling}/package.json`,
+            JSON.stringify({ name: `fixture-${spelling.toLowerCase()}`, version: "0.0.0" }));
+        }
+        await writeSourceFixture(consumerRoot, "pnpm-workspace.yaml",
+          `packages:\n  - "packages/*"\n  - "${root}/*"\n`);
+        for (const explicit of [false, true]) {
+          policy.boundaries[0].roots = explicit ? [src, root] : [src];
+          await save();
+          assert.equal(checkWithCli(consumerRoot, 2).problem.code,
+            explicit ? "SOURCE_PATH_CASE_COLLISION" : "PACKAGE_PATH_CASE_COLLISION");
+        }
+      });
+    }
+  }
+});
+
+test("boundary traversal preserves the exact selected universe and unopened excluded paths", async () => {
+  for (const route of generatedSourceRoutes) {
+    await withBoundaryFixture(boundarySelections[1], async ({ consumerRoot }) => {
+      const root = `packages/app/${route}`;
+      const path = `${root}/hidden.ts`;
+      const sibling = route.startsWith("coverage") ? "dist" : "coverage";
+      await writeSourceFixture(consumerRoot, path);
+      const excluded = [`packages/app/${sibling}`, `${root}/.git`, `${root}/node_modules`, "tools/coverage"];
+      for (const directory of excluded) {
+        await writeSourceFixture(consumerRoot, `${directory}/hidden.ts`, 'import "outside-policy";\n');
+      }
+      const visited = [];
+      const options = {
+        repositoryRoots: ["packages"], governedRoots: ["packages/app", "packages/core/src", "tools"],
+        boundaryRoots: [path.toUpperCase(), ...excluded.slice(1)],
+        hooks: { afterDirectoryRead: (directory) => { visited.push(directory); } },
+      };
+      const discovered = await discoverSourceWorkspacePaths(await realpath(consumerRoot), options);
+      assert.deepEqual(discovered.sourcePaths, [path, "packages/app/src/index.ts", "packages/core/src/index.ts"].toSorted());
+      assert.equal(excluded.some((directory) => visited.includes(directory)), false);
+      // A boundary outside governed scope, or a segment-prefix lookalike,
+      // cannot reopen a package output root even in direct adapter calls.
+      const ignored = await discoverSourceWorkspacePaths(await realpath(consumerRoot), {
+        ...options, governedRoots: ["packages/app/src", "packages/core/src"],
+        boundaryRoots: [path, "packages/app/coverage-extra", "packages/app/dist-extra"],
+      });
+      assert.deepEqual(ignored.sourcePaths, ["packages/app/src/index.ts", "packages/core/src/index.ts"]);
+      const prefixOnly = await discoverSourceWorkspacePaths(await realpath(consumerRoot), {
+        ...options, boundaryRoots: ["packages/app/coverage-extra", "packages/app/dist-extra"],
+      });
+      assert.deepEqual(prefixOnly.sourcePaths, ignored.sourcePaths);
+    });
+  }
+});
+
+test("CLI source-file boundary hints do not hide neighboring unclassified source", async () => {
+  await withBoundaryFixture(boundarySelections[1], async ({ consumerRoot, policy, src, save }) => {
+    const path = "packages/app/coverage/nested/dist/entry.ts";
+    const neighbor = "packages/app/coverage/neighbor.ts";
+    policy.boundaries[0].roots = [src, path];
+    policy.boundaries[0].entrypoints = [path];
+    await save();
+    await writeSourceFixture(consumerRoot, path, 'import "node:path";\n');
+    assert.deepEqual(checkWithCli(consumerRoot, 0).diagnostics, []);
+    await writeSourceFixture(consumerRoot, neighbor);
+    assert.deepEqual(checkWithCli(consumerRoot, 1).diagnostics.map(({ ruleId, location }) => ({ ruleId, path: location.path })),
+      [{ ruleId: "architecture.source-dependencies.unclassified-source-file", path: neighbor }]);
+  });
+});
+
+test("broad governed boundary routes retain source limits and symlink replacement protection", async (t) => {
+  for (const route of ["coverage", "dist/nested/coverage"]) {
+    await withBoundaryFixture(boundarySelections[1], async ({ consumerRoot, policy, src, save }) => {
+      const root = `packages/app/${route}`;
+      policy.boundaries[0].roots = [src, root];
+      await save();
+      await writeSourceFixture(consumerRoot, `${root}/hidden.ts`, " ".repeat(1025));
+      for (const [limit, maximum, code] of [
+        ["maxSourceFiles", 2, "SOURCE_FILE_LIMIT_EXCEEDED"],
+        ["maxSourceFileBytes", 1024, "SOURCE_FILE_INVALID"],
+        ["maxTotalSourceBytes", 1024, "SOURCE_TOTAL_BYTES_EXCEEDED"],
+      ]) {
+        await assert.rejects(() => inspectV2Topology(consumerRoot, { limits: { [limit]: maximum } }),
+          (error) => error?.problem?.code === code);
+      }
+    });
+  }
+  await t.test("boundary route symlink escape and replacement", { skip: process.platform === "win32" }, async () => {
+    await withTemporaryDirectory(async (outsideRoot) => {
+      for (const replacement of [false, true]) {
+        await withBoundaryFixture(boundarySelections[1], async ({ consumerRoot, policy, src, save }) => {
+          const root = "packages/app/dist/nested/coverage";
+          const absolutePath = join(consumerRoot, root);
+          policy.boundaries[0].roots = [src, root];
+          await save();
+          await mkdir(dirname(absolutePath), { recursive: true });
+          if (replacement) {
+            await writeSourceFixture(consumerRoot, `${root}/safe.ts`);
+          } else {
+            await symlink(outsideRoot, absolutePath, "dir");
+          }
+          let readOutside = false;
+          await assert.rejects(() => inspectV2Topology(consumerRoot, {
+            fileSystem: { opendir: async (directory) => {
+              if ((await realpath(directory)).startsWith(outsideRoot)) {
+                readOutside = true;
+              }
+              return opendir(directory);
+            } },
+            hooks: { afterDirectoryRead: async (directory) => {
+              if (replacement && directory === root) {
+                await rename(absolutePath, `${absolutePath}-old`);
+                await symlink(outsideRoot, absolutePath, "dir");
+              }
+            } },
+          }), (error) => error?.problem?.code === (replacement ? "SOURCE_FILESYSTEM_CHANGED" : "SOURCE_DIRECTORY_ESCAPE"));
+          assert.equal(readOutside, false);
+        });
+      }
+    });
+  });
+});
 
 for (const root of ["coverage", "dist", "coverage/nested/dist", "dist/nested/coverage"]) {
   for (const schemaVersion of [1, 2]) {

@@ -1,3 +1,4 @@
+import { assertSchema } from "../schema-catalog.js";
 import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import type { CapabilityDefinition, RuleExplanation } from "../features/validation-reporting/api.js";
@@ -78,7 +79,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       PROTOBUF_EVOLUTION_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createDocumentationLocalReferencesCapability(),
+      createDocumentationLocalReferencesCapability({ assertSchema }),
       DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID
     ),
     defineCapabilityModule(

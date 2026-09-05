@@ -2311,6 +2311,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.source-inventory.application
       packages:
         - "@agent-teams/document-authoring"
       builtins: []
@@ -2319,17 +2320,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/documentation-local-references/application/model/documentation-local-references.ts
       - packages/engineering-foundation/src/capabilities/documentation-local-references/application/rules.ts
       - packages/engineering-foundation/src/capabilities/documentation-local-references/application/use-cases/analyze-documentation-local-references.ts
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/application/configuration-input.ts
   - id: capability.documentation-local-references.contract
     roots:
       - packages/engineering-foundation/src/capabilities/documentation-local-references/contract
     allow:
-      boundaries:
-        - capability.documentation-local-references.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.source-inventory.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2344,6 +2340,8 @@ boundaries:
         - capability.documentation-local-references.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - capability.documentation-local-references.config-adapter
+        - foundation.configuration-input.composition
       packages:
         - "@agent-teams/document-authoring"
       builtins: []
@@ -3247,6 +3245,18 @@ boundaries:
         - foundation.schema-identities
         - foundation.transactions.composition
         - foundation.transaction-coordination.node
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: capability.documentation-local-references.config-adapter
+    roots:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts
+    allow:
+      boundaries:
+        - capability.documentation-local-references.application
+        - capability.documentation-local-references.contract
       packages: []
       builtins: []
       runtimeReferences: []

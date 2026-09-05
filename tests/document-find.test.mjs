@@ -17,11 +17,33 @@ import {
   documentFindSuccess,
 } from "../packages/document-authoring/dist/find-command.js";
 import { DocumentCatalogError } from "../packages/document-authoring/dist/document-catalog-error.js";
+import { DocumentAuthoringError } from "../packages/document-authoring/dist/errors.js";
 import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
 
 const cliPath = fileURLToPath(
   new URL("../packages/docs-protocol/dist/cli.js", import.meta.url),
 );
+
+test("find classifies consumer errors without trusting lookalike error codes", () => {
+  const message = "Invalid consumer. ".repeat(100);
+  const invalid = documentFindFailure(new DocumentAuthoringError("CONSUMER_INVALID", message));
+  assert.equal(invalid.exitCode, 2);
+  assert.equal(invalid.envelope.outcome, "invalid-input");
+  assert.deepEqual(invalid.envelope.diagnostics, [{
+    message: message.slice(0, 1_000), phase: "input",
+    ruleId: "document.query.invalid-input", severity: "error", subject: "document.query"
+  }]);
+  for (const error of [
+    new Error(message),
+    Object.assign(new Error(message), { code: "CONSUMER_INVALID" }),
+    { code: "CONSUMER_INVALID", message }
+  ]) {
+    const failed = documentFindFailure(error);
+    assert.equal(failed.exitCode, 3);
+    assert.equal(failed.envelope.outcome, "execution-failure");
+    assert.equal(failed.envelope.diagnostics[0].phase, "query");
+  }
+});
 
 const metadataSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",

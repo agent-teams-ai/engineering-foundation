@@ -10,6 +10,7 @@ import { validateFeatureModules } from "../scripts/check-feature-modules.mjs";
 import { registerAssemblyFacadeCases } from "./fixtures/feature-modules/assembly-facade-cases.mjs";
 import { registerSemverPrimitiveCases } from "./fixtures/feature-modules/semver-cases.mjs";
 import { registerPrimitiveErrorCases } from "./fixtures/feature-modules/primitive-error-cases.mjs";
+import { registerJsonInspectionCases } from "./fixtures/feature-modules/json-inspection-cases.mjs";
 import { registerExecutableArgumentsCases } from "./fixtures/feature-modules/executable-arguments-cases.mjs";
 import { registerAssemblyOverloadsCases } from "./fixtures/feature-modules/assembly-overloads-cases.mjs";
 import { registerNamespaceSurfaceCases } from "./fixtures/feature-modules/namespace-surface-cases.mjs";
@@ -510,6 +511,7 @@ async function primitiveFixture(t, semantics) {
 
 registerSemverPrimitiveCases(primitiveFixture, expectPass, rejects, qualifyPrimitive);
 registerPrimitiveErrorCases(primitiveFixture, expectPass, rejects, qualifyPrimitive);
+registerJsonInspectionCases(primitiveFixture, expectPass, rejects);
 registerAssemblyFacadeCases(fixture, expectPass, rejects, compileFixture);
 
 test("primitive admission rejects an undeclared consumer even with a source-policy edge", async (t) => {

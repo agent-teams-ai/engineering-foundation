@@ -216,11 +216,16 @@ const targetCalls = new Map([
   ["Object.freeze", [1, 1]], ["Object.seal", [1, 1]], ["Object.preventExtensions", [1, 1]],
   ["Reflect.set", [3, 3]], ["Reflect.deleteProperty", [2, 2]], ["Reflect.defineProperty", [3, 3]], ["Reflect.preventExtensions", [1, 1]]
 ]);
+const inspectionCalls = new Map([
+  ["Object.getPrototypeOf", 1], ["Object.getOwnPropertyDescriptor", 2], ["Reflect.ownKeys", 1]
+]);
+const intrinsicPrototypes = new Set(["Object.prototype", "Array.prototype"]);
 const scalarGlobals = new Set([
   "undefined", "NaN", "Infinity", "Number.EPSILON", "Number.MAX_SAFE_INTEGER", "Number.MIN_SAFE_INTEGER", "Number.MAX_VALUE", "Number.MIN_VALUE", "Number.NaN", "Number.POSITIVE_INFINITY", "Number.NEGATIVE_INFINITY",
   ...["E", "LN10", "LN2", "LOG10E", "LOG2E", "PI", "SQRT1_2", "SQRT2"].map((name) => `Math.${name}`)
 ]);
 const containers = new Set(["Object", "Reflect", "Math", "Number", "String", "Boolean", "BigInt", "Array", "JSON"]);
+const aliasOrigins = [containers, calls, targetCalls, inspectionCalls];
 function origin(node, context, active = new Set()) {
   node = unwrap(node);
   if (node?.type === "Identifier") {
@@ -245,9 +250,57 @@ function supportedAlias(pattern) {
   return pattern.type === "ObjectPattern" && pattern.properties.length > 0 && pattern.properties.every((property) =>
     property.type === "Property" && (!property.computed || property.key.type === "Literal") && supportedAlias(property.value));
 }
+function expressionParent(node, context) {
+  let parent = context.parents.get(node);
+  while (transparent.has(parent?.type)) {node = parent; parent = context.parents.get(node);}
+  return { node, parent };
+}
+function equalityOperand(node, context) {
+  const expression = expressionParent(node, context), parent = expression.parent;
+  if (parent?.type !== "BinaryExpression" || !["===", "!=="].includes(parent.operator)) {return;}
+  return parent.left === expression.node ? parent.right : parent.left;
+}
+function prototypeResultComparison(node, context) {
+  const other = unwrap(equalityOperand(node, context));
+  return literal(other, null) || intrinsicPrototypes.has(origin(other, context).ambient);
+}
+function prototypeObservation(node, context) {
+  node = unwrap(node);
+  if (node?.type === "Identifier") {
+    const binding = context.lookup(node);
+    if (!binding?.constant || binding.selection.length || binding.frame.invocation.type === "Program" ||
+        binding.frame.invocation !== context.scopes.get(node).invocation) {return false;}
+    node = unwrap(binding.init);
+  }
+  return node?.type === "CallExpression" && !node.optional && node.arguments.length === 1 &&
+    node.arguments[0].type !== "SpreadElement" && origin(node.callee, context).ambient === "Object.getPrototypeOf";
+}
+function boundedPrototypeResult(call, context) {
+  if (prototypeResultComparison(call, context)) {return true;}
+  const { node, parent } = expressionParent(call, context);
+  if (parent?.type !== "VariableDeclarator" || parent.init !== node || parent.id.type !== "Identifier" ||
+      context.parents.get(parent).kind !== "const") {return false;}
+  const binding = context.lookup(parent.id), invocation = context.scopes.get(call).invocation;
+  let uses = 0;
+  for (const reference of context.parents.keys()) {
+    if (!runtimeReference(reference, context) || context.lookup(reference) !== binding) {continue;}
+    if (context.scopes.get(reference).invocation !== invocation || !prototypeResultComparison(reference, context)) {return false;}
+    uses += 1;
+  }
+  return uses > 0;
+}
+function localCollectionConstruction(name, callee, expression, context) {
+  return ["Set", "WeakSet"].includes(name) && unwrap(callee)?.type === "Identifier" &&
+    expression.callee === callee && expression.arguments.length === 0 &&
+    context.scopes.get(expression).invocation.type !== "Program";
+}
 function supportedCall(name, call, context) {
   if (call.optional || call.arguments.some((arg) => arg.type === "SpreadElement")) {return false;}
   if (calls.has(name)) {return true;}
+  if (inspectionCalls.has(name)) {
+    return call.arguments.length === inspectionCalls.get(name) && context.scopes.get(call).invocation.type !== "Program" &&
+      (name !== "Object.getPrototypeOf" || boundedPrototypeResult(call, context));
+  }
   const bounds = targetCalls.get(name), invocation = context.scopes.get(call).invocation;
   return Boolean(bounds && call.arguments.length >= bounds[0] && call.arguments.length <= bounds[1] &&
     origin(call.arguments[0], context).local === invocation && invocation.type !== "Program");
@@ -269,11 +322,12 @@ function ambientUse(node, context) {
   const name = origin(node, context).ambient;
   if (!name) {return true;}
   if (name === "Error" && context.errorClasses.has(parent) && parent.superClass === node) {return true;}
-  if (parent?.type === "NewExpression") {return thrownTypeError(name, node, parent, context.parents);}
+  if (parent?.type === "NewExpression") {return thrownTypeError(name, node, parent, context.parents) || localCollectionConstruction(name, node, parent, context);}
   if (parent?.type === "CallExpression" && parent.callee === node) {return supportedCall(name, parent, context);}
+  if (intrinsicPrototypes.has(name)) {return prototypeObservation(equalityOperand(node, context), context);}
   if (scalarGlobals.has(name)) {return scalarRead(node, "scalar", context.parents);}
   if (!ambientAlias(node, parent, context)) {return false;}
-  return containers.has(name) || calls.has(name) || targetCalls.has(name);
+  return aliasOrigins.some((origins) => origins.has(name));
 }
 function validateAmbientOrigins(program, failures, context) {
   walk(program, (node) => {

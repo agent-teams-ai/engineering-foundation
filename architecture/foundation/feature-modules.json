@@ -184,6 +184,184 @@
               "owner": "repository-mutation/mutation-coordination"
             }
           ]
+        },
+        {
+          "path": "packages/repository-mutation/src/canonical-json.ts",
+          "role": "domain",
+          "decision": "docs/decisions/0050-exact-json-primitive-admission.md",
+          "consumers": [
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-authoring-semantic-digests.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-contract-digests.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-receipt-policy.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-transaction-digests.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/document-transaction-envelope-policy.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/policies/project-catalog-metadata.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/use-cases/compile-document-plan.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/application/use-cases/document-authority-recompiler.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/resolve-effective-instructions.ts",
+              "owner": "engineering-foundation/repository-agent-workflow"
+            },
+            {
+              "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
+              "owner": "engineering-foundation/scaffolding"
+            },
+            {
+              "path": "packages/engineering-foundation/src/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.ts",
+              "owner": "engineering-foundation/scaffolding"
+            },
+            {
+              "path": "packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-transaction-status.ts",
+              "owner": "engineering-foundation/scaffolding"
+            },
+            {
+              "path": "packages/engineering-foundation/src/scaffolding/kernel/canonical-json.ts",
+              "owner": "engineering-foundation/scaffolding"
+            },
+            {
+              "path": "packages/engineering-foundation/src/transaction-coordination/adapters/node/legacy-envelope-digests.ts",
+              "owner": "engineering-foundation/transaction-coordination"
+            },
+            {
+              "path": "packages/engineering-foundation/src/transaction-coordination/adapters/node/schema6-transaction-status.ts",
+              "owner": "engineering-foundation/transaction-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/coordination.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/index.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-journal-store.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-receipt.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-receipt.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/serialization.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-journal-slot-evidence.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-mutation-observation.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application/repository-mutation-envelope.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            }
+          ]
+        },
+        {
+          "path": "packages/repository-mutation/src/strict-json.ts",
+          "role": "domain",
+          "decision": "docs/decisions/0050-exact-json-primitive-admission.md",
+          "consumers": [
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/document-authoring/src/document-authoring/adapters/node/node-metadata-instance-validator.ts",
+              "owner": "document-authoring/document-authoring"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.ts",
+              "owner": "engineering-foundation/contract-json-schema-releases"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/executable-specifications/adapters/inbound/configuration/parse-capability-config.ts",
+              "owner": "engineering-foundation/executable-specifications"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/executable-specifications/adapters/outbound/filesystem/filesystem-executable-specification-inspector.ts",
+              "owner": "engineering-foundation/executable-specifications"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/changesets-prerelease-state.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts",
+              "owner": "engineering-foundation/quality-gate-runner"
+            },
+            {
+              "path": "packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts",
+              "owner": "engineering-foundation/scaffolding"
+            },
+            {
+              "path": "packages/engineering-foundation/src/transaction-coordination/adapters/node/node-foundation-transaction-slot.ts",
+              "owner": "engineering-foundation/transaction-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/index.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/serialization.ts",
+              "owner": "repository-mutation/@assembly"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/adapters/node/node-operation-lock.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/transaction-coordination/application/repository-mutation-envelope.ts",
+              "owner": "repository-mutation/mutation-coordination"
+            }
+          ]
         }
       ],
       "features": [

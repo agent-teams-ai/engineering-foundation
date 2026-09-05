@@ -236,6 +236,11 @@
       "id": "ADR-0047",
       "path": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
       "immutableDigest": "sha256:ef6db9f665f85e9a5c062357dbd1e8469cb2cb6dc1f9b910f27091de75bcb5df"
+    },
+    {
+      "id": "ADR-0050",
+      "path": "docs/decisions/0050-exact-json-primitive-admission.md",
+      "immutableDigest": "sha256:bc6ff5e2a85c2fb95ac156c294f0a09316531400ac5f373d2553eddb5f89953f"
     }
   ]
 }

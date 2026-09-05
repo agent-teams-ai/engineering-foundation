@@ -138,7 +138,9 @@ The guard checks exact accepted decision evidence for primitive exceptions.
 [ADR-0047](../decisions/0047-exact-ordering-version-and-identity-primitives.md)
 admits the two exact ordinal comparators, exact SemVer and the type-only portable
 path identity contract with closed consumer identities. No cycle exception is
-accepted. It does not
+accepted. [ADR-0050](../decisions/0050-exact-json-primitive-admission.md) separately
+admits the exact canonical and strict JSON files after behavior qualification.
+The checker does not
 infer semantic SOLID, aggregate correctness or security from names or metrics.
 
 ## Generated and primitive ownership contract
@@ -236,10 +238,24 @@ exactly three arguments, without a separate receiver. Local property/array
 mutation remains admitted. Reflection on module, ambient, parameter, factory
 result or otherwise unknown targets fails; fresh results are not inferred from
 arbitrary calls or member reads. All other reflection (including `Reflect.get`,
-prototype access, `apply`, `construct`, and `call/apply/bind` on builtin aliases),
+unrestricted prototype access, `apply`, `construct`, and `call/apply/bind` on builtin aliases),
 dynamic operation keys, optional calls, spread arguments and mutable/default/rest
 ambient aliases fail conservatively. These are bounded state-origin rules, not
 interprocedural purity analysis or a replacement for the composed Oxlint rules.
+
+ADR-0050 adds finite input inspection for canonical JSON:
+`Object.getOwnPropertyDescriptor(value, key)` and `Reflect.ownKeys(value)` require
+exact explicit arity inside an invocation. `Object.getPrototypeOf(value)` is
+usable only in `===`/`!==` comparisons with intrinsic Object/Array prototypes or
+null. A local `const` result must have only those uses in the same invocation;
+captures, extra aliases, member access, returns and writes fail. Intrinsic
+prototype references are permitted only as the other comparison operand.
+General prototype mutation, ambient/module-state inspection, callable escapes,
+optional calls and spread arguments remain rejected. Explicit input objects
+remain subject to semantic closed-data tests; arbitrary Proxy purity is not
+claimed. Only direct zero-argument `new Set()`/`new WeakSet()` inside a function
+invocation is admitted for fresh working state. Their constructors and prototypes
+cannot escape or be aliased; iterable arguments and module initialization fail.
 
 One qualified pure builtin operation is accepted in inner layers:
 `createHash("sha256").update(explicitBytes).digest("hex")`, including a renamed
@@ -253,18 +269,18 @@ that arbitrary JavaScript is pure.
 ADR-0047 records the coordinator's four exact primitive decisions, source
 fingerprints, current consumer identities and interoperability obligations.
 Caller paths in the profile come from observed imports and re-exports, including
-workspace package surfaces. The finite checker and negative fixtures remain
-mandatory. Canonical and strict JSON are not admitted: their present syntax
-fails the primitive guard and requires a separately qualified successor decision.
+workspace package surfaces. ADR-0050 records the separately qualified JSON scopes
+and finite inspection grammar. The finite checker and negative fixtures remain
+mandatory for all six exact primitives.
 Neither test-fixture ADRs nor ADR-0046 approve product exceptions. Existing
 accepted ADRs, standards, schemas, journals and release baselines stay immutable;
 supported export changes require their normal compatibility/promotion procedure.
 
 ## Known gaps and migration ownership
 
-- Mutation's canonical and strict JSON root utilities still need semantic owners
-  or a separately justified primitive decision. The profile leaves those two
-  unowned; a `core` or `runtime-primitives` feature would conceal the gap.
+- Six exact primitives have closed decisions and observed callers. New root
+  utilities still require a real semantic owner or their own qualified decision;
+  a `core` or `runtime-primitives` feature would conceal a future ownership gap.
 - Authoring's `document-authoring.surface` and MCP's
   `docs-protocol-mcp.surface` source-policy boundaries span layers. Their owners
   must split boundaries and curate internal APIs without changing released

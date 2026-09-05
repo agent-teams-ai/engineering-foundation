@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseSync } from "oxc-parser";
@@ -6,13 +7,24 @@ import { validatePrimitiveSyntax } from "../scripts/feature-modules/purity.mjs";
 import { compareBinaryStrings as foundationCompare, compareBinaryStringSequences } from "../packages/engineering-foundation/dist/binary-string-comparator.js";
 import { compareBinaryStrings as authoringCompare } from "../packages/document-authoring/dist/binary-string-comparator.js";
 import { isExactVersion, sameNumberedPrereleaseTrain, semanticVersionBumpBetween } from "../packages/engineering-foundation/dist/semantic-version.js";
+import { sha256Text } from "../packages/repository-mutation/dist/serialization.js";
 
 const primitivePaths = [
   "packages/engineering-foundation/src/binary-string-comparator.ts",
   "packages/document-authoring/src/binary-string-comparator.ts",
   "packages/engineering-foundation/src/semantic-version.ts",
-  "packages/repository-mutation/src/path-identity.ts"
+  "packages/repository-mutation/src/path-identity.ts",
+  "packages/repository-mutation/src/canonical-json.ts",
+  "packages/repository-mutation/src/strict-json.ts"
 ];
+
+test("text digests preserve exact UTF-8 bytes including malformed surrogate inputs", () => {
+  for (const value of ["", "a\0b", "e\u0301", "\u00e9", "\ud800", "\udfff", "\ud800\udc00", "\ufffd", "\ud800a\udfff"]) {
+    const expected = `sha256:${createHash("sha256").update(Buffer.from(value, "utf8")).digest("hex")}`;
+    assert.equal(sha256Text(value), expected);
+  }
+  assert.notEqual(sha256Text("e\u0301"), sha256Text("\u00e9"));
+});
 
 for (const path of primitivePaths) {
   test(`finite primitive syntax admits the real source: ${path}`, async () => {

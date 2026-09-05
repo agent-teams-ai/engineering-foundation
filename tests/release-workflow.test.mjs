@@ -907,6 +907,16 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     8,
   );
   assertFinalCodeqlReadsFailClosed(attestation.run);
+  assert.match(attestation.run, /require_final_release_pr_snapshot\(\) \{/u);
+  assert.equal(
+    (attestation.run.match(/^\s+require_final_release_pr_snapshot /gmu) ?? [])
+      .length,
+    2,
+  );
+  assert.match(
+    attestation.run,
+    /observed_pull_request="\$\{post_pull_request\}"\n\s+require_final_codeql_snapshot\n\s+require_final_release_pr_snapshot "\$\{final_current_main_sha\}"/u,
+  );
   assert.equal(
     (attestation.run.match(/--argjson analyzeCheck/gu) ?? []).length,
     2,

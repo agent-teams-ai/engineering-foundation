@@ -640,6 +640,24 @@ jobs:
             fi
           }
 
+          require_final_release_pr_snapshot() {
+            local observed_main_sha="$1"
+            if ! jq -n \
+              --arg currentMainSha "${observed_main_sha}" \
+              --arg expectedBaseSha "${EXPECTED_RELEASE_BASE_SHA}" \
+              --arg expectedHeadSha "${head_sha}" \
+              --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
+              --argjson pullRequest "${observed_pull_request}" \
+              '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha,
+                expectedHeadSha: $expectedHeadSha,
+                expectedPullRequestNumber: $expectedPullRequestNumber,
+                pullRequest: $pullRequest}' | \
+              node scripts/check-release-pr-freshness.mjs \
+                --processed-main "${PROCESSED_MAIN_SHA}"; then
+              fail_attestation "Release PR or main changed during final evidence collection"
+            fi
+          }
+
           final_run_verified=0
           final_verification_deadline=$((SECONDS + 60))
           while (( SECONDS < final_verification_deadline )); do
@@ -752,25 +770,13 @@ jobs:
             fi
             observed_pull_request="${post_pull_request}"
             require_final_codeql_snapshot
+            require_final_release_pr_snapshot "${final_current_main_sha}"
             if ! post_current_main_sha="$(gh api \
               "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"; then
               sleep 5
               continue
             fi
-            if ! jq -n \
-              --arg currentMainSha "${post_current_main_sha}" \
-              --arg expectedBaseSha "${EXPECTED_RELEASE_BASE_SHA}" \
-              --arg expectedHeadSha "${head_sha}" \
-              --arg expectedPullRequestNumber "${RELEASE_PULL_REQUEST}" \
-              --argjson pullRequest "${observed_pull_request}" \
-              '{currentMainSha: $currentMainSha, expectedBaseSha: $expectedBaseSha,
-                expectedHeadSha: $expectedHeadSha,
-                expectedPullRequestNumber: $expectedPullRequestNumber,
-                pullRequest: $pullRequest}' | \
-              node scripts/check-release-pr-freshness.mjs \
-                --processed-main "${PROCESSED_MAIN_SHA}"; then
-              fail_attestation "Release PR or main changed during final evidence collection"
-            fi
+            require_final_release_pr_snapshot "${post_current_main_sha}"
             final_run_verified=1
             break
           done

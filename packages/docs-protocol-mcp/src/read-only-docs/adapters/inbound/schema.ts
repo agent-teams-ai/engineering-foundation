@@ -44,3 +44,9 @@ export function unknownKeys(
     .toSorted()
     .map((key) => Object.freeze({ message: "Unknown property.", path: Object.freeze([key]) })));
 }
+
+export function objectRecord(value: unknown): Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Readonly<Record<string, unknown>>
+    : Object.freeze({});
+}

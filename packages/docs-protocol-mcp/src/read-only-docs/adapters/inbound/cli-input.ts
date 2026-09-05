@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { docsProfilePath, validatePortableRepositoryPath } from "@agent-teams/docs-protocol";
 
-import type { DocsBinding } from "./contracts.js";
+import type { DocsBinding } from "../../application/ports/docs-reader.js";
 
 export class CliInputError extends Error {
   override readonly name = "CliInputError";

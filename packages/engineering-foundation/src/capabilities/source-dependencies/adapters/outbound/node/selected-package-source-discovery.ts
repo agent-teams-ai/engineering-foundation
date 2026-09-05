@@ -256,6 +256,19 @@ function isExcludedDirectory(
   return parentIsPackageRoot && PACKAGE_GENERATED_DIRECTORY_NAMES.has(name);
 }
 
+function isRootOrAncestor(
+  repositoryPath: string,
+  rootIdentities: ReadonlySet<string>
+): boolean {
+  const identity = portableRepositoryPathIdentity(repositoryPath);
+  for (const root of rootIdentities) {
+    if (root === identity || root.startsWith(`${identity}/`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isPackageRootLocation(
   repositoryPath: string,
   repositoryRootIdentities: ReadonlySet<string>
@@ -289,6 +302,7 @@ export async function discoverSourceWorkspacePaths(
   options: {
     readonly repositoryRoots: readonly string[];
     readonly selectedPackageRoots?: readonly string[];
+    readonly governedRoots?: readonly string[];
     readonly fileSystem?: Partial<SourceWorkspaceFileSystem>;
     readonly hooks?: SourceWorkspaceDiscoveryHooks;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
@@ -309,12 +323,9 @@ export async function discoverSourceWorkspacePaths(
   const repositoryRootIdentities = new Set(
     options.repositoryRoots.map(portableRepositoryPathIdentity)
   );
-  const isSelectedPackageRootOrAncestor = (repositoryPath: string): boolean => {
-    const identity = portableRepositoryPathIdentity(repositoryPath);
-    return [...selectedPackageRootIdentities].some(
-      (selected) => selected === identity || selected.startsWith(`${identity}/`)
-    );
-  };
+  const governedRootIdentities = new Set(
+    (options.governedRoots ?? []).map(portableRepositoryPathIdentity)
+  );
   const directories: DirectoryCursor[] = options.repositoryRoots
     .toSorted(compareBinaryStrings)
     .toReversed()
@@ -355,7 +366,9 @@ export async function discoverSourceWorkspacePaths(
       const repositoryPath = childRepositoryPath(cursor.repositoryPath, entry.name);
       if (
         isExcludedDirectory(entry.name, cursorIsPackageRoot) &&
-        !isSelectedPackageRootOrAncestor(repositoryPath)
+        !isRootOrAncestor(repositoryPath, selectedPackageRootIdentities) &&
+        !(PACKAGE_GENERATED_DIRECTORY_NAMES.has(entry.name) &&
+          isRootOrAncestor(repositoryPath, governedRootIdentities))
       ) {
         if (entry.name === "dist" && entry.isSymbolicLink()) {
           symbolicLinkPaths.add(repositoryPath);

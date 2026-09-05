@@ -1,6 +1,9 @@
 // oxlint-disable max-lines -- workflow contract coverage remains one auditable suite.
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -109,6 +112,38 @@ function assertReviewRouterInteractionRuntime(
   assert.doesNotMatch(reviewInteractionSource, /pnpm (?:install|action-setup)/u);
 }
 
+function assertAttestationDeadlineBudget(source, jobTimeoutSeconds) {
+  const seconds = (name) => Number(source.match(
+    new RegExp(`^\\s*${name}=\\$\\(\\(SECONDS \\+ ([0-9]+)\\)\\)$`, "mu"),
+  )[1]);
+  const postStatus = source.slice(source.indexOf("post_status()"), source.indexOf("mark_attestation_error()"));
+  const attempts = postStatus.match(/for attempt in ([0-9 ]+); do/u)[1].trim().split(/\s+/u).length;
+  const requestBounds = [...postStatus.matchAll(/timeout --kill-after=([0-9]+)s ([0-9]+)s gh api/gu)];
+  assert.equal(requestBounds.length, 3, "bound creator lookup, POST and paginated read-back");
+  const attemptSeconds = requestBounds.reduce((sum, [, grace, timeout]) => sum + Number(grace) + Number(timeout), 0);
+  const [, retryLimit, delay] = postStatus.match(/if \(\( attempt < ([0-9]+) \)\); then sleep ([0-9]+); fi/u);
+  assert.equal(Number(retryLimit), attempts);
+  const statusSeconds = attempts * attemptSeconds + (attempts - 1) * Number(delay);
+  const ciContexts = source.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
+  assert.match(source, /attestation_contexts=\(analyze "\$\{ci_contexts\[@\]\}"\)/u);
+  const contextCount = ciContexts.length + 1;
+  // Conservatively charge uncached creator lookup on every attempt, even though
+  // successful resolution is cached. Include full pending, terminal and recovery
+  // passes: the last terminal write may be accepted but never reconciled.
+  const publicationSeconds = 3 * contextCount * statusSeconds;
+  const waitSeconds = seconds("selection_deadline") + seconds("deadline") + seconds("final_verification_deadline");
+  const pollingDelays = [...source.slice(source.indexOf("selection_deadline=")).matchAll(/\bsleep ([0-9]+)/gu)];
+  const pollingOvershootSeconds = 3 * Math.max(...pollingDelays.map(([, value]) => Number(value)));
+  // Explicit allowances for checkout/tool setup, dependency bootstrap, Git/API
+  // work and local validation; margin also absorbs scheduling/clock overhead.
+  const setupAndOtherWorkSeconds = 180;
+  const minimumMarginSeconds = 120;
+  const requiredSeconds = waitSeconds + pollingOvershootSeconds + publicationSeconds +
+    setupAndOtherWorkSeconds + minimumMarginSeconds;
+  assert.ok(jobTimeoutSeconds >= requiredSeconds,
+    `attestation needs ${requiredSeconds}s including a full ${contextCount * statusSeconds}s recovery pass; got ${jobTimeoutSeconds}s`);
+}
+
 function assertExactReleaseRunBinding(attestation, release, ci) {
   const jobTimeoutSeconds =
     release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
@@ -128,7 +163,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   const primaryDeadlineSeconds = deadlines.get("deadline");
   const finalVerificationSeconds = deadlines.get("final_verification_deadline");
 
-  assert.equal(jobTimeoutSeconds, 60 * 60);
+  assertAttestationDeadlineBudget(attestation.run, jobTimeoutSeconds);
   assert.equal(deadlines.size, 2);
   assert.equal(primaryDeadlineSeconds, 55 * 60);
   assert.equal(finalVerificationSeconds, 60);
@@ -172,10 +207,6 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     attestation.run,
     /while \(\( SECONDS < final_verification_deadline \)\); do/u,
   );
-  assert.equal(
-    jobTimeoutSeconds - primaryDeadlineSeconds - finalVerificationSeconds,
-    4 * 60,
-  );
   assert.ok(
     attestation.run.lastIndexOf("final_bound_run") <
       attestation.run.lastIndexOf('post_status "${ci_contexts[index]}" success'),
@@ -188,6 +219,396 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   );
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
+
+test("release deadline reserves bounded publication and full recovery time", async () => {
+  const release = await workflow("release.yml");
+  const job = release.jobs["attest-release-pr"];
+  const source = job.steps.at(-1).run;
+  const timeoutSeconds = job["timeout-minutes"] * 60;
+  assertAttestationDeadlineBudget(source, timeoutSeconds);
+  assert.throws(() => assertAttestationDeadlineBudget(source, 60 * 60), { code: "ERR_ASSERTION" });
+  // Increasing request limits must consume the reserve, even if retry/context
+  // counts and the CI/final windows stay unchanged.
+  const slowerRequests = source.replaceAll("--kill-after=1s 3s", "--kill-after=1s 4s");
+  assert.notEqual(slowerRequests, source);
+  assert.throws(() => assertAttestationDeadlineBudget(slowerRequests, timeoutSeconds), { code: "ERR_ASSERTION" });
+});
+
+// Execute local control fragments with the real post_status; gh cannot reach the API.
+function runAttestationFragment(source, fragment, setup = "") {
+  const control = source.slice(0, source.indexOf("fetch_paginated_pages()"));
+  const remote = mkdtempSync(join(tmpdir(), "release-status-"));
+  const result = spawnSync("bash", ["-c", `
+    timeout() { [[ "$1 $2" == "--kill-after=1s 3s" ]] || return 96; shift 2; "$@"; }
+    sleep() { [[ "$1" == 1 ]] || return 96; }
+    gh() {
+      if [[ "$*" == 'api users/github-actions[bot]' ]]; then
+        printf '%s' '{"id":42,"login":"github-actions[bot]","type":"Bot"}'
+        return 0
+      fi
+      if [[ "$*" == "api --paginate --slurp repos/owner/repo/commits/${"a".repeat(40)}/status?per_page=100" ]]; then
+        local reads=0
+        read -r reads < "$REMOTE/reads" || :
+        reads=$((reads + 1)); echo "$reads" > "$REMOTE/reads"
+        (( reads > \${read_failures:-0} )) || return 43
+        jq -sc --arg sha '${"a".repeat(40)}' '
+          reverse | unique_by(.context) | [{sha:$sha,statuses:.}]
+        ' "$REMOTE/statuses" | jq -c "\${read_transform:-.}" || return 44
+        return 0
+      fi
+      [[ "$1 $2 $3 $4" == "api --method POST repos/owner/repo/statuses/${"a".repeat(40)}" ]] || return 97
+      shift 4
+      local state="" context="" description="" target_url="" outcome=accepted
+      while (( $# )); do
+        [[ "$1" == "-f" && $# -ge 2 ]] || return 98
+        case "$2" in
+          state=*) state="\${2#state=}" ;;
+          context=*) context="\${2#context=}" ;;
+          description=*) description="\${2#description=}" ;;
+          target_url=*) target_url="\${2#target_url=}" ;;
+          *) return 99 ;;
+        esac
+        shift 2
+      done
+      [[ -n "$context" && -n "$state" && -n "$description" ]] || return 100
+      local count=0 mode=normal
+      if [[ -f "$REMOTE/$context-$state" ]]; then read -r count < "$REMOTE/$context-$state"; fi
+      count=$((count + 1)); echo "$count" > "$REMOTE/$context-$state"
+      if { [[ "$context:$state" == "\${reject_status:-none}" ]] && (( count <= 3 )); } ||
+        [[ "$context:$state" == "\${reject_recovery:-none}" ]]; then
+        outcome=rejected
+      fi
+      if [[ "$context:$state" == "\${fault_context:-none}" ]] && (( count <= \${fault_count:-1} )); then
+        mode="\${fault_mode:-reject}"
+        if [[ "$mode" == reject || "$mode" == phantom ]]; then outcome=rejected; fi
+      fi
+      if [[ "$state" == error ]] && (( count <= \${recovery_failures:-0} )); then outcome=rejected; fi
+      printf '%s|%s|%s|%s\n' "$context" "$state" "$target_url" "$outcome" >&3
+      if [[ "$mode" == phantom ]]; then echo invalid; return 0; fi
+      [[ "$outcome" == accepted ]] || return 42
+      local status
+      status="$(jq -nc --arg context "$context" --arg state "$state" \
+        --arg target "$target_url" --arg description "$description" \
+        '{context:$context,state:$state,target_url:$target,description:$description,
+          creator:{id:42,login:"github-actions[bot]",type:"Bot"}}')"
+      echo "$status" >> "$REMOTE/statuses"
+      [[ "$mode" != lost ]] || return 42
+      if [[ "$mode" == malformed ]]; then echo invalid; else echo "$status"; fi
+    }
+    : > "$REMOTE/statuses"
+    echo 0 > "$REMOTE/reads"
+    ${control}
+    trap mark_attestation_error ERR
+    ${setup}
+    ${fragment}
+  `], {
+    encoding: "utf8",
+    timeout: 5000,
+    stdio: ["pipe", "pipe", "pipe", "pipe"],
+    env: { ...process.env, REMOTE: remote, EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
+      GITHUB_REPOSITORY: "owner/repo",
+      RELEASE_RUN_URL: "https://github.com/owner/repo/actions/runs/999" },
+  });
+  const latest = new Map(readFileSync(join(remote, "statuses"), "utf8").trim()
+    .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+    .map((status) => [status.context, status.state]));
+  rmSync(remote, { recursive: true, force: true });
+  const attempts = (result.output[3] ?? "").trim().split("\n").filter(Boolean);
+  return { ...result, latest, attempts, stdout: attempts
+    .filter((line) => line.endsWith("|accepted"))
+    .map((line) => line.slice(0, -"|accepted".length)).join("\n") };
+}
+
+function assertTerminalRecovery(result, contexts) {
+  assert.equal(result.status, 1, result.stderr);
+  const { latest } = result;
+  assert.deepEqual([...latest.keys()].toSorted(), contexts.toSorted());
+  for (const context of contexts) {
+    assert.match(latest.get(context), /^(?:failure|error)$/u, context);
+    assert.ok(result.attempts.some((line) => line.startsWith(`${context}|error|`)),
+      `missing recovery attempt: ${context}`);
+  }
+}
+
+function assertAttestationStatusContract(source) {
+  const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
+  const block = (start, end) => {
+    const from = source.indexOf(start);
+    const to = source.indexOf(end, from);
+    assert.ok(from >= 0 && to > from, `missing control block: ${start}`);
+    return source.slice(from, to);
+  };
+  const pending = source.match(/for context in [^\n]+; do\n\s+post_status "\$\{context\}" pending[^]*?\bdone/u)?.[0];
+  assert.ok(pending);
+  assert.ok(source.indexOf(pending) < source.indexOf("git fetch --no-tags origin"));
+  assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/ci.yml/dispatches"));
+  assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/codeql.yml/dispatches"));
+  const ciSetup = 'conclusions=(success failure success); target_urls=(ci1 ci2 ci3)';
+  for (const [fragment, setup, state, exitCode] of [
+    [pending, "", "pending", 0],
+    ["false", "", "error", 1],
+    ['fail_attestation "invalid evidence"', "", "failure", 1],
+    [block("if (( all_completed != 1 )); then", "failed=0"), "all_completed=0", "error", 1],
+    [block("if (( failed != 0 )); then", 'codeql_receipt=""'), `${ciSetup}; failed=1`, "failure", 1],
+  ]) {
+    const result = runAttestationFragment(source, fragment, setup);
+    assert.equal(result.status, exitCode, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n").map((line) => line.split("|").slice(0, 2)),
+      contexts.map((context) => [context, state]));
+  }
+  // Even a failed recovery POST must not recurse or prevent the remaining attempts.
+  const recoveryFailure = runAttestationFragment(source, `${pending}\nfalse`,
+    "reject_recovery=analyze:error");
+  assert.equal(recoveryFailure.status, 1, recoveryFailure.stderr);
+  assert.equal(recoveryFailure.attempts.filter((line) => line.startsWith("analyze|error|")).length, 3);
+  assert.match(recoveryFailure.stderr, /Recovery incomplete; unreconciled contexts: analyze/u);
+  assert.equal(recoveryFailure.latest.get("analyze"), "pending");
+  for (const context of contexts.slice(1)) {
+    assert.equal(recoveryFailure.latest.get(context), "error");
+  }
+
+  const collected = runAttestationFragment(source, 'printf "%s\\n" "${ci_contexts[@]}"');
+  assert.equal(collected.status, 0, collected.stderr);
+  assert.deepEqual(collected.output[1].trim().split("\n"), contexts.slice(1));
+  const jobLoops = [...source.matchAll(/for context in ([^\n]+); do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)];
+  assert.equal(jobLoops.length, 2);
+  assert.deepEqual(jobLoops.map((match) => match[1]), Array(2).fill('"${ci_contexts[@]}"'));
+
+  const finalGate = source.slice(source.indexOf("if (( final_run_verified != 1 )); then"));
+  assert.ok(finalGate.startsWith("if (( final_run_verified != 1 )); then"));
+  assertFinalCodeqlReadsFailClosed(source);
+  const ordered = [
+    'if [[ -z "${codeql_receipt}" ]]; then',
+    'observed_pull_request="${post_pull_request}"',
+    'require_final_codeql_snapshot\n',
+    'require_final_release_pr_snapshot "${post_current_main_sha}"',
+    'final_run_verified=1',
+    'if (( final_run_verified != 1 )); then',
+    'post_status "${ci_contexts[index]}" success',
+    'post_status analyze success',
+    'status_finalized=1',
+  ];
+  let cursor = 0;
+  for (const statement of ordered) {
+    const index = source.indexOf(statement, cursor);
+    assert.ok(index >= cursor, `missing/early success barrier: ${statement}`);
+    cursor = index + statement.length;
+  }
+  assert.equal((source.match(/post_status analyze success/gu) ?? []).length, 1);
+  const evidence = exactCodeqlEvidence();
+  const expectation = { ...exactRunExpectation, runId: 123 };
+  const receipt = validateReleaseCodeqlEvidence(evidence, expectation);
+  validateReleaseCodeqlEvidence(asFinalEvidence(evidence), expectation, receipt);
+  for (const url of [evidence.run.html_url, evidence.checkRuns.check_runs[0].html_url]) {
+    const changed = asFinalEvidence(structuredClone(evidence));
+    changed.analyzeCheck.html_url = url;
+    assert.throws(() => validateReleaseCodeqlEvidence(changed, expectation, receipt),
+      /analyze check run identity differs/u);
+  }
+  const setup = `conclusions=(success success success); target_urls=(ci1 ci2 ci3);
+    codeql_evidence_error=/dev/null;
+    observed_codeql_analyze_check='${JSON.stringify(evidence.analyzeCheck)}'`;
+  const success = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=1`);
+  assert.equal(success.status, 0, success.stderr);
+  assert.equal(success.stdout.trim().split("\n").at(-1),
+    `analyze|success|${evidence.analyzeCheck.html_url}`);
+  assert.deepEqual(success.stdout.split("\n").map((line) => line.split("|").slice(0, 2)),
+    [...contexts.slice(1), "analyze"].map((context) => [context, "success"]));
+  for (const context of contexts) {
+    const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
+      `${setup}; final_run_verified=1; reject_status=${context}:success`);
+    assertTerminalRecovery(rejected, contexts);
+    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 3);
+    const failureIndex = rejected.attempts.findIndex((line) => line.endsWith("|rejected"));
+    assert.ok(rejected.attempts.slice(failureIndex + 3).every((line) => !line.includes("|success|")));
+  }
+  const unverified = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=0`);
+  assert.equal(unverified.status, 1, unverified.stderr);
+  assert.ok(unverified.attempts.every((line) => !line.includes("|success|")));
+
+  // jq runs for real on missing, empty, non-string, and malformed evidence.
+  // A tool failure with valid evidence separately models a failed final extraction.
+  for (const extractionSetup of [
+    ...["{}", '{"html_url":""}', '{"html_url":null}', '{"html_url":42}', '{"html_url":false}',
+      '{"html_url":[]}', '{"html_url":{}}', "invalid-json"]
+      .map((value) => `observed_codeql_analyze_check='${value}'`),
+    'jq() { if [[ "$*" == *".html_url | select"* ]]; then return 42; fi; command jq "$@"; }',
+  ]) {
+    const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
+      `${setup}; final_run_verified=1; ${extractionSetup}`);
+    assert.notEqual(rejected.status, 0, rejected.stderr);
+    assert.equal(rejected.signal, null);
+    assert.ok(rejected.attempts.every((line) => !line.includes("|success|")),
+      "failed analyze URL extraction must precede every success POST");
+    const latest = new Map(rejected.stdout.split("\n").map((line) => line.split("|")));
+    for (const context of contexts) {
+      assert.equal(latest.get(context), "error");
+    }
+  }
+
+  for (const [fragment, failureSetup, state] of [
+    ['fail_attestation "invalid evidence"', "", "failure"],
+    [block("if (( all_completed != 1 )); then", "failed=0"), "all_completed=0", "error"],
+    [block("if (( failed != 0 )); then", 'codeql_receipt=""'), `${ciSetup}; failed=1`, "failure"],
+  ]) {
+    const rejected = runAttestationFragment(source, `${pending}\n${fragment}`,
+      `reject_status=analyze:${state}; ${failureSetup}`);
+    assertTerminalRecovery(rejected, contexts);
+    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 3);
+    assert.ok(rejected.attempts.every((line) => !line.includes("|success|")));
+  }
+}
+
+function assertStatusReconciliation(source) {
+  const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
+  const publish = 'post_status analyze success "verified" "target"';
+  for (const [setup, attempts] of [
+    ["fault_context=analyze:success; fault_mode=reject", 2],
+    ["fault_context=analyze:success; fault_mode=malformed", 1],
+    ["fault_context=analyze:success; fault_mode=phantom", 2],
+    ["read_transform='.[0] as $page | $page.statuses | map({sha:$page.sha,statuses:[.]})'", 1],
+    ["read_transform='.[0].statuses += [{context: \"unrelated\", description: null, target_url: null}]'", 1],
+    ["fault_context=analyze:success; fault_mode=lost", 1],
+    ["read_failures=2", 3],
+    ["fault_context=analyze:success; fault_mode=lost; fault_count=3; read_failures=2", 3],
+  ]) {
+    const result = runAttestationFragment(source, publish, setup);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.latest.get("analyze"), "success");
+    assert.equal(result.attempts.length, attempts, setup);
+    assert.doesNotMatch(result.stderr, /Unreconciled|Recovery incomplete/u);
+  }
+  for (const transform of [
+    '.[0].sha = "wrong"',
+    '.[0].statuses[0].state = "pending"',
+    '.[0].statuses[0].context = "other"',
+    '.[0].statuses[0].target_url = "other"',
+    '.[0].statuses[0].description = "other"',
+    '.[0].statuses[0].creator.id = 99',
+    '.[0].statuses[0].creator.login = "impostor"',
+    '.[0].statuses[0].creator.type = "User"',
+    '.[0].statuses += .[0].statuses',
+    '.[0].statuses = null',
+    '.[0].statuses += [null]',
+    '.[0].statuses += [{"state":"failure"}]',
+    '. += [{sha: .[0].sha, statuses: [null]}]',
+    '. += [{sha: .[0].sha, statuses: [{"state":"failure"}]}]',
+    '.[0].statuses += [{"context":42}]',
+    '[]',
+    '"invalid-json-shape"',
+  ]) {
+    const result = runAttestationFragment(source, publish, `read_transform='${transform}'`);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Unreconciled status: analyze/u);
+  }
+  const seed = 'for context in "${attestation_contexts[@]}"; do post_status "$context" success "verified" "target"; done';
+  // A terminal failure after all successes still retries every recovery context.
+  const recovered = runAttestationFragment(source, `${seed}\nfalse`, "recovery_failures=1");
+  assertTerminalRecovery(recovered, contexts);
+  assert.equal(recovered.attempts.length, 12, recovered.stderr);
+  assert.doesNotMatch(recovered.stderr, /Recovery incomplete/u);
+  // Reproduce the combined lost final response / failed recovery writes. The API
+  // becomes available within the retry window, so authoritative states converge.
+  const combined = `${seed}
+    echo 0 > "$REMOTE/reads"
+    read_failures=3; fault_context=analyze:success; fault_mode=lost; fault_count=4
+    recovery_failures=1
+    ${publish}`;
+  const result = runAttestationFragment(source, combined);
+  assertTerminalRecovery(result, contexts);
+  assert.equal(result.attempts.length, 15);
+  assert.doesNotMatch(result.stderr, /Recovery incomplete/u);
+  // A total outage after an ambiguous write cannot be repaired locally. Keep the
+  // original exit, try all contexts, and name every unreconciled context.
+  const outage = runAttestationFragment(source, `${seed}
+    read_failures=999; recovery_failures=999
+    fault_context=analyze:success; fault_mode=lost; fault_count=4
+    ${publish}`);
+  assert.equal(outage.status, 1, outage.stderr);
+  assert.equal(outage.attempts.length, 19);
+  assert.deepEqual([...outage.latest.values()], Array(4).fill("success"));
+  assert.match(outage.stderr,
+    /Recovery incomplete; unreconciled contexts: analyze check windows-check macos-qualification/u);
+  const originalExit = runAttestationFragment(source,
+    'return_42() { return 42; }; return_42', "recovery_failures=999");
+  assert.equal(originalExit.status, 42, originalExit.stderr);
+  assert.equal(originalExit.attempts.length, 12);
+  assert.match(originalExit.stderr, /Recovery incomplete/u);
+}
+
+test("release status publication reconciles bounded distributed failures", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async () => {
+  const release = await workflow("release.yml");
+  assertStatusReconciliation(release.jobs["attest-release-pr"].steps.at(-1).run);
+});
+
+test("release reconciliation rejects fail-open mutations", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async (t) => {
+  const release = await workflow("release.yml");
+  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+  for (const [name, before, after] of [
+    ["unverified POST", 'if statuses="$(trap - ERR; timeout',
+      'return 0\n    if statuses="$(trap - ERR; timeout'],
+    ["omit retries", "for attempt in 1 2 3", "for attempt in 1"],
+    ["ignore creator", ".creator.id == $creator", "true"],
+    ["ignore creator login", '.creator.login == "github-actions[bot]"', "true"],
+    ["ignore creator type", '.creator.type == "Bot"', "true"],
+    ["ignore SHA", ".sha == $sha", "true"],
+    ["ignore state", ".state == $state", "true"],
+    ["ignore target", ".target_url == $target", "true"],
+    ["ignore description", ".description == $description", "true"],
+    ["ignore duplicate context", "length == 1 and all", "length > 0 and all"],
+    ["omit complete-set shape guard", 'all(.[].statuses[]; type == "object" and (.context | type) == "string") and', ""],
+    ["silence recovery exhaustion", 'unreconciled+=("${context}")', ":"],
+    ["erase original exit", 'exit "${exit_code}"', "exit 1"],
+  ]) {
+    await t.test(name, () => {
+      const mutated = source.replace(before, after);
+      assert.notEqual(mutated, source);
+      assert.throws(() => assertStatusReconciliation(mutated), { code: "ERR_ASSERTION" });
+    });
+  }
+});
+
+test("release analyze status is fail-closed and separate from CI jobs", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async () => {
+  const release = await workflow("release.yml");
+  assertAttestationStatusContract(release.jobs["attest-release-pr"].steps.at(-1).run);
+});
+
+test("release status contract rejects fail-open mutations", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async (t) => {
+  const release = await workflow("release.yml");
+  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+  const extraction = source.match(/^analyze_target_url="\$\(jq[^]*?\)"$/mu)?.[0];
+  assert.ok(extraction);
+  const mutations = [
+    ["remove ERR inheritance", source.replace("set -Eeuo", "set -euo")],
+    ["finalize fail_attestation early", source.replace('local description="$1"\n',
+      'local description="$1"\n  status_finalized=1\n')],
+    ...["if (( all_completed != 1 )); then", "if (( failed != 0 )); then"].map((start) =>
+      [`finalize early: ${start}`, source.replace(start, `${start}\n  status_finalized=1`)]),
+    ["finalize success early", source.replace(extraction, `status_finalized=1\n${extraction}`)],
+    ["inline analyze URL substitution", source.replace(extraction, "")
+      .replace('"${analyze_target_url}"', '"$(jq -r \'.html_url\' <<<"${observed_codeql_analyze_check}")"')],
+    ["accept empty analyze URL", source.replace(
+      '.html_url | select(type == "string" and length > 0)', ".html_url")],
+    ["include analyze in CI contexts", source.replace("ci_contexts=(check", "ci_contexts=(analyze check")],
+    ...[...source.matchAll(/for context in [^\n]+; do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)]
+      .map(([loop], index) => [`include analyze in CI loop ${index + 1}`,
+        source.replace(loop, loop.replace('"${ci_contexts[@]}"', '"${attestation_contexts[@]}"'))]),
+  ];
+  for (const [name, mutated] of mutations) {
+    await t.test(name, () => {
+      assert.notEqual(mutated, source, "mutation must change the workflow");
+      assert.throws(() => assertAttestationStatusContract(mutated), { code: "ERR_ASSERTION" });
+    });
+  }
+});
 
 function assertFinalCodeqlReadsFailClosed(attestationSource) {
   const immediatelyValidatedReads = [

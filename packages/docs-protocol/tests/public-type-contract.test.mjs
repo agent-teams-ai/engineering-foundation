@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
 
 test("portable declarations retain generic result contracts without managed root aliases", async () => {
@@ -81,6 +81,60 @@ void [historicalIdentity, successor, validatePortableRepositoryPath("CON.yaml"),
 function wireUnion(values) {
   return values.map((value) => JSON.stringify(value)).join(" | ");
 }
+
+test("public diagnostics retain named-interface and declaration-merging semantics", async () => {
+  const root = await mkdtemp(join(tmpdir(), "docs-diagnostic-types-"));
+  try {
+    const scope = join(root, "node_modules", "@agent-teams");
+    await mkdir(scope, { recursive: true });
+    await symlink(fileURLToPath(new URL("../", import.meta.url)), join(scope, "docs-protocol"), "junction");
+    const fixtures = {
+      "conditional-record": `
+import type { DocsCommandEnvelopeV2, DocsCommandEnvelopeV3, DocsDiagnostic } from "@agent-teams/docs-protocol";
+type Classification<T> = T extends Record<string, unknown> ? "record" : "diagnostic";
+const standalone: Classification<DocsDiagnostic> = "diagnostic";
+const v2: Classification<DocsCommandEnvelopeV2["diagnostics"][number]> = "diagnostic";
+const v3: Classification<DocsCommandEnvelopeV3["diagnostics"][number]> = "diagnostic";
+declare const diagnostic: DocsDiagnostic;
+declare const envelopeV2: DocsCommandEnvelopeV2;
+declare const envelopeV3: DocsCommandEnvelopeV3;
+${["diagnostic", "envelopeV2.diagnostics[0]!", "envelopeV3.diagnostics[0]!"].map((value, index) => `// @ts-expect-error named diagnostics have no implicit dictionary index signature
+const record${index}: Record<string, unknown> = ${value};`).join("\n")}
+// @ts-expect-error arbitrary properties remain unavailable
+diagnostic["arbitrary"];
+${["message", "phase", "ruleId", "severity", "subject"].map((field) => `// @ts-expect-error standalone diagnostic ${field} remains readonly
+diagnostic.${field} = diagnostic.${field};`).join("\n")}
+void [standalone, v2, v3];
+`,
+      "declaration-merging": `
+import type { DocsCommandEnvelopeV2, DocsCommandEnvelopeV3, DocsDiagnostic,
+  docsCheckV2, docsContextV1, docsDoctorV2, docsFindV2, docsFindV3, docsInfoV2, docsNewV2, docsRecoverV2
+} from "@agent-teams/docs-protocol";
+declare module "@agent-teams/docs-protocol" {
+  interface DocsDiagnostic { readonly fixtureTag: "diagnostic"; }
+}
+declare const standalone: DocsDiagnostic;
+const tag: "diagnostic" = standalone.fixtureTag;
+${["DocsCommandEnvelopeV2", "DocsCommandEnvelopeV3",
+        ...["docsCheckV2", "docsContextV1", "docsDoctorV2", "docsFindV2", "docsFindV3", "docsInfoV2", "docsNewV2", "docsRecoverV2"].map((name) => `Awaited<ReturnType<typeof ${name}>>["envelope"]`)
+      ].map((envelope, index) => `declare const diagnostic${index}: ${envelope}["diagnostics"][number];
+const tag${index}: "diagnostic" = diagnostic${index}.fixtureTag;
+const same${index}: DocsDiagnostic = diagnostic${index};`).join("\n")}
+// @ts-expect-error merged fields retain their declared readonly modifier
+standalone.fixtureTag = "diagnostic";
+`
+    };
+    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
+    for (const [name, source] of Object.entries(fixtures)) {
+      const fixturePath = join(root, `${name}.mts`);
+      await writeFile(fixturePath, source);
+      // Compile separately so augmentation cannot influence the Record probe.
+      const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", fixturePath], { cwd: root });
+      assert.equal(output.stdout, "");
+      assert.equal(output.stderr, "");
+    }
+  } finally {await rm(root, { recursive: true, force: true });}
+});
 
 test("outer envelopes preserve old generic contracts and match the published wire vocabulary", async () => {
   const root = await mkdtemp(join(tmpdir(), "docs-envelope-types-"));

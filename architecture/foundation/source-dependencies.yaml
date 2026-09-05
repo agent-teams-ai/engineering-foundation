@@ -28,6 +28,7 @@ boundaries:
       - packages/docs-protocol/src/qualification/index.ts
     allow:
       boundaries:
+        - docs-protocol.docs-command.contracts
         - docs-protocol.docs-command.composition
         - docs-protocol.portable-bootstrap.composition
         - docs-protocol.portable-documentation.composition

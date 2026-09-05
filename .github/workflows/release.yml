@@ -216,7 +216,6 @@ jobs:
 
           fail_attestation() {
             local description="$1"
-            status_finalized=1
             for context in "${attestation_contexts[@]}"; do
               post_status "${context}" failure "${description}" "${RELEASE_RUN_URL}"
             done
@@ -457,7 +456,6 @@ jobs:
           done
 
           if (( all_completed != 1 )); then
-            status_finalized=1
             for context in "${attestation_contexts[@]}"; do
               post_status "${context}" error "Release PR ${context}: CI timeout" "${RELEASE_RUN_URL}"
             done
@@ -492,7 +490,6 @@ jobs:
           done
 
           if (( failed != 0 )); then
-            status_finalized=1
             post_status analyze failure "Release PR CI failed" "${RELEASE_RUN_URL}"
             for index in "${!ci_contexts[@]}"; do
               post_status "${ci_contexts[index]}" failure \
@@ -919,11 +916,14 @@ jobs:
             fail_attestation "Final release PR CI could not be verified"
           fi
 
+          analyze_target_url="$(jq -er '.html_url | select(type == "string" and length > 0)' \
+            <<<"${observed_codeql_analyze_check}")"
+
           for index in "${!ci_contexts[@]}"; do
             post_status "${ci_contexts[index]}" success \
               "Release PR ${ci_contexts[index]}: ${conclusions[index]}" \
               "${target_urls[index]}"
           done
           post_status analyze success "Release PR analyze: success" \
-            "$(jq -r '.html_url' <<<"${observed_codeql_analyze_check}")"
+            "${analyze_target_url}"
           status_finalized=1

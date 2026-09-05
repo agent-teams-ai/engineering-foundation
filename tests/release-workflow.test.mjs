@@ -190,34 +190,65 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.doesNotMatch(attestation.run, /sort_by\(\.id\) \| last/u);
 }
 
-// Execute only local status-control fragments; never dispatch workflow/API calls.
+// Execute local control fragments with the real post_status; gh cannot reach the API.
 function runAttestationFragment(source, fragment, setup = "") {
-  const declarations = source.slice(0, source.indexOf("post_status()"));
-  const handlers = source.slice(
-    source.indexOf("mark_attestation_error()"),
-    source.indexOf("fetch_paginated_pages()"),
-  );
-  return spawnSync("bash", ["-c", `${declarations}
-    post_status() {
-      printf '%s|%s|%s\\n' "$1" "$2" "$4"
-      if [[ "$1:$2" == "\${reject_status:-none}" ]]; then return 1; fi
+  const control = source.slice(0, source.indexOf("fetch_paginated_pages()"));
+  const result = spawnSync("bash", ["-c", `
+    gh() {
+      [[ "$1 $2 $3 $4" == "api --method POST repos/owner/repo/statuses/${"a".repeat(40)}" ]] || return 97
+      shift 4
+      local state="" context="" description="" target_url="" outcome=accepted
+      while (( $# )); do
+        [[ "$1" == "-f" && $# -ge 2 ]] || return 98
+        case "$2" in
+          state=*) state="\${2#state=}" ;;
+          context=*) context="\${2#context=}" ;;
+          description=*) description="\${2#description=}" ;;
+          target_url=*) target_url="\${2#target_url=}" ;;
+          *) return 99 ;;
+        esac
+        shift 2
+      done
+      [[ -n "$context" && -n "$state" && -n "$description" ]] || return 100
+      if [[ "$context:$state" == "\${reject_status:-none}" ||
+        "$context:$state" == "\${reject_recovery:-none}" ]]; then
+        outcome=rejected
+        reject_status=none
+      fi
+      printf '%s|%s|%s|%s\n' "$context" "$state" "$target_url" "$outcome" >&3
+      [[ "$outcome" == accepted ]]
     }
-    ${handlers}
+    ${control}
     trap mark_attestation_error ERR
     ${setup}
     ${fragment}
   `], {
     encoding: "utf8",
+    timeout: 5000,
+    stdio: ["pipe", "pipe", "pipe", "pipe"],
     env: { ...process.env, EXPECTED_RELEASE_HEAD_SHA: "a".repeat(40),
+      GITHUB_REPOSITORY: "owner/repo",
       RELEASE_RUN_URL: "https://github.com/owner/repo/actions/runs/999" },
   });
+  const attempts = (result.output[3] ?? "").trim().split("\n").filter(Boolean);
+  return { ...result, attempts, stdout: attempts
+    .filter((line) => line.endsWith("|accepted"))
+    .map((line) => line.slice(0, -"|accepted".length)).join("\n") };
 }
 
-test("release analyze status is fail-closed and separate from CI jobs", {
-  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
-}, async () => {
-  const release = await workflow("release.yml");
-  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+function assertTerminalRecovery(result, contexts) {
+  assert.equal(result.status, 1, result.stderr);
+  const statuses = result.stdout.trim().split("\n").map((line) => line.split("|"));
+  const latest = new Map(statuses.map(([context, state]) => [context, state]));
+  assert.deepEqual([...latest.keys()].toSorted(), contexts.toSorted());
+  for (const context of contexts) {
+    assert.match(latest.get(context), /^(?:failure|error)$/u, context);
+    assert.ok(result.attempts.some((line) => line.startsWith(`${context}|error|`)),
+      `missing recovery attempt: ${context}`);
+  }
+}
+
+function assertAttestationStatusContract(source) {
   const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
   const block = (start, end) => {
     const from = source.indexOf(start);
@@ -243,9 +274,17 @@ test("release analyze status is fail-closed and separate from CI jobs", {
     assert.deepEqual(result.stdout.trim().split("\n").map((line) => line.split("|").slice(0, 2)),
       contexts.map((context) => [context, state]));
   }
+  // Even a failed recovery POST must not recurse or prevent the remaining attempts.
+  const recoveryFailure = runAttestationFragment(source, `${pending}\nfalse`,
+    "reject_recovery=analyze:error");
+  assert.equal(recoveryFailure.status, 1, recoveryFailure.stderr);
+  assert.deepEqual(recoveryFailure.attempts.slice(contexts.length),
+    contexts.map((context) =>
+      `${context}|error|https://github.com/owner/repo/actions/runs/999|${context === "analyze" ? "rejected" : "accepted"}`));
+
   const collected = runAttestationFragment(source, 'printf "%s\\n" "${ci_contexts[@]}"');
   assert.equal(collected.status, 0, collected.stderr);
-  assert.deepEqual(collected.stdout.trim().split("\n"), contexts.slice(1));
+  assert.deepEqual(collected.output[1].trim().split("\n"), contexts.slice(1));
   const jobLoops = [...source.matchAll(/for context in ([^\n]+); do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)];
   assert.equal(jobLoops.length, 2);
   assert.deepEqual(jobLoops.map((match) => match[1]), Array(2).fill('"${ci_contexts[@]}"'));
@@ -260,6 +299,7 @@ test("release analyze status is fail-closed and separate from CI jobs", {
     'require_final_release_pr_snapshot "${post_current_main_sha}"',
     'final_run_verified=1',
     'if (( final_run_verified != 1 )); then',
+    'post_status "${ci_contexts[index]}" success',
     'post_status analyze success',
     'status_finalized=1',
   ];
@@ -273,24 +313,102 @@ test("release analyze status is fail-closed and separate from CI jobs", {
   const evidence = exactCodeqlEvidence();
   const expectation = { ...exactRunExpectation, runId: 123 };
   const receipt = validateReleaseCodeqlEvidence(evidence, expectation);
+  validateReleaseCodeqlEvidence(asFinalEvidence(evidence), expectation, receipt);
   for (const url of [evidence.run.html_url, evidence.checkRuns.check_runs[0].html_url]) {
     const changed = asFinalEvidence(structuredClone(evidence));
     changed.analyzeCheck.html_url = url;
     assert.throws(() => validateReleaseCodeqlEvidence(changed, expectation, receipt),
       /analyze check run identity differs/u);
   }
-  const setup = `${ciSetup}; codeql_evidence_error=/dev/null;
+  const setup = `conclusions=(success success success); target_urls=(ci1 ci2 ci3);
+    codeql_evidence_error=/dev/null;
     observed_codeql_analyze_check='${JSON.stringify(evidence.analyzeCheck)}'`;
   const success = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=1`);
   assert.equal(success.status, 0, success.stderr);
   assert.equal(success.stdout.trim().split("\n").at(-1),
     `analyze|success|${evidence.analyzeCheck.html_url}`);
-  for (const extra of ["final_run_verified=0", 'final_run_verified=1; reject_status=windows-check:success',
-    'final_run_verified=1; reject_status=analyze:success']) {
-    const rejected = runAttestationFragment(source, finalGate, `${setup}; ${extra}`);
-    assert.equal(rejected.status, 1, rejected.stderr);
-    const analyze = rejected.stdout.trim().split("\n").filter((line) => line.startsWith("analyze|"));
-    assert.match(analyze.at(-1), /^analyze\|(?:failure|error)\|/u);
+  assert.deepEqual(success.stdout.split("\n").map((line) => line.split("|").slice(0, 2)),
+    [...contexts.slice(1), "analyze"].map((context) => [context, "success"]));
+  for (const context of contexts) {
+    const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
+      `${setup}; final_run_verified=1; reject_status=${context}:success`);
+    assertTerminalRecovery(rejected, contexts);
+    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 1);
+    const failureIndex = rejected.attempts.findIndex((line) => line.endsWith("|rejected"));
+    assert.ok(rejected.attempts.slice(failureIndex + 1).every((line) => !line.includes("|success|")));
+  }
+  const unverified = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=0`);
+  assert.equal(unverified.status, 1, unverified.stderr);
+  assert.ok(unverified.attempts.every((line) => !line.includes("|success|")));
+
+  // jq runs for real on missing, empty, non-string, and malformed evidence.
+  // A tool failure with valid evidence separately models a failed final extraction.
+  for (const extractionSetup of [
+    ...["{}", '{"html_url":""}', '{"html_url":null}', '{"html_url":42}', '{"html_url":false}',
+      '{"html_url":[]}', '{"html_url":{}}', "invalid-json"]
+      .map((value) => `observed_codeql_analyze_check='${value}'`),
+    "jq() { return 42; }",
+  ]) {
+    const rejected = runAttestationFragment(source, `${pending}\n${finalGate}`,
+      `${setup}; final_run_verified=1; ${extractionSetup}`);
+    assert.notEqual(rejected.status, 0, rejected.stderr);
+    assert.equal(rejected.signal, null);
+    assert.ok(rejected.attempts.every((line) => !line.includes("|success|")),
+      "failed analyze URL extraction must precede every success POST");
+    const latest = new Map(rejected.stdout.split("\n").map((line) => line.split("|")));
+    for (const context of contexts) {
+      assert.equal(latest.get(context), "error");
+    }
+  }
+
+  for (const [fragment, failureSetup, state] of [
+    ['fail_attestation "invalid evidence"', "", "failure"],
+    [block("if (( all_completed != 1 )); then", "failed=0"), "all_completed=0", "error"],
+    [block("if (( failed != 0 )); then", 'codeql_receipt=""'), `${ciSetup}; failed=1`, "failure"],
+  ]) {
+    const rejected = runAttestationFragment(source, `${pending}\n${fragment}`,
+      `reject_status=analyze:${state}; ${failureSetup}`);
+    assertTerminalRecovery(rejected, contexts);
+    assert.equal(rejected.attempts.filter((line) => line.endsWith("|rejected")).length, 1);
+    assert.ok(rejected.attempts.every((line) => !line.includes("|success|")));
+  }
+}
+
+test("release analyze status is fail-closed and separate from CI jobs", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async () => {
+  const release = await workflow("release.yml");
+  assertAttestationStatusContract(release.jobs["attest-release-pr"].steps.at(-1).run);
+});
+
+test("release status contract rejects fail-open mutations", {
+  skip: process.platform === "win32" && "attester runs in Ubuntu Bash",
+}, async (t) => {
+  const release = await workflow("release.yml");
+  const source = release.jobs["attest-release-pr"].steps.at(-1).run;
+  const extraction = source.match(/^analyze_target_url="\$\(jq[^]*?\)"$/mu)?.[0];
+  assert.ok(extraction);
+  const mutations = [
+    ["remove ERR inheritance", source.replace("set -Eeuo", "set -euo")],
+    ["finalize fail_attestation early", source.replace('local description="$1"\n',
+      'local description="$1"\n  status_finalized=1\n')],
+    ...["if (( all_completed != 1 )); then", "if (( failed != 0 )); then"].map((start) =>
+      [`finalize early: ${start}`, source.replace(start, `${start}\n  status_finalized=1`)]),
+    ["finalize success early", source.replace(extraction, `status_finalized=1\n${extraction}`)],
+    ["inline analyze URL substitution", source.replace(extraction, "")
+      .replace('"${analyze_target_url}"', '"$(jq -r \'.html_url\' <<<"${observed_codeql_analyze_check}")"')],
+    ["accept empty analyze URL", source.replace(
+      '.html_url | select(type == "string" and length > 0)', ".html_url")],
+    ["include analyze in CI contexts", source.replace("ci_contexts=(check", "ci_contexts=(analyze check")],
+    ...[...source.matchAll(/for context in [^\n]+; do\n\s+read -r (?:job_count job_status|conclusion target_url)/gu)]
+      .map(([loop], index) => [`include analyze in CI loop ${index + 1}`,
+        source.replace(loop, loop.replace('"${ci_contexts[@]}"', '"${attestation_contexts[@]}"'))]),
+  ];
+  for (const [name, mutated] of mutations) {
+    await t.test(name, () => {
+      assert.notEqual(mutated, source, "mutation must change the workflow");
+      assert.throws(() => assertAttestationStatusContract(mutated), { code: "ERR_ASSERTION" });
+    });
   }
 });
 

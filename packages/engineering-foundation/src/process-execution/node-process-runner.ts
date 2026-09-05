@@ -2,8 +2,13 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { ProcessCancellationError, ProcessTimeoutError } from "./api.js";
-import { FoundationError } from "../features/validation-reporting/api.js";
+import {
+  processFailure,
+  processCancelled,
+  processTimedOut,
+  prepareProcessRequest,
+  isProcessFailure
+} from "./application/process-failure-policy.js";
 import {
   cleanUpWindowsManagedProcessLaunchFailure,
   managedProcessCleanupFailure,
@@ -19,7 +24,6 @@ import type {
   ProcessRunner
 } from "./api.js";
 
-const MAX_PROCESS_TIMEOUT_MS = 2_147_483_647;
 const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
 
@@ -32,77 +36,6 @@ interface ObservedProcessExit {
 export interface NodeManagedProcessRequest extends ProcessRequest {
   /** Exact inherited environment for a private Node process-adapter boundary. */
   readonly environment?: Readonly<NodeJS.ProcessEnv>;
-}
-
-function describeRequest(request: ProcessRequest): string {
-  return `${request.command} ${request.args.join(" ")}`;
-}
-
-function processFailure(
-  request: ProcessRequest,
-  message: string,
-  cause?: unknown
-): FoundationError {
-  return new FoundationError(
-    "PROCESS_FAILED",
-    `${describeRequest(request)} ${message}`,
-    cause === undefined ? undefined : { cause }
-  );
-}
-
-
-function processCancelled(
-  request: ProcessRequest,
-  message: string,
-  cause?: unknown
-): FoundationError {
-  return new ProcessCancellationError(
-    `${describeRequest(request)} ${message}`,
-    cause === undefined ? undefined : { cause }
-  );
-}
-
-function processTimedOut(
-  request: ProcessRequest,
-  timeoutMs: number
-): ProcessTimeoutError {
-  return new ProcessTimeoutError(timeoutMs, {
-    requestDescription: describeRequest(request)
-  });
-}
-
-function resolveTimeout(request: ProcessRequest): number | undefined {
-  const timeoutMs = request.timeoutMs;
-  if (timeoutMs === undefined) {
-    return undefined;
-  }
-  if (
-    !Number.isSafeInteger(timeoutMs) ||
-    timeoutMs <= 0 ||
-    timeoutMs > MAX_PROCESS_TIMEOUT_MS
-  ) {
-    throw processFailure(
-      request,
-      `requires timeoutMs to be a positive integer no greater than ${MAX_PROCESS_TIMEOUT_MS}.`
-    );
-  }
-  return timeoutMs;
-}
-
-function assertProcessCanStart(request: ProcessRequest): void {
-  if (request.signal?.aborted === true) {
-    throw processCancelled(
-      request,
-      "was cancelled before it started.",
-      request.signal.reason
-    );
-  }
-}
-
-function prepareProcessRequest(request: ProcessRequest): number | undefined {
-  const timeoutMs = resolveTimeout(request);
-  assertProcessCanStart(request);
-  return timeoutMs;
 }
 
 async function waitForExit(
@@ -265,7 +198,7 @@ function decodeProcessOutput(
   request: ManagedProcessRequest,
   stdout: readonly Buffer[],
   stderr: readonly Buffer[]
-): { readonly stdout: string; readonly stderr: string } | FoundationError {
+): { readonly stdout: string; readonly stderr: string } | ReturnType<typeof processFailure> {
   const decode = (chunks: readonly Buffer[]) => {
     const bytes = Buffer.concat(chunks);
     const text = bytes.toString("utf8");
@@ -287,13 +220,13 @@ function decodeProcessOutput(
 
 function observedFailureAfterCancellation(
   request: ManagedProcessRequest,
-  completionFailure: FoundationError | undefined,
+  completionFailure: ReturnType<typeof processFailure> | undefined,
   observedExit: ObservedProcessExit | undefined,
   stdout: readonly Buffer[],
   stderr: readonly Buffer[]
-): ManagedProcessResult | FoundationError | undefined {
+): ManagedProcessResult | ReturnType<typeof processFailure> | undefined {
   const decoded = decodeProcessOutput(request, stdout, stderr);
-  if (decoded instanceof FoundationError) {
+  if (isProcessFailure(decoded)) {
     return decoded;
   }
   if (completionFailure !== undefined) {
@@ -316,9 +249,9 @@ function observedFailureAfterCancellation(
 
 function combinedTerminationFailure(
   request: ProcessRequest,
-  failure: FoundationError,
+  failure: ReturnType<typeof processFailure>,
   error: unknown
-): FoundationError {
+): ReturnType<typeof processFailure> {
   return processFailure(
     request,
     "could not be terminated after failure.",
@@ -332,9 +265,9 @@ async function normalExitResult(input: {
   readonly closed: Promise<unknown>;
   readonly stdout: readonly Buffer[];
   readonly stderr: readonly Buffer[];
-  readonly completionFailure: () => FoundationError | undefined;
+  readonly completionFailure: () => ReturnType<typeof processFailure> | undefined;
   readonly exit: ObservedProcessExit;
-}): Promise<ManagedProcessResult | FoundationError> {
+}): Promise<ManagedProcessResult | ReturnType<typeof processFailure>> {
   try {
     await cleanUpAfterNormalExit(input.child);
     await (process.platform === "win32" ? input.closed : waitForCloseWithinCleanupDeadline(input.closed));
@@ -349,7 +282,7 @@ async function normalExitResult(input: {
     input.stdout,
     input.stderr
   );
-  if (decoded instanceof FoundationError) {
+  if (isProcessFailure(decoded)) {
     return decoded;
   }
   return input.completionFailure() ?? {
@@ -379,18 +312,18 @@ export async function executeManagedProcess(
       let stderrBytes = 0;
       let settled = false;
       let terminating = false;
-      let completionFailure: FoundationError | undefined;
+      let completionFailure: ReturnType<typeof processFailure> | undefined;
       let observedExit: ObservedProcessExit | undefined;
       const deadlineSignal = timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs);
 
-      const finish = (result: ManagedProcessResult | FoundationError) => {
+      const finish = (result: ManagedProcessResult | ReturnType<typeof processFailure>) => {
         if (settled) {
           return;
         }
         settled = true;
         deadlineSignal?.removeEventListener("abort", onTimeout);
         request.signal?.removeEventListener("abort", onAbort);
-        if (result instanceof FoundationError) {
+        if (isProcessFailure(result)) {
           reject(result);
           return;
         }
@@ -398,7 +331,7 @@ export async function executeManagedProcess(
       };
 
       const failAfterTermination = (
-        failure: FoundationError,
+        failure: ReturnType<typeof processFailure>,
         preferObservedFailure = false
       ) => {
         if (settled || terminating) {

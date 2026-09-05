@@ -2,7 +2,13 @@ import { createRequire } from "node:module";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { FoundationError } from "../../../features/validation-reporting/api.js";
+import {
+  invalidRuntimeModuleExports,
+  missingRuntimeExport,
+  unreadableTargetManifest,
+  unavailableBuildOutput,
+  unresolvableRuntimeDependency
+} from "../../application/inspection-failures.js";
 import { packageMetadata, validatePackageManifest } from "../../application/package-metadata.js";
 import type { FoundationPackageArtifactPolicy, FoundationPackageSelfCheck } from "../../application/package-metadata.js";
 
@@ -34,10 +40,7 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
     !isRecord(localModeExports) ||
     !isRecord(scaffoldingExports)
   ) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target runtime exports must be module objects."
-    );
+    throw invalidRuntimeModuleExports();
   }
   const requiredRuntimeExports: readonly (readonly [string, unknown])[] = [
     ["FoundationError", rootExports.FoundationError],
@@ -48,10 +51,7 @@ async function assertRequiredRuntimeExports(packageRoot: string): Promise<void> 
   ];
   for (const [exportName, candidate] of requiredRuntimeExports) {
     if (typeof candidate !== "function") {
-      throw new FoundationError(
-        "PACKAGE_INVALID",
-        `Foundation target runtime export is unavailable: ${exportName}.`
-      );
+      throw missingRuntimeExport(exportName);
     }
   }
 }
@@ -66,11 +66,7 @@ export async function inspectFoundationPackage(
       await readFile(join(packageRoot, "package.json"), "utf8")
     ) as unknown;
   } catch (error) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target package.json cannot be read.",
-      { cause: error }
-    );
+    throw unreadableTargetManifest(error);
   }
   validatePackageManifest(manifest, artifactPolicy.packageFileAllowlist);
   for (const outputPath of artifactPolicy.requiredArtifactPaths) {
@@ -80,11 +76,7 @@ export async function inspectFoundationPackage(
         throw new Error("not a regular file");
       }
     } catch (error) {
-      throw new FoundationError(
-        "PACKAGE_INVALID",
-        `Foundation target build output is unavailable: ${outputPath}.`,
-        { cause: error }
-      );
+      throw unavailableBuildOutput(outputPath, error);
     }
   }
   await assertRequiredRuntimeExports(packageRoot);
@@ -100,11 +92,7 @@ export async function inspectFoundationPackage(
       if (isImportOnlyPackageResolution(error)) {
         continue;
       }
-      throw new FoundationError(
-        "PACKAGE_INVALID",
-        `Foundation target runtime dependency cannot be resolved: ${dependencyName}.`,
-        { cause: error }
-      );
+      throw unresolvableRuntimeDependency(dependencyName, error);
     }
   }
 

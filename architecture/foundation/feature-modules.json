@@ -1733,7 +1733,8 @@
             }
           ],
           "testRoots": [
-            "tests/cli.test.mjs"
+            "tests/cli.test.mjs",
+            "tests/reporting-rest.test.mjs"
           ]
         },
         {

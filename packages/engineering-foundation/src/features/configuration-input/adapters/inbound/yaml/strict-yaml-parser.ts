@@ -1,10 +1,6 @@
 import { isAlias, isMap, isNode, isPair, parseDocument, visit } from "yaml";
 
-import { CapabilityInputError } from "../../../../validation-reporting/api.js";
-
-function inputError(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
-}
+import { rejectYamlInput, rejectYamlFeature } from "../../../application/configuration-file-problem.js";
 
 export function parseStrictYamlSource(source: string, phase: string): unknown {
   const document = parseDocument(source, {
@@ -19,7 +15,7 @@ export function parseStrictYamlSource(source: string, phase: string): unknown {
       .map((error) => error.message)
       .join("; ")
       .slice(0, 1000);
-    inputError("YAML_INVALID", problem || "YAML input is invalid.", phase);
+    rejectYamlInput(problem, phase);
   }
 
   let forbidden: string | undefined;
@@ -48,7 +44,7 @@ export function parseStrictYamlSource(source: string, phase: string): unknown {
     return;
   });
   if (forbidden !== undefined) {
-    inputError("YAML_FEATURE_PROHIBITED", forbidden, phase);
+    rejectYamlFeature(forbidden, phase);
   }
   return document.toJS({ maxAliasCount: 0 }) as unknown;
 }

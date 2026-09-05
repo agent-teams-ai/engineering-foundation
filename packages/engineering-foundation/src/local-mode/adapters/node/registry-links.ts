@@ -1,6 +1,11 @@
 import { appendFile, lstat, mkdir, readFile, realpath, rename, rm, symlink } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { FoundationError } from "../../../features/validation-reporting/api.js";
+import {
+  localLinkTargetMismatch,
+  registryBackupAlreadyExists,
+  invalidInstalledEntry,
+  installedEntryChanged
+} from "../../application/inspection-failures.js";
 import { pathEntryExists, restoreRegistryEntry } from "./registry-recovery.js";
 import type { FoundationLinkState, ProcessRunner } from "../../application/model.js";
 import { FOUNDATION_PACKAGE_NAME, LOCAL_REGISTRY_BACKUP, LOCAL_STATE_DIRECTORY } from "../../application/model.js";
@@ -51,10 +56,7 @@ async function replaceRegistryEntryWithLink(
     process.platform === "win32" ? "junction" : "dir"
   );
   if ((await realpath(installedPackagePath)) !== state.targetPackageRoot) {
-    throw new FoundationError(
-      "LOCAL_STATE_INVALID",
-      "Local package link does not resolve to the requested target."
-    );
+    throw localLinkTargetMismatch();
   }
   await syncDirectory(dirname(installedPackagePath));
 }
@@ -63,23 +65,14 @@ async function prepareRegistryEntry(consumerRoot: string, registryPackageRoot: s
   const installedPath = join(consumerRoot, "node_modules", FOUNDATION_PACKAGE_NAME);
   const backupPath = join(consumerRoot, LOCAL_STATE_DIRECTORY, LOCAL_REGISTRY_BACKUP);
     if (await pathEntryExists(backupPath)) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        "A registry backup already exists; run detach to recover it before attaching."
-      );
+      throw registryBackupAlreadyExists();
     }
     const registryEntry = await lstat(installedPath);
     if (!registryEntry.isDirectory() && !registryEntry.isSymbolicLink()) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        "Installed foundation entry is neither a directory nor a symbolic link."
-      );
+      throw invalidInstalledEntry();
     }
     if ((await realpath(installedPath)) !== registryPackageRoot) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        "Installed foundation entry changed before attach could replace it."
-      );
+      throw installedEntryChanged();
     }
   return {
     registryBackupPath: backupPath,

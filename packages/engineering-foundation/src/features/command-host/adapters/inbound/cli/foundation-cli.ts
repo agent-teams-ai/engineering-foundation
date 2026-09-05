@@ -1,4 +1,9 @@
-import { CapabilityInputError, exitCodeForOutcome,FoundationError } from "../../../../validation-reporting/api.js";
+import {
+  invalidCommand,
+  checkCommandExitCode,
+  commandInputText,
+  commandFoundationText
+} from "../../../application/command-reporting.js";
 import { ProcessCancellationError } from "../../../../../process-execution/api.js";
 import { ScaffoldError } from "../../../../../scaffolding/scaffold-error.js";
 import { FoundationTransactionError } from "../../../../../transaction-coordination/application/foundation-transaction-error.js";
@@ -118,10 +123,7 @@ async function runLocalModeCommand<SchemaId extends string>(
     case "attach": {
       const target = parsed.positional[0];
       if (target === undefined) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          "attach requires a foundation repository or package path."
-        );
+        throw invalidCommand("attach requires a foundation repository or package path.");
       }
       const result = await service.attach(parsed.consumerRoot, target);
       printStatus(result.status, json);
@@ -147,10 +149,7 @@ async function runLocalModeCommand<SchemaId extends string>(
         ({ id }) => id === "governance.architecture-decisions"
       );
       if (declaration === undefined) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          "governance.architecture-decisions must be declared before baseline promotion."
-        );
+        throw invalidCommand("governance.architecture-decisions must be declared before baseline promotion.");
       }
       const promotion = await services.promoteDecisions({
         consumerRoot: parsed.consumerRoot,
@@ -202,7 +201,7 @@ async function runCheckCommand<SchemaId extends string>(
         ? `${JSON.stringify(report, null, 2)}\n`
         : services.renderCheck(report)
     );
-    process.exitCode = exitCodeForOutcome(report.outcome);
+    process.exitCode = checkCommandExitCode(report.outcome);
   });
   return true;
 }
@@ -216,20 +215,14 @@ async function runProtobufQualificationCommand<SchemaId extends string>(
     return false;
   }
   if (parsed.bufExecutablePath === undefined) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "protobuf-qualify-breaking requires --buf-executable <absolute-path>."
-    );
+    throw invalidCommand("protobuf-qualify-breaking requires --buf-executable <absolute-path>.");
   }
   const settings = await services.readConfig(parsed.consumerRoot);
   const declaration = settings.declaredCapabilities.find(
     ({ id }) => id === "contract.protobuf-evolution"
   );
   if (declaration === undefined) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "contract.protobuf-evolution must be declared before Buf qualification."
-    );
+    throw invalidCommand("contract.protobuf-evolution must be declared before Buf qualification.");
   }
   const qualifyProtobuf = await services.loadProtobufQualifier();
   const executablePath = parsed.bufExecutablePath;
@@ -259,21 +252,21 @@ async function runAgentWorkflowCommand<SchemaId extends string>(
   }
   const subcommand = parsed.positional[0];
   if (subcommand !== "changed" && subcommand !== "instructions") {
-    throw new FoundationError("CONSUMER_INVALID", "agent-workflow requires the changed or instructions subcommand.");
+    throw invalidCommand("agent-workflow requires the changed or instructions subcommand.");
   }
   const targetPath = parsed.positional[1];
   if (subcommand === "instructions" && parsed.positional.length !== 2) {
-    throw new FoundationError("CONSUMER_INVALID", "agent-workflow instructions requires exactly one repository-relative file path.");
+    throw invalidCommand("agent-workflow instructions requires exactly one repository-relative file path.");
   }
   if (subcommand === "changed" && parsed.positional.length !== 1) {
-    throw new FoundationError("CONSUMER_INVALID", "agent-workflow changed does not accept a target path.");
+    throw invalidCommand("agent-workflow changed does not accept a target path.");
   }
   const settings = await services.readConfig(parsed.consumerRoot);
   const declaration = settings.declaredCapabilities.find(
     ({ id }) => id === "repository.agent-workflow"
   );
   if (declaration === undefined) {
-    throw new FoundationError("CONSUMER_INVALID", "The consumer must declare repository.agent-workflow before using its commands.");
+    throw invalidCommand("The consumer must declare repository.agent-workflow before using its commands.");
   }
   if (subcommand === "instructions") {
     await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => services.agentWorkflow.instructions({
@@ -303,11 +296,11 @@ async function runPolicyCommand<SchemaId extends string>(
     case "explain": {
       const ruleId = parsed.positional[0];
       if (ruleId === undefined) {
-        throw new FoundationError("CONSUMER_INVALID", "explain requires a rule ID.");
+        throw invalidCommand("explain requires a rule ID.");
       }
       const metadata = services.rules.get(ruleId);
       if (metadata === undefined) {
-        throw new FoundationError("CONSUMER_INVALID", `Unknown rule ID: ${ruleId}.`);
+        throw invalidCommand(`Unknown rule ID: ${ruleId}.`);
       }
       process.stdout.write(
         json
@@ -322,10 +315,7 @@ async function runPolicyCommand<SchemaId extends string>(
         ({ id }) => id === "package.public-api-compatibility"
       );
       if (declaration === undefined) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          "package.public-api-compatibility must be declared before baseline promotion."
-        );
+        throw invalidCommand("package.public-api-compatibility must be declared before baseline promotion.");
       }
       const snapshots = await services.promotePublicApi({
         consumerRoot: parsed.consumerRoot,
@@ -366,10 +356,7 @@ async function runInformationCommand<SchemaId extends string>(
     case "schema": {
       const schemaId = parsed.positional[0];
       if (schemaId === undefined || !services.isSchemaId(schemaId)) {
-        throw new FoundationError(
-          "CONSUMER_INVALID",
-          `Unknown schema ID: ${schemaId ?? "missing"}.`
-        );
+        throw invalidCommand(`Unknown schema ID: ${schemaId ?? "missing"}.`);
       }
       process.stdout.write(await services.readSchema(schemaId));
       return true;
@@ -424,20 +411,23 @@ export async function runFoundationCli<SchemaId extends string>(createServices: 
         error.code === "SCAFFOLD_PLAN_INVALID"
           ? 2
           : 1;
-    } else if (error instanceof CapabilityInputError) {
-      process.stderr.write(`${error.problem.code}: ${error.problem.message}\n`);
-      process.exitCode = error.problem.code === "EXECUTION_CANCELLED" ? 130 : 2;
-    } else if (error instanceof ProcessCancellationError) {
-      process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
-      process.exitCode = 130;
-    } else if (error instanceof FoundationError) {
-      process.stderr.write(`${error.code}: ${error.message}\n`);
-      process.exitCode = error.code === "CONSUMER_INVALID" ? 2 : 1;
     } else {
-      process.stderr.write(
-        `UNEXPECTED: ${error instanceof Error ? error.message : String(error)}\n`
-      );
-      process.exitCode = 1;
+      printExecutionFailure(error);
     }
+  }
+}
+
+function printExecutionFailure(error: unknown): void {
+  const inputFailure = commandInputText(error);
+  if (inputFailure !== undefined) {
+    process.stderr.write(inputFailure.text);
+    process.exitCode = inputFailure.exitCode;
+  } else if (error instanceof ProcessCancellationError) {
+    process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
+    process.exitCode = 130;
+  } else {
+    const failure = commandFoundationText(error);
+    process.stderr.write(failure?.text ?? `UNEXPECTED: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = failure?.exitCode ?? 1;
   }
 }

@@ -126,14 +126,9 @@ export function managedProcessCleanupFailure(
   error: unknown,
   wrapperStderr: readonly Buffer[],
   windows: boolean
-): FoundationError {
+): ReturnType<typeof processCleanupFailure> {
   const description = describeManagedProcessCleanupFailure(error, wrapperStderr, windows);
-  const requestDescription = `${request.command} ${request.args.join(" ")}`;
-  return new FoundationError(
-    "PROCESS_FAILED",
-    windows ? `${description} ${requestDescription}` : `${requestDescription} ${description}`,
-    { cause: error }
-  );
+  return processCleanupFailure(request, description, error, windows);
 }
-import { FoundationError } from "../features/validation-reporting/api.js";
+import { processCleanupFailure } from "./application/process-failure-policy.js";
 import type { ProcessRequest } from "./api.js";

@@ -1,7 +1,13 @@
 import { lstat, mkdir, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { FoundationError } from "../../../features/validation-reporting/api.js";
+import {
+  invalidRecoveryManifest,
+  recoveryPathsOutsideConsumer,
+  invalidRegistryBackup,
+  unprovenRegistryEntry,
+  missingTargetPackage
+} from "../../application/inspection-failures.js";
 import type { FoundationLinkState } from "../../application/model.js";
 import {
   FOUNDATION_PACKAGE_NAME,
@@ -17,7 +23,7 @@ interface PackageManifest {
 async function readPackageManifest(path: string): Promise<PackageManifest> {
   const value = JSON.parse(await readFile(join(path, "package.json"), "utf8")) as unknown;
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new FoundationError("PACKAGE_INVALID", `Invalid package.json at ${path}.`);
+    throw invalidRecoveryManifest(path);
   }
   return value;
 }
@@ -66,10 +72,7 @@ function assertRecoveryStatePaths(consumerRoot: string, state: FoundationLinkSta
     resolve(state.registryBackupPath) !== backupPath ||
     !isWithin(join(consumerRoot, "node_modules"), resolve(state.registryPackageRoot))
   ) {
-    throw new FoundationError(
-      "LOCAL_STATE_INVALID",
-      "Local recovery state contains paths outside its consumer-owned boundary."
-    );
+    throw recoveryPathsOutsideConsumer();
   }
 }
 
@@ -105,10 +108,7 @@ export async function restoreRegistryEntry(
       backup.manifest.version !== dependencySpec ||
       !backupRootExpected(consumerRoot, backup.packageRoot, backupPath, state)
     ) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        "Registry backup identity, version, or location is invalid."
-      );
+      throw invalidRegistryBackup();
     }
     await rm(installedPath, { force: true, recursive: true });
     await mkdir(dirname(installedPath), { recursive: true });
@@ -131,10 +131,7 @@ export async function restoreRegistryEntry(
       return;
     }
   }
-  throw new FoundationError(
-    "LOCAL_STATE_INVALID",
-    "Registry backup is unavailable and the installed package cannot be proven to be the original registry entry."
-  );
+  throw unprovenRegistryEntry();
 }
 
 export async function resolveTargetPackageRoot(targetPath: string): Promise<string> {
@@ -152,8 +149,5 @@ export async function resolveTargetPackageRoot(targetPath: string): Promise<stri
       return await realpath(workspacePackage);
     }
   }
-  throw new FoundationError(
-    "PACKAGE_INVALID",
-    `Target does not contain ${FOUNDATION_PACKAGE_NAME}.`
-  );
+  throw missingTargetPackage();
 }

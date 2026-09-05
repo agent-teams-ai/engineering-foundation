@@ -1,6 +1,6 @@
 import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
 
-import { CapabilityInputError } from "../../../../validation-reporting/api.js";
+import { rejectSchemaInput } from "../../../application/configuration-file-problem.js";
 import type { SchemaCatalog, SchemaCatalogInput } from "../../../application/schema-catalog.js";
 
 function safeValidationMessage(errors: readonly ErrorObject[] | null | undefined): string {
@@ -78,12 +78,7 @@ export function createSchemaCatalog<SchemaId extends string>(
   ): Promise<void> {
     const validate = await validator(schemaId);
     if (!validate(input)) {
-      throw new CapabilityInputError({
-        code: "SCHEMA_INVALID",
-        message: safeValidationMessage(validate.errors),
-        phase,
-        retryable: false
-      });
+      rejectSchemaInput(safeValidationMessage(validate.errors), phase);
     }
   }
 

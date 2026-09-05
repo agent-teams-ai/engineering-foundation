@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
-import { FoundationError } from "../../../../validation-reporting/api.js";
+import { invalidCommand } from "../../../application/command-reporting.js";
+
 import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "../../../../../scaffolding/scaffold-defaults.js";
 
 import type { CommandInvocation as ParsedArguments, OutputFormat } from "../../../application/command-invocation.js";
@@ -59,7 +60,7 @@ function requiredOptionValue(
     candidate.length === 0 ||
     candidate.startsWith("-")
   ) {
-    throw new FoundationError("CONSUMER_INVALID", `${option} requires a value.`);
+    throw invalidCommand(`${option} requires a value.`);
   }
   return candidate;
 }
@@ -70,16 +71,10 @@ function requiredBaseRefValue(
 ): string {
   const candidate = args[index + 1];
   if (candidate === undefined || candidate.length === 0) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--base requires a Git ref."
-    );
+    throw invalidCommand("--base requires a Git ref.");
   }
   if (candidate.startsWith("-")) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "The base ref cannot start with a dash."
-    );
+    throw invalidCommand("The base ref cannot start with a dash.");
   }
   return candidate;
 }
@@ -90,10 +85,7 @@ function provideScalarOption(
   displayName: string
 ): void {
   if (state.providedOptions.has(identity)) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      `${displayName} may be specified only once.`
-    );
+    throw invalidCommand(`${displayName} may be specified only once.`);
   }
   state.providedOptions.add(identity);
 }
@@ -147,7 +139,7 @@ function consumeOutputFormatOption(
   }
   const candidate = args[index + 1];
   if (candidate !== "json" && candidate !== "text") {
-    throw new FoundationError("CONSUMER_INVALID", "--format requires json or text.");
+    throw invalidCommand("--format requires json or text.");
   }
   provideScalarOption(state, "output-format", "--json or --format");
   state.format = candidate;
@@ -179,10 +171,7 @@ function consumeArgument(
     provideScalarOption(state, "--consumer", "--consumer");
     const consumerRoot = resolve(candidate);
     if (Buffer.byteLength(consumerRoot, "utf8") > MAXIMUM_CONSUMER_ROOT_BYTES) {
-      throw new FoundationError(
-        "CONSUMER_INVALID",
-        `--consumer resolves beyond ${MAXIMUM_CONSUMER_ROOT_BYTES} UTF-8 bytes.`
-      );
+      throw invalidCommand(`--consumer resolves beyond ${MAXIMUM_CONSUMER_ROOT_BYTES} UTF-8 bytes.`);
     }
     state.consumerRoot = consumerRoot;
     return 1;
@@ -199,7 +188,7 @@ function consumeArgument(
     return 1;
   }
   if (value.startsWith("-")) {
-    throw new FoundationError("CONSUMER_INVALID", `Unknown option: ${value}.`);
+    throw invalidCommand(`Unknown option: ${value}.`);
   }
   state.positional.push(value);
   return 0;
@@ -217,31 +206,19 @@ function validateNonDocumentCommandOptions(
     state.baseRef !== undefined &&
     (command !== "agent-workflow" || state.positional[0] !== "changed")
   ) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--base is supported only by agent-workflow changed."
-    );
+    throw invalidCommand("--base is supported only by agent-workflow changed.");
   }
   if (state.configPathProvided && command !== "scaffold-plan") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--config is supported only by scaffold-plan."
-    );
+    throw invalidCommand("--config is supported only by scaffold-plan.");
   }
   if (state.write && command !== "protobuf-qualify-breaking") {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--write is supported only by protobuf-qualify-breaking."
-    );
+    throw invalidCommand("--write is supported only by protobuf-qualify-breaking.");
   }
   if (
     state.bufExecutablePath !== undefined &&
     command !== "protobuf-qualify-breaking"
   ) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      "--buf-executable is supported only by protobuf-qualify-breaking."
-    );
+    throw invalidCommand("--buf-executable is supported only by protobuf-qualify-breaking.");
   }
 }
 
@@ -251,10 +228,7 @@ function validatePositionalArguments(
 ): void {
   const maximum = MAX_POSITIONAL_ARGUMENTS[command];
   if (maximum !== undefined && positional.length > maximum) {
-    throw new FoundationError(
-      "CONSUMER_INVALID",
-      `${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`
-    );
+    throw invalidCommand(`${command} accepts at most ${maximum} positional argument${maximum === 1 ? "" : "s"}.`);
   }
 }
 

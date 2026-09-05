@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { FoundationError } from "../../../features/validation-reporting/api.js";
+import { targetIsConsumer, invalidTargetSelfCheck, targetSelfCheckMismatch } from "../../application/inspection-failures.js";
 import { parseFoundationPackageSelfCheck, type FoundationPackageSelfCheck } from "../../application/package-metadata.js";
 import { resolveTargetPackageRoot } from "./registry-recovery.js";
 import type { ProcessRunner } from "../../application/model.js";
@@ -14,7 +14,7 @@ async function verifyTargetPackage(
 ): Promise<{ readonly targetPackageRoot: string; readonly packageVersion: string }> {
   const targetPackageRoot = await resolveTargetPackageRoot(targetPath);
   if (targetPackageRoot === consumerRoot) {
-    throw new FoundationError("PACKAGE_INVALID", "Foundation target cannot be the consumer repository.");
+    throw targetIsConsumer();
   }
   const expected = await inspectPackage(targetPackageRoot);
   const result = await runner.run({
@@ -26,17 +26,10 @@ async function verifyTargetPackage(
   try {
     actual = parseFoundationPackageSelfCheck(JSON.parse(result.stdout) as unknown);
   } catch (error) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target CLI self-check did not return a valid result.",
-      { cause: error }
-    );
+    throw invalidTargetSelfCheck(error);
   }
   if (!isDeepStrictEqual(actual, expected)) {
-    throw new FoundationError(
-      "PACKAGE_INVALID",
-      "Foundation target CLI self-check disagrees with package metadata."
-    );
+    throw targetSelfCheckMismatch();
   }
   return { targetPackageRoot, packageVersion: expected.packageVersion };
 }

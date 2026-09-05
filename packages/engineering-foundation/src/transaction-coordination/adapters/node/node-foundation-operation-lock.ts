@@ -10,7 +10,7 @@ import type {
   FoundationOperationLock,
   FoundationOperationReleaseOptions
 } from "../../application/ports/foundation-operation-lock.js";
-import { FoundationError } from "../../../features/validation-reporting/api.js";
+import { operationLockAcquisitionFailure, operationLockReleaseFailure } from "../../application/operation-lock-failure.js";
 
 export class NodeFoundationOperationLock implements FoundationOperationLock {
   readonly #consumerRoot: string;
@@ -24,13 +24,7 @@ export class NodeFoundationOperationLock implements FoundationOperationLock {
     try {
       lease = await acquireMutationLease(this.#consumerRoot);
     } catch (error) {
-      throw new FoundationError(
-        "LOCAL_STATE_INVALID",
-        error instanceof RepositoryMutationError
-          ? error.message
-          : "Another Foundation operation is active or its shared mutation lock is not safely recoverable.",
-        { cause: error }
-      );
+      throw operationLockAcquisitionFailure(error, error instanceof RepositoryMutationError ? error.message : undefined);
     }
     let released = false;
     return async (options = {}) => {
@@ -39,11 +33,7 @@ export class NodeFoundationOperationLock implements FoundationOperationLock {
       try {
         await releaseMutationLease(lease);
       } catch (error) {
-        throw new FoundationError(
-          "LOCAL_STATE_INVALID",
-          "Foundation could not release the shared mutation lock without violating ownership.",
-          { cause: error }
-        );
+        throw operationLockReleaseFailure(error);
       }
       released = true;
     };

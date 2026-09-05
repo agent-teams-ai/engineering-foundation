@@ -1744,11 +1744,13 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/inspection.ts
       - packages/engineering-foundation/src/transaction-coordination/api.ts
     allow:
-      boundaries: []
+      boundaries:
+        - foundation.validation-reporting.application
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/application/operation-lock-failure.ts
       - packages/engineering-foundation/src/transaction-coordination/application/model/foundation-transaction-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-inspection.ts
       - packages/engineering-foundation/src/transaction-coordination/application/foundation-transaction-coordinator.ts
@@ -1785,7 +1787,6 @@ boundaries:
         - foundation.core
         - foundation.package-identity
         - foundation.transaction-coordination.application
-        - foundation.validation-reporting.application
       packages:
         - "@agent-teams/document-authoring"
         - "@agent-teams/repository-mutation"
@@ -1982,6 +1983,7 @@ boundaries:
       - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
   - id: foundation.local-mode.application
     roots:
+      - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
       - packages/engineering-foundation/src/local-mode/application/attach-transaction.ts
       - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
       - packages/engineering-foundation/src/local-mode/application/mode-status.ts
@@ -2002,6 +2004,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
       - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
       - packages/engineering-foundation/src/local-mode/application/mode-status.ts
       - packages/engineering-foundation/src/local-mode/application/model.ts
@@ -2024,7 +2027,6 @@ boundaries:
         - foundation.local-mode.application
         - foundation.validation-reporting.error
         - foundation.transaction-coordination.application
-        - foundation.validation-reporting.application
       packages:
         - yaml
       builtins:
@@ -2093,7 +2095,6 @@ boundaries:
         - foundation.process-execution.application
         - foundation.validation-reporting.error
         - foundation.core
-        - foundation.validation-reporting.application
       packages: []
       builtins:
         - node:child_process
@@ -2113,11 +2114,13 @@ boundaries:
       - packages/engineering-foundation/src/workspace-inventory/application
       - packages/engineering-foundation/src/workspace-inventory/api.ts
     allow:
-      boundaries: []
+      boundaries:
+        - foundation.validation-reporting.application
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/workspace-inventory/application/policies/workspace-input-failures.ts
       - packages/engineering-foundation/src/workspace-inventory/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-inventory-reader.ts
       - packages/engineering-foundation/src/workspace-inventory/application/policies/package-export-matcher.ts
@@ -2135,6 +2138,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/source-inventory/application/policies/source-input-failures.ts
       - packages/engineering-foundation/src/source-inventory/application/model/source-file-snapshot.ts
       - packages/engineering-foundation/src/source-inventory/application/ports/source-tree-reader.ts
       - packages/engineering-foundation/src/source-inventory/api.ts
@@ -2146,7 +2150,6 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.source-inventory.application
-        - foundation.validation-reporting.application
       packages: []
       builtins:
         - node:fs/promises
@@ -2163,7 +2166,6 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.workspace-inventory.application
-        - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.source-inventory.composition
         - foundation.configuration-input.composition
@@ -3050,7 +3052,6 @@ boundaries:
       - packages/engineering-foundation/src/features/foundation-check/adapters
     allow:
       boundaries:
-        - foundation.validation-reporting.application
         - foundation.check.application
       packages: []
       builtins: []
@@ -3084,6 +3085,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/features/command-host/application/command-reporting.ts
       - packages/engineering-foundation/src/features/command-host/api.ts
       - packages/engineering-foundation/src/features/command-host/application/command-invocation.ts
   - id: foundation.command-host.adapters
@@ -3094,7 +3096,6 @@ boundaries:
         - foundation.core
         - foundation.scaffolding.core
         - foundation.command-host.application
-        - foundation.validation-reporting.application
         - foundation.transaction-coordination.application
         - foundation.local-mode
         - foundation.process-execution.application
@@ -3387,7 +3388,6 @@ boundaries:
       - packages/engineering-foundation/src/features/configuration-input/adapters/inbound/yaml/strict-yaml-file-loader.ts
     allow:
       boundaries:
-        - foundation.validation-reporting.application
         - foundation.source-inventory.application
         - foundation.configuration-input.application
       packages:
@@ -3435,6 +3435,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/process-execution/application/process-failure-policy.ts
       - packages/engineering-foundation/src/process-execution/api.ts
   - id: foundation.process-execution.composition
     roots:

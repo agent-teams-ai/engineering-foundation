@@ -1,7 +1,7 @@
-import type {
-  FoundationCheckReport,
-  FoundationDiagnostic
-} from "../../../../validation-reporting/api.js";
+import type { FoundationCheck } from "../../../api.js";
+
+type FoundationCheckReport = Awaited<ReturnType<FoundationCheck>>;
+type FoundationDiagnostic = FoundationCheckReport["capabilities"][number]["diagnostics"][number];
 
 function renderDiagnostic(diagnostic: FoundationDiagnostic): string {
   const location = diagnostic.location.start === undefined

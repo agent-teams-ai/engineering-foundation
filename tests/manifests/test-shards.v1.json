@@ -13,6 +13,7 @@
         "packages/engineering-foundation/tests/repository-mutation-public-api.test.mjs",
         "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs",
         "tests/capability-reporting-architecture.test.mjs",
+        "tests/reporting-rest.test.mjs",
         "packages/repository-mutation/tests/public-api-contract.test.mjs",
         "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs",
         "packages/repository-mutation/tests/known-file-node-api.test.mjs",

@@ -95,7 +95,7 @@ test("resumes v2 PUBLISHING only from the exact bound temporary", () => {
       absentTemporary,
       { state: "exact", identity: "bound-temporary" },
     ),
-    { action: "complete-publication" },
+    { action: "manual", reason: "inconsistent-lifecycle" },
   );
   assert.deepEqual(
     classify(journal, exactTemporary, { state: "exact", identity: "different" }),
@@ -259,7 +259,6 @@ test("the finite observation product always returns a closed action", () => {
   const actions = new Set([
     "resume-prepare",
     "resume-publish",
-    "complete-publication",
     "finalize-checks",
     "already-applied",
     "manual",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/document-plan/v1",
+  "$id": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1",
   "title": "Document Plan",
   "type": "object",
   "additionalProperties": false,
@@ -60,7 +60,7 @@
       "additionalProperties": false,
       "required": ["id", "version", "buildIdentity"],
       "properties": {
-        "id": { "const": "@agent-teams/engineering-foundation" },
+        "id": { "const": "@agent-teams/document-authoring" },
         "version": { "$ref": "#/$defs/semver" },
         "buildIdentity": { "$ref": "#/$defs/digest" }
       }

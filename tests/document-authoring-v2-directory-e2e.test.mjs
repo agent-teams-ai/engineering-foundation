@@ -19,9 +19,11 @@ import test from "node:test";
 import {
   applyDocumentationPlan,
   inspectDocumentTransactionV2,
+  recoverDocumentationTransaction,
   planDocumentationDocument
 } from "../packages/document-authoring/dist/index.js";
 import { applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
+import { installedDocumentMutationArtifact } from "../packages/document-authoring/dist/document-authoring/adapters/node/installed-artifact-identity.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -65,7 +67,22 @@ qualified("Plan v2 materializes a missing parent chain and applies through envel
     missingDirectories: ["packages/example/src/features/create-widget"],
     policy: "create-missing-real-directories"
   });
-  const receipt = await applyDocumentationPlan({ consumerRoot: root, plan });
+  const transitions = [];
+  const receipt = await applyNodeDocumentationPlanPrivately({ consumerRoot: root, plan }, {
+    async faultInjector(point) {
+      if (["after-prepared-journal-durable", "after-materializing-journal-durable",
+        "after-publishing-journal-durable", "after-published-journal-durable"].includes(point.phase)) {
+        transitions.push(JSON.parse(await readFile(join(root, ".agent-teams-local/scaffolding-transaction.json"))));
+      }
+    }
+  });
+  assert.deepEqual(transitions.map(({ state }) => state), [
+    "PREPARED", "MATERIALIZING", "MATERIALIZING", "PUBLISHING", "PUBLISHED"
+  ]);
+  for (const envelope of transitions) {
+    assert.deepEqual(envelope.kernelArtifact, await installedDocumentMutationArtifact());
+    assert.deepEqual(envelope.foundation, { version: plan.compiler.version, buildIdentity: plan.compiler.buildIdentity });
+  }
   assert.equal(receipt.outcome, "applied");
   assert.equal(
     await readFile(join(root, plan.destination), "utf8"),
@@ -249,6 +266,12 @@ for (const mutation of ["deleted", "replaced"]) {
       plan.parentMaterialization.missingDirectories[0]
     ]);
     assert.equal((await inspectDocumentTransactionV2(root)).state, "recoverable");
+    const journalPath = join(root, ".agent-teams-local/scaffolding-transaction.json");
+    const beforeRecovery = await readFile(journalPath);
+    const recovered = await recoverDocumentationTransaction({ consumerRoot: root });
+    assert.equal(recovered.outcome, "manual-recovery-required");
+    assert.equal(recovered.directoryMaterialization.state, "preserved-unknown");
+    assert.deepEqual(await readFile(journalPath), beforeRecovery);
   });
 }
 

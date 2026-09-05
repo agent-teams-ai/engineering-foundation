@@ -1,4 +1,6 @@
 import { assertSchema } from "./schema-catalog.js";
+import { installedDocumentAuthoringBuildIdentity, installedDocumentMutationArtifact } from "./installed-artifact-identity.js";
+import { installedDocumentAuthoringVersion } from "./package-version.js";
 import { join } from "node:path";
 
 import {
@@ -52,15 +54,21 @@ async function canonicalConsumerRoot(consumerRoot: string): Promise<string> {
   return (await captureNodeRepositoryRootAuthority(consumerRoot)).canonicalRoot;
 }
 
-function runtime(
+async function runtime(
   consumerRoot: string,
   operations: NodeDocumentWritingPrivateOperations,
   authority: DocumentAuthorityRecompiler
 ) {
   const faultInjector: DocumentTransactionFaultInjector | undefined =
     operations.faultInjector;
+  const [version, buildIdentity, kernelArtifact] = await Promise.all([
+    installedDocumentAuthoringVersion(), installedDocumentAuthoringBuildIdentity(),
+    installedDocumentMutationArtifact()
+  ]);
   return {
     authority,
+    compiler: Object.freeze({ id: "@agent-teams/document-authoring" as const, version, buildIdentity }),
+    kernelArtifact,
     schema: { assertSchema },
     fileState: new NodeDocumentFileState(),
     ...(faultInjector === undefined ? {} : { faultInjector }),
@@ -86,7 +94,7 @@ export async function applyNodeDocumentationPlan(
   // Preserve the microtask boundary before constructing the writer runtime.
   const coordinator = await Promise.resolve(createNodeDocumentTransactionCoordinator(consumerRoot));
   return applyDocumentPlan(
-    { ...runtime(consumerRoot, operations, authority), contractValidator, coordinator },
+    { ...await runtime(consumerRoot, operations, authority), contractValidator, coordinator },
     {
       consumerRoot,
       plan,
@@ -104,7 +112,7 @@ export async function recoverNodeDocumentationTransaction(
   // Recovery shares the same scheduling boundary as apply.
   const coordinator = await Promise.resolve(createNodeDocumentTransactionCoordinator(consumerRoot));
   return recoverDocumentTransaction(
-    { ...runtime(consumerRoot, operations, authority), coordinator },
+    { ...await runtime(consumerRoot, operations, authority), coordinator },
     {
       consumerRoot,
       ...(request.signal === undefined ? {} : { signal: request.signal })

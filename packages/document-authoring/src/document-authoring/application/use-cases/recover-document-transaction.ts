@@ -1,6 +1,7 @@
 import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
 import type { DocumentOwnedTemporary } from "../model/document-transaction.js";
 import type { DocumentTransactionCoordinator } from "../ports/document-transaction-coordinator.js";
+import { hasExactDocumentRecoveryArtifacts } from "../policies/project-document-transaction-inspection.js";
 import {
   classifyDocumentRecovery,
   type DocumentRecoveryDestinationObservation,
@@ -8,7 +9,6 @@ import {
   type DocumentRecoveryTemporaryObservation
 } from "../policies/classify-document-recovery.js";
 import {
-  completePublishedTransaction,
   continuePendingPublication,
   errorMessage,
   finalizeDocumentTransaction,
@@ -216,6 +216,14 @@ async function readActiveJournal(
       "Coordinator reported recovery but the trusted document journal is absent."
     );
   }
+  // Recheck the journal actually read under the lease, even if the slot changed
+  // after the coordinator's inspection. No recovery effect precedes this proof.
+  if (!hasExactDocumentRecoveryArtifacts(stored.envelope, dependencies.compiler, dependencies.kernelArtifact)) {
+    throw new DocumentTransactionUseCaseError(
+      "DOCUMENT_TRANSACTION_EVIDENCE_UNAVAILABLE",
+      "Document recovery requires the exact recorded Authoring and Mutation artifacts; evidence was preserved."
+    );
+  }
   return { authority: stored.authority, envelope: stored.envelope };
 }
 
@@ -275,20 +283,6 @@ async function executeRecoveryDecision(
       }
       return continuePendingPublication(
         dependencies, request, active, observed.temporary
-      );
-    case "complete-publication":
-      if (observed.temporary === undefined) {
-        throw new DocumentTransactionUseCaseError(
-          "DOCUMENT_TRANSACTION_INCONSISTENT",
-          "Recovery classifier requested completion without temporary evidence."
-        );
-      }
-      return completePublishedTransaction(
-        dependencies,
-        request,
-        active,
-        observed.temporary,
-        { authority: "persisted-plan" }
       );
     case "finalize-checks": {
       assertNonzeroDocumentPhysicalIdentity(active.envelope.state === "PUBLISHED"

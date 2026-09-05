@@ -829,3 +829,38 @@ test("strict JSON rejects duplicate contract keys before schema validation", () 
       error instanceof StrictJsonError && error.failure === "duplicate-key",
   );
 });
+
+test("native archived evidence and the entire frozen Plan/envelope closure remain byte-exact", async () => {
+  const root = new URL("../packages/document-authoring/tests/fixtures/schema-recovery/", import.meta.url);
+  const origin = JSON.parse(await readFile(new URL("origin.json", root)));
+  for (const [name, expected] of Object.entries(origin.sha256)) {
+    assert.equal(sha256Bytes(await readFile(new URL(name, root))), `sha256:${expected}`, name);
+  }
+  for (const [name, expected] of Object.entries(origin.frozenSchemaSha256)) {
+    const bytes = await readFile(new URL(`../packages/document-authoring/schemas/${name}.schema.json`, import.meta.url));
+    assert.equal(sha256Bytes(bytes), `sha256:${expected}`, name);
+  }
+  for (const generation of [1, 2]) {
+    const plan = JSON.parse(await readFile(new URL(`native-old-plan-v${generation}.json`, root)));
+    const receipt = JSON.parse(await readFile(new URL(`native-old-receipt-v${generation}.json`, root)));
+    await assertSchema(`document-plan/v${generation}`, plan, "native-old-plan");
+    await assertSchema(`document-receipt/v${generation}`, receipt, "native-old-receipt");
+    await assert.rejects(assertSchema(`document-authoring/document-plan/v${generation}`, plan, "old-plan-refused"));
+    const envelope = JSON.parse(await readFile(new URL(`native-old-envelope-v${generation}.json`, root)));
+    await assertSchema(`foundation-transaction-envelope/v${generation + 2}`, envelope, "native-old-envelope");
+    await assert.rejects(assertSchema(generation === 1
+      ? "document-authoring/document-file-transaction-envelope/v1"
+      : "document-authoring/document-directory-transaction-envelope/v1", envelope, "old-envelope-refused"));
+    assertDocumentPlanDigests(plan);
+    assertDocumentReceiptDigest(receipt, plan);
+  }
+});
+
+test("schema catalog accepts only explicit names and never follows cross-package traversal", async () => {
+  const { readDocumentAuthoringSchema } = await import("../packages/document-authoring/dist/index.js");
+  for (const name of ["../../repository-mutation/schemas/known-file-transaction-plan/v1", "../document-plan/v1", "__proto__", "constructor", "document-plan/v99"]) {
+    await assert.rejects(readDocumentAuthoringSchema(name), /Unknown Document Authoring schema catalog name/u);
+  }
+  assert.equal(JSON.parse(await readDocumentAuthoringSchema("document-authoring/document-plan/v2")).$id,
+    "https://agent-teams.ai/schemas/document-authoring/document-plan/v2");
+});

@@ -1,5 +1,5 @@
 import type { DocumentSchemaValidator } from "../ports/document-schema-validator.js";
-import type { DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
+import type { DocumentCompilerIdentity, DocumentPlanContract as DocumentPlan } from "../model/document-planning.js";
 import type { DocumentReceiptContract as DocumentReceipt } from "../model/document-receipt.js";
 import type { DocumentOwnedTemporary, DocumentTransactionEnvelope } from "../model/document-transaction.js";
 import type { DocumentParentMaterializationJournalV2 } from "../model/document-parent-materialization.js";
@@ -20,7 +20,9 @@ export { DocumentJournalReconciliationError, noPublicationReceipt, recoveryRecei
 export { materializeDocumentParentDirectories } from "./document-parent-materialization-continuation.js";
 
 export interface DocumentTransactionRuntime {
+  readonly compiler: DocumentCompilerIdentity;
   readonly schema: DocumentSchemaValidator;
+  readonly kernelArtifact: DocumentTransactionEnvelope["kernelArtifact"];
   readonly authority: DocumentAuthorityRecompiler;
   readonly fileState: DocumentFileState;
   readonly faultInjector?: DocumentTransactionFaultInjector;
@@ -87,7 +89,7 @@ export async function createPreparedJournal(
       plan: plan.parentMaterialization
     });
     const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
-      envelopeBodyV4(plan, materialization, { destination, state: "PREPARED" })
+      envelopeBodyV4(plan, runtime.kernelArtifact, materialization, { destination, state: "PREPARED" })
     );
     const active = {
       authority: await createJournalReconciled(runtime, envelope),
@@ -97,7 +99,7 @@ export async function createPreparedJournal(
     return active;
   }
   const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
-    envelopeBodyV3(plan, { destination, state: "PREPARED" })
+    envelopeBodyV3(plan, runtime.kernelArtifact, { destination, state: "PREPARED" })
   );
   const active = {
     authority: await createJournalReconciled(runtime, envelope),
@@ -132,6 +134,7 @@ async function replaceWithPublishing(
     const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
       envelopeBodyV4(
         active.envelope.journal.plan,
+        active.envelope.kernelArtifact,
         materializationJournal(active),
         { state: "PUBLISHING", temporary }
       )
@@ -144,7 +147,7 @@ async function replaceWithPublishing(
     return result;
   }
   const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
-    envelopeBodyV3(active.envelope.journal.plan, {
+    envelopeBodyV3(active.envelope.journal.plan, active.envelope.kernelArtifact, {
       state: "PUBLISHING",
       temporary
     })
@@ -167,6 +170,7 @@ async function replaceWithPublished(
     const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
       envelopeBodyV4(
         active.envelope.journal.plan,
+        active.envelope.kernelArtifact,
         materializationJournal(active),
         { publicationIdentity, state: "PUBLISHED" }
       )
@@ -179,7 +183,7 @@ async function replaceWithPublished(
     return result;
   }
   const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
-    envelopeBodyV3(active.envelope.journal.plan, {
+    envelopeBodyV3(active.envelope.journal.plan, active.envelope.kernelArtifact, {
       publicationIdentity,
       state: "PUBLISHED"
     })
@@ -369,18 +373,12 @@ export async function continuePendingPublication(
     ...signalOption(request.signal)
   });
   if (publication.outcome === "already-satisfied") {
-    const owned = publication.publicationIdentity.dev === temporary.identity.dev &&
-      publication.publicationIdentity.ino === temporary.identity.ino &&
-      publication.publicationIdentity.birthtimeNs === temporary.identity.birthtimeNs;
-    if (!owned) {
-      return activeRecoveryReceipt(runtime, request, current, {
-        manual: true,
-        message: "Destination became exact with a different physical identity.",
-        publication: "unknown",
-        ruleId: "document.transaction.concurrent-exact-publication"
-      });
-    }
-    return completePublishedTransaction(runtime, request, current, temporary);
+    return activeRecoveryReceipt(runtime, request, current, {
+      manual: true,
+      message: "Destination became present during PUBLISHING; publication ownership is ambiguous.",
+      publication: "unknown",
+      ruleId: "document.transaction.concurrent-exact-publication"
+    });
   }
   // The publication boundary has been crossed. Cancellation is deliberately
   // not forwarded to cleanup, verification, journaling, or final checks.
@@ -398,39 +396,6 @@ export async function continuePendingPublication(
   );
   return receipt ?? activeRecoveryReceipt(runtime, request, current, {
     message: "Post-publication A1-C1-A2-C2 verification did not remain stable.",
-    publication: "published",
-    ruleId: "document.transaction.final-verification"
-  });
-}
-
-export async function completePublishedTransaction(
-  runtime: DocumentTransactionRuntime,
-  request: DocumentTransactionRequest,
-  active: ActiveDocumentJournal,
-  temporary: DocumentOwnedTemporary,
-  options: { readonly authority?: "current-profile" | "persisted-plan" } = {}
-): Promise<DocumentReceipt> {
-  const plan = active.envelope.journal.plan;
-  const completed = await runtime.publisher.completePublication({
-    consumerRoot: request.consumerRoot,
-    plan,
-    temporary
-  });
-  await removeTemporaryIfPresent(runtime, request, temporary);
-  const published = await replaceWithPublished(
-    runtime,
-    active,
-    completed.publicationIdentity
-  );
-  const receipt = await finalizeDocumentTransaction(
-    runtime,
-    { consumerRoot: request.consumerRoot },
-    published,
-    "applied",
-    options
-  );
-  return receipt ?? activeRecoveryReceipt(runtime, request, published, {
-    message: "Recovered publication failed stable final verification.",
     publication: "published",
     ruleId: "document.transaction.final-verification"
   });

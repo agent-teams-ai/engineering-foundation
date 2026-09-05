@@ -174,10 +174,10 @@ export async function assertDocumentTransactionEnvelope(
   }
   const handler = candidate["recoveryHandler"];
   if (
-    ![3, 4].includes(Number(candidate["schemaVersion"])) ||
+    (candidate["schemaVersion"] !== 3 && candidate["schemaVersion"] !== 4) ||
     candidate["operationKind"] !== "document-authoring" ||
     !isRecord(handler) ||
-    !["document-authoring", "foundation.document-authoring"].includes(String(handler["id"])) ||
+    handler["id"] !== "document-authoring" ||
     handler["contractVersion"] !==
       (candidate["schemaVersion"] === 4 ? 3 : 2) ||
     candidate["adapterContractVersion"] !== 1 ||
@@ -198,8 +198,8 @@ export async function assertDocumentTransactionEnvelope(
   try {
     await schema.assertSchema(
       candidate["schemaVersion"] === 4
-        ? "foundation-transaction-envelope/v4"
-        : "foundation-transaction-envelope/v3",
+        ? "document-authoring/document-directory-transaction-envelope/v1"
+        : "document-authoring/document-file-transaction-envelope/v1",
       candidate,
       "document-transaction-envelope"
     );

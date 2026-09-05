@@ -149,3 +149,26 @@ await applyDocumentationPlanV2({ consumerRoot: ".", plan: v1Plan });
 await planDocumentationDocument({ ...v1Request, parentPolicy: "replace-directories" });
 
 void [planResults, receiptResults, recoveryResults, recoveryV2Results];
+
+// Current identities are closed without changing the honest v1/v2 unions.
+const compilerId: DocumentPlanContract["compiler"]["id"] = "@agent-teams/document-authoring";
+// @ts-expect-error Historical Foundation compilers are not current Authoring input.
+const historicalCompilerId: DocumentPlanContract["compiler"]["id"] = "@agent-teams/engineering-foundation";
+void compilerId;
+void historicalCompilerId;
+
+import type {
+  DocumentTransactionEnvelopeBase, DocumentTransactionEnvelopeV4Base
+} from "@agent-teams/document-authoring/qualification";
+declare const fileEnvelope: DocumentTransactionEnvelopeBase;
+declare const directoryEnvelope: DocumentTransactionEnvelopeV4Base;
+fileEnvelope.recoveryHandler.id satisfies "document-authoring";
+directoryEnvelope.recoveryHandler.id satisfies "document-authoring";
+fileEnvelope.kernelArtifact.name satisfies "@agent-teams/repository-mutation";
+directoryEnvelope.kernelArtifact.name satisfies "@agent-teams/repository-mutation";
+declare const kernelLessFile: Omit<DocumentTransactionEnvelopeBase, "kernelArtifact">;
+declare const kernelLessDirectory: Omit<DocumentTransactionEnvelopeV4Base, "kernelArtifact">;
+// @ts-expect-error Current file envelopes require the exact Mutation coordinate.
+kernelLessFile satisfies DocumentTransactionEnvelopeBase;
+// @ts-expect-error Current directory envelopes require the exact Mutation coordinate.
+kernelLessDirectory satisfies DocumentTransactionEnvelopeV4Base;

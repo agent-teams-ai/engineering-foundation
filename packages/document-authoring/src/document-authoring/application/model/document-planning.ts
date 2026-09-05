@@ -125,9 +125,7 @@ export interface DocumentTemplateSnapshot {
 }
 
 export interface DocumentCompilerIdentity {
-  readonly id:
-    | "@agent-teams/document-authoring"
-    | "@agent-teams/engineering-foundation";
+  readonly id: "@agent-teams/document-authoring";
   readonly version: string;
   readonly buildIdentity: DocumentAuthorityDigest;
 }

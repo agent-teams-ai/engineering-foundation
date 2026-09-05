@@ -85,16 +85,18 @@ test("portable package manifests and source imports implement the closed target 
   }
 });
 
-test("new plans identify Document Authoring while schemas retain admitted legacy evidence", async () => {
+test("current and historical Plan schemas keep distinct closed owners", async () => {
   const source = await readFile(join(packageRoot, "src/document-authoring/adapters/node/node-document-planning.ts"), "utf8");
   assert.match(source, /id: "@agent-teams\/document-authoring"/u);
   const plan = JSON.parse(await readFile(
     join(packageRoot, "schemas/document-plan/v1.schema.json"), "utf8"
   ));
-  assert.deepEqual(plan.$defs.compiler.properties.id.enum, [
-    "@agent-teams/document-authoring",
-    "@agent-teams/engineering-foundation"
-  ]);
+  assert.equal(plan.$defs.compiler.properties.id.const, "@agent-teams/engineering-foundation");
+  const current = JSON.parse(await readFile(
+    join(packageRoot, "schemas/document-authoring/document-plan/v1.schema.json"), "utf8"
+  ));
+  assert.equal(current.$defs.compiler.properties.id.const, "@agent-teams/document-authoring");
+  assert.notEqual(current.$id, plan.$id);
 });
 
 test("observation owns its parser and never imports authoring implementation", async () => {

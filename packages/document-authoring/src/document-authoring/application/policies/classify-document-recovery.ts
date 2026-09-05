@@ -75,7 +75,6 @@ type DocumentRecoveryManualReason =
 export type DocumentRecoveryDecision =
   | { readonly action: "resume-prepare" }
   | { readonly action: "resume-publish" }
-  | { readonly action: "complete-publication" }
   | { readonly action: "finalize-checks" }
   | {
       readonly action: "already-applied";
@@ -187,13 +186,11 @@ function classifyPublishing(
         ? { action: "resume-publish" }
         : manual("identity-drift");
     case "exact":
-      if (observation.destination.identity === "bound-temporary") {
-        return observation.temporary.state === "absent" ||
-          observation.temporary.state === "exact"
-          ? { action: "complete-publication" }
-          : manual("identity-drift");
-      }
-      return manual("identity-drift");
+      // ADR-0024: a present destination in PUBLISHING is ambiguous even
+      // when it is the same file as the bound temporary. Preserve evidence.
+      return observation.destination.identity === "bound-temporary" &&
+        (observation.temporary.state === "absent" || observation.temporary.state === "exact")
+        ? manual("inconsistent-lifecycle") : manual("identity-drift");
   }
 }
 

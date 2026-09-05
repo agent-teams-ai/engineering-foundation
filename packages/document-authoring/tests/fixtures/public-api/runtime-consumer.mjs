@@ -14,11 +14,14 @@ import {
   recoverDocumentationTransactionV2
 } from "@agent-teams/document-authoring";
 
+import { assertNativeHistoricalClosure, oldReader, currentReader } from "./schema-closures.mjs";
+import { installedRepositoryMutationBuildIdentity, installedRepositoryMutationVersion } from "@agent-teams/repository-mutation";
+
 const [consumerRoot, generationText, entrypoint, operation, checkpoint] = process.argv.slice(2);
 const generation = Number(generationText);
 assert.ok([1, 2].includes(generation));
 assert.ok(["generic", "V2"].includes(entrypoint));
-assert.ok(["plan", "apply", "recover"].includes(operation));
+assert.ok(["plan", "apply", "recover", "artifact-drift"].includes(operation));
 const installedRoot = fileURLToPath(new URL("..", import.meta.resolve("@agent-teams/document-authoring")));
 assert.equal(installedRoot, join(dirname(consumerRoot), "node_modules/@agent-teams/document-authoring/"));
 
@@ -57,6 +60,9 @@ async function assertPlan(request, vector) {
   const plan = await planDocumentationDocument(request);
   assert.equal(plan.schemaVersion, generation);
   assert.equal(plan.protocolVersion, generation);
+  await assertNativeHistoricalClosure(generation);
+  assert.equal(currentReader("plan", generation, plan), true);
+  assert.equal(oldReader("plan", generation, plan), false);
   assert.equal(plan.compiler.id, "@agent-teams/document-authoring");
   assert.equal(plan.destination, vector.destination);
   // Frozen fixture bytes provide an oracle independent of the planner output.
@@ -83,6 +89,8 @@ async function assertPlan(request, vector) {
 
 function assertReceipt(receipt, plan, outcome) {
   assert.equal(receipt.schemaVersion, generation);
+  assert.equal(currentReader("receipt", generation, receipt), true);
+  assert.equal(oldReader("receipt", generation, receipt), true);
   assert.equal(receipt.protocolVersion, generation);
   assert.equal(receipt.outcome, outcome);
   assert.equal(receipt.planDigest, plan.planDigest);
@@ -116,6 +124,13 @@ async function crashAndRecover(plan) {
   assert.equal(crashed.signal, "SIGKILL");
   const journalPath = join(consumerRoot, ".agent-teams-local/scaffolding-transaction.json");
   const journalBytes = await readFile(journalPath);
+  const envelope = JSON.parse(journalBytes);
+  assert.equal(currentReader("envelope", generation, envelope), true);
+  assert.equal(oldReader("envelope", generation, envelope), false);
+  assert.deepEqual(envelope.kernelArtifact, {
+    name: "@agent-teams/repository-mutation", version: await installedRepositoryMutationVersion(),
+    buildIdentity: await installedRepositoryMutationBuildIdentity()
+  });
   const inspection = await inspectDocumentTransactionV2(consumerRoot);
   assert.equal(inspection.state, "recoverable");
   assert.equal(inspection.format, `document-authoring-envelope-v${generation + 2}`);
@@ -153,7 +168,48 @@ async function assertApplyReplay(plan) {
   }
 }
 
+async function assertArtifactDrift(plan) {
+  const planPath = `${consumerRoot}.plan.json`;
+  await writeFile(planPath, JSON.stringify(plan));
+  const crashed = spawnSync(process.execPath, [fileURLToPath(new URL("./crash-worker.mjs", import.meta.url)),
+    consumerRoot, planPath, "after-publishing-journal-durable"], { encoding: "utf8", timeout: 30_000 });
+  assert.equal(crashed.error, undefined);
+  assert.equal(crashed.signal, "SIGKILL", crashed.stdout + crashed.stderr);
+  const journalPath = join(consumerRoot, ".agent-teams-local/scaffolding-transaction.json");
+  const journalBytes = await readFile(journalPath);
+  const original = JSON.parse(journalBytes);
+  assert.equal((await inspectDocumentTransactionV2(consumerRoot)).state, "recoverable");
+  const packageName = `@agent-teams/${checkpoint}`;
+  const manifest = new URL(import.meta.resolve(`${packageName}/package.json`));
+  const version = JSON.parse(await readFile(manifest)).version;
+  const schema = new URL(checkpoint === "document-authoring"
+    ? "schemas/document-authoring/document-plan/v1.schema.json"
+    : "schemas/known-file-transaction-plan/v1.schema.json", manifest);
+  const exact = await readFile(schema);
+  await writeFile(schema, Buffer.concat([exact, Buffer.from("\n")]));
+  try {
+    const child = spawnSync(process.execPath, ["--input-type=module", "--eval", `
+      import assert from 'node:assert/strict';
+      import {inspectDocumentTransactionV2, recoverDocumentationTransaction} from '@agent-teams/document-authoring';
+      const root = process.argv[1];
+      const observed = await inspectDocumentTransactionV2(root);
+      assert.equal(observed.state, 'manual-recovery-required');
+      assert.equal(observed.transactionKind, 'version-mismatch');
+      assert.ok(observed.reason.includes('@agent-teams/repository-mutation'));
+      await assert.rejects(recoverDocumentationTransaction({consumerRoot:root}), /requires a coordinator-qualified recoverable transaction/);
+      process.stdout.write(JSON.stringify(observed));
+    `, consumerRoot], { cwd: dirname(consumerRoot), encoding: "utf8", timeout: 30_000 });
+    assert.equal(child.error, undefined);
+    assert.equal(child.status, 0, child.stdout + child.stderr);
+    assert.equal(JSON.parse(await readFile(manifest)).version, version);
+    assert.deepEqual(await readFile(journalPath), journalBytes);
+    assert.deepEqual(await readFile(join(consumerRoot, original.journal.ownedTemporary.path)), Buffer.from(plan.output.contentBase64, "base64"));
+    await assert.rejects(lstat(join(consumerRoot, plan.destination)), { code: "ENOENT" });
+  } finally { await writeFile(schema, exact); }
+}
+
 const { request, vector } = await prepareRequest();
 const plan = await assertPlan(request, vector);
-if (operation !== "plan") { await assertApplyReplay(plan); }
+if (operation === "artifact-drift") { await assertArtifactDrift(plan); }
+else if (operation !== "plan") { await assertApplyReplay(plan); }
 process.stdout.write(JSON.stringify({ generation, entrypoint, operation, outcome: "passed" }));

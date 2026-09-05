@@ -2,13 +2,13 @@ import { classifyDocumentTransactionInspection, projectDocumentTransactionInspec
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { NodeDocumentJournalStore } from "./node-document-journal-store.js";
+import { NodeDocumentJournalStore, NodeDocumentJournalStoreError } from "./node-document-journal-store.js";
 import { recaptureDocumentPublicationPaths } from "./recapture-document-publication-paths.js";
 import type {
   DocumentTransactionInspectionV1,
   DocumentTransactionInspectionV2
 } from "../../application/model/document-transaction-inspection.js";
-import { installedDocumentAuthoringBuildIdentity } from "./installed-artifact-identity.js";
+import { installedDocumentAuthoringBuildIdentity, installedDocumentMutationArtifact } from "./installed-artifact-identity.js";
 import { installedDocumentAuthoringVersion } from "./package-version.js";
 import { FOUNDATION_TRANSACTION_FILE, LOCAL_STATE_DIRECTORY } from "../../application/model/state-contract.js";
 
@@ -83,8 +83,10 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
   let stored;
   try {
     stored = await new NodeDocumentJournalStore(journalPath).read();
-  } catch {
-    return unsafeDocumentTransactionInspection("Transaction evidence is foreign, corrupt, incompatible, or has transition residue; it was preserved.");
+  } catch (error) {
+    return unsafeDocumentTransactionInspection(error instanceof NodeDocumentJournalStoreError
+      ? error.message
+      : "Transaction evidence is foreign, corrupt, incompatible, or has transition residue; it was preserved.");
   }
   if (stored === undefined) {
     return await hasForeignEvidence(stateDirectory)
@@ -92,10 +94,13 @@ async function inspectV2(consumerRoot: string): Promise<DocumentTransactionInspe
       : { schemaVersion: 2, state: "idle", diagnostics: [] };
   }
   const envelope = stored.envelope;
-  const [version, buildIdentity] = await Promise.all([
-    installedDocumentAuthoringVersion(), installedDocumentAuthoringBuildIdentity()
+  const [version, buildIdentity, kernelArtifact] = await Promise.all([
+    installedDocumentAuthoringVersion(), installedDocumentAuthoringBuildIdentity(),
+    installedDocumentMutationArtifact()
   ]);
-  return classifyDocumentTransactionInspection(envelope, version, buildIdentity);
+  return classifyDocumentTransactionInspection(
+    envelope, { id: "@agent-teams/document-authoring", version, buildIdentity }, kernelArtifact
+  );
 }
 
 export async function inspectDocumentTransactionV2(

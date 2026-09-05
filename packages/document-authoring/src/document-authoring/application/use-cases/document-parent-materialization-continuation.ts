@@ -34,7 +34,7 @@ async function replaceV4Materializing(
     throw new Error("Document parent materialization requires envelope v4.");
   }
   const envelope = await createDocumentTransactionEnvelope(runtime.schema, 
-    envelopeBodyV4(active.envelope.journal.plan, materialization, {
+    envelopeBodyV4(active.envelope.journal.plan, active.envelope.kernelArtifact, materialization, {
       ...(pendingDirectory === undefined ? {} : { pendingDirectory }),
       state: "MATERIALIZING"
     })

@@ -3,11 +3,13 @@ import type { DocumentPhysicalIdentity } from "../model/document-physical-identi
 import type { DocumentPlanV1, DocumentPlanV2 } from "../model/document-planning.js";
 import type {
   DocumentOwnedTemporary,
+  DocumentTransactionEnvelope,
   DocumentTransactionEnvelopeBody
 } from "../model/document-transaction.js";
 
 export function envelopeBodyV3(
   plan: DocumentPlanV1,
+  kernelArtifact: DocumentTransactionEnvelope["kernelArtifact"],
   lifecycle:
     | { readonly state: "PREPARED"; readonly destination: "pending" | "preexisting" }
     | { readonly state: "PUBLISHING"; readonly temporary: DocumentOwnedTemporary }
@@ -15,6 +17,7 @@ export function envelopeBodyV3(
 ): DocumentTransactionEnvelopeBody {
   const base = {
     adapterContractVersion: 1 as const,
+    kernelArtifact: Object.freeze({ ...kernelArtifact }),
     foundation: Object.freeze({
       buildIdentity: plan.compiler.buildIdentity,
       version: plan.compiler.version
@@ -73,6 +76,7 @@ export function envelopeBodyV3(
 
 export function envelopeBodyV4(
   plan: DocumentPlanV2,
+  kernelArtifact: DocumentTransactionEnvelope["kernelArtifact"],
   materialization: DocumentParentMaterializationJournalV2,
   lifecycle:
     | { readonly state: "PREPARED"; readonly destination: "pending" | "preexisting" }
@@ -89,6 +93,7 @@ export function envelopeBodyV4(
   });
   const base = {
     adapterContractVersion: 1 as const,
+    kernelArtifact: Object.freeze({ ...kernelArtifact }),
     foundation: Object.freeze({
       buildIdentity: plan.compiler.buildIdentity,
       version: plan.compiler.version

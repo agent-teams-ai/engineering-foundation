@@ -1,3 +1,4 @@
+import { fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import {
@@ -259,7 +260,7 @@ qualified("transaction materialization never journals a successfully replaced mk
     plan: plan.parentMaterialization,
   });
   const envelope = await createDocumentTransactionEnvelope(
-    envelopeBodyV4(plan, parentJournal, { destination: "pending", state: "PREPARED" }),
+    envelopeBodyV4(plan, fixtureKernelArtifact, parentJournal, { destination: "pending", state: "PREPARED" }),
   );
   const identity = {
     adapter: "node-filesystem",

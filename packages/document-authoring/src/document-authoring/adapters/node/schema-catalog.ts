@@ -8,11 +8,26 @@ import { CapabilityInputError } from "../../../documentation-observation/api.js"
 
 import type { DocumentAuthoringSchemaId } from "../../application/ports/document-schema-validator.js";
 
-const dependencies: Partial<Record<DocumentAuthoringSchemaId, readonly DocumentAuthoringSchemaId[]>> = {
+const dependencies: Record<DocumentAuthoringSchemaId, readonly DocumentAuthoringSchemaId[]> = {
+  "document-authoring-profile/v1": [],
   "document-authoring-profile/v2": ["document-authoring-profile/v1"],
   "document-authoring-profile/v3": ["document-authoring-profile/v1"],
+  "document-command-envelope/v1": [],
+  "document-command-envelope/v2": [],
+  "document-intent/v1": [],
+  "document-parent-materialization/v2": [],
   "document-plan/v1": ["document-intent/v1"],
   "document-plan/v2": ["document-intent/v1", "document-plan/v1"],
+  "document-authoring/document-plan/v1": ["document-intent/v1"],
+  "document-authoring/document-plan/v2": ["document-intent/v1", "document-authoring/document-plan/v1"],
+  "document-authoring/document-file-transaction-envelope/v1": [
+    "document-intent/v1", "document-authoring/document-plan/v1"
+  ],
+  "document-authoring/document-directory-transaction-envelope/v1": [
+    "document-intent/v1", "document-authoring/document-plan/v1",
+    "document-authoring/document-plan/v2", "document-authoring/document-file-transaction-envelope/v1"
+  ],
+  "document-receipt/v1": [],
   "document-receipt/v2": ["document-receipt/v1"],
   "foundation-transaction-envelope/v3": ["document-intent/v1", "document-plan/v1"],
   "foundation-transaction-envelope/v4": [
@@ -28,6 +43,9 @@ const loads = new Map<DocumentAuthoringSchemaId, Promise<string>>();
 export function readDocumentAuthoringSchema(
   schemaId: DocumentAuthoringSchemaId
 ): Promise<string> {
+  if (!Object.hasOwn(dependencies, schemaId)) {
+    return Promise.reject(new TypeError("Unknown Document Authoring schema catalog name."));
+  }
   return readFile(join(packageRoot, "schemas", `${schemaId}.schema.json`), "utf8");
 }
 
@@ -46,18 +64,16 @@ async function register(id: DocumentAuthoringSchemaId): Promise<string> {
     return cached;
   }
   const loading = (async () => {
-    for (const dependency of dependencies[id] ?? []) {
+    for (const dependency of dependencies[id]) {
       await register(dependency);
     }
     const schema = JSON.parse(await readDocumentAuthoringSchema(id)) as {
       readonly $id?: unknown;
     };
-    if (typeof schema.$id !== "string" || schema.$id.length === 0) {
-      throw new Error(`Document Authoring schema ${id} must declare a non-empty $id.`);
+    if (schema.$id !== `https://agent-teams.ai/schemas/${id}`) {
+      throw new Error(`Document Authoring schema ${id} must declare its exact catalog $id.`);
     }
-    if (ajv.getSchema(schema.$id) === undefined) {
-      ajv.addSchema(schema as Parameters<Ajv2020["addSchema"]>[0]);
-    }
+    ajv.addSchema(schema as Parameters<Ajv2020["addSchema"]>[0]);
     return schema.$id;
   })();
   loads.set(id, loading);

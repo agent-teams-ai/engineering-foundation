@@ -48,10 +48,15 @@ export interface DocumentTransactionEnvelopeBase {
   readonly schemaVersion: 3;
   readonly operationKind: "document-authoring";
   readonly recoveryHandler: {
-    readonly id: "document-authoring" | "foundation.document-authoring";
+    readonly id: "document-authoring";
     readonly contractVersion: 2;
   };
   readonly foundation: {
+    readonly version: string;
+    readonly buildIdentity: DocumentAuthorityDigest;
+  };
+  readonly kernelArtifact: {
+    readonly name: "@agent-teams/repository-mutation";
     readonly version: string;
     readonly buildIdentity: DocumentAuthorityDigest;
   };
@@ -120,10 +125,15 @@ export interface DocumentTransactionEnvelopeV4Base {
   readonly schemaVersion: 4;
   readonly operationKind: "document-authoring";
   readonly recoveryHandler: {
-    readonly id: "document-authoring" | "foundation.document-authoring";
+    readonly id: "document-authoring";
     readonly contractVersion: 3;
   };
   readonly foundation: {
+    readonly version: string;
+    readonly buildIdentity: DocumentAuthorityDigest;
+  };
+  readonly kernelArtifact: {
+    readonly name: "@agent-teams/repository-mutation";
     readonly version: string;
     readonly buildIdentity: DocumentAuthorityDigest;
   };

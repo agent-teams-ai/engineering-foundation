@@ -18,6 +18,7 @@ import { FOUNDATION_TRANSACTION_FILE } from "../../application/model/state-contr
 
 import type { DocumentTransactionEnvelope } from "../../application/model/document-transaction.js";
 import { assertDocumentTransactionEnvelope } from "../../application/policies/document-transaction-envelope-policy.js";
+import { untrustedDocumentEnvelopeReason } from "../../application/policies/project-document-transaction-inspection.js";
 import type {
   DocumentJournalStore,
   JournalAuthority,
@@ -31,7 +32,7 @@ const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
 type NodeDocumentJournalFaultPoint = Parameters<NodeDocumentJournalFaultInjector>[0];
 
-class NodeDocumentJournalStoreError extends Error {
+export class NodeDocumentJournalStoreError extends Error {
   public constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "NodeDocumentJournalStoreError";
@@ -103,13 +104,13 @@ async function canonicalEnvelopeBytes(
 
 async function parseEnvelope(bytes: Buffer): Promise<DocumentTransactionEnvelope> {
   let envelope: DocumentTransactionEnvelope;
+  let candidate: unknown;
   try {
-    envelope = await assertDocumentTransactionEnvelope({ assertSchema }, 
-      parseStrictJson(strictUtf8.decode(bytes))
-    );
+    candidate = parseStrictJson(strictUtf8.decode(bytes));
+    envelope = await assertDocumentTransactionEnvelope({ assertSchema }, candidate);
   } catch (error) {
     throw new NodeDocumentJournalStoreError(
-      "Document journal contains invalid strict canonical JSON.",
+      untrustedDocumentEnvelopeReason(candidate),
       { cause: error }
     );
   }

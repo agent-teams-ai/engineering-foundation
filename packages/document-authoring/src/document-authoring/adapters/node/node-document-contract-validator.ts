@@ -15,7 +15,7 @@ function invalidContract(kind: "Intent" | "Plan", error: CapabilityInputError): 
     kind === "Intent"
       ? "DOCUMENT_PLANNING_INPUT_INVALID"
       : "DOCUMENT_PLANNING_OUTPUT_INVALID",
-    `Document ${kind} does not match its v1 contract: ${error.message.slice(0, 1000)}`,
+    `Document ${kind} does not match its closed contract: ${error.message.slice(0, 1000)}`,
     { cause: error }
   );
 }
@@ -380,7 +380,9 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
     try {
       const snapshot = snapshotInertPlan(input);
       await assertSchema(
-        snapshot.schemaVersion === 2 ? "document-plan/v2" : "document-plan/v1",
+        snapshot.schemaVersion === 2
+          ? "document-authoring/document-plan/v2"
+          : "document-authoring/document-plan/v1",
         snapshot,
         "document-plan"
       );

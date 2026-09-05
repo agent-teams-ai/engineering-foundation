@@ -44,9 +44,12 @@ try {
   };
   const request = { consumerRoot: root, signal: controller.signal };
   if (operation === "apply") {
+    const { documentPlanDigest } = await import("../../dist/document-authoring/application/policies/document-contract-digests.js");
     const { plan } = JSON.parse(await readFile(new URL(
       "../../../../tests/fixtures/document-authoring-contracts/valid-v1.json", import.meta.url
     ), "utf8"));
+    plan.compiler.id = "@agent-teams/document-authoring";
+    plan.planDigest = documentPlanDigest(plan);
     const receipt = await writer.applyNodeDocumentationPlan({ ...request, plan }, { assess() { assert.fail("No authority IO before coordination"); } }, operations);
     assert.equal(receipt.outcome, "cancelled");
     assert.equal(receipt.commit.publication, "none");

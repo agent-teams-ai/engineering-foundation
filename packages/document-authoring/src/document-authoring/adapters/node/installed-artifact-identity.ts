@@ -1,7 +1,13 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { computeInstalledArtifactBuildIdentity } from "@agent-teams/repository-mutation";
+import {
+  computeInstalledArtifactBuildIdentity,
+  installedRepositoryMutationBuildIdentity,
+  installedRepositoryMutationVersion,
+  REPOSITORY_MUTATION_PACKAGE_NAME
+} from "@agent-teams/repository-mutation";
+import type { DocumentTransactionEnvelope } from "../../application/model/document-transaction.js";
 
 const packageRoot = dirname(fileURLToPath(new URL("../../../../package.json", import.meta.url)));
 
@@ -18,4 +24,11 @@ let installedIdentity: Promise<`sha256:${string}`> | undefined;
 export function installedDocumentAuthoringBuildIdentity(): Promise<`sha256:${string}`> {
   installedIdentity ??= computeDocumentAuthoringBuildIdentity(packageRoot);
   return installedIdentity;
+}
+
+export async function installedDocumentMutationArtifact(): Promise<DocumentTransactionEnvelope["kernelArtifact"]> {
+  const [version, buildIdentity] = await Promise.all([
+    installedRepositoryMutationVersion(), installedRepositoryMutationBuildIdentity()
+  ]);
+  return Object.freeze({ name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity });
 }

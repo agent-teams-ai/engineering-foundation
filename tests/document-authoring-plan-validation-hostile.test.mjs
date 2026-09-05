@@ -1,3 +1,4 @@
+import { currentDocumentContractFixture } from "./support/current-document-contract-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -9,7 +10,7 @@ import { DocumentPlanningError } from "../packages/document-authoring/dist/docum
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
 );
-const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+const fixture = currentDocumentContractFixture(JSON.parse(await readFile(fixturePath, "utf8")));
 
 function validPlan() {
   return structuredClone(fixture.plan);

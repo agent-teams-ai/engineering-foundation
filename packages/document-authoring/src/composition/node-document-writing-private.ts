@@ -79,7 +79,8 @@ export async function applyNodeDocumentationPlanPrivately(
   const contractValidator = new NodeDocumentContractValidator();
   const plan: DocumentPlan = await contractValidator.validatePlan(request.plan);
   const consumerRoot = await canonicalConsumerRoot(request.consumerRoot);
-  const coordinator = await createNodeDocumentTransactionCoordinator(consumerRoot);
+  // Preserve the microtask boundary before constructing the writer runtime.
+  const coordinator = await Promise.resolve(createNodeDocumentTransactionCoordinator(consumerRoot));
   return applyDocumentPlan(
     { ...runtime(consumerRoot, operations), contractValidator, coordinator },
     {
@@ -95,7 +96,8 @@ export async function recoverNodeDocumentationTransactionPrivately(
   operations: NodeDocumentWritingPrivateOperations = {}
 ): Promise<DocumentReceipt> {
   const consumerRoot = await canonicalConsumerRoot(request.consumerRoot);
-  const coordinator = await createNodeDocumentTransactionCoordinator(consumerRoot);
+  // Recovery shares the same scheduling boundary as apply.
+  const coordinator = await Promise.resolve(createNodeDocumentTransactionCoordinator(consumerRoot));
   return recoverDocumentTransaction(
     { ...runtime(consumerRoot, operations), coordinator },
     {

@@ -78,7 +78,9 @@ packages:
         kind: wildcard
     tsconfigPath: packages/document-authoring/tsconfig.json
     releasedBaselinePath: architecture/public-api/document-authoring.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:7e5eb1fb1386edb0b7bcf1de3bc63c95ba51094a069a0edcf648c8c284795558
+        decisionId: ADR-0049
   - packageName: "@agent-teams/docs-protocol"
     packageRoot: packages/docs-protocol
     manifestPath: packages/docs-protocol/package.json

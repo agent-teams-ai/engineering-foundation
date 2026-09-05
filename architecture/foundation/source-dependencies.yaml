@@ -1084,7 +1084,7 @@ boundaries:
   - id: document-authoring.tests
     dependencyMode: development
     roots:
-      - packages/document-authoring/tests
+      - packages/document-authoring/tests/package-boundary.test.mjs
     allow:
       boundaries:
         - document-authoring.surface
@@ -1095,6 +1095,42 @@ boundaries:
         - node:path
         - node:test
       runtimeReferences: []
+    entrypoints: []
+  - id: document-authoring.tests.public-api
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests/public-api-contract.test.mjs
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+      runtimeReferences: []
+    entrypoints: []
+  # Isolated crash and microtask probes need private dynamic fault seams.
+  # Exact test files only; this does not admit a production runtime reference.
+  - id: document-authoring.tests.fault-injection
+    dependencyMode: development
+    roots:
+      - packages/document-authoring/tests/fixtures/public-api/crash-worker.mjs
+      - packages/document-authoring/tests/fixtures/writer-scheduling.mjs
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+      runtimeReferences:
+        - dynamic
     entrypoints: []
   - id: foundation.transaction-coordination.application
     roots:

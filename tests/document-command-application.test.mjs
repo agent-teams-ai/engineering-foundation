@@ -5,6 +5,7 @@ import { RunDocumentDoctor } from "../packages/document-authoring/dist/applicati
 import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
 import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
 import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { DocumentAuthoringError } from "../packages/document-authoring/dist/errors.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const plan = {
@@ -55,6 +56,27 @@ function newHarness(overrides = {}) {
     })
   };
 }
+
+test("docs new projects consumer input errors and preserves unexpected failures", async () => {
+  const message = "Invalid consumer. ".repeat(100);
+  for (const [error, outcome, exitCode] of [
+    [new DocumentAuthoringError("CONSUMER_INVALID", message), "invalid-input", 2],
+    [Object.assign(new Error(message), { code: "CONSUMER_INVALID" }), "execution-failure", 3]
+  ]) {
+    const harness = newHarness({ async plan() { throw error; } });
+    const result = await harness.subject.execute({
+      consumerRoot: "/fixture", profilePath: "profile.yaml", intent: {}, dryRun: false
+    });
+    assert.equal(result.exitCode, exitCode);
+    assert.equal(result.envelope.outcome, outcome);
+    assert.equal(result.envelope.diagnostics[0].ruleId, `docs.new.${outcome}`);
+    assert.equal(result.envelope.diagnostics[0].message, message.slice(0, 1_000));
+    if (outcome === "invalid-input") {
+      assert.equal(result.envelope.diagnostics[0].phase, "input");
+    }
+    assert.deepEqual(harness.calls, ["inspect"]);
+  }
+});
 
 test("docs new dry-run plans a preview without reservation or mutation", async () => {
   const harness = newHarness();

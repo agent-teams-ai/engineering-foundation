@@ -37,12 +37,17 @@ pnpm spike:source-parser
 
 ## Findings
 
-- Both parsers match the independent expected model on all nine shared cases.
+- Both parsers match the independent expected model on all nine shared cases
+  in the 2026-09-05 A1 corpus. This standalone syntax spike remains isolated from
+  Foundation internals; its TypeScript oracle uses the compiler binder. The
+  dedicated loader tests exercise production lexical/alias/base behavior against
+  independent expectations.
 - Oxc accepts source-phase imports that TypeScript 6 reports as malformed.
 - Non-literal dynamic imports and `require` calls remain unresolved and fail
   closed; parser errors discard partial edges.
-- A shadowed string-literal `require` is conservatively treated as an edge. Scope
-  analysis is outside the parser adapter's responsibility.
+- A1 corrects the original conservative shadowed-`require` finding: lexical
+  user bindings are preserved. `module.require`, require aliases, and builtin
+  `createRequire` origins are now observed.
 - On an Apple Silicon development host, the complete Oxc parse, AST transfer,
   visit, and normalization path was about 24-26% slower than the TypeScript 6
   path for the small, medium, and large synthetic profiles. The difference is
@@ -51,6 +56,40 @@ pnpm spike:source-parser
 - TypeScript 7 does not expose the established Compiler API from its stable root
   export. Depending on `typescript/unstable/*` would make the architecture gate
   depend on an intentionally unstable API.
+
+## A1 bounded loader contract (2026-09-05)
+
+| Syntax and lexical origin | Base and observation |
+| --- | --- |
+| Unshadowed `require`, `module.require`, static string members and aliases | Importer; commonjs edge for a literal argument |
+| Named/default/namespace `module` or `node:module` imports; CommonJS or TS import-equals builtin namespaces | Factory provenance through `createRequire` |
+| Unshadowed/builtin-imported `process.getBuiltinModule` | Builtin edge for a known literal builtin; otherwise unresolved |
+| Proven `createRequire(import.meta.url)` call or alias | Importer; commonjs edge |
+| Proven factory with any other filename, URL or expression | Unresolved commonjs; never guessed relative to the importer |
+| Written loader bindings, default/conditional/logical aliases, known `.call`/`.apply` calls and `.bind` results | Unresolved commonjs; finite provenance, without flow execution |
+| User parameters, locals, imports and ambient value declarations | No Node identity; type-only bindings do not shadow runtime values |
+
+Direct namespace-member destructuring preserves the selected origin. Lexical
+collection covers function/parameter, block, loop, catch, switch, class and
+TypeScript namespace scopes; `var` hoisting and default-parameter scope are
+separate. Namespace aliases share conservative member-write evidence. Mixed or
+cyclic alias origins do not erase known loader possibilities. String locations
+and parse-error discard remain unchanged.
+
+All opaque observations use the existing normalized unresolved-reference model.
+The owning consumer's explicit `runtimeReferences` allowance remains effective;
+accepted opacity stays graph evidence and creates no invented edge. The existing
+diagnostic rule is `unresolved-runtime-reference`, including unrepresentable
+bases. This contract does not infer loaders returned from arbitrary user
+functions, stored in containers, selected through dynamic properties, passed
+through arbitrary higher-order functions, or created by eval. It does not claim
+complete analysis of JavaScript execution. Native Node fixtures independently
+prove that identical specifiers under different bases can target different bytes.
+
+Dedicated loader tests exercise the complete installed CLI under schema v1 and
+v2, including allowed/forbidden edges, runtime/type-only cycles, scoped exceptions,
+and unchanged consumer bytes. Registry installation and release qualification
+remain separate coordinator gates.
 
 ## Recommendation
 

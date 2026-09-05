@@ -47,7 +47,9 @@
         "tests/scaffolding-journal-store.test.mjs",
         "tests/scaffolding-owner-document-resolution.test.mjs",
         "tests/single-current-contract-version.test.mjs",
-        "tests/source-dependency-graph.test.mjs"
+        "tests/source-dependency-graph.test.mjs",
+        "tests/source-dependency-loader-edges.test.mjs",
+        "tests/source-dependency-loader-cli.test.mjs"
       ]
     },
     {

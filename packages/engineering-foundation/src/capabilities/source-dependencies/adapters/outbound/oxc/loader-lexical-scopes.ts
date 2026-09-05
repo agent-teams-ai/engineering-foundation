@@ -1,0 +1,262 @@
+import { Visitor, type BindingPattern, type Expression, type Node, type Program } from "oxc-parser";
+
+import {
+  builtinOrigin, childNodes, memberOrigin, patternBindings, propertyName, unwrapExpression,
+  type BindingInput, type LexicalBinding, type LexicalScope, type LoaderOrigin
+} from "./loader-syntax.js";
+
+/** Collect declarations before observing calls: lexical shadowing includes hoisting and TDZ. */
+export class LoaderLexicalScopes {
+  readonly #nodeScopes = new WeakMap<Node, LexicalScope>();
+  readonly #program: LexicalScope = { bindings: new Map(), kind: "program" };
+
+  constructor(program: Program) {
+    for (const [name, kind] of [
+      ["require", "loader"], ["module", "commonjs-module"], ["process", "process"]
+    ] as const) {
+      this.#program.bindings.set(name, { declaredOrigin: { kind }, inputs: [], mutable: false });
+    }
+    // Ambient Node bindings live outside the source's own lexical declarations.
+    this.#collect(program, this.#childScope(this.#program, "program"));
+    this.#markMutations(program);
+  }
+
+  scope(node: Node): LexicalScope {
+    return this.#nodeScopes.get(node) ?? this.#program;
+  }
+
+  resolve(name: string, scope: LexicalScope): LexicalBinding | undefined {
+    for (let current: LexicalScope | undefined = scope; current !== undefined; current = current.parent) {
+      const binding = current.bindings.get(name);
+      if (binding !== undefined) {
+        return binding;
+      }
+    }
+    return undefined;
+  }
+
+  #childScope(parent: LexicalScope, kind: LexicalScope["kind"]): LexicalScope {
+    return { bindings: new Map(), kind, parent };
+  }
+
+  #declare(scope: LexicalScope, name: string, input?: BindingInput, origin?: LoaderOrigin): void {
+    const previous = scope.bindings.get(name);
+    if (previous !== undefined) {
+      if (input !== undefined) {
+        previous.mutable = true;
+        previous.inputs.push(input);
+      }
+      return;
+    }
+    scope.bindings.set(name, {
+      inputs: input === undefined ? [] : [input],
+      ...(origin === undefined ? {} : { declaredOrigin: origin }),
+      mutable: false
+    });
+  }
+
+  #declarePattern(scope: LexicalScope, pattern: BindingPattern, expression?: Expression): void {
+    for (const { name, properties, defaults } of patternBindings(pattern)) {
+      this.#declare(scope, name, expression === undefined ? undefined : { expression, properties });
+      for (const input of defaults) {
+        this.#declare(scope, name, input);
+      }
+    }
+  }
+
+  #varScope(scope: LexicalScope): LexicalScope {
+    let current = scope;
+    while (current.kind === "block" && current.parent !== undefined) {
+      current = current.parent;
+    }
+    return current;
+  }
+
+  #collectFunction(node: Extract<Node, {
+    type: "FunctionDeclaration" | "FunctionExpression" | "TSDeclareFunction" |
+      "TSEmptyBodyFunctionExpression" | "ArrowFunctionExpression"
+  }>, scope: LexicalScope): void {
+    if ((node.type === "FunctionDeclaration" || node.type === "TSDeclareFunction") && node.id !== null) {
+      this.#declare(scope, node.id.name);
+    }
+    const parameters = this.#childScope(scope, "function");
+    this.#nodeScopes.set(node, parameters);
+    if (node.type !== "ArrowFunctionExpression" && node.id !== null) {
+      this.#declare(parameters, node.id.name);
+    }
+    for (const parameter of node.params) {
+      const pattern = parameter.type === "TSParameterProperty" ? parameter.parameter : parameter;
+      this.#declarePattern(parameters, pattern.type === "RestElement" ? pattern.argument : pattern);
+    }
+    for (const child of childNodes(node)) {
+      // Body var declarations do not shadow expressions evaluated in default parameters.
+      this.#collect(child, child.type === "BlockStatement"
+        ? this.#childScope(parameters, "function") : parameters);
+    }
+  }
+
+  #collectImport(node: Extract<Node, { type: "ImportDeclaration" }>, scope: LexicalScope): void {
+    if (node.importKind === "type") {
+      return;
+    }
+    for (const specifier of node.specifiers) {
+      if (specifier.type === "ImportSpecifier" && specifier.importKind === "type") {
+        continue;
+      }
+      const namespace = builtinOrigin(node.source.value);
+      let origin = namespace;
+      if (specifier.type === "ImportSpecifier") {
+        origin = memberOrigin(namespace, propertyName(specifier.imported, false));
+      }
+      this.#declare(scope, specifier.local.name, undefined, origin);
+    }
+  }
+
+  #nestedScope(node: Node, parent: LexicalScope): LexicalScope {
+    if (node.type === "StaticBlock" || node.type === "TSModuleBlock") {
+      return this.#childScope(parent, "function");
+    }
+    if (node.type === "ClassDeclaration" || node.type === "ClassExpression") {
+      if (node.type === "ClassDeclaration" && node.id !== null) {
+        this.#declare(parent, node.id.name);
+      }
+      const scope = this.#childScope(parent, "block");
+      if (node.id !== null) {
+        this.#declare(scope, node.id.name);
+      }
+      return scope;
+    }
+    if (node.type === "BlockStatement" || node.type === "ForStatement" ||
+        node.type === "ForInStatement" || node.type === "ForOfStatement" || node.type === "CatchClause") {
+      const scope = this.#childScope(parent, "block");
+      if (node.type === "CatchClause" && node.param !== null) {
+        this.#declarePattern(scope, node.param);
+      }
+      return scope;
+    }
+    return parent;
+  }
+
+  #collectDeclarations(node: Node, scope: LexicalScope): void {
+    if (node.type === "TSModuleDeclaration" || node.type === "TSEnumDeclaration") {
+      if (node.id.type === "Identifier") {
+        this.#declare(scope, node.id.name);
+      }
+    } else if (node.type === "ImportDeclaration") {
+      this.#collectImport(node, scope);
+    } else if (node.type === "VariableDeclaration") {
+      for (const declaration of node.declarations) {
+        this.#declarePattern(node.kind === "var" ? this.#varScope(scope) : scope,
+          declaration.id, declaration.init ?? undefined);
+      }
+    } else if (node.type === "TSImportEqualsDeclaration" && node.importKind !== "type") {
+      const origin = node.moduleReference.type === "TSExternalModuleReference"
+        ? builtinOrigin(node.moduleReference.expression.value) : undefined;
+      this.#declare(scope, node.id.name, undefined, origin);
+    }
+  }
+
+  #collect(node: Node, parent: LexicalScope): void {
+    if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" ||
+        node.type === "TSDeclareFunction" || node.type === "TSEmptyBodyFunctionExpression" ||
+        node.type === "ArrowFunctionExpression") {
+      this.#collectFunction(node, parent);
+      return;
+    }
+    if (node.type === "SwitchStatement") {
+      this.#nodeScopes.set(node, parent);
+      this.#collect(node.discriminant, parent);
+      const scope = this.#childScope(parent, "block");
+      for (const child of node.cases) {
+        this.#collect(child, scope);
+      }
+      return;
+    }
+    const scope = this.#nestedScope(node, parent);
+    this.#collectDeclarations(node, scope);
+    this.#nodeScopes.set(node, scope);
+    for (const child of childNodes(node)) {
+      this.#collect(child, scope);
+    }
+  }
+
+  #markObject(expression: Expression, scope: LexicalScope, seen = new Set<LexicalBinding>()): void {
+    const target = unwrapExpression(expression);
+    if (target.type === "MemberExpression") {
+      this.#markObject(target.object, scope, seen);
+    } else if (target.type === "Identifier") {
+      const binding = this.resolve(target.name, scope);
+      if (binding === undefined || seen.has(binding)) {
+        return;
+      }
+      seen.add(binding);
+      binding.mutable = true;
+      // Object aliases share member writes, while reassigning an alias does not.
+      for (const input of binding.inputs) {
+        if (input.properties.length === 0) {
+          this.#markObject(input.expression, this.scope(input.expression), seen);
+        }
+      }
+    }
+  }
+
+  #markTarget(target: Node, scope: LexicalScope, input?: BindingInput): void {
+    if (target.type === "Identifier") {
+      const binding = this.resolve(target.name, scope);
+      if (binding !== undefined) {
+        binding.mutable = true;
+        if (input !== undefined) {
+          binding.inputs.push(input);
+        }
+      }
+      return;
+    }
+    if (target.type === "MemberExpression") {
+      this.#markObject(target.object, scope);
+      return;
+    }
+    if (target.type === "AssignmentPattern") {
+      this.#markTarget(target.left, scope, input);
+      this.#markTarget(target.left, scope, { expression: target.right, properties: [] });
+      return;
+    }
+    if (target.type === "Property") {
+      this.#markTarget(target.value, scope, input === undefined ? undefined : {
+        ...input, properties: [...input.properties, propertyName(target.key, target.computed) ?? "<computed>"]
+      });
+      return;
+    }
+    // Array/rest projections cannot select a known namespace member.
+    const projected = target.type === "ArrayPattern" || target.type === "RestElement"
+      ? undefined : input;
+    for (const child of childNodes(target)) {
+      this.#markTarget(child, scope, projected);
+    }
+  }
+
+  #markMutations(program: Program): void {
+    new Visitor({
+      AssignmentExpression: (node) => {
+        this.#markTarget(node.left, this.scope(node), { expression: node.right, properties: [] });
+      },
+      UpdateExpression: (node) => {
+        this.#markTarget(node.argument, this.scope(node));
+      },
+      UnaryExpression: (node) => {
+        if (node.operator === "delete") {
+          this.#markTarget(node.argument, this.scope(node));
+        }
+      },
+      ForInStatement: (node) => {
+        if (node.left.type !== "VariableDeclaration") {
+          this.#markTarget(node.left, this.scope(node));
+        }
+      },
+      ForOfStatement: (node) => {
+        if (node.left.type !== "VariableDeclaration") {
+          this.#markTarget(node.left, this.scope(node));
+        }
+      }
+    }).visit(program);
+  }
+}

@@ -1,3 +1,5 @@
+import { isBuiltin } from "node:module";
+
 import { parseSync, Visitor } from "oxc-parser";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
@@ -9,6 +11,8 @@ import type {
   UnresolvedSourceDependency
 } from "../../../application/model/source-workspace.js";
 import type { SourceDependencyParser } from "../../../application/ports/source-dependency-parser.js";
+
+import { LoaderBindingAnalysis } from "./loader-binding-analysis.js";
 
 function reference(
   kind: SourceDependencyKind,
@@ -37,6 +41,7 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
       };
     }
 
+    const bindings = new LoaderBindingAnalysis(parsed.program);
     const references: SourceDependencyReference[] = [];
     const unresolvedReferences: UnresolvedSourceDependency[] = [];
     const addReference = (
@@ -48,13 +53,20 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
         references.push(candidate);
       }
     };
-    const visitor = new Visitor({
+    new Visitor({
       CallExpression(node) {
-        if (node.callee.type !== "Identifier" || node.callee.name !== "require") {
+        const loaders = bindings.callOrigins(node).filter((origin) =>
+          origin.kind === "loader" || origin.kind === "builtin-getter");
+        if (loaders.length === 0) {
           return;
         }
         const argument = node.arguments[0];
-        if (argument?.type === "Literal" && typeof argument.value === "string") {
+        if (
+          loaders.every((origin) => origin.opaque !== true) &&
+          argument?.type === "Literal" &&
+          typeof argument.value === "string" &&
+          (loaders.every((origin) => origin.kind !== "builtin-getter") || isBuiltin(argument.value))
+        ) {
           addReference("commonjs", argument);
         } else {
           unresolvedReferences.push(unresolved("commonjs", node));
@@ -113,8 +125,7 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
           unresolvedReferences.push(unresolved("type-query", node));
         }
       }
-    });
-    visitor.visit(parsed.program);
+    }).visit(parsed.program);
     return {
       parseErrorCount: 0,
       references: references.toSorted(

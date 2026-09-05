@@ -1,7 +1,6 @@
 import type { FoundationCheck, FoundationConfigReader } from "../../foundation-check/api.js";
 import type { CapabilityInvocation, FoundationCheckReport, RuleExplanation } from "../../validation-reporting/api.js";
-import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus } from "../../../local-mode/index.js";
-import type { FoundationSchemaId } from "../../../schema-ids.js";
+import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus } from "../../../local-mode/api.js";
 import type { CommandInvocation } from "./command-invocation.js";
 
 export type CommandSignal = "SIGINT" | "SIGTERM";
@@ -10,7 +9,7 @@ export interface CommandCancellation {
 }
 
 /** Only the operations consumed by the CLI; concrete services are selected in composition. */
-export interface FoundationCommandServices {
+export interface FoundationCommandServices<SchemaId extends string = string> {
   readonly cancellation: CommandCancellation;
   readonly check: FoundationCheck;
   readonly renderCheck: (report: FoundationCheckReport) => string;
@@ -38,6 +37,6 @@ export interface FoundationCommandServices {
   readonly scaffold: (input: CommandInvocation, json: boolean) => Promise<boolean>;
   readonly inspectPackage: () => Promise<unknown>;
   readonly installedVersion: () => Promise<string>;
-  readonly isSchemaId: (value: string) => value is FoundationSchemaId;
-  readonly readSchema: (id: FoundationSchemaId) => Promise<string>;
+  readonly isSchemaId: (value: string) => value is SchemaId;
+  readonly readSchema: (id: SchemaId) => Promise<string>;
 }

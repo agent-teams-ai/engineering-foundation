@@ -108,10 +108,10 @@ function printHelp(): void {
 `);
 }
 
-async function runLocalModeCommand(
-  services: FoundationCommandServices,
+async function runLocalModeCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
-  service: FoundationCommandServices["localMode"],
+  service: FoundationCommandServices<SchemaId>["localMode"],
   json: boolean
 ): Promise<boolean> {
   switch (parsed.command) {
@@ -180,8 +180,8 @@ async function runLocalModeCommand(
   }
 }
 
-async function runCheckCommand(
-  services: FoundationCommandServices,
+async function runCheckCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
   json: boolean
 ): Promise<boolean> {
@@ -207,8 +207,8 @@ async function runCheckCommand(
   return true;
 }
 
-async function runProtobufQualificationCommand(
-  services: FoundationCommandServices,
+async function runProtobufQualificationCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
   json: boolean
 ): Promise<boolean> {
@@ -250,8 +250,8 @@ async function runProtobufQualificationCommand(
   return true;
 }
 
-async function runAgentWorkflowCommand(
-  services: FoundationCommandServices,
+async function runAgentWorkflowCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
 ): Promise<boolean> {
   if (parsed.command !== "agent-workflow") {
@@ -294,8 +294,8 @@ async function runAgentWorkflowCommand(
   return true;
 }
 
-async function runPolicyCommand(
-  services: FoundationCommandServices,
+async function runPolicyCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
   json: boolean
 ): Promise<boolean> {
@@ -343,8 +343,8 @@ async function runPolicyCommand(
   }
 }
 
-async function runInformationCommand(
-  services: FoundationCommandServices,
+async function runInformationCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>,
   parsed: ParsedArguments,
   json: boolean
 ): Promise<boolean> {
@@ -385,7 +385,7 @@ async function runInformationCommand(
   }
 }
 
-async function main(createServices: () => FoundationCommandServices, args: readonly string[]): Promise<void> {
+async function main<SchemaId extends string>(createServices: () => FoundationCommandServices<SchemaId>, args: readonly string[]): Promise<void> {
   const parsed = parseArguments(args);
   const json = parsed.format === "json";
   const services = createServices();
@@ -400,7 +400,7 @@ async function main(createServices: () => FoundationCommandServices, args: reado
   ]);
 }
 
-export async function runFoundationCli(createServices: () => FoundationCommandServices, args: readonly string[]): Promise<void> {
+export async function runFoundationCli<SchemaId extends string>(createServices: () => FoundationCommandServices<SchemaId>, args: readonly string[]): Promise<void> {
   try {
     await main(createServices, args);
   } catch (error) {

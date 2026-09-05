@@ -1517,6 +1517,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/transaction-coordination/application
       - packages/engineering-foundation/src/transaction-coordination/inspection.ts
+      - packages/engineering-foundation/src/transaction-coordination/api.ts
     allow:
       boundaries: []
       packages: []
@@ -1533,6 +1534,7 @@ boundaries:
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-operation-lock.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-slot.ts
       - packages/engineering-foundation/src/transaction-coordination/inspection.ts
+      - packages/engineering-foundation/src/transaction-coordination/api.ts
   - id: foundation.transaction-coordination.adapters
     roots:
       - packages/engineering-foundation/src/transaction-coordination/adapters/node/document-envelope-bindings.ts
@@ -1555,7 +1557,6 @@ boundaries:
     allow:
       boundaries:
         - foundation.validation-reporting.error
-        - foundation.state-assembly
         - foundation.core
         - foundation.package-identity
         - foundation.schema-validation
@@ -1747,7 +1748,6 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/api.ts
     allow:
       boundaries:
-        - foundation.state-assembly
         - foundation.transactions.composition
         - foundation.core
         - foundation.validation-reporting.error
@@ -2847,9 +2847,8 @@ boundaries:
       boundaries:
         - foundation.check.application
         - foundation.validation-reporting.application
-        - foundation.local-mode
         - foundation.core
-        - foundation.schema-identities
+        - foundation.local-mode.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -2910,6 +2909,7 @@ boundaries:
         - foundation.local-mode.adapters
         - foundation.local-mode.composition
         - foundation.local-mode.assembly
+        - foundation.schema-identities
       packages: []
       builtins:
         - node:path

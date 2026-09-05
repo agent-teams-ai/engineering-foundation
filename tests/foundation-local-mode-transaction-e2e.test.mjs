@@ -422,6 +422,21 @@ test("source policy admits the process port and denies concrete providers to loc
       ), JSON.stringify(result.report));
       await writeFile(compositionPath, source);
     }
+    for (const [path, addition] of [
+      ["features/command-host/application/command-services.ts", 'export type { FoundationSchemaId as ModuleAssemblyLeak } from "../../../schema-ids.js";'],
+      ["local-mode/application/model.ts", 'export { FOUNDATION_LINK_STATE_FILE as ModuleAssemblyLeak } from "../../foundation-state-contract.js";'],
+      ["transaction-coordination/adapters/node/node-foundation-transaction-slot.ts", 'export { FOUNDATION_LINK_STATE_FILE as ModuleAssemblyLeak } from "../../../foundation-state-contract.js";']
+    ]) {
+      const target = join(root, "packages/engineering-foundation/src", path);
+      const source = await readFile(target, "utf8");
+      await writeFile(target, `${source}\n${addition}\n`);
+      const result = actualSourceDependenciesCLI(root);
+      assert.equal(result.exitCode, 1, JSON.stringify(result));
+      assert.ok(result.report.capabilities.flatMap((capability) => capability.diagnostics).some((diagnostic) =>
+        diagnostic.ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" && diagnostic.location.path.endsWith(path)
+      ), JSON.stringify(result.report));
+      await writeFile(target, source);
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

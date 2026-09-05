@@ -1,3 +1,4 @@
+// Reserved coordination namespace shared through exact application values.
 export {
   FOUNDATION_LINK_STATE_FILE,
   FOUNDATION_REGISTRY_BACKUP,
@@ -7,4 +8,4 @@ export {
   FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX,
   LOCAL_OPERATION_LOCK,
   LOCAL_STATE_DIRECTORY
-} from "./transaction-coordination/api.js";
+} from "./application/model/foundation-transaction-identity.js";

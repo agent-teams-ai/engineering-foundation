@@ -5,7 +5,7 @@ export {
   FOUNDATION_REGISTRY_BACKUP as LOCAL_REGISTRY_BACKUP,
   LOCAL_OPERATION_LOCK,
   LOCAL_STATE_DIRECTORY
-} from "../../foundation-state-contract.js";
+} from "../../transaction-coordination/api.js";
 export const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION = 1 as const;
 
 export type {

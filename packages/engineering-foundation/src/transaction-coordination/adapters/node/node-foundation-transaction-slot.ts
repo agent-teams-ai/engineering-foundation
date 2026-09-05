@@ -1,9 +1,10 @@
-import { FOUNDATION_LINK_STATE_FILE, FOUNDATION_REGISTRY_BACKUP } from "../../../foundation-state-contract.js";
 import { opendir } from "node:fs/promises";
 import { join } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
+  FOUNDATION_LINK_STATE_FILE,
+  FOUNDATION_REGISTRY_BACKUP,
   FOUNDATION_TRANSACTION_FILE,
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY

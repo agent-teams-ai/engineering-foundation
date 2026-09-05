@@ -1,4 +1,5 @@
 import type { FoundationCommandServices } from "../features/command-host/api.js";
+import type { FoundationSchemaId } from "../schema-ids.js";
 import { renderFoundationReportText } from "../features/foundation-check/module.js";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +20,7 @@ import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js"
 import { RULE_REGISTRY } from "./rule-registry.js";
 
 // Executable composition owns the concrete adapters and process environment.
-function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: string): FoundationCommandServices {
+function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: string): FoundationCommandServices<FoundationSchemaId> {
   const processExecutor = createManagedProcessExecutor();
   const packageRoot = dirname(dirname(fileURLToPath(entrypointUrl)));
   const qualityGate = createQualityGateCliCommand({

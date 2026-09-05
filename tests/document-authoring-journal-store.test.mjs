@@ -1,3 +1,4 @@
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import {
   lstat,
@@ -16,12 +17,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
-import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store-private.js";
+import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-journal-store-private.js";
 import {
   createJournalReconciled,
   replaceJournalReconciled
-} from "../packages/document-authoring/dist/application/use-cases/document-journal-reconciliation.js";
+} from "../packages/document-authoring/dist/document-authoring/application/use-cases/document-journal-reconciliation.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
 const requiresStrictDirectoryDurability = process.platform === "win32"
@@ -810,3 +811,5 @@ test("rejects a legacy v1 journal before creating transition evidence", async ()
     assert.deepEqual(await readdir(state), []);
   });
 });
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }

@@ -1,3 +1,4 @@
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -6,19 +7,19 @@ import test from "node:test";
 import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
 import {
   documentReceiptDigest,
-} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import {
-  assertDocumentReceipt,
-  createDocumentReceipt,
-} from "../packages/document-authoring/dist/application/policies/document-receipt-policy.js";
+  assertDocumentReceipt as assertDocumentReceiptWithSchema,
+  createDocumentReceipt as createDocumentReceiptWithSchema,
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-receipt-policy.js";
 import {
-  assertDocumentTransactionEnvelope,
-  createDocumentTransactionEnvelope,
-} from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
+  assertDocumentTransactionEnvelope as assertDocumentTransactionEnvelopeWithSchema,
+  createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema,
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 import {
   documentTransactionEnvelopeDigest,
   documentTransactionPayloadDigest,
-} from "../packages/document-authoring/dist/application/policies/document-transaction-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -160,3 +161,11 @@ test("receipt assertion snapshots and deep-freezes accepted evidence", async () 
   assert.equal(Object.isFrozen(validated.commit), true);
   assert.equal(Object.isFrozen(validated.diagnostics), true);
 });
+
+function createDocumentReceipt(...args) { return createDocumentReceiptWithSchema({ assertSchema }, ...args); }
+
+function assertDocumentReceipt(...args) { return assertDocumentReceiptWithSchema({ assertSchema }, ...args); }
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+
+function assertDocumentTransactionEnvelope(...args) { return assertDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }

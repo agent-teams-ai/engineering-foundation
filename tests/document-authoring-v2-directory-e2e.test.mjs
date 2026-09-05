@@ -1,3 +1,5 @@
+import { createNodeDocumentAuthority } from "../packages/document-authoring/dist/document-authoring/module.js";
+import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import {
   cp,
@@ -19,7 +21,7 @@ import {
   inspectDocumentTransactionV2,
   planDocumentationDocument
 } from "../packages/document-authoring/dist/index.js";
-import { applyNodeDocumentationPlanPrivately } from "../packages/document-authoring/dist/composition/node-document-writing-private.js";
+import { applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -285,3 +287,7 @@ qualified("nonempty bound directory is retained without rollback deletion", asyn
   assert.equal(await readFile(join(first, "user-content.txt"), "utf8"), "retain me\n");
   assert.equal((await inspectDocumentTransactionV2(root)).state, "idle");
 });
+
+function applyNodeDocumentationPlanPrivately(request, operations) { return applyNodeDocumentationPlanWithAuthority(request, createNodeDocumentAuthority(observation), operations); }
+
+const observation = { repository: new FilesystemMarkdownRepository(), readFile: readContainedRegularFile, syntax: readMarkdownSyntax };

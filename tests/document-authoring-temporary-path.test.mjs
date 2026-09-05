@@ -5,9 +5,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";

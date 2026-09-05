@@ -8,10 +8,10 @@ import {
   inspectDocumentTransactionV1,
   inspectDocumentTransactionV2,
 } from "../packages/document-authoring/dist/index.js";
-import { canonicalJson, sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
-import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
-import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { canonicalJson, sha256Json } from "../packages/repository-mutation/dist/index.js";
+import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/document-authoring/adapters/node/installed-artifact-identity.js";
+import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/document-authoring/adapters/node/package-version.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixture = JSON.parse(await readFile(

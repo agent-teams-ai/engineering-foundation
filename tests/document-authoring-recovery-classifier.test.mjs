@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { classifyDocumentRecovery } from "../packages/document-authoring/dist/application/policies/classify-document-recovery.js";
+import { classifyDocumentRecovery } from "../packages/document-authoring/dist/document-authoring/application/policies/classify-document-recovery.js";
 
 const absentTemporary = { state: "absent" };
 const exactTemporary = { state: "exact", identity: "nonzero" };

@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeDocumentEnvironmentInspector } from "../packages/document-authoring/dist/adapters/node/node-document-environment-inspector.js";
-import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { NodeDocumentEnvironmentInspector } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-environment-inspector.js";
+import { RunDocumentDoctor } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-doctor.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import { inspectDocumentAuthoringEnvironmentV1 } from "../packages/document-authoring/dist/index.js";
 
 const digest = `sha256:${"b".repeat(64)}`;

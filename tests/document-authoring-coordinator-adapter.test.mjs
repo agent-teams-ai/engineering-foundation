@@ -6,11 +6,11 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/adapters/node/node-document-transaction-coordinator.js";
-import { canonicalJson, sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
-import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
-import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-transaction-coordinator.js";
+import { canonicalJson, sha256Json } from "../packages/repository-mutation/dist/index.js";
+import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/document-authoring/adapters/node/installed-artifact-identity.js";
+import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/document-authoring/adapters/node/package-version.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const contract = JSON.parse(await readFile(

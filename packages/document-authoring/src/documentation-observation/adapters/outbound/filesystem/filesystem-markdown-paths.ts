@@ -1,7 +1,7 @@
 import { isAbsolute, relative, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { CapabilityInputError } from "../../../application/model/input-problem.js";
+import { assertNotCancelled } from "../../../application/policies/cancellation.js";
 import {
   isMissingMarkdownFilesystemError,
   nodeFilesystemMarkdownOperations,

@@ -12,7 +12,7 @@ import {
   planDocumentationDocument,
   recoverDocumentationTransaction
 } from "../packages/document-authoring/dist/index.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
 import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(

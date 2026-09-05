@@ -3,12 +3,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
-  canonicalJson,
-  CanonicalJsonError,
-  sha256Bytes,
-  sha256Json,
-} from "../packages/document-authoring/dist/canonical-json.js";
+import { canonicalJson, CanonicalJsonError, sha256Bytes, sha256Json, parseStrictJson, StrictJsonError } from "../packages/repository-mutation/dist/index.js";
 import {
   assertDocumentPlanDigests,
   assertDocumentReceiptDigest,
@@ -18,15 +13,12 @@ import {
   documentPlanDigest,
   documentReceiptDigest,
   documentReferencedDocumentDigest,
-} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 import {
   documentTemporaryPath,
-} from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
-import {
-  parseStrictJson,
-  StrictJsonError,
-} from "../packages/document-authoring/dist/strict-json.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
+
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
 
 const fixturePath = fileURLToPath(

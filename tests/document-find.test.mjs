@@ -7,17 +7,17 @@ import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import {
   findDocumentationDocuments,
 } from "../packages/document-authoring/dist/index.js";
-import { FindDocuments } from "../packages/document-authoring/dist/application/use-cases/find-documents.js";
+import { FindDocuments } from "../packages/document-authoring/dist/document-authoring/application/use-cases/find-documents.js";
 import {
   documentFindFailure,
   documentFindSuccess,
-} from "../packages/document-authoring/dist/find-command.js";
-import { DocumentCatalogError } from "../packages/document-authoring/dist/document-catalog-error.js";
-import { DocumentAuthoringError } from "../packages/document-authoring/dist/errors.js";
+} from "../packages/document-authoring/dist/document-authoring/adapters/inbound/cli/find-command.js";
+import { DocumentCatalogError } from "../packages/document-authoring/dist/document-authoring/application/model/document-catalog-error.js";
+import { DocumentAuthoringError } from "../packages/document-authoring/dist/document-authoring/application/model/errors.js";
 import { assertDocsCommandEnvelopeSchema } from "../packages/docs-protocol/dist/adapters/docs-command-envelope-schema-validator.js";
 
 const cliPath = fileURLToPath(

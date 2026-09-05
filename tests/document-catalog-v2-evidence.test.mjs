@@ -14,7 +14,7 @@ import {
 import {
   documentAuthoringProfileSemanticDigest,
   documentAuthoringProfileSemanticDigestV3,
-} from "../packages/document-authoring/dist/application/policies/document-authoring-semantic-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-authoring-semantic-digests.js";
 
 const schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",

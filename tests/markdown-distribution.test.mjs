@@ -45,10 +45,10 @@ async function fixture(t, { entrySuffix = "", componentName, alternativeEntry = 
   const dependencies = Object.fromEntries(names.map((name) => [name, "1.0.0"]));
   const manifest = {
     name: "@agent-teams/document-authoring", type: "module", version: "0.1.0",
-    dependencies: { "@agent-teams/repository-mutation": "0.1.0", ajv: "8.20.0", yaml: "2.8.3", ...dependencies },
+    dependencies: { "../packages/repository-mutation/dist/index.js": "0.1.0", ajv: "8.20.0", yaml: "2.8.3", ...dependencies },
   };
   await writeFile(join(packageRoot, "package.json"), JSON.stringify(manifest));
-  await mkdir(join(packageRoot, "dist/adapters"), { recursive: true });
+  await mkdir(join(packageRoot, "dist/documentation-observation/adapters/outbound/filesystem"), { recursive: true });
   const archives = new Map();
   const packages = { [`esbuild@${esbuildVersion}`]: {} };
   const snapshots = {};
@@ -71,7 +71,7 @@ async function fixture(t, { entrySuffix = "", componentName, alternativeEntry = 
     packages[`${name}@1.0.0`] = { resolution: { integrity } };
     snapshots[`${name}@1.0.0`] = {};
   }
-  await writeFile(join(packageRoot, "dist/adapters/markdown-runtime.js"),
+  await writeFile(join(packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js"),
     names.map((name, index) => `export { value as value${index} } from "${name}";`).join("\n") + entrySuffix);
   const sourceLockBytes = Buffer.from(JSON.stringify({ lockfileVersion: "9.0", packages, snapshots,
     importers: { "packages/document-authoring": { dependencies: Object.fromEntries(names.map(name => [name, { version: "1.0.0" }])) } },
@@ -97,7 +97,7 @@ test("distribution is deterministic across independent roots and imports without
   const runtime = await import(`data:text/javascript;base64,${Buffer.from(a.code).toString("base64")}`);
   assert.deepEqual(Object.values(runtime), names.map((_, index) => index));
   const projected = projectMarkdownManifest(first.manifest, a);
-  assert.deepEqual(projected.dependencies, { "@agent-teams/repository-mutation": "0.1.0", ajv: "8.20.0", yaml: "2.8.3" });
+  assert.deepEqual(projected.dependencies, { "../packages/repository-mutation/dist/index.js": "0.1.0", ajv: "8.20.0", yaml: "2.8.3" });
   assert.equal(first.manifest.dependencies.unified, "1.0.0");
   assert.throws(() => projectMarkdownManifest(first.manifest, structuredClone(a)), /authenticated authoring/u);
   assert.throws(() => projectMarkdownManifest({ ...first.manifest, name: "other" }, a), /authenticated authoring/u);
@@ -110,22 +110,22 @@ test("post-build projection retains notices and SBOM while removing only unreach
   const input = await fixture(t);
   const declaration = "export declare const value5: number;\n";
   await writeFile(join(input.packageRoot, "dist/index.d.ts"), declaration);
-  await writeFile(join(input.packageRoot, "dist/index.js"), 'export {value5} from "./adapters/markdown-runtime.js";\n');
-  await writeFile(join(input.packageRoot, "dist/adapters/markdown-runtime.d.ts"), 'export * from "unified";\n');
-  await writeFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js.map"), "{}");
+  await writeFile(join(input.packageRoot, "dist/index.js"), 'export {value5} from "./documentation-observation/adapters/outbound/filesystem/markdown-runtime.js";\n');
+  await writeFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.d.ts"), 'export * from "unified";\n');
+  await writeFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js.map"), "{}");
   const manifestBytes = await readFile(join(input.packageRoot, "package.json"));
   const result = await projectMarkdownPublication(input);
   assert.equal(result.dependencies.unified, undefined);
-  assert.equal(result.dependencies["@agent-teams/repository-mutation"], "0.1.0");
+  assert.equal(result.dependencies["../packages/repository-mutation/dist/index.js"], "0.1.0");
   assert.equal(result.dependencies.yaml, "2.8.3");
   assert.deepEqual(await readFile(join(input.packageRoot, "package.json")), manifestBytes);
   assert.equal(await readFile(join(input.packageRoot, "dist/index.d.ts"), "utf8"), declaration);
-  await assert.rejects(readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.d.ts")), { code: "ENOENT" });
-  await assert.rejects(readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js.map")), { code: "ENOENT" });
+  await assert.rejects(readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.d.ts")), { code: "ENOENT" });
+  await assert.rejects(readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js.map")), { code: "ENOENT" });
   const proof = JSON.parse(await readFile(join(input.packageRoot, "dist/markdown-distribution-proof.json"), "utf8"));
   const sbom = JSON.parse(await readFile(join(input.packageRoot, "dist/markdown-upstream.cdx.json"), "utf8"));
   const notices = await readFile(join(input.packageRoot, "dist/markdown-upstream-notices.txt"), "utf8");
-  assert.equal(proof.outputSha256, sha256(await readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js"))));
+  assert.equal(proof.outputSha256, sha256(await readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js"))));
   assert.equal(sbom.specVersion, "1.6");
   assert.equal(sbom.components.length, names.length);
   for (const component of sbom.components) {
@@ -142,21 +142,21 @@ test("projection rejects surviving runtime, type and manifest references before 
     ["dist/index.js", 'export * from "unif\\u0069ed/subpath";'],
     ["dist/index.js", 'export const parser = name => import(name);'],
     ["dist/index.d.ts", 'export type Parser = import("unified").Parser;'],
-    ["dist/index.d.ts", 'export * from "./adapters/markdown-runtime.js";'],
+    ["dist/index.d.ts", 'export * from "./documentation-observation/adapters/outbound/filesystem/markdown-runtime.js";'],
     ["dist/index.d.ts", '/// <reference types="unified" />\nexport {};'],
-    ["dist/index.d.ts", '/// <reference path = "./adapters/markdown-runtime.d.ts" />\nexport {};'],
+    ["dist/index.d.ts", '/// <reference path = "./documentation-observation/adapters/outbound/filesystem/markdown-runtime.d.ts" />\nexport {};'],
     ["dist/index.d.ts", '/// <reference resolution-mode="import" types = "unified" />\nexport {};'],
   ];
   for (const [path, text] of cases) {
     const input = await fixture(t);
-    const original = await readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js"));
+    const original = await readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js"));
     await writeFile(join(input.packageRoot, path), text);
     await assert.rejects(projectMarkdownPublication(input), /remaining reference|private Markdown|computed module/u);
-    assert.deepEqual(await readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js")), original);
+    assert.deepEqual(await readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js")), original);
   }
   const input = await fixture(t);
   await assert.rejects(projectMarkdownPublication({ ...input, manifest: {
-    ...input.manifest, exports: { ".": "./dist/adapters/markdown-runtime.js" },
+    ...input.manifest, exports: { ".": "./dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js" },
   } }), /private Markdown/u);
   await assert.rejects(projectMarkdownPublication({ ...input, manifest: {
     ...input.manifest, exports: { "./*": "./dist/*" },
@@ -170,12 +170,12 @@ test("projection rejects surviving runtime, type and manifest references before 
 
 test("archive callbacks cannot add an unchecked declaration reference before projection", async (t) => {
   const input = await fixture(t);
-  const original = await readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js"));
+  const original = await readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js"));
   await assert.rejects(projectMarkdownPublication({ ...input, readArchive: async coordinate => {
     await writeFile(join(input.packageRoot, "dist/index.d.ts"), 'export * from "unified";');
     return input.readArchive(coordinate);
   } }), /remaining reference/u);
-  assert.deepEqual(await readFile(join(input.packageRoot, "dist/adapters/markdown-runtime.js")), original);
+  assert.deepEqual(await readFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js")), original);
 });
 
 test("unrelated lock edits change the external receipt but not any published Markdown bytes", async (t) => {
@@ -193,7 +193,7 @@ test("unrelated lock edits change the external receipt but not any published Mar
     await projectMarkdownPublication({ ...input, receiptPath });
     assert.equal(JSON.parse(await readFile(receiptPath)).sourceLockSha256, sha256(input.sourceLockBytes));
   }
-  for (const path of ["adapters/markdown-runtime.js", "markdown-upstream-notices.txt", "markdown-upstream.cdx.json", "markdown-distribution-proof.json"]) {
+  for (const path of ["documentation-observation/adapters/outbound/filesystem/markdown-runtime.js", "markdown-upstream-notices.txt", "markdown-upstream.cdx.json", "markdown-distribution-proof.json"]) {
     assert.deepEqual(await readFile(join(first.packageRoot, "dist", path)), await readFile(join(second.packageRoot, "dist", path)), path);
   }
   const selected = markdownSnapshotPlan(lock);
@@ -259,9 +259,9 @@ test("offline archive misses and substituted archive bytes reject without a fall
 
 test("additional first-party modules or Agent Teams packages cannot enter the bundle", async (t) => {
   const input = await fixture(t, { entrySuffix: '\nexport { helper } from "./helper.js";\n' });
-  await writeFile(join(input.packageRoot, "dist/adapters/helper.js"), "export const helper = 1;\n");
+  await writeFile(join(input.packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/helper.js"), "export const helper = 1;\n");
   await assert.rejects(buildMarkdownDistribution(input), /non-entry first-party|Could not resolve/u);
-  const dependency = await fixture(t, { componentName: "@agent-teams/repository-mutation" });
+  const dependency = await fixture(t, { componentName: "../packages/repository-mutation/dist/index.js" });
   await assert.rejects(buildMarkdownDistribution(dependency), /first-party component cannot|missing original snapshot/u);
 });
 

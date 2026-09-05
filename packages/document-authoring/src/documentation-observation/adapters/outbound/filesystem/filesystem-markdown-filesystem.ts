@@ -1,9 +1,9 @@
 import { lstat, readdir, realpath, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { readContainedRegularFile } from "../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { CapabilityInputError } from "../../../application/model/input-problem.js";
+import { readContainedRegularFile } from "./contained-file-reader.js";
+import { assertNotCancelled } from "../../../application/policies/cancellation.js";
 
 const MISSING_FILESYSTEM_ERROR_CODES = new Set(["ENOENT", "ENOTDIR"]);
 

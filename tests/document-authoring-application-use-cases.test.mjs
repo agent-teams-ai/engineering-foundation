@@ -1,12 +1,13 @@
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { applyDocumentPlan } from "../packages/document-authoring/dist/application/use-cases/apply-document-plan.js";
-import { recoverDocumentTransaction } from "../packages/document-authoring/dist/application/use-cases/recover-document-transaction.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
+import { applyDocumentPlan as applyDocumentPlanWithSchema } from "../packages/document-authoring/dist/document-authoring/application/use-cases/apply-document-plan.js";
+import { recoverDocumentTransaction as recoverDocumentTransactionWithSchema } from "../packages/document-authoring/dist/document-authoring/application/use-cases/recover-document-transaction.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
+import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 
 const fixture = JSON.parse(await readFile(fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
@@ -680,3 +681,9 @@ for (const scenario of [
     assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
   });
 }
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+
+function applyDocumentPlan(dependencies, request) { return applyDocumentPlanWithSchema({ ...dependencies, schema: { assertSchema } }, request); }
+
+function recoverDocumentTransaction(dependencies, request) { return recoverDocumentTransactionWithSchema({ ...dependencies, schema: { assertSchema } }, request); }

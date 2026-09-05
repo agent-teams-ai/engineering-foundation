@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { NodeDocumentContractValidator } from "../packages/document-authoring/dist/adapters/node/node-document-contract-validator.js";
-import { DocumentPlanningError } from "../packages/document-authoring/dist/document-planning-error.js";
+import { NodeDocumentContractValidator } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-contract-validator.js";
+import { DocumentPlanningError } from "../packages/document-authoring/dist/document-authoring/application/model/document-planning-error.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),

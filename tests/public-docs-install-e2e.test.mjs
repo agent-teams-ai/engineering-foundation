@@ -18,8 +18,8 @@ import {
 
 const releaseAuthorityFixture = {
   packages: {
-    cli: { name: "@example/docs", version: "1.2.3" },
-    mcp: { name: "@example/docs-mcp", version: "2.3.4" },
+    cli: { name: "@agent-teams/docs-protocol", version: "0.4.0" },
+    mcp: { name: "@agent-teams/docs-protocol-mcp", version: "0.1.0" },
   },
 };
 
@@ -449,15 +449,39 @@ test("read-only GitHub verification rejects tag and release mismatch", async () 
   }
 });
 
-test("release-aware qualification skips RC and non-target releases", () => {
-  const targetVersions = Object.fromEntries(
-    Object.values(releaseAuthorityFixture.packages).map(({ name, version }) => [name, version]),
-  );
-  for (const versions of [
-    { ...targetVersions, "@example/docs": `${targetVersions["@example/docs"]}-rc.0` },
-    { ...targetVersions, "@example/docs-mcp": "2.3.3" },
-    { "@example/unrelated": "9.0.0" },
-  ]) {
+test("release qualification derives stable coordinates despite stale authority versions", () => {
+  for (const [cliVersion, mcpVersion] of [["0.5.0", "0.2.0"], ["0.4.0", "0.1.0"]]) {
+    const coordinates = [
+      { name: releaseAuthorityFixture.packages.cli.name, version: cliVersion },
+      { name: releaseAuthorityFixture.packages.mcp.name, version: mcpVersion },
+    ];
+    assert.deepEqual(publicDocsReleaseQualificationDecision({
+      authority: releaseAuthorityFixture,
+      release: { packages: { public: coordinates.toReversed() } },
+    }), { action: "require", coordinates, reason: "exact-release-target" });
+  }
+});
+
+test("release-aware qualification skips RC, invalid, missing, and unrelated coordinates", () => {
+  const targetVersions = {
+    [releaseAuthorityFixture.packages.cli.name]: "0.5.0",
+    [releaseAuthorityFixture.packages.mcp.name]: "0.2.0",
+  };
+  for (const name of Object.keys(targetVersions)) {
+    for (const version of ["0.5.0-rc.0", "01.2.3", "^0.5.0", "0.5.0+build", "0.5"]) {
+      assert.equal(publicDocsReleaseQualificationDecision({
+        authority: releaseAuthorityFixture,
+        release: releaseFixture({ ...targetVersions, [name]: version }),
+      }).action, "skip");
+    }
+    const incomplete = { ...targetVersions };
+    delete incomplete[name];
+    assert.equal(publicDocsReleaseQualificationDecision({
+      authority: releaseAuthorityFixture,
+      release: releaseFixture(incomplete),
+    }).action, "skip");
+  }
+  for (const versions of [{}, { "@example/unrelated": "9.0.0" }]) {
     assert.equal(publicDocsReleaseQualificationDecision({
       authority: releaseAuthorityFixture,
       release: releaseFixture(versions),
@@ -465,10 +489,11 @@ test("release-aware qualification skips RC and non-target releases", () => {
   }
 });
 
-test("exact target and its retry both require fail-closed public qualification", async () => {
-  const release = releaseFixture(Object.fromEntries(
-    Object.values(releaseAuthorityFixture.packages).map(({ name, version }) => [name, version]),
-  ));
+test("new stable target and its retry both require fail-closed public qualification", async () => {
+  const release = releaseFixture({
+    [releaseAuthorityFixture.packages.cli.name]: "0.5.0",
+    [releaseAuthorityFixture.packages.mcp.name]: "0.2.0",
+  });
   let qualifications = 0;
   const options = {
     inspectReleaseState: async () => release,
@@ -476,7 +501,7 @@ test("exact target and its retry both require fail-closed public qualification",
     qualify: async () => {
       qualifications += 1;
       return {
-        coordinates: Object.values(releaseAuthorityFixture.packages),
+        coordinates: release.packages.public,
         matrix: ["npm-docs-only", "npm-docs-mcp", "pnpm-docs-only", "pnpm-docs-mcp"],
         missing: [],
         status: "ready",
@@ -487,6 +512,13 @@ test("exact target and its retry both require fail-closed public qualification",
   assert.equal((await runPublicDocsReleaseQualification(options)).action, "require");
   assert.equal((await runPublicDocsReleaseQualification(options)).action, "require");
   assert.equal(qualifications, 2);
+  for (const qualify of [
+    async () => ({ coordinates: release.packages.public, missing: release.packages.public, status: "pending" }),
+    async () => { throw new Error("qualification failed"); },
+  ]) {
+    await assert.rejects(runPublicDocsReleaseQualification({ ...options, qualify }),
+      /Required public Docs Protocol coordinates are not available|qualification failed/u);
+  }
 });
 
 test("exact target rejects when public coordinates remain pending", async () => {

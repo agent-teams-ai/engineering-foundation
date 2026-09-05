@@ -7,6 +7,7 @@ import {
   verifyPublicExactDocsCoordinates,
 } from "./public-docs-install-e2e.mjs";
 import { releaseState } from "./release-publish.mjs";
+import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
 async function readAuthority() {
   return JSON.parse(await readFile(new URL(
@@ -16,14 +17,15 @@ async function readAuthority() {
 }
 
 export function publicDocsReleaseQualificationDecision({ authority, release }) {
-  const coordinates = Object.values(authority.packages).map(({ name, version }) => ({
-    name,
-    version,
-  }));
   const publicVersions = new Map(
     release.packages.public.map(({ name, version }) => [name, version]),
   );
-  const target = coordinates.every(({ name, version }) => publicVersions.get(name) === version);
+  // Authority versions describe the last proven publication, not the reviewed release.
+  const coordinates = Object.values(authority.packages).map(({ name }) => ({
+    name,
+    version: publicVersions.get(name),
+  }));
+  const target = coordinates.every(({ version }) => parseStableVersion(version) !== undefined);
   return Object.freeze({
     action: target ? "require" : "skip",
     coordinates: Object.freeze(coordinates.map((coordinate) => Object.freeze(coordinate))),
@@ -44,7 +46,7 @@ export async function main({
   ]);
   const releaseDecision = publicDocsReleaseQualificationDecision({ authority, release });
   if (releaseDecision.action === "skip") {
-    write("Public Docs Protocol release qualification SKIP: current release is not the exact authority target.\n");
+    write("Public Docs Protocol release qualification SKIP: current release lacks stable public Docs coordinates.\n");
     return releaseDecision;
   }
 

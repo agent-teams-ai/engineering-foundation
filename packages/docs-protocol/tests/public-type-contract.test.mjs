@@ -77,3 +77,100 @@ void [historicalIdentity, successor, validatePortableRepositoryPath("CON.yaml"),
     assert.equal(output.stderr, "");
   } finally {await rm(root, { recursive: true, force: true });}
 });
+
+function wireUnion(values) {
+  return values.map((value) => JSON.stringify(value)).join(" | ");
+}
+
+test("outer envelopes preserve old generic contracts and match the published wire vocabulary", async () => {
+  const root = await mkdtemp(join(tmpdir(), "docs-envelope-types-"));
+  try {
+    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll("\\", "/");
+    const cases = await Promise.all([2, 3].map(async (version) => {
+      const schema = JSON.parse(await readFile(new URL(`../schemas/docs-protocol-portable-command-envelope/v${version}.schema.json`, import.meta.url), "utf8"));
+      // Reproduce the pre-correction declarations using the unchanged public
+      // operation vocabulary, independently of the new outer DTO definitions.
+      return `
+interface OldEnvelopeV${version}<Result = unknown> {
+  readonly schemaVersion: ${version};
+  readonly protocol: { readonly id: typeof DOCS_PROTOCOL_ID; readonly version: typeof DOCS_PROTOCOL_VERSION };
+  readonly command: DocsCommandV${version};
+  readonly outcome: DocsCommandOutcome;
+  readonly diagnostics: readonly DocsDiagnostic[];
+  readonly result: Result;
+}
+interface OldExecutionV${version}<Result> {
+  readonly envelope: OldEnvelopeV${version}<Result>;
+  readonly exitCode: 0 | 1 | 2 | 3 | 130;
+}
+function roundTripV${version}<Result>(old: OldExecutionV${version}<Result>, current: DocsExecutionV${version}<Result>) {
+  const oldExecution: OldExecutionV${version}<Result> = current;
+  const newExecution: DocsExecutionV${version}<Result> = old;
+  const oldEnvelope: OldEnvelopeV${version}<Result> = current.envelope;
+  const newEnvelope: DocsCommandEnvelopeV${version}<Result> = old.envelope;
+  const result: Result = newEnvelope.result;
+  return [oldExecution, newExecution, oldEnvelope, newEnvelope, result];
+}
+type EnvelopeV${version} = DocsCommandEnvelopeV${version}<{ count: number }>;
+type SameShapeV${version} = Assert<Equal<EnvelopeV${version}, OldEnvelopeV${version}<{ count: number }>>>;
+type SameDefaultV${version} = Assert<Equal<DocsCommandEnvelopeV${version}["result"], unknown>>;
+type SameCommandsV${version} = Assert<Equal<EnvelopeV${version}["command"], ${wireUnion(schema.properties.command.enum)}>>;
+type SameOutcomesV${version} = Assert<Equal<EnvelopeV${version}["outcome"], ${wireUnion(schema.properties.outcome.enum)}>>;
+type SameProtocolV${version} = Assert<Equal<EnvelopeV${version}["protocol"], { readonly id: ${JSON.stringify(schema.$defs.protocol.properties.id.const)}; readonly version: ${schema.$defs.protocol.properties.version.const} }>>;
+type SamePhasesV${version} = Assert<Equal<EnvelopeV${version}["diagnostics"][number]["phase"], ${wireUnion(schema.$defs.diagnostic.properties.phase.enum)}>>;
+type SameSeveritiesV${version} = Assert<Equal<EnvelopeV${version}["diagnostics"][number]["severity"], ${wireUnion(schema.$defs.diagnostic.properties.severity.enum)}>>;
+type SameExitCodesV${version} = Assert<Equal<DocsExecutionV${version}<never>["exitCode"], 0 | 1 | 2 | 3 | 130>>;
+declare const envelopeV${version}: EnvelopeV${version};
+declare const executionV${version}: DocsExecutionV${version}<{ count: number }>;
+declare const diagnosticV${version}: EnvelopeV${version}["diagnostics"][number];
+// The envelope is readonly; caller-owned Result retains its own mutability.
+envelopeV${version}.result.count += 1;
+${["schemaVersion", "protocol", "command", "outcome", "diagnostics", "result", "protocol.id", "protocol.version"].map((field) => `// @ts-expect-error envelope ${field} remains readonly\nenvelopeV${version}.${field} = envelopeV${version}.${field};`).join("\n")}
+${["message", "phase", "ruleId", "severity", "subject"].map((field) => `// @ts-expect-error diagnostic ${field} remains readonly\ndiagnosticV${version}.${field} = diagnosticV${version}.${field};`).join("\n")}
+// @ts-expect-error diagnostic arrays remain readonly
+envelopeV${version}.diagnostics.push(diagnosticV${version});
+// @ts-expect-error execution envelopes remain readonly
+executionV${version}.envelope = envelopeV${version};
+// @ts-expect-error execution exit codes remain readonly
+executionV${version}.exitCode = 0;
+// @ts-expect-error execution requires its generic parameter
+type MissingResultV${version} = DocsExecutionV${version};
+// @ts-expect-error an unknown default result requires narrowing
+const defaultResultV${version}: { count: number } = ({} as DocsCommandEnvelopeV${version}).result;
+${[
+        ["schemaVersion", version === 2 ? "3" : "2"],
+        ["protocol", '{ id: "wrong-protocol", version: 1 }'],
+        ["protocol", '{ id: "agent-teams.docs-protocol", version: 2 }'],
+        ["command", '"docs.unknown"'],
+        ["outcome", '"unknown"'],
+        ["result", '{ count: "wrong" }'],
+        ...(version === 2 ? [["command", '"docs.context"'], ["command", '"docs.init"']] : []),
+      ].map(([field, value], index) => `// @ts-expect-error invalid ${field} is rejected\nconst invalidV${version}_${index}: EnvelopeV${version} = { ...envelopeV${version}, ${field}: ${value} };`).join("\n")}
+// @ts-expect-error unknown diagnostic phases are rejected
+const phaseV${version}: EnvelopeV${version}["diagnostics"][number] = { ...diagnosticV${version}, phase: "transport" };
+// @ts-expect-error unknown diagnostic severities are rejected
+const severityV${version}: EnvelopeV${version}["diagnostics"][number] = { ...diagnosticV${version}, severity: "fatal" };
+// @ts-expect-error exit codes remain a closed union
+const exitV${version}: DocsExecutionV${version}<unknown> = { ...executionV${version}, exitCode: 4 };
+declare const unionV${version}: DocsCommandEnvelopeV${version}<{ kind: "found"; value: string } | { kind: "empty" }>;
+if (unionV${version}.result.kind === "found") {
+  const value: string = unionV${version}.result.value;
+} else {
+  // @ts-expect-error result unions still require narrowing
+  unionV${version}.result.value;
+}
+`;
+    }));
+    await writeFile(join(root, "contract.mts"), `
+import { DOCS_PROTOCOL_ID, DOCS_PROTOCOL_VERSION } from ${JSON.stringify(apiPath)};
+import type { DocsCommandEnvelopeV2, DocsCommandEnvelopeV3, DocsExecutionV2, DocsExecutionV3, DocsCommandV2, DocsCommandV3, DocsCommandOutcome, DocsDiagnostic } from ${JSON.stringify(apiPath)};
+type Assert<Value extends true> = Value;
+type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
+${cases.join("\n")}
+`);
+    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
+    const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
+    assert.equal(output.stdout, "");
+    assert.equal(output.stderr, "");
+  } finally {await rm(root, { recursive: true, force: true });}
+});

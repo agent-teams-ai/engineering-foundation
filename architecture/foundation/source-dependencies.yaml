@@ -188,8 +188,7 @@ boundaries:
     roots:
       - packages/docs-protocol/src/features/docs-command/contracts
     allow:
-      boundaries:
-        - docs-protocol.docs-command.application
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []

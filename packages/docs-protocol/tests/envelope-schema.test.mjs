@@ -32,6 +32,38 @@ function assertValidEnvelope(value) {
   assert.equal(selected(value), true, JSON.stringify(selected.errors, null, 2));
 }
 
+test("operation presentation preserves generic payloads, wire vocabulary and every exit outcome", async () => {
+  const outcomes = {
+    "authority-stale": 1, cancelled: 130, conflict: 1, "execution-failure": 3,
+    "invalid-input": 2, "recovery-required": 1, success: 0, violation: 1
+  };
+  const commands = [
+    ["checkV2", "docs.check", 2], ["doctorV2", "docs.doctor", 2],
+    ["findV2", "docs.find", 2], ["infoV2", "docs.info", 2],
+    ["newDocumentV2", "docs.new", 2], ["recoverV2", "docs.recover", 2],
+    ["findV3", "docs.find", 3], ["contextV1", "docs.context", 3]
+  ];
+  for (const [outcome, exitCode] of Object.entries(outcomes)) {
+    const diagnostics = Object.freeze([{ message: "Fixture diagnostic", phase: "input", ruleId: "docs.fixture", severity: "info", subject: "fixture" }]);
+    const result = Object.freeze({});
+    const operations = Object.fromEntries(commands.map(([method, command]) => [method, async () => ({ command, outcome, diagnostics, result })]));
+    const api = createDocsProtocolApi(operations);
+    for (const [method, command, schemaVersion] of commands) {
+      const execution = await api[method]({});
+      assert.deepEqual(execution, { exitCode, envelope: {
+        schemaVersion, protocol: { id: "agent-teams.docs-protocol", version: 1 },
+        command, outcome, diagnostics, result
+      } });
+      assert.equal(execution.envelope.result, result);
+      assert.equal(execution.envelope.diagnostics, diagnostics);
+      assert.equal(Object.isFrozen(execution.envelope), true);
+      // Empty invalid-input results are valid for every operation. Other
+      // command/result combinations retain their existing schema-specific tests.
+      if (outcome === "invalid-input") {assertValidEnvelope(execution.envelope);}
+    }
+  }
+});
+
 test("published v1 info envelope remains backward compatible", () => {
   assertValidEnvelope({
     schemaVersion: 1,

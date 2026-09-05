@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import { assertNotCancelled } from "../../../../../cancellation.js";
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import { readContainedRegularFile } from "../../../../../filesystem-path-safety.js";
+import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import { parseStrictJson } from "../../../../../strict-json.js";
 import type { PackageScriptCatalogReader } from "../../../application/ports/package-script-catalog-reader.js";
 

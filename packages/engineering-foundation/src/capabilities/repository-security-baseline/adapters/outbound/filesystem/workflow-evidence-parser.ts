@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { parseStrictYamlSource } from "../../../../../strict-yaml.js";
+import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import type {
   CompositeActionEvidence,
   WorkflowContainerEvidence,

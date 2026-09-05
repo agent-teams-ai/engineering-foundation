@@ -4,23 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const READ_CHUNK_BYTES = 64 * 1024;
 
-export type ContainedFileReadFailure =
-  | "changed"
-  | "escape"
-  | "invalid"
-  | "missing"
-  | "symlink"
-  | "unavailable";
-
-export class ContainedFileReadError extends Error {
-  readonly failure: ContainedFileReadFailure;
-
-  constructor(failure: ContainedFileReadFailure) {
-    super(`Contained file read failed: ${failure}.`);
-    this.name = "ContainedFileReadError";
-    this.failure = failure;
-  }
-}
+import { ContainedFileReadError } from "../../../application/model/contained-file.js";
 
 function errorCode(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "code" in error

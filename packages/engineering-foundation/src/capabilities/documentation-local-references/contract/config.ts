@@ -1,6 +1,7 @@
 import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { assertRepositoryRelativePath, loadStrictYamlFile } from "../../../strict-yaml.js";
+import { assertRepositoryRelativePath } from "../../../source-inventory/api.js";
+import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import type { DocumentationLocalReferencesPolicy } from "../application/model/documentation-local-references.js";
 
 export const CAPABILITY_ID = "documentation.local-references" as const;

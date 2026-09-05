@@ -1,5 +1,6 @@
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import { assertNotCancelled, parseStrictYamlSource } from "../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
+import { parseStrictYamlSource } from "../../../../features/configuration-input/yaml.js";
 import {
   assertExactBufFilePolicy,
   BUF_BREAKING_POLICY,

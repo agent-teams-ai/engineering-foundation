@@ -1,5 +1,5 @@
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
 import type { MarkdownRepository } from "@agent-teams/document-authoring/observation";
 import type {
   DocumentationLocalReferencesObservation,

@@ -3,12 +3,9 @@ import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { ContainedFileReadError } from "../../../../source-inventory/api.js";
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../source-inventory/node.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
 import {
   DEPENDENCY_SECTIONS,
   type DependencyDeclaration,

@@ -1,5 +1,5 @@
 import { assertSchema } from "../../../schema-catalog.js";
-import { loadStrictYamlFile } from "../../../strict-yaml.js";
+import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import type { WorkspaceDependencyPolicy } from "../application/model/workspace-dependency-policy.js";
 
 export const CAPABILITY_ID = "workspace.dependency-declarations" as const;

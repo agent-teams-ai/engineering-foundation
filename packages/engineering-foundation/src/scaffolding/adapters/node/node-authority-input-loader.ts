@@ -14,7 +14,7 @@ import { createScaffoldAuthorityEvidence } from "../../kernel/authority-evidence
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { parseStrictYamlSource } from "../../../strict-yaml.js";
+import { parseStrictYamlSource } from "../../../features/configuration-input/yaml.js";
 import {
   assertion,
   readContainedRepositoryFile,

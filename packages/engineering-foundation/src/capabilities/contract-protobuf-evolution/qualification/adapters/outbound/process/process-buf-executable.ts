@@ -3,7 +3,7 @@ import { isAbsolute } from "node:path";
 
 import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
 import { executeManagedProcess } from "../../../../../../process-execution/node-process-runner.js";
-import { assertNotCancelled } from "../../../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../../../cancellation.js";
 import type {
   BufExecutable,
   BufExecutionResult,

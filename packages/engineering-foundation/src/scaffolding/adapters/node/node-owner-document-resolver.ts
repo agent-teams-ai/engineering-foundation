@@ -4,11 +4,9 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { Sha256Digest } from "../../contract/types.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";
-import {
-  assertRepositoryRelativePath,
-  parseStrictYamlSource
-} from "../../../strict-yaml.js";
+import { pathTraversesSymbolicLink } from "../../../source-inventory/node.js";
+import { assertRepositoryRelativePath } from "../../../source-inventory/api.js";
+import { parseStrictYamlSource } from "../../../features/configuration-input/yaml.js";
 import {
   readContainedRepositoryFile,
   type LoadedRepositoryFile

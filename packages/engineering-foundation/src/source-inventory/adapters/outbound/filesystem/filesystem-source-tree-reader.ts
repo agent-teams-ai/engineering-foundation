@@ -2,15 +2,10 @@ import { opendir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../filesystem-path-safety.js";
-import {
-  assertNotCancelled,
-  assertRepositoryRelativePath
-} from "../../../../strict-yaml.js";
+import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../api.js";
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "./contained-file-reader.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
+
 import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../application/ports/source-tree-reader.js";
 

@@ -654,9 +654,11 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       cliSource,
       /^import .*contract-protobuf-evolution\/qualification\/module/mu,
     );
+    const commandHostSource = await readFile(join(distRoot, "composition", "command-host.js"), "utf8");
+    assert.doesNotMatch(commandHostSource, /^import .*contract-protobuf-evolution\/qualification\/module/mu);
     assert.match(
-      cliSource,
-      /await import\(\s*"\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
+      commandHostSource,
+      /await import\(\s*"\.\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
     );
 
     const capability = protobufModule.createProtobufEvolutionCapability();

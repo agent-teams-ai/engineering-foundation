@@ -1,10 +1,8 @@
 import { resolve } from "node:path";
 
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
+import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
+import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import { parseStrictJson } from "../../../../../strict-json.js";
 

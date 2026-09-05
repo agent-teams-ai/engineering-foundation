@@ -1,5 +1,5 @@
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../cancellation.js";
 import type { RepositorySecurityPolicy } from "../model/repository-security.js";
 import type { RepositorySecurityReader } from "../ports/repository-security-reader.js";
 import { evaluateRepositorySecurity } from "../policies/evaluate-repository-security.js";

@@ -2,8 +2,8 @@ import { resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import { ContainedFileReadError } from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
+import { assertNotCancelled } from "../../../../../cancellation.js";
 import type { SourceFileSnapshot } from "../../../../../source-inventory/application/model/source-file-snapshot.js";
 import { portablePathIsInside } from "../../../application/model/repository-path.js";
 import {

@@ -4,8 +4,8 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ScaffoldReadAssertionV1 } from "../../contract/types.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";
-import { assertRepositoryRelativePath } from "../../../strict-yaml.js";
+import { pathTraversesSymbolicLink } from "../../../source-inventory/node.js";
+import { assertRepositoryRelativePath } from "../../../source-inventory/api.js";
 import { readBoundedRegularFile } from "./filesystem-file-identity.js";
 
 const MAX_INPUT_BYTES = 1024 * 1024;

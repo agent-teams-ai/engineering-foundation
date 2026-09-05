@@ -8,8 +8,8 @@ import {
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import { readContainedRegularFile } from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import { assertNotCancelled } from "../../../../../cancellation.js";
 import {
   portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";

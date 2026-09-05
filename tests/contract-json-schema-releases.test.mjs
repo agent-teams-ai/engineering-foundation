@@ -44,7 +44,7 @@ const jsonSchemaConfig = await import(
   ).href,
 );
 const filesystemPathSafety = await import(
-  pathToFileURL(join(distRoot, "filesystem-path-safety.js")).href,
+  pathToFileURL(join(distRoot, "source-inventory/node.js")).href,
 );
 
 function digest(character) {

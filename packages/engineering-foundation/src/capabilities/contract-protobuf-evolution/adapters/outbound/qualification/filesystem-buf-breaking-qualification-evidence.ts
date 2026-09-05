@@ -1,15 +1,11 @@
 import { resolve } from "node:path";
 
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
+import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
+import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import { assertSchema } from "../../../../../schema-catalog.js";
-import {
-  assertNotCancelled,
-  parseStrictYamlSource
-} from "../../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../../cancellation.js";
+import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import {
   assertExactBufFilePolicy,
   BUF_FILE_BREAKING_CONFIG_SOURCE,

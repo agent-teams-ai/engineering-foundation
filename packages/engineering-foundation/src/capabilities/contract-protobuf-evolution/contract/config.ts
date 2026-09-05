@@ -1,10 +1,8 @@
 import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import {
-  assertNotCancelled,
-  assertRepositoryRelativePath,
-  loadStrictYamlFile
-} from "../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../cancellation.js";
+import { assertRepositoryRelativePath } from "../../../source-inventory/api.js";
+import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import type {
   ApprovedProtobufBreakingChange,
   BufBreakingQualificationBinding,

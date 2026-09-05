@@ -1,6 +1,6 @@
 import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { assertSchema } from "../../../schema-catalog.js";
-import { loadStrictYamlFile } from "../../../strict-yaml.js";
+import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import type {
   QualityGatePolicy,
   QualityGateProfile,

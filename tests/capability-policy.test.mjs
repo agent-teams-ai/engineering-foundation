@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import {
   readFile,
+  mkdir,
+  mkdtemp,
+  rm,
   rename,
   symlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import test from "node:test";
 
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -16,6 +20,13 @@ import {
   withRepositorySecurityFixture,
   withSuppressionFixture
 } from "./support/capability-fixtures.mjs";
+
+import { createFoundationConfigReader } from "../packages/engineering-foundation/dist/features/foundation-check/module.js";
+import { createStrictYamlFileLoader, createPackagedSchemaReader, createSchemaCatalog } from "../packages/engineering-foundation/dist/features/configuration-input/module.js";
+import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
+import { ContainedFileReadError, readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+import { FOUNDATION_SCHEMA_IDS } from "../packages/engineering-foundation/dist/schema-ids.js";
+import { readFoundationSchema, assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 
 test("accepts a closed-world repository security baseline", async () => {
   await withRepositorySecurityFixture(async (consumerRoot) => {
@@ -560,4 +571,152 @@ test("foundation-check injected input failures retain cancellation and sanitized
     capabilities: new Map(),
   })(input);
   assert.equal(unsupported.problem.code, "CAPABILITY_UNSUPPORTED");
+});
+
+test("configuration observation retains failure and cancellation precedence through its byte port", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-config-port-"));
+  try {
+    const observed = [];
+    const load = createStrictYamlFileLoader({
+      async read(input) {
+        observed.push(input);
+        return new TextEncoder().encode("a: 1\n");
+      }
+    });
+    assert.deepEqual(await load(root, "config.yaml", "test-input"), { a: 1 });
+    assert.equal(observed[0].maxBytes, 1024 * 1024);
+    assert.equal(observed[0].candidate, join(observed[0].root, "config.yaml"));
+    for (const [failure, code] of [
+      ["escape", "CONFIG_PATH_ESCAPE"],
+      ["invalid", "CONFIG_FILE_INVALID"],
+      ["symlink", "CONFIG_SYMLINK_PROHIBITED"],
+      ["missing", "CONFIG_FILE_UNAVAILABLE"],
+      ["changed", "CONFIG_FILE_UNAVAILABLE"],
+      ["unavailable", "CONFIG_FILE_UNAVAILABLE"]
+    ]) {
+      const failed = createStrictYamlFileLoader({ async read() { throw new ContainedFileReadError(failure); } });
+      await assert.rejects(failed(root, "config.yaml", "test-input"), (error) =>
+        error.problem.code === code && error.problem.phase === "test-input" && error.problem.retryable === false);
+    }
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(load("/must-not-be-observed", "../bad", "test-input", controller.signal),
+      (error) => error.problem.code === "EXECUTION_CANCELLED");
+    assert.equal(observed.length, 1);
+    for (const fail of [false, true]) {
+      const during = new AbortController();
+      const interrupted = createStrictYamlFileLoader({ async read() {
+        during.abort();
+        if (fail) { throw new ContainedFileReadError("changed"); }
+        return new TextEncoder().encode("[malformed");
+      } });
+      await assert.rejects(interrupted(root, "config.yaml", "test-input", during.signal),
+        (error) => error.problem.code === (fail ? "CONFIG_FILE_UNAVAILABLE" : "EXECUTION_CANCELLED"));
+    }
+    const providerFailure = new Error("provider failed");
+    const unavailable = createStrictYamlFileLoader({ async read() { throw providerFailure; } });
+    await assert.rejects(unavailable(root, "config.yaml", "test-input"), (error) => error === providerFailure);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("strict YAML keeps inert values and prohibits duplicate keys, tags, aliases and merge keys", () => {
+  assert.deepEqual(parseStrictYamlSource("\uFEFFa: 1\nb: null\nc: [true, false]\n", "input"),
+    { a: 1, b: null, c: [true, false] });
+  for (const [source, code] of [
+    ["a: 1\na: 2", "YAML_INVALID"],
+    ["a: &a 1\nb: *a", "YAML_FEATURE_PROHIBITED"],
+    ["a: !!str 1", "YAML_FEATURE_PROHIBITED"],
+    ["a: {<<: {b: 1}}", "YAML_FEATURE_PROHIBITED"],
+    ["a: [", "YAML_INVALID"]
+  ]) {
+    assert.throws(() => parseStrictYamlSource(source, "input"), (error) => error.problem.code === code);
+  }
+  assert.deepEqual(parseStrictYamlSource("a: 1\0", "input"), { a: "1\0" });
+});
+
+test("check-host config observation receives strict input without a schema registry backedge", async () => {
+  const calls = [];
+  const config = { schemaVersion: 1, project: { id: "port" }, capabilities: {} };
+  const reader = createFoundationConfigReader(new Set(), {
+    async loadStrictYamlFile(...args) { calls.push(["load", ...args]); return config; },
+    async assertSchema(...args) { calls.push(["schema", ...args]); }
+  });
+  const result = await reader("/virtual-consumer");
+  assert.equal(result.projectId, "port");
+  assert.deepEqual(calls, [
+    ["load", "/virtual-consumer", "foundation.config.yaml", "foundation-config", undefined],
+    ["schema", "foundation-config/v1", config, "foundation-config"]
+  ]);
+});
+
+test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
+  assert.equal(FOUNDATION_SCHEMA_IDS.length, 31);
+  assert.equal(new Set(FOUNDATION_SCHEMA_IDS).size, FOUNDATION_SCHEMA_IDS.length);
+  for (const id of FOUNDATION_SCHEMA_IDS) {
+    const source = await readFoundationSchema(id);
+    assert.equal(source, await readFile(new URL(`../packages/engineering-foundation/schemas/${id}.schema.json`, import.meta.url), "utf8"));
+    await assert.rejects(assertSchema(id, null, "schema-parity"), (error) => error.problem.code === "SCHEMA_INVALID");
+  }
+});
+
+test("schema validation retains dependency order, concurrent caching and bounded diagnostics", async () => {
+  const reads = [];
+  const sources = {
+    child: { $id: "urn:ef2:child", type: "string" },
+    parent: { $id: "urn:ef2:parent", type: "object", additionalProperties: false,
+      required: ["x", "y"], properties: { x: { $ref: "urn:ef2:child" }, y: { type: "integer" } } }
+  };
+  const catalog = createSchemaCatalog({
+    schemaIds: ["parent", "child"], dependencies: { parent: ["child"] },
+    async readSchema(id) { reads.push(id); return JSON.stringify(sources[id]); }
+  });
+  await Promise.all([catalog.assertSchema("parent", { x: "ok", y: 1 }, "input"), catalog.assertSchema("parent", { x: "ok", y: 2 }, "input")]);
+  assert.deepEqual(reads, ["child", "parent"]);
+  assert.equal(catalog.isSchemaId("child"), true);
+  assert.equal(catalog.isSchemaId("missing"), false);
+  await assert.rejects(catalog.assertSchema("parent", { x: 1, y: "bad" }, "input"), (error) =>
+    error.problem.message === "/x must be string; /y must be integer");
+  const many = createSchemaCatalog({ schemaIds: ["many"], dependencies: {}, async readSchema() {
+    const required = Array.from({ length: 20 }, (_, i) => `missing${i}`);
+    return JSON.stringify({ $id: "urn:ef2:many", type: "object", required,
+      properties: Object.fromEntries(required.map((key) => [key, { type: "string" }])) });
+  } });
+  await assert.rejects(many.assertSchema("many", {}, "input"), (error) =>
+    error.problem.message.split("; ").length === 8 && error.problem.message.length <= 1000);
+});
+
+test("packaged schema observation enforces the existing contained-file bound before retaining bytes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-schema-bound-"));
+  try {
+    await mkdir(join(root, "schemas"));
+    const reader = createPackagedSchemaReader({ packageRoot: root, files: { read: readContainedRegularFile },
+      async readAuthoringSchema() { throw new Error("unexpected external schema"); } });
+    const bytes = " ".repeat(1024 * 1024);
+    await writeFile(join(root, "schemas/large.schema.json"), bytes);
+    assert.equal(await reader("large"), bytes);
+    await writeFile(join(root, "schemas/large.schema.json"), bytes + " ");
+    await assert.rejects(reader("large"), (error) => error instanceof ContainedFileReadError && error.failure === "invalid");
+    await assert.rejects(reader("../outside"), (error) => error.problem.code === "CONFIG_PATH_INVALID");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("packaged schema observation refuses file and ancestor symlinks", { skip: process.platform === "win32" }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-schema-symlink-"));
+  try {
+    await mkdir(join(root, "schemas"));
+    await mkdir(join(root, "real"));
+    await writeFile(join(root, "real/value.schema.json"), "{}");
+    await symlink(join(root, "real/value.schema.json"), join(root, "schemas/file.schema.json"));
+    await symlink(join(root, "real"), join(root, "schemas/ancestor"));
+    const reader = createPackagedSchemaReader({ packageRoot: root, files: { read: readContainedRegularFile },
+      async readAuthoringSchema() { throw new Error("unexpected external schema"); } });
+    for (const id of ["file", "ancestor/value"]) {
+      await assert.rejects(reader(id), (error) => error instanceof ContainedFileReadError && error.failure === "symlink");
+    }
+    await rm(join(root, "schemas"), { recursive: true });
+    await symlink(join(root, "real"), join(root, "schemas"));
+    await assert.rejects(reader("value"), (error) => error instanceof ContainedFileReadError && error.failure === "symlink");
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

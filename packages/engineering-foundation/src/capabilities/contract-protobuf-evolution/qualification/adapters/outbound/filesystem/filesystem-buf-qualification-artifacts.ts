@@ -6,11 +6,8 @@ import { lock } from "proper-lockfile";
 
 import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
 import { assertNotCancelled } from "../../../../../../cancellation.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../../../filesystem-path-safety.js";
+import { ContainedFileReadError } from "../../../../../../source-inventory/api.js";
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../../source-inventory/node.js";
 import type {
   BufQualificationArtifacts,
   BufQualificationEvidenceWriteResult

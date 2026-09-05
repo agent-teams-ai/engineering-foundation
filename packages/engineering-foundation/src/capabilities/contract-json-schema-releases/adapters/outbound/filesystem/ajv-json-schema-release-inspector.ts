@@ -7,11 +7,10 @@ import addFormats from "ajv-formats";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled, assertRepositoryRelativePath } from "../../../../../strict-yaml.js";
+import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../../../source-inventory/api.js";
+import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import { assertNotCancelled } from "../../../../../cancellation.js";
+
 import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
 import type {
   JsonSchemaDigest,

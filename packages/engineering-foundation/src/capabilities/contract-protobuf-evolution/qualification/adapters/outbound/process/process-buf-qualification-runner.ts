@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { CapabilityInputError } from "../../../../../../features/validation-reporting/api.js";
-import { readContainedRegularFile } from "../../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../../strict-yaml.js";
+import { readContainedRegularFile } from "../../../../../../source-inventory/node.js";
+import { assertNotCancelled } from "../../../../../../cancellation.js";
 import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";
 import type {
   BufQualificationRunner,

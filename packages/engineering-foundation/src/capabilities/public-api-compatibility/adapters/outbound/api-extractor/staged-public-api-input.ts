@@ -10,11 +10,8 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
+import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../../source-inventory/node.js";
 import {
   compareCanonicalReferences,
   type PublicApiPackagePolicy

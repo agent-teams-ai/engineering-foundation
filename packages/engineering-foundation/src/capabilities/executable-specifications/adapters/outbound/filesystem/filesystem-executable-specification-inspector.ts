@@ -3,11 +3,9 @@ import { resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../../features/validation-reporting/api.js";
-import {
-  ContainedFileReadError,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
+import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import { assertNotCancelled } from "../../../../../cancellation.js";
 import { parseStrictJson, StrictJsonError } from "../../../../../strict-json.js";
 import { PnpmWorkspaceInventoryReader } from "../../../../../workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
 import { AjvJsonSchemaReleaseInspector } from "../../../../contract-json-schema-releases/adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";

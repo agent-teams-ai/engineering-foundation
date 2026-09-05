@@ -633,6 +633,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/model/quality-gate-report.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/model/quality-gate.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/evaluate-quality-gate-scripts.ts
@@ -649,12 +650,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/contract
     allow:
-      boundaries:
-        - capability.quality-gate-runner.application
-        - foundation.core
-        - foundation.schema-validation
-        - foundation.validation-reporting.application
-        - foundation.configuration-input.composition
+      boundaries: []
       packages: []
       builtins: []
       runtimeReferences: []
@@ -679,6 +675,7 @@ boundaries:
         - node:perf_hooks
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/configuration/load-quality-gate-policy.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts
@@ -692,6 +689,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/composition
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - capability.quality-gate-runner.adapters
         - capability.quality-gate-runner.application
         - capability.quality-gate-runner.contract

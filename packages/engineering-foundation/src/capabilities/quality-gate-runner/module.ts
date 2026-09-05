@@ -9,13 +9,17 @@ import { QUALITY_GATE_RUNNER_RULES_BY_ID } from "./application/rules.js";
 import { analyzeQualityGateRunner } from "./application/use-cases/analyze-quality-gate-runner.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadQualityGatePolicy
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadQualityGatePolicy, type QualityGateConfigurationDependencies } from "./adapters/inbound/configuration/load-quality-gate-policy.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 
 export { QUALITY_GATE_RUNNER_RULES_BY_ID };
 
-export function createQualityGateRunnerCapability(): CapabilityDefinition {
+export function createQualityGateRunnerCapability(input: {
+  readonly assertSchema: QualityGateConfigurationDependencies["assertSchema"];
+}): CapabilityDefinition {
   const reader = new FilesystemPackageScriptCatalogReader();
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -23,6 +27,7 @@ export function createQualityGateRunnerCapability(): CapabilityDefinition {
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadQualityGatePolicy(
+          { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal

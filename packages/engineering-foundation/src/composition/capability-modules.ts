@@ -95,7 +95,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       PUBLIC_API_COMPATIBILITY_RULES_BY_ID
     ),
     defineCapabilityModule(
-      createQualityGateRunnerCapability(),
+      createQualityGateRunnerCapability({ assertSchema }),
       QUALITY_GATE_RUNNER_RULES_BY_ID
     ),
     defineCapabilityModule(

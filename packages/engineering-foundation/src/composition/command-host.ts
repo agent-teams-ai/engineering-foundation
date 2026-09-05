@@ -15,7 +15,7 @@ import { FoundationLocalModeService } from "./local-mode-service.js";
 import { inspectFoundationPackage } from "./local-package-inspection.js";
 import { installedFoundationVersion } from "../transaction-coordination/adapters/node/installed-foundation-version.js";
 import { runScaffoldingCliCommand } from "../scaffolding/cli-command.js";
-import { isFoundationSchemaId, readFoundationSchema } from "../schema-catalog.js";
+import { assertSchema, isFoundationSchemaId, readFoundationSchema } from "../schema-catalog.js";
 import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js";
 import { RULE_REGISTRY } from "./rule-registry.js";
 
@@ -25,7 +25,7 @@ function createCommandServices(environment: NodeJS.ProcessEnv, entrypointUrl: st
   const packageRoot = dirname(dirname(fileURLToPath(entrypointUrl)));
   const qualityGate = createQualityGateCliCommand({
     cancellationSource: new NodeSignalQualityGateCancellationSource(),
-    commandFactory: (snapshot) => createNodeQualityGateCommand(snapshot, processExecutor),
+    commandFactory: (snapshot) => createNodeQualityGateCommand(snapshot, processExecutor, assertSchema),
     foundationConfigLoader: loadFoundationConfig,
     failureJson: foundationCommandFailureJson
   });

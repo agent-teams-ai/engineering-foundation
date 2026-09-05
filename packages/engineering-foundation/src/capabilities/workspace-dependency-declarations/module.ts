@@ -5,10 +5,10 @@ import {
   type CapabilityInvocation
 } from "../../capability-runtime.js";
 import { PnpmWorkspaceReader } from "./adapters/outbound/pnpm-workspace/pnpm-workspace-reader.js";
+import { loadCapabilityConfig } from "./adapters/inbound/filesystem/load-capability-config.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
 import { evaluateWorkspaceDependencies } from "./application/policies/evaluate-workspace-dependencies.js";
 import { RULES_BY_ID } from "./application/rules.js";

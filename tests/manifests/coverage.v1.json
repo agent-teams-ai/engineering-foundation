@@ -125,7 +125,9 @@
     "tests/source-dependency-export-authority.test.mjs",
     "tests/source-dependency-graph.test.mjs",
     "tests/source-dependency-workspace-discovery.test.mjs",
-    "tests/source-dependency-workspace-topology.test.mjs"
+    "tests/source-dependency-workspace-topology.test.mjs",
+    "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
+    "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs"
   ],
   "thresholds": {
     "lines": 36,

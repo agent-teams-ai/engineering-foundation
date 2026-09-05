@@ -11,6 +11,7 @@ governedRoots:
   - packages/document-authoring/src
   - packages/document-authoring/tests
   - packages/engineering-foundation/src
+  - packages/engineering-foundation/tests
   - packages/docs-protocol/src
   - packages/docs-protocol/tests
   - packages/docs-protocol-agent-teams/scripts
@@ -1261,6 +1262,7 @@ boundaries:
       - packages/engineering-foundation/src/workspace-inventory/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-inventory-reader.ts
       - packages/engineering-foundation/src/workspace-inventory/application/policies/package-export-matcher.ts
+      - packages/engineering-foundation/src/workspace-inventory/application/policies/normalize-dependency-declaration.ts
   - id: foundation.source-inventory.application
     roots:
       - packages/engineering-foundation/src/source-inventory/application
@@ -1569,6 +1571,27 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
+  - id: foundation.dependency-aliases.tests
+    dependencyMode: development
+    roots:
+      - packages/engineering-foundation/tests/source-dependency-aliases.test.mjs
+      - packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs
+      - packages/engineering-foundation/tests/support/dependency-fixtures.mjs
+    allow:
+      boundaries: []
+      packages:
+        - yaml
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:fs/promises
+        - node:module
+        - node:os
+        - node:path
+        - node:test
+        - node:url
+      runtimeReferences: []
+    entrypoints: []
   - id: capability.workspace-dependencies.application
     roots:
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application
@@ -1592,9 +1615,8 @@ boundaries:
       boundaries:
         - capability.workspace-dependencies.application
         - foundation.core
-        - foundation.repository-input
-        - foundation.schema-validation
-      packages: []
+      packages:
+        - ajv
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -1606,10 +1628,14 @@ boundaries:
       boundaries:
         - capability.workspace-dependencies.application
         - foundation.workspace-inventory.adapters
+        - capability.workspace-dependencies.contract
+        - foundation.repository-input
+        - foundation.schema-validation
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/adapters/outbound/pnpm-workspace/pnpm-workspace-reader.ts
   - id: capability.workspace-dependencies.composition
     roots:

@@ -91,6 +91,9 @@ export function unstableFactoryBindings(body, bindings) {
   // Defaults execute outside body var/function declarations. Real parameters
   // and named expression self bindings shadow enclosing names.
   function scanFunction(node, hidden, escaped) {
+    // Promise/iterator methods receive a wrapper, not the returned object. That
+    // object's contents can escape through then/next callbacks or yielded values.
+    if (escaped === "receiverUnstable" && (node.async || node.generator)) {escaped = "contentsUnstable";}
     const parameters = parameterScope(node, hidden);
     for (const param of node.params) {scan(param, parameters);}
     // A declaration in an untracked inner frame can pass its result to inner
@@ -101,7 +104,7 @@ export function unstableFactoryBindings(body, bindings) {
     scan(node.body, nestedScope(node, hidden), node.body?.type === "BlockStatement" ? undefined : escaped, escaped);
   }
   function scanEffects(node, scope) {
-    if (node.type === "ThrowStatement") {scan(node.argument, scope, "contentsUnstable");}
+    if (["ThrowStatement", "YieldExpression"].includes(node.type)) {scan(node.argument, scope, "contentsUnstable");}
     if (["AssignmentExpression", "AssignmentPattern"].includes(node.type)) {scan(node.right, scope, "contentsUnstable");}
     if (node.type === "VariableDeclarator" && [...bindingNames(node.id)].some((name) => scope.has(name) || !names.has(name))) {
       // A value copied into an untracked inner binding has escaped this finite

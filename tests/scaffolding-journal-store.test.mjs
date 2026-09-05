@@ -21,7 +21,7 @@ import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundatio
 import { assertNoOwnedCleanupResidue } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-operation-state.js";
 import { planScaffoldFromFile } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
-import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 import {
   canonicalJson,
   compileRepositoryMutationEnvelope
@@ -87,7 +87,7 @@ test("writes and recovers the closed Foundation schema6 owner composition", asyn
   });
 });
 
-for (const corruption of ["handler", "payload-kind", "state", "owner-build"]) {
+for (const corruption of ["handler", "payload-kind", "state", "owner-build", "owner-version", "owner-name", "kernel-build", "kernel-version", "kernel-name"]) {
   test(`preserves schema6 Foundation evidence with wrong ${corruption}`, async () => {
     await withStore(async ({ journal, path, root }) => {
       const store = new NodeScaffoldJournalStore(root);
@@ -110,16 +110,23 @@ for (const corruption of ["handler", "payload-kind", "state", "owner-build"]) {
       } else if (corruption === "state") {
         input.state = "UNKNOWN";
       } else {
-        input.ownerArtifact = {
-          ...input.ownerArtifact,
-          buildIdentity: `sha256:${"0".repeat(64)}`
+        const [artifact, field] = corruption.split("-");
+        const key = artifact === "owner" ? "ownerArtifact" : "kernelArtifact";
+        input[key] = {
+          ...input[key],
+          [field === "build" ? "buildIdentity" : field]: field === "build"
+            ? `sha256:${"0".repeat(64)}` : field === "name" ? "@foreign/artifact" : "999.0.0"
         };
       }
       const incompatible = compileRepositoryMutationEnvelope(input);
       const evidence = `${canonicalJson(incompatible)}\n`;
       await writeFile(path, evidence, "utf8");
-      const status = await (await createNodeFoundationTransactionCoordinator(root)).inspect();
+      const coordinator = await createNodeFoundationTransactionCoordinator(root);
+      const status = await coordinator.inspect();
       assert.equal(status.state, "manual-recovery-required");
+      await assert.rejects(coordinator.acquire({ requestedMutation: "scaffolding", allowRecoveryOf: "scaffolding" }));
+      await assert.rejects(store.read());
+      assert.ok((await stat(join(root, ".agent-teams-local", "foundation-operation.lock"))).isFile());
       assert.equal(await readFile(path, "utf8"), evidence);
     });
   });

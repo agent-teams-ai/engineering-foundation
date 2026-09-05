@@ -1,56 +1,20 @@
 import {
   assertRepositoryMutationArtifactBindings,
   compileRepositoryMutationEnvelope,
-  installedRepositoryMutationBuildIdentity,
-  installedRepositoryMutationVersion,
   parseRepositoryMutationEnvelope,
-  REPOSITORY_MUTATION_PACKAGE_NAME,
   type CanonicalJsonValue,
-  type RepositoryMutationArtifactIdentity,
   type RepositoryMutationEnvelope
 } from "@agent-teams/repository-mutation";
 
-import { installedFoundationVersion } from "./installed-foundation-version.js";
-import type { AuthorityScaffoldJournal } from "../../../scaffolding/contract/types.js";
-import { assertAuthorityScaffoldJournal } from "../../../scaffolding/kernel/authority-journal-validation.js";
-import { installedFoundationBuildIdentity } from "./installed-foundation-build-identity.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
+import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
+import { resolveInstalledFoundationTransactionArtifacts } from "../../../transaction-coordination/adapters/node/installed-foundation-transaction-artifacts.js";
 
-const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const operationKind = "scaffolding";
 const recoveryHandlerId = "agent-teams.engineering-foundation.scaffolding/v1";
 const payloadKind = "agent-teams.engineering-foundation.scaffold-recovery-journal/v1";
-
-interface InstalledEnvelopeArtifacts {
-  readonly owner: RepositoryMutationArtifactIdentity;
-  readonly kernel: RepositoryMutationArtifactIdentity;
-}
-
-let installedArtifacts: Promise<InstalledEnvelopeArtifacts> | undefined;
-
-async function resolveInstalledArtifacts(): Promise<InstalledEnvelopeArtifacts> {
-  installedArtifacts ??= (async () => {
-    const [ownerVersion, ownerBuildIdentity, kernelVersion, kernelBuildIdentity] =
-      await Promise.all([
-        installedFoundationVersion(),
-        installedFoundationBuildIdentity(),
-        installedRepositoryMutationVersion(),
-        installedRepositoryMutationBuildIdentity()
-      ]);
-    return {
-      owner: {
-        name: FOUNDATION_PACKAGE_NAME,
-        version: ownerVersion,
-        buildIdentity: ownerBuildIdentity
-      },
-      kernel: {
-        name: REPOSITORY_MUTATION_PACKAGE_NAME,
-        version: kernelVersion,
-        buildIdentity: kernelBuildIdentity
-      }
-    };
-  })();
-  return installedArtifacts;
-}
 
 function assertClosedFoundationScaffoldTuple(envelope: RepositoryMutationEnvelope): void {
   if (envelope.operationKind !== operationKind ||
@@ -68,7 +32,7 @@ export async function compileFoundationScaffoldEnvelope(
 ): Promise<RepositoryMutationEnvelope> {
   // Foundation owns this finite tuple and validates its payload before the inert leaf sees it.
   assertAuthorityScaffoldJournal(journal);
-  const artifacts = await resolveInstalledArtifacts();
+  const artifacts = await resolveInstalledFoundationTransactionArtifacts();
   return compileRepositoryMutationEnvelope({
     operationKind,
     recoveryHandler: { id: recoveryHandlerId, contractVersion: 1 },
@@ -85,7 +49,7 @@ export async function parseFoundationScaffoldEnvelope(
   bytes: Uint8Array
 ): Promise<{ readonly envelope: RepositoryMutationEnvelope; readonly journal: AuthorityScaffoldJournal }> {
   const envelope = parseRepositoryMutationEnvelope(bytes);
-  const artifacts = await resolveInstalledArtifacts();
+  const artifacts = await resolveInstalledFoundationTransactionArtifacts();
   // Bind both installed artifacts before interpreting any owner payload fields.
   assertRepositoryMutationArtifactBindings(envelope, artifacts.owner, artifacts.kernel);
   assertClosedFoundationScaffoldTuple(envelope);

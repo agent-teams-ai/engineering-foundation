@@ -13,7 +13,7 @@ import {
   recoverDocumentationTransaction
 } from "../packages/document-authoring/dist/index.js";
 import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -223,7 +223,7 @@ requiresStrictDirectoryDurability("v4 PREPARED without its profile preserves rec
   });
 });
 
-requiresStrictDirectoryDurability("v4 recovery routing requires exact version and same-version build", async () => {
+requiresStrictDirectoryDurability("Foundation leaves native v4 recovery to Authoring regardless of Foundation version/build", async () => {
   await withFixture(async (consumerRoot, scratch) => {
     const plan = await featurePlanV2(consumerRoot);
     await crashAt(consumerRoot, plan, "after-prepared-journal-durable", scratch);
@@ -232,13 +232,14 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
       ".agent-teams-local",
       "scaffolding-transaction.json"
     ), "utf8"));
-    const exact = await new NodeFoundationTransactionSlot({
+    const exact = await createNodeFoundationTransactionSlot({
       consumerRoot,
       installedVersion: envelope.foundation.version,
       installedBuildIdentity: envelope.foundation.buildIdentity
     }).inspect();
-    assert.equal(exact.format, "document-authoring-envelope-v4");
-    assert.equal(exact.recovery?.commandId, "docs-recover");
+    assert.equal(exact.state, "manual-recovery-required");
+    assert.equal(exact.recovery, undefined);
+    assert.match(exact.diagnostics[0]?.message, /Claimed @agent-teams\/document-authoring/u);
     for (const installed of [
       {
         version: "0.0.0-wrong",
@@ -249,21 +250,12 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
         buildIdentity: `sha256:${"9".repeat(64)}`
       }
     ]) {
-      const mismatch = await new NodeFoundationTransactionSlot({
+      const mismatch = await createNodeFoundationTransactionSlot({
         consumerRoot,
         installedVersion: installed.version,
         installedBuildIdentity: installed.buildIdentity
       }).inspect();
-      assert.equal(mismatch.state, "pending");
-      assert.equal(
-        mismatch.diagnostics[0]?.code,
-        "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-      );
-      assert.deepEqual(mismatch.recovery, {
-        commandId: "docs-recover",
-        exactFoundationVersion: envelope.foundation.version,
-        exactFoundationBuildIdentity: envelope.foundation.buildIdentity
-      });
+      assert.deepEqual(mismatch, exact);
     }
   });
 });

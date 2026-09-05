@@ -26,7 +26,7 @@ import {
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import {
   applyAuthorityFilesystemScaffoldWithFaultInjection,
-} from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
+} from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
 
 const documentFixtureRoot = fileURLToPath(new URL(
   "fixtures/document-planning/orchestrator/",

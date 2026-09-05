@@ -1,6 +1,8 @@
-import type { AuthorityScaffoldJournal } from "../contract/types.js";
-import { ScaffoldError } from "../scaffold-error.js";
-import { assertAuthorityScaffoldPlanDigest } from "./plan-validation.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
+import { ScaffoldError } from "../../scaffold-error.js";
+import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 
 function assertAuthorityJournalOperationBindings(
   journal: AuthorityScaffoldJournal

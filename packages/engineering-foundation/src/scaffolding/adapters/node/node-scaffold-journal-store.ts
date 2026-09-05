@@ -11,8 +11,10 @@ import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY
-} from "../../../foundation-state-contract.js";
-import type { AuthorityScaffoldJournal } from "../../contract/types.js";
+} from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
 import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   parseScaffoldJournal,

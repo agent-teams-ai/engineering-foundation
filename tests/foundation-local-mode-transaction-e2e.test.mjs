@@ -22,7 +22,7 @@ import {
 import { spawnSync } from "node:child_process";
 import { installedFoundationVersion } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
 
-import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
 import { FoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-coordinator.js";
 import { FoundationTransactionError } from "../packages/engineering-foundation/dist/transaction-coordination/application/foundation-transaction-error.js";
 import {

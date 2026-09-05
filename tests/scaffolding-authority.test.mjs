@@ -14,7 +14,7 @@ import {
   planScaffoldFromFile, recoverFilesystemScaffold, validateScaffoldReceipt,
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
+import { applyAuthorityFilesystemScaffoldWithFaultInjection } from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
 
@@ -36,10 +36,8 @@ const filesystemAuthorityWorkspaceModulePath = join(
   "packages",
   "engineering-foundation",
   "dist",
-  "scaffolding",
-  "adapters",
-  "node",
-  "filesystem-authority-workspace.js"
+  "composition",
+  "scaffold-filesystem.js"
 );
 
 async function createConsumer() {

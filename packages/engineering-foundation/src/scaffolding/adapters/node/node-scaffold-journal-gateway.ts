@@ -1,4 +1,6 @@
-import type { AuthorityScaffoldJournal } from "../../contract/types.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { sameJournalSlotAuthority as sameScaffoldJournalAuthority } from "@agent-teams/repository-mutation/node";
 import {

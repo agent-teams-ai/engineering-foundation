@@ -30,6 +30,7 @@
   },
   "files": [
     "dist",
+    "assets/transaction-coordination/historical/document-plan-v1.schema.json",
     "presets/oxlint/base.json",
     "presets/oxlint/maintainability-tests.json",
     "presets/oxlint/maintainability.json",

@@ -1,15 +1,21 @@
 import type {
-  JsonValue,
+  JsonValue
+} from "../../application/model/scaffold-values.js";
+import type {
   ScaffoldDiagnosticV1,
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
   AuthorityScaffoldOperationOutcome,
   AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceiptOutcome,
+  AuthorityScaffoldReceiptOutcome
+} from "../../contract/types.js";
+import type {
   AuthorityScaffoldReceipt
-} from "../contract/types.js";
-import { ScaffoldError } from "../scaffold-error.js";
-import { sha256Json } from "./canonical-json.js";
-import { assertAuthorityScaffoldPlanDigest } from "./plan-validation.js";
+} from "../../contract/receipt-authority-types.js";
+import { ScaffoldError } from "../../scaffold-error.js";
+import { sha256Json } from "../../kernel/canonical-json.js";
+import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 
 interface AuthorityScaffoldReceiptCandidate {
   readonly schemaVersion: number;

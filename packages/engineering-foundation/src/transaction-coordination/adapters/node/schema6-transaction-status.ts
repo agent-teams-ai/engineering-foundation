@@ -10,8 +10,6 @@ import {
 } from "@agent-teams/repository-mutation";
 
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
-import { parseFoundationScaffoldEnvelope } from "./foundation-scaffold-envelope.js";
-import { inspectKnownFileTransactionStatus } from "./known-file-transaction-status.js";
 
 function manual(message: string): InternalFoundationTransactionStatus {
   return {
@@ -24,13 +22,9 @@ function manual(message: string): InternalFoundationTransactionStatus {
   };
 }
 
-export async function inspectSchema6TransactionStatus(options: {
-  readonly value: Record<string, unknown>;
-  readonly installedFoundationVersion: string;
-  readonly installedFoundationBuildIdentity: string;
-}): Promise<InternalFoundationTransactionStatus> {
+export async function inspectSchema6TransactionStatus(value: Record<string, unknown>): Promise<InternalFoundationTransactionStatus> {
   const bytes = Buffer.from(
-    canonicalJson(options.value as CanonicalJsonValue),
+    canonicalJson(value as CanonicalJsonValue),
     "utf8"
   );
   const envelope = parseRepositoryMutationEnvelope(bytes);
@@ -42,33 +36,38 @@ export async function inspectSchema6TransactionStatus(options: {
     const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity };
     assertRepositoryMutationArtifactBindings(envelope, artifact, artifact);
     assertKnownFileTransactionEnvelope(envelope);
-    return inspectKnownFileTransactionStatus({
-      value: options.value,
-      schemaVersion: 6,
-      installedVersion: version,
-      installedBuildIdentity: buildIdentity
-    }) ?? manual(
-      "The Repository Mutation known-file schema6 envelope was preserved but could not be classified."
-    );
+    return {
+      state: "pending",
+      operationKind: "known-file-transaction",
+      format: "known-file-transaction-envelope-v1",
+      recoveryArtifacts: {
+        schemaVersion: 6,
+        ownerArtifact: {
+          name: envelope.ownerArtifact.name,
+          version: envelope.ownerArtifact.version,
+          buildIdentity: envelope.ownerArtifact.buildIdentity
+        },
+        kernelArtifact: {
+          name: envelope.kernelArtifact.name,
+          version: envelope.kernelArtifact.version,
+          buildIdentity: envelope.kernelArtifact.buildIdentity
+        }
+      },
+      // Retain the public display spelling; the recovery owner is Mutation.
+      foundationVersion: version,
+      foundationBuildIdentity: buildIdentity,
+      recovery: {
+        commandId: "replace-known-file-recover",
+        exactFoundationVersion: version,
+        exactFoundationBuildIdentity: buildIdentity
+      },
+      diagnostics: [{
+        code: "FOUNDATION_TRANSACTION_ACTIVE",
+        message: `A known-file transaction requires @agent-teams/repository-mutation ${version} (${buildIdentity}) as both owner and kernel before another Foundation mutation can start.`
+      }]
+    };
   }
-  if (envelope.operationKind !== "scaffolding") {
-    return manual(
-      `The schema6 operation ${envelope.operationKind} has no closed Foundation recovery handler and was preserved.`
-    );
-  }
-  await parseFoundationScaffoldEnvelope(bytes);
-  return {
-    state: "pending",
-    operationKind: "scaffolding",
-    format: "foundation-scaffolding-envelope-v6",
-    foundationVersion: options.installedFoundationVersion,
-    recovery: {
-      commandId: "scaffold-recover",
-      exactFoundationVersion: options.installedFoundationVersion
-    },
-    diagnostics: [{
-      code: "FOUNDATION_TRANSACTION_ACTIVE",
-      message: "A pending scaffolding transaction must be recovered before another Foundation mutation can start."
-    }]
-  };
+  return manual(
+    `The schema6 operation ${envelope.operationKind} has no closed Foundation recovery handler and was preserved.`
+  );
 }

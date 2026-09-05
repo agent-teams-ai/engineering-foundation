@@ -5,7 +5,10 @@ import {
   sha256Text as sha256RepositoryMutationText
 } from "@agent-teams/repository-mutation";
 
-import type { JsonValue, Sha256Digest } from "../contract/types.js";
+import type {
+  JsonValue,
+  Sha256Digest
+} from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 function mapCanonicalFailure<T>(operation: () => T): T {

@@ -740,3 +740,34 @@ test("suppression analysis consumes explicit snapshots and preserves scanner fai
     ...dependencies, sourceReader: { async read() { throw failure; } },
   }), (error) => error === failure);
 });
+
+test("owner-selected historical schemas preserve exact bytes and contained observation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-owner-schema-"));
+  try {
+    const relativeFile = "assets/legacy/plan.schema.json";
+    const bytes = await readFile(new URL("../packages/engineering-foundation/assets/transaction-coordination/historical/document-plan-v1.schema.json", import.meta.url));
+    await mkdir(join(root, "assets/legacy"), { recursive: true });
+    await writeFile(join(root, relativeFile), bytes);
+    const calls = [];
+    const reader = createPackagedSchemaReader({
+      packageRoot: root,
+      schemaFiles: { "document-plan/v1": relativeFile },
+      files: { async read(input) { calls.push(input); return readContainedRegularFile(input); } },
+      async readAuthoringSchema() { throw new Error("Current Authoring cannot redefine historical Plan bytes"); }
+    });
+    assert.equal(await reader("document-plan/v1"), bytes.toString("utf8"));
+    assert.deepEqual(calls, [{ candidate: join(root, relativeFile), root, maxBytes: 1024 * 1024 }]);
+    const escaped = createPackagedSchemaReader({
+      packageRoot: root, schemaFiles: { "document-plan/v1": "../outside.json" },
+      files: { async read() { throw new Error("escaped resource must not be observed"); } },
+      async readAuthoringSchema() { throw new Error("escaped resource must not delegate"); }
+    });
+    await assert.rejects(escaped("document-plan/v1"), (error) => error.problem.code === "CONFIG_PATH_INVALID");
+    const inherited = createPackagedSchemaReader({
+      packageRoot: root, schemaFiles: Object.create({ "document-plan/v1": "../outside.json" }),
+      files: { async read() { throw new Error("inherited mapping must not be observed"); } },
+      async readAuthoringSchema(id) { return id; }
+    });
+    assert.equal(await inherited("document-plan/v1"), "document-plan/v1");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

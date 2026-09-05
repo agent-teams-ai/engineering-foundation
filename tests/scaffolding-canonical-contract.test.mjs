@@ -13,7 +13,7 @@ import {
   canonicalJson,
   sha256Json,
 } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";
-import { createAuthorityScaffoldReceipt } from "../packages/engineering-foundation/dist/scaffolding/kernel/authority-receipt.js";
+import { createAuthorityScaffoldReceipt } from "../packages/engineering-foundation/dist/scaffolding/adapters/inbound/authority-scaffold-receipt.js";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixtureRoot = join(
@@ -206,4 +206,59 @@ test("rejected canonical Receipts require operation evidence", async () => {
     () => assertScaffoldReceiptDigest(rejected),
     /requires operation evidence/u
   );
+});
+
+
+test("compiles through an alternate parameter port without changing definition or output digests", async () => {
+  const { ScaffoldDefinitionRegistry } = await import("../packages/engineering-foundation/dist/scaffolding/kernel/definition-registry.js");
+  const { AjvScaffoldParameterValidation } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/outbound/ajv-parameter-validation.js");
+  const { compileScaffoldRendering } = await import("../packages/engineering-foundation/dist/scaffolding/kernel/compiler.js");
+  const schema = { type: "object", additionalProperties: false };
+  const profile = { id: "test.profile", contractVersion: 1 };
+  const recipe = { id: "test.recipe", contractVersion: 1 };
+  let compileCount = 0;
+  const definitions = [
+    { kind: "scaffold-profile", ref: profile, descriptor: {}, parameterSchema: schema,
+      allowedRecipeIds: [recipe.id], requiredPolicies: [] },
+    { kind: "recipe", ref: recipe, descriptor: {}, parameterSchema: schema,
+      allowedProfileIds: [profile.id], allowedTargetRoles: ["testing"], requiredPolicies: [],
+      compile: ({ target }) => {
+        compileCount += 1;
+        return [{ path: `${target.path}/index.ts`, content: "export {};\n", mediaType: "text/typescript", causes: [recipe.id] }];
+      } }
+  ];
+  const calls = [];
+  const alternate = new ScaffoldDefinitionRegistry(definitions, {
+    validate: ({ definitionKey, schema: observed, parameters }) => {
+      assert.equal(observed, schema);
+      calls.push(definitionKey);
+      if (Object.keys(parameters).length !== 0) { throw new Error("parameters must be empty"); }
+    }
+  });
+  const standard = new ScaffoldDefinitionRegistry(definitions, new AjvScaffoldParameterValidation());
+  const input = {
+    foundationVersion: "0.21.0",
+    intent: { schemaVersion: 1, compositionId: "test", targetRef: "target" },
+    composition: { id: "test", scaffoldProfile: { ref: profile }, recipe: { ref: recipe }, targetRoles: ["testing"], policies: [] },
+    target: { id: "target", role: "testing", path: "packages/example", packageName: "@example/test" }
+  };
+  assert.deepEqual(compileScaffoldRendering(input, alternate), compileScaffoldRendering(input, standard));
+  assert.deepEqual(calls, ["test.profile@1", "test.recipe@1"]);
+  assert.equal(compileCount, 2);
+  assert.throws(() => compileScaffoldRendering({ ...input, intent: { ...input.intent, recipeParameters: { unknown: true } } }, alternate), /parameters must be empty/u);
+  assert.equal(compileCount, 2, "invalid parameters cannot reach recipe effects");
+  assert.throws(() => compileScaffoldRendering({ ...input, intent: { ...input.intent, recipeParameters: { unknown: true } } }, standard), {
+    code: "SCAFFOLD_INPUT_INVALID",
+    message: "Invalid parameters for test.recipe@1: / must NOT have additional properties"
+  });
+});
+
+test("parameter adapter cache distinguishes definitions with the same key and different schemas", async () => {
+  const { AjvScaffoldParameterValidation } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/outbound/ajv-parameter-validation.js");
+  const validator = new AjvScaffoldParameterValidation();
+  const first = { type: "object", properties: { first: { type: "boolean" } }, required: ["first"] };
+  const second = { type: "object", properties: { second: { type: "boolean" } }, required: ["second"] };
+  validator.validate({ definitionKey: "test@1", schema: first, parameters: { first: true } });
+  validator.validate({ definitionKey: "test@1", schema: second, parameters: { second: true } });
+  assert.throws(() => validator.validate({ definitionKey: "test@1", schema: second, parameters: { first: true } }), /second/u);
 });

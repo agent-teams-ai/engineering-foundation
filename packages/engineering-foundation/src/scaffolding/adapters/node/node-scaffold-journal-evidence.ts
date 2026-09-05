@@ -5,9 +5,14 @@ import type {
   JournalSlotObservation,
   StoredJournalSlot
 } from "@agent-teams/repository-mutation/node";
-import { FOUNDATION_TRANSACTION_FILE } from "../../../foundation-state-contract.js";
-import type { AuthorityScaffoldJournal, JsonValue } from "../../contract/types.js";
-import { assertAuthorityScaffoldJournal } from "../../kernel/authority-journal-validation.js";
+import { FOUNDATION_TRANSACTION_FILE } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
+import type {
+  JsonValue
+} from "../../application/model/scaffold-values.js";
+import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
 import { canonicalJson } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { assertSchema } from "../../../schema-catalog.js";
@@ -15,7 +20,7 @@ import { parseStrictJson } from "../../../strict-json.js";
 import {
   compileFoundationScaffoldEnvelope,
   parseFoundationScaffoldEnvelope
-} from "../../../transaction-coordination/adapters/node/foundation-scaffold-envelope.js";
+} from "./foundation-scaffold-envelope.js";
 import { MAX_SCAFFOLD_PLAN_BYTES } from "./node-scaffold-limits.js";
 
 export const SCAFFOLD_JOURNAL_FILE = FOUNDATION_TRANSACTION_FILE;

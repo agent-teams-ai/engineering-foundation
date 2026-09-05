@@ -8,7 +8,7 @@ import { createPackagedSchemaReader, createSchemaCatalog } from "./features/conf
 import { containedFileObservation } from "./source-inventory/node.js";
 import { FOUNDATION_SCHEMA_IDS } from "./schema-ids.js";
 import { SCAFFOLD_SCHEMA_DEPENDENCIES } from "./scaffolding/schemas.js";
-import { TRANSACTION_SCHEMA_DEPENDENCIES } from "./transaction-coordination/schemas.js";
+import { TRANSACTION_SCHEMA_DEPENDENCIES, TRANSACTION_SCHEMA_FILES } from "./transaction-coordination/schemas.js";
 
 const catalog = createSchemaCatalog({
   schemaIds: FOUNDATION_SCHEMA_IDS,
@@ -16,6 +16,7 @@ const catalog = createSchemaCatalog({
   readSchema: createPackagedSchemaReader({
     packageRoot: dirname(dirname(fileURLToPath(import.meta.url))),
     files: containedFileObservation,
+    schemaFiles: TRANSACTION_SCHEMA_FILES,
     readAuthoringSchema: readDocumentAuthoringSchema
   })
 });

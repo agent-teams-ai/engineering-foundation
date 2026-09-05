@@ -7,7 +7,7 @@ import { inspectCanonicalConsumerDevOnly } from "../adapters/node/consumer-inspe
 import { createNodeLocalLinkStateStore } from "../adapters/node/local-state-store.js";
 import { createNodeRegistryLinks } from "../adapters/node/registry-links.js";
 import { createNodeLocalTargetReader } from "../adapters/node/target-reader.js";
-import { createNodeFoundationTransactionCoordinator } from "../../transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
+import { createNodeFoundationTransactionCoordinator } from "../../composition/node-foundation-transaction-coordinator.js";
 
 export interface FoundationLocalModeServiceOptions {
   readonly runner: ProcessRunner;

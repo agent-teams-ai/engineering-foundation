@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 import { sha256Json } from "../packages/engineering-foundation/dist/canonical-json.js";
 import {
   createDocumentEnvelopeV3,
@@ -30,7 +30,7 @@ async function inspectEnvelope(envelope, installed = {}) {
   const bytes = Buffer.from(`${JSON.stringify(envelope, null, 2)}\n`, "utf8");
   await writeFile(path, bytes);
   try {
-    const status = await new NodeFoundationTransactionSlot({
+    const status = await createNodeFoundationTransactionSlot({
       consumerRoot: root,
       installedVersion: installed.version ?? documentEnvelopeV3Version,
       installedBuildIdentity:
@@ -43,17 +43,12 @@ async function inspectEnvelope(envelope, installed = {}) {
   }
 }
 
-test("routes an envelope v3 only to the exact Foundation version and build", async () => {
+test("preserves an envelope v3 for external exact Foundation recovery", async () => {
   const envelope = createDocumentEnvelopeV3(contractFixture);
   const exact = await inspectEnvelope(envelope);
-  assert.equal(exact.state, "pending");
-  assert.equal(exact.format, "document-authoring-envelope-v3");
-  assert.equal(exact.diagnostics[0]?.code, "FOUNDATION_TRANSACTION_ACTIVE");
-  assert.deepEqual(exact.recovery, {
-    commandId: "docs-recover",
-    exactFoundationVersion: documentEnvelopeV3Version,
-    exactFoundationBuildIdentity: documentEnvelopeV3BuildIdentity,
-  });
+  assert.equal(exact.state, "manual-recovery-required");
+  assert.equal(exact.recovery, undefined);
+  assert.match(exact.diagnostics[0]?.message, /Claimed @agent-teams\/engineering-foundation/u);
 
   for (const installed of [
     { version: "0.15.0", buildIdentity: documentEnvelopeV3BuildIdentity },
@@ -63,11 +58,7 @@ test("routes an envelope v3 only to the exact Foundation version and build", asy
     },
   ]) {
     const mismatch = await inspectEnvelope(envelope, installed);
-    assert.equal(mismatch.state, "pending");
-    assert.equal(
-      mismatch.diagnostics[0]?.code,
-      "FOUNDATION_TRANSACTION_VERSION_MISMATCH",
-    );
+    assert.deepEqual(mismatch, exact);
   }
 });
 

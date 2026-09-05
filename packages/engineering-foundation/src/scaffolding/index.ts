@@ -1,13 +1,17 @@
 export type {
-  AuthorityScaffoldRecoveryScope,
+  AuthorityScaffoldRecoveryScope
+} from "./application/model/recovery-scope.js";
+export type {
   ConfiguredDefinition,
-  DefinitionRef,
+  DefinitionRef
+} from "./application/model/scaffold-compilation.js";
+export type {
   JsonObject,
   JsonPrimitive,
   JsonValue,
   RepositoryPath,
   Sha256Digest
-} from "./contract/types.js";
+} from "./application/model/scaffold-values.js";
 export type {
   MaterializeFileOperation,
   ScaffoldAppliedOperationReceipt,

@@ -1,9 +1,13 @@
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldOperationReceipt
 } from "../../contract/types.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
+  AuthorityScaffoldReceipt
+} from "../../contract/receipt-authority-types.js";
 import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
 import { assertSafeExistingAncestors } from "./filesystem-path-guard.js";
 import { classifyFilesystemOperation } from "./filesystem-operation-state.js";

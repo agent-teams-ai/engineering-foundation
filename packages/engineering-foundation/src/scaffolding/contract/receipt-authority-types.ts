@@ -1,8 +1,12 @@
 import type {
-  ScaffoldDiagnosticV1,
-  AuthorityScaffoldOperationReceipt,
-  Sha256Digest
+  ScaffoldDiagnosticV1
+} from "../application/model/scaffold-compilation.js";
+import type {
+  AuthorityScaffoldOperationReceipt
 } from "./types.js";
+import type {
+  Sha256Digest
+} from "../application/model/scaffold-values.js";
 
 interface AuthorityScaffoldReceiptCommon {
   readonly schemaVersion: 1;

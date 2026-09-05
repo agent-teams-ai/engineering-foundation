@@ -189,6 +189,16 @@ test("supporting MCP precondition has one fixed exact public coordinate", () => 
     },
   };
   assert.deepEqual(supportingMcpCoordinate(packument), supportingMcp);
+  const previous = {
+    ...SUPPORTING_MCP_PACKAGE, version: "0.2.0", dist: { integrity: supportingMcp.integrity },
+  };
+  assert.throws(
+    () => supportingMcpCoordinate({
+      "dist-tags": { latest: previous.version },
+      versions: { [previous.version]: previous },
+    }),
+    /exact latest/u,
+  );
   assert.throws(
     () => supportingMcpCoordinate({ ...packument, "dist-tags": { latest: "0.1.1" } }),
     /exact latest/u,
@@ -526,6 +536,13 @@ test("canonical canary receipt validates central binding and exact unique packag
   assert.doesNotThrow(() => assertCanaryReceiptDigest(receipt));
   assert.equal(receipt.packages.length, 5);
   assert.equal(receipt.supportingReleasePrecondition.package.name, SUPPORTING_MCP_PACKAGE.name);
+  for (const [section, field] of [
+    ["package", "version"], ["package", "latest"], ["mcp", "serverVersion"],
+  ]) {
+    const staleSupportingCoordinate = structuredClone(receipt);
+    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "0.2.0";
+    assert.equal(validate(staleSupportingCoordinate), false, `stale supporting MCP ${section}.${field}`);
+  }
   const duplicate = structuredClone(receipt);
   duplicate.packages[1].name = duplicate.packages[0].name;
   assert.equal(validate(duplicate), false);

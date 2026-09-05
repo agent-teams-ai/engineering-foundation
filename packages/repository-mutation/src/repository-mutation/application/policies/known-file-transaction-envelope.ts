@@ -1,5 +1,6 @@
 import { canonicalJson, type CanonicalJsonValue } from "../../../canonical-json.js";
 import {
+  assertRepositoryMutationArtifactBindings,
   compileRepositoryMutationEnvelope,
   parseRepositoryMutationEnvelope
 } from "../../../transaction-coordination/application-api.js";
@@ -262,4 +263,33 @@ export function assertKnownFileTransactionEnvelope(
     throw new KnownFileTransactionEnvelopeError("Known-file transaction envelope binding is invalid.");
   }
   assertJournal(envelope.payload);
+}
+
+export const MAXIMUM_KNOWN_FILE_JOURNAL_BYTES = 32 * 1024 * 1024;
+
+export function encodeKnownFileTransactionEnvelope(envelope: KnownFileTransactionEnvelopeV1): Buffer {
+  assertKnownFileTransactionEnvelope(envelope);
+  const result = Buffer.from(
+    `${canonicalJson(envelope as unknown as CanonicalJsonValue)}\n`,
+    "utf8"
+  );
+  if (result.byteLength > MAXIMUM_KNOWN_FILE_JOURNAL_BYTES) {
+    throw new Error("Known-file transaction journal exceeds its byte limit.");
+  }
+  return result;
+}
+
+export function decodeKnownFileTransactionEnvelope(
+  bytes: Buffer,
+  expectedOwner: KnownFileTransactionEnvelopeV1["ownerArtifact"],
+  expectedKernel: KnownFileTransactionEnvelopeV1["kernelArtifact"]
+): KnownFileTransactionEnvelopeV1 {
+  const generic = parseRepositoryMutationEnvelope(bytes);
+  assertRepositoryMutationArtifactBindings(generic, expectedOwner, expectedKernel);
+  const parsed = generic as unknown as KnownFileTransactionEnvelopeV1;
+  assertKnownFileTransactionEnvelope(parsed);
+  if (!bytes.equals(encodeKnownFileTransactionEnvelope(parsed))) {
+    throw new Error("Known-file transaction journal bytes are not canonical.");
+  }
+  return parsed;
 }

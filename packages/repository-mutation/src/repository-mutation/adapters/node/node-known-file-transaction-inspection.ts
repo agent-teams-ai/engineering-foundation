@@ -2,8 +2,8 @@ import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 
-import { LOCAL_OPERATION_LOCK, LOCAL_STATE_DIRECTORY, REPOSITORY_MUTATION_PACKAGE_NAME } from "../../../transaction-coordination/application-api.js";
-
+import { knownFileStateNames } from "../../application/policies/known-file-state-names.js";
+import { installedMutationArtifact } from "../../application/policies/known-file-mutation-admission.js";
 
 import { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 import { canonicalKnownFileRoot, knownFileErrorCode } from "./node-known-file-transaction-filesystem.js";
@@ -21,7 +21,7 @@ export type KnownFileTransactionBarrierInspection =
 
 async function operationLockExists(root: string): Promise<boolean> {
   try {
-    await lstat(join(root, LOCAL_STATE_DIRECTORY, LOCAL_OPERATION_LOCK));
+    await lstat(join(root, knownFileStateNames.directory, knownFileStateNames.operationLock));
     return true;
   } catch (error) {
     if (knownFileErrorCode(error) === "ENOENT") {return false;}
@@ -42,14 +42,11 @@ export async function inspectKnownFileTransactionBarrier(coordination: Pick<Know
 }): Promise<KnownFileTransactionBarrierInspection> {
   const root = await canonicalKnownFileRoot(options.consumerRoot);
   const hasOperationLock = await operationLockExists(root);
-  const [version, buildIdentity] = await Promise.all([
-    coordination.installedRepositoryMutationVersion(), coordination.installedRepositoryMutationBuildIdentity()
-  ]);
-  const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity };
+  const artifact = await installedMutationArtifact(coordination);
   let observed;
   try {
     observed = await new NodeKnownFileTransactionJournalStore(coordination,
-      join(root, LOCAL_STATE_DIRECTORY), artifact, artifact
+      join(root, knownFileStateNames.directory), artifact, artifact
     ).read();
   } catch {
     return Object.freeze({

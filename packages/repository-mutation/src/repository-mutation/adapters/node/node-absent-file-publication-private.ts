@@ -7,7 +7,9 @@ import {
   type ExactFilePostimageState
 } from "../../application/model/exact-postimage.js";
 import type { PortablePathIdentity } from "../../../path-identity.js";
-import { type BoundedRegularFileRead } from "../../../transaction-coordination/application-api.js";
+import type { KnownFileObservationPort } from "../../application/ports/known-file-observation.js";
+
+type BoundedRegularFileRead = Awaited<ReturnType<KnownFileObservationPort["readBoundedRegularFile"]>>;
 import type { DirectoryDurability } from "./node-directory-durability.js";
 
 export function publicationErrorCode(error: unknown): string | undefined {

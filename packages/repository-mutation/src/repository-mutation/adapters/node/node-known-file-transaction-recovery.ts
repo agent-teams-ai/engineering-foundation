@@ -1,8 +1,7 @@
 import type { KnownFileCoordination } from "./known-file-coordination.js";
 
-import { REPOSITORY_MUTATION_PACKAGE_NAME, type MutationClaim, type MutationLease } from "../../../transaction-coordination/application-api.js";
-
-
+import type { KnownFileRecoveryRequest, KnownFileLeaseReleaseRequest } from "../../application/ports/known-file-mutation.js";
+import { installedMutationArtifact, ensureRecoveryClaim, assertRecoveryClaim } from "../../application/policies/known-file-mutation-admission.js";
 
 import type { KnownFileTransactionReceiptV1 } from "../../application/model/known-file-transaction.js";
 import { classifyKnownFileRecoveryTransition } from "../../application/policies/classify-known-file-recovery-transition.js";
@@ -16,7 +15,7 @@ import {
 } from "./node-known-file-recovery-observation.js";
 import { canonicalKnownFileRoot, hasPlainKnownFileOptionsPrototype } from "./node-known-file-transaction-filesystem.js";
 import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
-import { releaseKnownFileTransactionLease } from "./node-known-file-transaction-lease-release.js";
+import { releaseKnownFileTransactionLease } from "../../application/policies/known-file-transaction-lease-release.js";
 
 export type { KnownFileRecoveryFaultInjector } from "./node-known-file-recovery-executor.js";
 
@@ -39,9 +38,7 @@ export async function recoverKnownFileTransactionWithFaults(coordination: Pick<K
   | "retainMutationBarrier"
   | "retainMutationBarrierOnEvidence"
   | "retainMutationClaimBarrierOnEvidence"
->, options: {
-  readonly consumerRoot: string;
-  readonly claim?: MutationClaim;
+>, options: KnownFileRecoveryRequest & {
   readonly faultInjector?: KnownFileRecoveryFaultInjector;
 }): Promise<KnownFileTransactionReceiptV1> {
   if (process.platform === "win32") {
@@ -51,31 +48,15 @@ export async function recoverKnownFileTransactionWithFaults(coordination: Pick<K
     );
   }
   const root = await canonicalKnownFileRoot(options.consumerRoot);
-  let ownedLease: MutationLease | undefined;
+  let ownedLease: KnownFileLeaseReleaseRequest["lease"] | undefined;
   let claim = options.claim;
   ownedLease = claim === undefined ? await coordination.acquireMutationLease(root) : undefined;
   let retainBarrier = true;
   let primaryFailure: { readonly reason: unknown } | undefined;
   try {
-    const [version, buildIdentity] = await Promise.all([
-      coordination.installedRepositoryMutationVersion(), coordination.installedRepositoryMutationBuildIdentity()
-    ]);
-    const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity };
-    if (claim === undefined) {
-      const lease = ownedLease!;
-      claim = await coordination.claimMutation(lease, await coordination.observeMutationState(lease), {
-        kind: "recover-known-file", ownerArtifact: artifact, kernelArtifact: artifact
-      });
-    }
-    const claimedIntent = coordination.mutationClaimIntent(claim);
-    const exactArtifact = (candidate: { readonly name: string; readonly version: string; readonly buildIdentity: string }) =>
-      candidate.name === artifact.name && candidate.version === artifact.version &&
-      candidate.buildIdentity === artifact.buildIdentity;
-    if (claimedIntent.kind !== "recover-known-file" || !exactArtifact(claimedIntent.ownerArtifact) ||
-      !exactArtifact(claimedIntent.kernelArtifact) ||
-      await coordination.consumeMutationClaim(claim, "recover-known-file") !== root) {
-      throw new KnownFileTransactionError("KNOWN_FILE_RECOVERY_CONFLICT", "Mutation claim has the wrong root, owner, or kernel identity.");
-    }
+    const artifact = await installedMutationArtifact(coordination);
+    claim = await ensureRecoveryClaim(coordination, { artifact, claim, lease: ownedLease });
+    await assertRecoveryClaim(coordination, { artifact, claim, root });
     const evidence = await observeKnownFileRecoveryEvidence(coordination, root);
     const transition = classifyKnownFileRecoveryTransition({
       envelope: evidence.stored.envelope,
@@ -130,10 +111,7 @@ export function recoverKnownFileTransaction(coordination: Pick<KnownFileCoordina
   | "retainMutationBarrier"
   | "retainMutationBarrierOnEvidence"
   | "retainMutationClaimBarrierOnEvidence"
->, options: {
-  readonly consumerRoot: string;
-  readonly claim?: MutationClaim;
-}): Promise<KnownFileTransactionReceiptV1> {
+>, options: KnownFileRecoveryRequest): Promise<KnownFileTransactionReceiptV1> {
   const candidate: unknown = options;
   const keys = typeof candidate === "object" && candidate !== null
     ? Reflect.ownKeys(candidate)
@@ -159,7 +137,7 @@ export function recoverKnownFileTransaction(coordination: Pick<KnownFileCoordina
     (Object.getOwnPropertyDescriptor(options, key)! as PropertyDescriptor & { value: unknown }).value
   ]));
   const input = Object.hasOwn(values, "claim")
-    ? { consumerRoot: values["consumerRoot"] as string, claim: values["claim"] as MutationClaim }
+    ? { consumerRoot: values["consumerRoot"] as string, claim: values["claim"] as NonNullable<KnownFileRecoveryRequest["claim"]> }
     : { consumerRoot: values["consumerRoot"] as string };
   return recoverKnownFileTransactionWithFaults(coordination, input);
 }

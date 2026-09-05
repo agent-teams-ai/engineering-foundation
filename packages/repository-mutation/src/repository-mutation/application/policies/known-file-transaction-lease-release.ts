@@ -1,16 +1,10 @@
-import type { KnownFileCoordination } from "./known-file-coordination.js";
-import { type MutationLease } from "../../../transaction-coordination/application-api.js";
+import type { KnownFileMutationPort, KnownFileLeaseReleaseRequest } from "../ports/known-file-mutation.js";
 
 /**
  * Releases a known-file lease without allowing a release failure to mask the
  * already-settled primary failure.
  */
-export async function releaseKnownFileTransactionLease(coordination: Pick<KnownFileCoordination, "releaseMutationLease" | "retainMutationBarrier">, options: {
-  readonly jointFailureMessage: string;
-  readonly lease: MutationLease;
-  readonly primaryFailure?: { readonly reason: unknown };
-  readonly retainTransactionBarrier: boolean;
-}): Promise<void> {
+export async function releaseKnownFileTransactionLease(coordination: Pick<KnownFileMutationPort, "releaseMutationLease" | "retainMutationBarrier">, options: KnownFileLeaseReleaseRequest): Promise<void> {
   return releaseKnownFileTransactionLeaseWith({
     jointFailureMessage: options.jointFailureMessage,
     ...(options.primaryFailure === undefined ? {} : { primaryFailure: options.primaryFailure }),

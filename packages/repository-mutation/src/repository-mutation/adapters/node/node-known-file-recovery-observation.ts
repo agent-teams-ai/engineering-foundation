@@ -1,8 +1,8 @@
 import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { join } from "node:path";
 
-
-import { REPOSITORY_MUTATION_PACKAGE_NAME, LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application-api.js";
+import { knownFileStateNames } from "../../application/policies/known-file-state-names.js";
+import { installedMutationArtifact } from "../../application/policies/known-file-mutation-admission.js";
 
 import type {
   KnownFileTransactionEnvelopeV1,
@@ -38,13 +38,9 @@ export async function observeKnownFileRecoveryEvidence(coordination: Pick<KnownF
 >,
   root: string
 ): Promise<KnownFileRecoveryEvidence> {
-  const [version, buildIdentity] = await Promise.all([
-    coordination.installedRepositoryMutationVersion(),
-    coordination.installedRepositoryMutationBuildIdentity()
-  ]);
-  const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, buildIdentity, version };
+  const artifact = await installedMutationArtifact(coordination);
   const store = new NodeKnownFileTransactionJournalStore(coordination,
-    join(root, LOCAL_STATE_DIRECTORY), artifact, artifact
+    join(root, knownFileStateNames.directory), artifact, artifact
   );
   await store.canonicalizeTemporary();
   const observed = await store.read();

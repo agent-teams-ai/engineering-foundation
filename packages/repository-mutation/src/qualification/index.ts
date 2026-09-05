@@ -58,4 +58,4 @@ export type {
   MutationOperationReleaseOptions,
   OperationLockOperations,
 } from "../transaction-coordination/adapters/node/node-operation-lock.js";
-export { releaseKnownFileTransactionLeaseWith } from "../repository-mutation/adapters/node/node-known-file-transaction-lease-release.js";
+export { releaseKnownFileTransactionLeaseWith } from "../repository-mutation/application/policies/known-file-transaction-lease-release.js";

@@ -8,7 +8,7 @@ import type { OwnedTemporaryCleanupTransitionPort } from "../../application/port
 
 import type { DirectoryDurability } from "./node-directory-durability.js";
 import { syncPublicationDirectory } from "./node-absent-file-publication-private.js";
-import { type TerminalEvidenceDirectoryAuthority } from "../../../transaction-coordination/application-api.js";
+import type { KnownFileTerminalDirectory } from "../../application/ports/known-file-observation.js";
 
 export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
   ".foundation-owned-cleanup-";
@@ -111,7 +111,7 @@ async function logicallyRetireQuarantine(coordination: Pick<KnownFileCoordinatio
   readonly quarantinedPath: string;
   readonly quarantineDirectory: string;
   readonly retiredDirectory: string;
-  readonly terminalRoot: TerminalEvidenceDirectoryAuthority;
+  readonly terminalRoot: KnownFileTerminalDirectory;
   readonly beforeLogicalRetirement?: (path: string) => Promise<void> | void;
 }): Promise<"different" | "removed"> {
   await options.beforeLogicalRetirement?.(options.quarantinedPath);

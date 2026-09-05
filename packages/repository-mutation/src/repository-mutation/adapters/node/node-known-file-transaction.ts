@@ -1,9 +1,8 @@
 import { compileKnownFileTransactionReceipt } from "../../application/policies/known-file-transaction-receipt.js";
 import type { KnownFileCoordination } from "./known-file-coordination.js";
 
-import { REPOSITORY_MUTATION_PACKAGE_NAME, type MutationArtifactIdentity, type MutationClaim, type MutationLease } from "../../../transaction-coordination/application-api.js";
-
-
+import type { KnownFileApplyRequest, KnownFileLeaseReleaseRequest } from "../../application/ports/known-file-mutation.js";
+import { installedMutationArtifact, ensureApplyClaim, assertApplyClaim } from "../../application/policies/known-file-mutation-admission.js";
 
 import type {
   KnownFileTransactionPlanV1,
@@ -29,7 +28,7 @@ import {
 import { canonicalKnownFileRoot, hasPlainKnownFileOptionsPrototype } from "./node-known-file-transaction-filesystem.js";
 import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
-import { releaseKnownFileTransactionLease } from "./node-known-file-transaction-lease-release.js";
+import { releaseKnownFileTransactionLease } from "../../application/policies/known-file-transaction-lease-release.js";
 
 export type { KnownFileTransactionFaultInjector, KnownFileTransactionFaultPoint };
 
@@ -78,67 +77,6 @@ async function refreshBarrierRetention(
   }
 }
 
-async function installedMutationArtifact(coordination: Pick<KnownFileCoordination, "installedRepositoryMutationBuildIdentity" | "installedRepositoryMutationVersion">, ): Promise<MutationArtifactIdentity> {
-  const [version, buildIdentity] = await Promise.all([
-    coordination.installedRepositoryMutationVersion(),
-    coordination.installedRepositoryMutationBuildIdentity()
-  ]);
-  return { name: REPOSITORY_MUTATION_PACKAGE_NAME, version, buildIdentity };
-}
-
-async function ensureApplyClaim(coordination: Pick<KnownFileCoordination, "claimMutation" | "observeMutationState">, options: {
-  readonly artifact: MutationArtifactIdentity;
-  readonly claim: MutationClaim | undefined;
-  readonly lease: MutationLease | undefined;
-  readonly planDigest: `sha256:${string}`;
-}): Promise<MutationClaim> {
-  if (options.claim !== undefined) {return options.claim;}
-  if (options.lease === undefined) {
-    throw new KnownFileTransactionError(
-      "KNOWN_FILE_PLAN_INVALID",
-      "Known-file apply did not acquire its mutation lease."
-    );
-  }
-  return coordination.claimMutation(
-    options.lease,
-    await coordination.observeMutationState(options.lease),
-    {
-      kind: "apply-known-file",
-      planDigest: options.planDigest,
-      ownerArtifact: options.artifact,
-      kernelArtifact: options.artifact
-    }
-  );
-}
-
-function sameArtifact(
-  candidate: MutationArtifactIdentity,
-  expected: MutationArtifactIdentity
-): boolean {
-  return candidate.name === expected.name &&
-    candidate.version === expected.version &&
-    candidate.buildIdentity === expected.buildIdentity;
-}
-
-async function assertApplyClaim(coordination: Pick<KnownFileCoordination, "consumeMutationClaim" | "mutationClaimIntent">, options: {
-  readonly artifact: MutationArtifactIdentity;
-  readonly claim: MutationClaim;
-  readonly planDigest: `sha256:${string}`;
-  readonly root: string;
-}): Promise<void> {
-  const intent = coordination.mutationClaimIntent(options.claim);
-  if (intent.kind !== "apply-known-file" ||
-    intent.planDigest !== options.planDigest ||
-    !sameArtifact(intent.ownerArtifact, options.artifact) ||
-    !sameArtifact(intent.kernelArtifact, options.artifact) ||
-    await coordination.consumeMutationClaim(options.claim, "apply-known-file") !== options.root) {
-    throw new KnownFileTransactionError(
-      "KNOWN_FILE_PLAN_INVALID",
-      "Mutation claim belongs to another repository root, plan, owner, or kernel identity."
-    );
-  }
-}
-
 function translateApplyAdmissionFailure(error: unknown): never {
   if (error instanceof Error && /Common transaction evidence/u.test(error.message)) {
     throw new KnownFileTransactionError(
@@ -168,10 +106,7 @@ export async function applyKnownFileTransactionWithFaults(coordination: Pick<Kno
   | "retainMutationBarrier"
   | "retainMutationBarrierOnEvidence"
   | "retainMutationClaimBarrierOnEvidence"
->, options: {
-  readonly consumerRoot: string;
-  readonly plan: KnownFileTransactionPlanV1;
-  readonly claim?: MutationClaim;
+>, options: KnownFileApplyRequest & {
   readonly faultInjector?: KnownFileTransactionFaultInjector;
 }): Promise<KnownFileTransactionReceiptV1> {
   assertKnownFileTransactionPlan(options.plan);
@@ -182,7 +117,7 @@ export async function applyKnownFileTransactionWithFaults(coordination: Pick<Kno
     );
   }
   const root = await canonicalKnownFileRoot(options.consumerRoot);
-  let ownedLease: MutationLease | undefined;
+  let ownedLease: KnownFileLeaseReleaseRequest["lease"] | undefined;
   let claim = options.claim;
   ownedLease = claim === undefined ? await coordination.acquireMutationLease(root) : undefined;
   let retainBarrier = false;
@@ -271,11 +206,7 @@ export function applyKnownFileTransaction(coordination: Pick<KnownFileCoordinati
   | "retainMutationBarrier"
   | "retainMutationBarrierOnEvidence"
   | "retainMutationClaimBarrierOnEvidence"
->, options: {
-  readonly consumerRoot: string;
-  readonly plan: KnownFileTransactionPlanV1;
-  readonly claim?: MutationClaim;
-}): Promise<KnownFileTransactionReceiptV1> {
+>, options: KnownFileApplyRequest): Promise<KnownFileTransactionReceiptV1> {
   const candidate: unknown = options;
   const keys = typeof candidate === "object" && candidate !== null
     ? Reflect.ownKeys(candidate)
@@ -301,7 +232,7 @@ export function applyKnownFileTransaction(coordination: Pick<KnownFileCoordinati
     (Object.getOwnPropertyDescriptor(options, key)! as PropertyDescriptor & { value: unknown }).value
   ]));
   const input = Object.hasOwn(values, "claim")
-    ? { consumerRoot: values["consumerRoot"] as string, plan: values["plan"] as KnownFileTransactionPlanV1, claim: values["claim"] as MutationClaim }
+    ? { consumerRoot: values["consumerRoot"] as string, plan: values["plan"] as KnownFileTransactionPlanV1, claim: values["claim"] as NonNullable<KnownFileApplyRequest["claim"]> }
     : { consumerRoot: values["consumerRoot"] as string, plan: values["plan"] as KnownFileTransactionPlanV1 };
   return applyKnownFileTransactionWithFaults(coordination, input);
 }

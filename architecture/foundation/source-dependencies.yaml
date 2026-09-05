@@ -948,6 +948,11 @@ boundaries:
       - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts
       - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-receipt.ts
       - packages/repository-mutation/src/repository-mutation/application/ports/owned-temporary-cleanup-transition.ts
+      - packages/repository-mutation/src/repository-mutation/application/ports/known-file-mutation.ts
+      - packages/repository-mutation/src/repository-mutation/application/ports/known-file-observation.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-mutation-admission.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-state-names.ts
+      - packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-lease-release.ts
   - id: repository-mutation.node-adapters
     roots:
       - packages/repository-mutation/src/repository-mutation/adapters
@@ -970,7 +975,6 @@ boundaries:
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-inspection.ts
-      - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-lease-release.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction-recovery.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-known-file-transaction.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-prepare-exact-sibling-temporary.ts
@@ -1099,7 +1103,7 @@ boundaries:
       - packages/repository-mutation/src/node.ts
   - id: repository-mutation.qualification
     roots:
-      - packages/repository-mutation/src/qualification
+      - packages/repository-mutation/src/qualification/index.ts
     packageExports:
       - ./qualification
     allow:

@@ -536,6 +536,13 @@ test("canonical canary receipt validates central binding and exact unique packag
   assert.doesNotThrow(() => assertCanaryReceiptDigest(receipt));
   assert.equal(receipt.packages.length, 5);
   assert.equal(receipt.supportingReleasePrecondition.package.name, SUPPORTING_MCP_PACKAGE.name);
+  for (const [section, field] of [
+    ["package", "version"], ["package", "latest"], ["mcp", "serverVersion"],
+  ]) {
+    const staleSupportingCoordinate = structuredClone(receipt);
+    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "0.2.0";
+    assert.equal(validate(staleSupportingCoordinate), false, `stale supporting MCP ${section}.${field}`);
+  }
   const duplicate = structuredClone(receipt);
   duplicate.packages[1].name = duplicate.packages[0].name;
   assert.equal(validate(duplicate), false);

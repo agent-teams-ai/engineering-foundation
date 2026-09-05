@@ -1,0 +1,7 @@
+{
+  "application": "export const execute = () => 1;\n",
+  "private": "export const secret = 2;\n",
+  "deepImport": "import { secret } from '../../beta/application/private.js';\nexport const execute = () => secret;\n",
+  "reverseImport": "import { read } from '../adapters/read.js';\nexport const execute = () => read();\n",
+  "adapter": "export const read = () => 1;\n"
+}

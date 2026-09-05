@@ -55,7 +55,9 @@
         "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
         "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
         "tests/source-dependency-loader-edges.test.mjs",
-        "tests/source-dependency-loader-cli.test.mjs"
+        "tests/source-dependency-loader-cli.test.mjs",
+        "tests/feature-module-conformance.test.mjs",
+        "tests/production-quality-scope.test.mjs"
       ]
     },
     {

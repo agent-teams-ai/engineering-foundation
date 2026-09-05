@@ -1,5 +1,8 @@
 schemaVersion: 1
 governedRoots:
+  - packages/docs-protocol-mcp/src
+  - packages/document-authoring/src
+  - packages/repository-mutation/src
   - packages/engineering-foundation/src
   - packages/docs-protocol/src
   - packages/docs-protocol-agent-teams/src

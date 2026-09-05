@@ -166,6 +166,10 @@ prerequisite of every executable pull request job and is included by both
 required aggregators. CodeQL runs as a separate hosted analysis; none of these tools execute
 inside a normal capability check.
 
+## Feature ownership and complete production scope
+
+`pnpm quality:scope:check` derives coverage from the existing public package inventory and rejects missing typed-lint, ambient-rule or suppression coverage. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.
+
 ## Dependency updates
 
 Dependabot checks npm dependencies and pinned GitHub Actions every weekday. It

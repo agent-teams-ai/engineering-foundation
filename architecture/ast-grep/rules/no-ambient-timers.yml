@@ -4,7 +4,9 @@ severity: error
 message: Foundation source must not schedule ambient timers.
 note: Model timers as commands or use a scheduler port.
 files:
-  - "packages/engineering-foundation/src/**/*.ts"
+  - "packages/*/src/**/*.ts"
+ignores:
+  - "packages/docs-protocol/src/qualification/crash-driver.ts"
 rule:
   any:
     - pattern: setTimeout($$$ARGS)

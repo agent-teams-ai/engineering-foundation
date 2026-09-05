@@ -57,6 +57,8 @@ dogfooded. Consumers still enable each capability explicitly and must satisfy
 their consumer-owned adoption gates; installing a package version does not
 activate policy.
 
+The repository explicitly adopts the [Feature Module Standard](docs/architecture/feature-module-standard.md). Its fail-closed guard exposes remaining ownership migrations.
+
 ## Commands
 
 ```bash

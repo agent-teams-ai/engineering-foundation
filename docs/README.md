@@ -47,6 +47,8 @@ not repeat their rules.
 | Package release | [Release](release.md) | Active |
 | Architecture decisions | [Decision index](decisions/README.md) | Active |
 
+See the [Feature Module Standard adoption](architecture/feature-module-standard.md) for the local profile, commands and remaining layout migrations.
+
 ## Document roles
 
 - `decisions/` records why a consequential choice was made and what it

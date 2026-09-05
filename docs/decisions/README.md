@@ -41,6 +41,8 @@ No proposed decisions.
 - [ADR-0044: Registry-Neutral npm Bootstrap Tags](0044-registry-neutral-npm-bootstrap-tags.md)
 - [ADR-0045: Five-Coordinate Qualified Docs Cohort](0045-five-coordinate-qualified-docs-cohort.md)
 
+- [ADR-0046: Repository Feature Module Standard Adoption](0046-feature-module-standard-adoption.md)
+
 ## Superseded
 
 - [ADR-0006: Closed Deterministic Scaffolding Compiler](0006-closed-deterministic-scaffolding-compiler.md)

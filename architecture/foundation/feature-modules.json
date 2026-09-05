@@ -1,0 +1,1155 @@
+{
+  "schemaVersion": 1,
+  "standard": {
+    "id": "agent-teams.feature-module-standard",
+    "version": "v1",
+    "path": "standards/feature-module-standard-v1.md",
+    "digest": "sha256:851653f96643cf0466b67ab22963661976b00de44840fa3144a48a8c054f95fa"
+  },
+  "architectureDocument": "docs/architecture/feature-module-standard.md",
+  "decision": "docs/decisions/0046-feature-module-standard-adoption.md",
+  "topology": {
+    "packageInventory": "scripts/publishable-packages.mjs",
+    "sourcePolicy": "architecture/foundation/source-dependencies.yaml"
+  },
+  "enforcementCommands": [
+    "pnpm architecture:features:check",
+    "pnpm lint:typed",
+    "pnpm architecture:patterns",
+    "pnpm foundation:check:built",
+    "pnpm check"
+  ],
+  "localExtensions": {
+    "language": "TypeScript ESM",
+    "packaging": "pnpm workspace public packages",
+    "composition": "Exact assembly paths admit curated exports, derived inert types and bounded imported factory wiring; only manifest bins admit process lifecycle. Feature behavior stays feature-owned.",
+    "transport": "transport contracts remain outside application and domain layers",
+    "testOwnership": "Existing focused suites are mapped by exact file or module test root; new features use tests/features/<feature>."
+  },
+  "deviations": {
+    "featureDependencyCycles": []
+  },
+  "modules": [
+    {
+      "id": "repository-mutation",
+      "packageName": "@agent-teams/repository-mutation",
+      "root": "packages/repository-mutation",
+      "sourceRoot": "packages/repository-mutation/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/repository-mutation/src/features",
+      "publicEntrypoints": [
+        "packages/repository-mutation/src/index.ts",
+        "packages/repository-mutation/src/node.ts",
+        "packages/repository-mutation/src/qualification/index.ts",
+        "packages/repository-mutation/src/serialization.ts",
+        "packages/repository-mutation/src/paths.ts",
+        "packages/repository-mutation/src/coordination.ts",
+        "packages/repository-mutation/src/known-file.ts"
+      ],
+      "moduleAssembly": [
+        "packages/repository-mutation/src/index.ts",
+        "packages/repository-mutation/src/node.ts",
+        "packages/repository-mutation/src/qualification/index.ts",
+        "packages/repository-mutation/src/serialization.ts",
+        "packages/repository-mutation/src/paths.ts",
+        "packages/repository-mutation/src/coordination.ts",
+        "packages/repository-mutation/src/known-file.ts",
+        "packages/repository-mutation/src/composition"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "known-file-transactions",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/repository-mutation/src/repository-mutation/application",
+                "packages/repository-mutation/src/repository-mutation/application-api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/repository-mutation/src/repository-mutation/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/repository-mutation/src/repository-mutation/composition"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/known-file-transaction-plan.test.mjs",
+            "tests/known-file-transaction-node.test.mjs",
+            "tests/known-file-transaction-recovery.test.mjs"
+          ]
+        },
+        {
+          "id": "mutation-coordination",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/repository-mutation/src/transaction-coordination/application",
+                "packages/repository-mutation/src/transaction-coordination/application-api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/repository-mutation/src/transaction-coordination/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/repository-mutation/src/transaction-coordination/composition"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/repository-mutation/tests/mutation-lease.test.mjs"
+          ]
+        }
+      ],
+      "testRoots": [
+        "packages/repository-mutation/tests"
+      ]
+    },
+    {
+      "id": "document-authoring",
+      "packageName": "@agent-teams/document-authoring",
+      "root": "packages/document-authoring",
+      "sourceRoot": "packages/document-authoring/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/document-authoring/src/features",
+      "publicEntrypoints": [
+        "packages/document-authoring/src/index.ts",
+        "packages/document-authoring/src/observation.ts",
+        "packages/document-authoring/src/qualification/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/document-authoring/src/index.ts",
+        "packages/document-authoring/src/observation.ts",
+        "packages/document-authoring/src/qualification/index.ts",
+        "packages/document-authoring/src/composition"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "document-authoring",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/document-authoring/src/document-authoring/application",
+                "packages/document-authoring/src/document-authoring/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/document-authoring/src/document-authoring/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/document-authoring/src/document-authoring/module.ts"
+              ]
+            },
+            {
+              "role": "testing",
+              "roots": [
+                "packages/document-authoring/src/document-authoring/testing"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/document-authoring-profile-v2.test.mjs",
+            "tests/document-planning-policies.test.mjs",
+            "tests/document-authoring-qualification.test.mjs"
+          ]
+        },
+        {
+          "id": "documentation-observation",
+          "role": "integration",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/document-authoring/src/documentation-observation/application",
+                "packages/document-authoring/src/documentation-observation/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/document-authoring/src/documentation-observation/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/document-authoring/src/documentation-observation/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/documentation-filesystem-reliability.test.mjs"
+          ]
+        }
+      ],
+      "testRoots": [
+        "packages/document-authoring/tests"
+      ]
+    },
+    {
+      "id": "docs-protocol",
+      "packageName": "@agent-teams/docs-protocol",
+      "root": "packages/docs-protocol",
+      "sourceRoot": "packages/docs-protocol/src",
+      "role": "sdk",
+      "preferredFeatureRoot": "packages/docs-protocol/src/features",
+      "publicEntrypoints": [
+        "packages/docs-protocol/src/index.ts",
+        "packages/docs-protocol/src/qualification/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/docs-protocol/src/index.ts",
+        "packages/docs-protocol/src/cli.ts",
+        "packages/docs-protocol/src/composition"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "portable-documentation",
+          "role": "sdk",
+          "layers": [
+            {
+              "role": "domain",
+              "roots": [
+                "packages/docs-protocol/src/domain"
+              ]
+            },
+            {
+              "role": "application",
+              "roots": [
+                "packages/docs-protocol/src/application",
+                "packages/docs-protocol/src/community/context"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/docs-protocol/src/adapters"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol/tests/docs-protocol.test.mjs",
+            "packages/docs-protocol/tests/community-context.test.mjs"
+          ]
+        },
+        {
+          "id": "portable-bootstrap",
+          "role": "integration",
+          "layers": [
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/docs-protocol/src/community/bootstrap"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol/tests/community-bootstrap.test.mjs"
+          ]
+        },
+        {
+          "id": "portable-qualification",
+          "role": "testing",
+          "layers": [
+            {
+              "role": "testing",
+              "roots": [
+                "packages/docs-protocol/src/qualification"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol/tests/qualification.test.mjs"
+          ]
+        }
+      ],
+      "testRoots": [
+        "packages/docs-protocol/tests"
+      ]
+    },
+    {
+      "id": "docs-protocol-agent-teams",
+      "packageName": "@agent-teams/docs-protocol-agent-teams",
+      "root": "packages/docs-protocol-agent-teams",
+      "sourceRoot": "packages/docs-protocol-agent-teams/src",
+      "role": "integration",
+      "preferredFeatureRoot": "packages/docs-protocol-agent-teams/src/features",
+      "publicEntrypoints": [
+        "packages/docs-protocol-agent-teams/src/index.ts",
+        "packages/docs-protocol-agent-teams/src/consumer-integration/index.ts",
+        "packages/docs-protocol-agent-teams/src/qualification/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/docs-protocol-agent-teams/src/index.ts",
+        "packages/docs-protocol-agent-teams/src/cli.ts",
+        "packages/docs-protocol-agent-teams/src/composition"
+      ],
+      "generatedRoots": [
+        {
+          "root": "packages/docs-protocol-agent-teams/src/consumer-integration/generated",
+          "generator": "packages/docs-protocol-agent-teams/scripts/generate-consumer-assets.mjs",
+          "sources": [
+            "packages/docs-protocol-agent-teams/assets/history/sha256-7b31cd257532247f64c55a014dc926c601e4d742176cfb8513b6b0d8ab48213e/skill.md",
+            "packages/docs-protocol-agent-teams/skills/docs/SKILL.md",
+            "packages/docs-protocol-agent-teams/assets/history/sha256-641265ef9ecff59c16482fdae1bc8fc56002b5a4a1ee34b102438d0ca08a86a3/skill.md",
+            "packages/docs-protocol-agent-teams/assets/docs-protocol.yml",
+            "packages/docs-protocol-agent-teams/assets/transition-catalog.json"
+          ]
+        }
+      ],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "consumer-integration",
+          "role": "integration",
+          "layers": [
+            {
+              "role": "domain",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/consumer-integration/domain"
+              ]
+            },
+            {
+              "role": "application",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/consumer-integration/application",
+                "packages/docs-protocol-agent-teams/src/consumer-integration/generated"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/consumer-integration/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/consumer-integration/composition",
+                "packages/docs-protocol-agent-teams/src/consumer-integration/index.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs"
+          ]
+        },
+        {
+          "id": "managed-qualification",
+          "role": "testing",
+          "layers": [
+            {
+              "role": "testing",
+              "roots": [
+                "packages/docs-protocol-agent-teams/src/qualification"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol-agent-teams/tests/qualification.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs"
+          ]
+        }
+      ],
+      "testRoots": [
+        "packages/docs-protocol-agent-teams/tests"
+      ]
+    },
+    {
+      "id": "docs-protocol-mcp",
+      "packageName": "@agent-teams/docs-protocol-mcp",
+      "root": "packages/docs-protocol-mcp",
+      "sourceRoot": "packages/docs-protocol-mcp/src",
+      "role": "integration",
+      "preferredFeatureRoot": "packages/docs-protocol-mcp/src/features",
+      "publicEntrypoints": [
+        "packages/docs-protocol-mcp/src/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/docs-protocol-mcp/src/index.ts",
+        "packages/docs-protocol-mcp/src/cli.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "documentation-tools",
+          "role": "integration",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/docs-protocol-mcp/src/read-only-docs/application"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/docs-protocol-mcp/src/read-only-docs/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/docs-protocol-mcp/src/read-only-docs/composition",
+                "packages/docs-protocol-mcp/src/read-only-docs/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/docs-protocol-mcp/tests/tools.test.mjs",
+            "packages/docs-protocol-mcp/tests/mcp-e2e.test.mjs"
+          ]
+        }
+      ],
+      "testRoots": [
+        "packages/docs-protocol-mcp/tests"
+      ]
+    },
+    {
+      "id": "engineering-foundation",
+      "packageName": "@agent-teams/engineering-foundation",
+      "root": "packages/engineering-foundation",
+      "sourceRoot": "packages/engineering-foundation/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/engineering-foundation/src/features",
+      "publicEntrypoints": [
+        "packages/engineering-foundation/src/index.ts",
+        "packages/engineering-foundation/src/local-mode/index.ts",
+        "packages/engineering-foundation/src/scaffolding/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/engineering-foundation/src/index.ts",
+        "packages/engineering-foundation/src/public-api-surface.ts",
+        "packages/engineering-foundation/src/cli.ts",
+        "packages/engineering-foundation/src/composition",
+        "packages/engineering-foundation/src/schema-catalog.ts",
+        "packages/engineering-foundation/src/schema-ids.ts",
+        "packages/engineering-foundation/src/foundation-state-contract.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "local-package-mode",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/local-mode/application",
+                "packages/engineering-foundation/src/local-mode/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/local-mode/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/local-mode/composition",
+                "packages/engineering-foundation/src/local-mode/index.ts",
+                "packages/engineering-foundation/src/local-mode/node.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/local-mode.test.mjs"
+          ]
+        },
+        {
+          "id": "process-execution",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/process-execution/application",
+                "packages/engineering-foundation/src/process-execution/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/process-execution/node-process-runner.ts",
+                "packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts",
+                "packages/engineering-foundation/src/process-execution/windows-managed-process.ts",
+                "packages/engineering-foundation/src/process-execution/windows-process-host.ts"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/process-execution/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/local-mode-process-runner.test.mjs",
+            "tests/windows-managed-process.test.mjs"
+          ]
+        },
+        {
+          "id": "scaffolding",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/scaffolding/kernel",
+                "packages/engineering-foundation/src/scaffolding/application",
+                "packages/engineering-foundation/src/scaffolding/contract",
+                "packages/engineering-foundation/src/scaffolding/definitions",
+                "packages/engineering-foundation/src/scaffolding/scaffold-error.ts",
+                "packages/engineering-foundation/src/scaffolding/scaffold-defaults.ts",
+                "packages/engineering-foundation/src/scaffolding/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/scaffolding/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/scaffolding/composition",
+                "packages/engineering-foundation/src/scaffolding/index.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/scaffolding-canonical-contract.test.mjs",
+            "tests/scaffolding-authority.test.mjs"
+          ]
+        },
+        {
+          "id": "source-inventory",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/source-inventory/application",
+                "packages/engineering-foundation/src/source-inventory/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/source-inventory/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/source-inventory/module.ts",
+                "packages/engineering-foundation/src/source-inventory/node.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/source-dependency-graph.test.mjs"
+          ]
+        },
+        {
+          "id": "transaction-coordination",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/transaction-coordination/application",
+                "packages/engineering-foundation/src/transaction-coordination/api.ts",
+                "packages/engineering-foundation/src/transaction-coordination/inspection.ts",
+                "packages/engineering-foundation/src/transaction-coordination/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/transaction-coordination/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/transaction-coordination/node.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/foundation-transaction-coordinator.test.mjs"
+          ]
+        },
+        {
+          "id": "workspace-inventory",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/workspace-inventory/application",
+                "packages/engineering-foundation/src/workspace-inventory/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/workspace-inventory/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/workspace-inventory/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/source-dependency-workspace-discovery.test.mjs"
+          ]
+        },
+        {
+          "id": "contract-json-schema-releases",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/application",
+                "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/api.ts",
+                "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/contract",
+                "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-json-schema-releases/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/contract-json-schema-releases.test.mjs"
+          ]
+        },
+        {
+          "id": "contract-protobuf-evolution",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application",
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/api.ts",
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract",
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts"
+              ]
+            },
+            {
+              "role": "testing",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/qualification"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/contract-protobuf-evolution.test.mjs"
+          ]
+        },
+        {
+          "id": "documentation-local-references",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/documentation-local-references/application",
+                "packages/engineering-foundation/src/capabilities/documentation-local-references/contract",
+                "packages/engineering-foundation/src/capabilities/documentation-local-references/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/documentation-local-references/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/documentation-local-references/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/documentation-local-references.test.mjs"
+          ]
+        },
+        {
+          "id": "executable-specifications",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/executable-specifications/application",
+                "packages/engineering-foundation/src/capabilities/executable-specifications/api.ts",
+                "packages/engineering-foundation/src/capabilities/executable-specifications/contract",
+                "packages/engineering-foundation/src/capabilities/executable-specifications/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/executable-specifications/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/executable-specifications/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/executable-specifications.test.mjs"
+          ]
+        },
+        {
+          "id": "governance-architecture-decisions",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/application",
+                "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/api.ts",
+                "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/contract",
+                "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/governance-architecture-decisions/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/documentation-architecture-decisions.test.mjs"
+          ]
+        },
+        {
+          "id": "property-testing-standard",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/property-testing-standard/application",
+                "packages/engineering-foundation/src/capabilities/property-testing-standard/api.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/property-testing-standard.test.mjs"
+          ]
+        },
+        {
+          "id": "public-api-compatibility",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/application",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/contract",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/capability-public-api.test.mjs"
+          ]
+        },
+        {
+          "id": "quality-gate-runner",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/application",
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/api.ts",
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/contract",
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/module.ts",
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/command-module.ts",
+                "packages/engineering-foundation/src/capabilities/quality-gate-runner/composition"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs",
+            "tests/quality-gate-runner.test.mjs",
+            "tests/quality-gate-runner-remediation.test.mjs",
+            "tests/quality-gate-runner-lifecycle.test.mjs"
+          ]
+        },
+        {
+          "id": "repository-agent-workflow",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/application",
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract",
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts",
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/command-module.ts",
+                "packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/agent-workflow.test.mjs",
+            "tests/agent-workflow-changed-scope.test.mjs"
+          ]
+        },
+        {
+          "id": "repository-security-baseline",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/repository-security-baseline/application",
+                "packages/engineering-foundation/src/capabilities/repository-security-baseline/contract",
+                "packages/engineering-foundation/src/capabilities/repository-security-baseline/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/repository-security-baseline/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/repository-security-baseline/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/capability-policy.test.mjs",
+            "tests/repository-security-hardening.test.mjs"
+          ]
+        },
+        {
+          "id": "source-dependencies",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/source-dependencies/application",
+                "packages/engineering-foundation/src/capabilities/source-dependencies/api.ts",
+                "packages/engineering-foundation/src/capabilities/source-dependencies/contract",
+                "packages/engineering-foundation/src/capabilities/source-dependencies/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/source-dependencies/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/source-dependencies/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/source-dependency-graph.test.mjs",
+            "tests/source-dependency-workspace-topology.test.mjs"
+          ]
+        },
+        {
+          "id": "suppression-governance",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/suppression-governance/application",
+                "packages/engineering-foundation/src/capabilities/suppression-governance/api.ts",
+                "packages/engineering-foundation/src/capabilities/suppression-governance/contract",
+                "packages/engineering-foundation/src/capabilities/suppression-governance/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/suppression-governance/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/suppression-governance/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/capability-policy.test.mjs"
+          ]
+        },
+        {
+          "id": "workspace-dependency-declarations",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/application",
+                "packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/contract",
+                "packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/workspace-dependency-declarations/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/capability.test.mjs"
+          ]
+        },
+        {
+          "id": "command-host",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/features/command-host/application",
+                "packages/engineering-foundation/src/features/command-host/api.ts",
+                "packages/engineering-foundation/src/features/command-host/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/features/command-host/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/features/command-host/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/cli.test.mjs"
+          ]
+        },
+        {
+          "id": "configuration-input",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/features/configuration-input/application",
+                "packages/engineering-foundation/src/features/configuration-input/api.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/features/configuration-input/adapters",
+                "packages/engineering-foundation/src/features/configuration-input/yaml.ts"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/features/configuration-input/module.ts",
+                "packages/engineering-foundation/src/features/configuration-input/node.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/source-configuration.test.mjs",
+            "tests/workspace-configuration.test.mjs"
+          ]
+        },
+        {
+          "id": "foundation-check",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/features/foundation-check/application",
+                "packages/engineering-foundation/src/features/foundation-check/api.ts",
+                "packages/engineering-foundation/src/features/foundation-check/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/features/foundation-check/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/features/foundation-check/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/capability.test.mjs"
+          ]
+        },
+        {
+          "id": "validation-reporting",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/features/validation-reporting/application",
+                "packages/engineering-foundation/src/features/validation-reporting/api.ts",
+                "packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts",
+                "packages/engineering-foundation/src/features/validation-reporting/schemas.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/capability.test.mjs"
+          ]
+        }
+      ],
+      "testRoots": [
+        "tests"
+      ]
+    }
+  ],
+  "productionRoots": [
+    "packages"
+  ],
+  "applicationRoots": [],
+  "excludedRoots": [
+    "spikes",
+    "scripts",
+    "tests"
+  ]
+}

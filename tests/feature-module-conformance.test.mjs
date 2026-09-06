@@ -1,3 +1,5 @@
+import { registerFactoryReviewCases } from "./fixtures/feature-modules/factory-review-cases.mjs";
+import { registerCrossModuleFactoryCases } from "./fixtures/feature-modules/factory-cross-module-cases.mjs";
 import { registerFactorySurfaceCases } from "./fixtures/feature-modules/factory-surface-cases.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -825,3 +827,6 @@ registerAssemblyOverloadsCases(fixture, expectPass, rejects);
 registerNamespaceSurfaceCases(workspaceSurface, expectPass, rejects);
 
 registerFactorySurfaceCases({ test, assert, workspaceSurface, rejects, expectPass });
+
+registerFactoryReviewCases({ test, assert });
+registerCrossModuleFactoryCases({ test, assert, workspaceSurface });

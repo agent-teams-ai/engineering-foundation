@@ -159,3 +159,37 @@ test("installed schema reader observes the actual package root while custom read
   const rejected = createInstalledPackagedSchemaReader({ ...input, files: { read: async () => { throw failure; } } });
   await assert.rejects(rejected("ordinary/v1"), (error) => error === failure);
 });
+
+
+test("schema list declarations retain finite tuples and conservative open tails", async () => {
+  const { execFile } = await import("node:child_process");
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { dirname, join, relative, sep } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const { promisify } = await import("node:util");
+  const root = dirname(dirname(fileURLToPath(import.meta.url)));
+  const temporary = await mkdtemp(join(root, ".foundation-schema-list-types-"));
+  const declaration = join(root, "packages/engineering-foundation/dist/features/configuration-input/application/schema-list.js");
+  const specifier = relative(temporary, declaration).split(sep).join("/");
+  try {
+    const source = join(temporary, "schema-list.mts");
+    await writeFile(source, [
+      `import { createSchemaList } from ${JSON.stringify(specifier)};`,
+      'const finite = createSchemaList([["first"], ["second", "third"]]);',
+      'const exact: readonly ["first", "second", "third"] = finite.schemaIds;',
+      "const length: 3 = finite.schemaIds.length;",
+      'const additional: readonly (readonly string[])[] = [["second"]];',
+      'const open = createSchemaList([["first"], ...additional]);',
+      "const conservative: readonly string[] = open.schemaIds;",
+      "// @ts-expect-error An open tail cannot promise a single schema.",
+      "const incorrectLength: 1 = open.schemaIds.length;",
+      "void [exact, length, conservative, incorrectLength];"
+    ].join("\n"));
+    await promisify(execFile)(process.execPath, [
+      join(root, "node_modules/typescript/lib/tsc.js"), "--ignoreConfig", "--noEmit",
+      "--strict", "--skipLibCheck", "--module", "NodeNext", "--moduleResolution", "NodeNext", source
+    ]);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});

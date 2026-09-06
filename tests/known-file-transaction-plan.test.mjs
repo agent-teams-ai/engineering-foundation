@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import Ajv2020 from "ajv/dist/2020.js";
 
 import {
   assertKnownFileTransactionPlan,
@@ -29,6 +30,20 @@ test("frozen published schemas and current owner schemas retain their exact appr
     const { bytes: schemaBytes } = await readKnownFileSchema(kind, owner);
     assert.equal(createHash("sha256").update(schemaBytes).digest("hex"), expected);
   }
+});
+
+test("published Mutation schema paths retain their released bytes and accept its native compiler", async () => {
+  for (const [kind, expected] of [
+    ["plan", "ed9490e1d9a903f82853199cb69d8a196b7052ccf38f81c3546397291a0f3223"],
+    ["receipt", "92e6396923f76421ae8c63dc4187a4f9b391e8a06ae61772d5eea947041b884e"]
+  ]) {
+    const { bytes: schemaBytes } = await readKnownFileSchema(kind, "published");
+    assert.equal(createHash("sha256").update(schemaBytes).digest("hex"), expected);
+  }
+  const { schema } = await readKnownFileSchema("plan", "published");
+  const validate = new Ajv2020({ strict: true }).compile(schema);
+  assert.equal(validate(compile([create("managed/result.txt")])), true, JSON.stringify(validate.errors));
+  assert.equal(validate((await readHistoricalKnownFileFixture("plan")).value), false);
 });
 
 test("native Foundation and current compiler Plans reject the other owner's schema", async () => {

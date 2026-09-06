@@ -6,7 +6,7 @@
   "required": ["schemaVersion", "protocol", "planDigest", "outcome", "operations", "receiptDigest"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "protocol": { "const": "agent-teams.repository-mutation.known-file/v1" },
+    "protocol": { "const": "foundation.replace-known-file/v1" },
     "planDigest": { "$ref": "#/$defs/sha256" },
     "outcome": { "enum": ["already-satisfied", "applied", "rolled-back"] },
     "operations": {

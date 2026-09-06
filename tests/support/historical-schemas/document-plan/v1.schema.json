@@ -60,7 +60,7 @@
       "additionalProperties": false,
       "required": ["id", "version", "buildIdentity"],
       "properties": {
-        "id": { "enum": ["@agent-teams/document-authoring", "@agent-teams/engineering-foundation"] },
+        "id": { "const": "@agent-teams/engineering-foundation" },
         "version": { "$ref": "#/$defs/semver" },
         "buildIdentity": { "$ref": "#/$defs/digest" }
       }

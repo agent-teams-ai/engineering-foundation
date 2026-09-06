@@ -6,8 +6,8 @@
   "required": ["schemaVersion", "command", "outcome", "issues"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "command": { "const": "consumer.upgrade" },
-    "outcome": { "enum": ["blocked", "current", "upgraded"] },
+    "command": { "enum": ["consumer.upgrade", "consumer.finalize"] },
+    "outcome": { "enum": ["blocked", "current", "upgraded", "prepared"] },
     "issues": {
       "type": "array",
       "maxItems": 64,
@@ -36,9 +36,45 @@
         "qualificationEventDigest": { "$ref": "#/$defs/sha256" }
       }
     },
+    "restoration": { "$ref": "#/$defs/retained" },
+    "preparation": { "$ref": "#/$defs/retained" },
     "receipt": { "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1" }
   },
   "$defs": {
+    "retained": {
+      "type": "object", "additionalProperties": false, "required": ["path", "digest"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "prepared" } } },
+      "then": {
+        "required": ["preparation"],
+        "properties": {
+          "command": { "const": "consumer.upgrade" },
+          "preparation": { "$ref": "#/$defs/retained" },
+          "receipt": false, "restoration": false
+        }
+      }
+    },
+    {
+      "if": { "properties": { "command": { "const": "consumer.finalize" } } },
+      "then": {
+        "properties": { "outcome": { "enum": ["blocked", "upgraded"] }, "preparation": false },
+        "if": { "properties": { "outcome": { "const": "upgraded" } } },
+        "then": {
+          "required": ["receipt", "restoration"],
+          "properties": {
+            "receipt": { "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1" },
+            "restoration": { "$ref": "#/$defs/retained" }
+          }
+        }
+      }
+    }
+  ]
 }

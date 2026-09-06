@@ -20,6 +20,8 @@ import {
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 
 import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
+import { readHistoricalSchema } from "./support/historical-schema-fixtures.mjs";
+import { Ajv2020 } from "ajv/dist/2020.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -836,17 +838,22 @@ test("native archived evidence and the entire frozen Plan/envelope closure remai
   for (const [name, expected] of Object.entries(origin.sha256)) {
     assert.equal(sha256Bytes(await readFile(new URL(name, root))), `sha256:${expected}`, name);
   }
+  const historical = new Ajv2020({ strict: true, strictTuples: false, validateFormats: false });
   for (const [name, expected] of Object.entries(origin.frozenSchemaSha256)) {
-    const bytes = await readFile(new URL(`../packages/document-authoring/schemas/${name}.schema.json`, import.meta.url));
+    const { bytes, schema } = await readHistoricalSchema(name);
     assert.equal(sha256Bytes(bytes), `sha256:${expected}`, name);
+    historical.addSchema(schema);
   }
   for (const generation of [1, 2]) {
     const plan = JSON.parse(await readFile(new URL(`native-old-plan-v${generation}.json`, root)));
     const receipt = JSON.parse(await readFile(new URL(`native-old-receipt-v${generation}.json`, root)));
+    assert.equal(historical.validate(`https://agent-teams.ai/schemas/document-plan/v${generation}`, plan), true);
+    assert.equal(historical.validate(`https://agent-teams.ai/schemas/document-receipt/v${generation}`, receipt), true);
     await assertSchema(`document-plan/v${generation}`, plan, "native-old-plan");
     await assertSchema(`document-receipt/v${generation}`, receipt, "native-old-receipt");
     await assert.rejects(assertSchema(`document-authoring/document-plan/v${generation}`, plan, "old-plan-refused"));
     const envelope = JSON.parse(await readFile(new URL(`native-old-envelope-v${generation}.json`, root)));
+    assert.equal(historical.validate(`https://agent-teams.ai/schemas/foundation-transaction-envelope/v${generation + 2}`, envelope), true);
     await assertSchema(`foundation-transaction-envelope/v${generation + 2}`, envelope, "native-old-envelope");
     await assert.rejects(assertSchema(generation === 1
       ? "document-authoring/document-file-transaction-envelope/v1"

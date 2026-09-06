@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
 import Ajv2020 from "ajv/dist/2020.js";
+import { readHistoricalSchema } from "./historical-schema-fixtures.mjs";
 
 const requireMutation = createRequire(new URL(
   "../../packages/repository-mutation/package.json", import.meta.url
@@ -19,6 +20,7 @@ export async function readHistoricalKnownFileFixture(name) {
 }
 
 export async function readKnownFileSchema(kind, owner) {
+  if (owner === "historical") {return readHistoricalSchema(`known-file-transaction-${kind}/v1`);}
   const prefix = owner === "current" ? "repository-mutation/" : "";
   const bytes = await readFile(requireMutation.resolve(
     `@agent-teams/repository-mutation/schemas/${prefix}known-file-transaction-${kind}/v1.schema.json`

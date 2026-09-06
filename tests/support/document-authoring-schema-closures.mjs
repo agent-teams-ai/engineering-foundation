@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { Ajv2020 } from "ajv/dist/2020.js";
+import { readHistoricalSchema } from "./historical-schema-fixtures.mjs";
 
 async function reader(current) {
   const names = current ? [
@@ -14,8 +15,10 @@ async function reader(current) {
   names.push("document-receipt/v1", "document-receipt/v2");
   const ajv = new Ajv2020({ strict: true, strictTuples: false, validateFormats: false, allErrors: true });
   for (const name of names) {
-    const url = import.meta.resolve(`@agent-teams/document-authoring/schemas/${name}.schema.json`);
-    ajv.addSchema(JSON.parse(await readFile(new URL(url), "utf8")));
+    const schema = current
+      ? JSON.parse(await readFile(new URL(import.meta.resolve(`@agent-teams/document-authoring/schemas/${name}.schema.json`)), "utf8"))
+      : (await readHistoricalSchema(name)).schema;
+    ajv.addSchema(schema);
   }
   return (kind, generation, value) => {
     const index = kind === "plan" ? generation : kind === "envelope" ? generation + 2 : generation + 4;

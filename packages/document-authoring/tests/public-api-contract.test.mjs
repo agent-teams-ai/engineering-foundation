@@ -62,6 +62,8 @@ async function materializeInstalledConsumer(t) {
     linkDependency(join(repositoryRoot, "node_modules/@types/node"), join(consumerRoot, "node_modules/@types/node")),
     materializeConsumerSources(consumerRoot),
     cp(join(repositoryRoot, "tests/support/document-authoring-schema-closures.mjs"), join(consumerRoot, "schema-closures.mjs")),
+    cp(join(repositoryRoot, "tests/support/historical-schema-fixtures.mjs"), join(consumerRoot, "historical-schema-fixtures.mjs")),
+    cp(join(repositoryRoot, "tests/support/historical-schemas"), join(consumerRoot, "historical-schemas"), { recursive: true }),
     cp(join(packageRoot, "tests/fixtures/schema-recovery"), join(consumerRoot, "native"), { recursive: true }),
     linkDependency(join(packageRoot, "node_modules/ajv"), join(consumerRoot, "node_modules/ajv")),
     writeFile(join(consumerRoot, "package.json"), JSON.stringify({

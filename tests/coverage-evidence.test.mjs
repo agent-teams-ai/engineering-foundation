@@ -334,16 +334,20 @@ test("coverage keeps cross-platform shards complete and adds package evidence", 
   ).flat().length;
   assert.equal(crossPlatformTests.length, testManifest.testCount - coverageOnlyCount);
   assert.equal(coverageTests.length - crossPlatformTests.length, coverageOnlyCount);
-  assert.equal(
-    crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
-    false,
+  assert.deepEqual(
+    crossPlatformTests.filter((path) => path.startsWith("packages/docs-protocol/tests/")).toSorted(),
+    [
+      "packages/docs-protocol/tests/portable-dx.test.mjs",
+      "packages/docs-protocol/tests/qualification-application.test.mjs",
+      "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
+    ],
   );
   assert.equal(coverageTests.length, testManifest.testCount);
   assert.deepEqual(
     coverageTests
       .filter((path) => path.startsWith("packages/docs-protocol/tests/"))
       .toSorted(),
-    testManifest.coverageTests.filter(
+    [...new Set([...testManifest.coverageTests, ...crossPlatformTests])].filter(
       (path) => path.startsWith("packages/docs-protocol/tests/"),
     ).toSorted(),
   );

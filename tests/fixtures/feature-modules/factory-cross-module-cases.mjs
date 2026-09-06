@@ -13,8 +13,8 @@ const normalize = (owners) => owners.map((entry) => entry ? owner(entry.path, en
   .toSorted((left, right) => (left?.path ?? "").localeCompare(right?.path ?? ""));
 
 async function physicalFixture(t, workspaceSurface, spec) {
-  const f = await workspaceSurface(t, 'import {execute} from "@fixture/other"; export {execute};',
-    'export {execute} from "./features/storage/composition/api.js";');
+  const f = await workspaceSurface(t, spec.consumer ?? 'import {execute} from "@fixture/other"; export {execute};',
+    spec.surface ?? 'export {execute} from "./features/storage/composition/api.js";');
   const root = `${feature}/composition`;
   f.module.features[0].layers.push({role:"composition",roots:[root]});
   f.sourcePolicy.boundaries.push({id:"other-composition",roots:[root],entrypoints:[composition],
@@ -71,8 +71,21 @@ function assertOrders(assert, f, expected) {
 }
 
 export function registerCrossModuleFactoryCases({test, assert, workspaceSurface}) {
-  const specs = starFactoryCases(feature);
+  const specs = starFactoryCases(feature, factorySource);
   const add = (name, action, options = {}) => specs.push({name,action,...options});
+  for (const first of [false,true]) {
+    for (const mode of ["value","type","query"]) {
+      const erased = 'export type expose=Safe;';
+      const runtime = factorySource.replace('{safe}', '{safe,Safe}');
+      add(`merged namespace ${first ? "first" : "last"} ${mode} ownership`, "", {
+        safe:true, factory:(first ? erased+runtime : runtime+erased)+'export type View=typeof expose;',
+        consumer:`import ${mode === "value" ? "" : "type "}{${mode === "query" ? "View" : "expose"}} from "@fixture/other"; export type Selected=${mode === "value" ? "typeof expose" : mode === "type" ? "expose" : "View"};`,
+        surface:'export {expose} from "./features/storage/application/factory.js"; export type {View} from "./features/storage/application/factory.js";',
+        extra:{[domain]:'export function safe(){return "domain";} export interface Safe {value:string}'},
+        expected:[owner(mode === "type" ? domain : factory, mode === "type" ? "domain" : "application")]
+      });
+    }
+  }
   for (const [name, action] of [
     ["temporary write", "expose().execute=read;"],
     ["thrown alias", "try{throw expose();}catch(alias){alias.execute=read;}"],

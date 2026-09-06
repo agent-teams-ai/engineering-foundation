@@ -1,5 +1,5 @@
 // Expectations describe runtime capture identity, independently of the guard.
-export function starFactoryCases(feature) {
+export function starFactoryCases(feature, runtime) {
   const relay = `${feature}/composition/relay.ts`, second = `${feature}/composition/second.ts`;
   const factory = 'export * from "../application/factory.js";';
   const imports = 'import {expose} from "./relay.js"; import {createApi} from "../application/factory.js"; import {read} from "../adapters/index.js";';
@@ -15,6 +15,20 @@ export function starFactoryCases(feature) {
     add(`cycle ${label}`, '', {safe,extra:{[relay]:factory+'export * from "./second.js";', [second]:'export * from "./relay.js";'}});
     add(`unrelated erased name ${label}`, 'export type Marker=string;'+factory, {safe});
     add(`erased same name ${label}`, 'export type {expose} from "../application/factory.js";'+factory, {safe});
+    for (const first of [false,true]) {
+      const erasedImports = 'type expose=string; type createApi=string;';
+      const runtimeImports = 'import {expose,createApi} from "../application/factory.js"; export {expose,createApi};';
+      add(`imported merged ${first ? "first" : "last"} ${label}`, '', {safe,
+        code:imports.replace('import {createApi} from "../application/factory.js";', 'import {createApi} from "./second.js";')+(safe ? 'expose();' : 'expose().execute=read;')+exported,
+        extra:{[relay]:'export * from "./second.js";', [second]:first ? erasedImports+runtimeImports : runtimeImports+erasedImports}});
+      for (const declaration of ["type expose=string;", "interface expose {value:string}"]) {
+        const erased = `export ${declaration}`;
+        add(`merged ${declaration.split(" ")[0]} ${first ? "first" : "last"} ${label}`, factory,
+          {safe,factory:first ? erased+runtime : runtime+erased});
+        add(`local merged ${declaration.split(" ")[0]} ${first ? "first" : "last"} ${label}`, factory,
+          {safe,factory:(first ? declaration+runtime : runtime+declaration).replace("export function expose", "function expose")+'export {expose};'});
+      }
+    }
   }
   // These calls mutate another local object, never the factory's shared api.
   for (const prefix of ['', 'export type * from "../application/factory.js";']) {

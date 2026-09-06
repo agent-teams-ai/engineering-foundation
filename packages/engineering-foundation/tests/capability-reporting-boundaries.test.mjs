@@ -84,25 +84,14 @@ test("all reporting consumers preserve canonical cancellation before IO", async 
   const missing = join(root, "not-created");
   const signal = AbortSignal.abort(new Error("operator reason is not the report"));
   const invocations = [
-<<<<<<< HEAD
-    () => new FilesystemPackageScriptCatalogReader().read(missing, signal),
+    () => new FilesystemPackageScriptCatalogReader(readContainedRegularFile).read(missing, signal),
     () => new FilesystemEffectiveInstructionsReader(instructionObservation).discover({ consumerRoot: missing, targetPath: "file.ts", signal }),
     () => new FilesystemEffectiveInstructionsReader(instructionObservation).readDirectory({ consumerRoot: missing, directory: ".", readSelectedBytes: true, signal }),
     () => new FilesystemRepositoryAgentWorkflowReader().read(missing, {}, signal),
-    () => new FilesystemRepositorySecurityReader().read(missing, {}, signal),
+    () => new FilesystemRepositorySecurityReader(securityObservation).read(missing, {}, signal),
     () => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: missing, path: "baseline.json", signal }),
     () => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).write({ consumerRoot: missing, path: "baseline.json", signal }),
-    () => new FilesystemBufBreakingQualificationEvidence(() => assert.fail("schema validation after cancellation")).read({ consumerRoot: missing, signal })
-=======
-    () => new FilesystemPackageScriptCatalogReader(readContainedRegularFile).read(missing, signal),
-    () => new FilesystemEffectiveInstructionsReader().discover({ consumerRoot: missing, targetPath: "file.ts", signal }),
-    () => new FilesystemEffectiveInstructionsReader().readDirectory({ consumerRoot: missing, directory: ".", readSelectedBytes: true, signal }),
-    () => new FilesystemRepositoryAgentWorkflowReader().read(missing, {}, signal),
-    () => new FilesystemRepositorySecurityReader(securityObservation).read(missing, {}, signal),
-    () => new FilesystemArchitectureDecisionBaselineRepository().read({ consumerRoot: missing, path: "baseline.json", signal }),
-    () => new FilesystemArchitectureDecisionBaselineRepository().write({ consumerRoot: missing, path: "baseline.json", signal }),
     () => new FilesystemBufBreakingQualificationEvidence(() => assert.fail("schema validation after cancellation"), bufObservation).read({ consumerRoot: missing, signal })
->>>>>>> bcd27649 (refactor(observation): inject security protobuf and quality gate ports)
   ];
   for (const invoke of invocations) {
     await assert.rejects(invoke(), inputProblem(cancellationProblem));
@@ -115,13 +104,8 @@ test("post-read cancellation stays canonical even inside the baseline JSON catch
   await writeFile(join(root, "package.json"), source);
   await writeFile(join(root, "baseline.json"), source);
   for (const invoke of [
-<<<<<<< HEAD
-    (signal) => new FilesystemPackageScriptCatalogReader().read(root, signal),
-    (signal) => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: root, path: "baseline.json", signal })
-=======
     (signal) => new FilesystemPackageScriptCatalogReader(readContainedRegularFile).read(root, signal),
-    (signal) => new FilesystemArchitectureDecisionBaselineRepository().read({ consumerRoot: root, path: "baseline.json", signal })
->>>>>>> bcd27649 (refactor(observation): inject security protobuf and quality gate ports)
+    (signal) => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: root, path: "baseline.json", signal })
   ]) {
     let checkpoints = 0;
     const signal = { get aborted() { checkpoints += 1; return checkpoints > 1; } };

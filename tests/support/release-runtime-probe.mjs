@@ -92,6 +92,8 @@ function begin(scenario) {
     if (command === 'git' && args[0] === 'merge-base') { return ok(''); }
     if (command === 'npm' && args[0] === '--version') { return ok('11.16.0\n'); }
     if (command === 'npm' && args[0] === 'publish') {
+      // Record entry before assertions: release reconciliation catches their errors.
+      events.push({ operation: 'publish-attempt', archivePath: args[1], liveMain });
       const archive = [...archiveByName.values()].find(entry => entry.archivePath === args[1]);
       assert.ok(archive);
       assert.deepEqual(readFileSync(args[1]), archive.bytes);
@@ -143,10 +145,12 @@ const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 's
 let error;
 try { await publishOrderedRelease({ cwd: sourceRoot, decision: { tag: 'latest' }, state: { packages: { public: packages } } }); }
 catch (caught) { error = caught.message; }
+const attempts = events.filter(event => event.operation === 'publish-attempt');
 const publications = events.filter(event => event.operation === 'publish-suppressed');
 const reconciliations = events.filter(event => event.operation === 'reconcile');
 if (scenario === 'valid-wave') {
   assert.equal(error, undefined);
+  assert.equal(attempts.length, 6);
   assert.equal(publications.length, 6);
   assert.equal(reconciliations.length, 6);
   assert.deepEqual(publications.map(item => item.name), PUBLISHABLE_PACKAGES.map(info => info.name));
@@ -155,6 +159,7 @@ if (scenario === 'valid-wave') {
 } else {
   // The policy catches callback errors and reconciles absence; its diagnostics
   // and retry latency are inherited and deliberately outside this regression.
+  assert.equal(attempts.length, 0, JSON.stringify(events));
   assert.equal(publications.length, 0, JSON.stringify(events));
   assert.equal(reconciliations.length, 0);
   assert.match(error, /registry result remained absent/u);

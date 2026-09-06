@@ -99,6 +99,14 @@ async function createRollbackFixturePackage(
   const root = join(temporaryRoot, "docs-rollback-package-fixture");
   await mkdir(root, { recursive: true });
   await runCommand("tar", ["-xzf", adapterArtifact.archivePath, "-C", root], temporaryRoot);
+  // Supply the packed helpers' dependency outside the package being re-archived.
+  const mutationPackageRoot = join(root, "node_modules", "@agent-teams", "repository-mutation");
+  await mkdir(mutationPackageRoot, { recursive: true });
+  await runCommand(
+    "tar",
+    ["-xzf", mutationArtifact.archivePath, "--strip-components=1", "-C", mutationPackageRoot],
+    temporaryRoot
+  );
   const extractedPackageRoot = join(root, "package");
   const api = await import(`${pathToFileURL(join(
     extractedPackageRoot,

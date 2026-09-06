@@ -77,6 +77,14 @@ test("selected modules retain construction order and registry projection identit
     ["workspace-dependency-declarations", "RULES_BY_ID"]
   ];
   assert.equal(CAPABILITY_MODULES.length, selections.length);
+  assert.deepEqual(CAPABILITY_MODULES.map(({ definition }) => definition.id), [
+    "contract.json-schema-releases", "contract.protobuf-evolution",
+    "documentation.local-references", "quality.executable-specifications",
+    "governance.architecture-decisions", "package.public-api-compatibility",
+    "quality.gate-runner", "repository.agent-workflow", "repository.security-baseline",
+    "architecture.source-dependencies", "quality.suppression-governance",
+    "workspace.dependency-declarations"
+  ]);
   assert.ok(Object.isFrozen(CAPABILITY_MODULES));
   const capabilities = createCapabilityRegistry(CAPABILITY_MODULES);
   const rules = createRuleRegistries(CAPABILITY_MODULES);

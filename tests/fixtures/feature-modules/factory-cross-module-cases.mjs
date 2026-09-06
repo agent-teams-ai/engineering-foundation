@@ -1,3 +1,4 @@
+import { starFactoryCases } from "./factory-star-cases.mjs";
 import { indexSurfaces, surfaceBindings } from "../../../scripts/feature-modules/surfaces.mjs";
 import { observeDependencies, validateObservations } from "../../../scripts/feature-modules/dependencies.mjs";
 
@@ -28,7 +29,7 @@ async function physicalFixture(t, workspaceSurface, spec) {
   for (const [path, source] of snapshots) {
     await f.write(path, source);
     const boundary = f.sourcePolicy.boundaries.find(({roots}) => roots.some((entry) => path.startsWith(entry + "/")));
-    if (boundary && !boundary.entrypoints.includes(path)) {boundary.entrypoints.push(path);}
+    if (boundary && !spec.internal?.includes(path) && !boundary.entrypoints.includes(path)) {boundary.entrypoints.push(path);}
   }
   if (spec.branches) {
     const branches = ["./src/index.ts", "./src/branch.ts"];
@@ -70,7 +71,7 @@ function assertOrders(assert, f, expected) {
 }
 
 export function registerCrossModuleFactoryCases({test, assert, workspaceSurface}) {
-  const specs = [];
+  const specs = starFactoryCases(feature);
   const add = (name, action, options = {}) => specs.push({name,action,...options});
   for (const [name, action] of [
     ["temporary write", "expose().execute=read;"],

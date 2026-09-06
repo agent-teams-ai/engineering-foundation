@@ -4,6 +4,23 @@ function typeOnlyImport(binding, name) {
   return binding.node.importKind === "type" || binding.node.specifiers.some((item) => item.local.name === name && item.importKind === "type");
 }
 
+// Enumerate candidate names only along accepted runtime star edges. Actual name
+// transport below still applies explicit shadowing at every module. This finite
+// traversal does not project values or allocate invocation frames.
+function starNames(path, sources, importTargets) {
+  const pending = [path], seen = new Set(), names = new Set();
+  for (const current of pending) {
+    if (seen.has(current)) {continue;}
+    seen.add(current);
+    const surface = sources.get(current);
+    for (const [name, binding] of surface?.exports ?? []) {
+      if (!binding.typeOnly && (current === path || name !== "default")) {names.add(name);}
+    }
+    for (const source of surface?.stars ?? []) {pending.push(...importTargets(current, source));}
+  }
+  return names;
+}
+
 /** Close module-owned escape facts before any ownership query observes them.
  * This transports the scanner's effects, not JavaScript execution or call results.
  */
@@ -33,11 +50,19 @@ export function stabilizeModuleFrames(sources, moduleFrame, importTargets) {
   function exportedEffect(path, name, reason) {
     const surface = sources.get(path);
     if (name === "*") {
-      for (const exported of surface?.exports.keys() ?? []) {enqueue("export", path, exported, reason);}
+      for (const exported of starNames(path, sources, importTargets)) {enqueue("export", path, exported, reason);}
       return;
     }
     const binding = surface?.exports.get(name);
-    if (!binding || binding.typeOnly) {return;}
+    if (!binding || binding.typeOnly) {
+      // Erased declarations cannot shadow runtime stars. Ambiguous candidates
+      // all receive the effect: missing precise projection never authorizes a
+      // supposedly unaffected capture. A star never forwards the default name.
+      if (name !== "default") {
+        for (const source of surface?.stars ?? []) {importedEffect(path, source, name, reason);}
+      }
+      return;
+    }
     if (binding.source) {importedEffect(path, binding.source, binding.local, reason);}
     else if (binding.declaration) {
       if (!declarations.has(path)) {declarations.set(path, {});}

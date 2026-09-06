@@ -31,7 +31,7 @@ function localValue(values, value, selection, active) {
 }
 
 function indexProgram(program) {
-  const imports = new Map(), exports = new Map(), locals = new Map(), references = new Map();
+  const imports = new Map(), exports = new Map(), locals = new Map(), references = new Map(), stars = [];
   walk(program, (node) => {if (node.source?.type === "Literal") {references.set(node.source.start, node);}});
   for (const statement of program.body) {
     if (statement.type === "ImportDeclaration") {
@@ -39,6 +39,7 @@ function indexProgram(program) {
         imports.set(specifier.local.name, { node: statement, name: nameOf(specifier.imported) ?? (specifier.type === "ImportDefaultSpecifier" ? "default" : "*") });
       }
     }
+    if (statement.type === "ExportAllDeclaration" && !statement.exported && statement.exportKind !== "type") {stars.push(statement.source);}
     const node = statement.declaration ?? statement;
     for (const name of declarationNames(node)) {locals.set(name, node);}
     if (statement.type === "ExportNamedDeclaration") {
@@ -51,10 +52,10 @@ function indexProgram(program) {
       exports.set("default", ["FunctionDeclaration", "ClassDeclaration"].includes(node.type) && node.id ? { local: node.id.name } : { declaration: node });
     }
     if (statement.type === "ExportAllDeclaration" && statement.exported) {
-      exports.set(nameOf(statement.exported), { source: statement.source, local: "*", namespace: statement });
+      exports.set(nameOf(statement.exported), { source: statement.source, local: "*", namespace: statement, typeOnly: statement.exportKind === "type" });
     }
   }
-  return { program, imports, exports, locals, references };
+  return { program, imports, exports, locals, references, stars };
 }
 
 export function indexSurfaces(files, problems, snapshots) {

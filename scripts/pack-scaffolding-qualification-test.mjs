@@ -140,6 +140,6 @@ point.operationPath;
 // @ts-expect-error projected point is readonly
 point.phase = "after-journal-prepared";
 `);
-  await runCommand(process.execPath, [join(repositoryRoot, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2024", "--types", "node", "--typeRoots", join(repositoryRoot, "node_modules/@types"), typesPath], fixture.consumerRoot);
+  await runCommand(process.execPath, [join(repositoryRoot, "node_modules/typescript/bin/tsc"), "--ignoreConfig", "--noEmit", "--strict", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--target", "ES2024", "--types", "node", "--typeRoots", join(repositoryRoot, "node_modules/@types"), typesPath], fixture.consumerRoot);
   return result;
 }

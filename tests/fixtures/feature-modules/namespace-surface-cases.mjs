@@ -17,6 +17,29 @@ async function namespaceFixture(workspaceSurface, t, consumer) {
 }
 
 export function registerNamespaceSurfaceCases(workspaceSurface, expectPass, rejects) {
+  for (const mode of ["published target", "unpublished target", "aggregate as unpublished target"]) {
+    test(`curated non-manifest aggregate preserves publication boundary: ${mode}`, async (t) => {
+      const f = await namespaceFixture(workspaceSurface, t,
+        'import { compare } from "@fixture/other"; export const execute = () => compare("a", "b");');
+      const aggregate = "packages/other/src/aggregate.ts";
+      f.module.publicEntrypoints.push(aggregate);
+      f.module.moduleAssembly.push(aggregate);
+      f.otherAssembly.roots.push(aggregate);
+      f.otherAssembly.entrypoints.push(aggregate);
+      const root = 'export { compare } from "./features/storage/domain/index.js";';
+      await f.write("packages/other/src/index.ts", root);
+      await f.write(aggregate, 'export * as api from "./public.js";');
+      if (mode === "unpublished target") {
+        delete f.manifest.exports["./public"];
+        await f.write("packages/other/package.json", JSON.stringify(f.manifest));
+      } else if (mode === "aggregate as unpublished target") {
+        await f.write("packages/other/src/index.ts", root + ' export * as aggregate from "./aggregate.js";');
+      }
+      if (mode === "published target") { await expectPass(f); }
+      else { await rejects(f, "uncurated-entrypoint"); }
+    });
+  }
+
   for (const consumer of [
     'import { api } from "@fixture/other"; export const execute = () => api.compare("a", "b");',
     'import type { api } from "@fixture/other"; export type Token = api.Token;'

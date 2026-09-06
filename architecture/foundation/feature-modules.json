@@ -927,6 +927,7 @@
       "preferredFeatureRoot": "packages/engineering-foundation/src/features",
       "publicEntrypoints": [
         "packages/engineering-foundation/src/index.ts",
+        "packages/engineering-foundation/src/public-api-surface.ts",
         "packages/engineering-foundation/src/local-mode/index.ts",
         "packages/engineering-foundation/src/scaffolding/index.ts"
       ],

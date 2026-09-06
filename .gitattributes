@@ -1,5 +1,7 @@
 architecture/public-api/*.json text eol=lf
 standards/feature-module-standard-v1.md text eol=lf
+tests/support/historical-schemas/known-file-transaction-receipt/v1.schema.json text eol=lf
+packages/docs-protocol-agent-teams/tests/fixtures/historical-execution-schemas/*.json text eol=lf
 scripts/markdown-licenses/*.txt text eol=lf
 packages/docs-protocol/assets/** text eol=lf
 packages/docs-protocol/skills/** text eol=lf

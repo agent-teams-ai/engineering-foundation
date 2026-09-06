@@ -484,6 +484,7 @@ boundaries:
         - node:fs/promises
         - node:os
         - node:path
+        - node:url
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
@@ -495,6 +496,8 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/inbound/managed-cli.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-qualification-input.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
@@ -609,6 +612,12 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-cases.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-cli-fixture.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-finalization-cases.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-fixture.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-selection-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-e2e-fixtures.mjs

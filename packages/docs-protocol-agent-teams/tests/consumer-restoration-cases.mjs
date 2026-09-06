@@ -30,7 +30,7 @@ function killInverse(fixture, expect, phase) {
   const script = `
 import {restoreNodeConsumerIntegration} from ${JSON.stringify(uri("dist/consumer-integration/adapters/node-consumer-restoration.js"))};
 import {NodeConsumerUpgradeSandbox} from ${JSON.stringify(uri("dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js"))};
-import {applyKnownFileTransactionWithFaults} from ${JSON.stringify(uri("../repository-mutation/dist/repository-mutation/adapters/node/node-known-file-transaction.js"))};
+import {applyKnownFileTransaction as applyKnownFileTransactionWithFaults} from ${JSON.stringify(uri("../repository-mutation/dist/qualification/index.js"))};
 const projection=cohort=>({repository:'agent-teams-ai/.github',path:'governance/docs-qualified-cohorts.json',revision:'8'.repeat(40),cohort});
 await restoreNodeConsumerIntegration(${JSON.stringify({ ...fixture.restoreOptions, expect })}, {
  authority:{readRestoration:async()=>({source:projection(${JSON.stringify(fixture.target)}),target:projection(${JSON.stringify(fixture.origin)})})},

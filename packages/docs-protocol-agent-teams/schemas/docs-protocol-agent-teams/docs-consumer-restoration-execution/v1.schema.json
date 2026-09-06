@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent-teams.ai/schemas/docs-consumer-restoration-execution/v1",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-agent-teams/docs-consumer-restoration-execution/v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -59,7 +59,7 @@
       }
     },
     "receipt": {
-      "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1"
+      "$ref": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1"
     },
     "proofDigest": {
       "$ref": "#/$defs/sha256"
@@ -115,7 +115,7 @@
         ],
         "properties": {
           "receipt": {
-            "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1"
+            "$ref": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1"
           }
         }
       }

@@ -76,7 +76,7 @@ NodeConsumerUpgradeSandbox.prototype.activateAndVerifyV2=async function(args){
  if(input.fault==='efbig') {process.on('SIGXFSZ',()=>{});const size=(await readFile(input.preparationPath)).length;execFileSync('prlimit',['--pid',String(process.pid),'--fsize='+size+':']);}
  if(input.fault==='eacces') await chmod(dirname(input.proofPath),0o500);
 };
-const {runManagedConsumerCommand}=await import(${JSON.stringify(uri("dist/consumer-integration/composition/consumer-integration-cli.js"))});
+const {managedConsumerCommand:runManagedConsumerCommand}=await import(${JSON.stringify(uri("dist/consumer-integration/composition/managed-command.js"))});
 process.exitCode=await runManagedConsumerCommand(input.argv);
 `;
   const payload = { argv, catalog: fixture.fixtureCatalog, target: options.target ?? fixture.target, origin: options.origin ?? fixture.origin,

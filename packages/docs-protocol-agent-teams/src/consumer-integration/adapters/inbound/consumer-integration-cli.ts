@@ -1,11 +1,8 @@
-import type {
-  createConsumerIntegrationUseCases,
-  createConsumerUpgradeUseCase,
-  ConsumerIntegrationExecutionV1,
-  ConsumerUpgradeExecutionV1
-} from "../../application-api.js";
+import type { ConsumerIntegrationExecutionV1, ConsumerRestorationExecution,
+  RestorableConsumerUpgradeExecution, ManagedConsumerOperations } from "../../application-api.js";
 import {
   assertConsumerIntegrationExecutionSchema,
+  assertConsumerRestorationExecutionSchema,
   assertConsumerUpgradeExecutionSchema
 } from "../consumer-integration-schema-validator.js";
 
@@ -62,7 +59,7 @@ class Arguments {
   }
 }
 
-type ConsumerExecution = ConsumerIntegrationExecutionV1 | ConsumerUpgradeExecutionV1;
+type ConsumerExecution = ConsumerIntegrationExecutionV1 | RestorableConsumerUpgradeExecution | ConsumerRestorationExecution;
 
 function failure(command: string, error: unknown): ConsumerExecution {
   const candidateCode = typeof error === "object" && error !== null && "code" in error &&
@@ -80,10 +77,10 @@ function failure(command: string, error: unknown): ConsumerExecution {
       : character;
   }
   safeMessage = safeMessage.slice(0, 4096);
-  if (command === "upgrade") {
+  if (command === "upgrade" || command === "finalize" || command === "restore") {
     return {
       schemaVersion: 1,
-      command: "consumer.upgrade",
+      command: command === "restore" ? "consumer.restore" : command === "finalize" ? "consumer.finalize" : "consumer.upgrade",
       outcome: "blocked",
       issues: [{ code, severity: "error", subject: command, message: safeMessage }]
     };
@@ -106,10 +103,11 @@ function failure(command: string, error: unknown): ConsumerExecution {
 
 function human(execution: ConsumerExecution): string {
   const lines = [`${execution.command}: ${execution.outcome}`];
-  if (execution.command !== "consumer.upgrade" && execution.plan !== undefined) {
-    lines.push(`Cohort: ${execution.plan.cohortId}`);
-    lines.push(`Plan: ${execution.plan.planDigest}`);
-    for (const asset of execution.plan.assets) {
+  const plan = "plan" in execution ? execution.plan : undefined;
+  if (plan !== undefined) {
+    lines.push(`Cohort: ${plan.cohortId}`);
+    lines.push(`Plan: ${plan.planDigest}`);
+    for (const asset of plan.assets) {
       const current = asset.currentDigest === undefined ? "absent" : asset.currentDigest;
       lines.push(`${asset.action.padEnd(7)} ${asset.path} (${asset.ownership}, ${asset.state})`);
       if (asset.action !== "none") {
@@ -117,12 +115,22 @@ function human(execution: ConsumerExecution): string {
       }
     }
   }
+  if ((execution.command === "consumer.upgrade" || execution.command === "consumer.finalize") && execution.restoration !== undefined) {
+    lines.push(`Restoration proof: ${execution.restoration.path}`, `Retain digest separately: ${execution.restoration.digest}`);
+  }
+  if (execution.command === "consumer.upgrade" && execution.preparation !== undefined) {
+    lines.push(`Prepared intent: ${execution.preparation.path}`, `Select before mutation: ${execution.preparation.digest}`);
+  }
   if (execution.receipt !== undefined) {
     lines.push(`Receipt: ${execution.receipt.receiptDigest}`);
   }
   for (const issue of execution.issues) {
     lines.push(`${issue.severity.toUpperCase()} ${issue.code} [${issue.subject}]: ${issue.message}`);
-    lines.push(issue.code === "DOCS_CONSUMER_STALE_PLAN"
+    lines.push(execution.command === "consumer.restore"
+      ? "Next: retain the proof, recover active kernel evidence, then use restore --activation-only for exact V1 bytes."
+      : execution.command === "consumer.finalize"
+      ? "Next: preserve evidence and retry finalize with the retained preparation selection; choose a distinct proof path for partial files."
+      : issue.code === "DOCS_CONSUMER_STALE_PLAN"
       ? "Next: run agent-teams-docs-managed plan again and review the new digest."
       : issue.code.includes("RECOVERY") || issue.code.startsWith("KNOWN_FILE")
         ? "Next: run agent-teams-docs-managed recover, then repeat check and plan."
@@ -132,7 +140,7 @@ function human(execution: ConsumerExecution): string {
 }
 
 function exitCode(execution: ConsumerExecution): number {
-  if (["applied", "current", "recovered", "upgraded"].includes(execution.outcome)) {return 0;}
+  if (["applied", "current", "recovered", "upgraded", "restored", "activated-v1", "prepared"].includes(execution.outcome)) {return 0;}
   if (execution.outcome === "change-required") {return 1;}
   const codes = new Set(execution.issues.map(({ code }) => code));
   if (codes.has("DOCS_CONSUMER_CLI_INVALID")) {return 2;}
@@ -159,23 +167,22 @@ Commands:
   plan --to COHORT              Print a deterministic, write-free semantic plan
   apply --expect SHA256         Rebuild and apply the reviewed plan through Foundation
   upgrade --to COHORT --target-generation 1|2  Project authority, pins, lockfile, and assets
+  restore --from V2 --to V1 --source-generation 2 --target-generation 1
+          --proof PATH --expect SHA256 [--activation-only]  Restore recorded V1
+  finalize --from V1 --to V2 --source-generation 1 --target-generation 2
+           --preparation PATH --expect SHA256 --proof PATH  Apply/retry selected migration
   recover                       Recover the Foundation transaction (profile not read)
 
 Options:
   --consumer PATH               Git repository root (default: .)
   --authority-revision SHA      Optional exact protected .github revision
+  --source-generation 1 --restoration-proof PATH --prepare  Stage and select before mutation
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
 `;
 }
 
-export function createManagedConsumerCommand(operations:
-  ReturnType<typeof createConsumerIntegrationUseCases> & {
-    readonly upgrade: (options: Parameters<ReturnType<typeof createConsumerUpgradeUseCase>>[0] & {
-      readonly targetGeneration: 1 | 2;
-    }) => Promise<ConsumerUpgradeExecutionV1>;
-  }
-) {
+export function createManagedConsumerCommand(operations: ManagedConsumerOperations) {
   // oxlint-disable-next-line complexity
   return async function runManagedConsumerCommand(argv: readonly string[]): Promise<number> {
     let command = "";
@@ -189,8 +196,14 @@ export function createManagedConsumerCommand(operations:
         if (argv[1] === "--help") {helpArgs.flag("--help");}
         helpArgs.assertConsumed();
         if (jsonRequested) {throw new ConsumerCliInputError("--help does not accept --json.");}
-        process.stdout.write(managedDocsHelp());
+      process.stdout.write(managedDocsHelp());
         return 0;
+      }
+      // Compile the production wire contract before a command can mutate the consumer.
+      if (command === "restore") {
+        await assertConsumerRestorationExecutionSchema({ schemaVersion: 1, command: "consumer.restore", outcome: "blocked", issues: [] });
+      } else if (command === "upgrade" || command === "finalize") {
+        await assertConsumerUpgradeExecutionSchema({ schemaVersion: 1, command: "consumer.upgrade", outcome: "blocked", issues: [] });
       }
       const args = new Arguments(argv.slice(1));
       args.flag("--json");
@@ -219,24 +232,64 @@ export function createManagedConsumerCommand(operations:
         if (generation !== "1" && generation !== "2") {
           throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
         }
+        const restorationProofPath = args.one("--restoration-proof");
+        const prepare = args.flag("--prepare");
+        const sourceGeneration = args.one("--source-generation");
+        if (sourceGeneration !== undefined && sourceGeneration !== "1") {
+          throw new ConsumerCliInputError("Restorable upgrade requires --source-generation 1.");
+        }
         args.assertConsumed();
         execution = await operations.upgrade({
           consumerRoot,
           to,
           targetGeneration: Number(generation) as 1 | 2,
+          prepare,
+          ...(sourceGeneration === undefined ? {} : { sourceGeneration: 1 }),
+          ...(restorationProofPath === undefined ? {} : { restorationProofPath }),
           ...(authorityRevision === undefined ? {} : { authorityRevision })
         });
+      } else if (command === "finalize") {
+        const from = args.one("--from", true)!;
+        const to = args.one("--to", true)!;
+        const sourceGeneration = args.one("--source-generation", true);
+        const targetGeneration = args.one("--target-generation", true);
+        const preparationPath = args.one("--preparation", true)!;
+        const proofPath = args.one("--proof", true)!;
+        const expect = args.one("--expect", true)!;
+        if (!COHORT_ID.test(from) || !COHORT_ID.test(to) || !SHA256.test(expect) || sourceGeneration !== "1" || targetGeneration !== "2") {
+          throw new ConsumerCliInputError("Finalize requires exact Cohorts, selected preparation and explicit generations 1->2.");
+        }
+        args.assertConsumed();
+        execution = await operations.finalize({ consumerRoot, from, to, preparationPath, proofPath,
+          expect, sourceGeneration: 1, targetGeneration: 2 });
+      } else if (command === "restore") {
+        const from = args.one("--from", true)!;
+        const to = args.one("--to", true)!;
+        const sourceGeneration = args.one("--source-generation", true);
+        const targetGeneration = args.one("--target-generation", true);
+        const proofPath = args.one("--proof", true)!;
+        const expect = args.one("--expect", true)!;
+        const activationOnly = args.flag("--activation-only");
+        if (!COHORT_ID.test(from) || !COHORT_ID.test(to) || !SHA256.test(expect) ||
+          sourceGeneration !== "2" || targetGeneration !== "1") {
+          throw new ConsumerCliInputError("Restore requires exact Cohorts, proof digest and explicit generations 2->1.");
+        }
+        args.assertConsumed();
+        execution = await operations.restore({ consumerRoot, from, to, proofPath,
+          expect, sourceGeneration: 2, targetGeneration: 1, activationOnly });
       } else if (command === "recover") {
         args.assertConsumed();
         execution = await operations.recover({ consumerRoot });
       } else {
-        throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, or recover.");
+        throw new ConsumerCliInputError("Expected consumer command: check, plan, apply, upgrade, finalize, restore, or recover.");
       }
     } catch (error) {
       execution = failure(command || "check", error);
     }
     try {
-      if (execution.command === "consumer.upgrade") {
+      if (execution.command === "consumer.restore") {
+        await assertConsumerRestorationExecutionSchema(execution);
+      } else if ((execution.command === "consumer.upgrade" || execution.command === "consumer.finalize")) {
         await assertConsumerUpgradeExecutionSchema(execution);
       } else {
         await assertConsumerIntegrationExecutionSchema(execution);

@@ -7,11 +7,15 @@ import {
   type KnownFileTransactionPlanV1, type KnownFileImageV1
 } from "@agent-teams/repository-mutation";
 import type { ConsumerIntegrationDesiredStateV1, QualifiedDocsCohortBindingV2 } from "../domain/model.js";
-import type { ConsumerRestorationIntent } from "../application/model/consumer-restoration.js";
 import {
-  MAXIMUM_RESTORATION_PROOF_BYTES, requireRestoration, restorationJson
-} from "../application/policies/consumer-restoration-proof.js";
-import { assertConsumerIntegrationDesiredStateV1 } from "../application/policies/consumer-integration-desired-state.js";
+  type ConsumerRestorationIntent,
+  MAXIMUM_RESTORATION_PROOF_BYTES,
+  requireRestoration,
+  restorationJson,
+  assertConsumerIntegrationDesiredStateV1
+} from "../application-api.js";
+
+
 import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
 import {
   canonicalConsumerRoot, INTEGRATION_PROFILE_PATH, readStableConsumerFile

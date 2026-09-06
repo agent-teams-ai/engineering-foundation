@@ -1,6 +1,6 @@
 import { isNode, parseDocument, visit } from "yaml";
 import type { ConsumerIntegrationDesiredStateV1, ConsumerIntegrationDesiredStateV3 } from "../domain/model.js";
-import { requireRestoration, restorationJson } from "../application/policies/consumer-restoration-proof.js";
+import { requireRestoration, restorationJson } from "../application-api.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
 import { assertQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 

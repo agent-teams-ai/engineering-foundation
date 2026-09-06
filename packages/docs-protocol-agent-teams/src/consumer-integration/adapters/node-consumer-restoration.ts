@@ -5,13 +5,21 @@ import {
 import {
   acquireMutationLease, claimMutation, observeMutationState, releaseMutationLease
 } from "@agent-teams/repository-mutation/node";
-import type { ConsumerRestorationExecution, ConsumerRestorationOptions, ConsumerRestorationProof } from "../application/model/consumer-restoration.js";
-import type { ConsumerRestorationAuthorityReader, ConsumerRestorationRecorder } from "../application/ports/consumer-restoration.js";
-import type { ConsumerUpgradeSandboxPort } from "../application/ports/consumer-upgrade.js";
 import {
-  assertFullyReplacedReceipt, inverseRestorationPlan,
-  parseConsumerRestorationPreparation, requireRestoration, restorationJson
-} from "../application/policies/consumer-restoration-proof.js";
+  type ConsumerRestorationExecution,
+  type ConsumerRestorationOptions,
+  type ConsumerRestorationProof,
+  type ConsumerRestorationAuthorityReader,
+  type ConsumerRestorationRecorder,
+  assertFullyReplacedReceipt,
+  inverseRestorationPlan,
+  parseConsumerRestorationPreparation,
+  requireRestoration,
+  restorationJson
+} from "../application-api.js";
+
+import type { ConsumerUpgradeSandboxPort } from "../application/ports/consumer-upgrade.js";
+
 import {
   assertRestorationImages, assertRestorationPlanSource, externalRestorationPath,
   historicalRestorationProfile, restorationArtifacts, restorationConsumer,

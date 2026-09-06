@@ -3,7 +3,8 @@
 Status: preparation only. This inventory does not authorize publication or
 consumer mutation and does not claim new-only cutover is complete.
 
-Snapshot: 2026-09-05, 17:15 UTC. Read-only `gh api` inspected the exact commits,
+Snapshot: 2026-09-05, 17:15 UTC, with get-modular refreshed on 2026-09-06.
+Read-only `gh api` inspected the exact commits,
 package manifests, integration records, and workflow blobs below. Preparation
 visibility was last inspected with `gh pr list --state open` on 2026-09-04.
 This supersedes the incomplete 2026-09-03 code-search result that identified
@@ -23,7 +24,7 @@ report exact root `package.json` pins.
 | extension-foundation | `3e25b748991f296c3ae0d19219afbb689e0755fd` | 0.4.1 | 0.21.0 | stable10, managed |
 | docs-protocol-canary-20260817 | `d82ced4de8f1028bf674bf149b0c823a6ef9fc11` | 0.3.2 | 0.20.0 | stable9.1, managed |
 | agent-teams-token | `370c3aac97e4b3ddc7fcc9ada762a050580d0f39` | 0.2.0 | 0.20.0 | stable8, managed |
-| get-modular | `a53a36fcbd7ac7e80fed4a9dc5451b61b44310d3` | 0.4.1 | 0.21.0 | portable, no managed integration profile/state |
+| get-modular | `9239f9caec280a9c08695ad8d8d6f7f9366568c1` | 0.4.1 | 0.21.0 | portable, no managed integration profile/state |
 
 For the first six repositories, exact-revision reads verified these raw fields:
 
@@ -86,7 +87,17 @@ absence of local journals, quarantined/retired evidence, or in-flight work.
 Exact current heads, clean worktree proof, legacy imports/entrypoints, and
 admitted recovery artifacts must be rechecked before authorized migration.
 
+The get-modular refresh verified its complete untruncated tree, package pins,
+CI workflow, Foundation configuration, source-dependency policy and portable
+and Authoring profiles. It now explicitly enables Source Dependencies v1 for
+`packages/core/src`; portable profile v1 and Authoring profile v2 remain unchanged.
+Managed records remain absent. Merge-protection observations above retain their
+original timestamp.
+
 ## Required migration inputs
+
+Use the [per-consumer migration packets](docs-new-package-migration.md) as the
+preparation checklist. They are drafts, not completed cutovers.
 
 Before publication, prepare and review intended exact target coordinates,
 new-only import/CLI changes, managed-adapter placement where applicable,

@@ -44,12 +44,20 @@ async function invoke(
       "Installed target Docs Protocol CLI is not one regular package file."
     );
   }
-  return parseExecution(await execute(
+  const result = await execute(
     process.execPath,
     [cli, ...args, "--consumer", root, "--json"],
     root,
     [0, 1]
-  ));
+  );
+  const execution = parseExecution(result);
+  if (result.code !== 0 && ["current", "applied"].includes(String(execution["outcome"]))) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_TARGET_INVALID",
+      "An installed CLI with a nonzero exit cannot report successful activation."
+    );
+  }
+  return execution;
 }
 
 export async function assertInstalledIntegrationCurrent(

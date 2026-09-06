@@ -6,7 +6,7 @@ editing the accepted decision.
 
 ## Proposed
 
-No proposed decisions.
+- [ADR-0046: Bounded Managed V1 Restoration](0046-bounded-managed-v1-restoration.md)
 
 ## Accepted
 

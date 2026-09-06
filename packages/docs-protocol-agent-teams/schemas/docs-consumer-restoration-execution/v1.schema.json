@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-consumer-restoration-execution/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "outcome",
+    "issues"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "command": {
+      "const": "consumer.restore"
+    },
+    "outcome": {
+      "enum": [
+        "blocked",
+        "restored",
+        "activated-v1"
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "severity",
+          "subject",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]+$",
+            "maxLength": 128
+          },
+          "severity": {
+            "enum": [
+              "error",
+              "warning"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        }
+      }
+    },
+    "receipt": {
+      "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1"
+    },
+    "proofDigest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "inversePlanDigest": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "restored",
+              "activated-v1"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "proofDigest",
+          "inversePlanDigest"
+        ],
+        "properties": {
+          "proofDigest": {
+            "$ref": "#/$defs/sha256"
+          },
+          "inversePlanDigest": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "restored"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "receipt"
+        ],
+        "properties": {
+          "receipt": {
+            "$ref": "https://agent-teams.ai/schemas/known-file-transaction-receipt/v1"
+          }
+        }
+      }
+    }
+  ]
+}

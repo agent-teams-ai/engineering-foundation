@@ -24,14 +24,17 @@ import type {
   ConsumerUpgradeAuthorityV2
 } from "../../domain/model.js";
 import type {
-  ConsumerUpgradeExecutionV1
-} from "../model/consumer-upgrade-execution.js";
+  RestorableConsumerUpgradeExecution
+} from "../model/consumer-restoration.js";
 import {
   canonicalConsumerIntegrationJson
 } from "../policies/consumer-integration-assets.js";
 
+import type { ConsumerRestorationRecorder } from "../ports/consumer-restoration.js";
+
 export interface ConsumerUpgradePorts extends ConsumerIntegrationLifecyclePorts {
   readonly authority: ConsumerUpgradeAuthorityReader;
+  readonly restoration?: ConsumerRestorationRecorder;
   readonly sandbox: ConsumerUpgradeSandboxPort;
 }
 
@@ -42,7 +45,7 @@ function issue(code: string, subject: string, message: string): ConsumerIntegrat
 function blocked(
   problem: ConsumerIntegrationIssue,
   authority?: ConsumerUpgradeAuthority
-): ConsumerUpgradeExecutionV1 {
+): RestorableConsumerUpgradeExecution {
   return Object.freeze({
     schemaVersion: 1,
     command: "consumer.upgrade",
@@ -170,14 +173,42 @@ async function rollbackReceiptOwnedReplacements(
   }
 }
 
+function restorationOptionIssue(options: { readonly prepare?: boolean; readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2; readonly to: string },
+  desired: ConsumerIntegrationDesiredState, recorder: ConsumerRestorationRecorder | undefined): RestorableConsumerUpgradeExecution | undefined {
+  if (options.restorationProofPath !== undefined &&
+    (options.prepare !== true || options.sourceGeneration !== 1 || options.targetGeneration !== 2 ||
+    desired.schemaVersion !== 1 || recorder === undefined)) {
+    return blocked(issue("DOCS_CONSUMER_RESTORATION_GENERATION_INVALID", options.to,
+    "Retained restoration requires --prepare, explicit 1->2 migration and an external proof path."));
+  }
+  if ((options.sourceGeneration !== undefined || options.prepare === true) && options.restorationProofPath === undefined) {
+    return blocked(issue("DOCS_CONSUMER_RESTORATION_PROOF_REQUIRED", options.to,
+    "--source-generation requires --restoration-proof for the bounded migration."));
+  }
+  return undefined;
+}
+
+async function prepareRestoration(recorder: ConsumerRestorationRecorder | undefined, proofPath: string | undefined,
+  input: { readonly root: string; readonly repositoryHead?: string; readonly desired: ConsumerIntegrationDesiredState },
+  authority: ConsumerUpgradeAuthority, plan: ReturnType<typeof compileKnownFileTransactionPlan>) {
+  return proofPath !== undefined && input.desired.schemaVersion === 1 && isAuthorityV2(authority)
+    ? recorder!.prepare({ consumerRoot: input.root, sourceRevision: input.repositoryHead!,
+        current: input.desired, target: authority.cohort, plan, proofPath }) : undefined;
+}
+
+interface ConsumerUpgradeOptions {
+  readonly consumerRoot: string;
+  readonly authorityRevision?: string;
+  readonly targetGeneration?: 1 | 2;
+  readonly to: string;
+  readonly sourceGeneration?: 1;
+  readonly restorationProofPath?: string;
+  readonly prepare?: boolean;
+}
+
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
   // oxlint-disable-next-line complexity
-  return async function upgrade(options: {
-    readonly consumerRoot: string;
-    readonly authorityRevision?: string;
-    readonly targetGeneration?: 1 | 2;
-    readonly to: string;
-  }): Promise<ConsumerUpgradeExecutionV1> {
+  return async function upgrade(options: ConsumerUpgradeOptions): Promise<RestorableConsumerUpgradeExecution> {
     if (options.targetGeneration !== 1 && options.targetGeneration !== 2) {
       return blocked(issue(
         "DOCS_CONSUMER_TARGET_GENERATION_REQUIRED",
@@ -190,6 +221,8 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       return blocked(issue(inspection.code, "foundation-transaction", inspection.message));
     }
     const input = await ports.input.read({ consumerRoot: options.consumerRoot });
+    const restorationIssue = restorationOptionIssue(options, input.desired, ports.restoration);
+    if (restorationIssue !== undefined) {return restorationIssue;}
     const source = input.desired.schemaVersion === 1
       ? compileConsumerIntegration({
           desired: input.desired,
@@ -290,9 +323,11 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         "Central Cohort authority changed while the successor was staged."
       ), confirmedAuthority);
     }
-    const mutationPlan = compileKnownFileTransactionPlan({
-      operations: prepared.operations
-    });
+    const mutationPlan = compileKnownFileTransactionPlan({ operations: prepared.operations });
+    const restoration = await prepareRestoration(ports.restoration, options.restorationProofPath, input, authority, mutationPlan);
+    if (restoration !== undefined) {
+      return { schemaVersion: 1, command: "consumer.upgrade", outcome: "prepared", issues: [], preparation: restoration };
+    }
     const receipt = await ports.transaction.apply({
       consumerRoot: input.root,
       plan: mutationPlan

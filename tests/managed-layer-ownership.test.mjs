@@ -19,7 +19,7 @@ const own=(path)=>path.startsWith(module.sourceRoot+'/');
 const surfaceProblems=[];
 const surfaces=await validateSurfaces({ repositoryRoot,profile,policy,files:[...observed.sourceSnapshots.keys()],...observed },surfaceProblems);
 const local=observed.observations.filter(o=>own(o.path)&&o.result.kind!=='workspace-package');
-validateObservations(profile,policy,local,problems,surfaces);
+validateObservations(profile,policy,observed.observations,problems,surfaces);
 const topologyProblems=[];
 validateTopology({modules:[module]}, {schemaVersion:2,boundaries:policy.boundaries.filter(b=>b.id.startsWith('docs-protocol-agent-teams.'))},topologyProblems);
 const generated=`${module.sourceRoot}/consumer-integration/generated/canonical-assets.ts`;
@@ -47,8 +47,11 @@ function checkCase(name, path, source, result, expectedCodes) {
   const sources=indexSurfaces([...snapshots.keys()],issues,snapshots);
   const observations=[...observed.observations.filter(o=>o.path!==path),observation];
   const bindings=surfaceBindings(profile,policy,observations,sources);
-  validateObservations(profile,policy,[observation],issues,{sources,bindings});
-  assert.deepEqual([...new Set(issues.map(p=>p.code))].toSorted(),expectedCodes.toSorted(),name);
+  validateObservations(profile,policy,observations,issues,{sources,bindings});
+  // The complete real graph above checks primitive caller liveness. Replacing a
+  // source here can remove those uses; these cases assert only the synthetic edge.
+  const edgeIssues=issues.filter(problem=>problem.message.startsWith(`${path} -> `));
+  assert.deepEqual([...new Set(edgeIssues.map(p=>p.code))].toSorted(),expectedCodes.toSorted(),name);
   });
 }
 const mutation=observed.observations.find(o=>o.path===`${module.sourceRoot}/consumer-integration/composition/known-file-transaction.ts`&&o.reference.specifier==='@agent-teams/repository-mutation');

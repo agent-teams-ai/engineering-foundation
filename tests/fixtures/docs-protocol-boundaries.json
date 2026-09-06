@@ -6,10 +6,12 @@
       "packages/docs-protocol/src/qualification/index.ts"
     ],
     "boundaries": [
+      "docs-protocol.docs-command.contracts",
       "docs-protocol.docs-command.composition",
       "docs-protocol.portable-bootstrap.composition",
       "docs-protocol.portable-documentation.composition",
-      "docs-protocol.qualification"
+      "docs-protocol.qualification",
+      "docs-protocol.qualification.composition"
     ],
     "packages": [],
     "builtins": [],
@@ -185,9 +187,7 @@
     "roots": [
       "packages/docs-protocol/src/features/docs-command/contracts"
     ],
-    "boundaries": [
-      "docs-protocol.docs-command.application"
-    ],
+    "boundaries": [],
     "packages": [],
     "builtins": [],
     "entrypoints": [
@@ -240,18 +240,69 @@
   },
   "docs-protocol.qualification": {
     "roots": [
-      "packages/docs-protocol/src/features/qualification"
+      "packages/docs-protocol/src/features/qualification/index.ts"
     ],
     "boundaries": [
-      "docs-protocol.docs-command.composition",
-      "docs-protocol.portable-bootstrap.application",
+      "docs-protocol.qualification.application",
+      "docs-protocol.qualification.adapters",
       "docs-protocol.portable-documentation.application",
-      "docs-protocol.portable-documentation.composition",
       "docs-protocol.portable-documentation.domain"
+    ],
+    "packages": [],
+    "builtins": [],
+    "entrypoints": [
+      "packages/docs-protocol/src/features/qualification/index.ts"
+    ]
+  },
+  "docs-protocol.qualification.composition": {
+    "roots": [
+      "packages/docs-protocol/src/qualification/composition.ts"
+    ],
+    "boundaries": [
+      "docs-protocol.qualification.application",
+      "docs-protocol.qualification.adapters",
+      "docs-protocol.docs-command.composition",
+      "docs-protocol.portable-documentation.composition"
     ],
     "packages": [
       "@agent-teams/document-authoring"
     ],
+    "builtins": [],
+    "entrypoints": [
+      "packages/docs-protocol/src/qualification/composition.ts"
+    ]
+  },
+  "docs-protocol.qualification.application": {
+    "roots": [
+      "packages/docs-protocol/src/features/qualification/application"
+    ],
+    "boundaries": [
+      "docs-protocol.portable-bootstrap.application",
+      "docs-protocol.portable-documentation.application",
+      "docs-protocol.portable-documentation.domain"
+    ],
+    "packages": [],
+    "builtins": [
+      "node:crypto"
+    ],
+    "entrypoints": [
+      "packages/docs-protocol/src/features/qualification/application/model.ts",
+      "packages/docs-protocol/src/features/qualification/application/runtime.ts",
+      "packages/docs-protocol/src/features/qualification/application/recovery.ts",
+      "packages/docs-protocol/src/features/qualification/application/run-qualification.ts",
+      "packages/docs-protocol/src/features/qualification/application/skill.ts",
+      "packages/docs-protocol/src/features/qualification/application/evidence-policy.ts",
+      "packages/docs-protocol/src/features/qualification/application/workspace.ts"
+    ]
+  },
+  "docs-protocol.qualification.adapters": {
+    "roots": [
+      "packages/docs-protocol/src/features/qualification/adapters"
+    ],
+    "boundaries": [
+      "docs-protocol.qualification.application"
+    ],
+    "packages": [],
     "builtins": [
       "node:child_process",
       "node:crypto",
@@ -262,7 +313,10 @@
       "node:url"
     ],
     "entrypoints": [
-      "packages/docs-protocol/src/features/qualification/index.ts"
+      "packages/docs-protocol/src/features/qualification/adapters/crash-driver.ts",
+      "packages/docs-protocol/src/features/qualification/adapters/filesystem-evidence.ts",
+      "packages/docs-protocol/src/features/qualification/adapters/qualification-runtime.ts",
+      "packages/docs-protocol/src/features/qualification/adapters/run-qualification.ts"
     ]
   }
 }

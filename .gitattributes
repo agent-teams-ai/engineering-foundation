@@ -1,4 +1,5 @@
 architecture/public-api/*.json text eol=lf
+standards/feature-module-standard-v1.md text eol=lf
 scripts/markdown-licenses/*.txt text eol=lf
 packages/docs-protocol/assets/** text eol=lf
 packages/docs-protocol/skills/** text eol=lf

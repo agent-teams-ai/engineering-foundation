@@ -28,7 +28,8 @@ const rawCoverageFilename = /^coverage-\d+-\d+-\d+\.json$/u;
 const maximumEvidenceBytes = 1024 * 1024;
 const maximumRawFileBytes = 16 * 1024 * 1024;
 const maximumRawFiles = 512;
-const maximumRawShardBytes = 64 * 1024 * 1024;
+// Native CI shards reach 90 MiB. Keep bounded headroom within the set budget.
+const maximumRawShardBytes = 128 * 1024 * 1024;
 const maximumRawSetBytes = 256 * 1024 * 1024;
 
 function fail(message) {

@@ -272,6 +272,23 @@ test(
   },
 );
 
+test("coverage evidence finalizes a shard at the observed CI scale", async (context) => {
+  const root = await evidenceSet();
+  context.after(() => rm(root, { force: true, recursive: true }));
+  const artifact = join(root, `coverage-evidence-${headSha}-shard-2`);
+  const raw = join(artifact, "raw");
+  // CI shard 2 produces about 90 MiB; retain valid worker identities and JSON.
+  for (const name of (await readdir(raw)).slice(0, 7)) {
+    const path = join(raw, name);
+    const source = await readFile(path, "utf8");
+    await writeFile(path, source.padEnd(14 * 1024 * 1024, " "));
+  }
+  await rm(join(artifact, "evidence.json"));
+  await writeShardEvidence({ directory: artifact, headSha, shardId: "2" });
+  const result = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
+  assert.equal(result.artifacts.length, 4);
+});
+
 test("coverage evidence checks the aggregate raw byte budget using bounded reads", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));

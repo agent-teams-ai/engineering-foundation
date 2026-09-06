@@ -235,7 +235,7 @@ function assertPortableFixturePath(path) {
 async function materializeInstalledPortableFixture(installedDocsRoot, consumerRoot) {
   const assetModulePath = join(
     installedDocsRoot,
-    "dist", "community", "bootstrap", "portable-bootstrap-assets.js",
+    "dist", "features", "portable-bootstrap", "application", "portable-bootstrap-assets.js",
   );
   const assets = await import(pathToFileURL(assetModulePath).href);
   if (typeof assets.portableBootstrapDesiredFiles !== "function" ||

@@ -328,3 +328,60 @@ for (const schemaVersion of [1, 2]) {
     });
   });
 }
+
+for (const schemaVersion of [1, 2]) {
+  test(`installed CLI v${schemaVersion}: ARCH assignment and process default counterexamples`, async (t) => {
+    await withInstalledCli(async (root, cli) => {
+      const cases = [
+        ["assignment callee", "cjs", 'let load; console.log(typeof (load = require)("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["assignment initializer", "cjs", 'let first; const load = first = require; console.log(typeof load("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["assignment chain", "cjs", 'let first, second; first = second = require; console.log(typeof first("node:fs").readFileSync);', "unresolved-runtime-reference"],
+        ["logical OR RHS", "cjs", 'let load; console.log(typeof (load ||= require)("node:fs").readFileSync);', "unresolved-runtime-reference"],
+        ["logical AND RHS", "cjs", 'let load = true; console.log(typeof (load &&= require)("node:fs").readFileSync);', "unresolved-runtime-reference"],
+        ["nullish RHS", "cjs", 'let load; console.log(typeof (load ??= require)("node:fs").readFileSync);', "unresolved-runtime-reference"],
+        ["logical retained LHS", "cjs", 'let load = require; console.log(typeof (load ||= (() => {}))("node:fs").readFileSync);', "unresolved-runtime-reference"],
+        ["direct require control", "cjs", 'console.log(typeof require("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["separate write control", "cjs", 'let load; load = require; console.log(typeof load("node:fs").readFileSync);', "unresolved-runtime-reference"],
+        ["parameter shadow", "cjs", 'function f(require) { let first; const load = first = require; console.log(load("node:fs")); } f(() => "USER");', undefined],
+        ["user function", "cjs", 'function require() { return "USER"; } let load; console.log((load = require)("node:fs"));', undefined],
+        ["named default", "mjs", 'import { default as p } from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["namespace default", "mjs", 'import * as p from "node:process"; console.log(typeof p.default.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["ordinary default control", "mjs", 'import p from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["named getter control", "mjs", 'import { getBuiltinModule as get } from "node:process"; console.log(typeof get("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+        ["namespace getter control", "mjs", 'import * as p from "node:process"; console.log(typeof p.getBuiltinModule("node:fs").readFileSync);', "forbidden-builtin-dependency"],
+      ];
+      for (const [name, extension, source, rule] of cases) {
+        await t.test(name, async () => {
+          const path = `packages/app/src/a/probe.${extension}`;
+          const options = { source: "export const marker = 1;", builtins: ["node:process"] };
+          await fixture(root, schemaVersion, options);
+          await write(root, path, source);
+          try {
+            const native = spawnSync(process.execPath, [join(root, path)], {
+              cwd: root, encoding: "utf8", timeout: 10_000,
+            });
+            assert.equal(native.error, undefined);
+            assert.equal(native.status, 0, native.stderr);
+            assert.equal(native.stderr, "");
+            assert.equal(native.stdout, rule === undefined ? "USER\n" : "function\n");
+            t.diagnostic(`native v${schemaVersion} ${name}: ${native.stdout.trim()}`);
+            await check(root, cli, rule === undefined ? [] : [rule], [path]);
+            if (rule === "unresolved-runtime-reference") {
+              await fixture(root, schemaVersion, { ...options, runtimeReferences: ["commonjs"] });
+              await check(root, cli, [], [path]);
+              await fixture(root, schemaVersion, { ...options, runtimeReferences: ["dynamic"] });
+              await check(root, cli, [rule], [path]);
+            } else if (rule !== undefined) {
+              await fixture(root, schemaVersion, { ...options, runtimeReferences: ["commonjs"] });
+              await check(root, cli, [rule], [path]);
+              await fixture(root, schemaVersion, { ...options, builtins: ["node:process", "node:fs"] });
+              await check(root, cli, [], [path]);
+            }
+          } finally {
+            await rm(join(root, path));
+          }
+        });
+      }
+    });
+  });
+}

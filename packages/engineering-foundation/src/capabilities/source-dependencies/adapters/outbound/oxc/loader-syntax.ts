@@ -106,6 +106,7 @@ const MEMBER_ORIGINS = new Map<string, LoaderOrigin>([
   ["commonjs-module:require", { kind: "loader", opaque: true }],
   ["module:createRequire", { kind: "factory" }],
   ["module:default", { kind: "module" }],
+  ["process:default", { kind: "process" }],
   ["process:getBuiltinModule", { kind: "builtin-getter" }],
   ["loader:call", { kind: "loader", opaque: true }],
   ["loader:apply", { kind: "loader", opaque: true }],

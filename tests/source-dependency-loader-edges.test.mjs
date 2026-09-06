@@ -395,3 +395,62 @@ for (const extension of ["cjs", "cts", "js", "ts"]) {
     });
   }
 }
+
+for (const [name, source, references, unresolved] of [
+  ["assignment callee", 'let load; (load = require)("edge");', ["commonjs:edge"], []],
+  ["assignment initializer", 'let first; const load = first = require; load("edge");', ["commonjs:edge"], []],
+  ["assignment chain", 'let first, second; first = second = require; first("edge");', [], ["commonjs"]],
+  ["assignment chain callee", 'let first, second; (first = second = require)("edge");', ["commonjs:edge"], []],
+  ["detached assignment", 'let load; (load = module.require)("edge");', [], ["commonjs"]],
+  ["opaque assignment RHS", 'let source = require; source = user; let load; (load = source)("edge");', [], ["commonjs"]],
+  ["assignment user parameter", 'function f(require) { let load; (load = require)("user"); }', [], []],
+  ["assignment local function", 'function require() {} let load; (load = require)("user");', [], []],
+  ["assignment member target", 'const box = {}; (box.load = require)("edge");', ["commonjs:edge"], []],
+  ["assignment replaces prior loader result", 'let load = require; (load = (() => {}))("user");', [], []],
+]) {
+  test(`ARCH-01 finite result: ${name}`, () => {
+    assert.deepEqual(observe(source, "probe.cjs"), { parseErrorCount: 0, references, unresolved });
+  });
+}
+
+for (const operator of ["||=", "&&=", "??="]) {
+  for (const [name, source, unresolved] of [
+    ["RHS", `let load; (load ${operator} require)("edge");`, ["commonjs"]],
+    ["LHS", `let load = require; (load ${operator} user)("edge");`, ["commonjs"]],
+    ["member LHS", `(module.require ${operator} user)("edge");`, ["commonjs"]],
+    ["user", `function f(require) { let load; (load ${operator} require)("user"); }`, []],
+  ]) {
+    test(`ARCH-01 logical ${operator} ${name}`, () => {
+      assert.deepEqual(observe(source, "probe.cjs"), { parseErrorCount: 0, references: [], unresolved });
+    });
+  }
+}
+
+// Arithmetic/bitwise assignments coerce operands; their result is not a loader.
+for (const operator of ["+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "|=", "^=", "&="]) {
+  test(`ARCH-01 coercing ${operator} result`, () => {
+    assert.deepEqual(observe(`let load = 1; (load ${operator} require)("user");`, "probe.cjs"), {
+      parseErrorCount: 0, references: [], unresolved: [],
+    });
+  });
+}
+
+for (const builtin of ["process", "node:process"]) {
+  for (const [name, source] of [
+    ["named default", `import { default as p } from "${builtin}"; p.getBuiltinModule("node:fs");`],
+    ["namespace default", `import * as p from "${builtin}"; p.default.getBuiltinModule("node:fs");`],
+    ["computed default", `import * as p from "${builtin}"; p["default"].getBuiltinModule("node:fs");`],
+    ["projected default", `import * as ns from "${builtin}"; const { default: p } = ns; p.getBuiltinModule("node:fs");`],
+  ]) {
+    test(`ARCH-02 ${builtin} ${name}`, () => {
+      assert.deepEqual(observe(source), {
+        parseErrorCount: 0, references: [`static:${builtin}`, "commonjs:node:fs"], unresolved: [],
+      });
+    });
+  }
+}
+test("ARCH-02 user default projection stays user-owned", () => {
+  assert.deepEqual(observe('import { default as p } from "user-process"; p.getBuiltinModule("node:fs");'), {
+    parseErrorCount: 0, references: ["static:user-process"], unresolved: [],
+  });
+});

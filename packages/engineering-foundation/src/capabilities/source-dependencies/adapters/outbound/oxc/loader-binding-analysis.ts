@@ -104,6 +104,21 @@ export class LoaderBindingAnalysis {
       return this.#expressionOrigins(expression.object, scope).flatMap((object) =>
         memberOrigin(object, propertyName(expression.property, expression.computed)) ?? []);
     }
+    if (expression.type === "AssignmentExpression") {
+      // Plain assignment evaluates to its RHS, independently of the written
+      // binding's opacity. Logical assignments may instead retain the LHS.
+      if (expression.operator === "=") {
+        return this.#expressionOrigins(expression.right, scope);
+      }
+      if (expression.operator === "||=" || expression.operator === "&&=" || expression.operator === "??=") {
+        const left = expression.left;
+        const origins = left.type === "ArrayPattern" || left.type === "ObjectPattern"
+          ? [] : this.#expressionOrigins(left, scope);
+        return opaqueOrigins([...origins, ...this.#expressionOrigins(expression.right, scope)]);
+      }
+      // Arithmetic and bitwise assignment results are coerced values, not loaders.
+      return [];
+    }
     if (expression.type === "ConditionalExpression" || expression.type === "LogicalExpression") {
       const branches = expression.type === "ConditionalExpression"
         ? [expression.consequent, expression.alternate] : [expression.left, expression.right];

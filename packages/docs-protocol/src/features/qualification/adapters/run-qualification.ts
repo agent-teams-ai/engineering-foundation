@@ -4,6 +4,7 @@ import { dirname, join, relative, resolve as resolvePath, sep } from "node:path"
 
 import { applyReachability, fileSnapshot, snapshot } from "./filesystem-evidence.js";
 import { bootstrapQualificationInstallation } from "./qualification-runtime.js";
+import { hasInfrastructureSegment } from "../application/evidence-policy.js";
 import type { QualificationWorkspace } from "../application/workspace.js";
 
 async function parentState(root: string, documentPath: string): Promise<"directory" | "missing"> {
@@ -38,7 +39,12 @@ export const qualificationWorkspace: QualificationWorkspace = {
     return {
       consumerRoot,
       async copyFrom(sourceRoot) {
-        await cp(sourceRoot, consumerRoot, { recursive: true, errorOnExist: true, force: false, dereference: false });
+        await cp(sourceRoot, consumerRoot, {
+          recursive: true, errorOnExist: true, force: false, dereference: false,
+          // Match the unconditional infrastructure exclusion in both evidence observations.
+          // Keep journals and mutable authority for recovery; bootstrap owns tooling links.
+          filter: (source) => !hasInfrastructureSegment(relative(sourceRoot, source).split(sep).join("/"))
+        });
       },
       async dispose() { await rm(temporary, { recursive: true, force: true }); }
     };

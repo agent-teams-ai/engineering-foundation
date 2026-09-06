@@ -2,7 +2,7 @@ import { DocsProtocol } from "../dist/features/portable-documentation/applicatio
 import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
 import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import assert from "node:assert/strict";
-import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, readFile, readlink, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -13,7 +13,7 @@ import { NodeCodeAnchorMatcher } from "../dist/features/portable-documentation/a
 import { NodeDocsAdoptionInspector } from "../dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js";
 import { NodeDocsProfileReader } from "../dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
 import { NodeDocumentAuthoringPort } from "../dist/features/portable-documentation/adapters/outbound/document-authoring-port.js";
-import { runDocsProtocolQualification } from "../dist/qualification/index.js";
+import { bootstrapQualificationInstallation, runDocsProtocolQualification } from "../dist/qualification/index.js";
 import {
   crashAfterDurablePublication,
   crashAtDurablePublishing
@@ -27,27 +27,101 @@ import {
   snapshot,
 } from "../dist/features/qualification/adapters/filesystem-evidence.js";
 
+import { qualificationWorkspace } from "../dist/features/qualification/adapters/run-qualification.js";
+
 const fixtureRoot = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
 
-test("shared qualification runner mutates only its owned disposable copy", async () => {
-  const receipt = await runDocsProtocolQualification({
-    fixtureRoot,
-    scenario: {
-      find: { query: { type: "adr" }, expectedIds: [] },
-      newDocument: {
-        intent: {
-          type: "adr",
-          id: "ADR-0001",
-          title: "Qualification decision",
-          owner: "architecture/tooling",
-          summary: "Proves the shared disposable qualification workflow."
+test("shared qualification runner qualifies a preattached consumer without changing its source", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "atd-installed-"));
+  const installedRoot = join(temporary, "consumer");
+  try {
+    await cp(fixtureRoot, installedRoot, { recursive: true });
+    const scope = join(installedRoot, "node_modules", "@agent-teams");
+    await mkdir(scope, { recursive: true });
+    const installedLink = join(scope, "docs-protocol");
+    const installedPackage = new URL("..", import.meta.url).pathname;
+    await symlink(installedPackage, installedLink, process.platform === "win32" ? "junction" : "dir");
+    const before = await snapshot(installedRoot);
+    const linkBefore = await readlink(installedLink);
+    const receipt = await runDocsProtocolQualification({
+      fixtureRoot: installedRoot,
+      scenario: {
+        find: { query: { type: "adr" }, expectedIds: [] },
+        newDocument: {
+          intent: {
+            type: "adr",
+            id: "ADR-0001",
+            title: "Qualification decision",
+            owner: "architecture/tooling",
+            summary: "Proves the shared disposable qualification workflow."
+          }
         }
       }
+    });
+    assert.equal(receipt.projectId, "docs-protocol-qualification");
+    assert.equal(receipt.appliedDocumentPath, "docs/decisions/generated/0001-qualification-decision.md");
+    assert.deepEqual(receipt.checks, ["info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent", "apply", "index", "check", "source-unchanged"]);
+    assert.equal(await snapshot(installedRoot), before);
+    assert.equal(await readlink(installedLink), linkBefore);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("unfiltered qualification copy reproduces the original preattached bootstrap EEXIST", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "atd-original-copy-"));
+  try {
+    const source = join(temporary, "source");
+    const copied = join(temporary, "copied");
+    await cp(fixtureRoot, source, { recursive: true });
+    const scope = join(source, "node_modules", "@agent-teams");
+    await mkdir(scope, { recursive: true });
+    await symlink(new URL("..", import.meta.url).pathname, join(scope, "docs-protocol"),
+      process.platform === "win32" ? "junction" : "dir");
+    await cp(source, copied, { recursive: true, errorOnExist: true, force: false, dereference: false });
+    await assert.rejects(bootstrapQualificationInstallation(copied, true),
+      (error) => error?.code === "EEXIST" && error?.dest === join(copied, "node_modules", "@agent-teams", "docs-protocol"));
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+test("qualification copy excludes only infrastructure and preserves journal and same-basename source bytes", async () => {
+  // The source's ancestors deliberately have infrastructure names: filtering is repository-relative.
+  const temporary = await mkdtemp(join(tmpdir(), "atd-copy-scope-"));
+  const source = join(temporary, "node_modules", ".git", "source");
+  const disposable = await qualificationWorkspace.createDisposable();
+  try {
+    const preserved = [".agent-teams-local/journal.json", ".cache/user.txt", "target/user.txt",
+      "docs/target/governed.md", "docs/.cache/governed.md", "docs/.agent-teams-local/authority.json",
+      "docs/node_modules-not-infrastructure/user.md", "docs/.git-not-infrastructure/user.md",
+      "packages/example/target", "packages/example/.cache", "docs.config.yaml"];
+    for (const path of preserved) {
+      await mkdir(join(source, path, ".."), { recursive: true });
+      await writeFile(join(source, path), `${path}\n`);
     }
-  });
-  assert.equal(receipt.projectId, "docs-protocol-qualification");
-  assert.equal(receipt.appliedDocumentPath, "docs/decisions/generated/0001-qualification-decision.md");
-  assert.deepEqual(receipt.checks, ["info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent", "apply", "index", "check", "source-unchanged"]);
+    const excluded = ["node_modules", ".git", "packages/example/node_modules", "packages/example/.git"];
+    for (const path of excluded) {
+      await mkdir(join(source, path, ".."), { recursive: true });
+      await symlink(join(temporary, "absent-infrastructure"), join(source, path),
+        process.platform === "win32" ? "junction" : "dir");
+    }
+    await disposable.copyFrom(source);
+    for (const path of excluded) {
+      await assert.rejects(lstat(join(disposable.consumerRoot, path)), { code: "ENOENT" });
+      assert.equal((await lstat(join(source, path))).isSymbolicLink(), true);
+    }
+    for (const path of preserved) {
+      assert.deepEqual(await readFile(join(disposable.consumerRoot, path)), await readFile(join(source, path)));
+    }
+    assert.equal(await snapshot(disposable.consumerRoot), await snapshot(source));
+    assert.deepEqual(await fileSnapshot(disposable.consumerRoot), await fileSnapshot(source));
+    await symlink(join(temporary, "absent-user-file"), join(source, "docs", "user-link"));
+    await assert.rejects(snapshot(source), /cannot contain symlinks: docs\/user-link/u);
+  } finally {
+    await disposable.dispose();
+    await rm(temporary, { recursive: true, force: true });
+  }
 });
 
 test("qualification separates immutable source exclusions from mutation observation", async () => {

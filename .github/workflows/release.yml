@@ -160,11 +160,11 @@ jobs:
       security-events: read
       statuses: write
     runs-on: ubuntu-24.04
-    # 55m CI + 60s final + 30s selection + 15s polling overshoot;
+    # 70m CI + 60s final + 30s selection + 15s polling overshoot;
     # 3 passes x 4 contexts x (3 attempts x 3 requests x (3s + 1s kill grace)
     # + 2 x 1s backoff) = 456s for pending, terminal publication and recovery.
-    # Reserve 180s for setup/other work and at least 120s margin (4161s total).
-    timeout-minutes: 70
+    # Reserve 180s for setup/other work and at least 120s margin (5061s total).
+    timeout-minutes: 85
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -444,7 +444,7 @@ jobs:
             fail_attestation "Release PR CodeQL did not resolve to one exact run"
           fi
 
-          deadline=$((SECONDS + 3300))
+          deadline=$((SECONDS + 4200))
           bound_run_attempt=""
           all_completed=0
           while (( SECONDS < deadline )); do

@@ -178,19 +178,20 @@ test("workflow inputs are minimal non-circular authority references", () => {
   assert.equal(authority.coordinates.some(({ name }) => name === SUPPORTING_MCP_PACKAGE.name), false);
 });
 
-test("supporting MCP precondition has one fixed exact public coordinate", () => {
+test("supporting MCP precondition selects the final release coordinate and rejects stale publication", () => {
   const packument = {
-    "dist-tags": { latest: SUPPORTING_MCP_PACKAGE.version },
+    "dist-tags": { latest: "0.2.2" },
     versions: {
-      [SUPPORTING_MCP_PACKAGE.version]: {
-        ...SUPPORTING_MCP_PACKAGE,
+      "0.2.2": {
+        name: "@agent-teams/docs-protocol-mcp",
+        version: "0.2.2",
         dist: { integrity: supportingMcp.integrity },
       },
     },
   };
   assert.deepEqual(supportingMcpCoordinate(packument), supportingMcp);
   const previous = {
-    ...SUPPORTING_MCP_PACKAGE, version: "0.2.0", dist: { integrity: supportingMcp.integrity },
+    ...SUPPORTING_MCP_PACKAGE, version: "0.2.1", dist: { integrity: supportingMcp.integrity },
   };
   assert.throws(
     () => supportingMcpCoordinate({
@@ -203,6 +204,16 @@ test("supporting MCP precondition has one fixed exact public coordinate", () => 
     () => supportingMcpCoordinate({ ...packument, "dist-tags": { latest: "0.1.1" } }),
     /exact latest/u,
   );
+  for (const mutate of [
+    (value) => { delete value.versions["0.2.2"]; },
+    (value) => { value.versions["0.2.2"].name = "@agent-teams/docs-protocol"; },
+    (value) => { value.versions["0.2.2"].version = "0.2.1"; },
+    (value) => { value["dist-tags"].latest = "0.2.3"; },
+  ]) {
+    const invalid = structuredClone(packument);
+    mutate(invalid);
+    assert.throws(() => supportingMcpCoordinate(invalid), /exact latest/u);
+  }
   const drift = structuredClone(packument);
   drift.versions[SUPPORTING_MCP_PACKAGE.version].dist.integrity = "sha512-not-canonical";
   assert.throws(() => supportingMcpCoordinate(drift), /canonical sha512 SRI/u);
@@ -540,7 +551,7 @@ test("canonical canary receipt validates central binding and exact unique packag
     ["package", "version"], ["package", "latest"], ["mcp", "serverVersion"],
   ]) {
     const staleSupportingCoordinate = structuredClone(receipt);
-    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "0.2.0";
+    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "0.2.1";
     assert.equal(validate(staleSupportingCoordinate), false, `stale supporting MCP ${section}.${field}`);
   }
   const duplicate = structuredClone(receipt);

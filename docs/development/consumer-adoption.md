@@ -135,18 +135,24 @@ configuration but never runs the scripts. See the
 
 ## Current contract version policy
 
-Foundation-owned configuration, evidence and protocol contracts currently have
-one active identity: `v1`. Before independent production adoption, a breaking
-correction updates that sole `v1` shape and all known consumers in one reviewed
-release and adoption wave. The current package does not ship parallel legacy
-schemas, cross-version compatibility readers or migration routers.
+Contract versions are governed per contract, not by a package-wide `v1` rule.
+Source-dependencies configuration already has explicit `v1` and `v2` contracts;
+consumers select the supported version deliberately. A configuration upgrade
+does not authorize rewriting persisted Plans, Receipts, journals or Cohorts.
+
+Persisted evidence retains its exact owner, generation and build identity.
+Historical recovery uses the qualified implementation and artifact for that
+generation, within its documented support window; installing a newer package
+does not make an old journal compatible. See the
+[transaction recovery decision](../decisions/0024-versioned-document-transaction-recovery.md)
+and [qualified Cohort contract](../decisions/0045-five-coordinate-qualified-docs-cohort.md).
 
 The Public API checker accepts an immutable single-entrypoint `v1` release
 baseline and normalizes it to the current multi-entrypoint `v1` comparison
 model. This preserves release evidence without creating another schema
 identity. New baseline promotion always writes the current `v1` shape.
 
-A Foundation-owned `v2` is allowed only after a new accepted ADR proves a real
+A new Foundation-owned contract generation requires an accepted ADR proving a real
 non-atomic migration boundary, such as an independently deployed exact-version
 consumer or persisted contract instance. The ADR must define migration evidence,
 support duration and retirement. Published npm artifacts and accepted ADRs remain
@@ -270,11 +276,12 @@ contract.
 1. The consumer repository's configured dependency updater opens an exact-version
    update pull request. Foundation does not prescribe a specific updater.
 2. CI installs from the registry and runs all foundation and consumer checks.
-3. Before independent production adoption, breaking Foundation-owned contract
-   corrections keep the sole current `v1` and update every known consumer in the
-   same coordinated wave. Historical schemas remain available only inside their
-   immutable exact registry artifacts. After real independent adoption, a new
-   contract version and migration window require the ADR evidence in ADR-0019.
+3. Identify each configuration and persisted-evidence generation before updating.
+   Adopt configuration changes explicitly, including source-dependencies `v2`.
+   Preserve historical journal and receipt bytes and their qualified exact-build
+   recovery route. New generations and retirement windows require the applicable
+   accepted ADR; a coordinated update does not waive recovery compatibility.
+   Unknown in-flight state blocks that consumer's cutover until it is resolved.
 4. A local foundation checkout may be attached for development, but a PR is not
    mergeable until registry mode is restored and proven.
 5. A package update never silently adds a capability declaration or opt-in

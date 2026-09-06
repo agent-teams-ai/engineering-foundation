@@ -1,3 +1,5 @@
+import { readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
 import { createManagedProcessExecutor, schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -250,7 +252,7 @@ test("qualification producer writes canonical evidence and reruns Buf before acc
 
 test("evidence reader rejects stale bindings, weakened FILE policy, and changed inputs", async () => {
   await withFixture(async ({ config, root }) => {
-    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema);
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema, { read: readContainedRegularFile, parseYaml: parseStrictYamlSource });
     const stale = qualifiedEvidence(config);
     stale.candidateDescriptorImageDigest = `sha256:${"f".repeat(64)}`;
     await writeFixture(root, config, stale);
@@ -364,7 +366,7 @@ test("binds breaking approval fingerprints to the complete qualified transition"
     };
     const firstEvidence = breakingEvidence(config, [finding]);
     await writeFixture(root, config, firstEvidence);
-    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema);
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema, { read: readContainedRegularFile, parseYaml: parseStrictYamlSource });
     const first = await adapter.read({ consumerRoot: root, configuration: config });
     assert.equal(first.breaking.fingerprint, firstEvidence.evidenceDigest);
     assert.notEqual(first.breaking.fingerprint, firstEvidence.result.findingSetDigest);
@@ -395,7 +397,7 @@ test("normal evidence reader accepts the producer's full bounded evidence size",
     assert.ok(Buffer.byteLength(source, "utf8") > 1024 * 1024);
     await writeFixture(root, config, evidence);
 
-    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema);
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(schemaConfigurationDependencies().assertSchema, { read: readContainedRegularFile, parseYaml: parseStrictYamlSource });
     assert.equal(
       (await adapter.read({ consumerRoot: root, configuration: config })).breaking.fingerprint,
       evidence.evidenceDigest,
@@ -620,4 +622,75 @@ test("Buf process execution enforces a bounded deadline", async () => {
       (error) => error?.problem?.code === "BUF_EXECUTION_UNAVAILABLE",
     );
   });
+});
+
+test("qualification observation port preserves bounded reads, parser/schema ordering and digests", async () => {
+  const config = configuration(), calls = [];
+  const root = join(tmpdir(), "explicit-observation-fixture");
+  const sourceByPath = new Map([
+    [join(root, config.qualification.evidencePath), JSON.stringify(qualifiedEvidence(config))],
+    [join(root, config.qualification.bufConfigPath), bufConfigSource],
+    [join(root, config.qualification.releasedDescriptorImagePath), releasedDescriptorImage],
+  ]);
+  const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(
+    async (...args) => { calls.push(["schema", args[0], args[2]]); await schemaConfigurationDependencies().assertSchema(...args); },
+    {
+      async read(input) {
+        calls.push(["read", input]);
+        return Buffer.from(sourceByPath.get(input.candidate));
+      },
+      parseYaml(source, phase) { calls.push(["parse", phase]); return parseStrictYamlSource(source, phase); },
+    },
+  );
+  const result = await adapter.read({ consumerRoot: root, configuration: config });
+  assert.deepEqual(result, {
+    breaking: { status: "compatible", fingerprint: qualifiedEvidence(config).evidenceDigest },
+    releasedDescriptorImageDigest: config.released.descriptorImageDigest,
+  });
+  assert.ok(Object.isFrozen(result) && Object.isFrozen(result.breaking));
+  assert.deepEqual(calls, [
+    ["read", { candidate: join(root, config.qualification.evidencePath), root, maxBytes: 8 * 1024 * 1024 }],
+    ["parse", "protobuf-buf-qualification-evidence"],
+    ["schema", "contract-protobuf-breaking-qualification/v1", "protobuf-buf-qualification-evidence"],
+    ["read", { candidate: join(root, config.qualification.bufConfigPath), root, maxBytes: 1024 * 1024 }],
+    ["read", { candidate: join(root, config.qualification.releasedDescriptorImagePath), root, maxBytes: 64 * 1024 * 1024 }],
+    ["parse", "protobuf-buf-config"],
+  ]);
+});
+
+test("qualification observation failure policy recognizes only the existing error identity", async () => {
+  const { ContainedFileReadError } = await import("../packages/engineering-foundation/dist/source-inventory/api.js");
+  for (const failure of ["changed", "escape", "invalid", "missing", "symlink", "unavailable"]) {
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(
+      () => assert.fail("schema must not run"),
+      { async read() { throw new ContainedFileReadError(failure); }, parseYaml() { assert.fail("parser must not run"); } },
+    );
+    await assert.rejects(adapter.read({ consumerRoot: "/explicit-observation-fixture", configuration: configuration() }), (error) => {
+      assert.equal(error.problem.code, ["symlink", "escape"].includes(failure)
+        ? "BUF_QUALIFICATION_PATH_UNSAFE" : "BUF_QUALIFICATION_INPUT_UNAVAILABLE");
+      return true;
+    });
+  }
+  for (const failure of [new Error("unknown"), { name: "ContainedFileReadError", failure: "symlink" }, null, "unknown"]) {
+    const adapter = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(
+      () => assert.fail("schema must not run"),
+      { async read() { throw failure; }, parseYaml() { assert.fail("parser must not run"); } },
+    );
+    await assert.rejects(adapter.read({ consumerRoot: "/explicit-observation-fixture", configuration: configuration() }), (error) => error === failure);
+  }
+});
+
+test("qualification observation cancellation precedes parsing and unknown parser failures retain identity", async () => {
+  const controller = new AbortController();
+  const cancelled = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(
+    () => assert.fail("schema must not run"),
+    { async read() { controller.abort(); return Buffer.from("{}"); }, parseYaml() { assert.fail("parser must not run"); } },
+  );
+  await assert.rejects(cancelled.read({ consumerRoot: "/explicit-observation-fixture", configuration: configuration(), signal: controller.signal }), /cancel/iu);
+  const sentinel = { parser: "unknown thrown identity" };
+  const brokenParser = new evidenceAdapter.FilesystemBufBreakingQualificationEvidence(
+    () => assert.fail("schema must not run"),
+    { async read() { return Buffer.from("{}"); }, parseYaml() { throw sentinel; } },
+  );
+  await assert.rejects(brokenParser.read({ consumerRoot: "/explicit-observation-fixture", configuration: configuration() }), (error) => error === sentinel);
 });

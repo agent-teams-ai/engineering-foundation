@@ -1,10 +1,9 @@
 import { resolve } from "node:path";
 
 import { assertBufQualificationActive, rejectBufQualificationInput } from "../../../application/policies/buf-qualification-input.js";
-import { ContainedFileReadError } from "../../../../../source-inventory/api.js";
-import { readContainedRegularFile } from "../../../../../source-inventory/node.js";
+import type { BufQualificationObservation } from "../../../application/ports/buf-qualification-observation.js";
+import { rejectQualificationFileFailure } from "../../../application/policies/qualification-file-failure.js";
 import type { ProtobufSchemaAssertion } from "../../schema-validation.js";
-import { parseStrictYamlSource } from "../../../../../features/configuration-input/yaml.js";
 import {
   assertExactBufFilePolicy,
   BUF_FILE_BREAKING_CONFIG_SOURCE,
@@ -27,28 +26,21 @@ const MAX_BUF_CONFIG_BYTES = 1024 * 1024;
 const MAX_DESCRIPTOR_BYTES = 64 * 1024 * 1024;
 const MAX_EVIDENCE_BYTES = 8 * 1024 * 1024;
 
-async function readQualificationFile(input: {
+async function readQualificationFile(observation: BufQualificationObservation, input: {
   readonly consumerRoot: string;
   readonly path: string;
   readonly maxBytes: number;
   readonly label: string;
 }): Promise<Buffer> {
   try {
-    return await readContainedRegularFile({
+    const source = await observation.read({
       candidate: resolve(input.consumerRoot, input.path),
       maxBytes: input.maxBytes,
       root: input.consumerRoot
     });
+    return Buffer.isBuffer(source) ? source : Buffer.from(source);
   } catch (error) {
-    if (!(error instanceof ContainedFileReadError)) {
-      throw error;
-    }
-    rejectBufQualificationInput(
-      error.failure === "symlink" || error.failure === "escape"
-        ? "BUF_QUALIFICATION_PATH_UNSAFE"
-        : "BUF_QUALIFICATION_INPUT_UNAVAILABLE",
-      `${input.label} is unavailable, unsafe, or changed while reading: ${input.path}.`
-    );
+    rejectQualificationFileFailure(error, input);
   }
 }
 
@@ -77,10 +69,12 @@ function withoutEvidenceDigest(
 
 export class FilesystemBufBreakingQualificationEvidence
 implements BufBreakingQualificationEvidencePort {
+  readonly #observation: BufQualificationObservation;
   readonly #digest: Sha256DigestPort;
   readonly #assertSchema: ProtobufSchemaAssertion;
 
-  constructor(assertSchema: ProtobufSchemaAssertion, digest: Sha256DigestPort = new NodeSha256Digest()) {
+  constructor(assertSchema: ProtobufSchemaAssertion, observation: BufQualificationObservation, digest: Sha256DigestPort = new NodeSha256Digest()) {
+    this.#observation = observation;
     this.#assertSchema = assertSchema;
     this.#digest = digest;
   }
@@ -90,14 +84,14 @@ implements BufBreakingQualificationEvidencePort {
   ): Promise<ResolvedBufBreakingQualificationEvidence> {
     assertBufQualificationActive(input.signal);
     const { configuration } = input;
-    const evidenceBytes = await readQualificationFile({
+    const evidenceBytes = await readQualificationFile(this.#observation, {
       consumerRoot: input.consumerRoot,
       path: configuration.qualification.evidencePath,
       maxBytes: MAX_EVIDENCE_BYTES,
       label: "Buf qualification evidence"
     });
     assertBufQualificationActive(input.signal);
-    const rawEvidence = parseStrictYamlSource(
+    const rawEvidence = this.#observation.parseYaml(
       evidenceBytes.toString("utf8"),
       "protobuf-buf-qualification-evidence"
     );
@@ -108,13 +102,13 @@ implements BufBreakingQualificationEvidencePort {
     );
     const evidence = mapBufBreakingQualificationEvidence(rawEvidence);
     const [bufConfigBytes, baselineDescriptorBytes] = await Promise.all([
-      readQualificationFile({
+      readQualificationFile(this.#observation, {
         consumerRoot: input.consumerRoot,
         path: configuration.qualification.bufConfigPath,
         maxBytes: MAX_BUF_CONFIG_BYTES,
         label: "Buf configuration"
       }),
-      readQualificationFile({
+      readQualificationFile(this.#observation, {
         consumerRoot: input.consumerRoot,
         path: configuration.qualification.releasedDescriptorImagePath,
         maxBytes: MAX_DESCRIPTOR_BYTES,
@@ -123,7 +117,7 @@ implements BufBreakingQualificationEvidencePort {
     ]);
     assertBufQualificationActive(input.signal);
     assertExactBufFilePolicy(
-      parseStrictYamlSource(bufConfigBytes.toString("utf8"), "protobuf-buf-config")
+      this.#observation.parseYaml(bufConfigBytes.toString("utf8"), "protobuf-buf-config")
     );
 
     const observedBufConfigDigest = this.#digest.digest(bufConfigBytes);

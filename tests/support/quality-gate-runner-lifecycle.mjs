@@ -1,3 +1,4 @@
+import { readContainedRegularFile } from "../../packages/engineering-foundation/dist/source-inventory/node.js";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { watch } from "node:fs";
@@ -45,7 +46,7 @@ export function startInjectedQgrCliCommand({
     failureJson: foundationCommandFailureJson,
     cancellationSource,
     commandFactory: () => createQualityGateCommand({
-      catalogReader: new FilesystemPackageScriptCatalogReader(),
+      catalogReader: new FilesystemPackageScriptCatalogReader(readContainedRegularFile),
       clock: performanceMonotonicClock,
       executor,
       policyLoader: (root, path, signal) => loadQualityGatePolicy(

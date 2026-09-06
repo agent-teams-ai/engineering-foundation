@@ -1,3 +1,5 @@
+import { readContainedRegularFile } from "../../source-inventory/node.js";
+import { parseStrictYamlSource } from "../../features/configuration-input/yaml.js";
 import {
   capabilityFailureReport,
   capabilityReport,
@@ -57,7 +59,9 @@ export function createProtobufEvolutionCapability(
     dependencies.acceptedDecisionEvidence;
   const bufBreakingQualificationEvidence =
     dependencies.bufBreakingQualificationEvidence ??
-    new FilesystemBufBreakingQualificationEvidence(dependencies.assertSchema);
+    new FilesystemBufBreakingQualificationEvidence(dependencies.assertSchema, {
+      read: readContainedRegularFile, parseYaml: parseStrictYamlSource
+    });
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,

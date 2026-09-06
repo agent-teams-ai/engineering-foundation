@@ -24,6 +24,10 @@ import { FilesystemRepositorySecurityReader } from "../dist/capabilities/reposit
 import { FilesystemArchitectureDecisionBaselineRepository } from "../dist/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { FilesystemBufBreakingQualificationEvidence } from "../dist/capabilities/contract-protobuf-evolution/adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
 
+import { parseStrictYamlSource } from "../dist/features/configuration-input/yaml.js";
+
+const securityObservation = { read: readContainedRegularFile, traversesSymbolicLink: pathTraversesSymbolicLink, parseYaml: parseStrictYamlSource };
+const bufObservation = { read: readContainedRegularFile, parseYaml: parseStrictYamlSource };
 const baselineObservation = { read: readContainedRegularFile, pathTraversesSymbolicLink };
 const instructionObservation = { read: readContainedRegularFile, inspect: inspectContainedRegularFile };
 
@@ -52,7 +56,7 @@ async function fixture(context) {
 
 test("catalog diagnostics and frozen script data retain exact public behavior", async (context) => {
   const root = await fixture(context);
-  const reader = new FilesystemPackageScriptCatalogReader();
+  const reader = new FilesystemPackageScriptCatalogReader(readContainedRegularFile);
   for (const [source, message] of [
     ["null", "The consumer root package.json must be an object."],
     ['{"scripts":[]}', "The consumer root package.json must declare a scripts object."],
@@ -80,6 +84,7 @@ test("all reporting consumers preserve canonical cancellation before IO", async 
   const missing = join(root, "not-created");
   const signal = AbortSignal.abort(new Error("operator reason is not the report"));
   const invocations = [
+<<<<<<< HEAD
     () => new FilesystemPackageScriptCatalogReader().read(missing, signal),
     () => new FilesystemEffectiveInstructionsReader(instructionObservation).discover({ consumerRoot: missing, targetPath: "file.ts", signal }),
     () => new FilesystemEffectiveInstructionsReader(instructionObservation).readDirectory({ consumerRoot: missing, directory: ".", readSelectedBytes: true, signal }),
@@ -88,6 +93,16 @@ test("all reporting consumers preserve canonical cancellation before IO", async 
     () => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: missing, path: "baseline.json", signal }),
     () => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).write({ consumerRoot: missing, path: "baseline.json", signal }),
     () => new FilesystemBufBreakingQualificationEvidence(() => assert.fail("schema validation after cancellation")).read({ consumerRoot: missing, signal })
+=======
+    () => new FilesystemPackageScriptCatalogReader(readContainedRegularFile).read(missing, signal),
+    () => new FilesystemEffectiveInstructionsReader().discover({ consumerRoot: missing, targetPath: "file.ts", signal }),
+    () => new FilesystemEffectiveInstructionsReader().readDirectory({ consumerRoot: missing, directory: ".", readSelectedBytes: true, signal }),
+    () => new FilesystemRepositoryAgentWorkflowReader().read(missing, {}, signal),
+    () => new FilesystemRepositorySecurityReader(securityObservation).read(missing, {}, signal),
+    () => new FilesystemArchitectureDecisionBaselineRepository().read({ consumerRoot: missing, path: "baseline.json", signal }),
+    () => new FilesystemArchitectureDecisionBaselineRepository().write({ consumerRoot: missing, path: "baseline.json", signal }),
+    () => new FilesystemBufBreakingQualificationEvidence(() => assert.fail("schema validation after cancellation"), bufObservation).read({ consumerRoot: missing, signal })
+>>>>>>> bcd27649 (refactor(observation): inject security protobuf and quality gate ports)
   ];
   for (const invoke of invocations) {
     await assert.rejects(invoke(), inputProblem(cancellationProblem));
@@ -100,8 +115,13 @@ test("post-read cancellation stays canonical even inside the baseline JSON catch
   await writeFile(join(root, "package.json"), source);
   await writeFile(join(root, "baseline.json"), source);
   for (const invoke of [
+<<<<<<< HEAD
     (signal) => new FilesystemPackageScriptCatalogReader().read(root, signal),
     (signal) => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: root, path: "baseline.json", signal })
+=======
+    (signal) => new FilesystemPackageScriptCatalogReader(readContainedRegularFile).read(root, signal),
+    (signal) => new FilesystemArchitectureDecisionBaselineRepository().read({ consumerRoot: root, path: "baseline.json", signal })
+>>>>>>> bcd27649 (refactor(observation): inject security protobuf and quality gate ports)
   ]) {
     let checkpoints = 0;
     const signal = { get aborted() { checkpoints += 1; return checkpoints > 1; } };
@@ -145,7 +165,7 @@ test("Git input failures retain FoundationError identity without invoking an exe
 
 test("security, baseline-write and Buf observation errors retain exact reporting identity", async (context) => {
   const root = await fixture(context);
-  await assert.rejects(new FilesystemRepositorySecurityReader().read(join(root, "missing"), {}), inputProblem({
+  await assert.rejects(new FilesystemRepositorySecurityReader(securityObservation).read(join(root, "missing"), {}), inputProblem({
     code: "CONSUMER_ROOT_UNAVAILABLE",
     message: "Consumer root must be an accessible directory.",
     phase: "repository-security-evidence"
@@ -155,7 +175,7 @@ test("security, baseline-write and Buf observation errors retain exact reporting
     message: "Accepted-decision baseline does not match the required immutable baseline shape.",
     phase: "architecture-decision-baseline-write"
   }));
-  await assert.rejects(new FilesystemBufBreakingQualificationEvidence(() => assert.fail("missing evidence must not validate")).read({ consumerRoot: root, configuration: { qualification: { evidencePath: "missing.yaml" } } }), inputProblem({
+  await assert.rejects(new FilesystemBufBreakingQualificationEvidence(() => assert.fail("missing evidence must not validate"), bufObservation).read({ consumerRoot: root, configuration: { qualification: { evidencePath: "missing.yaml" } } }), inputProblem({
     code: "BUF_QUALIFICATION_INPUT_UNAVAILABLE",
     message: "Buf qualification evidence is unavailable, unsafe, or changed while reading: missing.yaml.",
     phase: "protobuf-buf-qualification-evidence"

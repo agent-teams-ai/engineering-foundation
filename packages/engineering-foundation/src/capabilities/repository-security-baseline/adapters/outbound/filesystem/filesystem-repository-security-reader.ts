@@ -1,3 +1,4 @@
+import type { SecurityEvidenceObservation } from "../../../application/ports/security-evidence-observation.js";
 import type {
   RepositorySecurityEvidence,
   RepositorySecurityPolicy
@@ -10,6 +11,8 @@ import { readSecurityToolEvidence } from "./security-tool-evidence-reader.js";
 import { readWorkflowDirectoryEvidence } from "./workflow-evidence-reader.js";
 
 export class FilesystemRepositorySecurityReader implements RepositorySecurityReader {
+  constructor(private readonly observation: SecurityEvidenceObservation) {}
+
   async read(
     consumerRoot: string,
     policy: RepositorySecurityPolicy,
@@ -18,15 +21,16 @@ export class FilesystemRepositorySecurityReader implements RepositorySecurityRea
     assertSecurityObservationActive(signal);
     const root = await resolveConsumerRoot(consumerRoot);
     const [workflowDirectory, packages] = await Promise.all([
-      readWorkflowDirectoryEvidence(root, policy, signal),
+      readWorkflowDirectoryEvidence(this.observation, root, policy, signal),
       Promise.all(
         policy.publishablePackageManifests.map((manifestPath) =>
-          readPublishablePackageEvidence(root, manifestPath)
+          readPublishablePackageEvidence(this.observation, root, manifestPath)
         )
       )
     ]);
     requireConfiguredWorkflows(workflowDirectory.workflows, policy);
     const toolEvidence = await readSecurityToolEvidence(
+      this.observation,
       root,
       policy,
       workflowDirectory.workflowDigest

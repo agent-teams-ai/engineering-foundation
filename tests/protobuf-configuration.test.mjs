@@ -1,3 +1,5 @@
+import { readContainedRegularFile } from "../packages/engineering-foundation/dist/source-inventory/node.js";
+import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -103,7 +105,7 @@ test("Protobuf evidence reader delegates the exact qualification schema before m
     await mkdir(dirname(evidencePath), { recursive: true });
     await writeFile(evidencePath, JSON.stringify(evidence));
     const failure = new Error("qualification schema rejected");
-    const reader = new FilesystemBufBreakingQualificationEvidence(async (...args) => { calls.push(args); throw failure; });
+    const reader = new FilesystemBufBreakingQualificationEvidence(async (...args) => { calls.push(args); throw failure; }, { read: readContainedRegularFile, parseYaml: parseStrictYamlSource });
     await assert.rejects(reader.read({ consumerRoot: root, configuration: input }), (error) => error === failure);
     assert.deepEqual(calls, [["contract-protobuf-breaking-qualification/v1", evidence, "protobuf-buf-qualification-evidence"]]);
   } finally {

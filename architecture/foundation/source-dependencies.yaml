@@ -853,6 +853,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/api.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/managed-process-executor.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/policies/quality-gate-input.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/package-script-observation.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/application/ports/quality-gate-settings-reader.ts
   - id: capability.quality-gate-runner.contract
     roots:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/contract
@@ -871,8 +873,6 @@ boundaries:
         - capability.quality-gate-runner.application
         - foundation.core
         - foundation.process-execution.application
-        - foundation.check.application
-        - foundation.source-inventory.composition
       packages: [ "@agent-teams/repository-mutation" ]
       builtins:
         - node:fs/promises
@@ -894,6 +894,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/composition
     allow:
       boundaries:
+        - foundation.source-inventory.composition
         - foundation.configuration-input.composition
         - capability.quality-gate-runner.adapters
         - capability.quality-gate-runner.application
@@ -2250,6 +2251,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/use-cases/analyze-repository-security.ts
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/policies/repository-security-input.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/ports/security-evidence-observation.ts
+      - packages/engineering-foundation/src/capabilities/repository-security-baseline/application/policies/security-file-read-failure.ts
   - id: capability.repository-security.contract
     roots:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/contract
@@ -2267,9 +2270,6 @@ boundaries:
       boundaries:
         - capability.repository-security.application
         - foundation.core
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
-        - foundation.configuration-input.adapters
       packages: []
       builtins:
         - node:fs/promises
@@ -2283,6 +2283,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-security-baseline/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.adapters
+        - foundation.source-inventory.composition
         - capability.repository-security.adapters
         - capability.repository-security.application
         - capability.repository-security.contract
@@ -2810,6 +2812,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/use-cases/resolve-protobuf-evolution-policy.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/api.ts
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/buf-qualification-input.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/ports/buf-qualification-observation.ts
+      - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/application/policies/qualification-file-failure.ts
   - id: capability.contract-protobuf.contract
     roots:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/contract
@@ -2828,9 +2832,6 @@ boundaries:
         - capability.contract-protobuf.contract
         - capability.contract-protobuf.application
         - foundation.core
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
-        - foundation.configuration-input.adapters
       packages: []
       builtins:
         - node:crypto
@@ -2846,6 +2847,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/contract-protobuf-evolution/module.ts
     allow:
       boundaries:
+        - foundation.configuration-input.adapters
+        - foundation.source-inventory.composition
         - foundation.configuration-input.composition
         - capability.contract-protobuf.adapters
         - capability.contract-protobuf.application

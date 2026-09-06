@@ -1,3 +1,4 @@
+import { readContainedRegularFile } from "../../source-inventory/node.js";
 import {
   capabilityFailureReport,
   capabilityReport,
@@ -20,7 +21,7 @@ export { QUALITY_GATE_RUNNER_RULES_BY_ID };
 export function createQualityGateRunnerCapability(input: {
   readonly assertSchema: QualityGateConfigurationDependencies["assertSchema"];
 }): CapabilityDefinition {
-  const reader = new FilesystemPackageScriptCatalogReader();
+  const reader = new FilesystemPackageScriptCatalogReader(readContainedRegularFile);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,

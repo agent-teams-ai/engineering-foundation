@@ -1,3 +1,4 @@
+import type { SecurityEvidenceObservation } from "../../../application/ports/security-evidence-observation.js";
 
 import type {
   PresentRepositorySecurityToolEvidence,
@@ -115,15 +116,16 @@ function parseToolEvidence(
 }
 
 export async function readSecurityToolEvidence(
+  observation: SecurityEvidenceObservation,
   root: string,
   policy: RepositorySecurityPolicy,
   currentWorkflowDigest: string
 ): Promise<readonly RepositorySecurityToolEvidence[]> {
   return Promise.all(
     configuredRepositorySecurityTools(policy.toolEvidence).map(async ({ policy: toolPolicy, tool }) => {
-      const configSource = await readRequiredEvidenceFile(root, toolPolicy.configPath);
-      const evidenceSource = await readOptionalEvidenceFile(root, toolPolicy.evidencePath);
-      const resultSource = await readOptionalEvidenceFile(root, toolPolicy.resultPath);
+      const configSource = await readRequiredEvidenceFile(observation, root, toolPolicy.configPath);
+      const evidenceSource = await readOptionalEvidenceFile(observation, root, toolPolicy.evidencePath);
+      const resultSource = await readOptionalEvidenceFile(observation, root, toolPolicy.resultPath);
       if (evidenceSource === undefined || resultSource === undefined) {
         return Object.freeze({
           kind: "missing" as const,

@@ -1,3 +1,4 @@
+import { readContainedRegularFile } from "../../../source-inventory/node.js";
 import { createQualityGateCommand, type QualityGateCommand } from "../api.js";
 import { FilesystemPackageScriptCatalogReader } from "../adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { PnpmQualityGateScriptExecutor } from "../adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -14,7 +15,7 @@ export function createNodeQualityGateCommand(
 ): QualityGateCommand {
   const snapshot = Object.freeze({ ...environment });
   return async (input) => createQualityGateCommand({
-    catalogReader: new FilesystemPackageScriptCatalogReader(),
+    catalogReader: new FilesystemPackageScriptCatalogReader(readContainedRegularFile),
     clock: performanceMonotonicClock,
     executor: new PnpmQualityGateScriptExecutor({
       childEnvironment: Object.freeze({

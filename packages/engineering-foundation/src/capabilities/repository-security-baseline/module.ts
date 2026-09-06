@@ -1,3 +1,5 @@
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../source-inventory/node.js";
+import { parseStrictYamlSource } from "../../features/configuration-input/yaml.js";
 import {
   capabilityFailureReport,
   capabilityReport,
@@ -17,7 +19,10 @@ import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
 export { REPOSITORY_SECURITY_RULES_BY_ID };
 
 export function createRepositorySecurityBaselineCapability(input: { readonly assertSchema: RepositorySecurityConfigurationDependencies["assertSchema"] }): CapabilityDefinition {
-  const reader = new FilesystemRepositorySecurityReader();
+  const reader = new FilesystemRepositorySecurityReader({
+    read: readContainedRegularFile, traversesSymbolicLink: pathTraversesSymbolicLink,
+    parseYaml: parseStrictYamlSource
+  });
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,

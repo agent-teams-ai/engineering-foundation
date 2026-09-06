@@ -7,7 +7,7 @@ import {
   type QualityGateCliProjection,
   type QualityGateOperatorCancellation
 } from "./quality-gate-cli.js";
-import type { FoundationConfigReader } from "../../../../../features/foundation-check/api.js";
+import type { QualityGateSettingsReader } from "../../../application/ports/quality-gate-settings-reader.js";
 
 export interface QualityGateCliCommandDependencies {
   readonly failureJson: (error: unknown) => string;
@@ -15,7 +15,7 @@ export interface QualityGateCliCommandDependencies {
   readonly commandFactory: (
     environment: NodeJS.ProcessEnv
   ) => QualityGateCommand;
-  readonly foundationConfigLoader: FoundationConfigReader;
+  readonly foundationConfigLoader: QualityGateSettingsReader;
 }
 
 export interface QualityGateCliArguments {

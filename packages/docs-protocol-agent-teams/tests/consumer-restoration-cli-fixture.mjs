@@ -68,16 +68,26 @@ GitHubCohortAuthorityReader.prototype.read=async()=>projection(input.target);
 GitHubCohortAuthorityReader.prototype.readRestoration=async()=>({source:projection(input.target),target:projection(input.origin)});
 const {NodeConsumerUpgradeSandbox}=await import(${JSON.stringify(uri("dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js"))});
 const activate=NodeConsumerUpgradeSandbox.prototype.activateAndVerifyV2;
+let previousFileSizeLimit;
 NodeConsumerUpgradeSandbox.prototype.activateAndVerifyV2=async function(args){
  if(input.fault==='after-cas') {process.stderr.write('TEST boundary: after public CAS, before activation\\n');process.kill(process.pid,'SIGKILL');}
  await activate.call(this,args);
  process.stderr.write('TEST observation: real target activation passed\\n');
  if(input.fault==='after-activation') process.kill(process.pid,'SIGKILL');
- if(input.fault==='efbig') {process.on('SIGXFSZ',()=>{});const size=(await readFile(input.preparationPath)).length;execFileSync('prlimit',['--pid',String(process.pid),'--fsize='+size+':']);}
+ if(input.fault==='efbig') {
+  process.on('SIGXFSZ',()=>{});
+  previousFileSizeLimit=execFileSync('prlimit',['--pid',String(process.pid),'--fsize','--output','SOFT','--noheadings'],{encoding:'utf8'}).trim();
+  const size=(await readFile(input.preparationPath)).length;
+  execFileSync('prlimit',['--pid',String(process.pid),'--fsize='+size+':']);
+ }
  if(input.fault==='eacces') await chmod(dirname(input.proofPath),0o500);
 };
 const {managedConsumerCommand:runManagedConsumerCommand}=await import(${JSON.stringify(uri("dist/consumer-integration/composition/managed-command.js"))});
-process.exitCode=await runManagedConsumerCommand(input.argv);
+try {process.exitCode=await runManagedConsumerCommand(input.argv);}
+finally {
+ // The real write fault ends with the command; V8 coverage must flush without truncation.
+ if(previousFileSizeLimit!==undefined) execFileSync('prlimit',['--pid',String(process.pid),'--fsize='+previousFileSizeLimit+':']);
+}
 `;
   const payload = { argv, catalog: fixture.fixtureCatalog, target: options.target ?? fixture.target, origin: options.origin ?? fixture.origin,
     fault: options.fault, proofPath: options.proofPath ?? fixture.proofPath, preparationPath: options.preparationPath ?? `${fixture.proofPath}.prepared` };

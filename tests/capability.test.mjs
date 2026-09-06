@@ -196,6 +196,27 @@ test("restricts released contract and API baseline mutation to the Changesets re
   );
 });
 
+test("existing release-owned prefix covers artifact sidecars without admitting their content", () => {
+  const path = "architecture/public-api/library.artifacts.json";
+  const repo = "agent-teams-ai/engineering-foundation";
+  for (const status of ["M", "D", "T"]) {
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), [path]);
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "changeset-release/main", repo, repo), []);
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "changeset-release/main", "fork/repo", repo), [path]);
+  }
+  for (const change of [
+    { status: "R", previousPath: path, path: "tmp/sidecar.json" },
+    { status: "R", previousPath: "tmp/sidecar.json", path },
+  ]) {
+    assert.deepEqual(releaseOwnedFileViolations([change], "feat/inventory", repo, repo), [path]);
+  }
+  // Initial creation is permitted by this path guard, not accepted promotion.
+  // The capability's evidence/fixation checks remain responsible for content.
+  for (const status of ["A", "C"]) {
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), []);
+  }
+});
+
 function runGit(cwd, args) {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);

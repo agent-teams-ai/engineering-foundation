@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   npmPurlName,
@@ -15,7 +16,8 @@ import {
   reconcileGithubTagRelease,
 } from "./github-release-reconciliation.mjs";
 import { publishablePackageByName } from "./publishable-packages.mjs";
-import { stageBuiltMarkdownPublication } from "./markdown-publication.mjs";
+import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
+import { readVerifiedArchive } from "./pack-artifact-archive.mjs";
 
 const EXPECTED_NPM_VERSION = "11.16.0";
 export { GITHUB_RECONCILIATION_ATTEMPTS, GITHUB_RECONCILIATION_RETRY_MILLISECONDS };
@@ -205,10 +207,6 @@ async function verifyNpmSignature(artifact, source) {
   }
 }
 
-async function packedManifest(archivePath) {
-  return JSON.parse(executeCommand("tar", ["-xOf", archivePath, "package/package.json"]));
-}
-
 function packedManifestFromBytes(archive) {
   return JSON.parse(executeCommand(
     "tar",
@@ -232,30 +230,30 @@ function releaseNotes(changelog, version) {
   return content;
 }
 
+export async function readQualifiedReleaseArtifact(artifact, packageInfo) {
+  if (artifact === undefined || artifact.packageName !== packageInfo.name ||
+      artifact.packageVersion !== packageInfo.version) {
+    throw new Error(`Qualified archive identity differs from release state for ${packageInfo.name}.`);
+  }
+  const { archivePath, sha256 } = artifact;
+  const bytes = await readVerifiedArchive(archivePath, sha256);
+  const manifest = packedManifestFromBytes(bytes);
+  if (manifest.name !== packageInfo.name || manifest.version !== packageInfo.version) {
+    throw new Error(`Qualified manifest identity differs from release state for ${packageInfo.name}.`);
+  }
+  return { archivePath, sha256, integrity: tarballIntegrity(bytes), manifest };
+}
+
 async function packArtifacts(cwd, state, destination) {
+  if (resolve(cwd) !== resolve(fileURLToPath(new URL("..", import.meta.url)))) {
+    throw new Error("Release packing must use the authoritative script checkout.");
+  }
+  const qualified = await packPublishableArtifacts({ temporaryRoot: destination });
   const artifacts = [];
   for (const packageInfo of state.packages.public) {
     const catalog = publishablePackageByName(packageInfo.name);
-    const packageRoot = await stageBuiltMarkdownPublication({
-      repositoryRoot: cwd, packageRoot: join(cwd, catalog.root), temporaryRoot: destination,
-    });
-    const report = JSON.parse(executeCommand(
-      "pnpm",
-      ["pack", "--json", "--pack-destination", destination],
-      { cwd: packageRoot },
-    ));
-    const item = Array.isArray(report) ? report[0] : report;
-    if (item?.name !== packageInfo.name || item.version !== packageInfo.version || typeof item.filename !== "string") {
-      throw new Error(`pnpm pack returned unexpected evidence for ${packageInfo.name}.`);
-    }
-    const archivePath = item.filename;
-    if (!archivePath.startsWith(`${destination}/`)) {
-      throw new Error(`pnpm pack wrote ${packageInfo.name} outside its release staging directory.`);
-    }
     artifacts.push({
-      archivePath,
-      integrity: tarballIntegrity(await readFile(archivePath)),
-      manifest: await packedManifest(archivePath),
+      ...await readQualifiedReleaseArtifact(qualified[packageInfo.name], packageInfo),
       name: packageInfo.name,
       releaseNotes: releaseNotes(await readFile(join(cwd, catalog.changelogPath), "utf8"), packageInfo.version),
       registry: packageInfo.registry,
@@ -382,6 +380,8 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
       finalTag: decision.tag ?? "latest",
       inspect: inspectVersion,
       publish: async (artifact, tag) => {
+        await readVerifiedArchive(artifact.archivePath, artifact.sha256);
+        assertLiveMainHead(repository, source.commit);
         executeCommand("npm", npmPublishArguments(artifact, tag), { cwd });
       },
       reconcileRelease: reconcileGithubRelease,

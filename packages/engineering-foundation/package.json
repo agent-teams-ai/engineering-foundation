@@ -20,6 +20,10 @@
       "types": "./dist/local-mode/index.d.ts",
       "import": "./dist/local-mode/index.js"
     },
+    "./scaffolding/qualification": {
+      "types": "./dist/scaffolding/qualification.d.ts",
+      "import": "./dist/scaffolding/qualification.js"
+    },
     "./scaffolding": {
       "types": "./dist/scaffolding/index.d.ts",
       "import": "./dist/scaffolding/index.js"

@@ -961,7 +961,8 @@
         "packages/engineering-foundation/src/index.ts",
         "packages/engineering-foundation/src/public-api-surface.ts",
         "packages/engineering-foundation/src/local-mode/index.ts",
-        "packages/engineering-foundation/src/scaffolding/index.ts"
+        "packages/engineering-foundation/src/scaffolding/index.ts",
+        "packages/engineering-foundation/src/scaffolding/qualification.ts"
       ],
       "moduleAssembly": [
         "packages/engineering-foundation/src/index.ts",
@@ -972,7 +973,8 @@
         "packages/engineering-foundation/src/composition",
         "packages/engineering-foundation/src/schema-catalog.ts",
         "packages/engineering-foundation/src/schema-ids.ts",
-        "packages/engineering-foundation/src/foundation-state-contract.ts"
+        "packages/engineering-foundation/src/foundation-state-contract.ts",
+        "packages/engineering-foundation/src/scaffolding/qualification.ts"
       ],
       "generatedRoots": [],
       "exceptions": [
@@ -1268,12 +1270,19 @@
               "roots": [
                 "packages/engineering-foundation/src/scaffolding/composition"
               ]
+            },
+            {
+              "role": "testing",
+              "roots": [
+                "packages/engineering-foundation/src/scaffolding/testing"
+              ]
             }
           ],
           "testRoots": [
             "tests/scaffolding-canonical-contract.test.mjs",
             "tests/scaffolding-authority.test.mjs",
-            "tests/scaffolding-owner-composition.test.mjs"
+            "tests/scaffolding-owner-composition.test.mjs",
+            "tests/scaffolding-qualification.test.mjs"
           ]
         },
         {

@@ -157,6 +157,7 @@
         "tests/registry-package-boundary.test.mjs",
         "tests/registry-publication-policy.test.mjs",
         "tests/scaffolding-authority.test.mjs",
+        "tests/scaffolding-qualification.test.mjs",
         "tests/scaffolding-canonical-contract.test.mjs",
         "tests/scaffolding-frozen-baseline.test.mjs",
         "tests/scaffolding-journal-gateway.test.mjs",

@@ -3633,3 +3633,41 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs
+  - id: foundation.scaffolding.testing
+    roots:
+      - packages/engineering-foundation/src/scaffolding/testing
+    allow:
+      boundaries:
+        - foundation.scaffolding.core
+        - foundation.scaffolding.canonical-adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/testing/api.ts
+  - id: foundation.scaffolding.qualification-composition
+    roots:
+      - packages/engineering-foundation/src/composition/scaffolding-qualification.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.testing
+        - foundation.transactions.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/composition/scaffolding-qualification.ts
+  - id: foundation.scaffolding.qualification-public
+    roots:
+      - packages/engineering-foundation/src/scaffolding/qualification.ts
+    allow:
+      boundaries:
+        - foundation.scaffolding.core
+        - foundation.scaffolding.testing
+        - foundation.scaffolding.qualification-composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/qualification.ts
+    packageExports: ["./scaffolding/qualification"]

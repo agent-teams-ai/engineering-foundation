@@ -41,6 +41,8 @@ packages:
         declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
       - exportPath: "./scaffolding"
         declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/index.d.ts
+      - exportPath: "./scaffolding/qualification"
+        declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/qualification.d.ts
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data

@@ -256,6 +256,11 @@
       "id": "ADR-0053",
       "path": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
       "immutableDigest": "sha256:a07b7a58a2f28b9b4cfbae5efbe412c4168e4eedd909cf053640be91ed586952"
+    },
+    {
+      "id": "ADR-0054",
+      "path": "docs/decisions/0054-hardening-public-api-dispositions.md",
+      "immutableDigest": "sha256:f4bd83c225efffe0e0f849ae09f6999429a421d7d234a6e6db631f6820bc9b22"
     }
   ]
 }

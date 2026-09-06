@@ -1,13 +1,13 @@
 ---
 id: ADR-0054
-status: proposed
+status: accepted
 supersedes: []
 superseded_by: []
 ---
 
 # ADR-0054: Hardening Public API Dispositions
 
-Status: Proposed; implementation evidence prepared for independent review
+Status: Accepted after independent semantic review
 
 Date: 2026-09-06
 

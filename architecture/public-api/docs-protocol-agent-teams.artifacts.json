@@ -1,0 +1,502 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/docs-protocol-agent-teams",
+  "packageVersion": "0.1.1",
+  "status": "supported",
+  "wildcardExports": [
+    {
+      "exportPath": "./schemas/*",
+      "targetPattern": "schemas/*",
+      "members": [
+        "schemas/docs-consumer-integration-execution/v1.schema.json",
+        "schemas/docs-consumer-integration-plan/v1.schema.json",
+        "schemas/docs-consumer-integration-profile/v1.schema.json",
+        "schemas/docs-consumer-integration-profile/v2.schema.json",
+        "schemas/docs-consumer-integration-profile/v3.schema.json",
+        "schemas/docs-consumer-managed-state/v1.schema.json",
+        "schemas/docs-consumer-managed-state/v2.schema.json",
+        "schemas/docs-consumer-restoration-execution/v1.schema.json",
+        "schemas/docs-consumer-upgrade-execution/v1.schema.json",
+        "schemas/docs-protocol-command-envelope/v1.schema.json",
+        "schemas/docs-protocol-command-envelope/v2.schema.json",
+        "schemas/docs-protocol-command-envelope/v3.schema.json",
+        "schemas/docs-protocol-profile/v1.schema.json",
+        "schemas/docs-protocol-profile/v2.schema.json",
+        "schemas/docs-protocol-qualification-receipt/v2.schema.json",
+        "schemas/docs-protocol-qualification-receipt/v3.schema.json",
+        "schemas/docs-protocol-qualification/v2.schema.json",
+        "schemas/qualified-docs-cohort/v1.schema.json",
+        "schemas/qualified-docs-cohort/v2.schema.json"
+      ]
+    }
+  ],
+  "jsonSchemas": [
+    {
+      "path": "schemas/docs-consumer-integration-execution/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-integration-execution/v1",
+      "digest": "sha256:445a9c3be1863a0b2ac36e0f6860adf177019a217c876532b9131195ef710944",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "consumer.apply",
+            "consumer.check",
+            "consumer.plan",
+            "consumer.recover"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "applied",
+            "blocked",
+            "change-required",
+            "current",
+            "recovered"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-integration-plan/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-integration-plan/v1",
+      "digest": "sha256:3e8b79b0e3830cfb9a0043e22ee44d2f1bad927c64d3fdad9c50cdddee56120b",
+      "discriminators": {
+        "outcome": {
+          "enum": [
+            "blocked",
+            "change-required",
+            "current"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-integration-profile/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v1",
+      "digest": "sha256:4575850d75a657c8fdfa5022484c0dda73d3a9ba873f43cba8d78ae5c73b4195",
+      "discriminators": {
+        "callerWorkflowPath": {
+          "const": ".github/workflows/docs-protocol.yml"
+        },
+        "integrationRoot": {
+          "const": "."
+        },
+        "managedStatePath": {
+          "const": "architecture/foundation/docs-protocol-managed-state.json"
+        },
+        "packageManager": {
+          "const": "pnpm"
+        },
+        "profilePath": {
+          "const": "architecture/foundation/docs-protocol.yaml"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "skillPath": {
+          "const": ".agents/skills/docs-authoring/SKILL.md"
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-integration-profile/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v2",
+      "digest": "sha256:cc130ed565aa10b43fb222a40c986a2fd39d226be86cb7669cbb605a42ac0ddf",
+      "discriminators": {
+        "callerWorkflowPath": {
+          "const": ".github/workflows/docs-protocol.yml"
+        },
+        "integrationRoot": {
+          "const": "."
+        },
+        "managedStatePath": {
+          "const": "architecture/foundation/docs-protocol-managed-state.json"
+        },
+        "packageManager": {
+          "const": "pnpm"
+        },
+        "profilePath": {
+          "const": "architecture/foundation/docs-protocol.yaml"
+        },
+        "schemaVersion": {
+          "const": 2
+        },
+        "skillPath": {
+          "const": ".agents/skills/docs-authoring/SKILL.md"
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-integration-profile/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v3",
+      "digest": "sha256:c70a0c05aeb576c4301a2bea5514ec2f0dc81fd5d77a84d0e8721578fcec19fe",
+      "discriminators": {
+        "callerWorkflowPath": {
+          "const": ".github/workflows/docs-protocol.yml"
+        },
+        "integrationRoot": {
+          "const": "."
+        },
+        "managedStatePath": {
+          "const": "architecture/foundation/docs-protocol-managed-state.json"
+        },
+        "packageManager": {
+          "const": "pnpm"
+        },
+        "profilePath": {
+          "const": "architecture/foundation/docs-protocol.yaml"
+        },
+        "schemaVersion": {
+          "const": 3
+        },
+        "skillPath": {
+          "const": ".agents/skills/docs-authoring/SKILL.md"
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-managed-state/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v1",
+      "digest": "sha256:03c466f64b8ac8fc43a33c388f51d92b9822d6ece3a7c74e5379677cf7ced2a8",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-managed-state/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v2",
+      "digest": "sha256:b1537e65d602d090e998244fc0d20cbad472b1b8a18528f6afdb214e744b5d4b",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-restoration-execution/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-restoration-execution/v1",
+      "digest": "sha256:9a39f1eef13d037543a481be56f5be955ac51dc60567ca5b31a424034ec6e3a0",
+      "discriminators": {
+        "command": {
+          "const": "consumer.restore"
+        },
+        "outcome": {
+          "enum": [
+            "blocked",
+            "restored",
+            "activated-v1"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-upgrade-execution/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-upgrade-execution/v1",
+      "digest": "sha256:534b076238cf027cd3088355006530e41979dec43dc7f8cca9d04363e7fd5112",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "consumer.upgrade",
+            "consumer.finalize"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "blocked",
+            "current",
+            "upgraded",
+            "prepared"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-command-envelope/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-command-envelope/v1",
+      "digest": "sha256:e6fede54769ba38b59aff285ac71e114c16b111943e67ecaa5128a2f3f255370",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "docs.info",
+            "docs.find",
+            "docs.new",
+            "docs.doctor",
+            "docs.recover",
+            "docs.check"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "conflict",
+            "violation",
+            "authority-stale",
+            "recovery-required",
+            "invalid-input",
+            "execution-failure",
+            "cancelled"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-command-envelope/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-command-envelope/v2",
+      "digest": "sha256:98580d51e04a2c1808474b39876cc642e68218c346e9642a72440be66ac17c74",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "docs.info",
+            "docs.find",
+            "docs.new",
+            "docs.doctor",
+            "docs.recover",
+            "docs.check",
+            "docs.qualify"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "conflict",
+            "violation",
+            "authority-stale",
+            "recovery-required",
+            "invalid-input",
+            "execution-failure",
+            "cancelled"
+          ]
+        },
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-command-envelope/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-command-envelope/v3",
+      "digest": "sha256:703e815960add3a98849edc14750d0ccca48ae722a95c2407ab5daa81ac9b9b6",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "docs.info",
+            "docs.find",
+            "docs.context",
+            "docs.init",
+            "docs.new",
+            "docs.doctor",
+            "docs.recover",
+            "docs.check",
+            "docs.qualify"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "conflict",
+            "violation",
+            "authority-stale",
+            "recovery-required",
+            "invalid-input",
+            "execution-failure",
+            "cancelled"
+          ]
+        },
+        "schemaVersion": {
+          "const": 3
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-profile/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-profile/v1",
+      "digest": "sha256:499eb16ae1f31700860a7f9dd59ab11539c2884c41e5f6e1e3b184a25827bcd6",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-profile/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-profile/v2",
+      "digest": "sha256:8cb8137fa4d2ecf343fb1429813707be2e041a19c1406cc623b3821c48bf1a44",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-qualification-receipt/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-qualification-receipt/v2",
+      "digest": "sha256:87a16fd0dd1ec570cb21fe372fdada4060b641559adf8f513e37c4e195498578",
+      "discriminators": {
+        "evidenceClass": {
+          "enum": [
+            "local-development",
+            "released-cohort"
+          ]
+        },
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-qualification-receipt/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-qualification-receipt/v3",
+      "digest": "sha256:cc8e8fb12c461bbce4922dec9996a42a79bbab010395c4f60821a6d588e738fe",
+      "discriminators": {
+        "cohortAdmissible": {
+          "const": true
+        },
+        "profileSchemaVersion": {
+          "const": 3
+        },
+        "schemaVersion": {
+          "const": 3
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-qualification/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-qualification/v2",
+      "digest": "sha256:e9275b7f53dc34c217fa7d7eada54fa23ebe4e60966fb83d0a875682d47b5f86",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/qualified-docs-cohort/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/qualified-docs-cohort/v1",
+      "digest": "sha256:b5bdb0582a9a1b6a9988e1fa79b6412d0ef586c96cc8c44f03d9bd3e3c400d68",
+      "discriminators": {
+        "channel": {
+          "enum": [
+            "rc",
+            "stable"
+          ]
+        },
+        "lifecycleState": {
+          "enum": [
+            "QUALIFIED",
+            "CANARY",
+            "RECOMMENDED"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/qualified-docs-cohort/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2",
+      "digest": "sha256:fe5db76521578be6cfbf7a5f763346118bf97c21a823696c9c52b924523ff9ce",
+      "discriminators": {}
+    }
+  ],
+  "archive": {
+    "sha256": "sha256:6723ca9115bf06bd8da5eff7f7227c3497cb369bdcf0751943732f0484d1c4eb",
+    "manifestDigest": "sha256:21c7812f8487b5466981125e887091607ebbf37068bf9dcc17d78a0413791383",
+    "integrity": "sha512-RrhG4TG2cw210iNkemztv/iH1tbeuC5kXRA6DzC4if2TI2W5Zzuh5uWGDXVItYWOIlBjh7gKwJb35pB2sILb+A==",
+    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
+    "memberDigests": [
+      {
+        "path": "schemas/docs-consumer-integration-execution/v1.schema.json",
+        "digest": "sha256:445a9c3be1863a0b2ac36e0f6860adf177019a217c876532b9131195ef710944"
+      },
+      {
+        "path": "schemas/docs-consumer-integration-plan/v1.schema.json",
+        "digest": "sha256:3e8b79b0e3830cfb9a0043e22ee44d2f1bad927c64d3fdad9c50cdddee56120b"
+      },
+      {
+        "path": "schemas/docs-consumer-integration-profile/v1.schema.json",
+        "digest": "sha256:4575850d75a657c8fdfa5022484c0dda73d3a9ba873f43cba8d78ae5c73b4195"
+      },
+      {
+        "path": "schemas/docs-consumer-integration-profile/v2.schema.json",
+        "digest": "sha256:cc130ed565aa10b43fb222a40c986a2fd39d226be86cb7669cbb605a42ac0ddf"
+      },
+      {
+        "path": "schemas/docs-consumer-integration-profile/v3.schema.json",
+        "digest": "sha256:c70a0c05aeb576c4301a2bea5514ec2f0dc81fd5d77a84d0e8721578fcec19fe"
+      },
+      {
+        "path": "schemas/docs-consumer-managed-state/v1.schema.json",
+        "digest": "sha256:03c466f64b8ac8fc43a33c388f51d92b9822d6ece3a7c74e5379677cf7ced2a8"
+      },
+      {
+        "path": "schemas/docs-consumer-managed-state/v2.schema.json",
+        "digest": "sha256:b1537e65d602d090e998244fc0d20cbad472b1b8a18528f6afdb214e744b5d4b"
+      },
+      {
+        "path": "schemas/docs-consumer-restoration-execution/v1.schema.json",
+        "digest": "sha256:9a39f1eef13d037543a481be56f5be955ac51dc60567ca5b31a424034ec6e3a0"
+      },
+      {
+        "path": "schemas/docs-consumer-upgrade-execution/v1.schema.json",
+        "digest": "sha256:534b076238cf027cd3088355006530e41979dec43dc7f8cca9d04363e7fd5112"
+      },
+      {
+        "path": "schemas/docs-protocol-command-envelope/v1.schema.json",
+        "digest": "sha256:e6fede54769ba38b59aff285ac71e114c16b111943e67ecaa5128a2f3f255370"
+      },
+      {
+        "path": "schemas/docs-protocol-command-envelope/v2.schema.json",
+        "digest": "sha256:98580d51e04a2c1808474b39876cc642e68218c346e9642a72440be66ac17c74"
+      },
+      {
+        "path": "schemas/docs-protocol-command-envelope/v3.schema.json",
+        "digest": "sha256:703e815960add3a98849edc14750d0ccca48ae722a95c2407ab5daa81ac9b9b6"
+      },
+      {
+        "path": "schemas/docs-protocol-profile/v1.schema.json",
+        "digest": "sha256:499eb16ae1f31700860a7f9dd59ab11539c2884c41e5f6e1e3b184a25827bcd6"
+      },
+      {
+        "path": "schemas/docs-protocol-profile/v2.schema.json",
+        "digest": "sha256:8cb8137fa4d2ecf343fb1429813707be2e041a19c1406cc623b3821c48bf1a44"
+      },
+      {
+        "path": "schemas/docs-protocol-qualification-receipt/v2.schema.json",
+        "digest": "sha256:87a16fd0dd1ec570cb21fe372fdada4060b641559adf8f513e37c4e195498578"
+      },
+      {
+        "path": "schemas/docs-protocol-qualification-receipt/v3.schema.json",
+        "digest": "sha256:cc8e8fb12c461bbce4922dec9996a42a79bbab010395c4f60821a6d588e738fe"
+      },
+      {
+        "path": "schemas/docs-protocol-qualification/v2.schema.json",
+        "digest": "sha256:e9275b7f53dc34c217fa7d7eada54fa23ebe4e60966fb83d0a875682d47b5f86"
+      },
+      {
+        "path": "schemas/qualified-docs-cohort/v1.schema.json",
+        "digest": "sha256:b5bdb0582a9a1b6a9988e1fa79b6412d0ef586c96cc8c44f03d9bd3e3c400d68"
+      },
+      {
+        "path": "schemas/qualified-docs-cohort/v2.schema.json",
+        "digest": "sha256:fe5db76521578be6cfbf7a5f763346118bf97c21a823696c9c52b924523ff9ce"
+      }
+    ]
+  }
+}

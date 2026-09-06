@@ -26,10 +26,13 @@ export { classifyUnexpectedFailure, isProcessCancellationFailure } from "./appli
 export type { UnexpectedFailureProblem } from "./application/unexpected-failure.js";
 export { createUniqueRegistry } from "./application/unique-registry.js";
 export {
+  createCapabilityModule,
+  createCapabilityModules,
   createCapabilityRegistry,
   createRuleRegistries,
   createRuleRegistry
 } from "./application/capability-registries.js";
+export type { CapabilityModuleDescriptor } from "./application/capability-registries.js";
 export { FoundationError } from "./foundation-error.js";
 export type { FoundationErrorCode } from "./foundation-error.js";
 export { assertNotCancelled } from "./application/cancellation.js";

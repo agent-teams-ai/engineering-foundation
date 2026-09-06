@@ -2,6 +2,24 @@ import type { RuleExplanation } from "./model.js";
 import type { CapabilityDefinition } from "./reporting.js";
 import { createUniqueRegistry } from "./unique-registry.js";
 
+export interface CapabilityModuleDescriptor {
+  readonly definition: CapabilityDefinition;
+  readonly rules: ReadonlyMap<string, RuleExplanation>;
+}
+
+export function createCapabilityModule(
+  definition: CapabilityDefinition,
+  rules: ReadonlyMap<string, RuleExplanation>
+): CapabilityModuleDescriptor {
+  return Object.freeze({ definition, rules });
+}
+
+export function createCapabilityModules(
+  modules: readonly CapabilityModuleDescriptor[]
+): readonly CapabilityModuleDescriptor[] {
+  return Object.freeze(modules);
+}
+
 interface CapabilityContribution {
   readonly definition: CapabilityDefinition;
 }

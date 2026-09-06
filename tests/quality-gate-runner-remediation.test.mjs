@@ -336,7 +336,7 @@ test("QGR setup cancellation delegates its JSON envelope to the canonical Founda
   assert.doesNotMatch(projectionSource, /schemaVersion|EXECUTION_CANCELLED/u);
   assert.match(commandSource, /failureJson\(error\)/u);
   const compositionSource = await readFile(new URL(
-    "../packages/engineering-foundation/src/composition/command-host.ts", import.meta.url,
+    "../packages/engineering-foundation/src/features/command-host/composition/node-command-host.ts", import.meta.url,
   ), "utf8");
   assert.match(compositionSource, /failureJson: foundationCommandFailureJson/u);
 });

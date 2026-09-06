@@ -8,12 +8,12 @@ import { readFoundationSchema } from "../dist/schema-catalog.js";
 import { loadStrictYamlFile } from "../dist/features/configuration-input/node.js";
 
 import { createWorkspaceDependencyDeclarationsCapability } from "../dist/capabilities/workspace-dependency-declarations/module.js";
-import { PnpmWorkspaceInventoryReader } from "../dist/workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
+import { createWorkspaceInventoryReader } from "../dist/workspace-inventory/module.js";
 import { check, withFixture } from "./support/dependency-fixtures.mjs";
 import { normalizeDependencyDeclaration, parseNpmAlias } from "../dist/workspace-inventory/application/policies/normalize-dependency-declaration.js";
 
 const configPath = "architecture/foundation/dependency-declarations.yaml";
-const run = (consumerRoot) => createWorkspaceDependencyDeclarationsCapability(new PnpmWorkspaceInventoryReader(), readFoundationSchema).run({ consumerRoot, configPath });
+const run = (consumerRoot) => createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), readFoundationSchema).run({ consumerRoot, configPath });
 const rule = (suffix) => `workspace.dependency-declarations.${suffix}`;
 const has = (report, suffix, slot, section = "dependencies") => report.diagnostics.some(
   (entry) => entry.ruleId === rule(suffix) && entry.subject === `@fixture/app:${section}:${slot}`,
@@ -95,7 +95,7 @@ for (const [slot, suffix] of [["typescript", "development-only-package-in-runtim
 test("catalog lookup retains slot, target, raw specifier and effective version", async () => {
   await withFixture(async (root) => {
     await configure(root, { target: "@vendor/library", version: "1.2.3-rc.1+build.2", route: "catalog:legacy" });
-    const inventory = await new PnpmWorkspaceInventoryReader().read(root, "pnpm-workspace.yaml");
+    const inventory = await createWorkspaceInventoryReader().read(root, "pnpm-workspace.yaml");
     const declaration = inventory.packages.find(({ name }) => name === "@fixture/app").dependencies[0];
     assert.deepEqual({ slot: declaration.dependencyName, raw: declaration.specifier, target: declaration.targetPackageName, effective: declaration.effectiveSpecifier, version: declaration.effectiveVersionSpecifier, provenance: declaration.provenance }, {
       slot: "alias", raw: "catalog:legacy", target: "@vendor/library", effective: "npm:@vendor/library@1.2.3-rc.1+build.2", version: "1.2.3-rc.1+build.2", provenance: { kind: "catalog", catalogName: "legacy" },

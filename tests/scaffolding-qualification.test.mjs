@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,43 +31,92 @@ async function assertNoOutputs(root, planned) {
   for (const op of planned.operations) {await assert.rejects(readFile(join(root, op.path)), { code: "ENOENT" });}
 }
 
+// Run in an otherwise idle child: beforeExit witnesses drained filesystem work,
+// unlike one event-loop turn. The parent timeout is only a failure/cleanup bound.
+async function verifyHeldGate(root, planned, pausedPhase) {
+  const release = Promise.withResolvers();
+  const observation = Promise.withResolvers();
+  const points = [];
+  let held = false;
+  let released = false;
+  process.once("beforeExit", () => { observation.resolve("quiescent"); });
+  const applied = runScaffoldCrashQualification(root, planned, async point => {
+    assert.equal(Object.isFrozen(point), true);
+    assert.deepEqual(Reflect.ownKeys(point), ["phase"]);
+    assert.ok(phases.includes(point.phase));
+    assert.equal(points.includes(point), false);
+    points.push(point);
+    assert.throws(() => { point.phase = "future-phase"; }, TypeError);
+    if (held && !released) { observation.resolve(`continued to ${point.phase}`); }
+    if (!held && point.phase === pausedPhase) {
+      held = true;
+      await release.promise;
+    }
+  });
+  applied.then(() => { observation.resolve("apply resolved"); return null; }, error => { observation.resolve(`apply rejected: ${error}`); return null; });
+  try {
+    assert.equal(await observation.promise, "quiescent", `escaped held ${pausedPhase} gate`);
+    assert.equal(held, true, `never reached ${pausedPhase}`);
+    await assertNoOutputs(root, planned);
+  } finally {
+    released = true;
+    release.resolve();
+    await applied;
+  }
+  const receipt = await applied;
+  assert.equal(receipt.outcome, "applied");
+  await validateScaffoldReceipt(receipt, planned);
+  assert.deepEqual(new Set(points.map(point => point.phase)), new Set(phases));
+  for (const op of planned.operations) {assert.deepEqual(await readFile(join(root, op.path)), Buffer.from(op.after.contentBase64, "base64"));}
+  console.log(JSON.stringify({ heldPhase: pausedPhase, observation: "quiescent", outcome: receipt.outcome }));
+}
+
 test("real journal and publication callbacks pause apply; events are fresh frozen phase-only values", async t => {
   for (const pausedPhase of ["after-journal-temporary-synced", "after-temporary-synced"]) {
-    const root = await consumer(t);
-    const planned = await plan(root);
-    const reached = Promise.withResolvers();
-    const release = Promise.withResolvers();
-    const points = [];
-    let paused = false;
-    let settled = false;
-    const applied = runScaffoldCrashQualification(root, planned, async point => {
-      assert.equal(Object.isFrozen(point), true);
-      assert.deepEqual(Reflect.ownKeys(point), ["phase"]);
-      assert.ok(phases.includes(point.phase));
-      assert.equal(points.includes(point), false);
-      points.push(point);
-      assert.throws(() => { point.phase = "future-phase"; }, TypeError);
-      if (!paused && point.phase === pausedPhase) {
-        paused = true;
-        reached.resolve();
-        await release.promise;
-      }
+    await t.test(pausedPhase, async subtest => {
+      const root = await consumer(subtest);
+      const planned = await plan(root);
+      const worker = `
+        import assert from "node:assert/strict";
+        import { readFile } from "node:fs/promises";
+        import { join } from "node:path";
+        import { validateScaffoldReceipt } from ${JSON.stringify(new URL("../packages/engineering-foundation/dist/scaffolding/index.js", import.meta.url).href)};
+        import { runScaffoldCrashQualification } from ${JSON.stringify(new URL("../packages/engineering-foundation/dist/scaffolding/qualification.js", import.meta.url).href)};
+        const phases = ${JSON.stringify(phases)};
+        ${assertNoOutputs.toString()}
+        await (${verifyHeldGate.toString()})(${JSON.stringify(root)}, ${JSON.stringify(planned)}, ${JSON.stringify(pausedPhase)});
+      `;
+      const result = spawnSync(process.execPath, ["--input-type=module", "--eval", worker], { encoding: "utf8", timeout: 20_000 });
+      assert.ifError(result.error);
+      assert.equal(result.signal, null, result.stderr);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout), { heldPhase: pausedPhase, observation: "quiescent", outcome: "applied" });
+      subtest.diagnostic(result.stdout.trim());
     });
-    applied.then(() => { settled = true; return null; }, () => { settled = true; return null; });
-    await reached.promise;
-    try {
-      const count = points.length;
-      await new Promise(resolve => { setImmediate(resolve); });
-      await assertNoOutputs(root, planned);
-      assert.equal(settled, false);
-      assert.equal(points.length, count);
-    } finally { release.resolve(); }
-    const receipt = await applied;
-    assert.equal(receipt.outcome, "applied");
-    await validateScaffoldReceipt(receipt, planned);
-    assert.deepEqual(new Set(points.map(point => point.phase)), new Set(phases));
-    for (const op of planned.operations) {assert.deepEqual(await readFile(join(root, op.path)), Buffer.from(op.after.contentBase64, "base64"));}
   }
+});
+
+test("factory injection stays pending until its deferred callback resolves", { timeout: 20_000 }, async () => {
+  const release = Promise.withResolvers();
+  const receipt = {};
+  let callbackRan = false;
+  const harness = createScaffoldCrashQualification(async (_root, _plan, inject) => {
+    const injected = inject({ phase: "after-journal-temporary-synced" });
+    // The already-fulfilled marker loses to an already-settled injection, but
+    // wins while the callback's controlled promise still holds it pending.
+    const pending = Symbol("pending");
+    const outcome = await Promise.race([injected, Promise.resolve(pending)]);
+    try {
+      assert.equal(callbackRan, true);
+      assert.equal(outcome, pending, "injection settled before callback release");
+    } finally { release.resolve(); }
+    await injected;
+    return receipt;
+  });
+  assert.equal(await harness.runScaffoldCrashQualification("unused", {}, () => {
+    callbackRan = true;
+    return release.promise;
+  }), receipt);
 });
 
 test("callback guard precedes apply; real schema and authority validation remain authoritative", async t => {

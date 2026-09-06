@@ -214,6 +214,21 @@ manifest declaration and the boundary package allowlist even when the target
 package also contains development-only source. Version 1 keeps the conservative
 mixed-package rule described below.
 
+Package permissions are package-granular in both source policy generations.
+`allow.packages: ["@customer/library"]` does not independently allow
+`@customer/library/contracts` while denying an exported
+`@customer/library/admin`. Export availability and dependency declarations remain
+separate checks. For npm aliases, the allowlist names the import slot, not the
+underlying registry target. Local relative imports between governed boundaries
+still require their allowed boundary edges and public entrypoints.
+
+The v2 exported-subpath ownership check above distinguishes runtime from
+mixed development packages; it is not a general per-subpath permission policy.
+If a consumer requires finer package permissions, record its concrete forbidden
+and allowed imports before designing an explicit policy extension. Do not infer
+that protection from a package allowlist or silently reorganize the consumer's
+physical packages to compensate for this limitation.
+
 Source boundaries default to `dependencyMode: runtime`. A boundary containing
 only test, specification, generator, or other development tooling may declare
 `dependencyMode: development`; this admits runtime imports from that package's

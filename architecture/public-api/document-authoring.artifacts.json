@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/document-authoring",
-  "packageVersion": "0.2.0",
-  "status": "supported",
+  "packageVersion": "0.3.0",
+  "status": "release-candidate",
   "wildcardExports": [
     {
       "exportPath": "./schemas/*",
@@ -11,6 +11,10 @@
         "schemas/document-authoring-profile/v1.schema.json",
         "schemas/document-authoring-profile/v2.schema.json",
         "schemas/document-authoring-profile/v3.schema.json",
+        "schemas/document-authoring/document-directory-transaction-envelope/v1.schema.json",
+        "schemas/document-authoring/document-file-transaction-envelope/v1.schema.json",
+        "schemas/document-authoring/document-plan/v1.schema.json",
+        "schemas/document-authoring/document-plan/v2.schema.json",
         "schemas/document-command-envelope/v1.schema.json",
         "schemas/document-command-envelope/v2.schema.json",
         "schemas/document-intent/v1.schema.json",
@@ -52,6 +56,85 @@
       "discriminators": {
         "schemaVersion": {
           "const": 3
+        }
+      }
+    },
+    {
+      "path": "schemas/document-authoring/document-directory-transaction-envelope/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/document-authoring/document-directory-transaction-envelope/v1",
+      "digest": "sha256:b20821c122ef5b020d127c74d07b5d892ddc4c66f6eec4075a9051ac89797b12",
+      "discriminators": {
+        "adapterContractVersion": {
+          "const": 1
+        },
+        "operationKind": {
+          "const": "document-authoring"
+        },
+        "payloadKind": {
+          "const": "document-authoring-journal/v3"
+        },
+        "schemaVersion": {
+          "const": 4
+        },
+        "state": {
+          "enum": [
+            "PREPARED",
+            "MATERIALIZING",
+            "PUBLISHING",
+            "PUBLISHED"
+          ]
+        }
+      }
+    },
+    {
+      "path": "schemas/document-authoring/document-file-transaction-envelope/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/document-authoring/document-file-transaction-envelope/v1",
+      "digest": "sha256:8a49fe500c84708094f0a29f9d9b4904c1ab332160a03b0ee176d91b10212bd5",
+      "discriminators": {
+        "adapterContractVersion": {
+          "const": 1
+        },
+        "operationKind": {
+          "const": "document-authoring"
+        },
+        "payloadKind": {
+          "const": "document-authoring-journal/v2"
+        },
+        "schemaVersion": {
+          "const": 3
+        },
+        "state": {
+          "enum": [
+            "PREPARED",
+            "PUBLISHING",
+            "PUBLISHED"
+          ]
+        }
+      }
+    },
+    {
+      "path": "schemas/document-authoring/document-plan/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1",
+      "digest": "sha256:9836381822135ef5b394e57fc99ca63f40b2d5da7591acf49c28c837675aba67",
+      "discriminators": {
+        "protocolVersion": {
+          "const": 1
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/document-authoring/document-plan/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/document-authoring/document-plan/v2",
+      "digest": "sha256:9615429c7b237e722bdbd03888933d93a542c96b9e8ec2861054825e29502ffc",
+      "discriminators": {
+        "protocolVersion": {
+          "const": 2
+        },
+        "schemaVersion": {
+          "const": 2
         }
       }
     },
@@ -264,65 +347,5 @@
         }
       }
     }
-  ],
-  "archive": {
-    "sha256": "sha256:c5267f37d833127099bb38f15d2d551a4068f2f18cc41a0f9a48578cd57babad",
-    "manifestDigest": "sha256:73c1bde6685dacc7f8b765cdac8490ac766a6271b4c7c027be0abd2d00de104c",
-    "integrity": "sha512-URN1GWnbcFHIdCFCZgi2c45Md2gIHMOlypZ2r/plGzxjxu00uF3Er+9LPhejnl7Ro6ALojsqH9EJ2y4QtSQ7TA==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
-    "memberDigests": [
-      {
-        "path": "schemas/document-authoring-profile/v1.schema.json",
-        "digest": "sha256:0cd6ee5b6a1843c54e40a160720f792b852a467c6a8626183cec6255c6b87110"
-      },
-      {
-        "path": "schemas/document-authoring-profile/v2.schema.json",
-        "digest": "sha256:f39a4156fba6c8e2102bd6cb4dd75895d11a94ca30bb090a38ebb210b40d25f3"
-      },
-      {
-        "path": "schemas/document-authoring-profile/v3.schema.json",
-        "digest": "sha256:4166ee42a3d0e0e51fc5f54eee9fcc9f81bec3a2fa0dc485f51ec21db6babc8d"
-      },
-      {
-        "path": "schemas/document-command-envelope/v1.schema.json",
-        "digest": "sha256:f274660723f41fe7b62d55480b7004b0527691d97c24adac6dd919df53b03a86"
-      },
-      {
-        "path": "schemas/document-command-envelope/v2.schema.json",
-        "digest": "sha256:d1895439abbed517cb64ddf17edd7091299cfdbe78d71345395e382c59a2eb9e"
-      },
-      {
-        "path": "schemas/document-intent/v1.schema.json",
-        "digest": "sha256:4ffee43f8f65524178dd47d4be225a4ffbdfff1627a2206a47ff5b47959b5d79"
-      },
-      {
-        "path": "schemas/document-parent-materialization/v2.schema.json",
-        "digest": "sha256:528adeddbea09dd38ce34012f49318e80a99f2cc468cd9bd8a713cc080017004"
-      },
-      {
-        "path": "schemas/document-plan/v1.schema.json",
-        "digest": "sha256:0f6e9e6578dc66b65d7b6432b67bdbf5c3126b1d357815025fb7053d2192a01d"
-      },
-      {
-        "path": "schemas/document-plan/v2.schema.json",
-        "digest": "sha256:73437548ad22cca5e7ef88e379e583a39549b42ddeaee86721cd50bb1d604939"
-      },
-      {
-        "path": "schemas/document-receipt/v1.schema.json",
-        "digest": "sha256:d5e508012eb75afe2cc0f85e0c6c2da4ddb4121da23236d3238856c9748ef40f"
-      },
-      {
-        "path": "schemas/document-receipt/v2.schema.json",
-        "digest": "sha256:92a7834a132d47c9e03885fa128dc6b6f3c284896c4f72cebb6190911ecc429a"
-      },
-      {
-        "path": "schemas/foundation-transaction-envelope/v3.schema.json",
-        "digest": "sha256:b8e3d531e39327daac9749560007380d32284cfc286ca4125b31256e0ffcd5bd"
-      },
-      {
-        "path": "schemas/foundation-transaction-envelope/v4.schema.json",
-        "digest": "sha256:7850c851a86708f1524497e664ed9ad8198a7495299b8912becab3eb027e7446"
-      }
-    ]
-  }
+  ]
 }

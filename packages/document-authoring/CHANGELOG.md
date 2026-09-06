@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [`a9dc628`](https://github.com/agent-teams-ai/engineering-foundation/commit/a9dc6286af74a02e4929273acf4d1a680f6f4c9a) Thanks [@777genius](https://github.com/777genius)! - Correct the generic planning, apply, and recovery TypeScript contracts to describe
+  the supported v1 and v2 document generations. Generic planning accepts the v2
+  parent policy, and generic results expose discriminated Plan and Receipt unions.
+  Callers must narrow `schemaVersion` before accessing generation-specific fields;
+  `DocumentPlan` and `DocumentReceipt` remain the v1 aliases. The explicit V2
+  entrypoints retain their documented behavior.
+
+  Keep public functions explicitly declared across feature composition so consumers
+  do not depend on private factory functions or coordination types. Runtime
+  planning, publication, replay, and exact-artifact recovery behavior is unchanged
+  by these declaration corrections.
+
+### Patch Changes
+
+- [`5399afc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5399afcb232210986bf8bd2c31683fc917eec7a4) Thanks [@777genius](https://github.com/777genius)! - Preserve released schema export paths and their published bytes alongside the
+  current owner-specific schemas. Historical Foundation qualification uses its
+  separate exact schema generation, without replacing the public Mutation or
+  Authoring schema surface with older Foundation definitions.
+- Updated dependencies [[`ec09d48`](https://github.com/agent-teams-ai/engineering-foundation/commit/ec09d482515efa2b4d25cd04b96853f4f031ce84), [`5399afc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5399afcb232210986bf8bd2c31683fc917eec7a4)]:
+  - @agent-teams/repository-mutation@0.2.0
+
 ## 0.2.0
 
 ### Minor Changes

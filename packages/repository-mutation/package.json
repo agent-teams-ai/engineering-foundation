@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/repository-mutation",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Closed, portable repository mutation and exact recovery primitives.",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/repository-mutation",
-  "packageVersion": "0.1.1",
-  "status": "supported",
+  "packageVersion": "0.2.0",
+  "status": "release-candidate",
   "wildcardExports": [
     {
       "exportPath": "./schemas/*",
@@ -10,7 +10,9 @@
       "members": [
         "schemas/known-file-transaction-plan/v1.schema.json",
         "schemas/known-file-transaction-receipt/v1.schema.json",
-        "schemas/repository-mutation-transaction-envelope/v1.schema.json"
+        "schemas/repository-mutation-transaction-envelope/v1.schema.json",
+        "schemas/repository-mutation/known-file-transaction-plan/v1.schema.json",
+        "schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json"
       ]
     }
   ],
@@ -60,26 +62,39 @@
           "const": 6
         }
       }
-    }
-  ],
-  "archive": {
-    "sha256": "sha256:a3e0c4a9f9cb75d29dafbdd47172518ab3229658fab2416a5d418999ee249a57",
-    "manifestDigest": "sha256:d47c4d885cdc66e6640c6b2d9f3968acc7839141e6ac838638fc2431919f0811",
-    "integrity": "sha512-BRPxUgZf2BPT6ABejAGQwswyaDP1B5A29u8mhVs4dihvLkLPXInUJ5FrQVdfkIWPOW/coNqwpGUX1Equ7mMHNw==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
-    "memberDigests": [
-      {
-        "path": "schemas/known-file-transaction-plan/v1.schema.json",
-        "digest": "sha256:ed9490e1d9a903f82853199cb69d8a196b7052ccf38f81c3546397291a0f3223"
-      },
-      {
-        "path": "schemas/known-file-transaction-receipt/v1.schema.json",
-        "digest": "sha256:92e6396923f76421ae8c63dc4187a4f9b391e8a06ae61772d5eea947041b884e"
-      },
-      {
-        "path": "schemas/repository-mutation-transaction-envelope/v1.schema.json",
-        "digest": "sha256:d5f51686dd7196b867072ed0e3415bcb43b6d65f6e4c88778a1a5417ee89feda"
+    },
+    {
+      "path": "schemas/repository-mutation/known-file-transaction-plan/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-plan/v1",
+      "digest": "sha256:1316943da981f5241a1d1c6fd51fbaab9ff0c049da9f2ab40055903423c023c5",
+      "discriminators": {
+        "protocol": {
+          "const": "agent-teams.repository-mutation.known-file/v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
       }
-    ]
-  }
+    },
+    {
+      "path": "schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1",
+      "digest": "sha256:e538343201c757a98337d9b796b9360d546c61181bef8baf07d21c936015267c",
+      "discriminators": {
+        "outcome": {
+          "enum": [
+            "already-satisfied",
+            "applied",
+            "rolled-back"
+          ]
+        },
+        "protocol": {
+          "const": "agent-teams.repository-mutation.known-file/v1"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    }
+  ]
 }

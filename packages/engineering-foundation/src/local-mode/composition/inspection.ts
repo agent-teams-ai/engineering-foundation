@@ -1,8 +1,8 @@
 import { createNodeModeInspector } from "../adapters/node/mode-inspection.js";
-import type { InternalFoundationTransactionStatus } from "../../transaction-coordination/application/model/internal-transaction-status.js";
+import type { LocalModeTransactionReader } from "../application/ports.js";
 import type { FoundationStatus, FoundationTransactionAwareStatus } from "../application/model.js";
 
-export function createFoundationModeInspection(readTransaction: (consumerRoot: string) => Promise<InternalFoundationTransactionStatus>) {
+export function createFoundationModeInspection(readTransaction: LocalModeTransactionReader) {
   const inspectMode = createNodeModeInspector(readTransaction);
   return {
     async inspectFoundationMode(consumerPath: string, options: { readonly ignoreOperationLock?: boolean } = {}): Promise<FoundationStatus> {

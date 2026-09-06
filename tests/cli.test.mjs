@@ -316,3 +316,41 @@ test("self-check resolves package metadata from the executable after command-hos
   assert.equal(metadata.ok, true);
   assert.equal(metadata.packageName, "@agent-teams/engineering-foundation");
 });
+
+test("command host classifies sibling errors in application without lookalike or accessor drift", async () => {
+  const { observeCommandFailures } = await import("./command-host-observations.mjs");
+  const observations = observeCommandFailures(new URL("../packages/engineering-foundation/dist/", import.meta.url).href);
+  assert.equal(observations.length, 32);
+  for (const item of observations) {
+    if (item.kind === "lookalike") {
+      assert.ok(!item.trace.includes("code") && !item.trace.includes("message"));
+      assert.equal(item.rejected, item.fault === "write");
+    } else if (item.fault === "message" || item.fault === "write") {
+      assert.equal(item.rejected, true);
+      assert.equal(item.exitCode, 17);
+    }
+  }
+  assert.deepEqual(observations.find(item => item.kind === "scaffold" && !item.json && item.fault === "none").trace,
+    ["code", "message", "stderr", "code", "code"]);
+  assert.deepEqual(observations.find(item => item.kind === "transaction" && !item.json && item.fault === "none").trace,
+    ["code", "message", "stderr"]);
+});
+
+test("node command integration leaves service creation behind parsing and preserves explicit inputs", async () => {
+  const { createNodeCommandHost } = await import("../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/node-command-host.js");
+  const calls = [], environment = {}, args = ["version"], services = {};
+  const host = createNodeCommandHost((env, readRoot) => {
+    assert.equal(env, environment);
+    calls.push(readRoot());
+    return services;
+  }, async (createServices, received) => {
+    assert.equal(received, args);
+    assert.deepEqual(calls, []);
+    assert.equal(createServices(), services);
+  });
+  await host.runNodeFoundationCli(environment, "file:///disposable/package/dist/cli.js", args);
+  assert.deepEqual(calls, ["/disposable/package"]);
+  const sentinel = Symbol("factory failure");
+  await assert.rejects(createNodeCommandHost(() => { throw sentinel; }, async create => { create(); })
+    .runNodeFoundationCli(environment, "file:///disposable/package/dist/cli.js", args), error => error === sentinel);
+});

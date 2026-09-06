@@ -1,29 +1,22 @@
-import {
-  inspectCurrentScaffoldingRecord,
-  inspectLegacyScaffoldingEnvelope,
-  inspectLegacyScaffoldingJournal
-} from "../scaffolding/composition/node-scaffolding.js";
-import { inspectDocumentTransactionStatus } from "../transaction-coordination/adapters/node/document-transaction-status.js";
-import { inspectLegacyDocumentTransaction } from "../transaction-coordination/adapters/node/legacy-document-transaction-status.js";
+import { createNodeFoundationTransactionInspection } from "../transaction-coordination/composition/node-inspection.js";
+import type { FoundationTransactionInspection, InstalledFoundationInspectionIdentity } from "../transaction-coordination/inspection.js";
+import { inspectLegacyScaffoldingJournal, inspectLegacyScaffoldingEnvelope, inspectCurrentScaffoldingRecord } from "../scaffolding/composition/node-scaffolding.js";
 import { assertSchema } from "../schema-catalog.js";
-import { inspectKnownFileTransactionStatus } from "../transaction-coordination/adapters/node/known-file-transaction-status.js";
-import { inspectSchema6TransactionStatus } from "../transaction-coordination/adapters/node/schema6-transaction-status.js";
-import {
-  createFoundationTransactionInspection as createInspection,
-  type FoundationTransactionInspection,
-  type InstalledFoundationInspectionIdentity
-} from "../transaction-coordination/inspection.js";
+
+function legacyScaffoldingJournal(input: Parameters<typeof inspectLegacyScaffoldingJournal>[0]) {
+  return inspectLegacyScaffoldingJournal(input, assertSchema);
+}
+function legacyScaffoldingEnvelope(value: Record<string, unknown>) {
+  return inspectLegacyScaffoldingEnvelope(value, assertSchema);
+}
+const inspection = createNodeFoundationTransactionInspection(assertSchema, {
+  legacyScaffoldingJournal,
+  legacyScaffoldingEnvelope,
+  currentScaffolding: inspectCurrentScaffoldingRecord
+});
 
 export function createFoundationTransactionInspection(
   installed: InstalledFoundationInspectionIdentity
 ): FoundationTransactionInspection {
-  return createInspection(installed, {
-    legacyScaffoldingJournal: (input) => inspectLegacyScaffoldingJournal(input, assertSchema),
-    legacyScaffoldingEnvelope: (value) => inspectLegacyScaffoldingEnvelope(value, assertSchema),
-    legacyDocument: (value) => inspectLegacyDocumentTransaction(value, assertSchema),
-    document: inspectDocumentTransactionStatus,
-    knownFile: inspectKnownFileTransactionStatus,
-    currentScaffolding: inspectCurrentScaffoldingRecord,
-    schema6: inspectSchema6TransactionStatus
-  });
+  return inspection.createFoundationTransactionInspection(installed);
 }

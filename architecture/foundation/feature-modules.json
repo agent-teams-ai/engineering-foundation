@@ -933,6 +933,7 @@
       ],
       "moduleAssembly": [
         "packages/engineering-foundation/src/index.ts",
+        "packages/engineering-foundation/src/local-mode/index.ts",
         "packages/engineering-foundation/src/public-api-surface.ts",
         "packages/engineering-foundation/src/scaffolding/index.ts",
         "packages/engineering-foundation/src/cli.ts",
@@ -1128,7 +1129,7 @@
               "owner": "engineering-foundation/local-package-mode"
             },
             {
-              "path": "packages/engineering-foundation/src/local-mode/index.ts",
+              "path": "packages/engineering-foundation/src/local-mode/api.ts",
               "owner": "engineering-foundation/local-package-mode"
             },
             {
@@ -1160,7 +1161,6 @@
               "role": "composition",
               "roots": [
                 "packages/engineering-foundation/src/local-mode/composition",
-                "packages/engineering-foundation/src/local-mode/index.ts",
                 "packages/engineering-foundation/src/local-mode/node.ts"
               ]
             }
@@ -1287,7 +1287,8 @@
             {
               "role": "composition",
               "roots": [
-                "packages/engineering-foundation/src/transaction-coordination/node.ts"
+                "packages/engineering-foundation/src/transaction-coordination/node.ts",
+                "packages/engineering-foundation/src/transaction-coordination/composition"
               ]
             }
           ],
@@ -1733,7 +1734,9 @@
             {
               "role": "composition",
               "roots": [
-                "packages/engineering-foundation/src/features/command-host/module.ts"
+                "packages/engineering-foundation/src/features/command-host/module.ts",
+                "packages/engineering-foundation/src/features/command-host/composition",
+                "packages/engineering-foundation/src/features/command-host/node.ts"
               ]
             }
           ],

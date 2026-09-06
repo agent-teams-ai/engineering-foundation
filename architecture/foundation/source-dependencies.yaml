@@ -1752,6 +1752,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-slot-factory.ts
       - packages/engineering-foundation/src/transaction-coordination/application/operation-lock-failure.ts
       - packages/engineering-foundation/src/transaction-coordination/application/model/foundation-transaction-identity.ts
       - packages/engineering-foundation/src/transaction-coordination/application/ports/foundation-transaction-inspection.ts
@@ -2022,7 +2023,6 @@ boundaries:
       boundaries:
         - foundation.local-mode.application
         - foundation.validation-reporting.error
-        - foundation.transaction-coordination.application
       packages:
         - yaml
       builtins:
@@ -2066,6 +2066,7 @@ boundaries:
   - id: foundation.local-mode
     roots:
       - packages/engineering-foundation/src/local-mode/index.ts
+      - packages/engineering-foundation/src/composition/local-mode-service.ts
     allow:
       boundaries:
         - foundation.core
@@ -2080,6 +2081,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/local-mode/index.ts
+      - packages/engineering-foundation/src/composition/local-mode-service.ts
   - id: foundation.process-execution
     roots:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
@@ -2987,6 +2989,7 @@ boundaries:
       - packages/engineering-foundation/src/composition/scaffold-filesystem.ts
     allow:
       boundaries:
+        - foundation.transaction-coordination.node
         - foundation.schema-validation
         - foundation.package-identity
         - foundation.scaffolding.canonical-adapters
@@ -3080,6 +3083,9 @@ boundaries:
         - foundation.validation-reporting.application
         - foundation.core
         - foundation.local-mode.application
+        - foundation.process-execution.application
+        - foundation.scaffolding.core
+        - foundation.transaction-coordination.application
       packages: []
       builtins: []
       runtimeReferences: []
@@ -3087,65 +3093,64 @@ boundaries:
       - packages/engineering-foundation/src/features/command-host/application/command-reporting.ts
       - packages/engineering-foundation/src/features/command-host/api.ts
       - packages/engineering-foundation/src/features/command-host/application/command-invocation.ts
+      - packages/engineering-foundation/src/features/command-host/application/command-failure.ts
+      - packages/engineering-foundation/src/features/command-host/application/command-services.ts
   - id: foundation.command-host.adapters
     roots:
       - packages/engineering-foundation/src/features/command-host/adapters
     allow:
       boundaries:
-        - foundation.core
-        - foundation.scaffolding.core
         - foundation.command-host.application
-        - foundation.transaction-coordination.application
-        - foundation.local-mode
-        - foundation.process-execution.application
-        - foundation.local-mode.application
       packages: []
       builtins:
         - node:path
+        - node:url
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/foundation-cli.ts
       - packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/node-process-lifecycle.ts
       - packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/command-error.ts
+      - packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/node-command-host.ts
   - id: foundation.command-host.composition
     roots:
       - packages/engineering-foundation/src/features/command-host/module.ts
+      - packages/engineering-foundation/src/features/command-host/node.ts
+      - packages/engineering-foundation/src/features/command-host/composition
     allow:
       boundaries:
         - foundation.command-host.adapters
+        - foundation.command-host.application
+        - foundation.check.composition
+        - capability.architecture-decisions.composition
+        - capability.public-api-compatibility.composition
+        - capability.repository-agent-workflow.composition
+        - capability.quality-gate-runner.composition
+        - foundation.package-identity
+        - foundation.scaffolding.node-composition
+        - capability.contract-protobuf.qualification.composition
+        - foundation.process-execution.composition
+        - foundation.local-mode.adapters
+        - foundation.local-mode.composition
+        - foundation.local-mode.application
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/features/command-host/module.ts
+      - packages/engineering-foundation/src/features/command-host/node.ts
   - id: foundation.command-host.executable-composition
     roots:
       - packages/engineering-foundation/src/composition/command-host.ts
     allow:
       boundaries:
-        - foundation.command-host.application
-        - foundation.check.composition
         - foundation.command-host.composition
-        - capability.architecture-decisions.composition
-        - capability.public-api-compatibility.composition
-        - capability.repository-agent-workflow.composition
-        - capability.quality-gate-runner.composition
-        - foundation.local-mode
-        - foundation.package-identity
         - foundation.scaffolding.canonical-composition
-        - foundation.scaffolding.canonical-adapters
         - foundation.schema-validation
         - foundation.composition
-        - capability.contract-protobuf.qualification.composition
-        - foundation.process-execution.composition
-        - foundation.local-mode.adapters
-        - foundation.local-mode.composition
         - foundation.local-mode.assembly
-        - foundation.schema-identities
+        - foundation.local-mode
       packages: []
-      builtins:
-        - node:path
-        - node:url
+      builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/composition/command-host.ts
@@ -3453,13 +3458,20 @@ boundaries:
   - id: foundation.transaction-coordination.node
     roots:
       - packages/engineering-foundation/src/transaction-coordination/node.ts
+      - packages/engineering-foundation/src/transaction-coordination/composition
     entrypoints:
       - packages/engineering-foundation/src/transaction-coordination/node.ts
+      - packages/engineering-foundation/src/transaction-coordination/composition/node-inspection.ts
+      - packages/engineering-foundation/src/transaction-coordination/composition/node-coordinator.ts
     allow:
       boundaries:
         - foundation.transaction-coordination.adapters
+        - foundation.transaction-coordination.application
+        - foundation.package-identity
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
+        - node:path
       runtimeReferences: []
   - id: foundation.local-mode.assembly
     roots:
@@ -3467,13 +3479,11 @@ boundaries:
       - packages/engineering-foundation/src/composition/local-package-inspection.ts
       - packages/engineering-foundation/src/composition/local-mode-inspection.ts
       - packages/engineering-foundation/src/composition/local-mode-ports.ts
-      - packages/engineering-foundation/src/composition/local-mode-service.ts
     entrypoints:
       - packages/engineering-foundation/src/composition/local-package-artifacts.ts
       - packages/engineering-foundation/src/composition/local-package-inspection.ts
       - packages/engineering-foundation/src/composition/local-mode-inspection.ts
       - packages/engineering-foundation/src/composition/local-mode-ports.ts
-      - packages/engineering-foundation/src/composition/local-mode-service.ts
     allow:
       boundaries:
         - foundation.local-mode.application

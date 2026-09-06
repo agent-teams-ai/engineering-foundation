@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 
 import { invalidCommand } from "../../../application/command-reporting.js";
 
-import { DEFAULT_SCAFFOLDING_CONFIG_PATH } from "../../../../../scaffolding/scaffold-defaults.js";
+import { defaultCommandConfigPath } from "../../../application/command-invocation.js";
 
 import type { CommandInvocation as ParsedArguments, OutputFormat } from "../../../application/command-invocation.js";
 
@@ -235,7 +235,7 @@ function validatePositionalArguments(
 export function parseArguments(args: readonly string[]): ParsedArguments {
   const state: ArgumentState = {
     positional: [],
-    configPath: DEFAULT_SCAFFOLDING_CONFIG_PATH,
+    configPath: defaultCommandConfigPath(),
     configPathProvided: false,
     consumerRoot: process.cwd(),
     format: "text",

@@ -1,3 +1,4 @@
+import type { InternalFoundationTransactionStatus } from "../../transaction-coordination/application/model/internal-transaction-status.js";
 import type { FoundationTransactionCoordinator } from "../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import type { FoundationDevOnlyStatus, FoundationLinkState, FoundationStatus, ProcessRunner } from "./model.js";
 
@@ -45,4 +46,9 @@ export interface LocalPackageLifecyclePorts {
 export interface FoundationLocalModeServiceOptions {
   readonly runner: ProcessRunner;
   readonly now: () => Date;
+}
+
+/** Transaction observation required before interpreting the local-link filesystem. */
+export interface LocalModeTransactionReader {
+  (consumerRoot: string): Promise<InternalFoundationTransactionStatus>;
 }

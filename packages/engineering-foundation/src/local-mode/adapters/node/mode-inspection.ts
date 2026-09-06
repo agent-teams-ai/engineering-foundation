@@ -18,7 +18,7 @@ import {
   LOCAL_STATE_DIRECTORY,
   LOCAL_STATE_FILE
 } from "../../application/model.js";
-import type { InternalFoundationTransactionStatus } from "../../../transaction-coordination/application/model/internal-transaction-status.js";
+import type { LocalModeTransactionReader } from "../../application/ports.js";
 
 async function readJson(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8")) as unknown;
@@ -218,7 +218,7 @@ async function inspectOrphanBackup(
 }
 
 async function inspectMode(
-  readTransaction: (consumerRoot: string) => Promise<InternalFoundationTransactionStatus>,
+  readTransaction: LocalModeTransactionReader,
   consumerPath: string,
   options: { readonly ignoreOperationLock?: boolean } = {}
 ): Promise<FoundationTransactionAwareStatus> {
@@ -295,7 +295,7 @@ async function inspectMode(
   });
 }
 
-export function createNodeModeInspector(readTransaction: (consumerRoot: string) => Promise<InternalFoundationTransactionStatus>) {
+export function createNodeModeInspector(readTransaction: LocalModeTransactionReader) {
   return (consumerPath: string, options: { readonly ignoreOperationLock?: boolean } = {}): Promise<FoundationTransactionAwareStatus> =>
     inspectMode(readTransaction, consumerPath, options);
 }

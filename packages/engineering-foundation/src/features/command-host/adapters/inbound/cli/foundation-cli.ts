@@ -4,17 +4,14 @@ import {
   commandInputText,
   commandFoundationText
 } from "../../../application/command-reporting.js";
-import { ProcessCancellationError } from "../../../../../process-execution/api.js";
-import { ScaffoldError } from "../../../../../scaffolding/scaffold-error.js";
-import { FoundationTransactionError } from "../../../../../transaction-coordination/application/foundation-transaction-error.js";
-import type { FoundationDevOnlyStatus, FoundationStatus } from "../../../../../local-mode/index.js";
-import type { FoundationTransactionAwareStatus } from "../../../../../local-mode/application/model.js";
+import { commandTransactionText, commandCancellationText } from "../../../application/command-failure.js";
+import type { CommandModeStatus, CommandDevOnlyStatus } from "../../../application/command-services.js";
 import { dispatchFoundationCommand, type FoundationCommandServices } from "../../../api.js";
 import { parseArguments, type ParsedArguments } from "./cli-arguments.js";
 import { foundationCommandFailure } from "./command-error.js";
 
 function printStatus(
-  status: FoundationStatus | FoundationTransactionAwareStatus,
+  status: CommandModeStatus,
   json: boolean
 ): void {
   if (json) {
@@ -74,7 +71,7 @@ function printStatus(
 }
 
 function printDevOnlyStatus(
-  status: FoundationDevOnlyStatus,
+  status: CommandDevOnlyStatus,
   json: boolean
 ): void {
   if (json) {
@@ -401,18 +398,14 @@ export async function runFoundationCli<SchemaId extends string>(createServices: 
       const failure = foundationCommandFailure(error);
       process.stdout.write(`${JSON.stringify(failure.envelope)}\n`);
       process.exitCode = failure.exitCode;
-    } else if (error instanceof FoundationTransactionError) {
-      process.stderr.write(`${error.code}: ${error.message}\n`);
-      process.exitCode = 1;
-    } else if (error instanceof ScaffoldError) {
-      process.stderr.write(`${error.code}: ${error.message}\n`);
-      process.exitCode =
-        error.code === "SCAFFOLD_INPUT_INVALID" ||
-        error.code === "SCAFFOLD_PLAN_INVALID"
-          ? 2
-          : 1;
     } else {
-      printExecutionFailure(error);
+      const failure = commandTransactionText(error);
+      if (failure !== undefined) {
+        process.stderr.write(failure.text);
+        process.exitCode = failure.exitCode;
+      } else {
+        printExecutionFailure(error);
+      }
     }
   }
 }
@@ -422,11 +415,8 @@ function printExecutionFailure(error: unknown): void {
   if (inputFailure !== undefined) {
     process.stderr.write(inputFailure.text);
     process.exitCode = inputFailure.exitCode;
-  } else if (error instanceof ProcessCancellationError) {
-    process.stderr.write(`PROCESS_CANCELLED: ${error.message}\n`);
-    process.exitCode = 130;
   } else {
-    const failure = commandFoundationText(error);
+    const failure = commandCancellationText(error) ?? commandFoundationText(error);
     process.stderr.write(failure?.text ?? `UNEXPECTED: ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = failure?.exitCode ?? 1;
   }

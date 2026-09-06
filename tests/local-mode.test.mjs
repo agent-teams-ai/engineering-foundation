@@ -842,3 +842,6 @@ test("alternate inspection port preserves real directory and pnpm-link lifecycle
     });
   }
 });
+
+import { registerLocalModeOwnedPortTests } from "./helpers/local-mode-owned-ports.mjs";
+registerLocalModeOwnedPortTests(test);

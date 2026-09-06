@@ -1,6 +1,6 @@
 import type { FoundationCheck, FoundationConfigReader } from "../../foundation-check/api.js";
 import type { CapabilityInvocation, FoundationCheckReport, RuleExplanation } from "../../validation-reporting/api.js";
-import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus } from "../../../local-mode/api.js";
+import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus, FoundationTransactionAwareStatus } from "../../../local-mode/api.js";
 import type { CommandInvocation } from "./command-invocation.js";
 
 export type CommandSignal = "SIGINT" | "SIGTERM";
@@ -40,3 +40,6 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
   readonly isSchemaId: (value: string) => value is SchemaId;
   readonly readSchema: (id: SchemaId) => Promise<string>;
 }
+
+export type CommandModeStatus = FoundationStatus | FoundationTransactionAwareStatus;
+export type CommandDevOnlyStatus = FoundationDevOnlyStatus;

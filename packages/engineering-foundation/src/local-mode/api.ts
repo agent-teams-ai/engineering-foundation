@@ -5,3 +5,4 @@ export type { LocalPackageLifecyclePorts } from "./application/ports.js";
 export { LocalPackageLifecycle } from "./application/service.js";
 export type { FoundationLocalModeServiceOptions } from "./application/ports.js";
 export type { AttachResult, FoundationDevOnlyStatus } from "./application/model.js";
+export { isExactVersion } from "../semantic-version.js";

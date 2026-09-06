@@ -100,3 +100,5 @@ export function inspectLegacyScaffoldingJournal(input: Parameters<typeof inspect
 export function inspectLegacyScaffoldingEnvelope(value: Parameters<typeof inspectEnvelope>[0], assertSchema: ScaffoldSchemaValidator) {
   return inspectEnvelope(value, assertSchema, scaffoldLegacyDigests);
 }
+
+export { runScaffoldingCliCommand } from "../adapters/inbound/scaffolding-cli-command.js";

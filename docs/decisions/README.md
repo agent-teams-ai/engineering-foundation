@@ -6,6 +6,8 @@ editing the accepted decision.
 
 ## Proposed
 
+- [ADR-0054: Hardening Public API Dispositions](0054-hardening-public-api-dispositions.md)
+
 - [ADR-0052: Bounded Managed V1 Restoration](0052-bounded-managed-v1-restoration.md)
 
 ## Accepted

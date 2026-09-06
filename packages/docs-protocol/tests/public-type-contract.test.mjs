@@ -228,3 +228,104 @@ ${cases.join("\n")}
     assert.equal(output.stderr, "");
   } finally {await rm(root, { recursive: true, force: true });}
 });
+
+
+test("bounded release callers distinguish honest results from structural spellings", async () => {
+  const root = await mkdtemp(join(tmpdir(), "docs-release-callers-"));
+  try {
+    const apiPath = fileURLToPath(new URL("../dist/index.js", import.meta.url)).replaceAll("\\", "/");
+    const authoringPath = fileURLToPath(new URL("../../document-authoring/dist/index.js", import.meta.url)).replaceAll("\\", "/");
+    await writeFile(join(root, "contract.mts"), `
+import type { DocsNewResultV2, DocsNewRequest, DocsExecutionV2, DocsFindDocument, DocsReceiptOutcome } from ${JSON.stringify(apiPath)};
+import type { docsRecoverV2 } from ${JSON.stringify(apiPath)};
+import type { PortableQualificationProtocol, interruptAndRecover } from ${JSON.stringify(apiPath.replace(/index\.js$/u, "qualification/index.js"))};
+import type { DocumentIntent, DocumentDescriptor, DocumentMetadataObject, DocumentReceiptContract } from ${JSON.stringify(authoringPath)};
+// The released new result had only branches with a required kind.
+type OldNewResult = Exclude<DocsNewResultV2, { readonly kind?: never }>;
+declare const oldNew: OldNewResult;
+const oldCaller: "new" = oldNew.kind;
+const acceptsOldResult: DocsNewResultV2 = oldNew;
+declare const currentNew: DocsNewResultV2;
+// @ts-expect-error the actual invalid-input empty result breaks the old caller
+const currentCaller: "new" = currentNew.kind;
+type OldQualificationResult = { readonly envelope: { readonly result: { readonly kind: "new" } }; readonly exitCode: 0 | 1 | 2 | 3 | 130 };
+declare const oldQualification: OldQualificationResult;
+const oldQualificationCaller: "new" = oldQualification.envelope.result.kind;
+declare const currentQualification: Awaited<ReturnType<PortableQualificationProtocol["newDocumentV2"]>>;
+// @ts-expect-error qualification must represent empty invalid-input results too
+const qualificationCaller: OldQualificationResult = currentQualification;
+const qualificationProducer: typeof currentQualification = oldQualification;
+type OldProtocol = Omit<PortableQualificationProtocol, "newDocumentV2"> & { readonly newDocumentV2: (input: DocsNewRequest) => Promise<OldQualificationResult> };
+type CurrentInterrupt = typeof interruptAndRecover;
+type OldInterrupt = (input: Omit<Parameters<CurrentInterrupt>[0], "protocol"> & { readonly protocol: OldProtocol }) => ReturnType<CurrentInterrupt>;
+declare const oldInterrupt: OldInterrupt;
+declare const currentInterrupt: CurrentInterrupt;
+const acceptsOldInterruptCaller: OldInterrupt = currentInterrupt;
+// @ts-expect-error the old implementation cannot accept a protocol returning an empty result
+const oldInterruptImplementation: CurrentInterrupt = oldInterrupt;
+
+// These dependencies retain their released structural shapes.
+declare const intent: Omit<DocumentIntent, "schemaVersion" | "related" | "additionalMetadata">;
+declare const currentIntent: DocsNewRequest["intent"];
+const oldIntent: typeof intent = currentIntent;
+const newIntent: typeof currentIntent = intent;
+declare const metadata: DocumentMetadataObject;
+declare const currentMetadata: DocsFindDocument["metadata"];
+const oldMetadata: typeof metadata = currentMetadata;
+const newMetadata: typeof currentMetadata = metadata;
+declare const outcome: DocumentReceiptContract["outcome"];
+declare const currentOutcome: DocsReceiptOutcome;
+const oldOutcome: typeof outcome = currentOutcome;
+const newOutcome: typeof currentOutcome = outcome;
+// Moving the result union inside the generic preserves ordinary result reads,
+// but does not distribute an envelope into the old union of envelopes.
+type CurrentRecovery = Awaited<ReturnType<typeof docsRecoverV2>>;
+type Distribute<Result> = Result extends unknown ? DocsExecutionV2<Result> : never;
+type OldRecovery = Distribute<CurrentRecovery["envelope"]["result"]>;
+declare const oldRecovery: OldRecovery;
+declare const currentRecovery: CurrentRecovery;
+const newRecovery: CurrentRecovery = oldRecovery;
+const result: OldRecovery["envelope"]["result"] = currentRecovery.envelope.result;
+// @ts-expect-error a caller accepting the released outer union needs adaptation
+const oldRecoveryCaller: OldRecovery = currentRecovery;
+// Flattened DTO fields retain ordinary DocumentDescriptor compatibility.
+declare const document: DocsFindDocument;
+const descriptor: DocumentDescriptor = document;
+void [oldCaller, acceptsOldResult, currentCaller, oldQualificationCaller, qualificationCaller, qualificationProducer,
+ oldIntent, newIntent, oldMetadata, newMetadata, oldOutcome, newOutcome, newRecovery, result, oldRecoveryCaller, descriptor];
+`);
+    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
+    const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
+    assert.equal(output.stdout, "");
+    assert.equal(output.stderr, "");
+    // An upstream interface augmentation was inherited before DTO separation.
+    await writeFile(join(root, "augmentation.mts"), `
+import type { DocsFindDocument, DocsNewRequest } from ${JSON.stringify(apiPath)};
+import type { DocumentDescriptor, DocumentIntent, DocumentMetadataObject } from ${JSON.stringify(authoringPath)};
+declare module ${JSON.stringify(authoringPath)} {
+  interface DocumentDescriptor { readonly releaseCallerTag: "retained"; }
+  interface DocumentIntent { readonly releaseIntentTag: "retained"; }
+  interface DocumentMetadataObject { readonly releaseMetadataTag: "retained"; }
+}
+interface ReleasedFindDocument extends DocumentDescriptor {}
+declare const before: ReleasedFindDocument;
+const beforeCaller: "retained" = before.releaseCallerTag;
+declare const after: DocsFindDocument;
+// @ts-expect-error portable DTOs no longer inherit upstream augmentation
+const afterCaller: "retained" = after.releaseCallerTag;
+type ReleasedIntent = Omit<DocumentIntent, "schemaVersion" | "related" | "additionalMetadata">;
+declare const baseIntent: DocsNewRequest["intent"];
+const beforeIntent: ReleasedIntent = { ...baseIntent, releaseIntentTag: "retained" };
+// @ts-expect-error the projected request no longer includes upstream augmentation
+const afterIntent: DocsNewRequest["intent"] = { ...baseIntent, releaseIntentTag: "retained" };
+declare const beforeMetadata: DocumentMetadataObject;
+const beforeMetadataCaller: "retained" = beforeMetadata.releaseMetadataTag;
+// @ts-expect-error the independent dictionary cannot promise the upstream augmented field
+const afterMetadataCaller: "retained" = after.metadata.releaseMetadataTag;
+void [beforeCaller, afterCaller, beforeIntent, afterIntent, beforeMetadataCaller, afterMetadataCaller];
+`);
+    const augmentation = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "augmentation.mts")], { cwd: root });
+    assert.equal(augmentation.stdout, "");
+    assert.equal(augmentation.stderr, "");
+  } finally {await rm(root, { recursive: true, force: true });}
+});

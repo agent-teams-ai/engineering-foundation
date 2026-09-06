@@ -193,3 +193,69 @@ const projectedDescribeV2: typeof describeDocumentAuthoringProfileV2 = describeV
 const projectedDescribeV3: typeof describeDocumentAuthoringProfileV3 = describeV3;
 const projectedInspectEnvironment: typeof inspectDocumentAuthoringEnvironmentV1 = inspectEnvironment;
 void [projectedDescribeV2, projectedDescribeV3, projectedInspectEnvironment];
+
+
+// ADR-0054: concrete previously type-valid persisted-envelope constructors.
+// Released 0.2.0 allowed these identities and omitted the kernel coordinate;
+// this proves source admission, not that the historical runtime could recover.
+type ReleasedCompilerId = "@agent-teams/document-authoring" | "@agent-teams/engineering-foundation";
+const releasedCompiler: ReleasedCompilerId = "@agent-teams/engineering-foundation";
+// @ts-expect-error current owner identity deliberately rejects the old caller
+const currentCompiler: DocumentPlanContract["compiler"]["id"] = releasedCompiler;
+type ReleasedFileHandler = { readonly id: "document-authoring" | "foundation.document-authoring"; readonly contractVersion: 2 };
+type ReleasedDirectoryHandler = { readonly id: "document-authoring" | "foundation.document-authoring"; readonly contractVersion: 3 };
+const releasedFileHandler: ReleasedFileHandler = { id: "foundation.document-authoring", contractVersion: 2 };
+const releasedDirectoryHandler: ReleasedDirectoryHandler = { id: "foundation.document-authoring", contractVersion: 3 };
+// @ts-expect-error native file envelopes cannot relabel historical handlers
+const currentFileHandler: DocumentTransactionEnvelopeBase["recoveryHandler"] = releasedFileHandler;
+// @ts-expect-error native directory envelopes cannot relabel historical handlers
+const currentDirectoryHandler: DocumentTransactionEnvelopeV4Base["recoveryHandler"] = releasedDirectoryHandler;
+const releasedFileEnvelope = { ...kernelLessFile, recoveryHandler: releasedFileHandler };
+const releasedDirectoryEnvelope = { ...kernelLessDirectory, recoveryHandler: releasedDirectoryHandler };
+// @ts-expect-error the historical envelope lacks mandatory exact kernel authority
+const currentFileEnvelope: DocumentTransactionEnvelopeBase = releasedFileEnvelope;
+// @ts-expect-error both envelope generations require owner and kernel identity
+const currentDirectoryEnvelope: DocumentTransactionEnvelopeV4Base = releasedDirectoryEnvelope;
+void [currentCompiler, currentFileHandler, currentDirectoryHandler, currentFileEnvelope, currentDirectoryEnvelope];
+
+
+import { buildDocumentationCatalog, buildDocumentationCatalogV2, findDocumentationDocuments,
+  findDocumentationDocumentsV2, type BuildDocumentationCatalogRequest, type FindDocumentsRequest,
+  type DocumentationCatalogSnapshot, type DocumentationCatalogSnapshotV2,
+  type DocumentFindResult, type DocumentFindResultV2, type DocumentAuthoringSchemaId
+} from "@agent-teams/document-authoring";
+const catalogV1: (r: BuildDocumentationCatalogRequest) => Promise<DocumentationCatalogSnapshot> = buildDocumentationCatalog;
+const catalogV2: (r: BuildDocumentationCatalogRequest) => Promise<DocumentationCatalogSnapshotV2> = buildDocumentationCatalogV2;
+const findV1: (r: FindDocumentsRequest) => Promise<DocumentFindResult> = findDocumentationDocuments;
+const findV2: (r: FindDocumentsRequest) => Promise<DocumentFindResultV2> = findDocumentationDocumentsV2;
+const catalogBackV1: typeof buildDocumentationCatalog = catalogV1;
+const catalogBackV2: typeof buildDocumentationCatalogV2 = catalogV2;
+const findBackV1: typeof findDocumentationDocuments = findV1;
+const findBackV2: typeof findDocumentationDocumentsV2 = findV2;
+type ReleasedSchemaId = "document-authoring-profile/v1" | "document-authoring-profile/v2" | "document-authoring-profile/v3"
+  | "document-command-envelope/v1" | "document-command-envelope/v2" | "document-intent/v1" | "document-parent-materialization/v2"
+  | "document-plan/v1" | "document-plan/v2" | "document-receipt/v1" | "document-receipt/v2"
+  | "foundation-transaction-envelope/v3" | "foundation-transaction-envelope/v4";
+declare const releasedSchema: ReleasedSchemaId;
+const retainedSchema: DocumentAuthoringSchemaId = releasedSchema;
+declare const releasedHandlers: Record<ReleasedSchemaId, string>;
+const oldExhaustiveCaller: Record<ReleasedSchemaId, string> = releasedHandlers;
+// @ts-expect-error the expanded vocabulary requires four additional handler keys
+const currentExhaustiveCaller: Record<DocumentAuthoringSchemaId, string> = releasedHandlers;
+void [catalogBackV1, catalogBackV2, findBackV1, findBackV2, retainedSchema, oldExhaustiveCaller, currentExhaustiveCaller];
+
+
+// Identity closure also propagates through otherwise unchanged named Plan types.
+type ReleasedPlanV2 = Omit<DocumentPlanV2, "compiler"> & {
+  readonly compiler: Omit<DocumentPlanV2["compiler"], "id"> & { readonly id: ReleasedCompilerId };
+};
+declare const releasedPlanV2: ReleasedPlanV2;
+declare function releasedApplyV2(request: Omit<ApplyDocumentPlanRequest, "plan"> & { readonly plan: ReleasedPlanV2 }): Promise<DocumentReceiptV2>;
+void releasedApplyV2({ consumerRoot: ".", plan: releasedPlanV2 });
+// @ts-expect-error an old Foundation-qualified Plan is no longer native V2 input
+void applyDocumentationPlanV2({ consumerRoot: ".", plan: releasedPlanV2 });
+declare const releasedPlannerV2: (request: PlanDocumentationDocumentRequestV2) => Promise<ReleasedPlanV2>;
+// @ts-expect-error an old producer may return a non-native compiler identity
+const currentPlannerSubstitute: typeof planDocumentationDocumentV2 = releasedPlannerV2;
+const releasedPlannerSubstitute: typeof releasedPlannerV2 = planDocumentationDocumentV2;
+void [currentPlannerSubstitute, releasedPlannerSubstitute];

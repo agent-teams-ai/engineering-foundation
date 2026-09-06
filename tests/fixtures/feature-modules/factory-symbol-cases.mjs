@@ -214,7 +214,9 @@ export function lexicalErasureCases(feature, factorySource) {
  query('mapped constraint outside key scope',value+'type Identity={[F in keyof F]:F};',true,true,true);
  query('infer false branch no leak',value+'type Identity<T>=T extends infer F?F:F;',true,true,true);
  query('nested infer no leak',value+'type Identity<T>=T extends (T extends infer F?F:never)?F:never;',true,true,true);
+ precisionQueryCases(query, value);
  const relay=feature+'/composition/lexical-relay.ts', leaf=feature+'/composition/lexical-leaf.ts';
+ specs.push(...precisionStarCases(feature, factorySource));
  for(const kind of ['namespace','const-enum','runtime-namespace','runtime-enum']) {
   for(const route of ['local','import','reexport']) {
    for(const safe of [false,true]) {
@@ -246,6 +248,64 @@ export function lexicalErasureCases(feature, factorySource) {
    code:'import * as ns from "./lexical-relay.js"; import createApi from "../application/factory.js"; import {mutate} from "../adapters/index.js"; mutate(ns); export const {execute}=createApi();',
    extra:{[relay]:declaration+'export {expose}; export * from "../application/factory.js";',
     [adapter]:'export function read(){return "adapter";} export function mutate(ns:any){if(typeof ns.expose==="function"){ns.expose().execute=read;}}'}});
+ }
+ return specs;
+}
+
+function precisionQueryCases(query, value) {
+ // ER1-ER4: paired emitted availability and lexical symbol selection.
+ for (const statement of [false,true]) {
+  query(`precision empty statement ${statement}`,'namespace Scope {namespace F {'+(statement?';':'')+'} type View=typeof F; type IsFunction=View extends (...args:any[])=>any?true:false; const check:IsFunction='+!statement+';}',!statement);
+ }
+ for (const first of [false,true]) {
+  for (const visibility of ['implicit','explicit','listed','private']) {
+   const modifier=visibility==='explicit'?'export ':'';
+   const control=visibility==='private'?'const marker:number; export {marker};':visibility==='listed'?'export {F};':'';
+   const declaration='declare namespace Scope {'+modifier+'const F:()=>"local";'+control+'}';
+   const use='namespace Scope {type View=typeof F; const value:View=()=>"'+(visibility==='private'?'adapter':'local')+'";}';
+   query(`precision ambient value ${visibility} ${first}`,first?declaration+use:use+declaration,visibility==='private');
+   const typeDeclaration='declare namespace Scope {'+modifier+'interface F {local:string}'+control+'}';
+   const typeUse='namespace Scope {const value:F={'+(visibility==='private'?'value:"adapter"':'local:"yes"')+'};}';
+   query(`precision ambient type ${visibility} ${first}`,value+(first?typeDeclaration+typeUse:typeUse+typeDeclaration),visibility==='private',true,visibility==='private');
+  }
+ }
+ for (const explicit of [false,true]) {
+  query(`precision ambient alias ${explicit}`,'declare namespace Source {'+(explicit?'export ':'')+'function local():"local";} namespace Scope {import F=Source.local; type View=typeof F; const value:View=()=>"local";}',false);
+  query(`precision inherited ambient ${explicit}`,'declare namespace Root {'+(explicit?'export ':'')+'namespace Scope {const F:()=>"local";}} namespace Root {export namespace Scope {type View=typeof F; const value:View=()=>"local";}}',false);
+ }
+ for (const constant of [false,true]) {
+  for (const member of ['local','quoted']) {
+   query(`precision enum member ${constant} ${member}`,'namespace Source {export '+(constant?'const ':'')+'enum Values {local=1,"quoted"=2}} namespace Scope {import F=Source.Values.'+member+'; type View=typeof F; const value:View='+(member==='local'?1:2)+';}',false);
+  }
+ }
+ query('precision enum whole','namespace Source {export enum Values {local=1}} namespace Scope {import F=Source.Values; type View=typeof F; const value:View=Source.Values;}',false);
+}
+
+function precisionStarCases(feature, factorySource) {
+ const relay=feature+"/composition/lexical-relay.ts", adapter=feature+"/adapters/index.ts", specs=[];
+ for (const first of [false,true]) {
+  for (const [kind,symbol,emitted] of [
+   ['alias named','namespace Source {export function local(){return {execute:()=>"unrelated"};}} import expose=Source.local; export {expose};',true],
+   ['alias inline','namespace Source {export function local(){return {execute:()=>"unrelated"};}} export import expose=Source.local;',true],
+   ['alias namespace','namespace Source {export const data=1;} import expose=Source; export {expose};',true],
+   ['alias interface','namespace Source {export interface Local {value:string}} import expose=Source.Local; export {expose};',false],
+   ['alias erased namespace','namespace Source {export interface Data {value:string}} import expose=Source; export {expose};',false],
+   ['empty statement','namespace expose {;} export {expose};',true],
+   ['empty body','namespace expose {} export {expose};',false],
+   ['enum alias','namespace Source {export enum Values {local=1}} import expose=Source.Values; export {expose};',true],
+   ['const enum alias','namespace Source {export const enum Values {local=1}} import expose=Source.Values; export {expose};',false],
+   ['enum member alias','namespace Source {export enum Values {local=1}} import expose=Source.Values.local; export {expose};',true],
+   ['ambient namespace alias','declare namespace Math {function abs(value:number):number;} import expose=Math; export {expose};',true],
+   ['ambient const enum whole','declare const enum Math {PI=3.141592653589793} import expose=Math; export {expose};',false],
+   ['ambient const enum member','declare const enum Math {PI=3.141592653589793} import expose=Math.PI; export {expose};',true]
+  ]) {
+   const star='export * from "../application/factory.js";';
+   specs.push({name:`lexical erasure precision star ${kind} ${first}`,safe:emitted,internal:[relay],
+    factory:factorySource.replace('export function createApi','export default function createApi'),
+    code:'import * as ns from "./lexical-relay.js"; import createApi from "../application/factory.js"; import {mutate} from "../adapters/index.js"; mutate(ns); export const {execute}=createApi();',
+    extra:{[relay]:first?symbol+star:star+symbol,
+     [adapter]:'export function read(){return "adapter";} export function mutate(ns:any){if(typeof ns.expose==="function"){ns.expose().execute=read;}}'}});
+  }
  }
  return specs;
 }

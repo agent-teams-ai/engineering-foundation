@@ -1,6 +1,6 @@
 import { flatBindings } from "./factory-origins.mjs";
 
-import { walk, rootSymbol, declarationValue, indexQueryUses } from "./surface-lexical.mjs";
+import { walk, rootSymbol, declarationValue, indexRuntimeAliases, indexQueryUses } from "./surface-lexical.mjs";
 export { walk } from "./surface-lexical.mjs";
 
 const nameOf = (node) => node?.name ?? node?.value;
@@ -45,6 +45,7 @@ export function indexProgram(program) {
   // Resolve local syntax after indexing both declaration orders. Imported and
   // re-exported aliases are closed over accepted targets by the effect pass.
   const surface = { program, imports, exports, locals, typeExports, typeLocals, references, stars, runtimeLocals };
+  indexRuntimeAliases(surface);
   indexRuntimeBindings(surface);
   indexQueryUses(surface);
   return surface;

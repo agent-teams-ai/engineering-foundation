@@ -14,7 +14,7 @@ export function rootSymbol(node) {
 }
 export function declarationValue(node, runtime = false, namespaceMember = false) {
   if (!node || (runtime && node.declare && !namespaceMember)) {return false;}
-  if (["TSInterfaceDeclaration", "TSTypeAliasDeclaration", "EmptyStatement"].includes(node.type)) {return false;}
+  if (["TSInterfaceDeclaration", "TSTypeAliasDeclaration"].includes(node.type)) {return false;}
   if (node.type === "TSEnumDeclaration") {return !runtime || !node.const;}
   if (node.type === "TSDeclareFunction") {return !runtime || namespaceMember;}
   if (node.type === "TSModuleDeclaration") {
@@ -42,6 +42,23 @@ function patternNames(node, names) {
   else if (node.type === "ArrayPattern") {for (const item of node.elements) {patternNames(item, names);}}
   else if (node.type === "ObjectPattern") {for (const item of node.properties) {patternNames(item.value ?? item.argument, names);}}
 }
+function aliasValueFacts(node, scope) {
+  if (declarationValue(node, true, true)) {
+    if (node.type === "VariableDeclaration") {for (const item of node.declarations) {patternNames(item.id, scope.aliasValue);}}
+    else {const name = rootSymbol(node.id); if (name) {scope.aliasValue.add(name);}}
+  }
+  if (node.type === "TSEnumDeclaration") {
+    const name = rootSymbol(node.id);
+    if (!scope.modules.has(name)) {scope.modules.set(name, emptyScope());}
+    const members = scope.modules.get(name);
+    for (const member of node.body.members) {
+      const key = member.id.name ?? member.id.value;
+      if (member.computed || typeof key !== "string") {continue;}
+      members.value.add(key);
+      members.aliasValue.add(key);
+    }
+  }
+}
 function declarations(body, scope) {
   for (const statement of body) {
     const node = statement.declaration ?? statement;
@@ -49,6 +66,7 @@ function declarations(body, scope) {
     else if (["FunctionDeclaration", "ClassDeclaration", "TSDeclareFunction", "TSEnumDeclaration", "TSModuleDeclaration"].includes(node.type) && declarationValue(node)) {
       const name = rootSymbol(node.id); if (name) {scope.value.add(name);}
     }
+    aliasValueFacts(node, scope);
     if (node.type === "TSImportEqualsDeclaration") {scope.aliases.set(node.id.name, node);}
     if (["TSModuleDeclaration", "TSEnumDeclaration"].includes(node.type)) {scope.namespace.add(rootSymbol(node.id));}
     if (["TSInterfaceDeclaration", "TSTypeAliasDeclaration", "ClassDeclaration", "TSEnumDeclaration"].includes(node.type)) {
@@ -63,7 +81,7 @@ function varDeclarations(node, scope) {
     for (const child of Array.isArray(value) ? value : [value]) {varDeclarations(child, scope);}
   }
 }
-const emptyScope = () => ({ value: new Set(), type: new Set(), namespace: new Set(), modules: new Map(), aliases: new Map() });
+const emptyScope = () => ({ aliasValue: new Set(), value: new Set(), type: new Set(), namespace: new Set(), modules: new Map(), aliases: new Map() });
 function scopeNames(node) {
   const scope = emptyScope();
   if (functionScope(node)) {
@@ -82,12 +100,23 @@ function scopeNames(node) {
 function moduleParts(node) {
   return node.type === "TSQualifiedName" ? [...moduleParts(node.left), node.right.name] : [node.name ?? node.value];
 }
+function ambientContext(node, parents) {
+  while (node) {
+    if (node.declare) {return true;}
+    node = parents.get(node);
+  }
+  return false;
+}
+function implicitExports(body, parents) {
+  return ambientContext(body, parents) && !body.body.some((statement) =>
+    (statement.type === "ExportNamedDeclaration" && !statement.declaration) || statement.type === "TSExportAssignment");
+}
 function namespaceScopes(nodes, parents, scopes) {
   const groups = new Map();
   for (const node of nodes) {
     if (node.type !== "TSModuleDeclaration" || !node.body) {continue;}
     let container = parents.get(node);
-    const exported = container?.type === "ExportNamedDeclaration";
+    const exported = container?.type === "ExportNamedDeclaration" || (container?.type === "TSModuleBlock" && implicitExports(container, parents));
     while (container && !["Program", "BlockStatement", "TSModuleBlock"].includes(container.type)) {container = parents.get(container);}
     let scope = (exported && groups.get(container)) || scopes.get(container);
     if (!scope) {continue;}
@@ -96,9 +125,33 @@ function namespaceScopes(nodes, parents, scopes) {
       scope = scope.modules.get(name);
     }
     groups.set(node.body, scope);
-    declarations(node.body.body.filter((statement) => statement.type === "ExportNamedDeclaration"), scope);
+    declarations(node.body.body.filter((statement) => statement.type === "ExportNamedDeclaration" || implicitExports(node.body, parents)), scope);
   }
+  shareExportLists(groups, scopes);
   return groups;
+}
+function shareSymbol(local, shared, from, to) {
+  for (const kind of ["value", "type", "namespace", "aliasValue"]) {
+    if (local[kind].has(from)) {shared[kind].add(to);}
+  }
+  for (const kind of ["modules", "aliases"]) {
+    if (local[kind].has(from)) {shared[kind].set(to, local[kind].get(from));}
+  }
+}
+function shareExportLists(groups, scopes) {
+  // An ambient export list disables implicit exports, but its explicitly
+  // selected local symbols remain shared. Keep original alias nodes so their
+  // targets still use the declaration environment.
+  for (const [body, shared] of groups) {
+    const local = scopes.get(body);
+    for (const statement of body.body) {
+      if (statement.type !== "ExportNamedDeclaration" || statement.source) {continue;}
+      for (const item of statement.specifiers) {
+        const from = item.local.name ?? item.local.value, to = item.exported.name ?? item.exported.value;
+        shareSymbol(local, shared, from, to);
+      }
+    }
+  }
 }
 // Alias targets are looked up in their declaration's lexical environment, not
 // the query's. Resolving a value-only alias cannot hide an outer type (or vice
@@ -141,7 +194,7 @@ function findModule(name, node, context, active) {
 function scopeHas(scope, name, namespace, context, active) {
   if (scope[namespace].has(name)) {return true;}
   const alias = scope.aliases.get(name);
-  if (!alias) {return false;}
+  if (!alias || (namespace === "aliasValue" && alias.importKind === "type")) {return false;}
   return (aliasTarget(alias, context, active) ?? []).some((target) => scopeHas(target.scope, target.name, namespace, context, target.active));
 }
 function shadowed(node, name, namespace, context) {
@@ -154,15 +207,35 @@ function inferNames(node, names) {
     for (const child of Array.isArray(value) ? value : [value]) {inferNames(child, names);}
   }
 }
+function lexicalContext(program) {
+  const parents = new Map(), scopes = new Map(), nodes = [];
+  walk(program, (node, parent) => {
+    nodes.push(node); parents.set(node, parent);
+    scopes.set(node, scopeNames(node));
+  });
+  return { nodes, parents, scopes, groups: namespaceScopes(nodes, parents, scopes) };
+}
+// Top-level local import-equals aliases emit only when their local target admits
+// an emitted reference (even to an ambient host value). Whole const enums and
+// erased namespaces do not; enum-member references do. This shares bounded
+// lexical lookup, never source resolution.
+export function indexRuntimeAliases({ program, runtimeLocals }) {
+  const aliases = program.body.map((statement) => statement.declaration ?? statement)
+    .filter((node) => node.type === "TSImportEqualsDeclaration");
+  if (!aliases.length) {return;}
+  const context = lexicalContext(program), scope = context.scopes.get(program);
+  for (const alias of aliases) {
+    if (scopeHas(scope, alias.id.name, "aliasValue", context, new Set())) {runtimeLocals.add(alias.id.name);}
+  }
+}
 // Resolve both namespaces before summarizing import observations. Reopened
 // bodies share exports only; private declarations keep their own lexical frame.
 export function indexQueryUses({ program, imports, references }) {
   let candidate = false;
   walk(program, (node) => {if (node.type === "TSTypeQuery" && imports.has(rootSymbol(node.exprName))) {candidate = true;}});
   if (!candidate) {return;}
-  const parents = new Map(), scopes = new Map(), nodes = [], queries = new Set(), types = new Set();
-  walk(program, (node, parent) => {nodes.push(node); parents.set(node, parent); scopes.set(node, scopeNames(node));});
-  const context = { parents, scopes, groups: namespaceScopes(nodes, parents, scopes) };
+  const context = lexicalContext(program), { nodes, scopes } = context;
+  const queries = new Set(), types = new Set();
   for (const node of nodes) {
     if (node.type === "TSConditionalType") {
       inferNames(node.extendsType, scopes.get(node.trueType).type);

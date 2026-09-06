@@ -21,7 +21,7 @@ const [consumerRoot, generationText, entrypoint, operation, checkpoint] = proces
 const generation = Number(generationText);
 assert.ok([1, 2].includes(generation));
 assert.ok(["generic", "V2"].includes(entrypoint));
-assert.ok(["plan", "apply", "recover", "artifact-drift"].includes(operation));
+assert.ok(["plan", "apply", "recover", "artifact-drift", "reject-v1"].includes(operation));
 const installedRoot = fileURLToPath(new URL("..", import.meta.resolve("@agent-teams/document-authoring")));
 assert.equal(installedRoot, join(dirname(consumerRoot), "node_modules/@agent-teams/document-authoring/"));
 
@@ -149,8 +149,17 @@ async function crashAndRecover(plan) {
 
 async function assertApplyReplay(plan) {
   const apply = generation === 2 && entrypoint === "V2" ? applyDocumentationPlanV2 : applyDocumentationPlan;
+  const input = JSON.parse(JSON.stringify(plan));
+  let planReads = 0;
   const receipt = operation === "recover" ? await crashAndRecover(plan)
-    : await apply({ consumerRoot, plan: JSON.parse(JSON.stringify(plan)) });
+    : await apply({
+      get plan() { planReads += 1; assert.equal(planReads, 1); return input; },
+      get consumerRoot() {
+        // The admitted snapshot must survive mutation by a later request getter.
+        input.output.contentBase64 = "invalid";
+        return consumerRoot;
+      }
+    });
   assertReceipt(receipt, plan, "applied");
   const path = join(consumerRoot, plan.destination);
   const bytes = await readFile(path);
@@ -166,6 +175,22 @@ async function assertApplyReplay(plan) {
   for (const recover of [recoverDocumentationTransaction, recoverDocumentationTransactionV2]) {
     await assert.rejects(recover({ consumerRoot }), /requires a coordinator-qualified recoverable transaction/u);
   }
+}
+
+async function assertRejectLegacyPlan(plan) {
+  const before = await snapshot(consumerRoot);
+  const transaction = await inspectDocumentTransactionV2(consumerRoot);
+  await assert.rejects(lstat(join(consumerRoot, plan.destination)), { code: "ENOENT" });
+  await assert.rejects(applyDocumentationPlanV2({ consumerRoot, plan: JSON.parse(JSON.stringify(plan)) }), TypeError);
+  assert.deepEqual(await snapshot(consumerRoot), before);
+  await assert.rejects(lstat(join(consumerRoot, plan.destination)), { code: "ENOENT" });
+  assert.deepEqual(await inspectDocumentTransactionV2(consumerRoot), transaction);
+  let rootReads = 0;
+  await assert.rejects(applyDocumentationPlanV2({
+    plan,
+    get consumerRoot() { rootReads += 1; throw new Error("consumer root must not be observed"); }
+  }), TypeError);
+  assert.equal(rootReads, 0);
 }
 
 async function assertArtifactDrift(plan) {
@@ -210,6 +235,7 @@ async function assertArtifactDrift(plan) {
 
 const { request, vector } = await prepareRequest();
 const plan = await assertPlan(request, vector);
-if (operation === "artifact-drift") { await assertArtifactDrift(plan); }
+if (operation === "reject-v1") { await assertRejectLegacyPlan(plan); }
+else if (operation === "artifact-drift") { await assertArtifactDrift(plan); }
 else if (operation !== "plan") { await assertApplyReplay(plan); }
 process.stdout.write(JSON.stringify({ generation, entrypoint, operation, outcome: "passed" }));

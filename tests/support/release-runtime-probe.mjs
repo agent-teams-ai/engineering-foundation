@@ -7,12 +7,20 @@ import { registerHooks, syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+const scenario = process.argv[2];
 const changelogEol = process.argv[3] ?? 'lf';
 assert.ok(['lf', 'crlf'].includes(changelogEol));
 globalThis.readProbeFile = async (path, options) => {
   const value = await readSourceFile(path, options);
-  return typeof value === 'string' && String(path).endsWith('CHANGELOG.md')
-    ? value.replace(/\r?\n/gu, changelogEol === 'crlf' ? '\r\n' : '\n') : value;
+  if (typeof value !== 'string' || !String(path).endsWith('CHANGELOG.md')) { return value; }
+  const info = packages.find(entry => String(path) === join(sourceRoot, entry.changelogPath));
+  assert.ok(info);
+  const heading = scenario === 'notes-level-three' ? '###' : '##';
+  const version = scenario === 'notes-prefix' ? `${info.version}.1` : info.version;
+  const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
+  const notes = scenario.startsWith('notes-')
+    ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : value;
+  return notes.replace(/\r?\n/gu, changelogEol === 'crlf' ? '\r\n' : '\n');
 };
 
 const sourceRoot = fileURLToPath(new URL('../../', import.meta.url));
@@ -48,7 +56,7 @@ export const reconcileGithubTagRelease = (...args) => globalThis.releaseProbe.re
 
 const ok = stdout => ({ status: 0, stdout, stderr: '' });
 
-function begin(scenario) {
+function begin() {
   const events = [];
   const archiveByName = new Map();
   const published = new Set();
@@ -96,7 +104,7 @@ function begin(scenario) {
       }
       return result;
     },
-    reconcile: () => { events.push({ operation: 'reconcile' }); },
+    reconcile: release => { events.push({ operation: 'reconcile', body: release.body }); },
   };
   childProcess.spawnSync = (command, args, options = {}) => {
     if (command === 'tar') { return originalSpawn(command, args, options); }
@@ -149,9 +157,9 @@ function begin(scenario) {
   return events;
 }
 
-const scenario = process.argv[2];
-assert.ok(['valid-wave', 'advance-after-authorization', 'digest-mismatch'].includes(scenario));
-const events = begin(scenario);
+assert.ok(['valid-wave', 'advance-after-authorization', 'digest-mismatch',
+  'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty'].includes(scenario));
+const events = begin();
 const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')));
 let error;
 try { await publishOrderedRelease({ cwd: sourceRoot, decision: { tag: 'latest' }, state: { packages: { public: packages } } }); }
@@ -159,14 +167,23 @@ catch (caught) { error = caught.message; }
 const attempts = events.filter(event => event.operation === 'publish-attempt');
 const publications = events.filter(event => event.operation === 'publish-suppressed');
 const reconciliations = events.filter(event => event.operation === 'reconcile');
-if (scenario === 'valid-wave') {
+if (scenario === 'valid-wave' || scenario === 'notes-exact') {
   assert.equal(error, undefined);
+  if (scenario === 'notes-exact') {
+    assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
+  }
   assert.equal(attempts.length, 6);
   assert.equal(publications.length, 6);
   assert.equal(reconciliations.length, 6);
   assert.deepEqual(publications.map(item => item.name), PUBLISHABLE_PACKAGES.map(info => info.name));
   assert.ok(publications.every(item => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));
+} else if (scenario.startsWith('notes-')) {
+  assert.match(error, scenario === 'notes-empty' ? /Changelog entry for .* is empty\./u : /Changelog has no exact .* release entry\./u);
+  assert.deepEqual(events, [{ operation: 'qualified-pack' }]);
+  assert.equal(attempts.length, 0);
+  assert.equal(publications.length, 0);
+  assert.equal(reconciliations.length, 0);
 } else {
   // The policy catches callback errors and reconciles absence; its diagnostics
   // and retry latency are inherited and deliberately outside this regression.

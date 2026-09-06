@@ -112,6 +112,11 @@ async function runRuntimeCase(consumerRoot, { generation, entrypoint, operation,
   assert.deepEqual(JSON.parse(output), { generation, entrypoint, operation, outcome: "passed" });
 }
 
+test("installed JavaScript consumer rejects v1 at explicit V2 admission", async (t) => {
+  const consumerRoot = await materializeInstalledConsumer(t);
+  await runRuntimeCase(consumerRoot, { generation: 1, entrypoint: "V2", operation: "reject-v1" });
+});
+
 test("installed consumer applies, replays and recovers exact v1/v2 receipts", {
   skip: process.platform === "win32" ? "Document writer requires strict POSIX directory durability." : false
 }, async (t) => {

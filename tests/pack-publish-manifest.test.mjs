@@ -171,7 +171,8 @@ test("release and registry targets invoke the concrete qualified pack gate", asy
   }
 });
 
-for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authorization"]) {
+for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authorization",
+  "notes-exact", "notes-prefix", "notes-level-three", "notes-empty"]) {
   for (const eol of ["lf", "crlf"]) {
     test(`actual release runtime closes archive authorization: ${scenario} (${eol})`, () => {
       // Isolate module hooks, subprocess/fetch stubs, and accelerated retry timers.

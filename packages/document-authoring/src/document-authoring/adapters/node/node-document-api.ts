@@ -121,7 +121,15 @@ export function createNodeDocumentAuthoring(observation: DocumentObservationDepe
       readonly plan: import("../../application/model/document-planning.js").DocumentPlanV2;
     }
   ): Promise<import("../../application/model/document-receipt.js").DocumentReceiptV2> {
-    const receipt = await applyNodeDocumentationPlan(request, authority);
+    const plan = await new NodeDocumentContractValidator().validatePlan(request.plan);
+    if (plan.schemaVersion !== 2) {
+      throw new TypeError("Document Plan v2 entrypoint requires a v2 Plan.");
+    }
+    const receipt = await applyNodeDocumentationPlan({
+      consumerRoot: request.consumerRoot,
+      plan,
+      ...(request.signal === undefined ? {} : { signal: request.signal })
+    }, authority);
     if (receipt.schemaVersion !== 2) {
       throw new TypeError("Document Plan v2 produced a legacy Receipt.");
     }

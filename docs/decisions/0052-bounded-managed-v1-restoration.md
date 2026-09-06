@@ -1,11 +1,11 @@
 ---
-id: ADR-0046
+id: ADR-0052
 status: proposed
 supersedes: []
 superseded_by: []
 ---
 
-# ADR-0046: Bounded Managed V1 Restoration
+# ADR-0052: Bounded Managed V1 Restoration
 
 Status: Implementation decision submitted for independent integration review
 

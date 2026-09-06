@@ -83,3 +83,69 @@ process.exitCode = code;
     assert.match(execution.issues[0].message, /missing-contract/u);
   }
 });
+
+test("restoration admission preserves strict parser identity at the actual proof reader", async () => {
+  const { parseConsumerRestorationPreparation, parseConsumerRestorationProof } = await import(
+    "../dist/consumer-integration/application/policies/consumer-restoration-proof.js"
+  );
+  const { sha256Bytes, StrictJsonError } = await import("@agent-teams/repository-mutation");
+  const { StrictJsonError: serializationError } = await import("@agent-teams/repository-mutation/serialization");
+  assert.equal(StrictJsonError, serializationError);
+  for (const parse of [parseConsumerRestorationPreparation, parseConsumerRestorationProof]) {
+    for (const [text, failure] of [
+      ['{"a":1,"a":2}', "duplicate-key"],
+      ['{"a":1,"\\u0061":2}', "duplicate-key"],
+      ['{"nested":[{"a":1,"\\u0061":2}]}', "duplicate-key"],
+      ['{"nested":{"x":{"a":1,"a":2}}}', "duplicate-key"],
+      ['{"a":1,"a":2,}', "duplicate-key"],
+      ['{"nested":[1,]}', "syntax"],
+      ['{"a":1} trailing', "syntax"],
+      ['{"a":/*comment*/1}', "syntax"],
+      ['"unterminated', "syntax"]
+    ]) {
+      const bytes = Buffer.from(text);
+      assert.throws(() => parse(bytes, sha256Bytes(bytes)), (error) => {
+        assert.ok(error instanceof StrictJsonError);
+        assert.equal(error.name, "StrictJsonError");
+        assert.equal(error.failure, failure);
+        assert.equal(error.message, `Strict JSON parsing failed: ${failure}.`);
+        return true;
+      });
+      assert.throws(() => parse(bytes, `sha256:${"0".repeat(64)}`), /separately retained selection digest/u);
+    }
+    // Equal keys in distinct objects are valid JSON; closed proof shape rejects later.
+    const bytes = Buffer.from('{"objects":[{"a":1},{"a":2}]}');
+    assert.throws(() => parse(bytes, sha256Bytes(bytes)), (error) => {
+      assert.ok(error instanceof TypeError);
+      assert.ok(!(error instanceof StrictJsonError));
+      assert.match(error.message, /invalid closed record/u);
+      return true;
+    });
+  }
+});
+
+test("restoration admission preserves historical replacement and retry receipt semantics", async () => {
+  const { assertFullyReplacedReceipt, assertObservedRestorationReceipt, inverseRestorationPlan } = await import(
+    "../dist/consumer-integration/application/policies/consumer-restoration-proof.js"
+  );
+  const { compileKnownFileTransactionPlan, sha256Json } = await import("@agent-teams/repository-mutation");
+  const plan = compileKnownFileTransactionPlan({ operations: [{ path: "managed.json",
+    precondition: { state: "known-file", acceptedPreimages: [{ bytes: Buffer.from("historical-v1\n"), mode: 0o644 }] },
+    postimage: { bytes: Buffer.from("current-v2\n"), mode: 0o644 }
+  }] });
+  const receipt = (outcome) => {
+    const body = { schemaVersion: 1, protocol: plan.protocol, planDigest: plan.planDigest,
+      outcome: outcome === "replaced" ? "applied" : "already-satisfied",
+      operations: plan.operations.map(({ path, postimage }) => ({ path, outcome, resultDigest: postimage.digest })) };
+    return { ...body, receiptDigest: sha256Json({ domain: "agent-teams.repository-mutation.known-file-receipt/v1", body }) };
+  };
+  const original = receipt("replaced"), retry = receipt("already-satisfied");
+  assertFullyReplacedReceipt(plan, original);
+  assertObservedRestorationReceipt(plan, original);
+  assertObservedRestorationReceipt(plan, retry);
+  assert.throws(() => assertFullyReplacedReceipt(plan, retry), /every exact replacement/u);
+  assert.throws(() => assertObservedRestorationReceipt(plan, { ...retry, receiptDigest: original.receiptDigest }), /honest selected operation outcomes/u);
+  const inverse = inverseRestorationPlan(plan);
+  assert.deepEqual(inverse.operations[0].postimage, plan.operations[0].precondition.acceptedPreimages[0]);
+  assert.deepEqual(inverse.operations[0].precondition.acceptedPreimages[0], plan.operations[0].postimage);
+});

@@ -6,7 +6,9 @@ editing the accepted decision.
 
 ## Proposed
 
-- [ADR-0046: Bounded Managed V1 Restoration](0046-bounded-managed-v1-restoration.md)
+- [ADR-0052: Bounded Managed V1 Restoration](0052-bounded-managed-v1-restoration.md)
+
+- [ADR-0053: Restoration Strict JSON Consumer Admission](0053-restoration-strict-json-consumer-admission.md) (proposed successor to ADR-0050)
 
 ## Accepted
 

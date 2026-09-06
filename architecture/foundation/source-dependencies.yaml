@@ -934,9 +934,7 @@ boundaries:
         - foundation.schema-contribution.transaction-coordination
       packages:
         - "@agent-teams/document-authoring"
-      builtins:
-        - node:path
-        - node:url
+      builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/schema-catalog.ts
@@ -3161,6 +3159,7 @@ boundaries:
       - packages/engineering-foundation/src/schema-ids.ts
     allow:
       boundaries:
+        - foundation.configuration-input.composition
         - foundation.schema-contribution.source-dependencies
         - foundation.schema-contribution.contract-json-schema-releases
         - foundation.schema-contribution.contract-protobuf-evolution
@@ -3375,6 +3374,7 @@ boundaries:
       - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-problem.ts
       - packages/engineering-foundation/src/features/configuration-input/application/ports/configuration-file-reader.ts
       - packages/engineering-foundation/src/features/configuration-input/application/schema-catalog.ts
+      - packages/engineering-foundation/src/features/configuration-input/application/schema-list.ts
     allow:
       boundaries:
         - foundation.validation-reporting.application
@@ -3389,6 +3389,8 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/features/configuration-input/yaml.ts
       - packages/engineering-foundation/src/features/configuration-input/adapters/outbound/ajv/schema-catalog.ts
+      - packages/engineering-foundation/src/features/configuration-input/adapters/outbound/ajv/contributed-schema-catalog.ts
+      - packages/engineering-foundation/src/features/configuration-input/adapters/outbound/filesystem/installed-packaged-schema-reader.ts
       - packages/engineering-foundation/src/features/configuration-input/adapters/outbound/filesystem/packaged-schema-reader.ts
       - packages/engineering-foundation/src/features/configuration-input/adapters/inbound/yaml/strict-yaml-file-loader.ts
     allow:
@@ -3400,6 +3402,7 @@ boundaries:
       builtins:
         - node:fs/promises
         - node:path
+        - node:url
       runtimeReferences: []
   - id: foundation.configuration-input.composition
     roots:
@@ -3410,6 +3413,7 @@ boundaries:
       - packages/engineering-foundation/src/features/configuration-input/node.ts
     allow:
       boundaries:
+        - foundation.configuration-input.application
         - foundation.configuration-input.adapters
         - foundation.source-inventory.composition
       packages: []

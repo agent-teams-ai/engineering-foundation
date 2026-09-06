@@ -1,7 +1,47 @@
 import { unstableFactoryBindings } from "./factory-stability.mjs";
 
-function typeOnlyImport(binding, name) {
-  return binding.node.importKind === "type" || binding.node.specifiers.some((item) => item.local.name === name && item.importKind === "type");
+// Prove emitted named-symbol availability without ownership or callable projection. The
+// worklist adds only static (module, exported name) facts. Erased aliases remain
+// available for symbol queries, but cannot suppress effects through a star.
+function runtimeAvailability(sources, importTargets) {
+  const names = new Map([...sources.keys()].map((path) => [path, new Set()]));
+  const dependents = new Map(), pending = [...sources.keys()], queued = new Set(pending);
+  function available(path, binding) {
+    if (binding.runtimeAvailable !== undefined) {return binding.runtimeAvailable;}
+    const imported = !binding.source && sources.get(path).imports.get(binding.runtimeLocal);
+    const source = binding.source ?? imported?.node.source, name = binding.source ? binding.local : imported?.name;
+    const targets = source ? importTargets(path, source) : [];
+    return targets.length > 0 && targets.every((target) => names.get(target)?.has(name));
+  }
+  for (const [path, surface] of sources) {
+    for (const source of [...surface.stars, ...[...surface.exports.values()].map((binding) =>
+      binding.source ?? surface.imports.get(binding.runtimeLocal)?.node.source).filter(Boolean)]) {
+      for (const target of importTargets(path, source)) {
+        if (!dependents.has(target)) {dependents.set(target, new Set());}
+        dependents.get(target).add(path);
+      }
+    }
+  }
+  for (const path of pending) {
+    queued.delete(path);
+    const surface = sources.get(path), present = names.get(path), before = present.size;
+    for (const [name, binding] of surface.exports) {if (available(path, binding)) {present.add(name);}}
+    for (const source of surface.stars) {
+      const targets = importTargets(path, source);
+      for (const name of names.get(targets[0]) ?? []) {
+        // Named aliases select the explicit symbol even when it is erased;
+        // namespace runtime stars are enumerated separately by starNames.
+        if (name !== "default" && !surface.exports.has(name) && !surface.typeExports.has(name) &&
+            targets.every((target) => names.get(target)?.has(name))) {present.add(name);}
+      }
+    }
+    if (present.size !== before) {
+      for (const dependent of dependents.get(path) ?? []) {
+        if (!queued.has(dependent)) {queued.add(dependent); pending.push(dependent);}
+      }
+    }
+  }
+  return available;
 }
 
 // Enumerate candidate names only along accepted runtime star edges. Actual name
@@ -26,6 +66,7 @@ function starNames(path, sources, importTargets) {
  */
 export function stabilizeModuleFrames(sources, moduleFrame, importTargets) {
   const pending = [], seen = new Set(), declarations = new Map();
+  const runtimeAvailable = runtimeAvailability(sources, importTargets);
   function enqueue(kind, path, name, reason) {
     const key = JSON.stringify([kind, path, name, reason]);
     if (seen.has(key)) {return;}
@@ -54,14 +95,14 @@ export function stabilizeModuleFrames(sources, moduleFrame, importTargets) {
       return;
     }
     const binding = surface?.exports.get(name);
-    if (!binding || binding.typeOnly) {
+    if (!binding || !runtimeAvailable(path, binding)) {
       // Erased declarations cannot shadow runtime stars. Ambiguous candidates
       // all receive the effect: missing precise projection never authorizes a
       // supposedly unaffected capture. A star never forwards the default name.
       if (name !== "default") {
         for (const source of surface?.stars ?? []) {importedEffect(path, source, name, reason);}
       }
-      return;
+      if (!binding || binding.runtimeAvailable === false) {return;}
     }
     if (binding.source) {importedEffect(path, binding.source, binding.local, reason);}
     else if (binding.declaration) {
@@ -83,7 +124,7 @@ export function stabilizeModuleFrames(sources, moduleFrame, importTargets) {
     const value = moduleFrame(path).get(name);
     if (value.imported) {
       // Type-only names cannot receive runtime writes or result escapes.
-      if (!typeOnlyImport(value.imported, name)) {importedEffect(path, value.imported.node.source, value.imported.name, reason);}
+      if (value.imported.runtimeAvailable !== false) {importedEffect(path, value.imported.node.source, value.imported.name, reason);}
     }
     else {scan(path, [], [[value.node, reason]]);}
   }

@@ -1,3 +1,4 @@
+import { symbolFactoryCases } from "./factory-symbol-cases.mjs";
 import { starFactoryCases } from "./factory-star-cases.mjs";
 import { indexSurfaces, surfaceBindings } from "../../../scripts/feature-modules/surfaces.mjs";
 import { observeDependencies, validateObservations } from "../../../scripts/feature-modules/dependencies.mjs";
@@ -21,6 +22,9 @@ async function physicalFixture(t, workspaceSurface, spec) {
     allow:{boundaries:["other-domain","other-adapters","other-application"],packages:[],builtins:[],runtimeReferences:[]}});
   f.otherAssembly.allow.boundaries.push("other-composition");
   f.sourcePolicy.boundaries.find(({id}) => id === "other-application").allow.boundaries.push("other-domain");
+  for (const [from, to] of spec.boundaryEdges ?? []) {
+    f.sourcePolicy.boundaries.find(({id}) => id === from).allow.boundaries.push(to);
+  }
   const snapshots = new Map([
     [domain, 'export function safe(){return "domain";}'], [adapter, 'export function read(){return "adapter";}'],
     [factory, spec.factory ?? factorySource], [composition, spec.code ?? imports + spec.action + exported],
@@ -71,7 +75,7 @@ function assertOrders(assert, f, expected) {
 }
 
 export function registerCrossModuleFactoryCases({test, assert, workspaceSurface}) {
-  const specs = starFactoryCases(feature, factorySource);
+  const specs = [...starFactoryCases(feature, factorySource), ...symbolFactoryCases(feature, factorySource)];
   const add = (name, action, options = {}) => specs.push({name,action,...options});
   for (const first of [false,true]) {
     for (const mode of ["value","type","query"]) {

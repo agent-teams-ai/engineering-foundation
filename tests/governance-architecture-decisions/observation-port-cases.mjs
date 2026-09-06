@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,7 +12,7 @@ import { ContainedFileReadError, pathTraversesSymbolicLink, readContainedRegular
 const baselineObservation = { read: readContainedRegularFile, pathTraversesSymbolicLink };
 const fixtureRoot = fileURLToPath(new URL("../fixtures/governance-architecture-decisions/valid", import.meta.url));
 async function withFixture(callback) {
-  const root = await mkdtemp(join(tmpdir(), "foundation-baseline-observation-test-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-baseline-observation-test-")));
   try {
     await cp(fixtureRoot, root, { recursive: true });
     await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Baseline observation port test fixture.\n");

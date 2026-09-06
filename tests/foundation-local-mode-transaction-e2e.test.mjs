@@ -6,6 +6,7 @@ import {
   mkdtemp,
   open,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -459,7 +460,7 @@ test("installed package version follows its relocated module URL independently o
 });
 
 test("installed lifecycle, reporting and coordination retain identities and relative artifact paths", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-installed-identities-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-installed-identities-")));
   try {
     const source = join(repositoryRoot, "packages/engineering-foundation");
     const installed = join(root, "node_modules/@agent-teams/engineering-foundation");
@@ -467,8 +468,13 @@ test("installed lifecycle, reporting and coordination retain identities and rela
     for (const path of ["dist", "schemas", "presets", "assets", "package.json"]) {
       await cp(join(source, path), join(installed, path), { recursive: true });
     }
-    await symlink(join(source, "node_modules"), join(installed, "node_modules"), process.platform === "win32" ? "junction" : "dir");
     const manifest = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
+    for (const name of Object.keys(manifest.dependencies)) {
+      const target = await realpath(join(source, "node_modules", name));
+      const link = join(installed, "node_modules", name);
+      await mkdir(dirname(link), { recursive: true });
+      await symlink(target, link, process.platform === "win32" ? "junction" : "dir");
+    }
     await writeJson(join(installed, "package.json"), { ...manifest, version: "6.7.8-installed.2" });
     await writeJson(join(root, "package.json"), { type: "module", version: "99.88.77-cwd" });
     const script = `

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -13,7 +13,7 @@ const cancelled = (error) => error instanceof CapabilityInputError && error.prob
 async function withAgentWorkflowFixture(callback) {
   return withUnmarkedAgentWorkflowFixture(async (root) => {
     await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Instruction observation port test fixture.\n");
-    return callback(root);
+    return callback(await realpath(root));
   });
 }
 

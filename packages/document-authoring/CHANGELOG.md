@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#252](https://github.com/agent-teams-ai/engineering-foundation/pull/252) [`0c61b76`](https://github.com/agent-teams-ai/engineering-foundation/commit/0c61b7639029494e44582212f0d3e586887a4eac) Thanks [@777genius](https://github.com/777genius)! - Correct the pre-first-supported Authoring generic planner, apply, and recovery
+  declarations to return the existing v1/v2 Plan and Receipt unions. Generic
+  planning accepts the existing optional parentPolicy contract. Callers must narrow
+  schemaVersion or protocolVersion before using generation-specific fields;
+  DocumentPlan and DocumentReceipt remain v1 aliases, and explicit V2 APIs remain.
+  This is a TypeScript source change, not a claim of source compatibility with the
+  historical 0.0.0 namespace bootstrap. Runtime behavior, wire schemas, and
+  exact-owner/build recovery support remain unchanged.
+
+### Patch Changes
+
+- [#257](https://github.com/agent-teams-ai/engineering-foundation/pull/257) [`c99caa1`](https://github.com/agent-teams-ai/engineering-foundation/commit/c99caa1a785cfc7c876c79bf6934e228555e6afd) Thanks [@777genius](https://github.com/777genius)! - Publish a coordinated patch wave to obtain a new release provenance origin for managed Cohort qualification, preserving existing package behavior and exact internal dependency alignment.
+
+- Updated dependencies [[`c99caa1`](https://github.com/agent-teams-ai/engineering-foundation/commit/c99caa1a785cfc7c876c79bf6934e228555e6afd)]:
+  - @agent-teams/repository-mutation@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

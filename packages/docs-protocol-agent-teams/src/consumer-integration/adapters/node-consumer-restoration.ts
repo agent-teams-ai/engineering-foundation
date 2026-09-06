@@ -1,3 +1,4 @@
+import { consumerTimeMilliseconds } from "./node-consumer-clock.js";
 import { lstat } from "node:fs/promises";
 import {
   applyKnownFileTransaction, inspectKnownFileTransactionBarrier, sha256Bytes
@@ -29,7 +30,7 @@ import { nodeConsumerIntegrationInputReader } from "./node-consumer-integration-
 import { assertRestorationBinding, readSelectedRestorationProof } from "./node-consumer-restoration-selection.js";
 import { canonicalConsumerRoot } from "./node-consumer-repository-files.js";
 
-export function consumerRestorationRecorder(authority: ConsumerRestorationAuthorityReader): ConsumerRestorationRecorder {
+export function consumerRestorationRecorder(authority: ConsumerRestorationAuthorityReader, now: () => number = consumerTimeMilliseconds): ConsumerRestorationRecorder {
   return { prepare: async (options) => {
     const consumer = await restorationConsumer(options.consumerRoot, options.current.repository);
     const path = await externalRestorationPath(options.proofPath, consumer.root);
@@ -54,7 +55,7 @@ export function consumerRestorationRecorder(authority: ConsumerRestorationAuthor
       sourceCohort: current.cohort, targetCohort: options.target,
       ...await restorationArtifacts(consumer.root), plan: options.plan
     };
-    await assertRestorationAuthority(authority, pending);
+    await assertRestorationAuthority(authority, pending, now);
     await assertRestorationImages(consumer.root, pending, true);
     const bytes = Buffer.from(`${restorationJson(pending)}\n`);
     parseConsumerRestorationPreparation(bytes, sha256Bytes(bytes));
@@ -71,25 +72,29 @@ function assertRestoreGenerations(source: unknown, target: unknown): void {
 }
 
 export async function assertRestorationAuthority(reader: ConsumerRestorationAuthorityReader,
-  proof: Pick<ConsumerRestorationProof, "sourceCohort" | "targetCohort" | "consumer">): Promise<void> {
+  proof: Pick<ConsumerRestorationProof, "sourceCohort" | "targetCohort" | "consumer">,
+  now: () => number = consumerTimeMilliseconds): Promise<void> {
   const authority = await reader.readRestoration({
     source: proof.targetCohort, origin: proof.sourceCohort, repository: proof.consumer.repository
   });
-  requireRestoration(authority.source.revision === authority.target.revision &&
+  const observedAt = now();
+  requireRestoration(Number.isFinite(observedAt) &&
+    authority.source.revision === authority.target.revision &&
     isCentralRestorationAuthority(authority.source) && isCentralRestorationAuthority(authority.target) &&
     /^(?!0{40}$)[0-9a-f]{40}$/u.test(authority.source.revision) &&
     restorationJson(authority.source.cohort) === restorationJson(proof.targetCohort) &&
     restorationJson(authority.target.cohort) === restorationJson(proof.sourceCohort) &&
     proof.targetCohort.rollbackTo.includes(proof.sourceCohort.cohortId) &&
     proof.targetCohort.upgradeFrom.includes(proof.sourceCohort.cohortId) &&
-    Date.parse(proof.sourceCohort.eligibleAfter) <= Date.now() &&
-    Date.parse(proof.targetCohort.eligibleAfter) <= Date.now(),
+    Date.parse(proof.sourceCohort.eligibleAfter) <= observedAt &&
+    Date.parse(proof.targetCohort.eligibleAfter) <= observedAt,
   "fresh protected authority must authorize the exact qualified original rollback edge.");
 }
 
 export async function restoreNodeConsumerIntegration(options: ConsumerRestorationOptions, ports: {
   readonly authority: ConsumerRestorationAuthorityReader;
   readonly sandbox: ConsumerUpgradeSandboxPort;
+  readonly now?: () => number;
   readonly apply?: typeof applyKnownFileTransaction;
 }): Promise<ConsumerRestorationExecution> {
   assertRestoreGenerations(options.sourceGeneration, options.targetGeneration);
@@ -105,7 +110,7 @@ export async function restoreNodeConsumerIntegration(options: ConsumerRestoratio
     const observed = await nodeConsumerIntegrationInputReader.read({ consumerRoot: root });
     requireRestoration(restorationJson(observed.desired.cohort) ===
       restorationJson(options.activationOnly === true ? proof.sourceCohort : proof.targetCohort), "current Cohort is stale or mixed.");
-    await assertRestorationAuthority(ports.authority, proof);
+    await assertRestorationAuthority(ports.authority, proof, ports.now);
     await assertRestorationImages(root, proof, options.activationOnly === true);
     if (options.activationOnly !== true) {
       const claim = await claimMutation(lease, await observeMutationState(lease), {

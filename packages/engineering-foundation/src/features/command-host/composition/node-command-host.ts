@@ -4,7 +4,7 @@ import { renderFoundationReportText } from "../../../features/foundation-check/m
 import { runFoundationCli } from "../adapters/inbound/cli/foundation-cli.js";
 import { nodeCommandCancellation } from "../adapters/inbound/cli/node-process-lifecycle.js";
 import { foundationCommandFailureJson } from "../application/command-failure.js";
-import { createNodeCommandHost } from "../adapters/inbound/cli/node-command-host.js";
+import { createNodeCommandHost, readNodeProcessInputs } from "../adapters/inbound/cli/node-command-host.js";
 import { createManagedProcessExecutor } from "../../../process-execution/module.js";
 import { promoteArchitectureDecisionBaseline, readAcceptedArchitectureDecisionEvidence } from "../../../capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "../../../capabilities/public-api-compatibility/module.js";
@@ -72,5 +72,5 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
 
 export function createFoundationCommandHost<SchemaId extends string>(dependencies: CommandHostDependencies<SchemaId>) {
   return createNodeCommandHost((environment, packageRoot) =>
-    createCommandServices(dependencies, environment, packageRoot), runFoundationCli);
+    createCommandServices(dependencies, environment, packageRoot), runFoundationCli, readNodeProcessInputs);
 }

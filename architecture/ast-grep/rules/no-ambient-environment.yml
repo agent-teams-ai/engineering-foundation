@@ -6,8 +6,8 @@ note: Validate deployment configuration at composition and pass typed settings i
 files:
   - "packages/*/src/**/*.ts"
 ignores:
-  - "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts"
-  - "packages/engineering-foundation/src/cli.ts"
+  - "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-environment.ts"
+  - "packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/node-process-inputs.ts"
   - "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
 rule:
   pattern: process.env

@@ -1,3 +1,4 @@
+import { consumerProcessEnvironment } from "./node-consumer-environment.js";
 import { realpath } from "node:fs/promises";
 import { dirname } from "node:path";
 import { execFile } from "node:child_process";
@@ -148,8 +149,9 @@ function rejectPrototypeKeys(value: unknown, path = "integration profile"): void
 }
 
 export function assertGitHubRuntimeIdentity(desired: Pick<ConsumerIntegrationDesiredState, "repository">): void {
-  const runtimeId = process.env["GITHUB_REPOSITORY_ID"];
-  const runtimeName = process.env["GITHUB_REPOSITORY"];
+  const environment = consumerProcessEnvironment();
+  const runtimeId = environment["GITHUB_REPOSITORY_ID"];
+  const runtimeName = environment["GITHUB_REPOSITORY"];
   if (runtimeId !== undefined && runtimeId !== desired.repository.id) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_REPOSITORY_ID_MISMATCH",

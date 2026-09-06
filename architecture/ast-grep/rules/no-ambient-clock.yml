@@ -6,6 +6,7 @@ note: Pass an Instant or Clock port instead of reading the ambient wall clock.
 files:
   - "packages/*/src/**/*.ts"
 ignores:
+  - "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-clock.ts"
   - "packages/engineering-foundation/src/local-mode/adapters/outbound/time/system-clock.ts"
   - "packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/time/system-clock.ts"
 rule:

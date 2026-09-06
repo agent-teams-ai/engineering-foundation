@@ -1,3 +1,4 @@
+import { consumerTimeMilliseconds } from "./node-consumer-clock.js";
 import {
   assertQualifiedDocsCohortBindingV1,
   assertQualifiedDocsCohortBindingV2,
@@ -419,7 +420,7 @@ export function projectQualifiedCohortAuthority(input: {
   readonly repository: ConsumerIntegrationDesiredState["repository"];
   readonly revision: string;
   readonly restorationBinding?: "origin" | "source";
-}): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
+}, nowMilliseconds = consumerTimeMilliseconds()): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
   if (input.registry["schema_version"] !== 1) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
@@ -445,7 +446,7 @@ export function projectQualifiedCohortAuthority(input: {
   );
   if (input.restorationBinding !== undefined && lifecycle.state === "SUPERSEDED") {
     const until = typeof lifecycle.supportUntil === "string" ? Date.parse(lifecycle.supportUntil) : NaN;
-    if (!Number.isFinite(until) || Date.now() >= until) {
+    if (!Number.isFinite(until) || !Number.isFinite(nowMilliseconds) || nowMilliseconds >= until) {
       throw new ConsumerIntegrationNodeError("DOCS_CONSUMER_COHORT_NOT_SELECTABLE", "Recorded binding support has expired.");
     }
   } else if (!(input.restorationBinding === "source" && lifecycle.state === "SUSPENDED")) {
@@ -462,9 +463,11 @@ export function projectQualifiedCohortAuthority(input: {
 
 export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityReader {
   readonly #fetcher: AuthorityFetch;
+  readonly #now: () => number;
 
-  public constructor(fetcher: AuthorityFetch = globalThis.fetch) {
+  public constructor(fetcher: AuthorityFetch = globalThis.fetch, now: () => number = consumerTimeMilliseconds) {
     this.#fetcher = fetcher;
+    this.#now = now;
   }
 
   public async readRestoration(options: {
@@ -475,12 +478,13 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
     const revision = await resolveAuthorityRevision(this.#fetcher);
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
     const common = { registry, revision, repository: options.repository };
+    const now = this.#now();
     const source = projectQualifiedCohortAuthority({ ...common,
       cohortId: options.source.cohortId, generation: 2, restorationBinding: "source"
-    });
+    }, now);
     const target = projectQualifiedCohortAuthority({ ...common,
       cohortId: options.origin.cohortId, generation: 1, restorationBinding: "origin"
-    });
+    }, now);
     return { source, target };
   }
 
@@ -504,7 +508,7 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
       );
     }
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
-    return projectQualifiedCohortAuthority({ ...options, registry, revision });
+    return projectQualifiedCohortAuthority({ ...options, registry, revision }, this.#now());
   }
 }
 

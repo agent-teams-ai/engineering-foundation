@@ -11,6 +11,7 @@ import { packageRoot } from "./consumer-upgrade-e2e-fixtures.mjs";
 import { managedRestorationFixture, fixtureProcess } from "./consumer-restoration-fixture.mjs";
 import { resealRestorationProof } from "./consumer-restoration-cli-fixture.mjs";
 import { restorationJson } from "../dist/consumer-integration/application/policies/consumer-restoration-proof.js";
+import { assertRestorationAuthority } from "../dist/consumer-integration/adapters/node-consumer-restoration.js";
 import { GitHubCohortAuthorityReader, projectQualifiedCohortAuthority } from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
 
 async function snapshot(root, prefix = "") {
@@ -275,10 +276,11 @@ test("restoration rereads protected main and keeps source and original target at
   bindEvents();
   let revision = "8".repeat(40);
   const urls = [];
+  let observedTime = Date.parse("2026-09-06T00:00:00Z"), clockReads = 0;
   const reader = new GitHubCohortAuthorityReader(async (url) => {
     urls.push(url);
     return new Response(JSON.stringify(String(url).endsWith("/commits/main") ? { sha: revision } : registry));
-  });
+  }, () => {clockReads += 1; return observedTime;});
   const options = { source: successor, origin, repository: REPOSITORY };
   const first = await reader.readRestoration(options);
   assert.equal(first.source.revision, revision);
@@ -288,6 +290,7 @@ test("restoration rereads protected main and keeps source and original target at
   const second = await reader.readRestoration(options);
   assert.equal(second.source.revision, revision);
   assert.equal(second.target.revision, revision);
+  assert.equal(clockReads, 2, "Each complete authority read observes one instant for both Cohorts");
   assert.ok(urls[2].endsWith("/commits/main"));
   assert.ok(urls[3].includes(`/${revision}/governance/docs-qualified-cohorts.json`));
   registry.events[1].state = "SUPERSEDED";
@@ -297,6 +300,21 @@ test("restoration rereads protected main and keeps source and original target at
   registry.events[1].support_until = "2099-01-01T00:00:00Z";
   bindEvents();
   assert.equal((await reader.readRestoration(options)).target.cohort.cohortId, origin.cohortId);
+  const expires = Date.parse(registry.events[1].support_until);
+  observedTime = expires - 1;
+  assert.equal((await reader.readRestoration(options)).target.cohort.cohortId, origin.cohortId);
+  observedTime = expires;
+  await assert.rejects(reader.readRestoration(options), /support has expired/u);
+  observedTime = NaN;
+  await assert.rejects(reader.readRestoration(options), /support has expired/u);
+  const proof = { sourceCohort: first.target.cohort, targetCohort: first.source.cohort, consumer: { repository: REPOSITORY } };
+  const eligible = Math.max(Date.parse(proof.sourceCohort.eligibleAfter), Date.parse(proof.targetCohort.eligibleAfter));
+  const fixedAuthority = { readRestoration: async () => first };
+  await assert.rejects(assertRestorationAuthority(fixedAuthority, proof, () => eligible - 1));
+  await assertRestorationAuthority(fixedAuthority, proof, () => eligible);
+  for (const invalidTime of [NaN, Infinity, -Infinity]) {
+    await assert.rejects(assertRestorationAuthority(fixedAuthority, proof, () => invalidTime));
+  }
 });
 
 }

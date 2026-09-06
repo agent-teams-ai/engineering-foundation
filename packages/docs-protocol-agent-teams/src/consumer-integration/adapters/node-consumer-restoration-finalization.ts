@@ -57,6 +57,7 @@ function assertFinalizationTargetGeneration(value: unknown): void {
 export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizationOptions, ports: {
   readonly authority: ConsumerRestorationAuthorityReader & ConsumerUpgradeAuthorityReader;
   readonly sandbox: ConsumerUpgradeSandboxPort;
+  readonly now?: () => number;
   readonly apply?: typeof applyKnownFileTransaction;
 }): Promise<RestorableConsumerUpgradeExecution> {
   assertFinalizationGenerations(options.sourceGeneration, options.targetGeneration);
@@ -82,7 +83,7 @@ export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizat
     requireRestoration(isCentralFinalizationAuthority(authority) &&
       /^(?!0{40}$)[0-9a-f]{40}$/u.test(authority.revision) && authority.cohort.schemaVersion === 2 &&
       restorationJson(authority.cohort) === restorationJson(preparation.targetCohort), "fresh upgrade authority differs from selected target.");
-    await assertRestorationAuthority(ports.authority, preparation);
+    await assertRestorationAuthority(ports.authority, preparation, ports.now);
     await selectedImages(root, preparation);
     if (complete !== undefined) {await assertRestorationImages(root, preparation, false);}
     const claim = await claimMutation(lease, await observeMutationState(lease), {

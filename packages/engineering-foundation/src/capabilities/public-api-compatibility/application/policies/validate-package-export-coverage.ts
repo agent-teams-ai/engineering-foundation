@@ -66,6 +66,30 @@ function stringTargets(value: unknown, output: string[]): void {
   }
 }
 
+// The artifact model has one target and no condition availability dimension.
+// Admit only shapes whose every branch provides that target for any condition set.
+function unconditionalWildcardTarget(value: unknown, exportPath: string): string {
+  if (typeof value === "string") { return value; }
+  let branches: readonly unknown[] = [];
+  if (Array.isArray(value)) {
+    branches = value;
+  } else if (typeof value === "object" && value !== null) {
+    const conditions = value as Readonly<Record<string, unknown>>;
+    if (Object.hasOwn(conditions, "default") &&
+        Object.keys(conditions).every((key) => !key.startsWith(".") && !/^(?:0|[1-9][0-9]*)$/u.test(key))) {
+      branches = Object.values(conditions);
+    }
+  }
+  if (branches.length > 0) {
+    const targets = branches.map((branch) => unconditionalWildcardTarget(branch, exportPath));
+    const target = targets[0];
+    if (target !== undefined && targets.every((candidate) => candidate === target)) { return target; }
+  }
+  throw new PackageExportCoverageError(
+    `Wildcard export ${exportPath} has unsupported conditional or array availability; require one unconditional target.`
+  );
+}
+
 function typeTargets(value: unknown, output: string[]): void {
   if (Array.isArray(value)) {
     for (const candidate of value) {
@@ -135,9 +159,8 @@ function resolveExportTargets(input: {
         `Typed wildcard export ${exportPath} is unsupported; enumerate its concrete subpaths.`
       );
     }
-    const wildcardTargets = [...new Set(strings)];
-    const wildcardTarget = wildcardTargets[0];
-    if (wildcardTargets.length !== 1 || wildcardTarget === undefined || !wildcardTarget.startsWith("./")) {
+    const wildcardTarget = unconditionalWildcardTarget(input.target, exportPath);
+    if (!wildcardTarget.startsWith("./")) {
       throw new PackageExportCoverageError(
         `Wildcard export ${exportPath} must resolve to exactly one package-relative wildcard target.`
       );

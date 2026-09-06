@@ -210,3 +210,92 @@ test("initial candidate fixation rejects an archive that differs from current sc
   await assert.rejects(prepareInitialArtifactBaselines({ ...input, create: true }), /differs from current/u);
   await assert.rejects(readFile(join(root, "architecture/public-api/library.artifacts.json")), { code: "ENOENT" });
 });
+
+const regular = (name, value = "unselected") => ({ name, data: Buffer.from(value), type: "0" });
+
+test("archive preparation validates all portable ancestors before selecting payload, independent of order", async (t) => {
+  const { createHash } = await import("node:crypto");
+  const { tarArchive } = await import("./pack-publishable-artifacts-support.mjs");
+  const { prepareInitialArtifactBaselines } = await import("../scripts/prepare-public-api-artifact-baselines.mjs");
+  const root = await fixture(t);
+  await json(root, "architecture/foundation/public-api-compatibility.yaml", {
+    schemaVersion: 1, changesetDirectory: ".changeset", acceptedDecisionBaselinePath: "architecture/decisions/accepted-decisions.json",
+    packages: [{ ...packagePolicy, entrypoints: [{ exportPath: ".", declarationEntryPoint: "package/dist/index.d.ts" }] }],
+  });
+  const manifest = { name: packagePolicy.packageName, version: "1.2.0", exports: { "./schemas/*": "./schemas/*" } };
+  const required = [regular("package/package.json", JSON.stringify(manifest)), regular("package/schemas/v1.schema.json", JSON.stringify(schema))];
+  async function prepare(entries) {
+    const bytes = tarArchive(entries);
+    const archivePath = join(root, "tree.tgz");
+    await writeFile(archivePath, bytes);
+    const sha = (algorithm, encoding = "hex") => createHash(algorithm).update(bytes).digest(encoding);
+    const integrity = `sha512-${sha("sha512", "base64")}`;
+    return prepareInitialArtifactBaselines({ consumerRoot: root, temporaryRoot: root, archives: [{
+      packageName: manifest.name, packageVersion: manifest.version, status: "supported", archivePath,
+      sha256: sha("sha256"), integrity, sourceCommit: "a".repeat(40),
+      // A binding fixture only; no synthetic signature or provenance authenticity claim.
+      verifiedProvenance: { artifact: { name: manifest.name, version: manifest.version, integrity },
+        provenance: { commit: "a".repeat(40), sha512: sha("sha512") } },
+    }] });
+  }
+  for (const extra of [
+    [], [{ name: "package/schemas/", type: "5", data: Buffer.alloc(0) }],
+    [{ name: "package/schemas", type: "5", data: Buffer.alloc(0) }, regular("package/schemas-sibling")],
+  ]) {
+    for (const entries of [[...extra, ...required], [...required, ...extra]]) {
+      assert.equal((await prepare(entries))[0].jsonSchemas.length, 1);
+    }
+  }
+  for (const extra of [
+    [regular("package/schemas")], [regular("package/SCHEMAS")],
+    [regular("package/unselected"), regular("package/unselected/deep/child")],
+    [regular("package/unselected"), { name: "package/unselected/dir/", type: "5", data: Buffer.alloc(0) }],
+  ]) {
+    for (const entries of [[...extra, ...required], [...required, ...extra.toReversed()]]) {
+      await assert.rejects(prepare(entries), /regular member is an ancestor/u);
+    }
+  }
+  await assert.rejects(readFile(join(root, "architecture/public-api/library.artifacts.json")), { code: "ENOENT" });
+});
+
+test("wildcard availability uses actual Node resolution for null, conditions, arrays and nesting", async (t) => {
+  const { spawnSync } = await import("node:child_process");
+  const root = await fixture(t);
+  const baseline = await inspect(root);
+  const target = "./schemas/*";
+  const cases = [
+    { target, accepted: true, resolves: true },
+    { target: { node: target, default: target }, accepted: true, resolves: true },
+    { target: { node: { require: target, default: target }, default: target }, accepted: true, resolves: true },
+    { target: [target, target], accepted: true, resolves: true },
+    { target: [{ node: target, default: target }, [target]], accepted: true, resolves: true },
+    { target: { node: null, default: target }, accepted: false, resolves: false },
+    { target: { node: { require: null, default: target }, default: target }, accepted: false, resolves: false },
+    { target: [{ node: null, default: target }], accepted: false, resolves: false },
+    { target: { node: [], default: target }, accepted: false, resolves: false },
+    { target: { browser: target }, accepted: false, resolves: false },
+    // Node's array fallback can recover from null, but the one-target model conservatively refuses it.
+    { target: [null, target], accepted: false, resolves: true },
+    { target: [{ node: null, default: target }, target], accepted: false, resolves: true },
+    { target: { node: target }, accepted: false, resolves: true },
+    { target: { node: { browser: target }, default: target }, accepted: false, resolves: true },
+  ];
+  for (const entry of cases) {
+    const label = JSON.stringify(entry.target);
+    await json(root, "package/package.json", { name: packagePolicy.packageName, version: "1.2.0", exports: { "./schemas/*": entry.target } });
+    // A fresh process avoids Node's manifest cache. resolve reads metadata only, executing no package code.
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e",
+      `import {createRequire} from 'node:module'; const require = createRequire(${JSON.stringify(join(root, "package/resolver.cjs"))});
+       try { console.log(require.resolve('@fixture/library/schemas/v1.schema.json')); }
+       catch (error) { console.log(error.code); process.exitCode = 2; }`,
+    ], { encoding: "utf8" });
+    assert.equal(result.status, entry.resolves ? 0 : 2, label + result.stderr);
+    if (entry.resolves) { assert.equal(result.stdout.trim(), join(root, "package/schemas/v1.schema.json"), label); }
+    else { assert.equal(result.stdout.trim(), "ERR_PACKAGE_PATH_NOT_EXPORTED", label); }
+    if (entry.accepted) {
+      assert.equal(comparePackageArtifactInventory(baseline, await inspect(root), fingerprint).classification, "none", label);
+    } else {
+      await assert.rejects(inspect(root), /unsupported conditional or array availability/u, label);
+    }
+  }
+});

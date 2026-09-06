@@ -12,6 +12,8 @@ export interface JsonSchemaSetInspector {
   inspect(input: {
     readonly consumerRoot: string;
     readonly schemaPaths: readonly string[];
+    /** Supplied captured evidence is authoritative; missing bytes must not fall back to disk. */
+    readonly evidenceReader?: (repositoryPath: string) => Promise<Uint8Array | undefined>;
     readonly fixtures: readonly never[];
     readonly requireMixedExpectations: false;
     readonly signal?: AbortSignal;

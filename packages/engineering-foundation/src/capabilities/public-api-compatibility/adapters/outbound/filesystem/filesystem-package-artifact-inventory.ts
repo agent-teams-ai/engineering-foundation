@@ -172,6 +172,11 @@ export class FilesystemPackageArtifactInventory implements PackageArtifactInvent
     }
     if (schemaPaths.length > 0) {
       await this.jsonSchemas.inspect({ consumerRoot: root, schemaPaths, fixtures: [], requireMixedExpectations: false,
+        // Supply fresh copies from the bounded capture, never a second filesystem observation.
+        evidenceReader: async (path) => {
+          const bytes = observedBytes.get(path);
+          return bytes === undefined ? undefined : Buffer.from(bytes);
+        },
         ...(signal === undefined ? {} : { signal }) });
     }
     for (const policy of policies) {

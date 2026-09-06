@@ -41,15 +41,26 @@ function inspectArchive(input, bytes) {
     throw new Error("Initial fixation requires a verified supported release or a packed initial-unreleased candidate; historical bootstrap is not supported.");
   }
   const files = new Map();
-  const identities = new Set();
+  const identities = new Map();
   for (const entry of inspectCompressedTarArchive(bytes).entries) {
     if (!entry.name.startsWith("package/") || !["0", "5"].includes(entry.type)) {
       throw new Error(`Initial artifact contains a non-package or special member: ${entry.name}.`);
     }
     const identity = portableEntryIdentity(entry.name);
     if (identities.has(identity)) { throw new Error(`Initial artifact contains a duplicate path: ${entry.name}.`); }
-    identities.add(identity);
+    identities.set(identity, entry.type);
     if (entry.type === "0") { files.set(entry.name.slice(8), Buffer.from(entry.data)); }
+  }
+  // Validate the complete portable tree before selecting the wildcard payload.
+  // Explicit directories may follow their children; absent parents are implicit directories.
+  for (const identity of identities.keys()) {
+    const segments = identity.split("/");
+    for (let depth = 1; depth < segments.length; depth++) {
+      const parent = segments.slice(0, depth).join("/");
+      if (identities.get(parent) === "0") {
+        throw new Error(`Initial artifact regular member is an ancestor: ${parent}.`);
+      }
+    }
   }
   const manifestBytes = files.get("package.json");
   if (manifestBytes === undefined) { throw new Error("Initial artifact has no regular package manifest."); }

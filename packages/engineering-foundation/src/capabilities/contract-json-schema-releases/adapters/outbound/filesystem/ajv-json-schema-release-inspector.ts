@@ -81,7 +81,7 @@ function canonicalJson(value: unknown): string {
   inputError("JSON_SCHEMA_VALUE_INVALID", "JSON evidence contains an unsupported value.");
 }
 
-type JsonEvidenceReader = (repositoryPath: string) => Promise<Buffer | undefined>;
+type JsonEvidenceReader = (repositoryPath: string) => Promise<Uint8Array | undefined>;
 
 async function safeJsonFile(
   root: string,
@@ -342,6 +342,8 @@ function compileSchemas(documents: readonly SchemaDocument[]): Ajv2020 {
   const ajv = new Ajv2020({
     allErrors: true,
     strict: true,
+    // Open prefix tuples are valid Draft 2020-12, including released scaffold receipts.
+    strictTuples: false,
     validateFormats: true
   });
   addFormats.default(ajv);
@@ -396,6 +398,8 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
   async inspect(input: {
     readonly consumerRoot: string;
     readonly schemaPaths: readonly string[];
+    /** Supplied captured evidence is authoritative; missing bytes must not fall back to disk. */
+    readonly evidenceReader?: (repositoryPath: string) => Promise<Uint8Array | undefined>;
     readonly fixtures: readonly JsonSchemaFixture[];
     readonly requireMixedExpectations?: boolean;
     readonly signal?: AbortSignal;
@@ -418,7 +422,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
     for (const path of input.schemaPaths.toSorted(compareBinaryStrings)) {
       assertJsonSchemaInspectionActive(input.signal);
       const value = record(
-        await safeJsonFile(root, path, this.files, this.evidenceReader),
+        await safeJsonFile(root, path, this.files, input.evidenceReader ?? this.evidenceReader),
         `schema ${path}`
       );
       if (value["$schema"] !== DRAFT_2020_12) {
@@ -447,7 +451,7 @@ export class AjvJsonSchemaReleaseInspector implements JsonSchemaReleaseInspector
       compareBinaryStrings(left.id, right.id)
     )) {
       assertJsonSchemaInspectionActive(input.signal);
-      const value = await safeJsonFile(root, fixture.path, this.files, this.evidenceReader);
+      const value = await safeJsonFile(root, fixture.path, this.files, input.evidenceReader ?? this.evidenceReader);
       fixtureValues.set(fixture.id, value);
       const validate = ajv.getSchema(fixture.schemaId) as ValidateFunction | undefined;
       if (validate === undefined) {

@@ -1,9 +1,11 @@
+import { readContainedRegularFile } from "../source-inventory/node.js";
 import { assertSchema, readFoundationSchema } from "../schema-catalog.js";
 import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import { createCapabilityModule, createCapabilityModules } from "../features/validation-reporting/api.js";
 import type { CapabilityModuleDescriptor } from "../features/validation-reporting/api.js";
 import {
+  AjvJsonSchemaReleaseInspector,
   createJsonSchemaInspector,
   createJsonSchemaReleaseCapability,
   JSON_SCHEMA_RELEASE_RULES_BY_ID
@@ -83,7 +85,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID
     ),
     createCapabilityModule(
-      createPublicApiCompatibilityCapability(readAcceptedArchitectureDecisionEvidence, assertSchema),
+      createPublicApiCompatibilityCapability(readAcceptedArchitectureDecisionEvidence, assertSchema, new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile })),
       PUBLIC_API_COMPATIBILITY_RULES_BY_ID
     ),
     createCapabilityModule(

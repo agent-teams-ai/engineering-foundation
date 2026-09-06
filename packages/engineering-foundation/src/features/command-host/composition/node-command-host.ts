@@ -16,6 +16,7 @@ import { installedFoundationVersion } from "../../../transaction-coordination/ad
 import { runScaffoldingCliCommand } from "../../../scaffolding/composition/node-scaffolding.js";
 
 export interface CommandHostDependencies<SchemaId extends string> {
+  readonly artifactSchemaInspector: Parameters<typeof promotePublicApiRelease>[3];
   readonly scaffoldingApi: Parameters<typeof runScaffoldingCliCommand>[2];
   readonly assertSchema: Parameters<typeof createNodeQualityGateCommand>[2]
     & Parameters<typeof promoteArchitectureDecisionBaseline>[1]
@@ -56,7 +57,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     }, processExecutor, assertSchema),
     rules: RULE_REGISTRY,
     promoteDecisions: (input) => promoteArchitectureDecisionBaseline(input, assertSchema),
-    promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema),
+    promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema, dependencies.artifactSchemaInspector),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../../../capabilities/contract-protobuf-evolution/qualification/module.js");
       return (input) => qualifyProtobufBreakingEvidence(input, processExecutor, assertSchema);

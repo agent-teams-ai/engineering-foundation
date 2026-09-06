@@ -2229,6 +2229,10 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/public-api-evidence-errors.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-evidence.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/package-artifact-inventory.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/artifact-api-projection.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/compare-package-artifact-inventory.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/preflight-public-api-promotions.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-package-export-coverage.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/accepted-decision-evidence.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/change-fingerprint.ts
@@ -2332,6 +2336,9 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/artifact-public-api-evidence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
   - id: capability.public-api-compatibility.composition
     roots:
@@ -3150,6 +3157,8 @@ boundaries:
       - packages/engineering-foundation/src/composition/command-host.ts
     allow:
       boundaries:
+        - capability.contract-json-schema.composition
+        - foundation.source-inventory.composition
         - foundation.command-host.composition
         - foundation.scaffolding.canonical-composition
         - foundation.schema-validation
@@ -3602,3 +3611,27 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/application/ports/transaction-observation.ts
       - packages/engineering-foundation/src/scaffolding/application/policies/authority-path.ts
       - packages/engineering-foundation/src/scaffolding/application/policies/transaction-identity.ts
+
+  - id: foundation.tests.artifact-inventory
+    dependencyMode: development
+    roots:
+      - packages/engineering-foundation/tests/public-api-artifact-inventory.test.mjs
+      - packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs
+    allow:
+      boundaries:
+        - foundation.source-inventory.composition
+        - foundation.configuration-input.adapters
+        - foundation.schema-validation
+        - capability.public-api-compatibility.application
+        - capability.public-api-compatibility.adapters
+        - capability.contract-json-schema.composition
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs

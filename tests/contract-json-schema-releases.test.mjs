@@ -827,3 +827,22 @@ test("rejects missing, escaping, and invalid released JSON Schema baselines", as
     assert.equal(invalid.problem.code, "SCHEMA_INVALID");
   });
 });
+
+
+test("valid open prefix tuples retain prefix and tail instance validation", async () => {
+  await withContractFixture(async (root) => {
+    await writeJson(root, "schemas/root.schema.json", {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://schemas.example.test/agent/root.schema.json",
+      type: "array", prefixItems: [{ type: "string" }], items: { type: "integer" },
+    });
+    await writeJson(root, "fixtures/valid.json", ["first", 42, 7]);
+    for (const invalid of [[42, 7], ["first", "invalid tail"]]) {
+      await writeJson(root, "fixtures/invalid.json", invalid);
+      const observation = await new jsonSchemaModule.AjvJsonSchemaReleaseInspector(schemaFiles).inspect(request(root));
+      assert.deepEqual(observation.fixtureResults.map((fixture) => [fixture.id, fixture.expectation, fixture.matched]), [
+        ["invalid-payload", "invalid", true], ["valid-payload", "valid", true],
+      ]);
+    }
+  });
+});

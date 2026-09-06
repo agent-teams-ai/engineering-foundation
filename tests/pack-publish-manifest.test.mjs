@@ -172,12 +172,14 @@ test("release and registry targets invoke the concrete qualified pack gate", asy
 });
 
 for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authorization"]) {
-  test(`actual release runtime closes archive authorization: ${scenario}`, () => {
-    // Isolate module hooks, subprocess/fetch stubs, and accelerated retry timers.
-    const result = spawnSync(process.execPath, [
-      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), scenario,
-    ], { encoding: "utf8", timeout: 30_000 });
-    assert.ifError(result.error);
-    assert.equal(result.status, 0, result.stdout + result.stderr);
-  });
+  for (const eol of ["lf", "crlf"]) {
+    test(`actual release runtime closes archive authorization: ${scenario} (${eol})`, () => {
+      // Isolate module hooks, subprocess/fetch stubs, and accelerated retry timers.
+      const result = spawnSync(process.execPath, [
+        fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), scenario, eol,
+      ], { encoding: "utf8", timeout: 30_000 });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+    });
+  }
 }

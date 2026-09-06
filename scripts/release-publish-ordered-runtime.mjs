@@ -216,14 +216,15 @@ function packedManifestFromBytes(archive) {
 }
 
 function releaseNotes(changelog, version) {
+  const source = changelog.replaceAll("\r\n", "\n");
   const marker = `## ${version}\n`;
-  const start = changelog.indexOf(marker);
+  const start = source.indexOf(marker);
   if (start < 0) {
     throw new Error(`Changelog has no exact ${version} release entry.`);
   }
   const contentStart = start + marker.length;
-  const next = changelog.indexOf("\n## ", contentStart);
-  const content = changelog.slice(contentStart, next < 0 ? undefined : next).trim();
+  const next = source.indexOf("\n## ", contentStart);
+  const content = source.slice(contentStart, next < 0 ? undefined : next).trim();
   if (content.length === 0) {
     throw new Error(`Changelog entry for ${version} is empty.`);
   }

@@ -254,3 +254,19 @@ separate hermetic registry publish/install gate with network uplinks disabled.
 The static `repository.security-baseline` capability does not manufacture equivalent
 evidence for a consumer; each publishing consumer needs its own real packed-
 artifact gate until a separate reusable package capability is accepted.
+
+## Permission-sensitive test environments
+
+Run filesystem refusal tests in disposable repositories under a process that
+respects file permissions. Linux root with `CAP_DAC_OVERRIDE` can write into a
+`0500` directory, so a chmod-based `EACCES` scenario cannot qualify that refusal
+under those privileges. Prefer an unprivileged test process. A Linux root test
+runner can remove `dac_override` and `dac_read_search` from its capability
+bounding set for the test subprocess; verify an actual denied write in a fresh
+temporary directory first. Keep production permissions and host Git hooks intact.
+
+An interrupted test runner has no successful aggregate result. Preserve its log
+and exact source identity, complete the interrupted file and remaining files,
+and rerun only failed scopes when diagnosing environment-specific failures.
+Record each resumed command separately; platform skips and partial reruns do not
+establish full-suite, supported-platform or release qualification.

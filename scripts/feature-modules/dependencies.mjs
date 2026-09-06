@@ -12,7 +12,7 @@ export async function observeDependencies(repositoryRoot, configPath) {
   const [config, analysis, inventory, source, parser, resolver, topology, exports, schema, configuration, fileSafety] = await Promise.all([
     import(`${capability}adapters/inbound/configuration/load-capability-config.js`),
     import(`${capability}application/use-cases/analyze-source-dependencies.js`),
-    import(`${foundation}workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js`),
+    import(`${foundation}workspace-inventory/module.js`),
     import(`${foundation}source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js`),
     import(`${capability}adapters/outbound/oxc/oxc-source-dependency-parser.js`),
     import(`${capability}adapters/outbound/node/node-source-dependency-resolver.js`),
@@ -26,7 +26,7 @@ export async function observeDependencies(repositoryRoot, configPath) {
   const observations = [];
   const sourceSnapshots = new Map();
   const packageExportTargets = new Map();
-  const inventoryReader = new inventory.PnpmWorkspaceInventoryReader();
+  const inventoryReader = inventory.createWorkspaceInventoryReader();
   const nodeResolver = new resolver.NodeSourceDependencyResolver();
   const topologyInspector = new topology.PnpmSourceWorkspaceTopologyInspector({
     inventoryReader, fileReader: { read: fileSafety.readContainedRegularFile },

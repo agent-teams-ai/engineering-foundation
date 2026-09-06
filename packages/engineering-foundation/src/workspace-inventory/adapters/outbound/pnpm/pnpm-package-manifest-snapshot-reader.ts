@@ -15,11 +15,10 @@ import {
   manifestSymlink,
   manifestUnavailable,
   manifestEscape,
-  manifestUnstable,
   manifestObjectRequired
 } from "../../../application/policies/workspace-input-failures.js";
-import { ContainedFileReadError } from "../../../../source-inventory/api.js";
-import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../../../source-inventory/node.js";
+import type { WorkspaceManifestFileObservation } from "../../../application/ports/workspace-input-observations.js";
+import { rejectManifestObservation } from "../../../application/policies/manifest-observation-failure.js";
 import {
   DEPENDENCY_SECTIONS,
   type CatalogEntry,
@@ -186,112 +185,113 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
   };
 }
 
-async function readJsonManifest(
-  consumerRoot: string,
-  manifestPath: string,
-  catalogs: readonly CatalogEntry[],
-  signal?: AbortSignal
-): Promise<WorkspacePackage> {
-  assertWorkspaceReadActive(signal);
-  const canonicalRoot = await realpath(consumerRoot);
-  const absolutePath = resolve(canonicalRoot, manifestPath);
-  if (await pathTraversesSymbolicLink(canonicalRoot, absolutePath)) {
-    manifestSymlink(manifestPath);
-  }
-  const canonicalPath = await realpath(absolutePath).catch(() =>
-    manifestUnavailable(manifestPath)
-  );
-  const relation = relative(canonicalRoot, canonicalPath);
-  if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
-    manifestEscape(manifestPath);
-  }
-  let input: unknown;
-  try {
-    const bytes = await readContainedRegularFile({
-      candidate: canonicalPath,
-      maxBytes: MAX_MANIFEST_BYTES,
-      root: canonicalRoot
-    });
-    input = JSON.parse(bytes.toString("utf8")) as unknown;
-  } catch (error) {
-    if (!(error instanceof SyntaxError) && !(error instanceof ContainedFileReadError)) {
-      throw error;
-    }
-    manifestUnstable(manifestPath);
-  }
-  if (!isRecord(input)) {
-    manifestObjectRequired(manifestPath);
-  }
+export class PnpmPackageManifestSnapshotReader {
+  constructor(private readonly files: WorkspaceManifestFileObservation) {}
 
-  const packageName =
-    typeof input["name"] === "string" && input["name"].length > 0
-      ? input["name"]
-      : `<unnamed:${manifestPath}>`;
-  const dependencies: DependencyDeclaration[] = [];
-  for (const section of DEPENDENCY_SECTIONS) {
-    if (input[section] === undefined) {
-      continue;
+  private async readJsonManifest(
+    consumerRoot: string,
+    manifestPath: string,
+    catalogs: readonly CatalogEntry[],
+    signal?: AbortSignal
+  ): Promise<WorkspacePackage> {
+    assertWorkspaceReadActive(signal);
+    const canonicalRoot = await realpath(consumerRoot);
+    const absolutePath = resolve(canonicalRoot, manifestPath);
+    if (await this.files.pathTraversesSymbolicLink(canonicalRoot, absolutePath)) {
+      manifestSymlink(manifestPath);
     }
-    const declarations = stringRecord(
-      input[section],
-      `${manifestPath} ${section}`,
-      "package-manifest"
+    const canonicalPath = await realpath(absolutePath).catch(() =>
+      manifestUnavailable(manifestPath)
     );
-    for (const [dependencyName, specifier] of Object.entries(declarations)) {
-      dependencies.push(normalizeDependencyDeclaration({
-        catalogs,
-        packageName,
-        manifestPath,
-        section,
-        dependencyName,
-        specifier
-      }));
+    const relation = relative(canonicalRoot, canonicalPath);
+    if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
+      manifestEscape(manifestPath);
     }
-  }
-  return {
-    name: packageName,
-    rootPath: posix.dirname(manifestPath),
-    manifestPath,
-    moduleType: input["type"] === "module" ? "module" : "commonjs",
-    ...(typeof input["packageManager"] === "string"
-      ? { packageManager: input["packageManager"] }
-      : {}),
-    dependencies: dependencies.toSorted(
-      (left, right) =>
-        compareBinaryStrings(left.dependencyName, right.dependencyName) ||
-        compareBinaryStrings(left.section, right.section)
-    ),
-    bundledDependencies: [
-      ...optionalStringArray(
-        input["bundleDependencies"],
-        `${manifestPath} bundleDependencies`
+    let input: unknown;
+    try {
+      const bytes = await this.files.read({
+        candidate: canonicalPath,
+        maxBytes: MAX_MANIFEST_BYTES,
+        root: canonicalRoot
+      });
+      input = JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown;
+    } catch (error) {
+      rejectManifestObservation(error, manifestPath);
+    }
+    if (!isRecord(input)) {
+      manifestObjectRequired(manifestPath);
+    }
+
+    const packageName =
+      typeof input["name"] === "string" && input["name"].length > 0
+        ? input["name"]
+        : `<unnamed:${manifestPath}>`;
+    const dependencies: DependencyDeclaration[] = [];
+    for (const section of DEPENDENCY_SECTIONS) {
+      if (input[section] === undefined) {
+        continue;
+      }
+      const declarations = stringRecord(
+        input[section],
+        `${manifestPath} ${section}`,
+        "package-manifest"
+      );
+      for (const [dependencyName, specifier] of Object.entries(declarations)) {
+        dependencies.push(normalizeDependencyDeclaration({
+          catalogs,
+          packageName,
+          manifestPath,
+          section,
+          dependencyName,
+          specifier
+        }));
+      }
+    }
+    return {
+      name: packageName,
+      rootPath: posix.dirname(manifestPath),
+      manifestPath,
+      moduleType: input["type"] === "module" ? "module" : "commonjs",
+      ...(typeof input["packageManager"] === "string"
+        ? { packageManager: input["packageManager"] }
+        : {}),
+      dependencies: dependencies.toSorted(
+        (left, right) =>
+          compareBinaryStrings(left.dependencyName, right.dependencyName) ||
+          compareBinaryStrings(left.section, right.section)
       ),
-      ...optionalStringArray(
-        input["bundledDependencies"],
-        `${manifestPath} bundledDependencies`
-      )
-    ].toSorted(),
-    exportSurface: normalizeExportSurface(input["exports"], manifestPath)
-  };
-}
+      bundledDependencies: [
+        ...optionalStringArray(
+          input["bundleDependencies"],
+          `${manifestPath} bundleDependencies`
+        ),
+        ...optionalStringArray(
+          input["bundledDependencies"],
+          `${manifestPath} bundledDependencies`
+        )
+      ].toSorted(),
+      exportSurface: normalizeExportSurface(input["exports"], manifestPath)
+    };
+  }
 
-export async function readPnpmPackageManifestSnapshots(
-  consumerRoot: string,
-  paths: readonly string[],
-  catalogs: readonly CatalogEntry[],
-  signal?: AbortSignal
-): Promise<readonly WorkspacePackage[]> {
-  const packages: WorkspacePackage[] = [];
-  for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
-    packages.push(
-      ...(await Promise.all(
-        paths
-          .slice(index, index + READ_CONCURRENCY)
-          .map((path) => readJsonManifest(consumerRoot, path, catalogs, signal))
-      ))
+  async read(
+    consumerRoot: string,
+    paths: readonly string[],
+    catalogs: readonly CatalogEntry[],
+    signal?: AbortSignal
+  ): Promise<readonly WorkspacePackage[]> {
+    const packages: WorkspacePackage[] = [];
+    for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
+      packages.push(
+        ...(await Promise.all(
+          paths
+            .slice(index, index + READ_CONCURRENCY)
+            .map((path) => this.readJsonManifest(consumerRoot, path, catalogs, signal))
+        ))
+      );
+    }
+    return packages.toSorted((left, right) =>
+      compareBinaryStrings(left.manifestPath, right.manifestPath)
     );
   }
-  return packages.toSorted((left, right) =>
-    compareBinaryStrings(left.manifestPath, right.manifestPath)
-  );
 }

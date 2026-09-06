@@ -20,13 +20,12 @@ import {
   workspaceManifestObjectRequired,
   duplicateDefaultCatalog
 } from "../../../application/policies/workspace-input-failures.js";
-import { loadStrictYamlFile } from "../../../../features/configuration-input/node.js";
+import type { PackageManifestSnapshotReader, WorkspaceYamlObservation } from "../../../application/ports/workspace-input-observations.js";
 import type {
   CatalogEntry,
   WorkspaceInventory
 } from "../../../application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../application/ports/workspace-inventory-reader.js";
-import { readPnpmPackageManifestSnapshots } from "./pnpm-package-manifest-snapshot-reader.js";
 
 const MAX_WORKSPACE_PACKAGES = 5_000;
 const MAX_WORKSPACE_DISCOVERY_ENTRIES = 500_000;
@@ -293,46 +292,51 @@ async function discoverManifestPaths(
   return manifestPaths;
 }
 
-async function readPnpmWorkspaceInventoryFromManifestPaths(
-  consumerRoot: string,
-  workspaceManifest: unknown,
-  manifestPaths: readonly string[],
-  signal?: AbortSignal
-): Promise<WorkspaceInventory> {
-  if (!isRecord(workspaceManifest)) {
-    workspaceManifestObjectRequired();
-  }
-  const containedManifestPaths = manifestPaths.map(validatedGlobManifestPath);
-  if (
-    Object.hasOwn(workspaceManifest, "catalog") &&
-    isRecord(workspaceManifest["catalogs"]) &&
-    Object.hasOwn(workspaceManifest["catalogs"], "default")
-  ) {
-    duplicateDefaultCatalog();
-  }
-  const catalogs = [
-    ...parseCatalog(workspaceManifest, "catalog"),
-    ...parseCatalog(workspaceManifest, "catalogs")
-  ].toSorted(
-    (left, right) =>
-      compareBinaryStrings(left.catalogName, right.catalogName) ||
-      compareBinaryStrings(left.dependencyName, right.dependencyName)
-  );
-  return {
-    ...(typeof workspaceManifest["catalogMode"] === "string"
-      ? { catalogMode: workspaceManifest["catalogMode"] }
-      : {}),
-    catalogs,
-    packages: await readPnpmPackageManifestSnapshots(
-      consumerRoot,
-      containedManifestPaths,
-      catalogs,
-      signal
-    )
-  };
-}
-
 export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
+  constructor(
+    private readonly yaml: WorkspaceYamlObservation,
+    private readonly manifests: PackageManifestSnapshotReader
+  ) {}
+
+  private async readPnpmWorkspaceInventoryFromManifestPaths(
+    consumerRoot: string,
+    workspaceManifest: unknown,
+    manifestPaths: readonly string[],
+    signal?: AbortSignal
+  ): Promise<WorkspaceInventory> {
+    if (!isRecord(workspaceManifest)) {
+      workspaceManifestObjectRequired();
+    }
+    const containedManifestPaths = manifestPaths.map(validatedGlobManifestPath);
+    if (
+      Object.hasOwn(workspaceManifest, "catalog") &&
+      isRecord(workspaceManifest["catalogs"]) &&
+      Object.hasOwn(workspaceManifest["catalogs"], "default")
+    ) {
+      duplicateDefaultCatalog();
+    }
+    const catalogs = [
+      ...parseCatalog(workspaceManifest, "catalog"),
+      ...parseCatalog(workspaceManifest, "catalogs")
+    ].toSorted(
+      (left, right) =>
+        compareBinaryStrings(left.catalogName, right.catalogName) ||
+        compareBinaryStrings(left.dependencyName, right.dependencyName)
+    );
+    return {
+      ...(typeof workspaceManifest["catalogMode"] === "string"
+        ? { catalogMode: workspaceManifest["catalogMode"] }
+        : {}),
+      catalogs,
+      packages: await this.manifests.read(
+        consumerRoot,
+        containedManifestPaths,
+        catalogs,
+        signal
+      )
+    };
+  }
+
   discoverManifestPathsFromManifest(
     consumerRoot: string,
     workspaceManifest: unknown,
@@ -354,7 +358,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     manifestPaths: readonly string[],
     signal?: AbortSignal
   ): Promise<WorkspaceInventory> {
-    return readPnpmWorkspaceInventoryFromManifestPaths(
+    return this.readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       workspaceManifest,
       manifestPaths,
@@ -367,7 +371,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     workspaceManifestPath: string,
     signal?: AbortSignal
   ): Promise<readonly string[]> {
-    const input = await loadStrictYamlFile(
+    const input = await this.yaml.readYaml(
       consumerRoot,
       workspaceManifestPath,
       "workspace-manifest",
@@ -384,7 +388,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     workspaceManifestPath: string,
     signal?: AbortSignal
   ): Promise<WorkspaceInventory> {
-    const input = await loadStrictYamlFile(
+    const input = await this.yaml.readYaml(
       consumerRoot,
       workspaceManifestPath,
       "workspace-manifest",
@@ -398,7 +402,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
       input,
       signal
     );
-    return readPnpmWorkspaceInventoryFromManifestPaths(
+    return this.readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       input,
       manifestPaths,

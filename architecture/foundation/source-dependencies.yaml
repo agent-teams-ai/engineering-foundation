@@ -2111,11 +2111,14 @@ boundaries:
       - packages/engineering-foundation/src/workspace-inventory/api.ts
     allow:
       boundaries:
+        - foundation.source-inventory.application
         - foundation.validation-reporting.application
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/workspace-inventory/application/policies/manifest-observation-failure.ts
+      - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-input-observations.ts
       - packages/engineering-foundation/src/workspace-inventory/application/policies/workspace-input-failures.ts
       - packages/engineering-foundation/src/workspace-inventory/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/workspace-inventory/application/ports/workspace-inventory-reader.ts
@@ -2162,9 +2165,6 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.workspace-inventory.application
-        - foundation.source-inventory.application
-        - foundation.source-inventory.composition
-        - foundation.configuration-input.composition
       packages: []
       builtins:
         - node:fs
@@ -2172,6 +2172,7 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/workspace-inventory/adapters/outbound/pnpm/pnpm-package-manifest-snapshot-reader.ts
       - packages/engineering-foundation/src/workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.ts
   - id: capability.source-dependencies.application
     roots:
@@ -3364,6 +3365,7 @@ boundaries:
       - packages/engineering-foundation/src/features/configuration-input/application
       - packages/engineering-foundation/src/features/configuration-input/api.ts
     entrypoints:
+      - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-observation-policy.ts
       - packages/engineering-foundation/src/features/configuration-input/api.ts
       - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-problem.ts
       - packages/engineering-foundation/src/features/configuration-input/application/ports/configuration-file-reader.ts
@@ -3386,7 +3388,6 @@ boundaries:
       - packages/engineering-foundation/src/features/configuration-input/adapters/inbound/yaml/strict-yaml-file-loader.ts
     allow:
       boundaries:
-        - foundation.source-inventory.application
         - foundation.configuration-input.application
       packages:
         - yaml
@@ -3414,6 +3415,8 @@ boundaries:
       - packages/engineering-foundation/src/workspace-inventory/module.ts
     allow:
       boundaries:
+        - foundation.source-inventory.composition
+        - foundation.configuration-input.composition
         - foundation.workspace-inventory.application
         - foundation.workspace-inventory.adapters
       packages: []

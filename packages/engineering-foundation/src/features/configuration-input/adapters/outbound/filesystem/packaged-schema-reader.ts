@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import { assertRepositoryRelativePath } from "../../../../../source-inventory/api.js";
+import { assertConfigurationRelativePath } from "../../../application/configuration-file-observation-policy.js";
 import type { ConfigurationFileReader } from "../../../application/ports/configuration-file-reader.js";
 
 const MAX_SCHEMA_BYTES = 1024 * 1024;
@@ -19,9 +19,9 @@ export function createPackagedSchemaReader(input: {
     if (selectedFile === undefined && (schemaId === "document-intent/v1" || schemaId === "document-plan/v1")) {
       return input.readAuthoringSchema(schemaId);
     }
-    assertRepositoryRelativePath(schemaId, "schema-read");
+    assertConfigurationRelativePath(schemaId, "schema-read");
     const relativeFile = selectedFile ?? `schemas/${schemaId}.schema.json`;
-    assertRepositoryRelativePath(relativeFile, "schema-read");
+    assertConfigurationRelativePath(relativeFile, "schema-read");
     const bytes = await input.files.read({
       candidate: resolve(input.packageRoot, relativeFile),
       maxBytes: MAX_SCHEMA_BYTES,

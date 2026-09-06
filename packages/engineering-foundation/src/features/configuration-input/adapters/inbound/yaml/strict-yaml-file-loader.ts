@@ -1,12 +1,11 @@
 import { realpath, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { assertRepositoryRelativePath, ContainedFileReadError } from "../../../../../source-inventory/api.js";
+import { assertConfigurationRelativePath, rejectConfigurationObservation } from "../../../application/configuration-file-observation-policy.js";
 import {
   assertConfigurationReadActive,
   rejectConfigurationRoot,
   rejectNonDirectoryConfigurationRoot,
-  rejectConfigurationFile,
   MAX_CONFIG_BYTES
 } from "../../../application/configuration-file-problem.js";
 import type { ConfigurationFileReader } from "../../../application/ports/configuration-file-reader.js";
@@ -34,7 +33,7 @@ export function createStrictYamlFileLoader(reader: ConfigurationFileReader) {
     signal?: AbortSignal
   ): Promise<unknown> {
     assertConfigurationReadActive(signal);
-    assertRepositoryRelativePath(repositoryPath, phase);
+    assertConfigurationRelativePath(repositoryPath, phase);
     const root = await resolveConsumerRoot(consumerRoot, phase);
     let bytes: Uint8Array;
     try {
@@ -44,10 +43,7 @@ export function createStrictYamlFileLoader(reader: ConfigurationFileReader) {
         root
       });
     } catch (error) {
-      if (!(error instanceof ContainedFileReadError)) {
-        throw error;
-      }
-      rejectConfigurationFile(error.failure, repositoryPath, phase);
+      rejectConfigurationObservation(error, repositoryPath, phase);
     }
     const source = Buffer.from(bytes).toString("utf8");
     assertConfigurationReadActive(signal);

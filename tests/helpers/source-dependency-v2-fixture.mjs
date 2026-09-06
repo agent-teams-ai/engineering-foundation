@@ -19,7 +19,7 @@ const [
   { loadCapabilityConfig: loadSourceDependencyCapabilityConfig },
   { createSourceDependenciesCapability },
   { PnpmSourceWorkspaceTopologyInspector },
-  { PnpmWorkspaceInventoryReader },
+  { createWorkspaceInventoryReader },
   { revalidateStableRepositoryPath },
 ] = await Promise.all([
   import(
@@ -42,7 +42,7 @@ const [
     pathToFileURL(
       join(
         distRoot,
-        "workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js",
+        "workspace-inventory/module.js",
       ),
     ).href
   ),
@@ -59,7 +59,7 @@ const [
 export const loadCapabilityConfig = (root, path, signal, observeSchemaVersion) => loadSourceDependencyCapabilityConfig(
   schemaConfigurationDependencies(), root, path, signal, observeSchemaVersion
 );
-export { PnpmWorkspaceInventoryReader };
+export { createWorkspaceInventoryReader };
 export { revalidateStableRepositoryPath };
 
 export function ruleIds(values) {
@@ -96,7 +96,7 @@ export async function inspectV2Topology(consumerRoot, dependencies = {}, signal)
     "architecture/foundation/source-dependencies.yaml",
   );
   const inspector = new PnpmSourceWorkspaceTopologyInspector({
-    inventoryReader: new PnpmWorkspaceInventoryReader(),
+    inventoryReader: createWorkspaceInventoryReader(),
     ...sourceTopologyAdapters(),
     ...dependencies,
   });

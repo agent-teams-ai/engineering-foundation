@@ -13,8 +13,9 @@ import { createStrictYamlFileLoader, createSchemaCatalog } from "../packages/eng
 import { parseStrictYamlSource } from "../packages/engineering-foundation/dist/features/configuration-input/yaml.js";
 import { ContainedFileReadError } from "../packages/engineering-foundation/dist/source-inventory/api.js";
 import { FilesystemSourceTreeReader } from "../packages/engineering-foundation/dist/source-inventory/adapters/outbound/filesystem/filesystem-source-tree-reader.js";
-import { PnpmWorkspaceInventoryReader } from "../packages/engineering-foundation/dist/workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js";
-import { readPnpmPackageManifestSnapshots } from "../packages/engineering-foundation/dist/workspace-inventory/adapters/outbound/pnpm/pnpm-package-manifest-snapshot-reader.js";
+import { createWorkspaceInventoryReader } from "../packages/engineering-foundation/dist/workspace-inventory/module.js";
+import { PnpmPackageManifestSnapshotReader } from "../packages/engineering-foundation/dist/workspace-inventory/adapters/outbound/pnpm/pnpm-package-manifest-snapshot-reader.js";
+import { readContainedRegularFile, pathTraversesSymbolicLink } from "../packages/engineering-foundation/dist/source-inventory/node.js";
 import { ProcessCancellationError, ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/api.js";
 import { NodeProcessRunner } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import { managedProcessCleanupFailure } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
@@ -270,14 +271,14 @@ test("source and workspace readers retain cancellation, attribution and bytes", 
   const root = await fixture(t);
   const signal = AbortSignal.abort(new Error("do not expose"));
   await assert.rejects(new FilesystemSourceTreeReader().read(join(root, "missing"), ["src"], signal), problem(cancellation));
-  await assert.rejects(readPnpmPackageManifestSnapshots(root, ["package.json"], [], signal), problem(cancellation));
+  await assert.rejects(new PnpmPackageManifestSnapshotReader({ read: readContainedRegularFile, pathTraversesSymbolicLink }).read(root, ["package.json"], [], signal), problem(cancellation));
   await mkdir(join(root, "src"));
   await writeFile(join(root, "src/file.ts"), "bad\0bytes");
   await assert.rejects(new FilesystemSourceTreeReader().read(root, ["src"]), problem({ code: "SOURCE_FILE_INVALID", message: "Source file contains prohibited NUL bytes: src/file.ts.", phase: "source-read" }));
   assert.equal(await readFile(join(root, "src/file.ts"), "utf8"), "bad\0bytes");
   await writeFile(join(root, "package.json"), '{"name":"fixture","dependencies":{"bad":42}}\n');
-  await assert.rejects(readPnpmPackageManifestSnapshots(root, ["package.json"], []), problem({ code: "GOVERNED_INPUT_INVALID", message: "package.json dependencies must contain non-empty string values.", phase: "package-manifest" }));
-  assert.throws(() => new PnpmWorkspaceInventoryReader().discoverManifestPathsFromManifest(root, { packages: "bad" }), problem({ code: "PNPM_WORKSPACE_INVALID", message: "pnpm-workspace.yaml packages must contain repository-relative POSIX glob patterns.", phase: "workspace-discovery" }));
+  await assert.rejects(new PnpmPackageManifestSnapshotReader({ read: readContainedRegularFile, pathTraversesSymbolicLink }).read(root, ["package.json"], []), problem({ code: "GOVERNED_INPUT_INVALID", message: "package.json dependencies must contain non-empty string values.", phase: "package-manifest" }));
+  assert.throws(() => createWorkspaceInventoryReader().discoverManifestPathsFromManifest(root, { packages: "bad" }), problem({ code: "PNPM_WORKSPACE_INVALID", message: "pnpm-workspace.yaml packages must contain repository-relative POSIX glob patterns.", phase: "workspace-discovery" }));
 });
 
 test("process launch and cleanup reporting preserves causes and diagnostic ordering", async () => {

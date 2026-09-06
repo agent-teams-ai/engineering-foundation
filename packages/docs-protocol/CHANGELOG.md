@@ -1,5 +1,19 @@
 # @agent-teams/docs-protocol
 
+## 0.6.0
+
+### Minor Changes
+
+- [`a594376`](https://github.com/agent-teams-ai/engineering-foundation/commit/a5943767bf11ff2223c1223527ba3d1cabd39012) Thanks [@777genius](https://github.com/777genius)! - Add explicit profile v4 blocker vocabulary and reviewed docs-new apply with expectedPlanDigest. Preserve historical profile v3 and CLI envelope bytes, and separate documentation policy, bootstrap, command presentation and qualification into feature-owned boundaries with injected YAML and search adapters.
+
+  Keep public request, JSON metadata and receipt types independent of private authoring observations; expose the closed DocsReceiptOutcome type and retain docsProfilePath as an explicit function export.
+
+### Patch Changes
+
+- Updated dependencies [[`a9dc628`](https://github.com/agent-teams-ai/engineering-foundation/commit/a9dc6286af74a02e4929273acf4d1a680f6f4c9a), [`ec09d48`](https://github.com/agent-teams-ai/engineering-foundation/commit/ec09d482515efa2b4d25cd04b96853f4f031ce84), [`5399afc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5399afcb232210986bf8bd2c31683fc917eec7a4)]:
+  - @agent-teams/document-authoring@0.3.0
+  - @agent-teams/repository-mutation@0.2.0
+
 ## 0.5.1
 
 ### Patch Changes

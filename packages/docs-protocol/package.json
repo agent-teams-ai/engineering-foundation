@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Deterministic documentation authoring and agent-context protocol for any repository.",
   "license": "Apache-2.0",
   "type": "module",

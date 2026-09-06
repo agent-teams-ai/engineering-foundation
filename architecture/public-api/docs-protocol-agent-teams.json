@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.1.1",
+  "packageVersion": "0.2.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -1469,6 +1469,13 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export declare function planPnpmManifestV2(input: {\n    readonly observation: ConsumerIntegrationFileObservation;\n    readonly profilePath: string;\n    readonly cohort: QualifiedDocsCohortBindingV2;\n    readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;\n}): PnpmManifestPlanV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!projectManagedPortableProfileV4:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function projectManagedPortableProfileV4(bytes: Uint8Array): Promise<Uint8Array>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!readConsumerIntegrationInput:function(1)",

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol",
-  "packageVersion": "0.5.1",
-  "status": "supported",
+  "packageVersion": "0.6.0",
+  "status": "release-candidate",
   "wildcardExports": [
     {
       "exportPath": "./schemas/*",
@@ -12,6 +12,7 @@
         "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
         "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
         "schemas/docs-protocol-profile/v3.schema.json",
+        "schemas/docs-protocol-profile/v4.schema.json",
         "schemas/docs-protocol/v1.schema.json"
       ]
     }
@@ -126,6 +127,16 @@
       }
     },
     {
+      "path": "schemas/docs-protocol-profile/v4.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-profile/v4",
+      "digest": "sha256:f0eef9d816401d214bae751d769d70e3d7b5280324b46ba6475ecb90ae4b2282",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 4
+        }
+      }
+    },
+    {
       "path": "schemas/docs-protocol/v1.schema.json",
       "id": "https://agent-teams.ai/schemas/docs-protocol/v1",
       "digest": "sha256:8c71e07f9cf9b8980cf5fe68ac80fda85cb1ec0f6ad05c79f029b77e4c67a774",
@@ -138,33 +149,5 @@
         }
       }
     }
-  ],
-  "archive": {
-    "sha256": "sha256:35b8c7d2dac0149dc61f6d4df1cd99cc28d265aa56d6f55ae3b7f385d391b8c0",
-    "manifestDigest": "sha256:85ac303f57cc8348bc82c537b8a099aaa779454dfd1e954770d1879641593f6c",
-    "integrity": "sha512-kUouhIC0paX29SnZzmLFxKGgTfYp05Tq3UD3Te+Yz/zPS12CNelJy60tFoRqccAIEg0kbm4GJmF4o14JwCpYBw==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
-    "memberDigests": [
-      {
-        "path": "schemas/docs-protocol-portable-command-envelope/v1.schema.json",
-        "digest": "sha256:b00207b5484f3bf477909bc8b1272701212eda9dbe1eefd6fb263c6df4a69c11"
-      },
-      {
-        "path": "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
-        "digest": "sha256:6120aab2431b23a8694c4bfbaf11d90dc7e63fa9cb1d2e97226ed9fb23b31712"
-      },
-      {
-        "path": "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
-        "digest": "sha256:01a20da3d9cdbeef31cad0f937d591e1664fa92e48a4d03cae508e62237e1739"
-      },
-      {
-        "path": "schemas/docs-protocol-profile/v3.schema.json",
-        "digest": "sha256:50e3b1af16d183db5f18334a8aec9128a19c4fa9bebe56aa22a4a2823395f27f"
-      },
-      {
-        "path": "schemas/docs-protocol/v1.schema.json",
-        "digest": "sha256:8c71e07f9cf9b8980cf5fe68ac80fda85cb1ec0f6ad05c79f029b77e4c67a774"
-      }
-    ]
-  }
+  ]
 }

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [`8d66b22`](https://github.com/agent-teams-ai/engineering-foundation/commit/8d66b223bd17489fd117c83ef78efe9a48aa29e0) Thanks [@777genius](https://github.com/777genius)! - Add an explicit, data-only projection from portable profile v3 to v4 while preserving managed profile, Cohort, state and qualification generations. Validate command execution receipts through new owner-qualified schemas and the exported Mutation receipt schema, preserving historical schema bytes.
+
+  Bound authority response streaming even when Content-Length is missing or incorrect. Preserve byte-proved source permissions when staging a disposable consumer upgrade, independently of Git archive settings and extraction umask.
+
+  Separate managed use cases, inbound commands, qualification adapters and composition. Select the concrete Mutation implementation in composition and keep its observations behind the managed application port.
+
+### Patch Changes
+
+- [`a9f2ab1`](https://github.com/agent-teams-ai/engineering-foundation/commit/a9f2ab1c268e64d0b217e4030bbbbffcaf371562) Thanks [@777genius](https://github.com/777genius)! - Read process environment and time through explicit Node boundaries. Use one
+  observed instant for both restoration authority bindings, reject invalid clock
+  observations, and retain the offline Corepack network restriction.
+
+- [`5399afc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5399afcb232210986bf8bd2c31683fc917eec7a4) Thanks [@777genius](https://github.com/777genius)! - Preserve released schema export paths and their published bytes alongside the
+  current owner-specific schemas. Historical Foundation qualification uses its
+  separate exact schema generation, without replacing the public Mutation or
+  Authoring schema surface with older Foundation definitions.
+- Updated dependencies [[`ec09d48`](https://github.com/agent-teams-ai/engineering-foundation/commit/ec09d482515efa2b4d25cd04b96853f4f031ce84), [`a594376`](https://github.com/agent-teams-ai/engineering-foundation/commit/a5943767bf11ff2223c1223527ba3d1cabd39012), [`5399afc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5399afcb232210986bf8bd2c31683fc917eec7a4)]:
+  - @agent-teams/repository-mutation@0.2.0
+  - @agent-teams/docs-protocol@0.6.0
+
 ## 0.1.1
 
 ### Patch Changes

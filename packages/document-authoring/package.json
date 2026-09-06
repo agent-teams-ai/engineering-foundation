@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/document-authoring",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Portable deterministic documentation authoring contracts, catalog semantics, and protected materialization.",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,5 +1,27 @@
 # @agent-teams/engineering-foundation
 
+## 1.1.0
+
+### Minor Changes
+
+- [`11461b0`](https://github.com/agent-teams-ai/engineering-foundation/commit/11461b0b3e308c548a84c0159cbe1a9a4f235c43) Thanks [@777genius](https://github.com/777genius)! - Compare concrete wildcard exports and exported JSON Schema bytes through the
+  existing public API release policy. Prepare initial records from retained
+  archives explicitly; ordinary checks never create a missing artifact baseline.
+  Promotion validates typed and artifact surfaces before writing and rejects
+  same-version mutation and stale artifact evidence.
+
+### Patch Changes
+
+- [`a9f2ab1`](https://github.com/agent-teams-ai/engineering-foundation/commit/a9f2ab1c268e64d0b217e4030bbbbffcaf371562) Thanks [@777genius](https://github.com/777genius)! - Read process environment and time through explicit Node boundaries. Use one
+  observed instant for both restoration authority bindings, reject invalid clock
+  observations, and retain the offline Corepack network restriction.
+
+- [`47ac684`](https://github.com/agent-teams-ai/engineering-foundation/commit/47ac684f78cbe65d5dfa09633d48558950a9eb35) Thanks [@777genius](https://github.com/777genius)! - Preserve document envelope v3/v4 and known-file envelope v5 as untrusted manual evidence in split Foundation. Matching claimed version and build strings never grant their local recovery leases; diagnostics direct operators to the claimed owner's exact external reader. Keep current wire6 known-file owner/kernel checks and scaffolding recovery, and bind the frozen historical Plan dependency used by envelope v2. This patch requires the coordinated owner schema cutover before publication.
+
+- Updated dependencies [[`a9dc628`](https://github.com/agent-teams-ai/engineering-foundation/commit/a9dc6286af74a02e4929273acf4d1a680f6f4c9a), [`ec09d48`](https://github.com/agent-teams-ai/engineering-foundation/commit/ec09d482515efa2b4d25cd04b96853f4f031ce84), [`5399afc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5399afcb232210986bf8bd2c31683fc917eec7a4)]:
+  - @agent-teams/document-authoring@0.3.0
+  - @agent-teams/repository-mutation@0.2.0
+
 ## 1.0.1
 
 ### Patch Changes

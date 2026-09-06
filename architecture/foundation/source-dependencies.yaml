@@ -3385,10 +3385,8 @@ boundaries:
   - id: foundation.configuration-input.application
     roots:
       - packages/engineering-foundation/src/features/configuration-input/application
-      - packages/engineering-foundation/src/features/configuration-input/api.ts
     entrypoints:
       - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-observation-policy.ts
-      - packages/engineering-foundation/src/features/configuration-input/api.ts
       - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-problem.ts
       - packages/engineering-foundation/src/features/configuration-input/application/ports/configuration-file-reader.ts
       - packages/engineering-foundation/src/features/configuration-input/application/schema-catalog.ts

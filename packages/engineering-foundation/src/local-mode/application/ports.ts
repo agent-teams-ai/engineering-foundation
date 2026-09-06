@@ -2,7 +2,7 @@ import type { InternalFoundationTransactionStatus } from "../../transaction-coor
 import type { FoundationTransactionCoordinator } from "../../transaction-coordination/application/foundation-transaction-coordinator.js";
 import type { FoundationDevOnlyStatus, FoundationLinkState, FoundationStatus, ProcessRunner } from "./model.js";
 
-export interface LocalModeInspector {
+interface LocalModeInspector {
   mode(consumerPath: string, options?: { readonly ignoreOperationLock?: boolean }): Promise<FoundationStatus>;
   devOnly(consumerPath: string): Promise<FoundationDevOnlyStatus>;
 }
@@ -19,7 +19,7 @@ export interface LocalTargetReader {
 }
 
 /** Owns durable local-link evidence; callers decide lifecycle transitions. */
-export interface LocalLinkStateStore {
+interface LocalLinkStateStore {
   write(consumerRoot: string, state: FoundationLinkState): Promise<void>;
   remove(consumerRoot: string): Promise<void>;
 }

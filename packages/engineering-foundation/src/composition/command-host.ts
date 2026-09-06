@@ -15,10 +15,6 @@ const host = createFoundationCommandHost({
   loadFoundationConfig, runFoundationCheck, RULE_REGISTRY
 });
 
-export async function runNodeFoundationCli(environment: NodeJS.ProcessEnv, entrypointUrl: string, args: readonly string[]): Promise<void> {
-  return host.runNodeFoundationCli(environment, entrypointUrl, args);
-}
-
 export async function runProcessFoundationCli(): Promise<void> {
   return host.runProcessFoundationCli();
 }

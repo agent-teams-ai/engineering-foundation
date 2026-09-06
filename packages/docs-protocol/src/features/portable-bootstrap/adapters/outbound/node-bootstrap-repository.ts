@@ -69,7 +69,7 @@ async function readObservedHandle(
   return { bytes, mode: Number(after.mode & 0o777n) };
 }
 
-export async function canonicalRoot(consumerRoot: string): Promise<string> {
+async function canonicalRoot(consumerRoot: string): Promise<string> {
   const requested = resolve(consumerRoot);
   const physical = await realpath(requested);
   const [requestedMetadata, physicalMetadata] = await Promise.all([

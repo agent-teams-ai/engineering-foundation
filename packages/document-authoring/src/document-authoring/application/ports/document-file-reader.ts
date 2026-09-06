@@ -1,4 +1,4 @@
-export interface DocumentFileReadRequest {
+interface DocumentFileReadRequest {
   readonly candidate: string;
   readonly maxBytes: number;
   readonly root: string;

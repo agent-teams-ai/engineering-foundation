@@ -16,12 +16,12 @@ export class ContainedFileReadError extends Error {
   }
 }
 
-export interface ContainedFileLocation {
+interface ContainedFileLocation {
   readonly candidate: string;
   readonly root: string;
 }
 
-export interface BoundedFileRead extends ContainedFileLocation {
+interface BoundedFileRead extends ContainedFileLocation {
   readonly maxBytes: number;
 }
 

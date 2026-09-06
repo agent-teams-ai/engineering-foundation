@@ -21,7 +21,7 @@ export async function canonicalRoot(consumerRoot: string): Promise<string> {
   );
 }
 
-export async function safePath(
+async function safePath(
   root: string,
   repositoryPath: string,
   kind: "directory" | "file",

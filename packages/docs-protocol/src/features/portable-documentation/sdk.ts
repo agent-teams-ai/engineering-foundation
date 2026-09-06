@@ -4,7 +4,6 @@ export {
 } from "./domain/documentation-model.js";
 export type {
   DocsCommandOutcome,
-  DocsDiagnostic,
   DocsCodeAnchor,
   DocsFindDocument,
   DocsFindQuery,

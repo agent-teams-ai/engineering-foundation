@@ -4,7 +4,7 @@ import type { ContainedFileReadFailure } from "../../../source-inventory/api.js"
 
 export const MAX_CONFIG_BYTES = 1024 * 1024;
 
-export function configurationFileProblem(
+function configurationFileProblem(
   failure: ContainedFileReadFailure,
   repositoryPath: string,
   phase: string

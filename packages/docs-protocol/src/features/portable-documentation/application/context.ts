@@ -10,9 +10,6 @@ export type {
   RankCommunityDocumentsInput
 } from "./ranked-search.js";
 export {
-  MINIMUM_COMMUNITY_CONTEXT_BYTES,
-  MAXIMUM_COMMUNITY_CONTEXT_BYTES,
-  MAXIMUM_COMMUNITY_CONTEXT_DOCUMENTS,
   projectCommunityLlmsText
 } from "./llms-text.js";
 export type {

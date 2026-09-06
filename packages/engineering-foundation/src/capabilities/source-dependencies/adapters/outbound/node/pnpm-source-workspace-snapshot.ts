@@ -27,7 +27,7 @@ import {
 } from "./source-workspace-filesystem.js";
 import { inspectUniqueRoots } from "./source-workspace-root-snapshot.js";
 
-export type WorkspaceManifestLoader = SourceWorkspaceManifestLoader;
+type WorkspaceManifestLoader = SourceWorkspaceManifestLoader;
 
 interface CapturePnpmSourceWorkspaceSnapshotInput {
   readonly fileSystem: SourceWorkspaceFileSystem;

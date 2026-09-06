@@ -37,7 +37,7 @@ export interface PublicApiNonTypeExportPolicy {
   readonly kind: PublicApiNonTypeExportKind;
 }
 
-export type PublicApiArtifactBaselineStatus = "historical-bootstrap" | "initial-unreleased" | "release-candidate" | "supported";
+type PublicApiArtifactBaselineStatus = "historical-bootstrap" | "initial-unreleased" | "release-candidate" | "supported";
 
 export interface PublicApiWildcardExportSnapshot {
   readonly exportPath: string;

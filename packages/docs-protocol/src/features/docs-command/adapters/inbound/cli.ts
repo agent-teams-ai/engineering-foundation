@@ -6,8 +6,6 @@ import { readDocsPackageVersion } from "../outbound/package-version.js";
 import { Arguments, CliInputError } from "./cli-input.js";
 import { commandEnvelopeVersion, directExecution, docsCliErrorExecution, validatedMachineExecution, type DocsMachineExecution } from "./docs-cli-machine.js";
 import { renderDocsHumanV2, renderDocsHumanV3 } from "./docs-human-renderer.js";
-export { renderDocsHumanV2, renderDocsHumanV3 } from "./docs-human-renderer.js";
-export { docsCliErrorExecution, validatedMachineExecution } from "./docs-cli-machine.js";
 
 interface CommonArguments {
   readonly consumerRoot: string;

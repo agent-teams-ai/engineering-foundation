@@ -65,6 +65,13 @@ that dependency from import-based usage detection. Its process-tree fixture is
 an explicit Knip entry because Node launches it directly rather than importing
 it from the test module.
 
+The transaction architecture counterexamples in
+`tests/foundation-local-mode-transaction-e2e.test.mjs` generate imports of
+`foundation-state-contract.ts` and `schema-ids.ts` inside disposable copies.
+These two files are explicit Knip entries because those generated imports are
+not visible in its static test graph. Other internal facades remain subject to
+unused-export checks.
+
 The shard's test result, all four artifact uploads, evidence aggregation, and the
 stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
 finalization failure may preserve the original shard test result, but the

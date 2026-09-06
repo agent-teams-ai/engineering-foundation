@@ -155,7 +155,7 @@ const cases = [
 
 // F1-F4 closure: compiler-qualified source pairs, exercised through the complete
 // validator and all four source/observation orders by the cross-module harness.
-export function lexicalErasureCases(feature, factorySource) {
+function lexicalErasureCases(feature, factorySource) {
  const domain=feature+'/domain/index.ts', adapter=feature+'/adapters/index.ts', specs=[];
  function query(name, body, queried, inverse=false, mixed=false) {
   const role=queried?'adapters':'domain';

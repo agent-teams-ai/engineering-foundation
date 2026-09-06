@@ -41,5 +41,3 @@ const { schemaIds: FOUNDATION_SCHEMA_IDS, firstSchemaId } = createSchemaList([
 export { FOUNDATION_SCHEMA_IDS };
 
 export type FoundationSchemaId = typeof firstSchemaId;
-
-export type FoundationSchemaCatalogId = FoundationSchemaId;

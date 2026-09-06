@@ -3,6 +3,4 @@ export type { MarkdownAnchorProfile, MarkdownReferenceKind, MarkdownPosition, Ma
 export type { ObserveMarkdownRepositoryRequest, ResolveMarkdownReferenceRequest, MarkdownRepository } from "./application/ports/markdown-repository.js";
 export { CapabilityInputError } from "./application/model/input-problem.js";
 export { ContainedFileReadError } from "./application/model/contained-file.js";
-export type { ContainedFileReader } from "./application/model/contained-file.js";
 export { assertNotCancelled } from "./application/policies/cancellation.js";
-export type { MarkdownSyntaxReader } from "./application/model/markdown-syntax.js";

@@ -1,5 +1,5 @@
-export type PortableBootstrapMode = "dry-run" | "apply";
-export type PortableBootstrapWriteState = "blocked" | "create" | "current" | "replace";
+type PortableBootstrapMode = "dry-run" | "apply";
+type PortableBootstrapWriteState = "blocked" | "create" | "current" | "replace";
 
 export interface PortableBootstrapInput {
   readonly consumerRoot: string;
@@ -59,12 +59,12 @@ export type BootstrapOperation = {
   readonly postimage: BootstrapObservedFile;
 };
 export interface BootstrapTransactionPlan { readonly planDigest: `sha256:${string}`; readonly serializedPlan: string }
-export interface BootstrapReceipt {
+interface BootstrapReceipt {
   readonly outcome: "already-satisfied" | "applied" | "rolled-back";
   readonly receiptDigest: `sha256:${string}`;
   readonly planDigest: `sha256:${string}`;
 }
-export type BootstrapBarrier = { readonly state: "idle" } | {
+type BootstrapBarrier = { readonly state: "idle" } | {
   readonly state: "recovery-required";
   readonly code: string;
   readonly message: string;

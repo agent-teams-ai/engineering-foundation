@@ -9,10 +9,3 @@ export class ContainedFileReadError extends Error {
     this.failure = kind;
   }
 }
-
-interface ContainedFileReadRequest {
-  readonly candidate: string;
-  readonly maxBytes: number;
-  readonly root: string;
-}
-export type ContainedFileReader = (input: ContainedFileReadRequest) => Promise<Uint8Array>;

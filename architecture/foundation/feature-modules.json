@@ -176,10 +176,6 @@
               "owner": "repository-mutation/mutation-coordination"
             },
             {
-              "path": "packages/repository-mutation/src/transaction-coordination/application-api.ts",
-              "owner": "repository-mutation/mutation-coordination"
-            },
-            {
               "path": "packages/repository-mutation/src/transaction-coordination/application/file-observation.ts",
               "owner": "repository-mutation/mutation-coordination"
             },
@@ -1796,8 +1792,7 @@
             {
               "role": "application",
               "roots": [
-                "packages/engineering-foundation/src/features/configuration-input/application",
-                "packages/engineering-foundation/src/features/configuration-input/api.ts"
+                "packages/engineering-foundation/src/features/configuration-input/application"
               ]
             },
             {

@@ -73,7 +73,7 @@ export async function inspectLegacyScaffoldingJournal(options: {
   });
 }
 
-export async function inspectCurrentScaffoldingTransaction(options: {
+async function inspectCurrentScaffoldingTransaction(options: {
   readonly bytes: Uint8Array;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;

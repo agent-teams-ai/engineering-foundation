@@ -1,4 +1,4 @@
-export interface DocumentMarkdownSyntaxObservation {
+interface DocumentMarkdownSyntaxObservation {
   readonly depth?: number;
   readonly lang?: string | null;
   readonly meta?: string | null;

@@ -3,7 +3,7 @@ import type {
   PublicApiPackagePolicy
 } from "../model/public-api.js";
 
-export interface JsonSchemaSetInspection {
+interface JsonSchemaSetInspection {
   readonly schemaSetDigest: `sha256:${string}`;
   readonly schemaIds: readonly string[];
 }

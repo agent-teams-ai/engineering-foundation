@@ -3,12 +3,10 @@ export type {
   DocsProtocolQualificationAuthorityV3Request
 } from "./application/model/qualification-authority-v3.js";
 export type {
-  ConsumerIntegrationDesiredStateV1,
   DocsProtocolQualificationContractV2,
   DocsProtocolQualificationReceiptV2,
   DocsProtocolQualificationScenarioV2,
-  DocsProtocolQualificationV2Request,
-  ManagedQualificationIntegration
+  DocsProtocolQualificationV2Request
 } from "./application/model/v2-contract.js";
 export type {
   DocsProtocolQualificationCheckV3,

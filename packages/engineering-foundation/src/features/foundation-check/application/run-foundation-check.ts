@@ -12,7 +12,7 @@ import type {
   FoundationCheckReport
 } from "../../validation-reporting/api.js";
 
-export interface FoundationCheckInvocation {
+interface FoundationCheckInvocation {
   readonly consumerRoot: string;
   readonly foundationVersion: string;
   readonly capabilityId?: string;
@@ -51,7 +51,7 @@ function rootProblemReport(
   });
 }
 
-export async function runFoundationCheck(
+async function runFoundationCheck(
   invocation: FoundationCheckInvocation,
   dependencies: FoundationCheckDependencies
 ): Promise<FoundationCheckReport> {

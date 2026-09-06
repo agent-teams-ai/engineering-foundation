@@ -12,6 +12,9 @@ import {
   createRuleRegistry
 } from "../dist/features/validation-reporting/api.js";
 import { CAPABILITY_MODULES } from "../dist/composition/capability-modules.js";
+import {
+  inspectContainedRegularFile, pathTraversesSymbolicLink, readContainedRegularFile
+} from "../dist/source-inventory/node.js";
 import { FilesystemPackageScriptCatalogReader } from "../dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { createQualityGateCliCommand } from "../dist/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.js";
 import { FilesystemEffectiveInstructionsReader } from "../dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-effective-instructions-reader.js";
@@ -20,6 +23,9 @@ import { GitRepositoryChangesReader } from "../dist/capabilities/repository-agen
 import { FilesystemRepositorySecurityReader } from "../dist/capabilities/repository-security-baseline/adapters/outbound/filesystem/filesystem-repository-security-reader.js";
 import { FilesystemArchitectureDecisionBaselineRepository } from "../dist/capabilities/governance-architecture-decisions/adapters/outbound/filesystem/filesystem-architecture-decision-baseline-repository.js";
 import { FilesystemBufBreakingQualificationEvidence } from "../dist/capabilities/contract-protobuf-evolution/adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
+
+const baselineObservation = { read: readContainedRegularFile, pathTraversesSymbolicLink };
+const instructionObservation = { read: readContainedRegularFile, inspect: inspectContainedRegularFile };
 
 const cancellationProblem = {
   code: "EXECUTION_CANCELLED",
@@ -75,12 +81,12 @@ test("all reporting consumers preserve canonical cancellation before IO", async 
   const signal = AbortSignal.abort(new Error("operator reason is not the report"));
   const invocations = [
     () => new FilesystemPackageScriptCatalogReader().read(missing, signal),
-    () => new FilesystemEffectiveInstructionsReader().discover({ consumerRoot: missing, targetPath: "file.ts", signal }),
-    () => new FilesystemEffectiveInstructionsReader().readDirectory({ consumerRoot: missing, directory: ".", readSelectedBytes: true, signal }),
+    () => new FilesystemEffectiveInstructionsReader(instructionObservation).discover({ consumerRoot: missing, targetPath: "file.ts", signal }),
+    () => new FilesystemEffectiveInstructionsReader(instructionObservation).readDirectory({ consumerRoot: missing, directory: ".", readSelectedBytes: true, signal }),
     () => new FilesystemRepositoryAgentWorkflowReader().read(missing, {}, signal),
     () => new FilesystemRepositorySecurityReader().read(missing, {}, signal),
-    () => new FilesystemArchitectureDecisionBaselineRepository().read({ consumerRoot: missing, path: "baseline.json", signal }),
-    () => new FilesystemArchitectureDecisionBaselineRepository().write({ consumerRoot: missing, path: "baseline.json", signal }),
+    () => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: missing, path: "baseline.json", signal }),
+    () => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).write({ consumerRoot: missing, path: "baseline.json", signal }),
     () => new FilesystemBufBreakingQualificationEvidence(() => assert.fail("schema validation after cancellation")).read({ consumerRoot: missing, signal })
   ];
   for (const invoke of invocations) {
@@ -95,7 +101,7 @@ test("post-read cancellation stays canonical even inside the baseline JSON catch
   await writeFile(join(root, "baseline.json"), source);
   for (const invoke of [
     (signal) => new FilesystemPackageScriptCatalogReader().read(root, signal),
-    (signal) => new FilesystemArchitectureDecisionBaselineRepository().read({ consumerRoot: root, path: "baseline.json", signal })
+    (signal) => new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read({ consumerRoot: root, path: "baseline.json", signal })
   ]) {
     let checkpoints = 0;
     const signal = { get aborted() { checkpoints += 1; return checkpoints > 1; } };
@@ -107,7 +113,7 @@ test("post-read cancellation stays canonical even inside the baseline JSON catch
 
 test("effective-instruction errors retain phase and are not recast by the root catch", async (context) => {
   const root = await fixture(context);
-  const reader = new FilesystemEffectiveInstructionsReader();
+  const reader = new FilesystemEffectiveInstructionsReader(instructionObservation);
   await assert.rejects(reader.discover({ consumerRoot: root, targetPath: "bad\npath.ts" }), inputProblem({
     code: "REPOSITORY_AGENT_WORKFLOW_TARGET_PATH_INVALID",
     message: "The target path must be a well-formed repository-relative POSIX path in Unicode NFC without control, bidirectional-formatting, or line-separator characters.",
@@ -144,7 +150,7 @@ test("security, baseline-write and Buf observation errors retain exact reporting
     message: "Consumer root must be an accessible directory.",
     phase: "repository-security-evidence"
   }));
-  await assert.rejects(new FilesystemArchitectureDecisionBaselineRepository().write({ consumerRoot: root, path: "baseline.json", baseline: {}, expected: { kind: "missing" } }), inputProblem({
+  await assert.rejects(new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).write({ consumerRoot: root, path: "baseline.json", baseline: {}, expected: { kind: "missing" } }), inputProblem({
     code: "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_INPUT",
     message: "Accepted-decision baseline does not match the required immutable baseline shape.",
     phase: "architecture-decision-baseline-write"

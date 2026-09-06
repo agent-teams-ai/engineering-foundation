@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createDocsProtocolQualificationV2 } from "../dist/qualification/application-api.js";
@@ -132,7 +132,14 @@ async function executingFixture(t, mutate = async () => {}) {
   // Copy exact emitted artifacts before any mutation or import; installed bytes stay untouched.
   await cp(join(packageRoot, "dist"), join(root, "dist"), { recursive: true, errorOnExist: true, force: false });
   await cp(join(packageRoot, "package.json"), join(root, "package.json"));
-  await symlink(join(packageRoot, "node_modules"), join(root, "node_modules"), process.platform === "win32" ? "junction" : "dir");
+  const manifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+  // Resolve pnpm's package links before creating a junction in another volume.
+  for (const name of Object.keys(manifest.dependencies)) {
+    const target = await realpath(join(packageRoot, "node_modules", name));
+    const link = join(root, "node_modules", name);
+    await mkdir(dirname(link), { recursive: true });
+    await symlink(target, link, process.platform === "win32" ? "junction" : "dir");
+  }
   for (const artifact of [applicationArtifact, adapterArtifact]) {
     const original = await readFile(join(packageRoot, artifact));
     assert.deepEqual(await readFile(join(root, artifact)), original);

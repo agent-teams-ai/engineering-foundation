@@ -643,11 +643,11 @@ test("runs as a deterministic read-only Foundation capability with closed input 
       "utf8",
     );
     assert.doesNotMatch(moduleSource, /child_process|node:child_process|ProcessBuf/u);
-    const commandHostSource = await readFile(join(distRoot, "composition", "command-host.js"), "utf8");
+    const commandHostSource = await readFile(join(distRoot, "features", "command-host", "composition", "node-command-host.js"), "utf8");
     assert.doesNotMatch(commandHostSource, /^import .*contract-protobuf-evolution\/qualification\/module/mu);
     assert.match(
       commandHostSource,
-      /await import\(\s*"\.\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
+      /await import\(\s*"\.\.\/\.\.\/\.\.\/capabilities\/contract-protobuf-evolution\/qualification\/module\.js"\s*\)/u,
     );
 
     const capability = protobufModule.createProtobufEvolutionCapability(protobufAdapters());

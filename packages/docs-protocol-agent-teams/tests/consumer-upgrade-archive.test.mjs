@@ -25,6 +25,8 @@ async function fixture(t) {
   const root = join(temporary, "source");
   await mkdir(root);
   await execute("git", ["init", "-q"], root);
+  await execute("git", ["config", "user.name", "Archive Test"], root);
+  await execute("git", ["config", "user.email", "archive-test@example.invalid"], root);
   const files = new Map([
     ["package.json", 0o644],
     ["scripts/run.sh", 0o755],

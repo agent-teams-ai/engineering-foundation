@@ -42,6 +42,7 @@
         "tests/known-file-transaction-recovery.test.mjs",
         "tests/document-parent-materialization-v2.test.mjs",
         "tests/package-boundary.test.mjs",
+        "tests/package-boundary-agent-teams.test.mjs",
         "tests/pack-publish-manifest.test.mjs",
         "tests/pack-publishable-artifacts.test.mjs",
         "tests/repository-mutation-qualification-api.test.mjs",

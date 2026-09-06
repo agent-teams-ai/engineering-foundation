@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
-import { packAndInspectArtifact } from "../scripts/pack-artifact-e2e.mjs";
+import { readQualifiedReleaseArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
+import { packAndInspectArtifact, snapshotVerifiedArtifact } from "../scripts/pack-artifact-e2e.mjs";
 import { canonicalPublishManifest, npmPackManifest } from "../scripts/pack-artifact-stage-support.mjs";
 import { createPackFixture, qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
 
@@ -87,4 +89,82 @@ test("packed dependency versions must match the sealed publish authority", async
       name: "@fixture/qualified", root: "packages/qualified", sourceRoot: fixture.packageRoot, version: "1.2.3",
     }],
   }), /dependency manifest differs from the sealed publish authority/u);
+});
+
+for (const scenario of ["complete", "archive-member-removed", "files-omits-export", "schema-bytes-changed"]) {
+  test(`production pack wildcard inventory: ${scenario}`, async (t) => {
+    const fixture = await createPackFixture(t, "pack-wildcard-integration-");
+    const manifest = {
+      name: "@fixture/qualified", version: "1.2.3",
+      exports: { "./schemas/*": "./schemas/*" },
+      files: scenario === "files-omits-export" ? ["dist"] : ["dist", "schemas"],
+    };
+    const schema = Buffer.from('{"$id":"https://fixture.test/v1","type":"string"}\n');
+    const secondSchema = Buffer.from('{"$id":"https://fixture.test/v2","type":"string"}\n');
+    await writeFile(join(fixture.packageRoot, "package.json"), JSON.stringify(manifest));
+    await mkdir(join(fixture.packageRoot, "schemas"));
+    await writeFile(join(fixture.packageRoot, "schemas/v1.schema.json"), schema);
+    await writeFile(join(fixture.packageRoot, "schemas/v2.schema.json"), secondSchema);
+    const packOutputs = [];
+    const input = {
+      ...fixture,
+      packageName: manifest.name,
+      buildPackageNames: [manifest.name],
+      dependencyDeclarations: { [manifest.name]: [] },
+      allowedArtifactPaths: ["dist", "schemas"],
+      requiredArtifactPaths: ["dist/index.js"],
+      stagePackages: [{ name: manifest.name, root: "packages/qualified", sourceRoot: fixture.packageRoot }],
+      runBuild: async (root) => {
+        await mkdir(join(root, "dist"));
+        await writeFile(join(root, "dist/index.js"), "export {};\n");
+      },
+      runPnpm: async (args, root) => {
+        const entries = scenario === "files-omits-export" ? [] : [
+          { name: "package/schemas/v1.schema.json", data: schema },
+          ...(scenario === "archive-member-removed" ? [] : [{
+            name: "package/schemas/v2.schema.json",
+            data: scenario === "schema-bytes-changed" ? Buffer.from('{"type":"number"}\n') : secondSchema,
+          }]),
+        ];
+        const bytes = qualifiedArchive(JSON.parse(await readFile(join(root, "package.json"), "utf8")), entries);
+        const archivePath = join(args.at(args.indexOf("--pack-destination") + 1), "fixture-qualified-1.2.3.tgz");
+        packOutputs.push(archivePath);
+        await writeFile(archivePath, bytes);
+      },
+    };
+    if (scenario !== "complete") {
+      await assert.rejects(packAndInspectArtifact(input), scenario === "schema-bytes-changed"
+        ? /content differs.*schemas\/v2.schema.json/u : /missing wildcard export member/u);
+      return;
+    }
+    const artifact = await packAndInspectArtifact(input);
+    const record = { ...artifact, packageName: manifest.name, packageVersion: manifest.version };
+    const info = { name: manifest.name, version: manifest.version };
+    const released = await readQualifiedReleaseArtifact(record, info);
+    assert.equal(released.integrity, `sha512-${createHash("sha512").update(snapshotVerifiedArtifact(artifact)).digest("base64")}`);
+    assert.deepEqual(released.manifest.exports, manifest.exports);
+    await Promise.all(packOutputs.map((path) => writeFile(path, "changed pack output")));
+    assert.deepEqual(await readQualifiedReleaseArtifact(record, info), released);
+    await assert.rejects(readQualifiedReleaseArtifact(record, { ...info, version: "1.2.4" }), /identity differs/u);
+    await assert.rejects(readQualifiedReleaseArtifact(undefined, info), /identity differs/u);
+    await assert.rejects(readQualifiedReleaseArtifact({ ...record, packageVersion: "1.2.4" },
+      { ...info, version: "1.2.4" }), /manifest identity differs/u);
+    await rm(record.archivePath);
+    await symlink(packOutputs[0], record.archivePath);
+    await assert.rejects(readQualifiedReleaseArtifact(record, info), /replaced by a symlink/u);
+    await rm(record.archivePath);
+    await writeFile(record.archivePath, "replaced verified archive");
+    await assert.rejects(readQualifiedReleaseArtifact(record, info), /digest|SHA-256|changed/iu);
+  });
+}
+
+test("release and registry targets invoke the concrete qualified pack gate", async () => {
+  for (const path of ["release-publish-ordered-runtime.mjs", "registry-install-e2e.mjs"]) {
+    const script = await readFile(new URL(`../scripts/${path}`, import.meta.url), "utf8");
+    assert.match(script, /import \{ packPublishableArtifacts \} from "\.\/pack-publishable-artifacts\.mjs"/u);
+    assert.match(script, /const qualified = await packPublishableArtifacts\(\{ temporaryRoot(?:: destination)? \}\)/u);
+    assert.match(script, /readQualifiedReleaseArtifact\(qualified\[/u);
+    assert.match(script, /await readVerifiedArchive\((?:artifact|target)\.archivePath, (?:artifact|target)\.sha256\)/u);
+    assert.doesNotMatch(script, /stageBuiltMarkdownPublication|createTargetArchive\(/u);
+  }
 });

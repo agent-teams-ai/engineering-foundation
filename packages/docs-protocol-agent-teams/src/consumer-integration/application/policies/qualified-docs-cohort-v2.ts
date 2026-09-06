@@ -41,6 +41,37 @@ export const QUALIFIED_DOCS_COHORT_V2_PACKAGES: readonly QualifiedDocsCohortV2Pa
     })
   ]);
 
+export const QUALIFIED_DOCS_COHORT_V2_EDGES = Object.freeze([
+  Object.freeze({
+    from: "@agent-teams/document-authoring",
+    to: "@agent-teams/repository-mutation"
+  }),
+  Object.freeze({
+    from: "@agent-teams/docs-protocol",
+    to: "@agent-teams/document-authoring"
+  }),
+  Object.freeze({
+    from: "@agent-teams/docs-protocol",
+    to: "@agent-teams/repository-mutation"
+  }),
+  Object.freeze({
+    from: "@agent-teams/docs-protocol-agent-teams",
+    to: "@agent-teams/docs-protocol"
+  }),
+  Object.freeze({
+    from: "@agent-teams/docs-protocol-agent-teams",
+    to: "@agent-teams/repository-mutation"
+  }),
+  Object.freeze({
+    from: "@agent-teams/engineering-foundation",
+    to: "@agent-teams/document-authoring"
+  }),
+  Object.freeze({
+    from: "@agent-teams/engineering-foundation",
+    to: "@agent-teams/repository-mutation"
+  })
+]);
+
 export function qualifiedDocsCohortV2PackageEntries(
   cohort: QualifiedDocsCohortBindingV2
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {

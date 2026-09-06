@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-agent-teams/docs-consumer-upgrade-execution/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "command", "outcome", "issues"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "command": { "enum": ["consumer.upgrade", "consumer.finalize"] },
+    "outcome": { "enum": ["blocked", "current", "upgraded", "prepared"] },
+    "issues": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "subject", "message"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$", "maxLength": 128 },
+          "severity": { "enum": ["error", "warning"] },
+          "subject": { "type": "string", "maxLength": 2048 },
+          "message": { "type": "string", "maxLength": 4096 }
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "path", "revision", "cohortId", "recordDigest", "qualificationEventDigest"],
+      "properties": {
+        "repository": { "const": "agent-teams-ai/.github" },
+        "path": { "const": "governance/docs-qualified-cohorts.json" },
+        "revision": { "type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$" },
+        "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
+        "recordDigest": { "$ref": "#/$defs/sha256" },
+        "qualificationEventDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "restoration": { "$ref": "#/$defs/retained" },
+    "preparation": { "$ref": "#/$defs/retained" },
+    "receipt": { "$ref": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1" }
+  },
+  "$defs": {
+    "retained": {
+      "type": "object", "additionalProperties": false, "required": ["path", "digest"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcome": { "const": "prepared" } } },
+      "then": {
+        "required": ["preparation"],
+        "properties": {
+          "command": { "const": "consumer.upgrade" },
+          "preparation": { "$ref": "#/$defs/retained" },
+          "receipt": false, "restoration": false
+        }
+      }
+    },
+    {
+      "if": { "properties": { "command": { "const": "consumer.finalize" } } },
+      "then": {
+        "properties": { "outcome": { "enum": ["blocked", "upgraded"] }, "preparation": false },
+        "if": { "properties": { "outcome": { "const": "upgraded" } } },
+        "then": {
+          "required": ["receipt", "restoration"],
+          "properties": {
+            "receipt": { "$ref": "https://agent-teams.ai/schemas/repository-mutation/known-file-transaction-receipt/v1" },
+            "restoration": { "$ref": "#/$defs/retained" }
+          }
+        }
+      }
+    }
+  ]
+}

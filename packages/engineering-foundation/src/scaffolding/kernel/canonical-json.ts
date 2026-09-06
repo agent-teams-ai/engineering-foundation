@@ -3,9 +3,12 @@ import {
   sha256Bytes as sha256RepositoryMutationBytes,
   sha256Json as sha256RepositoryMutationJson,
   sha256Text as sha256RepositoryMutationText
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/serialization";
 
-import type { JsonValue, Sha256Digest } from "../contract/types.js";
+import type {
+  JsonValue,
+  Sha256Digest
+} from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 function mapCanonicalFailure<T>(operation: () => T): T {

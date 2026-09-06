@@ -749,3 +749,51 @@ test("bounds a canonical SCC witness without recursive traversal", () => {
   assert.match(evidence(diagnostic, "cycle-witness"), /boundary\.00 -> boundary\.01 -> .*\.\.\..* -> boundary\.00/);
   assert.equal(evidence(diagnostic, "cycle-witness-edge-count"), "2048");
 });
+
+test("caller-owned source snapshots reject concrete adapter edges including type-only imports", async () => {
+  const { OxcSourceDependencyParser } = await loadDistModule(
+    "capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.js",
+  );
+  const pkg = workspacePackage("@fixture/app", "packages/app");
+  const consumer = boundary("consumer.application", ["packages/app/src/consumer"], {
+    boundaries: ["observation.application"],
+  });
+  const application = boundary("observation.application", ["packages/app/src/observation/application"], {
+    entrypoints: ["packages/app/src/observation/application/api.ts"],
+  });
+  const adapter = boundary("observation.adapter", ["packages/app/src/observation/adapters"], {
+    entrypoints: ["packages/app/src/observation/adapters/filesystem.ts"],
+  });
+  for (const [statement, rejected] of [
+    ['import type { Snapshot } from "../observation/application/api.js";', false],
+    ['import { read } from "../observation/application/api.js";', false],
+    ['import { FilesystemReader } from "../observation/adapters/filesystem.js";', true],
+    ['import type { FilesystemReader } from "../observation/adapters/filesystem.js";', true],
+    ['export type { FilesystemReader } from "../observation/adapters/filesystem.js";', true],
+  ]) {
+    const files = [
+      { path: "packages/app/src/consumer/use-case.ts", source: statement },
+      { path: "packages/app/src/observation/application/api.ts", source: "export interface Snapshot { path: string }; export function read() { return []; }" },
+      { path: "packages/app/src/observation/adapters/filesystem.ts", source: "export class FilesystemReader { read() { return []; } }" },
+    ];
+    const signal = new AbortController().signal;
+    let reads = 0;
+    const diagnostics = await analyzeSourceDependencies({
+      consumerRoot: "/no-filesystem-authority", policy: policy([consumer, application, adapter]), signal,
+    }, {
+      inventoryReader: { async read() { return { packages: [pkg] }; } },
+      sourceReader: { async read(root, roots, observedSignal) {
+        reads += 1;
+        assert.equal(root, "/no-filesystem-authority");
+        assert.deepEqual(roots, ["packages"]);
+        assert.equal(observedSignal, signal);
+        return files;
+      } },
+      parser: new OxcSourceDependencyParser(),
+      resolver: new NodeSourceDependencyResolver(),
+    });
+    assert.equal(reads, 1);
+    assert.deepEqual(diagnostics.map(({ ruleId }) => ruleId), rejected
+      ? ["architecture.source-dependencies.forbidden-boundary-dependency"] : [], statement);
+  }
+});

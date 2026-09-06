@@ -1,6 +1,7 @@
-import type { QualifiedDocsCohortBindingV2 } from "../domain/model.js";
-import { qualifiedDocsCohortV2PackageEntries } from
-  "../application/policies/qualified-docs-cohort-v2.js";
+import {
+  qualifiedDocsCohortV2PackageEntries,
+  type QualifiedDocsCohortBindingV2
+} from "../application-api.js";
 import { computePnpmRuntimeClosureDigestForTargets } from "./pnpm-runtime-closure-v1.js";
 
 export function computePnpmRuntimeClosureDigestV2(

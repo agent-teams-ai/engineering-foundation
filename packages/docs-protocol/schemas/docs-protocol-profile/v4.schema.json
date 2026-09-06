@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-profile/v4",
+  "title": "Portable Docs Protocol Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "relations", "semanticValidatorIds"],
+  "properties": {
+    "schemaVersion": { "const": 4 },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "const": "agent-teams.docs-protocol" },
+        "version": { "const": 1 }
+      }
+    },
+    "foundationProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "schemaVersion", "metadataSidecarPolicy"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "schemaVersion": { "const": 3 },
+        "metadataSidecarPolicy": { "const": "foundation-profile-v3-strict-merge" }
+      }
+    },
+    "agentWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adoption", "skillPath"],
+      "properties": {
+        "adoption": { "const": "portable-v1" },
+        "skillPath": { "$ref": "#/$defs/repositoryPath" }
+      }
+    },
+    "relations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blockers"],
+      "properties": {
+        "blockers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["types", "statuses", "subjectIncompatibleStatuses"],
+          "properties": {
+            "types": { "$ref": "#/$defs/nonEmptyLowerIds" },
+            "statuses": { "$ref": "#/$defs/nonEmptyLowerIds" },
+            "subjectIncompatibleStatuses": { "$ref": "#/$defs/nonEmptyLowerIds" }
+          }
+        }
+      }
+    },
+    "semanticValidatorIds": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/lowerId" }
+    }
+  },
+  "$defs": {
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "nonEmptyLowerIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/lowerId" }
+    },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Aa][Uu][Xx]|[Cc][Oo][Nn]|[Nn][Uu][Ll]|[Pp][Rr][Nn]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[^/]*)?(?:/|$))(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    }
+  }
+}

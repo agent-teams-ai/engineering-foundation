@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { RunDocumentDoctor } from "../packages/document-authoring/dist/application/use-cases/run-document-doctor.js";
-import { RunDocumentNew } from "../packages/document-authoring/dist/application/use-cases/run-document-new.js";
-import { RunDocumentRecover } from "../packages/document-authoring/dist/application/use-cases/run-document-recover.js";
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
-import { DocumentAuthoringError } from "../packages/document-authoring/dist/errors.js";
+import { RunDocumentDoctor } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-doctor.js";
+import { RunDocumentNew } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-new.js";
+import { RunDocumentRecover } from "../packages/document-authoring/dist/document-authoring/application/use-cases/run-document-recover.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
+import { DocumentAuthoringError } from "../packages/document-authoring/dist/document-authoring/application/model/errors.js";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const plan = {

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-intent/v1",
+  "title": "Document Intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "type", "id", "title", "owner", "summary"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "type": { "$ref": "#/$defs/lowerId" },
+    "id": { "$ref": "#/$defs/opaqueId" },
+    "title": { "$ref": "#/$defs/title" },
+    "owner": { "$ref": "#/$defs/opaqueId" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "slug": { "$ref": "#/$defs/slug" },
+    "destination": { "$ref": "#/$defs/repositoryPath" },
+    "related": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaqueId" }
+    },
+    "additionalMetadata": { "$ref": "#/$defs/jsonObject1" }
+  },
+  "$defs": {
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^[^\\u0000-\\u001F\\u007F]+$" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 1000, "pattern": "^[^\\u0000-\\u001F\\u007F]+$" },
+    "slug": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    },
+    "metadataKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^(?!(?:__proto__|prototype|constructor)$)[A-Za-z_][A-Za-z0-9_-]*$"
+    },
+    "additionalMetadataKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^(?!(?:id|type|status|owner|summary|title|slug|destination|related|__proto__|prototype|constructor)$)[A-Za-z_][A-Za-z0-9_-]*$"
+    },
+    "jsonScalar": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+        { "type": "string", "maxLength": 4096, "pattern": "^[^\\u0000-\\u001F\\u007F]*$" }
+      ]
+    },
+    "jsonObject1": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": { "$ref": "#/$defs/additionalMetadataKey" },
+      "additionalProperties": { "$ref": "#/$defs/jsonValue1" }
+    },
+    "jsonValue1": {
+      "oneOf": [
+        { "$ref": "#/$defs/jsonScalar" },
+        { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/jsonValue2" } },
+        { "$ref": "#/$defs/jsonObject2" }
+      ]
+    },
+    "jsonObject2": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": { "$ref": "#/$defs/metadataKey" },
+      "additionalProperties": { "$ref": "#/$defs/jsonValue2" }
+    },
+    "jsonValue2": {
+      "oneOf": [
+        { "$ref": "#/$defs/jsonScalar" },
+        { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/jsonValue3" } },
+        { "$ref": "#/$defs/jsonObject3" }
+      ]
+    },
+    "jsonObject3": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": { "$ref": "#/$defs/metadataKey" },
+      "additionalProperties": { "$ref": "#/$defs/jsonValue3" }
+    },
+    "jsonValue3": {
+      "oneOf": [
+        { "$ref": "#/$defs/jsonScalar" },
+        { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/jsonScalar" } },
+        {
+          "type": "object",
+          "maxProperties": 64,
+          "propertyNames": { "$ref": "#/$defs/metadataKey" },
+          "additionalProperties": { "$ref": "#/$defs/jsonScalar" }
+        }
+      ]
+    }
+  }
+}

@@ -7,11 +7,10 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import {
   CapabilityInputError,
   capabilityFailureReport,
+  classifyUnexpectedFailure,
   capabilityReport,
-  foundationReport,
-} from "../packages/engineering-foundation/dist/capability-runtime.js";
-import { FoundationError } from "../packages/engineering-foundation/dist/errors.js";
-import { classifyUnexpectedFailure } from "../packages/engineering-foundation/dist/unexpected-failure.js";
+  foundationReport,FoundationError
+} from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 
 const classifications = [
   [

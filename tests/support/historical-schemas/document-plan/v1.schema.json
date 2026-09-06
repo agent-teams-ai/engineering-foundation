@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-plan/v1",
+  "title": "Document Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocolVersion", "compiler", "projectId", "intent", "intentDigest", "authority", "selectedOwner", "identityProjection", "referencedDocuments", "destination", "expectedParent", "destinationPrecondition", "output", "requiredAdapterCapabilities", "diagnostics", "planDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolVersion": { "const": 1 },
+    "compiler": { "$ref": "#/$defs/compiler" },
+    "projectId": { "$ref": "#/$defs/lowerId" },
+    "intent": { "$ref": "https://agent-teams.ai/schemas/document-intent/v1" },
+    "intentDigest": { "$ref": "#/$defs/digest" },
+    "authority": { "$ref": "#/$defs/authority" },
+    "selectedOwner": { "$ref": "#/$defs/selectedOwner" },
+    "identityProjection": { "$ref": "#/$defs/identityProjection" },
+    "referencedDocuments": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/referencedDocument" }
+    },
+    "destination": { "$ref": "#/$defs/repositoryPath" },
+    "expectedParent": { "$ref": "#/$defs/expectedParent" },
+    "destinationPrecondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": { "state": { "const": "absent" } }
+    },
+    "output": { "$ref": "#/$defs/output" },
+    "requiredAdapterCapabilities": {
+      "type": "array",
+      "prefixItems": [{ "const": "create-file-no-replace/v1" }],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "diagnostics": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/diagnostic" } },
+    "planDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "semver": { "type": "string", "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$" },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    },
+    "repositoryParentPath": {
+      "oneOf": [
+        { "const": "." },
+        { "$ref": "#/$defs/repositoryPath" }
+      ]
+    },
+    "compiler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "buildIdentity"],
+      "properties": {
+        "id": { "const": "@agent-teams/engineering-foundation" },
+        "version": { "$ref": "#/$defs/semver" },
+        "buildIdentity": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "authoritySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "size"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 1048576 }
+      }
+    },
+    "templateAuthoritySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "size"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 262144 }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "metadataSchema", "ownerCatalog", "template"],
+      "properties": {
+        "profile": { "$ref": "#/$defs/authoritySource" },
+        "metadataSchema": { "$ref": "#/$defs/authoritySource" },
+        "ownerCatalog": { "$ref": "#/$defs/authoritySource" },
+        "template": { "$ref": "#/$defs/templateAuthoritySource" }
+      }
+    },
+    "selectedOwner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "membershipDigest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/opaqueId" },
+        "membershipDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "identityProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entryCount", "digest"],
+      "properties": {
+        "entryCount": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "referencedDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "projectionDigest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/opaqueId" },
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "projectionDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "expectedParent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "state", "ancestry"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryParentPath" },
+        "state": { "const": "directory" },
+        "ancestry": { "const": "real-directories" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "size", "mode", "mediaType", "contentBase64"],
+      "properties": {
+        "digest": { "$ref": "#/$defs/digest" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+        "mode": { "const": "0644" },
+        "mediaType": { "const": "text/markdown; charset=utf-8" },
+        "contentBase64": { "type": "string", "minLength": 4, "maxLength": 1398104, "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "severity", "phase", "subject", "message"],
+      "properties": {
+        "ruleId": { "$ref": "#/$defs/opaqueId" },
+        "severity": { "enum": ["error", "info", "warning"] },
+        "phase": { "enum": ["authority", "input", "planning", "policy"] },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    }
+  }
+}

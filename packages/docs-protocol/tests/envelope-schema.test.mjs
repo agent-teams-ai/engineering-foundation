@@ -1,3 +1,6 @@
+import { DocsProtocol } from "../dist/features/portable-documentation/application/docs-protocol.js";
+import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
+import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -8,8 +11,8 @@ import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
-import { DocsProtocol } from "../dist/application/docs-protocol.js";
-import { parseDocsProtocolProfile } from "../dist/domain/profile-policy.js";
+import { createDocsProtocolApi } from "../dist/features/docs-command/adapters/inbound/protocol-api.js";
+import { parseDocsProtocolProfile } from "../dist/features/portable-documentation/application/profile-policy.js";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
@@ -28,6 +31,38 @@ function assertValidEnvelope(value) {
       : validate;
   assert.equal(selected(value), true, JSON.stringify(selected.errors, null, 2));
 }
+
+test("operation presentation preserves generic payloads, wire vocabulary and every exit outcome", async () => {
+  const outcomes = {
+    "authority-stale": 1, cancelled: 130, conflict: 1, "execution-failure": 3,
+    "invalid-input": 2, "recovery-required": 1, success: 0, violation: 1
+  };
+  const commands = [
+    ["checkV2", "docs.check", 2], ["doctorV2", "docs.doctor", 2],
+    ["findV2", "docs.find", 2], ["infoV2", "docs.info", 2],
+    ["newDocumentV2", "docs.new", 2], ["recoverV2", "docs.recover", 2],
+    ["findV3", "docs.find", 3], ["contextV1", "docs.context", 3]
+  ];
+  for (const [outcome, exitCode] of Object.entries(outcomes)) {
+    const diagnostics = Object.freeze([{ message: "Fixture diagnostic", phase: "input", ruleId: "docs.fixture", severity: "info", subject: "fixture" }]);
+    const result = Object.freeze({});
+    const operations = Object.fromEntries(commands.map(([method, command]) => [method, async () => ({ command, outcome, diagnostics, result })]));
+    const api = createDocsProtocolApi(operations);
+    for (const [method, command, schemaVersion] of commands) {
+      const execution = await api[method]({});
+      assert.deepEqual(execution, { exitCode, envelope: {
+        schemaVersion, protocol: { id: "agent-teams.docs-protocol", version: 1 },
+        command, outcome, diagnostics, result
+      } });
+      assert.equal(execution.envelope.result, result);
+      assert.equal(execution.envelope.diagnostics, diagnostics);
+      assert.equal(Object.isFrozen(execution.envelope), true);
+      // Empty invalid-input results are valid for every operation. Other
+      // command/result combinations retain their existing schema-specific tests.
+      if (outcome === "invalid-input") {assertValidEnvelope(execution.envelope);}
+    }
+  }
+});
 
 test("published v1 info envelope remains backward compatible", () => {
   assertValidEnvelope({
@@ -189,12 +224,12 @@ test("schema accepts an emitted recovery-required doctor envelope", async () => 
       };
     }
   };
-  const protocol = new DocsProtocol({
+  const protocol = createDocsProtocolApi(new DocsProtocol({ compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(),
     adoption: { async inspect() { return []; } },
     anchors: { async matchedPatterns() { return []; } },
     foundation,
     profiles: { async read() { return profile; } }
-  });
+  }));
   const execution = await protocol.doctorV2({ consumerRoot: ".", profilePath: "docs.config.yaml" });
   assert.equal(execution.exitCode, 1);
   assert.equal(execution.envelope.outcome, "recovery-required");

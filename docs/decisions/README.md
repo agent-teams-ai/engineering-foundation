@@ -6,10 +6,14 @@ editing the accepted decision.
 
 ## Proposed
 
-- [ADR-0046: Bounded Managed V1 Restoration](0046-bounded-managed-v1-restoration.md)
+
+- [ADR-0052: Bounded Managed V1 Restoration](0052-bounded-managed-v1-restoration.md)
 
 ## Accepted
 
+- [ADR-0054: Hardening Public API Dispositions](0054-hardening-public-api-dispositions.md)
+
+- [ADR-0053: Restoration Strict JSON Consumer Admission](0053-restoration-strict-json-consumer-admission.md)
 - [ADR-0001: Executable Capability Foundation](0001-executable-capability-foundation.md)
 - [ADR-0002: Oxc Source Dependency Adapter](0002-oxc-source-dependency-adapter.md)
 - [ADR-0003: Governed Inline Suppressions](0003-governed-inline-suppressions.md)
@@ -41,7 +45,11 @@ editing the accepted decision.
 - [ADR-0044: Registry-Neutral npm Bootstrap Tags](0044-registry-neutral-npm-bootstrap-tags.md)
 - [ADR-0045: Five-Coordinate Qualified Docs Cohort](0045-five-coordinate-qualified-docs-cohort.md)
 
+- [ADR-0046: Repository Feature Module Standard Adoption](0046-feature-module-standard-adoption.md)
+- [ADR-0047: Exact Ordering, Version and Identity Primitives](0047-exact-ordering-version-and-identity-primitives.md)
 - [ADR-0049: Truthful Authoring Generic Returns](0049-truthful-authoring-generic-returns.md)
+- [ADR-0050: Exact JSON Primitive Admission](0050-exact-json-primitive-admission.md)
+- [ADR-0051: Exact File Observation Contract](0051-exact-file-observation-contract.md)
 
 ## Superseded
 

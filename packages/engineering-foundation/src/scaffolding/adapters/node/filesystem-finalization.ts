@@ -1,10 +1,15 @@
+import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldOperationReceipt
 } from "../../contract/types.js";
-import { createAuthorityScaffoldReceipt } from "../../kernel/authority-receipt.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
+  AuthorityScaffoldReceipt
+} from "../../contract/receipt-authority-types.js";
+import { createAuthorityScaffoldReceipt } from "../inbound/authority-scaffold-receipt.js";
 import {
   recoveryRequiredForAuthority,
   resolveAuthority,
@@ -23,10 +28,9 @@ import {
   replaceScaffoldJournalReconciled
 } from "./node-scaffold-journal-gateway.js";
 import {
-  NodeScaffoldJournalStore,
   type ScaffoldJournalAuthority
 } from "./node-scaffold-journal-store.js";
-import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
+import type { AssessScaffoldPlanAuthority } from "./scaffold-filesystem-dependencies.js";
 
 interface FinalizationFaultPoint {
   readonly phase:
@@ -118,15 +122,16 @@ async function classifyBeforeJournal(options: {
 }
 
 export async function verifyAlreadyAppliedScaffold(options: {
+  readonly assessPlanAuthority: AssessScaffoldPlanAuthority;
   readonly root: string;
   readonly journalPath: string;
-  readonly journalStore: NodeScaffoldJournalStore;
+  readonly journalStore: ScaffoldJournalStore;
   readonly plan: AuthorityScaffoldPlan;
   readonly faultInjector?: FinalizationFaultInjector;
 }): Promise<AuthorityScaffoldReceipt> {
   await options.faultInjector?.({ phase: "before-final-authority-recheck" });
   for (let pass = 0; pass < 2; pass += 1) {
-    const authority = await assessScaffoldPlanAuthority(
+    const authority = await options.assessPlanAuthority(
       options.root,
       options.plan
     );
@@ -166,11 +171,12 @@ export async function verifyAlreadyAppliedScaffold(options: {
 }
 
 interface FinalizationOptions {
+  readonly assessPlanAuthority: AssessScaffoldPlanAuthority;
   readonly root: string;
   readonly journalPath: string;
   readonly journal: AuthorityScaffoldJournal;
   readonly journalAuthority: ScaffoldJournalAuthority;
-  readonly journalStore: NodeScaffoldJournalStore;
+  readonly journalStore: ScaffoldJournalStore;
   readonly journalFaultContext: { finalizing?: boolean };
   readonly recovered: boolean;
   readonly receipts: ReadonlyMap<string, AuthorityScaffoldOperationReceipt>;

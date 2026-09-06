@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { NodeDocumentReachabilityProjector } from "../packages/document-authoring/dist/adapters/node/node-document-reachability-projector.js";
-import { NodeDocumentStructureVerifier } from "../packages/document-authoring/dist/adapters/node/node-document-structure-verifier.js";
-import { DocumentPlanningError } from "../packages/document-authoring/dist/document-planning-error.js";
+import { NodeDocumentReachabilityProjector } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-reachability-projector.js";
+import { NodeDocumentStructureVerifier } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-structure-verifier.js";
+import { DocumentPlanningError } from "../packages/document-authoring/dist/document-authoring/application/model/document-planning-error.js";
 
 const profileEvidence = Object.freeze({
   digest: `sha256:${"a".repeat(64)}`,

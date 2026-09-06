@@ -29,7 +29,7 @@ test("adapter alone owns the managed command and depends on the core public pack
   assert.equal(adapterManifest.dependencies["@agent-teams/docs-protocol"], "workspace:*");
   assert.equal(adapterManifest.dependencies["@agent-teams/repository-mutation"], "workspace:*");
 
-  const runner = await readFile(join(adapterRoot, "src/qualification/qualification-v2-runner.ts"), "utf8");
+  const runner = await readFile(join(adapterRoot, "src/qualification/adapters/outbound/node-managed-qualification.ts"), "utf8");
   assert.match(runner, /from "@agent-teams\/docs-protocol";/u);
   assert.match(runner, /from "@agent-teams\/docs-protocol\/qualification";/u);
   assert.doesNotMatch(runner, /docs-protocol\/(?:src|dist)\//u);
@@ -74,7 +74,7 @@ test("managed implementation retains fail-closed transaction boundaries", async 
     "src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts",
     "src/consumer-integration/adapters/bounded-repository-topology.ts",
     "src/consumer-integration/adapters/agents-route-adapter-v1.ts",
-    "src/qualification/qualification-v2-runner.ts"
+    "src/qualification/adapters/outbound/node-managed-qualification.ts"
   ];
   const source = (await Promise.all(sourceFiles.map((path) => readFile(join(adapterRoot, path), "utf8")))).join("\n");
   assert.match(source, /KnownFileTransaction|known-file|journal/iu);
@@ -92,9 +92,123 @@ test("managed publication uses the repository-mutation transaction owner", async
     adapterRoot,
     "src/consumer-integration/adapters/foundation-known-file-transaction.ts"
   ), "utf8");
-  assert.match(transactionAdapter, /applyKnownFileTransaction/u);
-  assert.match(transactionAdapter, /inspectKnownFileTransactionBarrier/u);
-  assert.match(transactionAdapter, /recoverKnownFileTransaction/u);
-  assert.match(transactionAdapter, /from "@agent-teams\/repository-mutation"/u);
+  assert.doesNotMatch(transactionAdapter, /@agent-teams\/repository-mutation/u);
+  const composition = await readFile(join(
+    adapterRoot,
+    "src/consumer-integration/composition/known-file-transaction.ts"
+  ), "utf8");
+  assert.match(composition, /applyKnownFileTransaction/u);
+  assert.match(composition, /inspectKnownFileTransactionBarrier/u);
+  assert.match(composition, /recoverKnownFileTransaction/u);
+  assert.match(composition, /from "@agent-teams\/repository-mutation"/u);
   assert.doesNotMatch(transactionAdapter, /@agent-teams\/engineering-foundation\/mutation/u);
+});
+
+
+test("transaction bridge projects only managed authority and defers execution", async () => {
+  const { createFoundationKnownFileTransaction } = await import(
+    "../dist/consumer-integration/adapters/foundation-known-file-transaction.js"
+  );
+  const calls = [];
+  let observation = { state: "idle", privateJournal: "/private/journal" };
+  const receipt = Object.freeze({ receiptDigest: "opaque fixture receipt" });
+  const operations = {
+    calls,
+    receipt,
+    async inspect(options) { this.calls.push(["inspect", options]); return observation; },
+    async apply(options) { this.calls.push(["apply", options]); return this.receipt; },
+    async recover(options) { this.calls.push(["recover", options]); return this.receipt; }
+  };
+  const bridge = createFoundationKnownFileTransaction(operations);
+  assert.deepEqual(calls, []);
+  const options = { consumerRoot: "/unused-disposable-fixture" };
+  assert.deepEqual(await bridge.inspect(options), { state: "idle" });
+  observation = { state: "recovery-required", code: "KNOWN_FILE_RECOVERY_REQUIRED",
+    message: "Recover the recorded owner", privateJournal: "/private/journal" };
+  const projected = await bridge.inspect(options);
+  assert.deepEqual(projected, { state: observation.state, code: observation.code, message: observation.message });
+  assert.ok(Object.isFrozen(projected));
+  assert.equal(await bridge.apply(options), receipt);
+  assert.equal(await bridge.recover(options), receipt);
+  assert.deepEqual(calls.map(([operation]) => operation), ["inspect", "inspect", "apply", "recover"]);
+  for (const [, actual] of calls) { assert.equal(actual, options); }
+});
+
+test("managed public assembly enumerates its supported exports", async () => {
+  const source = await readFile(join(adapterRoot, "src/index.ts"), "utf8");
+  assert.doesNotMatch(source, /export\s+\*/u);
+});
+
+test("managed application owns the barrier observation used by its lifecycle port", async () => {
+  const source = await readFile(join(adapterRoot,
+    "src/consumer-integration/application/ports/consumer-integration-lifecycle.ts"), "utf8");
+  assert.doesNotMatch(source, /KnownFileTransactionBarrierInspection/u);
+});
+
+
+test("managed root retains every existing runtime and type export", async () => {
+  const expected = JSON.parse(await readFile(new URL("./fixtures/managed-public-surface.json", import.meta.url), "utf8"));
+  const actual = await import("../dist/index.js");
+  assert.deepEqual(Object.keys(actual).toSorted(), expected.runtime);
+  const source = await readFile(join(adapterRoot, "src/index.ts"), "utf8");
+  const declared = [...source.matchAll(/export(?:\s+type)?\s*\{([^}]+)\}/gu)]
+    .flatMap((match) => match[1].split(",").map((name) => name.trim()).filter(Boolean)).toSorted();
+  assert.deepEqual(declared, expected.all);
+});
+
+function unexpectedAuthorityRead() {
+  throw new Error("Authority must not be read while recovery is required.");
+}
+
+test("managed lifecycle uses the supplied barrier before reading authority and recovers without a profile", async () => {
+  const { createConsumerIntegrationUseCases } = await import("../dist/consumer-integration/application-api.js");
+  for (const code of ["KNOWN_FILE_OPERATION_ACTIVE", "KNOWN_FILE_RECOVERY_REQUIRED"]) {
+    const observed = [];
+    const receipt = { outcome: "already-satisfied", receiptDigest: `sha256:${"1".repeat(64)}` };
+    const useCases = createConsumerIntegrationUseCases({
+      input: { read: unexpectedAuthorityRead },
+      assets: { read: unexpectedAuthorityRead },
+      planning: {},
+      transaction: {
+        async inspect(options) {
+          observed.push(options);
+          return { state: "recovery-required", code, message: "Preserve exact owner evidence." };
+        },
+        apply: unexpectedAuthorityRead,
+        async recover(options) { observed.push(options); return receipt; }
+      }
+    });
+    for (const [command, options] of [
+      ["check", { consumerRoot: "opaque-root" }],
+      ["plan", { consumerRoot: "opaque-root", to: "next-cohort" }],
+      ["apply", { consumerRoot: "opaque-root", expect: `sha256:${"2".repeat(64)}` }]
+    ]) {
+      const result = await useCases[command](options);
+      assert.equal(result.outcome, "blocked");
+      assert.deepEqual(result.issues, [{ code, severity: "error", subject: "foundation-transaction", message: "Preserve exact owner evidence." }]);
+    }
+    const recovered = await useCases.recover({ consumerRoot: "opaque-root" });
+    assert.equal(recovered.outcome, "recovered");
+    assert.strictEqual(recovered.receipt, receipt);
+    assert.deepEqual(observed, Array.from({ length: 4 }, () => ({ consumerRoot: "opaque-root" })));
+  }
+});
+
+test("managed inbound dispatch uses the composed commands and preserves argument boundaries", async () => {
+  const { createManagedDocsCli } = await import("../dist/consumer-integration/adapters/inbound/managed-cli.js");
+  const calls = [];
+  const run = createManagedDocsCli({
+    async consumer(values) { calls.push(["consumer", values]); return 3; },
+    async qualification(values) { calls.push(["qualification", values]); return 130; }
+  });
+  assert.equal(await run(["--", "qualify", "--json"]), 130);
+  assert.equal(await run(["plan", "--to", "cohort"]), 3);
+  assert.deepEqual(calls, [["qualification", ["--json"]], ["consumer", ["plan", "--to", "cohort"]]]);
+});
+
+
+test("managed planner composition does not own generation validation or manifest dispatch", async () => {
+  const source = await readFile(join(adapterRoot,
+    "src/consumer-integration/composition/consumer-integration-planner.ts"), "utf8");
+  assert.doesNotMatch(source, /switch\s*\(|throw new TypeError/u);
 });

@@ -6,12 +6,12 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/adapters/node/node-document-transaction-coordinator.js";
-import { canonicalJson, sha256Json } from "../packages/document-authoring/dist/canonical-json.js";
-import { installedDocumentAuthoringBuildIdentity } from "../packages/document-authoring/dist/installed-artifact-identity.js";
-import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/package-version.js";
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
-import { createDocumentEnvelopeV3 } from "./fixtures/document-authoring-envelope-v3.mjs";
+import { NodeDocumentTransactionCoordinator } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-transaction-coordinator.js";
+import { canonicalJson, sha256Json } from "../packages/repository-mutation/dist/index.js";
+import { installedDocumentAuthoringBuildIdentity, installedDocumentMutationArtifact } from "../packages/document-authoring/dist/document-authoring/adapters/node/installed-artifact-identity.js";
+import { installedDocumentAuthoringVersion } from "../packages/document-authoring/dist/document-authoring/adapters/node/package-version.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
+import { createCurrentDocumentEnvelopeV3 as createDocumentEnvelopeV3 } from "./support/current-document-contract-fixture.mjs";
 
 const contract = JSON.parse(await readFile(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
@@ -52,6 +52,7 @@ async function installedEnvelope() {
     buildIdentity: await installedDocumentAuthoringBuildIdentity(),
   };
   envelope.foundation = installed;
+  envelope.kernelArtifact = await installedDocumentMutationArtifact();
   envelope.recoveryHandler.id = "document-authoring";
   envelope.journal.plan.compiler = {
     ...envelope.journal.plan.compiler,
@@ -86,7 +87,7 @@ test("maps only the exact document v3 journal v2 route to recoverable", async ()
     await persistEnvelope(root, createDocumentEnvelopeV3(contract));
     const mismatch = await coordinator.inspect();
     assert.equal(mismatch.state, "manual-recovery-required");
-    assert.match(mismatch.reason, /Document Authoring 0\.16\.0/u);
+    assert.match(mismatch.reason, /@agent-teams\/document-authoring 0\.16\.0/u);
   });
 
   await withRoot(async (root) => {
@@ -95,7 +96,7 @@ test("maps only the exact document v3 journal v2 route to recoverable", async ()
     await writeFile(join(directory, journalName), "foreign transaction evidence\n");
     const foreign = await new NodeDocumentTransactionCoordinator(root).inspect();
     assert.equal(foreign.state, "manual-recovery-required");
-    assert.match(foreign.reason, /foreign, corrupt, incompatible/u);
+    assert.match(foreign.reason, /foreign, mixed, corrupt, or incompatible/u);
   });
 });
 

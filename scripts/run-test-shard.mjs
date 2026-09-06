@@ -61,6 +61,8 @@ async function main() {
   const childArguments = [
     ...(activeEvidenceDirectory === undefined ? [] : ["--import", bootstrapUrl]),
     "--test",
+    // Emit failure details immediately, including when CI later times out.
+    "--test-reporter=tap",
     "--test-concurrency=1",
     ...tests,
   ];

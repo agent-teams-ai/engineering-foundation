@@ -1,19 +1,16 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { join } from "node:path";
 
-import { installedRepositoryMutationBuildIdentity } from "../../../installed-artifact-identity.js";
-import { installedRepositoryMutationVersion, REPOSITORY_MUTATION_PACKAGE_NAME } from "../../../package-version.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../state-contract.js";
+import { knownFileStateNames } from "../../application/policies/known-file-state-names.js";
+import { installedMutationArtifact } from "../../application/policies/known-file-mutation-admission.js";
+
 import type {
   KnownFileTransactionEnvelopeV1,
   KnownFileTransactionJournalV1
 } from "../../application/model/known-file-transaction-journal.js";
 import type { InstalledKnownFileRecoveryBuild } from "../../application/policies/classify-known-file-recovery-transition.js";
-import {
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  maximumKnownFileEvidenceBytes,
-  observeKnownFile
-} from "./node-known-file-transaction-filesystem.js";
+import { matchesKnownFileImage, maximumKnownFileEvidenceBytes, observeKnownFile } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import {
   NodeKnownFileTransactionJournalStore,
   type KnownFileJournalAuthority
@@ -30,16 +27,20 @@ export interface KnownFileRecoveryEvidence {
   readonly stored: StoredKnownFileRecoveryJournal;
 }
 
-export async function observeKnownFileRecoveryEvidence(
+export async function observeKnownFileRecoveryEvidence(coordination: Pick<KnownFileCoordination,
+  "assertTerminalEvidenceDirectory"
+  | "captureFileHandleIdentity"
+  | "ensureTerminalEvidenceDirectory"
+  | "installedRepositoryMutationBuildIdentity"
+  | "installedRepositoryMutationVersion"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+>,
   root: string
 ): Promise<KnownFileRecoveryEvidence> {
-  const [version, buildIdentity] = await Promise.all([
-    installedRepositoryMutationVersion(),
-    installedRepositoryMutationBuildIdentity()
-  ]);
-  const artifact = { name: REPOSITORY_MUTATION_PACKAGE_NAME, buildIdentity, version };
-  const store = new NodeKnownFileTransactionJournalStore(
-    join(root, LOCAL_STATE_DIRECTORY), artifact, artifact
+  const artifact = await installedMutationArtifact(coordination);
+  const store = new NodeKnownFileTransactionJournalStore(coordination,
+    join(root, knownFileStateNames.directory), artifact, artifact
   );
   await store.canonicalizeTemporary();
   const observed = await store.read();
@@ -59,13 +60,13 @@ export async function observeKnownFileRecoveryEvidence(
   };
 }
 
-export async function verifyRolledBackKnownFileState(
+export async function verifyRolledBackKnownFileState(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   journal: KnownFileTransactionJournalV1
 ): Promise<void> {
   for (const [index, operation] of journal.plan.operations.entries()) {
     const journalOperation = journal.operations[index]!;
-    const observed = await observeKnownFile(
+    const observed = await observeKnownFile(coordination,
       root,
       operation.path,
       maximumKnownFileEvidenceBytes(operation)

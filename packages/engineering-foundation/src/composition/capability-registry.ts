@@ -1,5 +1,5 @@
-import type { CapabilityDefinition } from "../capability-runtime.js";
-import { createUniqueRegistry } from "../unique-registry.js";
+import type { CapabilityDefinition } from "../features/validation-reporting/api.js";
+import { createCapabilityRegistry as createRegistry } from "../features/validation-reporting/api.js";
 import {
   CAPABILITY_MODULES,
   type CapabilityModuleDescriptor
@@ -8,10 +8,7 @@ import {
 export function createCapabilityRegistry(
   modules: readonly CapabilityModuleDescriptor[]
 ): ReadonlyMap<string, CapabilityDefinition> {
-  return createUniqueRegistry(
-    "capability",
-    modules.map(({ definition }) => [definition.id, definition])
-  );
+  return createRegistry(modules);
 }
 
 export const CAPABILITY_REGISTRY: ReadonlyMap<string, CapabilityDefinition> =

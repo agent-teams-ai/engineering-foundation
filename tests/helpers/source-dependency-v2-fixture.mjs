@@ -1,3 +1,4 @@
+import { sourceDependencyAdapters, sourceTopologyAdapters, schemaConfigurationDependencies } from "../support/capability-adapters.mjs";
 import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -18,12 +19,12 @@ const [
   { loadCapabilityConfig: loadSourceDependencyCapabilityConfig },
   { createSourceDependenciesCapability },
   { PnpmSourceWorkspaceTopologyInspector },
-  { PnpmWorkspaceInventoryReader },
+  { createWorkspaceInventoryReader },
   { revalidateStableRepositoryPath },
 ] = await Promise.all([
   import(
     pathToFileURL(
-      join(distRoot, "capabilities/source-dependencies/contract/config.js"),
+      join(distRoot, "capabilities/source-dependencies/adapters/inbound/configuration/load-capability-config.js"),
     ).href
   ),
   import(
@@ -41,7 +42,7 @@ const [
     pathToFileURL(
       join(
         distRoot,
-        "workspace-inventory/adapters/outbound/pnpm/pnpm-workspace-inventory-reader.js",
+        "workspace-inventory/module.js",
       ),
     ).href
   ),
@@ -55,8 +56,10 @@ const [
   ),
 ]);
 
-export const loadCapabilityConfig = loadSourceDependencyCapabilityConfig;
-export { PnpmWorkspaceInventoryReader };
+export const loadCapabilityConfig = (root, path, signal, observeSchemaVersion) => loadSourceDependencyCapabilityConfig(
+  schemaConfigurationDependencies(), root, path, signal, observeSchemaVersion
+);
+export { createWorkspaceInventoryReader };
 export { revalidateStableRepositoryPath };
 
 export function ruleIds(values) {
@@ -80,7 +83,7 @@ export async function withCopiedFixture(name, callback) {
 }
 
 export async function runSourceCapability(consumerRoot, signal) {
-  return createSourceDependenciesCapability().run({
+  return createSourceDependenciesCapability(sourceDependencyAdapters()).run({
     consumerRoot,
     configPath: "architecture/foundation/source-dependencies.yaml",
     ...(signal === undefined ? {} : { signal }),
@@ -93,7 +96,8 @@ export async function inspectV2Topology(consumerRoot, dependencies = {}, signal)
     "architecture/foundation/source-dependencies.yaml",
   );
   const inspector = new PnpmSourceWorkspaceTopologyInspector({
-    inventoryReader: new PnpmWorkspaceInventoryReader(),
+    inventoryReader: createWorkspaceInventoryReader(),
+    ...sourceTopologyAdapters(),
     ...dependencies,
   });
   return inspector.inspect({

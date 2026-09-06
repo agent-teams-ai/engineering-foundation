@@ -3,25 +3,33 @@ import { opendir } from "node:fs/promises";
 import { isAbsolute, join, posix, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
 import {
-  assertNotCancelled,
-  loadStrictYamlFile
-} from "../../../../strict-yaml.js";
+  assertWorkspaceReadActive,
+  workspaceCandidateInvalid,
+  patternPathCollision,
+  directoryPathCollision,
+  workspacePatternsInvalid,
+  workspaceStringRecordRequired,
+  workspaceStringValuesRequired,
+  workspaceCatalogsInvalid,
+  unsafeDirectoryEntry,
+  workspaceDirectoryUnavailable,
+  workspaceDiscoveryLimitExceeded,
+  workspacePackageLimitExceeded,
+  manifestPathCollision,
+  workspaceManifestObjectRequired,
+  duplicateDefaultCatalog
+} from "../../../application/policies/workspace-input-failures.js";
+import type { PackageManifestSnapshotReader, WorkspaceYamlObservation } from "../../../application/ports/workspace-input-observations.js";
 import type {
   CatalogEntry,
   WorkspaceInventory
 } from "../../../application/model/workspace-inventory.js";
 import type { WorkspaceInventoryReader } from "../../../application/ports/workspace-inventory-reader.js";
-import { readPnpmPackageManifestSnapshots } from "./pnpm-package-manifest-snapshot-reader.js";
 
 const MAX_WORKSPACE_PACKAGES = 5_000;
 const MAX_WORKSPACE_DISCOVERY_ENTRIES = 500_000;
 const IGNORED_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
-
-function inputError(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -45,11 +53,7 @@ function validatedGlobManifestPath(candidate: string): string {
     posix.normalize(repositoryPath) !== repositoryPath ||
     posix.basename(repositoryPath) !== "package.json"
   ) {
-    inputError(
-      "WORKSPACE_GLOB_CANDIDATE_INVALID",
-      "Workspace discovery returned a non-contained package manifest candidate.",
-      "workspace-discovery"
-    );
+    workspaceCandidateInvalid();
   }
   return repositoryPath;
 }
@@ -73,11 +77,7 @@ function assertPatternDirectoryIdentity(
       const literalPath = literalSegments.join("/");
       const discovered = directoriesByIdentity.get(portablePathIdentity(literalPath));
       if (discovered !== undefined && discovered !== literalPath) {
-        inputError(
-          "PACKAGE_PATH_CASE_COLLISION",
-          `Workspace pattern and package directory paths differ only by portable identity: ${literalPath} and ${discovered}.`,
-          "workspace-discovery"
-        );
+        patternPathCollision(literalPath, discovered);
       }
     }
   }
@@ -90,11 +90,7 @@ function recordWorkspaceDirectory(
   const identity = portablePathIdentity(repositoryPath);
   const existing = directoriesByIdentity.get(identity);
   if (existing !== undefined && existing !== repositoryPath) {
-    inputError(
-      "PACKAGE_PATH_CASE_COLLISION",
-      `Workspace package directories differ only by portable identity: ${existing} and ${repositoryPath}.`,
-      "workspace-discovery"
-    );
+    directoryPathCollision(existing, repositoryPath);
   }
   directoriesByIdentity.set(identity, repositoryPath);
 }
@@ -114,11 +110,7 @@ function validateWorkspacePatterns(value: unknown): readonly string[] {
         pattern.split("/").includes("..")
     )
   ) {
-    inputError(
-      "PNPM_WORKSPACE_INVALID",
-      "pnpm-workspace.yaml packages must contain repository-relative POSIX glob patterns.",
-      "workspace-discovery"
-    );
+    workspacePatternsInvalid();
   }
   return value as readonly string[];
 }
@@ -129,15 +121,11 @@ function stringRecord(
   phase: string
 ): Readonly<Record<string, string>> {
   if (!isRecord(value)) {
-    inputError("GOVERNED_INPUT_INVALID", `${field} must be an object.`, phase);
+    workspaceStringRecordRequired(field, phase);
   }
   for (const [name, specifier] of Object.entries(value)) {
     if (name.length === 0 || typeof specifier !== "string" || specifier.length === 0) {
-      inputError(
-        "GOVERNED_INPUT_INVALID",
-        `${field} must contain non-empty string values.`,
-        phase
-      );
+      workspaceStringValuesRequired(field, phase);
     }
   }
   return value as Readonly<Record<string, string>>;
@@ -161,11 +149,7 @@ function parseCatalog(
     );
   }
   if (!isRecord(value)) {
-    inputError(
-      "PNPM_WORKSPACE_INVALID",
-      "catalogs must be an object.",
-      "workspace-manifest"
-    );
+    workspaceCatalogsInvalid();
   }
   const entries: CatalogEntry[] = [];
   for (const [catalogName, catalog] of Object.entries(value)) {
@@ -200,11 +184,7 @@ function assertSafeDirectoryEntry(entry: Dirent): void {
     entry.name.includes("/") ||
     entry.name.includes("\\")
   ) {
-    inputError(
-      "WORKSPACE_GLOB_CANDIDATE_INVALID",
-      "Workspace discovery returned an unsafe directory entry.",
-      "workspace-discovery"
-    );
+    unsafeDirectoryEntry();
   }
 }
 
@@ -218,25 +198,17 @@ async function readDirectoryEntries(
   try {
     handle = await opendir(absolutePath);
   } catch {
-    assertNotCancelled(signal);
-    inputError(
-      "WORKSPACE_DISCOVERY_UNAVAILABLE",
-      `Workspace discovery could not inspect ${repositoryPath}.`,
-      "workspace-discovery"
-    );
+    assertWorkspaceReadActive(signal);
+    workspaceDirectoryUnavailable(repositoryPath);
   }
-  assertNotCancelled(signal);
+  assertWorkspaceReadActive(signal);
   const entries: Dirent[] = [];
   try {
     for await (const entry of handle) {
-      assertNotCancelled(signal);
+      assertWorkspaceReadActive(signal);
       budget.entries += 1;
       if (budget.entries > MAX_WORKSPACE_DISCOVERY_ENTRIES) {
-        inputError(
-          "WORKSPACE_DISCOVERY_LIMIT_EXCEEDED",
-          `Workspace discovery exceeds ${MAX_WORKSPACE_DISCOVERY_ENTRIES} filesystem entries.`,
-          "workspace-discovery"
-        );
+        workspaceDiscoveryLimitExceeded(MAX_WORKSPACE_DISCOVERY_ENTRIES);
       }
       assertSafeDirectoryEntry(entry);
       entries.push(entry);
@@ -244,7 +216,7 @@ async function readDirectoryEntries(
   } finally {
     await handle.close().catch(() => {});
   }
-  assertNotCancelled(signal);
+  assertWorkspaceReadActive(signal);
   return entries.toSorted((left, right) =>
     compareBinaryStrings(left.name, right.name)
   );
@@ -261,11 +233,7 @@ function recordSelectedManifest(
   }
   manifests.add(manifestPath);
   if (manifests.size > MAX_WORKSPACE_PACKAGES) {
-    inputError(
-      "WORKSPACE_LIMIT_EXCEEDED",
-      `Workspace contains more than ${MAX_WORKSPACE_PACKAGES} package manifests.`,
-      "workspace-discovery"
-    );
+    workspacePackageLimitExceeded(MAX_WORKSPACE_PACKAGES);
   }
 }
 
@@ -281,7 +249,7 @@ async function discoverManifestPaths(
   ];
   const budget = { entries: 0 };
   while (directories.length > 0) {
-    assertNotCancelled(signal);
+    assertWorkspaceReadActive(signal);
     const directory = directories.pop();
     if (directory === undefined) {
       break;
@@ -309,7 +277,7 @@ async function discoverManifestPaths(
       }
     }
   }
-  assertNotCancelled(signal);
+  assertWorkspaceReadActive(signal);
   assertPatternDirectoryIdentity(patterns, directoriesByIdentity);
   const manifestPaths = [...manifests].toSorted();
   const caseFoldedPaths = new Map<string, string>();
@@ -317,76 +285,65 @@ async function discoverManifestPaths(
     const caseFolded = portablePathIdentity(manifestPath);
     const existing = caseFoldedPaths.get(caseFolded);
     if (existing !== undefined && existing !== manifestPath) {
-      inputError(
-        "PACKAGE_PATH_CASE_COLLISION",
-        `Workspace package paths differ only by letter case: ${existing} and ${manifestPath}.`,
-        "workspace-discovery"
-      );
+      manifestPathCollision(existing, manifestPath);
     }
     caseFoldedPaths.set(caseFolded, manifestPath);
   }
   return manifestPaths;
 }
 
-async function readPnpmWorkspaceInventoryFromManifestPaths(
-  consumerRoot: string,
-  workspaceManifest: unknown,
-  manifestPaths: readonly string[],
-  signal?: AbortSignal
-): Promise<WorkspaceInventory> {
-  if (!isRecord(workspaceManifest)) {
-    inputError(
-      "PNPM_WORKSPACE_INVALID",
-      "pnpm-workspace.yaml must contain an object.",
-      "workspace-manifest"
-    );
-  }
-  const containedManifestPaths = manifestPaths.map(validatedGlobManifestPath);
-  if (
-    Object.hasOwn(workspaceManifest, "catalog") &&
-    isRecord(workspaceManifest["catalogs"]) &&
-    Object.hasOwn(workspaceManifest["catalogs"], "default")
-  ) {
-    inputError(
-      "PNPM_WORKSPACE_INVALID",
-      "The default catalog must use either catalog or catalogs.default, not both.",
-      "workspace-manifest"
-    );
-  }
-  const catalogs = [
-    ...parseCatalog(workspaceManifest, "catalog"),
-    ...parseCatalog(workspaceManifest, "catalogs")
-  ].toSorted(
-    (left, right) =>
-      compareBinaryStrings(left.catalogName, right.catalogName) ||
-      compareBinaryStrings(left.dependencyName, right.dependencyName)
-  );
-  return {
-    ...(typeof workspaceManifest["catalogMode"] === "string"
-      ? { catalogMode: workspaceManifest["catalogMode"] }
-      : {}),
-    catalogs,
-    packages: await readPnpmPackageManifestSnapshots(
-      consumerRoot,
-      containedManifestPaths,
-      catalogs,
-      signal
-    )
-  };
-}
-
 export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
+  constructor(
+    private readonly yaml: WorkspaceYamlObservation,
+    private readonly manifests: PackageManifestSnapshotReader
+  ) {}
+
+  private async readPnpmWorkspaceInventoryFromManifestPaths(
+    consumerRoot: string,
+    workspaceManifest: unknown,
+    manifestPaths: readonly string[],
+    signal?: AbortSignal
+  ): Promise<WorkspaceInventory> {
+    if (!isRecord(workspaceManifest)) {
+      workspaceManifestObjectRequired();
+    }
+    const containedManifestPaths = manifestPaths.map(validatedGlobManifestPath);
+    if (
+      Object.hasOwn(workspaceManifest, "catalog") &&
+      isRecord(workspaceManifest["catalogs"]) &&
+      Object.hasOwn(workspaceManifest["catalogs"], "default")
+    ) {
+      duplicateDefaultCatalog();
+    }
+    const catalogs = [
+      ...parseCatalog(workspaceManifest, "catalog"),
+      ...parseCatalog(workspaceManifest, "catalogs")
+    ].toSorted(
+      (left, right) =>
+        compareBinaryStrings(left.catalogName, right.catalogName) ||
+        compareBinaryStrings(left.dependencyName, right.dependencyName)
+    );
+    return {
+      ...(typeof workspaceManifest["catalogMode"] === "string"
+        ? { catalogMode: workspaceManifest["catalogMode"] }
+        : {}),
+      catalogs,
+      packages: await this.manifests.read(
+        consumerRoot,
+        containedManifestPaths,
+        catalogs,
+        signal
+      )
+    };
+  }
+
   discoverManifestPathsFromManifest(
     consumerRoot: string,
     workspaceManifest: unknown,
     signal?: AbortSignal
   ): Promise<readonly string[]> {
     if (!isRecord(workspaceManifest)) {
-      inputError(
-        "PNPM_WORKSPACE_INVALID",
-        "pnpm-workspace.yaml must contain an object.",
-        "workspace-manifest"
-      );
+      workspaceManifestObjectRequired();
     }
     return discoverManifestPaths(
       consumerRoot,
@@ -401,7 +358,7 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     manifestPaths: readonly string[],
     signal?: AbortSignal
   ): Promise<WorkspaceInventory> {
-    return readPnpmWorkspaceInventoryFromManifestPaths(
+    return this.readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       workspaceManifest,
       manifestPaths,
@@ -414,18 +371,14 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     workspaceManifestPath: string,
     signal?: AbortSignal
   ): Promise<readonly string[]> {
-    const input = await loadStrictYamlFile(
+    const input = await this.yaml.readYaml(
       consumerRoot,
       workspaceManifestPath,
       "workspace-manifest",
       signal
     );
     if (!isRecord(input)) {
-      inputError(
-        "PNPM_WORKSPACE_INVALID",
-        "pnpm-workspace.yaml must contain an object.",
-        "workspace-manifest"
-      );
+      workspaceManifestObjectRequired();
     }
     return this.discoverManifestPathsFromManifest(consumerRoot, input, signal);
   }
@@ -435,25 +388,21 @@ export class PnpmWorkspaceInventoryReader implements WorkspaceInventoryReader {
     workspaceManifestPath: string,
     signal?: AbortSignal
   ): Promise<WorkspaceInventory> {
-    const input = await loadStrictYamlFile(
+    const input = await this.yaml.readYaml(
       consumerRoot,
       workspaceManifestPath,
       "workspace-manifest",
       signal
     );
     if (!isRecord(input)) {
-      inputError(
-        "PNPM_WORKSPACE_INVALID",
-        "pnpm-workspace.yaml must contain an object.",
-        "workspace-manifest"
-      );
+      workspaceManifestObjectRequired();
     }
     const manifestPaths = await this.discoverManifestPathsFromManifest(
       consumerRoot,
       input,
       signal
     );
-    return readPnpmWorkspaceInventoryFromManifestPaths(
+    return this.readPnpmWorkspaceInventoryFromManifestPaths(
       consumerRoot,
       input,
       manifestPaths,

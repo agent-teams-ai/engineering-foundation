@@ -25,9 +25,10 @@ const documentPlanV2Path = "schemas/document-plan/v2.schema.json";
 const documentReceiptV2Path = "schemas/document-receipt/v2.schema.json";
 const sourceDependenciesV2Path =
   "schemas/architecture-source-dependencies/v2.schema.json";
-const acceptedNonV1SchemaPathsByRoot = new Map([
+const enumeratedNonV1SchemaPathsByRoot = new Map([
   [packageRoot, [sourceDependenciesV2Path, transactionEnvelopeV2Path]],
   [documentAuthoringPackageRoot, [
+    "schemas/document-authoring/document-plan/v2.schema.json",
     documentAuthoringProfileV2Path,
     documentAuthoringProfileV3Path,
     documentCommandEnvelopeV2Path,
@@ -39,11 +40,15 @@ const acceptedNonV1SchemaPathsByRoot = new Map([
   ]],
   [repositoryMutationPackageRoot, []],
 ]);
-const acceptedTransactionEnvelopePaths = [
-  transactionEnvelopeV2Path,
-  transactionEnvelopeV3Path,
-  transactionEnvelopeV4Path,
-];
+// Schema namespace version and persisted envelope wire version are distinct.
+// This inventory constrains the implementation; it does not grant ADR admission.
+const transactionEnvelopeVersions = new Map([
+  [transactionEnvelopeV2Path, 2],
+  [transactionEnvelopeV3Path, 3],
+  [transactionEnvelopeV4Path, 4],
+  ["schemas/document-authoring/document-file-transaction-envelope/v1.schema.json", 3],
+  ["schemas/document-authoring/document-directory-transaction-envelope/v1.schema.json", 4],
+]);
 
 async function filesBelow(root) {
   const output = [];
@@ -86,29 +91,29 @@ function assertOwnedNumericDiscriminatorsAreV1(value, source) {
   }
 }
 
-test("ships v1 contracts plus accepted additive v2 and transaction boundaries", async () => {
-  for (const [ownerRoot, acceptedNonV1SchemaPaths] of acceptedNonV1SchemaPathsByRoot) {
+test("ships only enumerated schema and persisted envelope generations", async () => {
+  for (const [ownerRoot, enumeratedNonV1SchemaPaths] of enumeratedNonV1SchemaPathsByRoot) {
     const schemaFiles = (await filesBelow(join(ownerRoot, "schemas")))
       .filter((path) => path.endsWith(".schema.json"));
     const schemaRelativePaths = schemaFiles
       .map((path) => relative(ownerRoot, path).replaceAll("\\", "/"));
     assert.deepEqual(
       schemaRelativePaths.filter((path) => !path.endsWith("/v1.schema.json")),
-      acceptedNonV1SchemaPaths,
+      enumeratedNonV1SchemaPaths,
     );
     for (const path of schemaFiles) {
       const schema = JSON.parse(await readFile(path, "utf8"));
       const relativePath = relative(ownerRoot, path).replaceAll("\\", "/");
-      if (acceptedNonV1SchemaPaths.includes(relativePath) &&
-        !acceptedTransactionEnvelopePaths.includes(relativePath)) {
+      if (enumeratedNonV1SchemaPaths.includes(relativePath) &&
+        !transactionEnvelopeVersions.has(relativePath)) {
         const acceptedVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
         assert.equal(schema.$id.endsWith(`/v${acceptedVersion}`), true);
         assert.equal(schema.properties.schemaVersion.const, acceptedVersion);
         continue;
       }
-      if (acceptedTransactionEnvelopePaths.includes(relativePath)) {
-        const envelopeVersion = Number(relativePath.match(/\/v(\d+)\.schema\.json$/u)?.[1]);
-        assert.equal(schema.$id.endsWith(`/v${envelopeVersion}`), true);
+      if (transactionEnvelopeVersions.has(relativePath)) {
+        const envelopeVersion = transactionEnvelopeVersions.get(relativePath);
+        assert.equal(schema.$id, `https://agent-teams.ai/${relativePath.replace(/\.schema\.json$/u, "")}`);
         assert.equal(schema.properties.schemaVersion.const, envelopeVersion);
         assert.equal(
           schema.properties.recoveryHandler.properties.contractVersion.const,
@@ -138,7 +143,7 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
     if (ownerRoot === packageRoot) {
       assert.deepEqual(packageManifest.files.filter(
         (path) => /\/v(?:[2-9]|[1-9][0-9]+)\.schema\.json$/u.test(path),
-      ), acceptedNonV1SchemaPaths);
+      ), enumeratedNonV1SchemaPaths);
     } else {
       assert.ok(packageManifest.files.includes("schemas"));
     }
@@ -146,45 +151,47 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
 
   const versionedContractLiterals =
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
-  const acceptedVersionedSourceLiteralsByRoot = new Map([
+  const enumeratedVersionedSourceLiteralsByRoot = new Map([
     [packageRoot, {
       "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2],
-      "src/capabilities/source-dependencies/contract/config.ts": [2],
+      "src/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.ts": [2],
       "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],
     }],
     [documentAuthoringPackageRoot, {
-      "src/adapters/node/load-validated-document-authoring-profile-v2.ts": [2, 3, 2],
-      "src/adapters/node/node-document-parent-materializer.ts": [2],
-      "src/application/model/document-authoring-profile-description.ts": [2, 3],
-      "src/application/model/document-command.ts": [2],
-      "src/application/model/document-parent-materialization.ts": [2],
-      "src/application/model/document-planning.ts": [2, 2],
-      "src/application/model/document-receipt.ts": [2, 2],
-      "src/application/model/document-transaction-inspection.ts": [2, 2, 2],
-      "src/application/model/document-transaction.ts": [2, 3, 3, 4],
-      "src/application/policies/document-authoring-semantic-digests.ts": [2],
-      "src/application/policies/document-command-projection.ts": [2],
-      "src/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
-      "src/application/policies/document-transaction-envelope-body.ts": [
+      "src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts": [2],
+      "src/document-authoring/adapters/node/node-document-parent-materializer.ts": [2],
+      "src/document-authoring/application/model/document-authoring-profile-description.ts": [2, 3],
+      "src/document-authoring/application/model/document-command.ts": [2],
+      "src/document-authoring/application/model/document-parent-materialization.ts": [2],
+      "src/document-authoring/application/model/document-planning.ts": [2, 2],
+      "src/document-authoring/application/model/document-receipt.ts": [2, 2],
+      "src/document-authoring/application/model/document-transaction-inspection.ts": [2, 2, 2],
+      "src/document-authoring/application/model/document-transaction.ts": [2, 3, 3, 4],
+      "src/document-authoring/application/policies/document-authoring-semantic-digests.ts": [2],
+      "src/document-authoring/application/policies/document-command-projection.ts": [2],
+      "src/document-authoring/application/policies/document-receipt-policy.ts": [2, 2, 2, 2],
+      "src/document-authoring/application/policies/document-transaction-envelope-body.ts": [
       3, 2, 2, 2, 2, 4, 3, 3, 3, 3, 3,
       ],
-      "src/application/policies/document-transaction-envelope-policy.ts": [4],
-      "src/application/use-cases/apply-document-plan.ts": [2, 2],
-      "src/application/use-cases/compile-document-plan.ts": [2, 2],
-      "src/application/use-cases/document-parent-materialization-continuation.ts": [2],
-      "src/application/use-cases/document-transaction-continuation.ts": [2],
-      "src/application/use-cases/document-transaction-receipts.ts": [2, 2],
-      "src/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
-      "src/application/use-cases/recover-document-transaction.ts": [2, 2],
-      "src/composition/describe-document-authoring-profile-v2.ts": [2, 3],
-      "src/composition/inspect-document-transaction.ts": [2, 2, 2, 2, 2, 2],
+      "src/document-authoring/application/policies/document-transaction-envelope-policy.ts": [4],
+      "src/document-authoring/application/use-cases/apply-document-plan.ts": [2, 2],
+      "src/document-authoring/application/use-cases/compile-document-plan.ts": [2, 2],
+      "src/document-authoring/application/use-cases/document-parent-materialization-continuation.ts": [2],
+      "src/document-authoring/application/use-cases/document-transaction-continuation.ts": [2],
+      "src/document-authoring/application/use-cases/document-transaction-receipts.ts": [2, 2],
+      "src/document-authoring/application/use-cases/recapture-directory-receipt-evidence.ts": [2],
+      "src/document-authoring/application/use-cases/recover-document-transaction.ts": [2, 2],
+      "src/document-authoring/application/policies/project-document-authoring-description.ts": [2, 3],
+      "src/document-authoring/adapters/node/inspect-document-transaction.ts": [2, 2, 2],
+      "src/document-authoring/application/policies/project-document-transaction-inspection.ts": [2, 2, 2],
+      "src/document-authoring/application/model/validated-document-authoring-profile.ts": [2, 3],
     }],
     [repositoryMutationPackageRoot, {
       "src/repository-mutation/application/model/known-file-transaction-journal.ts": [6],
-      "src/repository-mutation-envelope.ts": [6, 6],
+      "src/transaction-coordination/application/repository-mutation-envelope.ts": [6, 6],
     }],
   ]);
-  for (const [ownerRoot, acceptedVersionedSourceLiterals] of acceptedVersionedSourceLiteralsByRoot) {
+  for (const [ownerRoot, enumeratedVersionedSourceLiterals] of enumeratedVersionedSourceLiteralsByRoot) {
     const observedVersionedSourceLiterals = {};
     const sourceFiles = (await filesBelow(join(ownerRoot, "src"))).filter((path) =>
       path.endsWith(".ts"),
@@ -201,8 +208,8 @@ test("ships v1 contracts plus accepted additive v2 and transaction boundaries", 
     }
     assert.deepEqual(
       observedVersionedSourceLiterals,
-      acceptedVersionedSourceLiterals,
-      "only accepted additive contracts may use newer numeric discriminators",
+      enumeratedVersionedSourceLiterals,
+      "only enumerated contracts may use newer numeric discriminators",
     );
   }
 });

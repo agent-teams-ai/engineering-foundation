@@ -1,8 +1,8 @@
 import { lstat, mkdir, open, realpath, rmdir } from "node:fs/promises";
 import { join } from "node:path";
 
-import { RepositoryMutationError } from "../../../errors.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../state-contract.js";
+import { RepositoryMutationError } from "../../application/errors.js";
+import { LOCAL_STATE_DIRECTORY } from "../../application/state-contract.js";
 
 export async function ensureMutationStateDirectory(
   consumerRoot: string

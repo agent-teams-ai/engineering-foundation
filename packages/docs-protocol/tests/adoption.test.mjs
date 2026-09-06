@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeDocsAdoptionInspector } from "../dist/adapters/node-adoption-inspector.js";
+import { NodeDocsAdoptionInspector } from "../dist/features/portable-documentation/adapters/outbound/node-adoption-inspector.js";
 
 const fixtureRoot = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
 const profilePath = "docs.config.yaml";

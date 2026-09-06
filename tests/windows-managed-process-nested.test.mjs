@@ -12,7 +12,7 @@ import {
 
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 const PROCESS_RUNNER_URL = new URL(
-  "../packages/engineering-foundation/dist/local-mode/process-runner.js",
+  "../packages/engineering-foundation/dist/local-mode/composition/process-runner.js",
   import.meta.url
 ).href;
 

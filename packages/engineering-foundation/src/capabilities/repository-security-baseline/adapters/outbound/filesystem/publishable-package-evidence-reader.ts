@@ -1,17 +1,19 @@
+import type { SecurityEvidenceObservation } from "../../../application/ports/security-evidence-observation.js";
 import type { PublishablePackageEvidence } from "../../../application/model/repository-security.js";
 import { readRequiredEvidenceFile } from "./repository-security-filesystem.js";
 import {
   repositorySecurityInputError,
   requireRecord
-} from "./repository-security-input.js";
+} from "../../../application/policies/repository-security-input.js";
 
 export async function readPublishablePackageEvidence(
+  observation: SecurityEvidenceObservation,
   root: string,
   manifestPath: string
 ): Promise<PublishablePackageEvidence> {
   let input: unknown;
   try {
-    input = JSON.parse((await readRequiredEvidenceFile(root, manifestPath)).toString("utf8")) as unknown;
+    input = JSON.parse((await readRequiredEvidenceFile(observation, root, manifestPath)).toString("utf8")) as unknown;
   } catch {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_PACKAGE_INVALID",

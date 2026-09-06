@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
+
+import { publishablePackageByName } from "./publishable-packages.mjs";
+import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
 const SHA512_SRI = /^sha512-([A-Za-z0-9+/]+={0,2})$/u;
 const COMMIT = /^[a-f0-9]{40}$/u;
@@ -12,9 +16,18 @@ export const CENTRAL_AUTHORITY = Object.freeze({
   repository: "agent-teams-ai/.github",
   schemaPath: "governance/docs-qualified-cohorts.schema.json",
 });
+// Changesets-owned release manifests select versions; central Cohort membership stays separate.
+const supportingMcpRelease = publishablePackageByName("@agent-teams/docs-protocol-mcp");
+const supportingMcpManifest = JSON.parse(readFileSync(
+  new URL(`../${supportingMcpRelease.manifestPath}`, import.meta.url), "utf8",
+));
+if (supportingMcpManifest.name !== supportingMcpRelease.name ||
+    parseStableVersion(supportingMcpManifest.version) === undefined) {
+  throw new Error("Supporting MCP requires an exact stable release manifest coordinate.");
+}
 export const SUPPORTING_MCP_PACKAGE = Object.freeze({
-  name: "@agent-teams/docs-protocol-mcp",
-  version: "0.2.1",
+  name: supportingMcpRelease.name,
+  version: supportingMcpManifest.version,
 });
 
 async function fetchAuthorityJson(url, fetcher) {

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 const publicApi = await import("../dist/index.js");
@@ -72,4 +74,13 @@ test("portable public surface has no managed compatibility facade or Cohort auth
   for (const name of FORBIDDEN_LEGACY_ROOT_EXPORTS) {
     assert.equal(publicApi[name], undefined, name);
   }
+});
+
+test("public profile discovery retains the portable default and explicit path", async (t) => {
+  const consumerRoot = await mkdtemp(join(tmpdir(), "portable-public-profile-"));
+  t.after(() => rm(consumerRoot, { recursive: true, force: true }));
+  assert.equal(await publicApi.docsProfilePath({ consumerRoot }), "docs.config.yaml");
+  assert.equal(await publicApi.docsProfilePath({
+    consumerRoot, explicitProfilePath: "architecture/project-docs.yaml",
+  }), "architecture/project-docs.yaml");
 });

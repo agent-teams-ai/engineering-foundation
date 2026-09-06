@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { compileKnownFileTransactionPlan, inspectKnownFileTransactionBarrier } from "../packages/repository-mutation/dist/index.js";
 import { applyKnownFileTransaction, recoverKnownFileTransaction, releaseKnownFileTransactionLeaseWith } from "../packages/repository-mutation/dist/qualification/index.js";
 import { fixture, killAtCheckpoint, plan, posixTest, replacementPlan, temporaryDirectory, windowsTest } from "./support/known-file-transaction-node-fixtures.mjs";
+import { assertKnownFileSchemaIdentity, readHistoricalKnownFileFixture } from "./support/known-file-transaction-schema-fixtures.mjs";
 
 for (const checkpoint of [
   "after-retirement-directory-bound",
@@ -240,16 +241,22 @@ windowsTest("fails closed before known-file mutation on Windows", async (context
 
 posixTest("applies create and exact known replacement, then performs a write-free no-op", async (context) => {
   const root = await fixture(context);
+  const historical = await readHistoricalKnownFileFixture("receipt");
+  await assertKnownFileSchemaIdentity("receipt", historical.value, "historical");
+  await assertKnownFileSchemaIdentity("plan", plan());
   const first = await applyKnownFileTransaction({ consumerRoot: root, plan: plan() });
+  await assertKnownFileSchemaIdentity("receipt", first);
   assert.equal(first.outcome, "applied");
   assert.equal(await readFile(join(root, "managed", "existing.txt"), "utf8"), "new\n");
   assert.equal((await stat(join(root, "managed", "existing.txt"))).mode & 0o777, 0o640);
   assert.equal(await readFile(join(root, "managed", "new.txt"), "utf8"), "created\n");
   const before = (await stat(join(root, "managed", "existing.txt"), { bigint: true })).mtimeNs;
   const second = await applyKnownFileTransaction({ consumerRoot: root, plan: plan() });
+  await assertKnownFileSchemaIdentity("receipt", second);
   const after = (await stat(join(root, "managed", "existing.txt"), { bigint: true })).mtimeNs;
   assert.equal(second.outcome, "already-satisfied");
   assert.equal(after, before);
+  assert.deepEqual((await readHistoricalKnownFileFixture("receipt")).bytes, historical.bytes);
 });
 
 posixTest("rejects stale preimages before creating a recovery journal", async (context) => {

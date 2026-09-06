@@ -1,6 +1,6 @@
 import { parseDocument } from "yaml";
 
-import type { ConsumerIntegrationDesiredStateV1 } from "../domain/model.js";
+import type { ConsumerIntegrationDesiredStateV1 } from "../application-api.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { targetsManagedPackage, validPnpmPeerContext } from "./pnpm-lockfile-policy-v1.js";
 import {
@@ -174,7 +174,7 @@ function assertTargetSnapshots(input: {
           `${packageName} importer evidence must select exact cohort version ${target.version}.`
         );
       }
-      const snapshotKey = `${packageName}@${String(importerEntry["version"])}`;
+      const snapshotKey = `${packageName}@${importerEntry["version"]}`;
       if (input.snapshots[snapshotKey] === undefined) {
         throw new ConsumerIntegrationNodeError(
           "DOCS_CONSUMER_LOCKFILE_SNAPSHOT_MISSING",
@@ -278,7 +278,7 @@ function assertInternalEdges(input: {
             `${source.name} must depend on exact Cohort ${target.name}@${target.version}.`
           );
         }
-        const targetSnapshotKey = `${target.name}@${String(dependency)}`;
+        const targetSnapshotKey = `${target.name}@${dependency}`;
         if (input.snapshots[targetSnapshotKey] === undefined) {
           throw new ConsumerIntegrationNodeError(
             "DOCS_CONSUMER_LOCKFILE_SNAPSHOT_MISSING",

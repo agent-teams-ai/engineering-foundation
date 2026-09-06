@@ -150,7 +150,7 @@ running a real consumer or mutation flow. Cohort authority remains exactly these
 five packages and continues to reject MCP in its npm and pnpm closures.
 
 The six-package release claim has one separate supporting precondition:
-`@agent-teams/docs-protocol-mcp@0.2.1`. A fresh npm consumer pins that package
+`@agent-teams/docs-protocol-mcp@0.2.2`. The canary selects its exact version from the release-owned package projection. A fresh npm consumer pins that package
 beside the Cohort's exact Docs Protocol coordinate. The gate requires the MCP
 version to own `latest`, captures and validates its registry lock and SHA-512
 SRI, verifies its npm signature and SLSA provenance, proves the provenance
@@ -353,3 +353,49 @@ transaction barrier blocks its recover, attach, and detach mutations without
 changing consumer evidence. Mutation-boundary recovery remains covered by
 deterministic state fixtures. Windows does not claim POSIX-equivalent hard
 power-loss durability because Node cannot portably fsync directories there.
+
+### Concrete artifact inventory preparation
+
+`package.public-api-compatibility` also inventories concrete wildcard members and
+exported JSON Schemas. Package selection comes from the existing public API
+configuration. Records use the stable
+`architecture/public-api/<package-local-name>.artifacts.json` anchor, alongside
+the unchanged typed API baseline. MCP has no wildcard exports and needs no
+artifact sidecar; its typed API baseline remains required.
+
+Initial fixation is an explicit release preparation operation:
+`node scripts/prepare-public-api-artifact-baselines.mjs <request.json>` emits
+proposals without writing admitted baselines. The request supplies `consumerRoot`,
+`temporaryRoot`, and `archives`: exact package name/version, archive path, SHA-256,
+SHA-512 integrity, source commit, supported status, and retained
+`verifiedProvenance` receipt. This offline operation verifies receipt bindings;
+the release owner's existing trusted signature/provenance verifier owns receipt
+issuance. It never downloads artifacts or executes their code. Review proposals
+before invoking the same command with `--create`, which permits exact replay but
+never replaces conflicting evidence. Bootstrap 0.0.0 is not supported history.
+
+Prepare historical generations separately: Foundation 0.21.0 and Docs Protocol
+0.4.1 at 16e19, then the five wildcard packages from cd14. Preserve both archive
+identities and bytes, including their differing persisted schema identities.
+These records are evidence proposals, not approval of a schema migration or
+recovery support window. Current main c1ef metadata releases require observation
+of final source and exact archives before release admission; older pins do not
+qualify that final artifact set. Never copy an old initial-unreleased sidecar
+into supported history.
+
+The inspector reuses the JSON Schema release inspector for closed local refs,
+unique IDs and schema compilation. Byte or ID changes and member removals are
+breaking; additions are additive. This is a bounded drift check, not proof of
+general schema equivalence. Breaking changes require their exact fingerprint,
+accepted decision and sufficient version through the existing release policy.
+`public-api-promote-release` preflights typed and artifact changes together,
+preserves same-version replay, and rejects same-version mutation. Normal checks
+fail closed when a required artifact baseline has not been admitted. The release
+owner must review and protect new sidecars under the release-owned-file gate
+before admitting them; this slice does not modify that separately owned guard.
+
+The compiler configuration accepts valid Draft 2020-12 open prefix tuples
+(`strictTuples: false`). This proposed integration correction is needed by the
+already released scaffold receipt's `appliedOperations` schema. AJV's other
+strict checks, IDs, local refs, formats, and prefix/tail instance validation remain
+in force. It changes no historical schema bytes or wire identities.

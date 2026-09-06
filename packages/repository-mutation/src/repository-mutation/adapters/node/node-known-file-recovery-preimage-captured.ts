@@ -1,18 +1,14 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { link, lstat, rmdir, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { KnownFileImageV1, KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
-import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import { deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
-import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
+import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+
+
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import {
-  knownFileErrorCode,
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  maximumKnownFileEvidenceBytes,
-  sameKnownFileIdentity
-} from "./node-known-file-transaction-filesystem.js";
+import { knownFileErrorCode, matchesKnownFileImage, maximumKnownFileEvidenceBytes, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import { knownFileCapturePaths, observeRecoveryFile } from "./node-known-file-recovery-filesystem.js";
 import { cleanupRestoredCapturedPreimage } from "./node-known-file-recovery-preimage-captured-cleanup.js";
 import { retireJournalBoundPath } from "./node-known-file-recovery-retirement.js";
@@ -86,7 +82,7 @@ async function assertCaptureDirectory(
   }
 }
 
-async function restoreUnboundCapturedPreimage(
+async function restoreUnboundCapturedPreimage(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   options: CapturedPreimageOptions,
   context: CapturedRecoveryContext,
   captured: RecoveryObservation,
@@ -98,7 +94,7 @@ async function restoreUnboundCapturedPreimage(
       `Replacement capture contains bytes without durable identity authority: ${options.operation.path}.`
     );
   }
-  const stableDestination = await readBoundedRegularFile(
+  const stableDestination = await coordination.readBoundedRegularFile(
     context.destination,
     context.preimage.size
   );
@@ -257,7 +253,7 @@ async function acceptForeignExactPreimage(
   return true;
 }
 
-async function retireCapturedPostimage(
+async function retireCapturedPostimage(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity">,
   options: CapturedPreimageOptions,
   observed: RecoveryObservation
 ): Promise<RecoveryObservation> {
@@ -271,7 +267,7 @@ async function retireCapturedPostimage(
       `Destination changed before captured-preimage rollback: ${options.operation.path}.`
     );
   }
-  await retireJournalBoundPath({
+  await retireJournalBoundPath(coordination, {
     expectedIdentity: temporaryIdentity,
     ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
     kind: "destination",
@@ -288,7 +284,7 @@ async function retireCapturedPostimage(
   return { state: "absent" };
 }
 
-async function completeCapturedRollback(
+async function completeCapturedRollback(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   options: CapturedPreimageOptions,
   context: CapturedRecoveryContext,
   observed: RecoveryObservation,
@@ -314,7 +310,7 @@ async function completeCapturedRollback(
     });
     await syncDirectoryStrictly(context.parent);
   }
-  const restored = await observeRecoveryFile(context.destination, context.preimage.size);
+  const restored = await observeRecoveryFile(coordination, context.destination, context.preimage.size);
   if (!matchesKnownFileImage(restored, context.preimage) || restored.identity === undefined ||
     !sameKnownFileIdentity(restored.identity, recovery.rollbackSourceIdentity)) {
     throw new KnownFileTransactionError(
@@ -349,7 +345,7 @@ async function completeCapturedRollback(
   }
 }
 
-export async function restoreCapturedPreimage(options: CapturedPreimageOptions): Promise<void> {
+export async function restoreCapturedPreimage(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity" | "readBoundedRegularFile">, options: CapturedPreimageOptions): Promise<void> {
   const destination = join(options.root, ...options.operation.path.split("/"));
   const parent = dirname(destination);
   const paths = knownFileCapturePaths({
@@ -363,7 +359,7 @@ export async function restoreCapturedPreimage(options: CapturedPreimageOptions):
     8 * 1024 * 1024
   );
   if (options.journalOperation.state === "rollback-restored") {
-    await cleanupRestoredCapturedPreimage({
+    await cleanupRestoredCapturedPreimage(coordination, {
       ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
       destination,
       journalOperation: options.journalOperation,
@@ -376,9 +372,9 @@ export async function restoreCapturedPreimage(options: CapturedPreimageOptions):
     return;
   }
   await assertCaptureDirectory(options, paths);
-  const captured = await observeRecoveryFile(paths.captured, recoveryMaximumBytes);
-  const destinationBefore = await observeRecoveryFile(destination, recoveryMaximumBytes);
-  const retired = await observeRecoveryFile(paths.retired, recoveryMaximumBytes);
+  const captured = await observeRecoveryFile(coordination, paths.captured, recoveryMaximumBytes);
+  const destinationBefore = await observeRecoveryFile(coordination, destination, recoveryMaximumBytes);
+  const retired = await observeRecoveryFile(coordination, paths.retired, recoveryMaximumBytes);
   const matched = options.journalOperation.matchedPreimage;
   if (matched === undefined) {
     throw new KnownFileTransactionError(
@@ -394,7 +390,7 @@ export async function restoreCapturedPreimage(options: CapturedPreimageOptions):
     recoveryMaximumBytes
   };
   if (options.journalOperation.capturedPreimageIdentity === undefined) {
-    await restoreUnboundCapturedPreimage(options, context, captured, retired);
+    await restoreUnboundCapturedPreimage(coordination, options, context, captured, retired);
     return;
   }
   const rollbackPath = join(
@@ -406,14 +402,14 @@ export async function restoreCapturedPreimage(options: CapturedPreimageOptions):
     : deserializeKnownFileIdentity(options.journalOperation.rollbackTemporaryIdentity);
   const rollbackObserved = rollbackIdentity === undefined
     ? { state: "absent" as const }
-    : await observeRecoveryFile(rollbackPath, context.preimage.size);
+    : await observeRecoveryFile(coordination, rollbackPath, context.preimage.size);
   const authority = capturedRollbackAuthority(
     options, context, captured, rollbackObserved, rollbackIdentity
   );
   await reconcileInterruptedRetiredCapture(
     options, context, retired, destinationBefore, authority.capturedIdentity
   );
-  let observed = await observeRecoveryFile(destination, recoveryMaximumBytes);
+  let observed = await observeRecoveryFile(coordination, destination, recoveryMaximumBytes);
   if (await acceptForeignExactPreimage(
     options,
     context,
@@ -421,9 +417,9 @@ export async function restoreCapturedPreimage(options: CapturedPreimageOptions):
     { ...authority, rollbackIdentity }
   )) {return;}
   if (!matchesKnownFileImage(observed, context.preimage)) {
-    observed = await retireCapturedPostimage(options, observed);
+    observed = await retireCapturedPostimage(coordination, options, observed);
   }
-  await completeCapturedRollback(
+  await completeCapturedRollback(coordination,
     options,
     context,
     observed,

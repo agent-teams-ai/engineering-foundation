@@ -228,9 +228,39 @@
       "immutableDigest": "sha256:619268aa0c3e108ee32f7db35c8c5c7a9a84a973092dec5214cbe7c1c6d6e421"
     },
     {
+      "id": "ADR-0046",
+      "path": "docs/decisions/0046-feature-module-standard-adoption.md",
+      "immutableDigest": "sha256:9ff2e33790dd5bc4bf515bcc97a94f2c94a5cb5e117fd5684f176e61c2a7641d"
+    },
+    {
+      "id": "ADR-0047",
+      "path": "docs/decisions/0047-exact-ordering-version-and-identity-primitives.md",
+      "immutableDigest": "sha256:ef6db9f665f85e9a5c062357dbd1e8469cb2cb6dc1f9b910f27091de75bcb5df"
+    },
+    {
       "id": "ADR-0049",
       "path": "docs/decisions/0049-truthful-authoring-generic-returns.md",
       "immutableDigest": "sha256:8a063851555711f4f54e83fe7d26f3005d5f977826c9eaa7f24769eb2316c137"
+    },
+    {
+      "id": "ADR-0050",
+      "path": "docs/decisions/0050-exact-json-primitive-admission.md",
+      "immutableDigest": "sha256:bc6ff5e2a85c2fb95ac156c294f0a09316531400ac5f373d2553eddb5f89953f"
+    },
+    {
+      "id": "ADR-0051",
+      "path": "docs/decisions/0051-exact-file-observation-contract.md",
+      "immutableDigest": "sha256:caff2662e7fbd1aebb83dbf1d79e5b375ef7a02e7bd08a47d1aef52e2d03885a"
+    },
+    {
+      "id": "ADR-0053",
+      "path": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
+      "immutableDigest": "sha256:a07b7a58a2f28b9b4cfbae5efbe412c4168e4eedd909cf053640be91ed586952"
+    },
+    {
+      "id": "ADR-0054",
+      "path": "docs/decisions/0054-hardening-public-api-dispositions.md",
+      "immutableDigest": "sha256:f4bd83c225efffe0e0f849ae09f6999429a421d7d234a6e6db631f6820bc9b22"
     }
   ]
 }

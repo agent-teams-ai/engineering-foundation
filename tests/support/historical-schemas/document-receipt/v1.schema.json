@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-receipt/v1",
+  "title": "Document Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocolVersion", "planDigest", "adapter", "destination", "outcome", "commit", "diagnostics", "receiptDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "protocolVersion": { "const": 1 },
+    "planDigest": { "$ref": "#/$defs/digest" },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "const": "foundation.filesystem/v1" },
+        "contractVersion": { "const": 1 }
+      }
+    },
+    "destination": { "$ref": "#/$defs/repositoryPath" },
+    "outcome": { "enum": ["applied", "already-applied", "authority-stale", "rejected", "recovery-required", "manual-recovery-required", "failed-before-publication", "cancelled"] },
+    "resultDigest": { "$ref": "#/$defs/digest" },
+    "commit": { "$ref": "#/$defs/commitObservation" },
+    "diagnostics": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/diagnostic" } },
+    "receiptDigest": { "$ref": "#/$defs/digest" }
+  },
+  "allOf": [
+    { "$ref": "#/$defs/appliedContract" },
+    { "$ref": "#/$defs/alreadyAppliedContract" },
+    { "$ref": "#/$defs/noResultContract" },
+    { "$ref": "#/$defs/recoveryContract" }
+  ],
+  "$defs": {
+    "opaqueId": { "type": "string", "minLength": 1, "maxLength": 214, "pattern": "^[A-Za-z0-9@][A-Za-z0-9@._/-]*$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\.(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.[A-Za-z0-9._@-]*)?(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$"
+    },
+    "commitObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "publication", "atomicity", "recoverability"],
+      "properties": {
+        "state": { "enum": ["committed", "not-published", "preserved", "recovery-required", "manual-recovery-required"] },
+        "publication": { "enum": ["none", "preexisting-exact", "published", "unknown"] },
+        "atomicity": { "enum": ["not-applicable", "single-file-atomic-create"] },
+        "recoverability": { "enum": ["not-required", "journaled-recoverable", "preserved-for-recovery"] }
+      }
+    },
+    "appliedContract": {
+      "if": { "type": "object", "properties": { "outcome": { "const": "applied" } }, "required": ["outcome"] },
+      "then": {
+        "type": "object",
+        "required": ["resultDigest"],
+        "properties": {
+          "resultDigest": { "$ref": "#/$defs/digest" },
+          "commit": {
+            "type": "object",
+            "properties": {
+              "state": { "const": "committed" },
+              "publication": { "const": "published" },
+              "atomicity": { "const": "single-file-atomic-create" },
+              "recoverability": { "const": "not-required" }
+            }
+          }
+        }
+      }
+    },
+    "alreadyAppliedContract": {
+      "if": { "type": "object", "properties": { "outcome": { "const": "already-applied" } }, "required": ["outcome"] },
+      "then": {
+        "type": "object",
+        "required": ["resultDigest"],
+        "properties": {
+          "resultDigest": { "$ref": "#/$defs/digest" },
+          "commit": {
+            "type": "object",
+            "properties": {
+              "state": { "const": "committed" },
+              "publication": { "const": "preexisting-exact" },
+              "atomicity": { "const": "not-applicable" },
+              "recoverability": { "const": "not-required" }
+            }
+          }
+        }
+      }
+    },
+    "noResultContract": {
+      "if": { "type": "object", "properties": { "outcome": { "enum": ["authority-stale", "rejected", "failed-before-publication", "cancelled"] } }, "required": ["outcome"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "resultDigest": false,
+          "commit": {
+            "type": "object",
+            "properties": {
+              "state": { "const": "not-published" },
+              "publication": { "const": "none" },
+              "atomicity": { "const": "not-applicable" },
+              "recoverability": { "const": "not-required" }
+            }
+          }
+        }
+      }
+    },
+    "recoveryContract": {
+      "if": { "type": "object", "properties": { "outcome": { "enum": ["recovery-required", "manual-recovery-required"] } }, "required": ["outcome"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "resultDigest": false,
+          "commit": {
+            "type": "object",
+            "properties": {
+              "state": { "enum": ["preserved", "recovery-required", "manual-recovery-required"] },
+              "publication": { "enum": ["none", "published", "unknown"] },
+              "atomicity": { "enum": ["not-applicable", "single-file-atomic-create"] },
+              "recoverability": { "const": "preserved-for-recovery" }
+            }
+          }
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "severity", "phase", "subject", "message"],
+      "properties": {
+        "ruleId": { "$ref": "#/$defs/opaqueId" },
+        "severity": { "enum": ["error", "info", "warning"] },
+        "phase": { "enum": ["apply", "authority", "input", "recovery"] },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    }
+  }
+}

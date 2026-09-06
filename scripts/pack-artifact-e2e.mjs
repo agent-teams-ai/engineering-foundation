@@ -1,5 +1,8 @@
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { observePackageWildcardExports } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.js";
+import { assertPackedWildcardMembers } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/module.js";
+import { readContainedRegularFile, pathTraversesSymbolicLink } from "../packages/engineering-foundation/dist/source-inventory/node.js";
 
 import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
 import { projectMarkdownPublication } from "./markdown-publication.mjs";
@@ -84,6 +87,14 @@ function packageSourceRoot(entry, repositoryRoot) {
 }
 
 async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPaths) {
+  // Export membership is observed independently of the manifest files allowlist:
+  // a pack omission must not also erase the authority used to detect it.
+  const wildcardExports = await observePackageWildcardExports(packageRoot, manifest, {
+    packageName: manifest.name, packageRoot: ".",
+  }, {
+    files: { read: readContainedRegularFile },
+    paths: { traversesSymbolicLink: pathTraversesSymbolicLink },
+  });
   const entries = new Set(["package/package.json", "package/LICENSE", "package/README.md"]);
   const fileDigests = new Map();
   const state = { bytes: 0, entries: 0 };
@@ -119,7 +130,20 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
       await visit(join(packageRoot, path), path);
     }
   }
-  return Object.freeze({ entries: Object.freeze([...entries].toSorted()), fileDigests });
+  // Seal every concrete export's bytes, including schemas outside files. Do not
+  // materialize them: an omitted public member must fail the archive gate.
+  for (const member of new Set(wildcardExports.flatMap(({ members }) => members))) {
+    if (fileDigests.has(`package/${member}`)) { continue; }
+    const bytes = await readContainedRegularFile({
+      root: packageRoot, candidate: join(packageRoot, member), maxBytes: 32 * 1024 * 1024,
+    });
+    state.bytes += bytes.byteLength;
+    if (state.bytes > 32 * 1024 * 1024) {
+      throw new Error("Packed wildcard authority exceeds 32 MiB.");
+    }
+    fileDigests.set(`package/${member}`, sha256(bytes));
+  }
+  return Object.freeze({ entries: Object.freeze([...entries].toSorted()), fileDigests, wildcardExports });
 }
 
 export async function createCleanBuildStage(input, label) {
@@ -266,6 +290,11 @@ function assertExactArchiveManifest(inspection, expectedManifest) {
 }
 
 function assertExactPackedEntries(inspection, listing, expected) {
+  assertPackedWildcardMembers({
+    actualArtifactPaths: inspection.entries.filter(({ type }) => type === "0")
+      .map(({ name }) => name.slice("package/".length)),
+    expected,
+  });
   const actual = listing.split(/\r?\n/u).filter(Boolean).toSorted();
   if (actual.join("\0") !== expected.entries.join("\0")) {
     throw new Error("Packed archive payload differs from the post-build manifest-owned package tree.");

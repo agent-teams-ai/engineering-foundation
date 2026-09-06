@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { addWorkspacePackage, configProblem, inspectV2Topology, PnpmWorkspaceInventoryReader, runSourceCapability, sourceArchitectureConfig, sourceConfigPath, withCopiedFixture, withTemporaryDirectory } from "./helpers/source-dependency-v2-fixture.mjs";
+import { addWorkspacePackage, configProblem, inspectV2Topology, createWorkspaceInventoryReader, runSourceCapability, sourceArchitectureConfig, sourceConfigPath, withCopiedFixture, withTemporaryDirectory } from "./helpers/source-dependency-v2-fixture.mjs";
 
 test("pnpm inventory cancellation observes manifest-free excluded traversal", async () => {
   await withCopiedFixture("v2-valid", async (consumerRoot) => {
@@ -24,7 +24,7 @@ test("pnpm inventory cancellation observes manifest-free excluded traversal", as
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
-    const reader = new PnpmWorkspaceInventoryReader();
+    const reader = createWorkspaceInventoryReader();
     await assert.rejects(
       () => reader.discoverManifestPathsFromManifest(
         consumerRoot,

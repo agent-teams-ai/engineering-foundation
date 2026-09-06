@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/document-authoring",
-  "packageVersion": "0.2.0",
+  "packageVersion": "0.3.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -201,7 +201,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export type DocumentAuthoringSchemaId = \"document-authoring-profile/v1\" | \"document-authoring-profile/v2\" | \"document-authoring-profile/v3\" | \"document-command-envelope/v1\" | \"document-command-envelope/v2\" | \"document-intent/v1\" | \"document-parent-materialization/v2\" | \"document-plan/v1\" | \"document-plan/v2\" | \"document-receipt/v1\" | \"document-receipt/v2\" | \"foundation-transaction-envelope/v3\" | \"foundation-transaction-envelope/v4\";"
+          "signature": "export type DocumentAuthoringSchemaId = \"document-authoring-profile/v1\" | \"document-authoring-profile/v2\" | \"document-authoring-profile/v3\" | \"document-command-envelope/v1\" | \"document-command-envelope/v2\" | \"document-intent/v1\" | \"document-parent-materialization/v2\" | \"document-plan/v1\" | \"document-authoring/document-plan/v1\" | \"document-authoring/document-plan/v2\" | \"document-authoring/document-file-transaction-envelope/v1\" | \"document-authoring/document-directory-transaction-envelope/v1\" | \"document-plan/v2\" | \"document-receipt/v1\" | \"document-receipt/v2\" | \"foundation-transaction-envelope/v3\" | \"foundation-transaction-envelope/v4\";"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#allowedOwnerIds:member",
@@ -390,7 +390,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
           "parentKind": "Interface",
-          "signature": "readonly id: \"@agent-teams/document-authoring\" | \"@agent-teams/engineering-foundation\";"
+          "signature": "readonly id: \"@agent-teams/document-authoring\";"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#version:member",
@@ -1492,6 +1492,13 @@
           "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
         },
         {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#kernelArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#operationKind:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
@@ -1517,7 +1524,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 2;\n    };"
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 2;\n    };"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#schemaVersion:member",
@@ -1569,6 +1576,13 @@
           "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
         },
         {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#kernelArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#operationKind:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
@@ -1594,7 +1608,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 3;\n    };"
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 3;\n    };"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#schemaVersion:member",
@@ -2042,21 +2056,21 @@
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function applyDocumentationPlanV2(request: Omit<ApplyDocumentPlanRequest, \"plan\"> & {\n    readonly plan: import(\"./application/model/document-planning.js\").DocumentPlanV2;\n}): Promise<import(\"./application/model/document-receipt.js\").DocumentReceiptV2>;"
+          "signature": "export declare function applyDocumentationPlanV2(request: Omit<ApplyDocumentPlanRequest, \"plan\"> & {\n    readonly plan: DocumentPlanV2;\n}): Promise<DocumentReceiptV2>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!buildDocumentationCatalog:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function buildDocumentationCatalog(request: BuildDocumentationCatalogRequest): Promise<import(\"./application/model/document-catalog.js\").DocumentationCatalogSnapshot>;"
+          "signature": "export declare function buildDocumentationCatalog(request: BuildDocumentationCatalogRequest): Promise<DocumentationCatalogSnapshot>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!buildDocumentationCatalogV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function buildDocumentationCatalogV2(request: BuildDocumentationCatalogRequest): Promise<import(\"./application/model/document-catalog.js\").DocumentationCatalogSnapshotV2>;"
+          "signature": "export declare function buildDocumentationCatalogV2(request: BuildDocumentationCatalogRequest): Promise<DocumentationCatalogSnapshotV2>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!describeDocumentAuthoringProfileV2:function(1)",
@@ -2077,14 +2091,14 @@
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function findDocumentationDocuments(request: FindDocumentsRequest): Promise<import(\"./application/model/document-find.js\").DocumentFindResult>;"
+          "signature": "export declare function findDocumentationDocuments(request: FindDocumentsRequest): Promise<DocumentFindResult>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!findDocumentationDocumentsV2:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function findDocumentationDocumentsV2(request: FindDocumentsRequest): Promise<import(\"./application/model/document-find.js\").DocumentFindResultV2>;"
+          "signature": "export declare function findDocumentationDocumentsV2(request: FindDocumentsRequest): Promise<DocumentFindResultV2>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!inspectDocumentAuthoringEnvironmentV1:function(1)",
@@ -2126,7 +2140,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function planDocumentationDocumentV2(request: PlanDocumentationDocumentRequestV2): Promise<import(\"./application/model/document-planning.js\").DocumentPlanV2>;"
+          "signature": "export declare function planDocumentationDocumentV2(request: PlanDocumentationDocumentRequestV2): Promise<DocumentPlanV2>;"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!projectReferencedDocuments:function(1)",
@@ -2612,7 +2626,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentCompilerIdentity:interface",
           "parentKind": "Interface",
-          "signature": "readonly id: \"@agent-teams/document-authoring\" | \"@agent-teams/engineering-foundation\";"
+          "signature": "readonly id: \"@agent-teams/document-authoring\";"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentCompilerIdentity#version:member",
@@ -3133,6 +3147,13 @@
           "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
         },
         {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#kernelArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#operationKind:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
@@ -3158,7 +3179,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 2;\n    };"
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 2;\n    };"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#schemaVersion:member",
@@ -3210,6 +3231,13 @@
           "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
         },
         {
+          "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#kernelArtifact:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+        },
+        {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#operationKind:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
@@ -3235,7 +3263,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\" | \"foundation.document-authoring\";\n        readonly contractVersion: 3;\n    };"
+          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 3;\n    };"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#schemaVersion:member",

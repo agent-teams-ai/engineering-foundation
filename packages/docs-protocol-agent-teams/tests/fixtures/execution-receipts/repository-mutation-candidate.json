@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "protocol": "agent-teams.repository-mutation.known-file/v1",
+  "planDigest": "sha256:15c980ba8799813355c05e105010702091718fad1fa6e9a1b64080c0374af93e",
+  "outcome": "applied",
+  "operations": [
+    {
+      "path": "managed/result.txt",
+      "outcome": "created",
+      "resultDigest": "sha256:59134a4054b27a3fc30e1ac81d9b9168dc0561f65982151324a021fe8ce88d06"
+    }
+  ],
+  "receiptDigest": "sha256:7eb4a0469fd70e52a395855d25073b66671022c843267a2df95343c7b213e987"
+}

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const cliPath = fileURLToPath(
@@ -259,4 +259,100 @@ test("SIGTERM cancels Buf qualification with exit code 130", {
   } finally {
     await rm(root, { force: true, recursive: true });
   }
+});
+
+test("command host dispatches once, preserves handler precedence and propagates failures", async () => {
+  const { dispatchFoundationCommand } = await import("../packages/engineering-foundation/dist/features/command-host/api.js");
+  const { FoundationError } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  const input = Object.freeze({ command: "fixture", positional: [], consumerRoot: "/inert", configPath: "unused", format: "json", write: false });
+  const calls = [];
+  await dispatchFoundationCommand(input, [
+    async invocation => { assert.equal(invocation, input); calls.push("declined"); return false; },
+    async () => { calls.push("handled"); return true; },
+    async () => { assert.fail("no dispatch after handling"); },
+  ]);
+  assert.deepEqual(calls, ["declined", "handled"]);
+  await assert.rejects(dispatchFoundationCommand(input, [async () => false]), error => {
+    assert.ok(error instanceof FoundationError);
+    assert.equal(error.code, "CONSUMER_INVALID");
+    assert.equal(error.message, "Unknown command: fixture.");
+    return true;
+  });
+  const failure = new Error("handler failed");
+  await assert.rejects(dispatchFoundationCommand(input, [
+    async () => { throw failure; },
+    async () => { assert.fail("no fallback after failure"); },
+  ]), error => error === failure);
+});
+
+test("command cancellation composes exact signal subscriptions and disposes on success and failure", async () => {
+  const { nodeCommandCancellation } = await import("../packages/engineering-foundation/dist/features/command-host/module.js");
+  const before = { SIGINT: process.listenerCount("SIGINT"), SIGTERM: process.listenerCount("SIGTERM") };
+  await nodeCommandCancellation.withSignal(["SIGINT"], async signal => {
+    assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
+    assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM);
+    process.emit("SIGINT");
+    assert.equal(signal.aborted, true);
+  });
+  const error = new Error("lifecycle failure");
+  await assert.rejects(nodeCommandCancellation.withSignal(["SIGINT", "SIGTERM"], async signal => {
+    assert.equal(process.listenerCount("SIGINT"), before.SIGINT + 1);
+    assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM + 1);
+    process.emit("SIGTERM");
+    assert.equal(signal.aborted, true);
+    throw error;
+  }), failure => failure === error);
+  assert.equal(process.listenerCount("SIGINT"), before.SIGINT);
+  assert.equal(process.listenerCount("SIGTERM"), before.SIGTERM);
+});
+
+test("self-check resolves package metadata from the executable after command-host relocation", () => {
+  const result = spawnSync(process.execPath, [cliPath, "self-check", "--json"], {
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(result.stderr, "");
+  const metadata = JSON.parse(result.stdout);
+  assert.equal(metadata.ok, true);
+  assert.equal(metadata.packageName, "@agent-teams/engineering-foundation");
+});
+
+test("command host classifies sibling errors in application without lookalike or accessor drift", async () => {
+  const { observeCommandFailures } = await import("./command-host-observations.mjs");
+  const observations = observeCommandFailures(new URL("../packages/engineering-foundation/dist/", import.meta.url).href);
+  assert.equal(observations.length, 32);
+  for (const item of observations) {
+    if (item.kind === "lookalike") {
+      assert.ok(!item.trace.includes("code") && !item.trace.includes("message"));
+      assert.equal(item.rejected, item.fault === "write");
+    } else if (item.fault === "message" || item.fault === "write") {
+      assert.equal(item.rejected, true);
+      assert.equal(item.exitCode, 17);
+    }
+  }
+  assert.deepEqual(observations.find(item => item.kind === "scaffold" && !item.json && item.fault === "none").trace,
+    ["code", "message", "stderr", "code", "code"]);
+  assert.deepEqual(observations.find(item => item.kind === "transaction" && !item.json && item.fault === "none").trace,
+    ["code", "message", "stderr"]);
+});
+
+test("node command integration leaves service creation behind parsing and preserves explicit inputs", async () => {
+  const { createNodeCommandHost } = await import("../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/node-command-host.js");
+  const calls = [], environment = {}, args = ["version"], services = {};
+  const host = createNodeCommandHost((env, readRoot) => {
+    assert.equal(env, environment);
+    calls.push(readRoot());
+    return services;
+  }, async (createServices, received) => {
+    assert.equal(received, args);
+    assert.deepEqual(calls, []);
+    assert.equal(createServices(), services);
+  });
+  const packageRoot = join(tmpdir(), "disposable", "package");
+  const moduleUrl = pathToFileURL(join(packageRoot, "dist", "cli.js")).href;
+  await host.runNodeFoundationCli(environment, moduleUrl, args);
+  assert.deepEqual(calls, [packageRoot]);
+  const sentinel = Symbol("factory failure");
+  await assert.rejects(createNodeCommandHost(() => { throw sentinel; }, async create => { create(); })
+    .runNodeFoundationCli(environment, moduleUrl, args), error => error === sentinel);
 });

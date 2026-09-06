@@ -1,126 +1,12 @@
+import { DocsProtocol } from "../dist/features/portable-documentation/application/docs-protocol.js";
+import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
+import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DocsProtocol } from "../dist/application/docs-protocol.js";
-import { parseDocsProtocolProfile } from "../dist/domain/profile-policy.js";
+import { createDocsProtocolApi } from "../dist/features/docs-command/adapters/inbound/protocol-api.js";
 
-const profile = parseDocsProtocolProfile({
-  schemaVersion: 3,
-  protocol: { id: "agent-teams.docs-protocol", version: 1 },
-  foundationProfile: { path: "architecture/foundation/document-authoring.yaml", schemaVersion: 3, metadataSidecarPolicy: "foundation-profile-v3-strict-merge" },
-  agentWorkflow: { adoption: "portable-v1", skillPath: ".agents/skills/docs-authoring/SKILL.md" },
-  semanticValidatorIds: ["documentation.domain-semantics"]
-});
-
-const types = [{
-  type: "adr",
-  initialStatus: "proposed",
-  allowedOwnerIds: ["architecture/tooling"],
-  identity: { format: "adr-four-digits" },
-  heading: { kind: "id-colon-title" },
-  placement: { kind: "collection" },
-  requiredMetadata: ["id", "type", "status", "owner", "summary"],
-  reachability: { kind: "manual-fixed-index", indexPath: "docs/decisions/README.md" }
-}];
-
-const PROFILE_SEMANTIC_DIGEST = `sha256:${"6".repeat(64)}`;
-const CATALOG_SEMANTIC_DIGEST = `sha256:${"7".repeat(64)}`;
-
-function descriptor(overrides = {}) {
-  return {
-    id: "ADR-0002",
-    type: "adr",
-    status: "accepted",
-    owner: "architecture/tooling",
-    summary: "Second decision",
-    title: "Second",
-    repositoryPath: "docs/decisions/0002-second.md",
-    source: "markdown-tree",
-    related: ["ADR-0001"],
-    blockedBy: ["ADR-0003"],
-    ...overrides
-  };
-}
-
-function plan(intent) {
-  const content = "---\nid: ADR-0083\ntype: adr\nstatus: proposed\nowner: architecture/tooling\nsummary: Defines tenant isolation.\n---\n# ADR-0083: Tenant isolation\n";
-  return {
-    schemaVersion: 2,
-    protocolVersion: 2,
-    compiler: { id: "@agent-teams/engineering-foundation", version: "0.17.0-rc.0", buildIdentity: `sha256:${"1".repeat(64)}` },
-    projectId: "fixture-project",
-    intent,
-    intentDigest: `sha256:${"2".repeat(64)}`,
-    authority: {
-      profileSemanticDigest: PROFILE_SEMANTIC_DIGEST,
-      catalogPreimageSemanticDigest: CATALOG_SEMANTIC_DIGEST,
-      expectedCatalogPostimageSemanticDigest: CATALOG_SEMANTIC_DIGEST
-    },
-    selectedOwner: {},
-    identityProjection: {},
-    referencedDocuments: [],
-    destination: "docs/decisions/0083-tenant-isolation.md",
-    expectedParent: { path: "docs/decisions", state: "directory", ancestry: "real-directories" },
-    parentMaterialization: { policy: "create-missing-real-directories", missingDirectories: [] },
-    destinationPrecondition: { state: "absent" },
-    output: {
-      contentBase64: Buffer.from(content, "utf8").toString("base64"),
-      digest: `sha256:${"8".repeat(64)}`,
-      mediaType: "text/markdown; charset=utf-8",
-      size: Buffer.byteLength(content)
-    },
-    requiredAdapterCapabilities: ["create-directories-no-replace/v1", "create-file-no-replace/v1"],
-    diagnostics: [],
-    planDigest: `sha256:${"3".repeat(64)}`
-  };
-}
-
-function harness(options = {}) {
-  const calls = { apply: 0, buildCatalog: 0, describe: 0, find: 0, plan: [] };
-  const defaultDescription = { authority: { templates: [] }, catalog: { collections: [], excludedPrefixes: [] }, projectId: "fixture-project", profileSchemaVersion: 3, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
-  const defaultCatalog = { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [
-    { ...descriptor({ id: "ADR-0001", repositoryPath: "docs/decisions/0001-first.md" }), metadata: {} },
-    { ...descriptor({ id: "OD-001", type: "open-decision", status: "open", repositoryPath: "docs/open-decisions/OD-001.md" }), metadata: {} }
-  ], identityProjection: [], ownerIds: ["architecture/tooling"], authority: {}, semanticDigest: CATALOG_SEMANTIC_DIGEST };
-  const foundation = {
-    async describe() {
-      const value = options.descriptions?.[calls.describe] ?? defaultDescription;
-      calls.describe += 1;
-      return value;
-    },
-    async buildCatalog() {
-      const value = options.catalogs?.[calls.buildCatalog] ?? defaultCatalog;
-      calls.buildCatalog += 1;
-      return value;
-    },
-    async find() {
-      calls.find += 1;
-      return [descriptor(), descriptor({ id: "ADR-0004", repositoryPath: "docs/decisions/0004-fourth.md", related: [] })];
-    },
-    async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
-    async plan(input) { calls.plan.push(input); return options.plan ?? plan(input.intent); },
-    async apply(input) {
-      calls.apply += 1;
-      return options.applyReceipt ?? {
-        schemaVersion: 1,
-        protocolVersion: 1,
-        planDigest: input.plan.planDigest,
-        adapter: { id: "foundation.filesystem/v1", contractVersion: 1 },
-        destination: input.plan.destination,
-        outcome: "applied",
-        resultDigest: `sha256:${"4".repeat(64)}`,
-        commit: { state: "committed", publication: "published", atomicity: "single-file-atomic-create", recoverability: "not-required" },
-        diagnostics: [],
-        receiptDigest: `sha256:${"5".repeat(64)}`
-      };
-    },
-    async recover() { throw new Error("not used"); }
-  };
-  return {
-    calls,
-    protocol: new DocsProtocol({ adoption: options.adoption ?? { async inspect() { return []; } }, anchors: options.anchors ?? { async matchedPatterns({ patterns }) { return options.matchedPatterns ?? patterns; } }, foundation, profiles: { async read() { return profile; } } })
-  };
-}
+import { profile, types, PROFILE_SEMANTIC_DIGEST, CATALOG_SEMANTIC_DIGEST, descriptor, plan, harness } from "./fixtures/protocol-harness.mjs";
 
 test("find applies relation filters with AND and stable zero-match success", async () => {
   const { protocol } = harness();
@@ -269,7 +155,7 @@ test("check reports invalid common relation semantics without executing validato
     async inspect() { return { schemaVersion: 1, state: "idle", diagnostics: [] }; },
     async find() { return []; }, async plan() { throw new Error("not used"); }, async apply() { throw new Error("not used"); }, async recover() { throw new Error("not used"); }
   };
-  const checked = await new DocsProtocol({ adoption: { async inspect() { return []; } }, anchors: { async matchedPatterns({ patterns }) { return patterns; } }, foundation: badFoundation, profiles: { async read() { return profile; } } }).checkV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
+  const checked = await createDocsProtocolApi(new DocsProtocol({ compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(), adoption: { async inspect() { return []; } }, anchors: { async matchedPatterns({ patterns }) { return patterns; } }, foundation: badFoundation, profiles: { async read() { return profile; } } })).checkV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(checked.exitCode, 1);
   assert.ok(checked.envelope.diagnostics.some(({ message }) => message.includes("does not exist")));
   assert.ok(originalBuild);
@@ -434,12 +320,12 @@ test("find binds the referenced current Foundation profile before querying", asy
     async describe() { throw new Error("Foundation authoring profile schemaVersion must be 3"); },
     async find() { queried = true; return []; }
   };
-  const protocol = new DocsProtocol({
+  const protocol = createDocsProtocolApi(new DocsProtocol({ compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(),
     adoption: { async inspect() { return []; } },
     anchors: { async matchedPatterns() { return []; } },
     foundation,
     profiles: { async read() { return profile; } }
-  });
+  }));
   await assert.rejects(
     protocol.findV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml", query: {} }),
     /schemaVersion must be 3/u
@@ -514,4 +400,49 @@ test("new fails authority-stale when Plan is bound to a different authority snap
   });
   assert.equal(result.envelope.outcome, "authority-stale");
   assert.equal(calls.apply, 0);
+});
+
+
+test("compiled preview uses injected output decoding before pure projection", async () => {
+  let observed;
+  const { protocol } = harness({ compiledOutput: { read(output) {
+    observed = output;
+    return { content: "provider-decoded content", frontmatter: "id: ADR-0083", metadata: { id: "ADR-0083" } };
+  } } });
+  const result = await protocol.newDocumentV2({
+    apply: false, consumerRoot: ".", profilePath: "docs.config.yaml",
+    intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
+  });
+  assert.equal(result.envelope.result.compiled.document.content, "provider-decoded content");
+  assert.equal(observed.digest, plan({}).output.digest);
+  assert.deepEqual(result.envelope.result.compiled.metadata, { id: "ADR-0083" });
+});
+
+const output = (content) => ({ contentBase64: Buffer.from(content).toString("base64"), digest: `sha256:${"8".repeat(64)}`, mediaType: "text/markdown; charset=utf-8", size: Buffer.byteLength(content) });
+
+test("compiled output parser and pure projection preserve canonical bytes and diagnostics", async () => {
+  const { compiledDocument } = await import("../dist/features/portable-documentation/application/compiled-document.js");
+  const reader = new YamlCompiledOutputReader();
+  const input = { anchors: [{ enforcement: "required", pattern: "src/*.ts" }], blockedBy: ["TASK-1"], related: ["TASK-1"] };
+  const content = "---\nid: ADR-1\ncustom: {list: [one, 2, true]}\n---\n# Body\n";
+  const bytes = output(content);
+  const projected = compiledDocument(bytes, reader.read(bytes), input);
+  assert.deepEqual(projected, {
+    schemaVersion: 1, document: { content, digest: bytes.digest, mediaType: bytes.mediaType, size: bytes.size },
+    frontmatter: "id: ADR-1\ncustom: {list: [one, 2, true]}", metadata: { id: "ADR-1", custom: { list: ["one", 2, true] } },
+    anchors: input.anchors, relations: { blockedBy: input.blockedBy, related: input.related }
+  });
+  const cases = [
+    ["missing", "DocsProfileError", "Compiled document does not contain canonical frontmatter."],
+    ["---\nid: [\n---\nbody", "DocsProfileError", "Compiled document frontmatter is not valid duplicate-free YAML."],
+    ["---\nid: first\nid: second\n---\nbody", "DocsProfileError", "Compiled document frontmatter is not valid duplicate-free YAML."],
+    ["---\nx: &x one\ny: *x\n---\nbody", "ReferenceError", "Alias resolution is disabled"],
+    ["---\n- a\n---\nbody", "DocsProfileError", "Compiled document frontmatter must be one metadata mapping."]
+  ];
+  for (const [source, name, message] of cases) {
+    assert.throws(() => reader.read(output(source)), { name, message });
+  }
+  assert.throws(() => reader.read({ ...bytes, size: undefined }), { name: "DocsProfileError", message: "Document Plan does not contain one complete compiled output." });
+  assert.throws(() => compiledDocument(bytes, { content, frontmatter: "", metadata: { value: "x".repeat(1_048_577) } }, input), /1 MiB JSON budget/u);
+  assert.throws(() => compiledDocument(bytes, { content, frontmatter: "", metadata: { value: -0 } }, input), /safe integers/u);
 });

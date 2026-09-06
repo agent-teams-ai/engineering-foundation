@@ -1,7 +1,15 @@
 import { finalizeNodeConsumerRestoration } from "../adapters/node-consumer-restoration-finalization.js";
 import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../adapters/node-consumer-restoration.js";
-import type { ConsumerFinalizationOptions, ConsumerRestorationOptions, RestorableConsumerUpgradeExecution } from "../application/model/consumer-restoration.js";
-import { foundationKnownFileTransaction } from "../adapters/foundation-known-file-transaction.js";
+import {
+  type ConsumerFinalizationOptions,
+  type ConsumerRestorationOptions,
+  type RestorableConsumerUpgradeExecution,
+  type ConsumerIntegrationExecutionV1,
+  createConsumerIntegrationUseCases,
+  createConsumerUpgradeUseCase,
+  type ConsumerUpgradeExecutionV1
+} from "../application-api.js";
+import { foundationKnownFileTransaction } from "./known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
 import {
   nodeConsumerIntegrationInputReader
@@ -10,23 +18,15 @@ import {
   packageConsumerAssetCatalogReader
 } from "../adapters/package-consumer-asset-catalog.js";
 import { nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
-import type {
-  ConsumerIntegrationExecutionV1
-} from "../application/model/consumer-integration-execution.js";
-import {
-  createConsumerIntegrationUseCases
-} from "../application/use-cases/run-consumer-integration.js";
-import {
-  createConsumerUpgradeUseCase
-} from "../application/use-cases/upgrade-consumer-integration.js";
-import type {
-  ConsumerUpgradeExecutionV1
-} from "../application/model/consumer-upgrade-execution.js";
+
+
+
+
 import { consumerIntegrationPlanningPorts } from "./consumer-integration-planner.js";
 
 export type {
   ConsumerIntegrationExecutionV1
-} from "../application/model/consumer-integration-execution.js";
+} from "../application-api.js";
 
 const useCases = createConsumerIntegrationUseCases({
   assets: packageConsumerAssetCatalogReader,

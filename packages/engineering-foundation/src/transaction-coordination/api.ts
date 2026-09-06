@@ -1,0 +1,11 @@
+// Reserved coordination namespace shared through exact application values.
+export {
+  FOUNDATION_LINK_STATE_FILE,
+  FOUNDATION_REGISTRY_BACKUP,
+  FOUNDATION_TRANSACTION_FILE,
+  FOUNDATION_TRANSACTION_TEMPORARY_FILE,
+  KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
+  FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX,
+  LOCAL_OPERATION_LOCK,
+  LOCAL_STATE_DIRECTORY
+} from "./application/model/foundation-transaction-identity.js";

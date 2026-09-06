@@ -1,136 +1,22 @@
-import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+// Module assembly: feature-owned schema contributions and concrete input adapters.
+import { readDocumentAuthoringSchema } from "@agent-teams/document-authoring";
 
-import {
-  Ajv2020,
-  type ErrorObject,
-  type ValidateFunction
-} from "ajv/dist/2020.js";
-import {
-  readDocumentAuthoringSchema
-} from "@agent-teams/document-authoring";
+import { createInstalledPackagedSchemaReader, createContributedSchemaCatalog } from "./features/configuration-input/module.js";
+import { containedFileObservation } from "./source-inventory/node.js";
+import { FOUNDATION_SCHEMA_IDS } from "./schema-ids.js";
+import { SCAFFOLD_SCHEMA_DEPENDENCIES } from "./scaffolding/schemas.js";
+import { TRANSACTION_SCHEMA_DEPENDENCIES, TRANSACTION_SCHEMA_FILES } from "./transaction-coordination/schemas.js";
 
-import { CapabilityInputError } from "./capability-runtime.js";
-import {
-  FOUNDATION_SCHEMA_IDS,
-  type FoundationSchemaCatalogId,
-  type FoundationSchemaId
-} from "./schema-ids.js";
-
-const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
-const ajv = new Ajv2020({
-  allErrors: true,
-  strict: true,
-  // Canonical schemas use open prefix tuples; strictTuples rejects that valid
-  // Draft 2020-12 shape as a style warning rather than a validation error.
-  strictTuples: false,
-  validateFormats: false
+export const {
+  assertSchema,
+  isSchemaId: isFoundationSchemaId,
+  readSchema: readFoundationSchema
+} = createContributedSchemaCatalog({
+  schemaIds: FOUNDATION_SCHEMA_IDS,
+  dependencyContributions: [TRANSACTION_SCHEMA_DEPENDENCIES, SCAFFOLD_SCHEMA_DEPENDENCIES],
+  readSchema: createInstalledPackagedSchemaReader({
+    files: containedFileObservation,
+    schemaFiles: TRANSACTION_SCHEMA_FILES,
+    readAuthoringSchema: readDocumentAuthoringSchema
+  })
 });
-const validators = new Map<FoundationSchemaCatalogId, ValidateFunction>();
-const schemaLoads = new Map<string, Promise<string>>();
-type AuthoringSchemaDependencyId = "document-intent/v1" | "document-plan/v1";
-type SchemaDependencyId = FoundationSchemaCatalogId | AuthoringSchemaDependencyId;
-const SCHEMA_DEPENDENCIES: Partial<
-  Readonly<Record<FoundationSchemaCatalogId, readonly SchemaDependencyId[]>>
-> = {
-  "foundation-transaction-envelope/v2": [
-    "document-intent/v1",
-    "document-plan/v1",
-    "scaffold-plan/v1",
-    "scaffold-recovery-journal/v1"
-  ],
-  "scaffold-recovery-journal/v1": ["scaffold-plan/v1"]
-};
-
-export function isFoundationSchemaId(value: string): value is FoundationSchemaId {
-  return FOUNDATION_SCHEMA_IDS.some((candidate) => candidate === value);
-}
-
-function schemaPath(schemaId: FoundationSchemaCatalogId): string {
-  return join(packageRoot, "schemas", `${schemaSource(schemaId)}.schema.json`);
-}
-
-function schemaSource(schemaId: FoundationSchemaCatalogId): string {
-  return schemaId;
-}
-
-export async function readFoundationSchema(
-  schemaId: FoundationSchemaId
-): Promise<string> {
-  return readFile(schemaPath(schemaId), "utf8");
-}
-
-function safeValidationMessage(errors: readonly ErrorObject[] | null | undefined): string {
-  if (errors === null || errors === undefined || errors.length === 0) {
-    return "Input does not match the required schema.";
-  }
-  return errors
-    .slice(0, 8)
-    .map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`)
-    .join("; ")
-    .slice(0, 1000);
-}
-
-async function loadSchema(schemaId: SchemaDependencyId): Promise<string> {
-  const authoringSchema = schemaId === "document-intent/v1" || schemaId === "document-plan/v1";
-  for (const dependency of authoringSchema ? [] : SCHEMA_DEPENDENCIES[schemaId] ?? []) {
-    await registerSchema(dependency);
-  }
-  const source = authoringSchema
-    ? await readDocumentAuthoringSchema(schemaId)
-    : await readFile(schemaPath(schemaId), "utf8");
-  const schema = JSON.parse(source) as {
-    readonly $id?: unknown;
-  };
-  if (typeof schema.$id !== "string" || schema.$id.length === 0) {
-    throw new Error(`Foundation schema ${schemaId} must declare a non-empty $id.`);
-  }
-  if (ajv.getSchema(schema.$id) === undefined) {
-    ajv.addSchema(schema as Parameters<Ajv2020["addSchema"]>[0]);
-  }
-  return schema.$id;
-}
-
-function registerSchema(schemaId: SchemaDependencyId): Promise<string> {
-  const source = schemaId;
-  const existing = schemaLoads.get(source);
-  if (existing !== undefined) {
-    return existing;
-  }
-  const loading = loadSchema(schemaId);
-  schemaLoads.set(source, loading);
-  return loading;
-}
-
-async function validator(
-  schemaId: FoundationSchemaCatalogId
-): Promise<ValidateFunction> {
-  const cached = validators.get(schemaId);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const schemaKey = await registerSchema(schemaId);
-  const compiled = ajv.getSchema(schemaKey);
-  if (compiled === undefined) {
-    throw new Error(`Foundation schema ${schemaId} is not registered.`);
-  }
-  validators.set(schemaId, compiled);
-  return compiled;
-}
-
-export async function assertSchema(
-  schemaId: FoundationSchemaCatalogId,
-  input: unknown,
-  phase: string
-): Promise<void> {
-  const validate = await validator(schemaId);
-  if (!validate(input)) {
-    throw new CapabilityInputError({
-      code: "SCHEMA_INVALID",
-      message: safeValidationMessage(validate.errors),
-      phase,
-      retryable: false
-    });
-  }
-}

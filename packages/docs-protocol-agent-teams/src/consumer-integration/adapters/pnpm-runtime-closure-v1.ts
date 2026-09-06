@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 
-import type { QualifiedDocsCohortBindingV1 } from "../domain/model.js";
-import { canonicalConsumerIntegrationJson } from "../application/policies/consumer-integration-assets.js";
+import {
+  canonicalConsumerIntegrationJson,
+  type QualifiedDocsCohortBindingV1
+} from "../application-api.js";
 
 const PACKAGE_MANAGER = "pnpm@11.18.0";
 const LOCKFILE_VERSION = "9.0";

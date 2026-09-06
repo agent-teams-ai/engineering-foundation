@@ -1,3 +1,4 @@
+import { consumerProcessEnvironment } from "./node-consumer-environment.js";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import {
@@ -31,6 +32,12 @@ import type {
 import {
   projectConsumerUpgradeFiles
 } from "./consumer-upgrade-file-projectors.js";
+import {
+  extractHead,
+  MAXIMUM_INVENTORY_BYTES,
+  MAXIMUM_INVENTORY_FILE_BYTES,
+  MAXIMUM_INVENTORY_FILES
+} from "./node-consumer-upgrade-archive.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import {
   INTEGRATION_PROFILE_PATH,
@@ -62,9 +69,6 @@ function isAuthorityV1(value: ConsumerUpgradeAuthority): value is ConsumerUpgrad
 
 const WORKSPACE_PATH = "pnpm-workspace.yaml";
 const MAXIMUM_PROCESS_OUTPUT_BYTES = 4 * 1024 * 1024;
-const MAXIMUM_INVENTORY_FILES = 100_000;
-const MAXIMUM_INVENTORY_BYTES = 1024 * 1024 * 1024;
-const MAXIMUM_INVENTORY_FILE_BYTES = 64 * 1024 * 1024;
 interface ProcessResult {
   readonly code: number;
   readonly stderr: string;
@@ -126,9 +130,9 @@ async function writeProjectedFile(root: string, path: string, bytes: Uint8Array)
   await writeFile(target, bytes);
 }
 
-async function runPnpm(root: string, args: readonly string[]): Promise<void> {
+async function runPnpm(root: string, args: readonly string[], environment: () => NodeJS.ProcessEnv): Promise<void> {
   await execute("corepack", ["pnpm", ...args], root, [0], args.includes("--offline")
-    ? { ...process.env, COREPACK_ENABLE_NETWORK: "0" } : undefined);
+    ? { ...environment(), COREPACK_ENABLE_NETWORK: "0" } : undefined);
 }
 
 
@@ -236,15 +240,7 @@ async function operationForChangedPath(input: {
   });
 }
 
-async function extractHead(root: string, head: string, target: string): Promise<void> {
-  const archive = `${target}.tar`;
-  await execute("git", ["archive", "--format=tar", `--output=${archive}`, head], root);
-  await mkdir(target, { recursive: true });
-  await execute("tar", ["-xf", archive, "-C", target], root);
-  await rm(archive, { force: true });
-}
-
-async function installCohort(root: string, offline: boolean): Promise<void> {
+async function installCohort(root: string, offline: boolean, environment: () => NodeJS.ProcessEnv): Promise<void> {
   await runPnpm(root, [
     "install",
     offline ? "--offline" : "--prefer-offline",
@@ -252,10 +248,16 @@ async function installCohort(root: string, offline: boolean): Promise<void> {
     "--ignore-scripts",
     "--ignore-pnpmfile",
     "--verify-store-integrity"
-  ]);
+  ], environment);
 }
 
 export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
+  readonly #environment: () => NodeJS.ProcessEnv;
+
+  public constructor(environment: () => NodeJS.ProcessEnv = consumerProcessEnvironment) {
+    this.#environment = environment;
+  }
+
   private async prepareGeneration(options: {
     readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
@@ -278,8 +280,8 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     const stagedRoot = join(temporary, "staged");
     try {
       await Promise.all([
-        extractHead(options.consumerRoot, head, beforeRoot),
-        extractHead(options.consumerRoot, head, stagedRoot)
+        extractHead({ root: options.consumerRoot, head, target: beforeRoot }, execute),
+        extractHead({ root: options.consumerRoot, head, target: stagedRoot }, execute)
       ]);
       await assertProvedSourceSnapshot({
         current: options.current,
@@ -326,7 +328,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.migrationWorkspace)
         ])
       ]);
-      await installCohort(stagedRoot, false);
+      await installCohort(stagedRoot, false, this.#environment);
       if (projected.targetWorkspace !== undefined) {
         await writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.targetWorkspace);
       }
@@ -420,7 +422,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
   }): Promise<void> {
-    await installCohort(options.consumerRoot, true);
+    await installCohort(options.consumerRoot, true, this.#environment);
     await assertInstalledIntegrationCurrent(options.consumerRoot, execute);
   }
 
@@ -442,7 +444,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly consumerRoot: string;
     readonly current: UpgradeDesiredState;
   }): Promise<void> {
-    await installCohort(options.consumerRoot, true);
+    await installCohort(options.consumerRoot, true, this.#environment);
     if (options.current.schemaVersion === 1) {
       await assertInstalledHistoricalIntegrationCurrent(options.consumerRoot, execute);
     } else {

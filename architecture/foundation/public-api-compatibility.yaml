@@ -9,6 +9,14 @@ packages:
     entrypoints:
       - exportPath: "."
         declarationEntryPoint: packages/repository-mutation/dist/index.d.ts
+      - exportPath: "./coordination"
+        declarationEntryPoint: packages/repository-mutation/dist/coordination.d.ts
+      - exportPath: "./known-file"
+        declarationEntryPoint: packages/repository-mutation/dist/known-file.d.ts
+      - exportPath: "./paths"
+        declarationEntryPoint: packages/repository-mutation/dist/paths.d.ts
+      - exportPath: "./serialization"
+        declarationEntryPoint: packages/repository-mutation/dist/serialization.d.ts
       - exportPath: "./node"
         declarationEntryPoint: packages/repository-mutation/dist/node.d.ts
       - exportPath: "./qualification"
@@ -20,7 +28,9 @@ packages:
         kind: wildcard
     tsconfigPath: packages/repository-mutation/tsconfig.json
     releasedBaselinePath: architecture/public-api/repository-mutation.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:d9e941c4b83743f5785dc879e6e0161dd0e8e42dd31237c19c2805bdfff37be8
+        decisionId: ADR-0054
   - packageName: "@agent-teams/engineering-foundation"
     packageRoot: packages/engineering-foundation
     manifestPath: packages/engineering-foundation/package.json
@@ -31,6 +41,8 @@ packages:
         declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
       - exportPath: "./scaffolding"
         declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/index.d.ts
+      - exportPath: "./scaffolding/qualification"
+        declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/qualification.d.ts
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data
@@ -79,6 +91,8 @@ packages:
     tsconfigPath: packages/document-authoring/tsconfig.json
     releasedBaselinePath: architecture/public-api/document-authoring.json
     approvedBreakingChanges:
+      - fingerprint: sha256:e0826ff1337a882ec8cb37f9445dd59444d2304d83ccaa398cd8680364c2b983
+        decisionId: ADR-0054
       - fingerprint: sha256:7e5eb1fb1386edb0b7bcf1de3bc63c95ba51094a069a0edcf648c8c284795558
         decisionId: ADR-0049
   - packageName: "@agent-teams/docs-protocol"
@@ -97,6 +111,8 @@ packages:
     tsconfigPath: packages/docs-protocol/tsconfig.json
     releasedBaselinePath: architecture/public-api/docs-protocol.json
     approvedBreakingChanges:
+      - fingerprint: sha256:827cd050444ab05940f024a174d78af44c902a7950c117fba68a900c83587def
+        decisionId: ADR-0054
       - fingerprint: sha256:096e0026367471de807d7e73e7e1575f08f30a60eb94c497e557951d0fbd91fb
         decisionId: ADR-0043
       - fingerprint: sha256:5922ed32132a25a4f6fcf3a08bc756ffee05fc9c74b2bc4964c425438cdd68e1

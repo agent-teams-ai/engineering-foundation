@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Deterministic documentation authoring and agent-context protocol for any repository.",
   "license": "Apache-2.0",
   "type": "module",
@@ -25,10 +25,12 @@
     "dist",
     "schemas/docs-protocol/v1.schema.json",
     "schemas/docs-protocol-profile/v3.schema.json",
+    "schemas/docs-protocol-profile/v4.schema.json",
     "schemas/docs-protocol-portable-command-envelope/v1.schema.json",
     "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
     "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
     "README.md",
+    "docs",
     "CHANGELOG.md",
     "LICENSE"
   ],

@@ -31,6 +31,7 @@ not repeat their rules.
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
+| Hardening migration preparation | [Seven-consumer migration packets](development/docs-new-package-migration.md) | Draft; exact artifacts, recovery and consumer qualification pending |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
 | Deterministic quality gates | [Quality gate runner](reference/quality-gate-runner.md) | Implemented and post-build dogfooded; activation is explicit |
@@ -46,6 +47,8 @@ not repeat their rules.
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |
 | Architecture decisions | [Decision index](decisions/README.md) | Active |
+
+See the [Feature Module Standard adoption](architecture/feature-module-standard.md) for the local profile, commands and remaining layout migrations.
 
 ## Document roles
 

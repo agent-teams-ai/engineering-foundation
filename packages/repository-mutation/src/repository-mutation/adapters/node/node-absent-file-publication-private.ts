@@ -1,3 +1,4 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { createHash } from "node:crypto";
 
 import {
@@ -5,11 +6,10 @@ import {
   type ExactFilePostimage,
   type ExactFilePostimageState
 } from "../../application/model/exact-postimage.js";
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
-import {
-  readBoundedRegularFile,
-  type BoundedRegularFileRead
-} from "./node-bounded-regular-file.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
+import type { KnownFileObservationPort } from "../../application/ports/known-file-observation.js";
+
+type BoundedRegularFileRead = Awaited<ReturnType<KnownFileObservationPort["readBoundedRegularFile"]>>;
 import type { DirectoryDurability } from "./node-directory-durability.js";
 
 export function publicationErrorCode(error: unknown): string | undefined {
@@ -54,7 +54,7 @@ export function exactReadMatchesPostimage(
 const maximumUnstableReadRetries = 2;
 
 export async function classifyExactFilePostimageWith(
-  readFile: typeof readBoundedRegularFile,
+  readFile: KnownFileCoordination["readBoundedRegularFile"],
   destinationPath: string,
   postimage: ExactFilePostimage
 ): Promise<ExactFilePostimageState> {

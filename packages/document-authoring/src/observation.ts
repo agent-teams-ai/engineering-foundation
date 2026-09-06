@@ -1,3 +1,4 @@
-export { FilesystemMarkdownRepository } from "./documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
-export * from "./documentation-observation/application/model/markdown-document.js";
-export type * from "./documentation-observation/application/ports/markdown-repository.js";
+export { FilesystemMarkdownRepository } from "./documentation-observation/module.js";
+export { anchorsForMarkdownDocument, markdownSourceWithoutFrontmatter } from "./documentation-observation/api.js";
+export type { MarkdownAnchorProfile, MarkdownReferenceKind, MarkdownPosition, MarkdownHeadingObservation, MarkdownAnchorObservation, MarkdownReferenceObservation, MarkdownFrontmatterObservation, MarkdownDocumentObservation, MarkdownObservationIssueKind, MarkdownObservationIssue, MarkdownRepositoryObservation, MarkdownReferenceResolution } from "./documentation-observation/api.js";
+export type { ObserveMarkdownRepositoryRequest, ResolveMarkdownReferenceRequest, MarkdownRepository } from "./documentation-observation/api.js";

@@ -8,6 +8,7 @@ import {
   applyKnownFileTransaction,
   compileRepositoryMutationEnvelope,
   compileKnownFileTransactionPlan,
+  canonicalJson,
   installedRepositoryMutationBuildIdentity,
   installedRepositoryMutationVersion,
   parseRepositoryMutationEnvelope,
@@ -97,6 +98,43 @@ test("generic persisted envelopes reject malformed, unbounded, and tampered evid
     () => parseRepositoryMutationEnvelope(Buffer.from('{"schemaVersion":6,"schemaVersion":6}', "utf8")),
     /strict UTF-8 JSON/u
   );
+});
+
+test("envelope payload validation preserves dense inert data and binary canonical ordering", () => {
+  const payload = Object.assign(Object.create(null), {
+    z: [null, true, { nested: [] }], A: 1, "é": "value", _: false
+  });
+  const envelope = compileRepositoryMutationEnvelope(genericEnvelopeInput(payload));
+  assert.equal(canonicalJson(envelope.payload), '{"A":1,"_":false,"z":[null,true,{"nested":[]}],"é":"value"}');
+  assert.ok(Object.isFrozen(envelope.payload.z[2].nested));
+  assert.deepEqual(parseRepositoryMutationEnvelope(Buffer.from(canonicalJson(envelope))), envelope);
+  const sparse = [];
+  sparse.length = 1;
+  for (const value of [undefined, () => null, Symbol("payload"), 1n, NaN, Infinity, -0,
+    Object.assign(Object.create({ inherited: true }), { own: 1 }), sparse,
+    Object.setPrototypeOf([], null), Object.assign([], { extra: true }),
+    { [Symbol("key")]: true }]) {
+    assert.throws(() => compileRepositoryMutationEnvelope(genericEnvelopeInput({ value })),
+      /canonical|plain or null|JSON data model/u);
+  }
+  for (const container of [{ item: "safe" }, ["safe"]]) {
+    const key = Array.isArray(container) ? "0" : "item";
+    Object.defineProperty(container, key, {
+      enumerable: true, configurable: true,
+      get() { throw new Error("payload accessor was invoked"); }
+    });
+    assert.throws(() => compileRepositoryMutationEnvelope(genericEnvelopeInput(container)), /data properties/u);
+    Object.defineProperty(container, key, { value: "safe", enumerable: false });
+    assert.throws(() => compileRepositoryMutationEnvelope(genericEnvelopeInput(container)), /data properties/u);
+  }
+});
+
+test("envelope parsing rejects duplicate decoded keys inside nested objects and arrays", () => {
+  const envelope = compileRepositoryMutationEnvelope(genericEnvelopeInput());
+  for (const payload of ['[{"key":1,"\\u006bey":2}]', '{"nested":[{"key":1,"key":2}]}']) {
+    const source = JSON.stringify(envelope).replace(JSON.stringify(envelope.payload), payload);
+    assert.throws(() => parseRepositoryMutationEnvelope(Buffer.from(source)), /strict UTF-8 JSON/u);
+  }
 });
 
 test("artifact binding checks all owner and kernel identity fields", () => {
@@ -349,6 +387,40 @@ test("rejects executable, symbolic, and hidden intent properties without invokin
         /invalid shape/u
       );
     }
+  } finally {
+    await releaseMutationLease(lease);
+  }
+});
+
+test("intent snapshots reject arbitrary JS values while accepting null-prototype data", async (t) => {
+  const root = await fixture(t);
+  const lease = await acquireMutationLease(root);
+  try {
+    const identity = await artifact();
+    const valid = {
+      kind: "apply-known-file", planDigest: plan().planDigest,
+      ownerArtifact: identity, kernelArtifact: identity
+    };
+    const observation = await observeMutationState(lease);
+    for (const candidate of [null, undefined, 1, false, "intent", Symbol("intent"), [], () => null,
+      Object.assign(Object.create({ inherited: true }), valid)]) {
+      await assert.rejects(claimMutation(lease, observation, candidate), /not inert record data/u);
+    }
+    for (const side of ["ownerArtifact", "kernelArtifact"]) {
+      for (const value of [null, undefined, [], Object.create(identity)]) {
+        await assert.rejects(claimMutation(lease, observation, { ...valid, [side]: value }),
+          /not inert record data/u);
+      }
+    }
+    const intent = Object.assign(Object.create(null), {
+      ...valid,
+      ownerArtifact: Object.assign(Object.create(null), identity),
+      kernelArtifact: Object.assign(Object.create(null), identity)
+    });
+    const claim = await claimMutation(lease, observation, intent);
+    const options = Object.assign(Object.create(null), { consumerRoot: root, plan: plan(), claim });
+    assert.equal((await applyKnownFileTransaction(options)).outcome, "applied");
+    assert.equal(await readFile(join(root, "owned.txt"), "utf8"), "owned\n");
   } finally {
     await releaseMutationLease(lease);
   }

@@ -38,34 +38,6 @@ function preservePrimaryFailure(
       );
 }
 
-function observedStatusFormat(status: InternalFoundationTransactionStatus): unknown {
-  return Reflect.get(status, "format") as unknown;
-}
-
-function isDocumentRecoveryAllowed(
-  status: InternalFoundationTransactionStatus,
-  options: {
-    readonly requestedMutation: FoundationMutationKind;
-    readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
-  }
-): boolean {
-  return (
-    status.state === "pending" &&
-    status.operationKind === "document-authoring" &&
-    ["document-authoring-envelope-v3", "document-authoring-envelope-v4"].includes(
-      String(observedStatusFormat(status))
-    ) &&
-    status.recovery.exactFoundationVersion === status.foundationVersion &&
-    status.recovery.exactFoundationBuildIdentity ===
-      status.foundationBuildIdentity &&
-    options.allowRecoveryOf === "document-authoring" &&
-    options.requestedMutation === "document-authoring" &&
-    !status.diagnostics.some(
-      ({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-    )
-  );
-}
-
 function isKnownFileRecoveryAllowed(
   status: InternalFoundationTransactionStatus,
   options: {
@@ -75,6 +47,14 @@ function isKnownFileRecoveryAllowed(
 ): boolean {
   return status.state === "pending" &&
     status.operationKind === "known-file-transaction" &&
+    status.recoveryArtifacts !== undefined &&
+    status.recoveryArtifacts.schemaVersion === 6 &&
+    status.recoveryArtifacts.ownerArtifact.name === "@agent-teams/repository-mutation" &&
+    status.recoveryArtifacts.kernelArtifact.name === status.recoveryArtifacts.ownerArtifact.name &&
+    status.recoveryArtifacts.ownerArtifact.version === status.foundationVersion &&
+    status.recoveryArtifacts.ownerArtifact.buildIdentity === status.foundationBuildIdentity &&
+    status.recoveryArtifacts.kernelArtifact.version === status.recoveryArtifacts.ownerArtifact.version &&
+    status.recoveryArtifacts.kernelArtifact.buildIdentity === status.recoveryArtifacts.ownerArtifact.buildIdentity &&
     status.recovery.exactFoundationVersion === status.foundationVersion &&
     status.recovery.exactFoundationBuildIdentity === status.foundationBuildIdentity &&
     options.allowRecoveryOf === "known-file-transaction" &&
@@ -115,7 +95,7 @@ export class FoundationTransactionCoordinator {
         status.state === "pending" &&
         status.operationKind === "scaffolding" &&
         ["foundation-scaffolding-envelope-v6", "legacy-scaffolding-v1"].includes(
-          String(observedStatusFormat(status))
+          status.format
         ) &&
         options.allowRecoveryOf === status.operationKind &&
         options.requestedMutation === status.operationKind &&
@@ -125,16 +105,14 @@ export class FoundationTransactionCoordinator {
       const localModeRecoveryAllowed =
         status.state === "pending" &&
         status.operationKind === "local-mode" &&
-        observedStatusFormat(status) === "local-mode-v1" &&
+        ["local-mode-v1"].includes(status.format) &&
         options.allowRecoveryOf === "local-mode" &&
         options.requestedMutation === "detach";
-      const documentRecoveryAllowed = isDocumentRecoveryAllowed(status, options);
       const knownFileRecoveryAllowed = isKnownFileRecoveryAllowed(status, options);
       if (
         status.state !== "idle" &&
         !scaffoldingRecoveryAllowed &&
         !localModeRecoveryAllowed &&
-        !documentRecoveryAllowed &&
         !knownFileRecoveryAllowed
       ) {
         throw new FoundationTransactionError({

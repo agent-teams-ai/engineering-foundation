@@ -9,12 +9,8 @@ import {
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
+import { isPublicApiInputError, publicApiFileFailure, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
+import type { PublicApiFileReader, PublicApiSourceEvidence } from "../../../application/ports/public-api-evidence.js";
 import {
   compareCanonicalReferences,
   type PublicApiPackagePolicy
@@ -40,12 +36,7 @@ interface StagingBudget {
 }
 
 function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "public-api-extraction",
-    retryable: false
-  });
+  publicApiInputError(code, message, "public-api-extraction");
 }
 
 function contained(parent: string, candidate: string): boolean {
@@ -57,13 +48,13 @@ function contained(parent: string, candidate: string): boolean {
 }
 
 function extractionReadError(error: unknown, repositoryPath: string): never {
-  if (error instanceof ContainedFileReadError) {
+  if (publicApiFileFailure(error) !== undefined) {
     const code =
-      error.failure === "symlink"
+      publicApiFileFailure(error) === "symlink"
         ? "PUBLIC_API_PATH_SYMLINK_PROHIBITED"
-        : error.failure === "escape"
+        : publicApiFileFailure(error) === "escape"
           ? "PUBLIC_API_PATH_ESCAPE"
-          : error.failure === "invalid"
+          : publicApiFileFailure(error) === "invalid"
             ? "PUBLIC_API_PATH_INVALID"
             : "PUBLIC_API_PATH_UNAVAILABLE";
     inputError(
@@ -107,13 +98,17 @@ export function stagedPathForSource(input: {
 async function readStagedSourceFile(input: {
   readonly root: string;
   readonly sourcePath: string;
-}): Promise<Buffer> {
+}, files: PublicApiFileReader): Promise<Buffer> {
   try {
-    return await readContainedRegularFile({
+    const bytes = await files.read({
       candidate: input.sourcePath,
       maxBytes: MAX_EXTRACTOR_INPUT_BYTES,
       root: input.root
     });
+    if (bytes.byteLength > MAX_EXTRACTOR_INPUT_BYTES) {
+      inputError("PUBLIC_API_PATH_INVALID", `Public API extraction input is unavailable or changed: ${relative(input.root, input.sourcePath)}.`);
+    }
+    return Buffer.from(bytes);
   } catch (error) {
     return extractionReadError(error, relative(input.root, input.sourcePath));
   }
@@ -144,8 +139,8 @@ async function stagePackageDirectory(input: {
   readonly destinationDirectory: string;
   readonly root: string;
   readonly sourceDirectory: string;
-}): Promise<void> {
-  if (await pathTraversesSymbolicLink(input.root, input.sourceDirectory)) {
+}, evidence: PublicApiSourceEvidence): Promise<void> {
+  if (await evidence.paths.traversesSymbolicLink(input.root, input.sourceDirectory)) {
     inputError(
       "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
       `Public API package tree cannot traverse a symbolic link: ${relative(input.root, input.sourceDirectory)}.`
@@ -182,7 +177,7 @@ async function stagePackageDirectory(input: {
         destinationDirectory: destinationPath,
         root: input.root,
         sourceDirectory: sourcePath
-      });
+      }, evidence);
       continue;
     }
     if (!entry.isFile()) {
@@ -191,7 +186,7 @@ async function stagePackageDirectory(input: {
         `Public API package tree contains an unsupported entry: ${relative(input.root, sourcePath)}.`
       );
     }
-    const source = await readStagedSourceFile({ root: input.root, sourcePath });
+    const source = await readStagedSourceFile({ root: input.root, sourcePath }, evidence.files);
     consumeBytes(input.budget, source, "package");
     await writeFile(destinationPath, source, { mode: 0o600 });
   }
@@ -203,7 +198,7 @@ async function stageRepositoryCompilerInputs(input: {
   readonly root: string;
   readonly sourceDirectory: string;
   readonly sourcePackageRoot: string;
-}): Promise<void> {
+}, evidence: PublicApiSourceEvidence): Promise<void> {
   let entries;
   try {
     entries = await readdir(input.sourceDirectory, { withFileTypes: true });
@@ -233,13 +228,13 @@ async function stageRepositoryCompilerInputs(input: {
         ...input,
         destinationDirectory: destinationPath,
         sourceDirectory: sourcePath
-      });
+      }, evidence);
       continue;
     }
     if (entry.isSymbolicLink() || !entry.isFile() || !REPOSITORY_COMPILER_INPUT.test(entry.name)) {
       continue;
     }
-    const source = await readStagedSourceFile({ root: input.root, sourcePath });
+    const source = await readStagedSourceFile({ root: input.root, sourcePath }, evidence.files);
     consumeBytes(input.budget, source, "repository");
     await writeFile(destinationPath, source, { mode: 0o600 });
   }
@@ -248,9 +243,9 @@ async function stageRepositoryCompilerInputs(input: {
 export async function stagePackageSnapshot(input: {
   readonly policy: PublicApiPackagePolicy;
   readonly root: string;
-}): Promise<StagedPackageSnapshot> {
+}, evidence: PublicApiSourceEvidence): Promise<StagedPackageSnapshot> {
   const sourcePackageRoot = sourcePathFor(input.root, input.policy.packageRoot);
-  if (await pathTraversesSymbolicLink(input.root, sourcePackageRoot)) {
+  if (await evidence.paths.traversesSymbolicLink(input.root, sourcePackageRoot)) {
     inputError(
       "PUBLIC_API_PATH_SYMLINK_PROHIBITED",
       `Public API package root cannot traverse a symbolic link: ${input.policy.packageRoot}.`
@@ -264,7 +259,7 @@ export async function stagePackageSnapshot(input: {
       );
     }
   } catch (error) {
-    if (error instanceof CapabilityInputError) {
+    if (isPublicApiInputError(error)) {
       throw error;
     }
     inputError(
@@ -296,13 +291,13 @@ export async function stagePackageSnapshot(input: {
       root: input.root,
       sourceDirectory: input.root,
       sourcePackageRoot: snapshot.sourcePackageRoot
-    });
+    }, evidence);
     await stagePackageDirectory({
       budget,
       destinationDirectory: snapshot.packageRoot,
       root: input.root,
       sourceDirectory: snapshot.sourcePackageRoot
-    });
+    }, evidence);
     await linkStagedNodeModules({
       sourceDirectory: snapshot.sourceRoot,
       stagedDirectory: snapshot.stagingRoot

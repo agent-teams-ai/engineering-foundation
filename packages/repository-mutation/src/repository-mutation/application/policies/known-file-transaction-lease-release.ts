@@ -1,0 +1,38 @@
+import type { KnownFileMutationPort, KnownFileLeaseReleaseRequest } from "../ports/known-file-mutation.js";
+
+/**
+ * Releases a known-file lease without allowing a release failure to mask the
+ * already-settled primary failure.
+ */
+export async function releaseKnownFileTransactionLease(coordination: Pick<KnownFileMutationPort, "releaseMutationLease" | "retainMutationBarrier">, options: KnownFileLeaseReleaseRequest): Promise<void> {
+  return releaseKnownFileTransactionLeaseWith({
+    jointFailureMessage: options.jointFailureMessage,
+    ...(options.primaryFailure === undefined ? {} : { primaryFailure: options.primaryFailure }),
+    release: async () => {
+      if (options.retainTransactionBarrier) {coordination.retainMutationBarrier(options.lease);}
+      await coordination.releaseMutationLease(options.lease);
+    }
+  });
+}
+
+export async function releaseKnownFileTransactionLeaseWith(options: {
+  readonly jointFailureMessage: string;
+  readonly primaryFailure?: { readonly reason: unknown };
+  readonly release: () => Promise<void>;
+}): Promise<void> {
+  let releaseFailure: { readonly reason: unknown } | undefined;
+  try {
+    await options.release();
+  } catch (error) {
+    releaseFailure = { reason: error };
+  }
+  if (releaseFailure === undefined) {return;}
+  if (options.primaryFailure !== undefined) {
+    throw new AggregateError(
+      [options.primaryFailure.reason, releaseFailure.reason],
+      options.jointFailureMessage,
+      { cause: options.primaryFailure.reason }
+    );
+  }
+  return Promise.reject(releaseFailure.reason);
+}

@@ -4,8 +4,10 @@ severity: error
 message: Foundation source must not read process.env directly.
 note: Validate deployment configuration at composition and pass typed settings inward.
 files:
-  - "packages/engineering-foundation/src/**/*.ts"
+  - "packages/*/src/**/*.ts"
+ignores:
+  - "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-environment.ts"
+  - "packages/engineering-foundation/src/features/command-host/adapters/inbound/cli/node-process-inputs.ts"
+  - "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
 rule:
-  any:
-    - pattern: process.env.$KEY
-    - pattern: process.env[$KEY]
+  pattern: process.env

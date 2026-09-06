@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { parse, stringify } from "yaml";
-import { runFoundationCheck } from "../dist/check-runner.js";
+import { runFoundationCheck } from "../dist/composition/foundation-check.js";
 import { check, withFixture } from "./support/dependency-fixtures.mjs";
 
 const sourceId = "architecture.source-dependencies";

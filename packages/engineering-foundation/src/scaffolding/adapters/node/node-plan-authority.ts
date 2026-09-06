@@ -1,35 +1,35 @@
-import type { AuthorityScaffoldPlan } from "../../contract/types.js";
-import { createAuthorityScaffoldRegistry } from "../../definitions/registry.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
+import type {
+  AuthorityScaffoldPlan,
+  ScaffoldAuthorityAssessment
+} from "../../application/model/scaffold-compilation.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
-import { installedFoundationVersion } from "./installed-foundation-version.js";
+import type { ScaffoldAuthorityDependencies } from "./scaffold-authority-dependencies.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
 import {
   loadAuthorityScaffoldCompilationInputFromIntent,
   type ScaffoldAuthorityInputFaultInjector
 } from "./node-authority-input-loader.js";
 
-export type ScaffoldAuthorityAssessment =
-  | { readonly state: "current" }
-  | { readonly state: "stale" }
-  | { readonly state: "unverifiable" };
-
 async function assertPlanMatchesConsumerAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
+  assertSchema: ScaffoldSchemaValidator,
+  dependencies: ScaffoldAuthorityDependencies,
   authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<void> {
   const input = await loadAuthorityScaffoldCompilationInputFromIntent({
     consumerRoot,
     configPath: plan.authority.configPath,
-    foundationVersion: await installedFoundationVersion(),
+    foundationVersion: await dependencies.installedVersion(),
     intent: plan.intent,
     ...(authorityFaultInjector === undefined
       ? {}
       : { faultInjector: authorityFaultInjector })
-  });
+  }, assertSchema, dependencies.observation);
   const expected = compileAuthorityScaffoldPlan(
     input,
-    createAuthorityScaffoldRegistry()
+    dependencies.createRegistry()
   );
   if (expected.planDigest !== plan.planDigest) {
     throw new ScaffoldAuthorityStaleError(
@@ -45,12 +45,16 @@ async function assertPlanMatchesConsumerAuthority(
 export async function assessScaffoldPlanAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
+  assertSchema: ScaffoldSchemaValidator,
+  dependencies: ScaffoldAuthorityDependencies,
   faultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<ScaffoldAuthorityAssessment> {
   try {
     await assertPlanMatchesConsumerAuthority(
       consumerRoot,
       plan,
+      assertSchema,
+      dependencies,
       faultInjector
     );
     return { state: "current" };

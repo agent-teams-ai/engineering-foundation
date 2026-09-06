@@ -165,7 +165,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
 
   assertAttestationDeadlineBudget(attestation.run, jobTimeoutSeconds);
   assert.equal(deadlines.size, 2);
-  assert.equal(primaryDeadlineSeconds, 55 * 60);
+  assert.equal(primaryDeadlineSeconds, 70 * 60);
   assert.equal(finalVerificationSeconds, 60);
   assert.ok(
     ci.jobs["macos-qualification"]["timeout-minutes"] >= 30,
@@ -1950,7 +1950,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.match(attestation.run, /actions\/workflows\/codeql\.yml\/dispatches/u);
   assert.ok(
     attestation.run.indexOf("actions/workflows/codeql.yml/dispatches") <
-      attestation.run.indexOf("deadline=$((SECONDS + 3300))"),
+      attestation.run.indexOf("deadline=$((SECONDS + 4200))"),
   );
   assert.equal(
     (attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length,

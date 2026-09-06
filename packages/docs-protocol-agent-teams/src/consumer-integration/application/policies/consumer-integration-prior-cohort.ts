@@ -37,8 +37,8 @@ function desiredAtRecordedRepository(
   if (typeof repository !== "object" || repository === null || Array.isArray(repository)) {
     return undefined;
   }
-  const candidate = repository as ConsumerIntegrationDesiredStateV1["repository"];
-  if (candidate.provider !== desired.repository.provider || candidate.id !== desired.repository.id) {
+  const candidate = repository as Record<string, unknown>;
+  if (candidate["provider"] !== desired.repository.provider || candidate["id"] !== desired.repository.id) {
     return undefined;
   }
   const recorded = { ...desired, repository: candidate };

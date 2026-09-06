@@ -1,3 +1,6 @@
+import type { ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
+import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import { join } from "node:path";
 
 import {
@@ -11,8 +14,10 @@ import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY
-} from "../../../foundation-state-contract.js";
-import type { AuthorityScaffoldJournal } from "../../contract/types.js";
+} from "../../application/policies/transaction-identity.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
 import { syncDirectory } from "./filesystem-path-guard.js";
 import {
   parseScaffoldJournal,
@@ -173,18 +178,23 @@ function mapFaultPoint(
  * names, and the completed-scaffold terminal root are unchanged, so released
  * recovery evidence remains recognizable.
  */
-export class NodeScaffoldJournalStore {
+export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
   readonly #store: NodeJournalSlotStore<AuthorityScaffoldJournal>;
 
   public constructor(
     consumerRoot: string,
+    assertSchema: ScaffoldSchemaValidator,
+    observeArtifacts: ScaffoldTransactionArtifacts,
     operations: NodeScaffoldJournalStoreOperations = {}
   ) {
     const parent = join(consumerRoot, LOCAL_STATE_DIRECTORY);
     const { faultInjector } = operations;
     this.#store = new NodeJournalSlotStore<AuthorityScaffoldJournal>({
       canonicalPath: join(parent, FOUNDATION_TRANSACTION_FILE),
-      codec: { parse: parseScaffoldJournal, serialize: serializeScaffoldJournal },
+      codec: {
+        parse: (bytes) => parseScaffoldJournal(bytes, assertSchema, observeArtifacts),
+        serialize: (journal) => serializeScaffoldJournal(journal, assertSchema, observeArtifacts)
+      },
       failure: scaffoldJournalFailure,
       ...(faultInjector === undefined
         ? {}

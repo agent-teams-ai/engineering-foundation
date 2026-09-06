@@ -1,4 +1,4 @@
-import { runDocsCli } from "../../packages/docs-protocol/dist/composition/cli.js";
+import { runDocsCli } from "../../packages/docs-protocol/dist/features/docs-command/composition/cli.js";
 
 const command = process.argv[2];
 const consumerRoot = process.argv[3];

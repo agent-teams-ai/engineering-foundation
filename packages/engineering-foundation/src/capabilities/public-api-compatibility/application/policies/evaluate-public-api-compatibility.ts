@@ -1,4 +1,4 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import { semanticVersionBumpBetween } from "../../../../semantic-version.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type {

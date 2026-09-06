@@ -2,8 +2,8 @@ import { lstat } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import type { PackageScriptRunner } from "../../../application/ports/changed-workflow.js";
-import { FoundationError } from "../../../../../errors.js";
-import { execute } from "../process/process-execution.js";
+import { rejectWorkflowExecutor } from "../../../application/policies/workflow-input.js";
+import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
 
 export interface PnpmProcessEnvironment {
   readonly npmExecPath?: string;
@@ -70,14 +70,14 @@ async function resolvePnpmInvocation(
       return { command: candidate, argsPrefix: [] };
     }
   }
-  throw new FoundationError(
-    "PROCESS_FAILED",
-    "Unable to resolve a shell-free pnpm entrypoint on Windows."
-  );
+  rejectWorkflowExecutor();
 }
 
 export class PnpmPackageScriptRunner implements PackageScriptRunner {
-  constructor(private readonly environment: PnpmProcessEnvironment) {}
+  constructor(
+    private readonly environment: PnpmProcessEnvironment,
+    private readonly execute: ExecuteWorkflowProcess
+  ) {}
 
   async run(input: {
     readonly consumerRoot: string;
@@ -91,7 +91,7 @@ export class PnpmPackageScriptRunner implements PackageScriptRunner {
       ...(input.paths.length === 0 ? [] : ["--", ...input.paths])
     ];
     const invocation = await resolvePnpmInvocation(this.environment);
-    return execute(
+    return this.execute(
       invocation.command,
       [...invocation.argsPrefix, ...args],
       {

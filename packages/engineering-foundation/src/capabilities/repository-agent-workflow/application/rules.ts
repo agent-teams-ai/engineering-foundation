@@ -1,4 +1,4 @@
-import { createUniqueRegistry } from "../../../unique-registry.js";
+import { createUniqueRegistry } from "../../../features/validation-reporting/api.js";
 
 export interface RepositoryAgentWorkflowRuleMetadata {
   readonly id: string;

@@ -1,8 +1,7 @@
 import type {
-  KnownFileTransactionBarrierInspection,
   KnownFileTransactionPlanV1,
   KnownFileTransactionReceiptV1
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/known-file";
 
 import type { ConsumerAssetCatalogV1 } from "../policies/consumer-integration-assets.js";
 import type {
@@ -31,7 +30,14 @@ export interface ConsumerAssetCatalogReader {
 export interface ConsumerIntegrationTransactionPort {
   inspect(options: {
     readonly consumerRoot: string;
-  }): Promise<KnownFileTransactionBarrierInspection>;
+  }): Promise<
+    | { readonly state: "idle" }
+    | {
+        readonly state: "recovery-required";
+        readonly code: "KNOWN_FILE_OPERATION_ACTIVE" | "KNOWN_FILE_RECOVERY_REQUIRED";
+        readonly message: string;
+      }
+  >;
   apply(options: {
     readonly consumerRoot: string;
     readonly plan: KnownFileTransactionPlanV1;

@@ -7,9 +7,12 @@ import {
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { readContainedRegularFile } from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import {
+  assertSourceTopologyActive as assertNotCancelled,
+  isSourceTopologyProblem,
+  sourceTopologyInputError as inputError,
+  type SourceWorkspaceFileReader
+} from "../../../api.js";
 import {
   portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";
@@ -28,16 +31,19 @@ interface SourceFilesystemMetadata {
 
 interface SourceDirectory extends AsyncIterable<Dirent> {}
 
-export interface SourceWorkspaceFileSystem {
+export interface SourceWorkspaceDirectorySystem {
   lstat(path: string): Promise<SourceFilesystemMetadata>;
   opendir(path: string, signal?: AbortSignal): Promise<SourceDirectory>;
   realpath(path: string): Promise<string>;
+  stat(path: string): Promise<SourceFilesystemMetadata>;
+}
+
+export interface SourceWorkspaceFileSystem extends SourceWorkspaceDirectorySystem {
   readContainedFile(input: {
     readonly candidate: string;
     readonly maxBytes: number;
     readonly root: string;
-  }): Promise<Buffer>;
-  stat(path: string): Promise<SourceFilesystemMetadata>;
+  }): Promise<Uint8Array>;
 }
 
 export interface StableRepositoryPath {
@@ -48,26 +54,27 @@ export interface StableRepositoryPath {
   readonly traversesSymbolicLink: boolean;
 }
 
-function inputError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: "source-workspace-topology",
-    retryable: false
-  });
-}
-
-export function createSourceWorkspaceFileSystem(
-  overrides: Partial<SourceWorkspaceFileSystem> | undefined = {}
-): SourceWorkspaceFileSystem {
-  const defaults: SourceWorkspaceFileSystem = {
+export function createSourceWorkspaceDirectorySystem(
+  overrides: Partial<SourceWorkspaceDirectorySystem> | undefined = {}
+): SourceWorkspaceDirectorySystem {
+  const defaults: SourceWorkspaceDirectorySystem = {
     lstat: (path) => nodeLstat(path, { bigint: true }),
     opendir: (path) => nodeOpendir(path),
     realpath: (path) => nodeRealpath(path),
-    readContainedFile: readContainedRegularFile,
     stat: (path) => nodeStat(path, { bigint: true })
   };
   return { ...defaults, ...overrides };
+}
+
+export function createSourceWorkspaceFileSystem(
+  files: SourceWorkspaceFileReader,
+  overrides: Partial<SourceWorkspaceFileSystem> | undefined = {}
+): SourceWorkspaceFileSystem {
+  return {
+    ...createSourceWorkspaceDirectorySystem(overrides),
+    readContainedFile: (input) => files.read(input),
+    ...overrides
+  };
 }
 
 function pathIsContained(parent: string, candidate: string): boolean {
@@ -114,7 +121,7 @@ function sameFilesystemSnapshot(
 async function pathTraversesSymbolicLink(
   canonicalConsumerRoot: string,
   absolutePath: string,
-  operations: SourceWorkspaceFileSystem,
+  operations: SourceWorkspaceDirectorySystem,
   signal?: AbortSignal
 ): Promise<boolean> {
   const relation = relative(canonicalConsumerRoot, absolutePath);
@@ -144,7 +151,7 @@ export async function captureStableRepositoryPath(
   canonicalConsumerRoot: string,
   repositoryPath: string,
   expectedKind: "directory" | "source",
-  operations: SourceWorkspaceFileSystem,
+  operations: SourceWorkspaceDirectorySystem,
   signal?: AbortSignal
 ): Promise<StableRepositoryPath> {
   assertNotCancelled(signal);
@@ -227,7 +234,7 @@ export async function captureStableRepositoryPath(
 export async function revalidateStableRepositoryPath(
   canonicalConsumerRoot: string,
   captured: StableRepositoryPath,
-  operations: SourceWorkspaceFileSystem,
+  operations: SourceWorkspaceDirectorySystem,
   signal?: AbortSignal
 ): Promise<void> {
   assertNotCancelled(signal);
@@ -253,10 +260,7 @@ export async function revalidateStableRepositoryPath(
     }
     assertNotCancelled(signal);
   } catch (error) {
-    if (
-      error instanceof CapabilityInputError &&
-      error.problem.code === "EXECUTION_CANCELLED"
-    ) {
+    if (isSourceTopologyProblem(error, "EXECUTION_CANCELLED")) {
       throw error;
     }
     inputError(

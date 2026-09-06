@@ -1,0 +1,17 @@
+{
+  "artifact": {
+    "name": "@agent-teams/engineering-foundation",
+    "version": "0.21.0",
+    "archiveSha256": "2bba329d67d5716da3ef9dd626b410d88b22c4006b56c1fe4a05984e8ed3765c",
+    "integrity": "sha512-KxNgeIamgbABUamT5XAeVvW8j+j6EZ6GlVk4FMUXZG2IPQsk/y3Po4eLl8cx4HMnwWXQZ7idP1sw5OUmT9FYtA==",
+    "sourceCommit": "16e19d1ff82ceb049198c2070d45ec9031ab6cef"
+  },
+  "producer": "Native retained artifact ./mutation compile/apply exports, Node 24.18.0, isolated temporary roots. Stop after first operation publication or journal commit; retain serialized journal bytes without rewriting identities or digests. Plan/Receipt also match supplied schema-disposition native outputs. Impossible Plan recovery is manual-only.",
+  "files": {
+    "foundation-0.21.0-plan.json": "d3b1f159fbf59934107c0e2d69706fb2bd37ce16e118d816e15686fba2c21024",
+    "foundation-0.21.0-receipt.json": "11586a76bc0d11017eac8df2ba38a78af88d52e64bfe2cd0f4e0a5ad44c57182",
+    "foundation-0.21.0-after-operation-published.json": "33d530da4c650397c17fcb1c32f00e5dc050a683cfdd94fd3a3d80712a428f8e",
+    "foundation-0.21.0-after-journal-committed.json": "b3a303018b0821dd968139adfd5569d0b986a66965d0a5b792bb2c2f85261bb7",
+    "foundation-0.21.0-impossible-applying-envelope.json": "31fae222c875fd814b7cdc10237f81204b20654f73a79cda96697c9a4402b422"
+  }
+}

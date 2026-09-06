@@ -12,8 +12,8 @@ import {
   planDocumentationDocument,
   recoverDocumentationTransaction
 } from "../packages/document-authoring/dist/index.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { NodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-slot.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
+import { createNodeFoundationTransactionSlot } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-slot.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url)
@@ -28,9 +28,6 @@ const requiresStrictDirectoryDurability = process.platform === "win32"
 const automaticallyRecoverable = [
   "after-prepared-journal-durable",
   "after-publishing-journal-durable",
-  "after-hard-link",
-  "after-publication-synced",
-  "after-temporary-cleanup-synced",
   "after-published-journal-durable",
   "after-a1",
   "after-c1",
@@ -171,7 +168,7 @@ requiresStrictDirectoryDurability("envelope v4 is publicly inspectable and recov
   });
 });
 
-for (const checkpoint of ["after-publishing-journal-durable", "after-hard-link"]) {
+for (const checkpoint of ["after-publishing-journal-durable", "after-published-journal-durable"]) {
   requiresStrictDirectoryDurability(`envelope v4 recovers exactly at ${checkpoint}`, async () => {
     await withFixture(async (consumerRoot, scratch) => {
       const plan = await featurePlanV2(consumerRoot);
@@ -191,10 +188,10 @@ for (const checkpoint of ["after-publishing-journal-durable", "after-hard-link"]
   });
 }
 
-requiresStrictDirectoryDurability("v4 post-link recovery uses the persisted Plan after profile removal", async () => {
+requiresStrictDirectoryDurability("v4 PUBLISHED recovery uses the persisted Plan after profile removal", async () => {
   await withFixture(async (consumerRoot, scratch) => {
     const plan = await featurePlanV2(consumerRoot);
-    await crashAt(consumerRoot, plan, "after-hard-link", scratch);
+    await crashAt(consumerRoot, plan, "after-published-journal-durable", scratch);
     const { profilePath } = JSON.parse(
       await readFile(join(consumerRoot, "cases.json"), "utf8")
     );
@@ -223,7 +220,7 @@ requiresStrictDirectoryDurability("v4 PREPARED without its profile preserves rec
   });
 });
 
-requiresStrictDirectoryDurability("v4 recovery routing requires exact version and same-version build", async () => {
+requiresStrictDirectoryDurability("Foundation leaves native v4 recovery to Authoring regardless of Foundation version/build", async () => {
   await withFixture(async (consumerRoot, scratch) => {
     const plan = await featurePlanV2(consumerRoot);
     await crashAt(consumerRoot, plan, "after-prepared-journal-durable", scratch);
@@ -232,13 +229,14 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
       ".agent-teams-local",
       "scaffolding-transaction.json"
     ), "utf8"));
-    const exact = await new NodeFoundationTransactionSlot({
+    const exact = await createNodeFoundationTransactionSlot({
       consumerRoot,
       installedVersion: envelope.foundation.version,
       installedBuildIdentity: envelope.foundation.buildIdentity
     }).inspect();
-    assert.equal(exact.format, "document-authoring-envelope-v4");
-    assert.equal(exact.recovery?.commandId, "docs-recover");
+    assert.equal(exact.state, "manual-recovery-required");
+    assert.equal(exact.recovery, undefined);
+    assert.match(exact.diagnostics[0]?.message, /Claimed @agent-teams\/document-authoring/u);
     for (const installed of [
       {
         version: "0.0.0-wrong",
@@ -249,24 +247,36 @@ requiresStrictDirectoryDurability("v4 recovery routing requires exact version an
         buildIdentity: `sha256:${"9".repeat(64)}`
       }
     ]) {
-      const mismatch = await new NodeFoundationTransactionSlot({
+      const mismatch = await createNodeFoundationTransactionSlot({
         consumerRoot,
         installedVersion: installed.version,
         installedBuildIdentity: installed.buildIdentity
       }).inspect();
-      assert.equal(mismatch.state, "pending");
-      assert.equal(
-        mismatch.diagnostics[0]?.code,
-        "FOUNDATION_TRANSACTION_VERSION_MISMATCH"
-      );
-      assert.deepEqual(mismatch.recovery, {
-        commandId: "docs-recover",
-        exactFoundationVersion: envelope.foundation.version,
-        exactFoundationBuildIdentity: envelope.foundation.buildIdentity
-      });
+      assert.deepEqual(mismatch, exact);
     }
   });
 });
+
+for (const generation of [1, 2]) {
+  for (const checkpoint of ["after-hard-link", "after-publication-synced", "after-temporary-cleanup-synced"]) {
+    requiresStrictDirectoryDurability(`v${generation} ${checkpoint} preserves present PUBLISHING destination for manual recovery`, async () => {
+      await withFixture(async (consumerRoot, scratch) => {
+        const plan = await (generation === 1 ? adrPlan : featurePlanV2)(consumerRoot);
+        await crashAt(consumerRoot, plan, checkpoint, scratch);
+        const journalPath = join(consumerRoot, ".agent-teams-local/scaffolding-transaction.json");
+        const journalBytes = await readFile(journalPath);
+        assert.equal(JSON.parse(journalBytes).state, "PUBLISHING");
+        const destination = await readFile(join(consumerRoot, plan.destination));
+        const receipt = await recoverDocumentationTransaction({ consumerRoot });
+        assert.equal(receipt.outcome, "manual-recovery-required");
+        assert.equal(receipt.commit.publication, "unknown");
+        assert.deepEqual(await readFile(journalPath), journalBytes);
+        assert.deepEqual(await readFile(join(consumerRoot, plan.destination)), destination);
+        assert.equal((await applyDocumentationPlan({ consumerRoot, plan })).outcome, "manual-recovery-required");
+      });
+    });
+  }
+}
 
 requiresStrictDirectoryDurability("mkdir-before-journal crash is manual-only and never adopted", async () => {
   await withFixture(async (consumerRoot, scratch) => {

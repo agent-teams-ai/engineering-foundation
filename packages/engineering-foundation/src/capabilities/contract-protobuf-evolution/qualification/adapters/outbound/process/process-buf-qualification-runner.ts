@@ -2,9 +2,8 @@ import { open, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CapabilityInputError } from "../../../../../../capability-runtime.js";
-import { readContainedRegularFile } from "../../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../../strict-yaml.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
+import { readContainedRegularFile } from "../../../../../../source-inventory/node.js";
 import { bufQualificationInvocationPlan } from "../../../../application/model/buf-breaking-qualification.js";
 import type {
   BufQualificationRunner,
@@ -13,7 +12,6 @@ import type {
 } from "../../../ports/buf-qualification-runner.js";
 import type { BufExecutable } from "../../../ports/buf-executable.js";
 import { verifyPinnedBufVersion } from "../../../use-cases/verify-pinned-buf-version.js";
-import { ProcessBufExecutable } from "./process-buf-executable.js";
 
 const MAX_DESCRIPTOR_BYTES = 64 * 1024 * 1024;
 
@@ -59,7 +57,7 @@ async function readBoundedDescriptor(root: string, path: string): Promise<Uint8A
 export class ProcessBufQualificationRunner implements BufQualificationRunner {
   readonly #executable: BufExecutable;
 
-  constructor(executable: BufExecutable = new ProcessBufExecutable()) {
+  constructor(executable: BufExecutable) {
     this.#executable = executable;
   }
 

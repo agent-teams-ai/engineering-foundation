@@ -272,6 +272,23 @@ test(
   },
 );
 
+test("coverage evidence finalizes a shard at the observed CI scale", async (context) => {
+  const root = await evidenceSet();
+  context.after(() => rm(root, { force: true, recursive: true }));
+  const artifact = join(root, `coverage-evidence-${headSha}-shard-2`);
+  const raw = join(artifact, "raw");
+  // CI shard 2 produces about 90 MiB; retain valid worker identities and JSON.
+  for (const name of (await readdir(raw)).slice(0, 7)) {
+    const path = join(raw, name);
+    const source = await readFile(path, "utf8");
+    await writeFile(path, source.padEnd(14 * 1024 * 1024, " "));
+  }
+  await rm(join(artifact, "evidence.json"));
+  await writeShardEvidence({ directory: artifact, headSha, shardId: "2" });
+  const result = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
+  assert.equal(result.artifacts.length, 4);
+});
+
 test("coverage evidence checks the aggregate raw byte budget using bounded reads", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
@@ -334,16 +351,20 @@ test("coverage keeps cross-platform shards complete and adds package evidence", 
   ).flat().length;
   assert.equal(crossPlatformTests.length, testManifest.testCount - coverageOnlyCount);
   assert.equal(coverageTests.length - crossPlatformTests.length, coverageOnlyCount);
-  assert.equal(
-    crossPlatformTests.some((path) => path.startsWith("packages/docs-protocol/tests/")),
-    false,
+  assert.deepEqual(
+    crossPlatformTests.filter((path) => path.startsWith("packages/docs-protocol/tests/")).toSorted(),
+    [
+      "packages/docs-protocol/tests/portable-dx.test.mjs",
+      "packages/docs-protocol/tests/qualification-application.test.mjs",
+      "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
+    ],
   );
   assert.equal(coverageTests.length, testManifest.testCount);
   assert.deepEqual(
     coverageTests
       .filter((path) => path.startsWith("packages/docs-protocol/tests/"))
       .toSorted(),
-    testManifest.coverageTests.filter(
+    [...new Set([...testManifest.coverageTests, ...crossPlatformTests])].filter(
       (path) => path.startsWith("packages/docs-protocol/tests/"),
     ).toSorted(),
   );

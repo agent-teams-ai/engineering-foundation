@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/repository-mutation",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Closed, portable repository mutation and exact recovery primitives.",
   "license": "Apache-2.0",
   "type": "module",
@@ -16,6 +16,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./serialization": {
+      "types": "./dist/serialization.d.ts",
+      "import": "./dist/serialization.js"
+    },
+    "./paths": {
+      "types": "./dist/paths.d.ts",
+      "import": "./dist/paths.js"
+    },
+    "./coordination": {
+      "types": "./dist/coordination.d.ts",
+      "import": "./dist/coordination.js"
+    },
+    "./known-file": {
+      "types": "./dist/known-file.d.ts",
+      "import": "./dist/known-file.js"
     },
     "./node": {
       "types": "./dist/node.d.ts",

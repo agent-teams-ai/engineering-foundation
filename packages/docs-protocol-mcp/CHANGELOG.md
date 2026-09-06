@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [[`6710434`](https://github.com/agent-teams-ai/engineering-foundation/commit/6710434f4914860313b06095e610ec3b875d06ad), [`a594376`](https://github.com/agent-teams-ai/engineering-foundation/commit/a5943767bf11ff2223c1223527ba3d1cabd39012)]:
+  - @agent-teams/docs-protocol@0.6.0
+
 ## 0.2.1
 
 ### Patch Changes

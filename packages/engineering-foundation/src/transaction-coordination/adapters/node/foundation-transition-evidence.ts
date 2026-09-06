@@ -4,11 +4,11 @@ import {
   FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX,
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE
-} from "../../../foundation-state-contract.js";
+} from "../../application/model/foundation-transaction-identity.js";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
 import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation";
 
-export { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
+export { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../application/model/foundation-transaction-identity.js";
 
 const maximumStateDirectoryEntries = 1024;
 

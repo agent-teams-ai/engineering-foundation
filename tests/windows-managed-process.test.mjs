@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 
-import { foundationCommandFailure } from "../packages/engineering-foundation/dist/command-error.js";
+import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/command-error.js";
 import {
   describeManagedProcessCleanupFailure,
   managedProcessCleanupFailure

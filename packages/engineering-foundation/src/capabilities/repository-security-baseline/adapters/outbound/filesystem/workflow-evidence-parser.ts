@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { parseStrictYamlSource } from "../../../../../strict-yaml.js";
+import type { SecurityEvidenceObservation } from "../../../application/ports/security-evidence-observation.js";
 import type {
   CompositeActionEvidence,
   WorkflowContainerEvidence,
@@ -12,7 +12,7 @@ import type {
 import {
   repositorySecurityInputError,
   requireRecord
-} from "./repository-security-input.js";
+} from "../../../application/policies/repository-security-input.js";
 
 function permissions(
   value: unknown,
@@ -231,8 +231,8 @@ function steps(value: unknown, field: string): readonly WorkflowStepEvidence[] {
   );
 }
 
-export function parseWorkflow(path: string, source: string): WorkflowEvidence {
-  const input = requireRecord(parseStrictYamlSource(source, `workflow:${path}`), `workflow ${path}`);
+export function parseWorkflow(parseYaml: SecurityEvidenceObservation["parseYaml"], path: string, source: string): WorkflowEvidence {
+  const input = requireRecord(parseYaml(source, `workflow:${path}`), `workflow ${path}`);
   const jobsInput = requireRecord(input["jobs"], `workflow ${path}.jobs`);
   const jobs: WorkflowJobEvidence[] = Object.entries(jobsInput).map(([id, value]) => {
     const job = requireRecord(value, `workflow ${path}.jobs.${id}`);
@@ -293,11 +293,12 @@ export function collectWorkflowUses(
 }
 
 export function collectCompositeActionUses(
+  parseYaml: SecurityEvidenceObservation["parseYaml"],
   path: string,
   source: Uint8Array
 ): CompositeActionEvidence {
   const input = requireRecord(
-    parseStrictYamlSource(Buffer.from(source).toString("utf8"), `composite-action:${path}`),
+    parseYaml(Buffer.from(source).toString("utf8"), `composite-action:${path}`),
     `composite action ${path}`
   );
   const runs = requireRecord(input["runs"], `composite action ${path}.runs`);

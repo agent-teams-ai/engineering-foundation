@@ -1,7 +1,9 @@
 import type {
-  AuthorityScaffoldPlan,
+  AuthorityScaffoldPlan
+} from "../application/model/scaffold-compilation.js";
+import type {
   AuthorityScaffoldRecoveryScope
-} from "../contract/types.js";
+} from "../application/model/recovery-scope.js";
 import { ScaffoldError } from "../scaffold-error.js";
 
 const recoveryScopeKeys = Object.freeze([

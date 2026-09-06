@@ -4,3 +4,5 @@ valid:
 invalid:
   - const value = process.env.HOST;
   - const value = process.env["HOST"];
+  - const { HOST } = process.env;
+  - const environment = process.env;

@@ -1,18 +1,14 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat, rmdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 import type { KnownFileImageV1 } from "../../application/model/known-file-transaction.js";
-import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import { deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
-import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
+import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+
+
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import {
-  knownFileErrorCode,
-  knownFileTemporaryName,
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  sameKnownFileIdentity
-} from "./node-known-file-transaction-filesystem.js";
+import { knownFileErrorCode, knownFileTemporaryName, matchesKnownFileImage, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import { knownFileCapturePaths } from "./node-known-file-recovery-filesystem.js";
 import { restorePreimage } from "./node-known-file-recovery-preimage.js";
 import { retireJournalBoundPath } from "./node-known-file-recovery-retirement.js";
@@ -22,7 +18,7 @@ import type {
 } from "./node-known-file-recovery-state.js";
 import type { NodeKnownFileTransactionJournalStore } from "./node-known-file-transaction-journal-store.js";
 
-async function cleanupOperationTemporaries(options: {
+async function cleanupOperationTemporaries(coordination: Pick<KnownFileCoordination, "pathMatchesRegularFileIdentity" | "readBoundedRegularFile">, options: {
   readonly operationIndex: number;
   readonly root: string;
   readonly store: NodeKnownFileTransactionJournalStore;
@@ -66,7 +62,7 @@ async function cleanupOperationTemporaries(options: {
   for (const candidate of candidates) {
     let observed;
     try {
-      observed = await readBoundedRegularFile(candidate.path, candidate.image.size);
+      observed = await coordination.readBoundedRegularFile(candidate.path, candidate.image.size);
     } catch (error) {
       if (knownFileErrorCode(error) === "ENOENT") {continue;}
       throw error;
@@ -93,7 +89,7 @@ async function cleanupOperationTemporaries(options: {
         `Transaction temporary identity is absent or changed: ${operation.path}.`
       );
     }
-    await retireJournalBoundPath({
+    await retireJournalBoundPath(coordination, {
       expectedIdentity: candidate.identity,
       kind: candidate.kind,
       operationIndex: options.operationIndex,
@@ -189,7 +185,12 @@ async function removeCreatedDirectories(
   }
 }
 
-export async function rollbackKnownFileRecovery(options: {
+export async function rollbackKnownFileRecovery(coordination: Pick<KnownFileCoordination,
+  "captureFileHandleIdentity"
+  | "pathMatchesRegularFileIdentity"
+  | "readBoundedRegularFile"
+  | "readBoundedRegularFileHandle"
+>, options: {
   readonly faultInjector?: KnownFileRecoveryFaultInjector;
   readonly root: string;
   readonly store: NodeKnownFileTransactionJournalStore;
@@ -198,7 +199,7 @@ export async function rollbackKnownFileRecovery(options: {
   for (let index = options.stored.envelope.payload.operations.length - 1; index >= 0; index -= 1) {
     let journalOperation = options.stored.envelope.payload.operations[index]!;
     if (journalOperation.retirement !== undefined) {
-      await retireJournalBoundPath({
+      await retireJournalBoundPath(coordination, {
         expectedIdentity: deserializeKnownFileIdentity(journalOperation.retirement.pathIdentity),
         ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
         kind: journalOperation.retirement.kind,
@@ -221,7 +222,7 @@ export async function rollbackKnownFileRecovery(options: {
       "capture-ready", "preimage-captured", "destination-retired",
       "publishing", "published", "rollback-restored"
     ].includes(journalOperation.state)) {continue;}
-    await restorePreimage({
+    await restorePreimage(coordination, {
       ...(options.faultInjector === undefined ? {} : { faultInjector: options.faultInjector }),
       operation: options.stored.envelope.payload.plan.operations[index]!,
       operationIndex: index,
@@ -229,7 +230,7 @@ export async function rollbackKnownFileRecovery(options: {
       store: options.store,
       stored: options.stored
     });
-    await cleanupOperationTemporaries({
+    await cleanupOperationTemporaries(coordination, {
       operationIndex: index,
       root: options.root,
       store: options.store,
@@ -242,7 +243,7 @@ export async function rollbackKnownFileRecovery(options: {
       "capture-ready", "preimage-captured", "destination-retired",
       "publishing", "published", "rollback-restored"
     ].includes(journal.operations[index]!.state)) {
-      await cleanupOperationTemporaries({
+      await cleanupOperationTemporaries(coordination, {
         operationIndex: index,
         root: options.root,
         store: options.store,

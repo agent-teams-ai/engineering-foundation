@@ -244,7 +244,13 @@ test("validates the release-owned public API baseline and freezes the package ex
         "export declare function recoverFilesystemScaffold(consumerRoot: string): Promise<ScaffoldReceipt | undefined>;",
     },
   );
-  assert.deepEqual(packageManifest.exports, vector.publicApi.exports);
+  assert.deepEqual(packageManifest.exports, {
+    ...vector.publicApi.exports,
+    "./scaffolding/qualification": {
+      types: "./dist/scaffolding/qualification.d.ts",
+      import: "./dist/scaffolding/qualification.js"
+    }
+  });
 });
 
 test("freezes the runtime, filesystem, and published schema allowlists", async () => {

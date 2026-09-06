@@ -1,5 +1,5 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import { isExactVersion, semanticVersionBumpBetween } from "../../../../semantic-version.js";
 import type {
   ApprovedProtobufBreakingChange,

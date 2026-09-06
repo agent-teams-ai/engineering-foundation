@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeCodeAnchorMatcher } from "../dist/adapters/node-code-anchor-matcher.js";
-import { normalizeCodeAnchors } from "../dist/domain/document-semantics.js";
+import { NodeCodeAnchorMatcher } from "../dist/features/portable-documentation/adapters/outbound/node-code-anchor-matcher.js";
+import { normalizeCodeAnchors } from "../dist/features/portable-documentation/domain/document-semantics.js";
 
 test("code anchors use the closed common shape and safe source patterns", () => {
   assert.deepEqual(normalizeCodeAnchors([{ pattern: "src/**/*.ts", enforcement: "required" }]), [{ pattern: "src/**/*.ts", enforcement: "required" }]);

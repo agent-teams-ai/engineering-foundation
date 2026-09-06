@@ -88,8 +88,13 @@ test("qualification subpath is closed and absent from normal authoring", async (
     /\b(?:callback|faultInjector|hook|adapter|operations|port)\b/iu
   );
   assert.match(declarations, /DocumentPlanV2/u);
-  assert.match(declarations, /after-publishing-journal-durable/u);
-  assert.match(declarations, /after-published-journal-durable/u);
+  const checkpointDeclarations = await readFile(new URL(
+    "../packages/document-authoring/dist/document-authoring/testing/crash-qualification.d.ts",
+    import.meta.url
+  ), "utf8");
+  assert.match(declarations, /DocumentAuthoringQualificationCrashPoint/u);
+  assert.match(checkpointDeclarations, /after-publishing-journal-durable/u);
+  assert.match(checkpointDeclarations, /after-published-journal-durable/u);
 });
 
 test("qualification rejects an unsupported checkpoint without writes", async (t) => {

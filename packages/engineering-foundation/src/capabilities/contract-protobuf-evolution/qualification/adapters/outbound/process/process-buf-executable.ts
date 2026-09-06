@@ -1,9 +1,8 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
-import { CapabilityInputError } from "../../../../../../capability-runtime.js";
-import { executeManagedProcess } from "../../../../../../process-execution/node-process-runner.js";
-import { assertNotCancelled } from "../../../../../../strict-yaml.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../../../features/validation-reporting/api.js";
+import type { BufProcessExecutor } from "../../../ports/process-executor.js";
 import type {
   BufExecutable,
   BufExecutionResult,
@@ -72,32 +71,24 @@ async function workingDirectory(path: unknown): Promise<string> {
 }
 
 async function execute(
-  command: string,
-  arguments_: readonly string[],
-  cwd: string,
-  timeoutMs: number,
-  signal?: AbortSignal
+  executor: BufProcessExecutor,
+  request: { readonly command: string; readonly args: readonly string[];
+    readonly cwd: string; readonly timeoutMs: number; readonly signal?: AbortSignal }
 ): Promise<BufExecutionResult> {
   try {
-    const result = await executeManagedProcess({
-      command,
-      args: arguments_,
-      cwd,
-      timeoutMs,
-      ...(signal === undefined ? {} : { signal })
-    });
+    const result = await executor.run(request);
     return {
       exitCode: result.exitCode,
       stdout: result.stdout,
       stderr: result.stderr
     };
   } catch (error) {
-    if (signal?.aborted === true) {
+    if (request.signal?.aborted === true) {
       inputError("EXECUTION_CANCELLED", "Buf qualification was cancelled.", error);
     }
     inputError(
       "BUF_EXECUTION_UNAVAILABLE",
-      `Pinned Buf execution failed or exceeded its ${String(timeoutMs)}ms deadline.`,
+      `Pinned Buf execution failed or exceeded its ${String(request.timeoutMs)}ms deadline.`,
       error
     );
   }
@@ -106,7 +97,7 @@ async function execute(
 export class ProcessBufExecutable implements BufExecutable {
   readonly #timeoutMs: number;
 
-  constructor(timeoutMs = DEFAULT_BUF_PROCESS_TIMEOUT_MS) {
+  constructor(private readonly executor: BufProcessExecutor, timeoutMs = DEFAULT_BUF_PROCESS_TIMEOUT_MS) {
     this.#timeoutMs = timeoutMs;
   }
 
@@ -124,6 +115,9 @@ export class ProcessBufExecutable implements BufExecutable {
       workingDirectory(invocation.workingDirectory)
     ]);
     assertNotCancelled(signal);
-    return execute(command, invocation.arguments, cwd, this.#timeoutMs, signal);
+    return execute(this.executor, {
+      command, args: invocation.arguments, cwd, timeoutMs: this.#timeoutMs,
+      ...(signal === undefined ? {} : { signal })
+    });
   }
 }

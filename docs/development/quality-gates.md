@@ -65,6 +65,13 @@ that dependency from import-based usage detection. Its process-tree fixture is
 an explicit Knip entry because Node launches it directly rather than importing
 it from the test module.
 
+The transaction architecture counterexamples in
+`tests/foundation-local-mode-transaction-e2e.test.mjs` generate imports of
+`foundation-state-contract.ts` and `schema-ids.ts` inside disposable copies.
+These two files are explicit Knip entries because those generated imports are
+not visible in its static test graph. Other internal facades remain subject to
+unused-export checks.
+
 The shard's test result, all four artifact uploads, evidence aggregation, and the
 stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
 finalization failure may preserve the original shard test result, but the
@@ -166,6 +173,10 @@ prerequisite of every executable pull request job and is included by both
 required aggregators. CodeQL runs as a separate hosted analysis; none of these tools execute
 inside a normal capability check.
 
+## Feature ownership and complete production scope
+
+`pnpm quality:scope:check` derives coverage from the existing public package inventory and rejects missing typed-lint, ambient-rule or suppression coverage. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.
+
 ## Dependency updates
 
 Dependabot checks npm dependencies and pinned GitHub Actions every weekday. It
@@ -250,3 +261,19 @@ separate hermetic registry publish/install gate with network uplinks disabled.
 The static `repository.security-baseline` capability does not manufacture equivalent
 evidence for a consumer; each publishing consumer needs its own real packed-
 artifact gate until a separate reusable package capability is accepted.
+
+## Permission-sensitive test environments
+
+Run filesystem refusal tests in disposable repositories under a process that
+respects file permissions. Linux root with `CAP_DAC_OVERRIDE` can write into a
+`0500` directory, so a chmod-based `EACCES` scenario cannot qualify that refusal
+under those privileges. Prefer an unprivileged test process. A Linux root test
+runner can remove `dac_override` and `dac_read_search` from its capability
+bounding set for the test subprocess; verify an actual denied write in a fresh
+temporary directory first. Keep production permissions and host Git hooks intact.
+
+An interrupted test runner has no successful aggregate result. Preserve its log
+and exact source identity, complete the interrupted file and remaining files,
+and rerun only failed scopes when diagnosing environment-specific failures.
+Record each resumed command separately; platform skips and partial reruns do not
+establish full-suite, supported-platform or release qualification.

@@ -8,10 +8,9 @@ editing the accepted decision.
 
 - [ADR-0052: Bounded Managed V1 Restoration](0052-bounded-managed-v1-restoration.md)
 
-- [ADR-0053: Restoration Strict JSON Consumer Admission](0053-restoration-strict-json-consumer-admission.md) (proposed successor to ADR-0050)
-
 ## Accepted
 
+- [ADR-0053: Restoration Strict JSON Consumer Admission](0053-restoration-strict-json-consumer-admission.md)
 - [ADR-0001: Executable Capability Foundation](0001-executable-capability-foundation.md)
 - [ADR-0002: Oxc Source Dependency Adapter](0002-oxc-source-dependency-adapter.md)
 - [ADR-0003: Governed Inline Suppressions](0003-governed-inline-suppressions.md)

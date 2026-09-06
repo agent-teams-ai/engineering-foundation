@@ -1,7 +1,7 @@
 ---
 id: ADR-0053
-status: proposed
-supersedes: [ADR-0050]
+status: accepted
+supersedes: []
 superseded_by: []
 primitiveScopes:
   packages/repository-mutation/src/canonical-json.ts:
@@ -73,13 +73,15 @@ primitiveScopes:
 
 Date: 2026-09-06
 
-Status: Proposed; independent xhigh review and final acceptance remain pending.
+Status: Accepted after independent xhigh admission review and historical-schema
+closure review at candidate 289be43093a3fb0b9eccd37e402e2ed2e55f1d63.
 
 Decision owner: Repository architecture coordinator. The coordinator authorizes
-preparing this narrow successor within hardening. This proposal does not accept
-itself or promote any baseline. ADR-0050 remains unchanged and accepted.
+this bounded admission within the authorized hardening implementation. The
+coordinator accepts the reviewed consumer extension; ADR-0050 remains unchanged
+and accepted. This does not approve release or consumer rollout.
 
-## Context and proposed decision
+## Context and decision
 
 New-main restoration proof is untrusted, independently digest-selected evidence.
 Its reader must reject ambiguous duplicate decoded keys at every nesting depth
@@ -92,14 +94,16 @@ Retain both exact primitive scopes and every semantic, ownership, rationale,
 purity, versioning, review-trigger and existing consumer identity from
 [ADR-0050](0050-exact-json-primitive-admission.md). Add only
 `docs-protocol-agent-teams/consumer-integration` to strict-json consumers.
-The complete scope records above are the proposed successor authority. The finite
+This is a separate admission decision for the expanded strict-json consumer set.
+It does not retire ADR-0050: canonical-json still uses that accepted authority.
+The complete scope records above retain its contract for the expanded scope. The finite
 operation contract and compatibility obligations of ADR-0050 remain in force;
 this decision adds no grammar or primitive operation.
 
 The [feature profile](../../architecture/foundation/feature-modules.json) registers
 one exact strict-json caller:
 `packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-restoration-proof.ts`.
-Only that primitive's decision pointer moves to this proposed successor.
+Only that primitive's decision pointer moves to this admission.
 Five exact canonical-json caller registrations remain under ADR-0050's already
 admitted consumer identity. Existing caller mappings remain intact.
 
@@ -124,13 +128,14 @@ Compare both complete scope records mechanically against ADR-0050: the only
 metadata change inside primitiveScopes is the one added strict-json identity.
 A disposable profile/ADR copy may simulate accepted status to prove that exactly
 ten new primitive observations disappear and all 58 base observations remain.
-An unauthorized caller must remain rejected. The actual proposed source must
-report its accepted-status guard rejection separately; simulation is not approval.
+An unauthorized caller must remain rejected. The pre-acceptance proposed source reported its accepted-status rejection
+separately; simulation was not treated as approval.
 
 ## Acceptance boundary
 
-Independent xhigh review precedes final accepted status and any new baseline
-promotion. Accepted ADRs, standards, schemas, released API/recovery baselines and
+Independent xhigh review confirmed the admission and the separate historical
+schema closure. Final acceptance preserves that reviewed scope; normal baseline
+promotion records only this new decision. Accepted ADRs, standards, schemas, released API/recovery baselines and
 all guards remain byte-immutable in this patch. No wildcard, broad shared module,
 catch-all exception, duplicate parser or guard bypass is introduced. This proposal
 does not claim release, real consumer, registry or platform qualification.

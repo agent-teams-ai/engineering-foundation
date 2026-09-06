@@ -251,6 +251,11 @@
       "id": "ADR-0051",
       "path": "docs/decisions/0051-exact-file-observation-contract.md",
       "immutableDigest": "sha256:caff2662e7fbd1aebb83dbf1d79e5b375ef7a02e7bd08a47d1aef52e2d03885a"
+    },
+    {
+      "id": "ADR-0053",
+      "path": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
+      "immutableDigest": "sha256:a07b7a58a2f28b9b4cfbae5efbe412c4168e4eedd909cf053640be91ed586952"
     }
   ]
 }

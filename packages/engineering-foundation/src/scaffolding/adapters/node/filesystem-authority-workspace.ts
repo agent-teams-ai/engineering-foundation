@@ -15,7 +15,7 @@ import type {
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import type { AssessScaffoldPlanAuthority, ScaffoldFilesystemDependencies } from "./scaffold-filesystem-dependencies.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import { LOCAL_STATE_DIRECTORY } from "../../application/policies/transaction-identity.js";
 import { acquireScaffoldingTransaction } from "../../application/policies/scaffold-transaction.js";
 import type { ScaffoldTransactions } from "../../application/ports/scaffold-transactions.js";
 import {

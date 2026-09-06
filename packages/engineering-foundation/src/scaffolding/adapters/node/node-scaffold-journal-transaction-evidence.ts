@@ -1,7 +1,7 @@
 import { lstat, readdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../application/policies/transaction-identity.js";
 
 import {
   SCAFFOLD_JOURNAL_QUARANTINE_PREFIX,

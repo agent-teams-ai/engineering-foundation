@@ -1,4 +1,4 @@
-import { createAuthorityScaffoldRegistry } from "../packages/engineering-foundation/dist/scaffolding/composition/scaffold-registry.js";
+import { scaffoldAuthorityDependencies, scaffoldTransactionArtifacts, scaffoldLegacyDigests, createNodeScaffoldingApi, createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import assert from "node:assert/strict";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,7 +7,6 @@ import test from "node:test";
 import { observeFoundationFeatureGraph } from "./helpers/local-mode-boundaries.mjs";
 import { assertSchemaAssemblyImportsRejected } from "./helpers/schema-assembly-boundaries.mjs";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { createNodeScaffoldingApi, createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection as apply } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
 import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-plan-authority.js";
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
@@ -75,7 +74,7 @@ test("schema rejection precedes apply filesystem access and keeps the caller Pla
 
 test("authority validation failures remain unverifiable rather than stale", async () => withFixture(async (root) => {
   const value = await plan(root);
-  assert.deepEqual(await assessScaffoldPlanAuthority(root, value, async () => { throw new Error("schema unavailable"); }, createAuthorityScaffoldRegistry), { state: "unverifiable" });
+  assert.deepEqual(await assessScaffoldPlanAuthority(root, value, async () => { throw new Error("schema unavailable"); }, scaffoldAuthorityDependencies), { state: "unverifiable" });
 }));
 
 test("receipt validation preserves the delegated schema failure and input identity", async () => {
@@ -90,14 +89,14 @@ test("journal codecs preserve historical pretty JSON and current envelope bytes"
   const historical = Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
   const historicalCopy = Buffer.from(historical), calls = [];
   const validate = async (id, input, phase) => { calls.push([id, phase]); await assertSchema(id, input, phase); };
-  assert.deepEqual(await parseScaffoldJournal(historical, validate), journal);
+  assert.deepEqual(await parseScaffoldJournal(historical, validate, scaffoldTransactionArtifacts), journal);
   assert.deepEqual(historical, historicalCopy);
   assert.deepEqual(calls, [["scaffold-recovery-journal/v1", "scaffold-recovery-journal"], ["scaffold-plan/v1", "scaffold-recovery-journal"]]);
-  const current = await serializeScaffoldJournal(journal, validate);
-  assert.deepEqual(await parseScaffoldJournal(current, validate), journal);
-  assert.deepEqual(await serializeScaffoldJournal(journal, assertSchema), current);
+  const current = await serializeScaffoldJournal(journal, validate, scaffoldTransactionArtifacts);
+  assert.deepEqual(await parseScaffoldJournal(current, validate, scaffoldTransactionArtifacts), journal);
+  assert.deepEqual(await serializeScaffoldJournal(journal, assertSchema, scaffoldTransactionArtifacts), current);
   const invalid = Buffer.from(`${historical.toString("utf8")} `);
-  await assert.rejects(parseScaffoldJournal(invalid, validate), /historical canonical form/u);
+  await assert.rejects(parseScaffoldJournal(invalid, validate, scaffoldTransactionArtifacts), /historical canonical form/u);
   await assert.rejects(parseScaffoldJournal(Buffer.from("{broken"), async () => assert.fail("invalid JSON cannot reach schema validation")), /invalid strict JSON/u);
 }));
 
@@ -108,7 +107,7 @@ for (const [name, inspect, schema] of [
   test(`legacy scaffolding ${name} retains exact schema, evidence and rejection`, async () => {
     const value = {}, calls = [], failure = new Error("legacy schema rejected");
     const input = name === "journal" ? { value, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}` } : value;
-    await assert.rejects(inspect(input, async (...args) => { calls.push(args); throw failure; }), (error) => error === failure);
+    await assert.rejects(inspect(input, async (...args) => { calls.push(args); throw failure; }, scaffoldLegacyDigests), (error) => error === failure);
     assert.deepEqual(calls, [[schema, value, "foundation-transaction-slot"]]);
     assert.equal(calls[0][1], value);
     assert.deepEqual(value, {});

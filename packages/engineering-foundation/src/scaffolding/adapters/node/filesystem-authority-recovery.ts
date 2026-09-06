@@ -9,7 +9,7 @@ import type {
   AuthorityScaffoldRecoveryScope
 } from "../../application/model/recovery-scope.js";
 import { assertScaffoldRecoveryScopeMatchesPlan } from "../../kernel/recovery-scope.js";
-import { LOCAL_STATE_DIRECTORY } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import { LOCAL_STATE_DIRECTORY } from "../../application/policies/transaction-identity.js";
 import { acquireScaffoldingTransaction } from "../../application/policies/scaffold-transaction.js";
 import { assertSafeOperationPaths } from "./filesystem-path-guard.js";
 import { SCAFFOLD_JOURNAL_FILE } from "./node-scaffold-journal-evidence.js";

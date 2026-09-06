@@ -1,6 +1,5 @@
-import { createAuthorityScaffoldRegistry } from "../packages/engineering-foundation/dist/scaffolding/composition/scaffold-registry.js";
+import { scaffoldAuthorityDependencies, createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
-import { createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
@@ -79,7 +78,7 @@ test("detects authority mutation between initial and stability source reads", as
       root,
       scaffoldPlan,
       assertSchema,
-      createAuthorityScaffoldRegistry,
+      scaffoldAuthorityDependencies,
       async (point) => {
         if (point.phase === "before-authority-source-stability-check") {
           await setOwnerStatus(root, "proposed");

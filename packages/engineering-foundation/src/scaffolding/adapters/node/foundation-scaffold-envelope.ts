@@ -10,7 +10,7 @@ import type {
   AuthorityScaffoldJournal
 } from "../../contract/types.js";
 import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
-import { resolveInstalledFoundationTransactionArtifacts } from "../../../transaction-coordination/adapters/node/installed-foundation-transaction-artifacts.js";
+import type { ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
 
 const operationKind = "scaffolding";
 const recoveryHandlerId = "agent-teams.engineering-foundation.scaffolding/v1";
@@ -28,11 +28,12 @@ function assertClosedFoundationScaffoldTuple(envelope: RepositoryMutationEnvelop
 }
 
 export async function compileFoundationScaffoldEnvelope(
-  journal: AuthorityScaffoldJournal
+  journal: AuthorityScaffoldJournal,
+  observeArtifacts: ScaffoldTransactionArtifacts
 ): Promise<RepositoryMutationEnvelope> {
   // Foundation owns this finite tuple and validates its payload before the inert leaf sees it.
   assertAuthorityScaffoldJournal(journal);
-  const artifacts = await resolveInstalledFoundationTransactionArtifacts();
+  const artifacts = await observeArtifacts();
   return compileRepositoryMutationEnvelope({
     operationKind,
     recoveryHandler: { id: recoveryHandlerId, contractVersion: 1 },
@@ -46,10 +47,11 @@ export async function compileFoundationScaffoldEnvelope(
 }
 
 export async function parseFoundationScaffoldEnvelope(
-  bytes: Uint8Array
+  bytes: Uint8Array,
+  observeArtifacts: ScaffoldTransactionArtifacts
 ): Promise<{ readonly envelope: RepositoryMutationEnvelope; readonly journal: AuthorityScaffoldJournal }> {
   const envelope = parseRepositoryMutationEnvelope(bytes);
-  const artifacts = await resolveInstalledFoundationTransactionArtifacts();
+  const artifacts = await observeArtifacts();
   // Bind both installed artifacts before interpreting any owner payload fields.
   assertRepositoryMutationArtifactBindings(envelope, artifacts.owner, artifacts.kernel);
   assertClosedFoundationScaffoldTuple(envelope);

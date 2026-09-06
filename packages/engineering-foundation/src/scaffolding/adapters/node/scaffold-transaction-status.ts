@@ -1,11 +1,10 @@
 import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
-import { assertEnvelopeDigests } from "../../../transaction-coordination/adapters/node/legacy-envelope-digests.js";
+import type { ScaffoldLegacyDigests, ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
 import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import type {
   AuthorityScaffoldJournal
 } from "../../contract/types.js";
-import type { FoundationRecoveryRoute, FoundationTransactionDiagnostic } from "../../../transaction-coordination/application/model/transaction-status.js";
-import type { InternalFoundationTransactionStatus } from "../../../transaction-coordination/application/model/internal-transaction-status.js";
+import type { FoundationRecoveryRoute, FoundationTransactionDiagnostic, InternalFoundationTransactionStatus } from "../../application/policies/transaction-identity.js";
 import { assertLegacyScaffoldingJournal } from "./legacy-scaffolding-transaction-validation.js";
 import { parseFoundationScaffoldEnvelope } from "./foundation-scaffold-envelope.js";
 
@@ -53,14 +52,14 @@ export async function inspectLegacyScaffoldingJournal(options: {
   readonly value: Record<string, unknown>;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}, assertSchema: ScaffoldSchemaValidator): Promise<InternalFoundationTransactionStatus> {
+}, assertSchema: ScaffoldSchemaValidator, digests: ScaffoldLegacyDigests): Promise<InternalFoundationTransactionStatus> {
   await assertSchema(
     "scaffold-recovery-journal/v1",
     options.value,
     "foundation-transaction-slot"
   );
   const journal = options.value as unknown as AuthorityScaffoldJournal;
-  assertLegacyScaffoldingJournal(options.value);
+  assertLegacyScaffoldingJournal(options.value, digests);
   const compiler = journal.plan["compiler"];
   if (!isRecord(compiler) || typeof compiler["version"] !== "string") {
     throw new Error("Legacy scaffolding journal compiler version is invalid.");
@@ -78,8 +77,8 @@ export async function inspectCurrentScaffoldingTransaction(options: {
   readonly bytes: Uint8Array;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}): Promise<InternalFoundationTransactionStatus> {
-  const { envelope } = await parseFoundationScaffoldEnvelope(options.bytes);
+}, observeArtifacts: ScaffoldTransactionArtifacts): Promise<InternalFoundationTransactionStatus> {
+  const { envelope } = await parseFoundationScaffoldEnvelope(options.bytes, observeArtifacts);
   if (envelope.ownerArtifact.version !== options.installedVersion ||
       envelope.ownerArtifact.buildIdentity !== options.installedBuildIdentity) {
     throw new Error("Foundation scaffolding installed artifact identity is incompatible.");
@@ -102,10 +101,11 @@ export async function inspectCurrentScaffoldingTransaction(options: {
 
 export async function inspectLegacyScaffoldingEnvelope(
   value: Record<string, unknown>,
-  assertSchema: ScaffoldSchemaValidator
+  assertSchema: ScaffoldSchemaValidator,
+  digests: ScaffoldLegacyDigests
 ): Promise<InternalFoundationTransactionStatus> {
   await assertSchema("foundation-transaction-envelope/v2", value, "foundation-transaction-slot");
-  assertEnvelopeDigests(value);
+  digests.assertEnvelopeDigests(value);
   const foundation = value["foundation"];
   const journal = value["journal"];
   if (!isRecord(foundation) || typeof foundation["version"] !== "string" ||
@@ -120,7 +120,7 @@ export async function inspectLegacyScaffoldingEnvelope(
   if (!isRecord(compiler) || compiler["version"] !== foundation["version"]) {
     throw new Error("Foundation transaction compiler binding is invalid.");
   }
-  assertLegacyScaffoldingJournal(journal);
+  assertLegacyScaffoldingJournal(journal, digests);
   return {
     state: "manual-recovery-required",
     reason: "recovery-handler-unavailable",
@@ -139,10 +139,10 @@ export function inspectCurrentScaffoldingRecord(input: {
   readonly value: Record<string, unknown>;
   readonly installedVersion: string;
   readonly installedBuildIdentity: string;
-}): Promise<InternalFoundationTransactionStatus> {
+}, observeArtifacts: ScaffoldTransactionArtifacts): Promise<InternalFoundationTransactionStatus> {
   return inspectCurrentScaffoldingTransaction({
     bytes: Buffer.from(canonicalJson(input.value as CanonicalJsonValue), "utf8"),
     installedVersion: input.installedVersion,
     installedBuildIdentity: input.installedBuildIdentity
-  });
+  }, observeArtifacts);
 }

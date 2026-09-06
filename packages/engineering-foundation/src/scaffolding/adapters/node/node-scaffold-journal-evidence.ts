@@ -1,3 +1,4 @@
+import type { ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
 import { TextDecoder } from "node:util";
 
 import type {
@@ -5,7 +6,7 @@ import type {
   JournalSlotObservation,
   StoredJournalSlot
 } from "@agent-teams/repository-mutation/node";
-import { FOUNDATION_TRANSACTION_FILE } from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+import { FOUNDATION_TRANSACTION_FILE } from "../../application/policies/transaction-identity.js";
 import type {
   AuthorityScaffoldJournal
 } from "../../contract/types.js";
@@ -57,7 +58,8 @@ export function scaffoldJournalRecoveryRequired(
 
 export async function serializeScaffoldJournal(
   journal: AuthorityScaffoldJournal,
-  assertSchema: ScaffoldSchemaValidator
+  assertSchema: ScaffoldSchemaValidator,
+  observeArtifacts: ScaffoldTransactionArtifacts
 ): Promise<Buffer> {
   try {
     await assertSchema(
@@ -77,7 +79,7 @@ export async function serializeScaffoldJournal(
       error
     );
   }
-  const envelope = await compileFoundationScaffoldEnvelope(journal);
+  const envelope = await compileFoundationScaffoldEnvelope(journal, observeArtifacts);
   const bytes = Buffer.from(
     `${canonicalJson(envelope as unknown as JsonValue)}\n`,
     "utf8"
@@ -103,7 +105,8 @@ function isSchema6Envelope(value: unknown): boolean {
  */
 export async function parseScaffoldJournal(
   bytes: Buffer,
-  assertSchema: ScaffoldSchemaValidator
+  assertSchema: ScaffoldSchemaValidator,
+  observeArtifacts: ScaffoldTransactionArtifacts
 ): Promise<AuthorityScaffoldJournal> {
   let journal: AuthorityScaffoldJournal;
   let schema6 = false;
@@ -111,7 +114,7 @@ export async function parseScaffoldJournal(
     const value = parseStrictJson(strictUtf8.decode(bytes));
     schema6 = isSchema6Envelope(value);
     if (schema6) {
-      ({ journal } = await parseFoundationScaffoldEnvelope(bytes));
+      ({ journal } = await parseFoundationScaffoldEnvelope(bytes, observeArtifacts));
     } else {
       await assertSchema(
         "scaffold-recovery-journal/v1",
@@ -133,7 +136,7 @@ export async function parseScaffoldJournal(
     );
   }
   const expectedBytes = schema6
-    ? await serializeScaffoldJournal(journal, assertSchema)
+    ? await serializeScaffoldJournal(journal, assertSchema, observeArtifacts)
     : Buffer.from(`${JSON.stringify(journal, null, 2)}\n`, "utf8");
   if (!bytes.equals(expectedBytes)) {
     throw scaffoldJournalRecoveryRequired(

@@ -479,7 +479,7 @@ test("installed lifecycle, reporting and coordination retain identities and rela
       import { FoundationError as ReportError } from "./node_modules/@agent-teams/engineering-foundation/dist/features/validation-reporting/foundation-error.js";
       import { ProcessCancellationError, ProcessTimeoutError } from "./node_modules/@agent-teams/engineering-foundation/dist/process-execution/api.js";
       import { installedFoundationVersion } from "./node_modules/@agent-teams/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
-      import { installedFoundationVersion as scaffoldVersion } from "./node_modules/@agent-teams/engineering-foundation/dist/scaffolding/adapters/node/installed-foundation-version.js";
+      import { scaffoldAuthorityDependencies } from "./node_modules/@agent-teams/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
       import { computeFoundationBuildIdentity, installedFoundationBuildIdentity } from "./node_modules/@agent-teams/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-build-identity.js";
       assert.equal(FoundationError, ReportError);
       assert.equal(localMode.FoundationLocalModeService, FoundationLocalModeService);
@@ -492,7 +492,8 @@ test("installed lifecycle, reporting and coordination retain identities and rela
       assert.equal(failure.name, "FoundationError");
       assert.equal(failure.code, "CONFIG_INVALID");
       assert.equal(await installedFoundationVersion(), "6.7.8-installed.2");
-      assert.equal(await scaffoldVersion(), "6.7.8-installed.2");
+      assert.equal(scaffoldAuthorityDependencies.installedVersion, installedFoundationVersion);
+      assert.equal(await scaffoldAuthorityDependencies.installedVersion(), "6.7.8-installed.2");
       assert.equal(await installedFoundationBuildIdentity(), await computeFoundationBuildIdentity(${JSON.stringify(installed)}));
       const adapter = new URL("./node_modules/@agent-teams/engineering-foundation/dist/process-execution/windows-managed-process.js", import.meta.url);
       const source = await readFile(adapter, "utf8");

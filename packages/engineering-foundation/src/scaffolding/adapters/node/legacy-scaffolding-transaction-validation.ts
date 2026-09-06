@@ -6,7 +6,7 @@ import type {
   JsonValue
 } from "../../application/model/scaffold-values.js";
 import { assertAuthorityScaffoldJournal } from "../inbound/assert-authority-scaffold-journal.js";
-import { legacyFoundationEnvelopeSha256Json } from "../../../transaction-coordination/adapters/node/legacy-document-envelope-v2.js";
+import type { ScaffoldLegacyDigests } from "../../application/ports/transaction-observation.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -30,13 +30,13 @@ function normalizeLegacyScaffoldingValue(value: unknown): unknown {
   return value;
 }
 
-export function assertLegacyScaffoldingJournal(journal: Record<string, unknown>): void {
+export function assertLegacyScaffoldingJournal(journal: Record<string, unknown>, digests: ScaffoldLegacyDigests): void {
   const plan = journal["plan"];
   if (!isRecord(plan)) {
     throw new Error("Legacy scaffolding Plan binding is invalid.");
   }
   const { planDigest, ...body } = plan;
-  if (planDigest !== legacyFoundationEnvelopeSha256Json(body)) {
+  if (planDigest !== digests.journalPlanDigest(body)) {
     throw new Error("Legacy scaffolding Plan digest is invalid.");
   }
   const normalized = normalizeLegacyScaffoldingValue(journal) as AuthorityScaffoldJournal;

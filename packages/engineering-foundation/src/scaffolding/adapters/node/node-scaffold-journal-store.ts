@@ -1,3 +1,4 @@
+import type { ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
 import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
 import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 import { join } from "node:path";
@@ -13,7 +14,7 @@ import {
   FOUNDATION_TRANSACTION_FILE,
   FOUNDATION_TRANSACTION_TEMPORARY_FILE,
   LOCAL_STATE_DIRECTORY
-} from "../../../transaction-coordination/application/model/foundation-transaction-identity.js";
+} from "../../application/policies/transaction-identity.js";
 import type {
   AuthorityScaffoldJournal
 } from "../../contract/types.js";
@@ -183,6 +184,7 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
   public constructor(
     consumerRoot: string,
     assertSchema: ScaffoldSchemaValidator,
+    observeArtifacts: ScaffoldTransactionArtifacts,
     operations: NodeScaffoldJournalStoreOperations = {}
   ) {
     const parent = join(consumerRoot, LOCAL_STATE_DIRECTORY);
@@ -190,8 +192,8 @@ export class NodeScaffoldJournalStore implements ScaffoldJournalStore {
     this.#store = new NodeJournalSlotStore<AuthorityScaffoldJournal>({
       canonicalPath: join(parent, FOUNDATION_TRANSACTION_FILE),
       codec: {
-        parse: (bytes) => parseScaffoldJournal(bytes, assertSchema),
-        serialize: (journal) => serializeScaffoldJournal(journal, assertSchema)
+        parse: (bytes) => parseScaffoldJournal(bytes, assertSchema, observeArtifacts),
+        serialize: (journal) => serializeScaffoldJournal(journal, assertSchema, observeArtifacts)
       },
       failure: scaffoldJournalFailure,
       ...(faultInjector === undefined

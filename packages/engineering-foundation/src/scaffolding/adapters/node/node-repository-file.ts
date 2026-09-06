@@ -6,8 +6,8 @@ import type {
 } from "../../application/model/scaffold-compilation.js";
 import { sha256Bytes } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { pathTraversesSymbolicLink } from "../../../source-inventory/node.js";
-import { assertRepositoryRelativePath } from "../../../source-inventory/api.js";
+import type { ScaffoldAuthorityObservation } from "../../application/ports/authority-observation.js";
+import { assertScaffoldAuthorityPath } from "../../application/policies/authority-path.js";
 import { readBoundedRegularFile } from "./filesystem-file-identity.js";
 
 const MAX_INPUT_BYTES = 1024 * 1024;
@@ -43,13 +43,14 @@ export async function readContainedRepositoryFile(
   consumerRoot: string,
   repositoryPath: string,
   phase: string,
+  observation: ScaffoldAuthorityObservation,
   maxBytes = MAX_INPUT_BYTES
 ): Promise<LoadedRepositoryFile> {
   try {
-    assertRepositoryRelativePath(repositoryPath, phase);
+    assertScaffoldAuthorityPath(repositoryPath, phase);
     const canonicalRoot = await realpath(consumerRoot);
     const candidate = resolve(canonicalRoot, repositoryPath);
-    if (await pathTraversesSymbolicLink(canonicalRoot, candidate)) {
+    if (await observation.pathTraversesSymbolicLink(canonicalRoot, candidate)) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",
         `Scaffolding input cannot traverse a symbolic link: ${repositoryPath}.`
@@ -72,7 +73,7 @@ export async function readContainedRepositoryFile(
     if (
       result.outcome === "changed" ||
       (await realpath(candidate)) !== canonicalCandidate ||
-      (await pathTraversesSymbolicLink(canonicalRoot, candidate))
+      (await observation.pathTraversesSymbolicLink(canonicalRoot, candidate))
     ) {
       throw new ScaffoldError(
         "SCAFFOLD_INPUT_INVALID",

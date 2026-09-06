@@ -2,7 +2,7 @@ import {
   inspectCurrentScaffoldingRecord,
   inspectLegacyScaffoldingEnvelope,
   inspectLegacyScaffoldingJournal
-} from "../scaffolding/adapters/node/scaffold-transaction-status.js";
+} from "../scaffolding/composition/node-scaffolding.js";
 import { inspectDocumentTransactionStatus } from "../transaction-coordination/adapters/node/document-transaction-status.js";
 import { inspectLegacyDocumentTransaction } from "../transaction-coordination/adapters/node/legacy-document-transaction-status.js";
 import { assertSchema } from "../schema-catalog.js";

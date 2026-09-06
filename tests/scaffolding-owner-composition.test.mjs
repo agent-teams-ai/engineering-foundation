@@ -13,7 +13,7 @@ test("scaffolding registry and public boundaries have one owner and adapters do 
   assert.deepEqual(report.problems.filter(({ code }) => ["input-error", "source-policy"].includes(code)), []);
   assert.deepEqual(report.problems.filter(({ code, message }) =>
     code === "boundary-ownership" && /foundation\.scaffolding\.(canonical-composition|parameters)/u.test(message) ||
-    code === "layer-direction" && /scaffolding\/adapters\/.* -> .*scaffolding\/composition\//u.test(message) ||
+    code === "layer-direction" && message.startsWith("packages/engineering-foundation/src/scaffolding/") ||
     code === "layer-direction" && message.startsWith("packages/engineering-foundation/src/scaffolding/index.ts ->") ||
     code === "assembly-behavior" && message.startsWith("packages/engineering-foundation/src/composition/scaffold-filesystem.ts:")
   ), []);
@@ -116,4 +116,92 @@ test("scaffolding release preserves ordinary evidence retention and single-error
     return { async release() { throw release; } };
   } });
   await assert.rejects(failing.releaseAfterInspection(async () => false), (error) => error === release);
+});
+
+test("authority observation ports retain exact arguments, rechecks and opaque failure causes", async () => {
+  const { mkdtemp, writeFile, rm, realpath } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os"), { join } = await import("node:path");
+  const { readContainedRepositoryFile } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/node-repository-file.js");
+  const { scaffoldAuthorityObservation } = await import("../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js");
+  const root = await mkdtemp(join(tmpdir(), "scaffold-observation-port-"));
+  try {
+    await writeFile(join(root, "input.yaml"), "value: true\n");
+    const calls = [], canonical = await realpath(root);
+    const observation = { ...scaffoldAuthorityObservation, async pathTraversesSymbolicLink(...args) { calls.push(args); return false; } };
+    const file = await readContainedRepositoryFile(root, "input.yaml", "port-probe", observation);
+    assert.equal(file.source, "value: true\n");
+    assert.deepEqual(calls, [[canonical, join(canonical, "input.yaml")], [canonical, join(canonical, "input.yaml")]]);
+    for (const cause of [Symbol("opaque"), Object.freeze({ code: "ENOENT" }), new DOMException("cancelled", "AbortError")]) {
+      await assert.rejects(readContainedRepositoryFile(root, "input.yaml", "port-probe", {
+        ...observation, async pathTraversesSymbolicLink() { throw cause; }
+      }), (error) => error instanceof ScaffoldError && error.cause === cause);
+    }
+    await assert.rejects(readContainedRepositoryFile(root, "input.yaml", "port-probe", {
+      ...observation, async pathTraversesSymbolicLink() { return calls.length++ > 2; }
+    }), /changed while it was being read/u);
+    await assert.rejects(readContainedRepositoryFile(root, "../escape", "port-probe", {
+      ...observation, async pathTraversesSymbolicLink() { assert.fail("invalid path must precede observation"); }
+    }), /Cannot read scaffolding input/u);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("YAML observation preserves unknown thrown identity before schema validation", async () => {
+  const { cp, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os"), { join } = await import("node:path");
+  const { loadAuthorityScaffoldCompilationInputFromFile } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/node-authority-input-loader.js");
+  const { scaffoldAuthorityObservation } = await import("../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js");
+  const root = await mkdtemp(join(tmpdir(), "scaffold-yaml-port-"));
+  try {
+    await cp(new URL("./fixtures/scaffolding-authority-consumer/", import.meta.url), root, { recursive: true });
+    for (const failure of [Symbol("opaque parser"), new DOMException("cancelled", "AbortError")]) {
+      const calls = [];
+      await assert.rejects(loadAuthorityScaffoldCompilationInputFromFile({
+        consumerRoot: root, configPath: "architecture/foundation/scaffolding.yaml", intentPath: "intents/create-fixture.yaml", foundationVersion: "1.0.0"
+      }, async () => assert.fail("parser failure must precede schema"), {
+        ...scaffoldAuthorityObservation, parseYaml(source, phase) { calls.push([source, phase]); throw failure; }
+      }), (error) => error === failure);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0][1], "scaffold-intent");
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("legacy digest observation keeps schema precedence and unknown error identity", async () => {
+  const { inspectLegacyScaffoldingEnvelope } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/scaffold-transaction-status.js");
+  const calls = [], value = {}, failure = Symbol("digest failure");
+  await assert.rejects(inspectLegacyScaffoldingEnvelope(value, async (...args) => { calls.push(args); }, {
+    assertEnvelopeDigests(input) { assert.equal(input, value); throw failure; },
+    journalPlanDigest() { assert.fail("envelope digest failure precedes journal validation"); }
+  }), (error) => error === failure);
+  assert.deepEqual(calls, [["foundation-transaction-envelope/v2", value, "foundation-transaction-slot"]]);
+});
+
+test("artifact ports preserve validation precedence, exact build binding and opaque rejection", async () => {
+  const { cp, mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os"), { join } = await import("node:path");
+  const { planScaffoldFromFile } = await import("../packages/engineering-foundation/dist/scaffolding/index.js");
+  const { freshAuthorityScaffoldJournal } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js");
+  const { compileFoundationScaffoldEnvelope, parseFoundationScaffoldEnvelope } = await import("../packages/engineering-foundation/dist/scaffolding/adapters/node/foundation-scaffold-envelope.js");
+  const { scaffoldTransactionArtifacts } = await import("../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js");
+  const root = await mkdtemp(join(tmpdir(), "scaffold-artifact-port-"));
+  try {
+    await cp(new URL("./fixtures/scaffolding-authority-consumer/", import.meta.url), root, { recursive: true });
+    const journal = freshAuthorityScaffoldJournal(await planScaffoldFromFile({ consumerRoot: root, intentPath: "intents/create-fixture.yaml" }));
+    const artifacts = await scaffoldTransactionArtifacts(), calls = [];
+    const observe = async () => { calls.push("artifacts"); return artifacts; };
+    const envelope = await compileFoundationScaffoldEnvelope(journal, observe);
+    assert.deepEqual(calls, ["artifacts"]);
+    assert.deepEqual(envelope.ownerArtifact, artifacts.owner);
+    assert.deepEqual(envelope.kernelArtifact, artifacts.kernel);
+    const { canonicalJson } = await import("../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js");
+    const bytes = Buffer.from(canonicalJson(envelope));
+    assert.deepEqual((await parseFoundationScaffoldEnvelope(bytes, observe)).journal, journal);
+    await assert.rejects(parseFoundationScaffoldEnvelope(bytes, async () => ({ ...artifacts, owner: { ...artifacts.owner, buildIdentity: `sha256:${"0".repeat(64)}` } })), /artifact/u);
+    await assert.rejects(parseFoundationScaffoldEnvelope(Buffer.from("{bad"), async () => assert.fail("strict envelope parse precedes artifact observation")));
+    for (const failure of [Symbol("opaque artifact"), new DOMException("cancelled", "AbortError")]) {
+      const reject = async () => { throw failure; };
+      await assert.rejects(compileFoundationScaffoldEnvelope(journal, reject), (error) => error === failure);
+      await assert.rejects(parseFoundationScaffoldEnvelope(bytes, reject), (error) => error === failure);
+    }
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

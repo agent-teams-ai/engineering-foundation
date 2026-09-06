@@ -1838,17 +1838,14 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-file-identity.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-operation-state.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-path-guard.ts
-      - packages/engineering-foundation/src/scaffolding/adapters/node/installed-foundation-version.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-repository-file.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-limits.ts
     allow:
       boundaries:
+        - foundation.scaffolding.observation
         - foundation.core
-        - foundation.package-identity
         - foundation.scaffolding.core
         - foundation.scaffolding.legacy-path-policy
-        - foundation.source-inventory.composition
-        - foundation.source-inventory.application
       packages:
         - "@agent-teams/repository-mutation"
       builtins:
@@ -1860,7 +1857,6 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-file-identity.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-operation-state.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/filesystem-path-guard.ts
-      - packages/engineering-foundation/src/scaffolding/adapters/node/installed-foundation-version.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-repository-file.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-limits.ts
   - id: foundation.scaffolding.canonical-adapters
@@ -1870,6 +1866,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-catalog.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-journal-store.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-filesystem-dependencies.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-authority-dependencies.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-selection.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/create-scaffolding-api.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/scaffolding-cli-command.ts
@@ -1895,17 +1892,13 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.ts
     allow:
       boundaries:
+        - foundation.scaffolding.observation
         - foundation.scaffolding.transactions
         - foundation.core
         - foundation.local-mode
         - foundation.scaffolding.canonical-kernel
         - foundation.scaffolding.core
         - foundation.scaffolding.shared-adapters
-        - foundation.transaction-coordination.adapters
-        - foundation.transaction-coordination.application
-        - foundation.configuration-input.adapters
-        - foundation.source-inventory.composition
-        - foundation.source-inventory.application
       packages:
         - "@agent-teams/repository-mutation"
       builtins:
@@ -1920,6 +1913,7 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-catalog.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-journal-store.ts
       - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-filesystem-dependencies.ts
+      - packages/engineering-foundation/src/scaffolding/adapters/node/scaffold-authority-dependencies.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/map-authority-selection.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/create-scaffolding-api.ts
       - packages/engineering-foundation/src/scaffolding/adapters/inbound/scaffolding-cli-command.ts
@@ -3506,6 +3500,11 @@ boundaries:
       - packages/engineering-foundation/src/scaffolding/composition/scaffold-transactions.ts
     allow:
       boundaries:
+        - foundation.scaffolding.observation
+        - foundation.source-inventory.composition
+        - foundation.configuration-input.adapters
+        - foundation.transaction-coordination.adapters
+        - foundation.package-identity
         - foundation.scaffolding.canonical-adapters
         - foundation.scaffolding.transactions
         - foundation.scaffolding.core
@@ -3558,3 +3557,22 @@ boundaries:
         - node:test
       runtimeReferences: []
     entrypoints: []
+  - id: foundation.scaffolding.observation
+    roots:
+      - packages/engineering-foundation/src/scaffolding/application/ports/authority-observation.ts
+      - packages/engineering-foundation/src/scaffolding/application/ports/transaction-observation.ts
+      - packages/engineering-foundation/src/scaffolding/application/policies/authority-path.ts
+      - packages/engineering-foundation/src/scaffolding/application/policies/transaction-identity.ts
+    allow:
+      boundaries:
+        - foundation.source-inventory.application
+        - foundation.transaction-coordination.application
+      packages:
+        - "@agent-teams/repository-mutation"
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/scaffolding/application/ports/authority-observation.ts
+      - packages/engineering-foundation/src/scaffolding/application/ports/transaction-observation.ts
+      - packages/engineering-foundation/src/scaffolding/application/policies/authority-path.ts
+      - packages/engineering-foundation/src/scaffolding/application/policies/transaction-identity.ts

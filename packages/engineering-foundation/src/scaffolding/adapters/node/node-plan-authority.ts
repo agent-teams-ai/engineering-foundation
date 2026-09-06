@@ -3,9 +3,8 @@ import type {
   AuthorityScaffoldPlan,
   ScaffoldAuthorityAssessment
 } from "../../application/model/scaffold-compilation.js";
-import type { ScaffoldDefinitionRegistry } from "../../kernel/definition-registry.js";
 import { compileAuthorityScaffoldPlan } from "../../kernel/authority-compiler.js";
-import { installedFoundationVersion } from "./installed-foundation-version.js";
+import type { ScaffoldAuthorityDependencies } from "./scaffold-authority-dependencies.js";
 import { ScaffoldAuthorityStaleError } from "./node-authority-error.js";
 import {
   loadAuthorityScaffoldCompilationInputFromIntent,
@@ -16,21 +15,21 @@ async function assertPlanMatchesConsumerAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
   assertSchema: ScaffoldSchemaValidator,
-  createRegistry: () => ScaffoldDefinitionRegistry,
+  dependencies: ScaffoldAuthorityDependencies,
   authorityFaultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<void> {
   const input = await loadAuthorityScaffoldCompilationInputFromIntent({
     consumerRoot,
     configPath: plan.authority.configPath,
-    foundationVersion: await installedFoundationVersion(),
+    foundationVersion: await dependencies.installedVersion(),
     intent: plan.intent,
     ...(authorityFaultInjector === undefined
       ? {}
       : { faultInjector: authorityFaultInjector })
-  }, assertSchema);
+  }, assertSchema, dependencies.observation);
   const expected = compileAuthorityScaffoldPlan(
     input,
-    createRegistry()
+    dependencies.createRegistry()
   );
   if (expected.planDigest !== plan.planDigest) {
     throw new ScaffoldAuthorityStaleError(
@@ -47,7 +46,7 @@ export async function assessScaffoldPlanAuthority(
   consumerRoot: string,
   plan: AuthorityScaffoldPlan,
   assertSchema: ScaffoldSchemaValidator,
-  createRegistry: () => ScaffoldDefinitionRegistry,
+  dependencies: ScaffoldAuthorityDependencies,
   faultInjector?: ScaffoldAuthorityInputFaultInjector
 ): Promise<ScaffoldAuthorityAssessment> {
   try {
@@ -55,7 +54,7 @@ export async function assessScaffoldPlanAuthority(
       consumerRoot,
       plan,
       assertSchema,
-      createRegistry,
+      dependencies,
       faultInjector
     );
     return { state: "current" };

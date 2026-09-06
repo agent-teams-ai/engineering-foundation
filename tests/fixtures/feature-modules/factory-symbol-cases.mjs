@@ -91,7 +91,7 @@ for (const kind of ['default-interface-expression', 'default-import-type-express
 
  }
 
- specs.push(...directQueryCases(feature), ...queryScopeCases(feature));
+ specs.push(...directQueryCases(feature), ...queryScopeCases(feature), ...lexicalErasureCases(feature, factorySource));
  return specs;
 }
 
@@ -151,4 +151,101 @@ const cases = [
   consumer:'import type {expose as F} from "@fixture/other";'+body+'export function execute(){return "domain";}',
   extra:{[domain]:'export function safe(){return "domain";} export interface Safe {value:string}',
    [adapter]:'import type {Safe} from "../domain/index.js";export type expose=Safe;export function expose():"adapter"{return "adapter";}export function read(){return "adapter";}'}}));
+}
+
+// F1-F4 closure: compiler-qualified source pairs, exercised through the complete
+// validator and all four source/observation orders by the cross-module harness.
+export function lexicalErasureCases(feature, factorySource) {
+ const domain=feature+'/domain/index.ts', adapter=feature+'/adapters/index.ts', specs=[];
+ function query(name, body, queried, inverse=false, mixed=false) {
+  const role=queried?'adapters':'domain';
+  specs.push({name:`lexical erasure ${name}`,safe:!queried,codes:['layer-direction'],
+   expected:mixed?[{path:adapter,role:'adapters'},{path:domain,role:'domain'}]:[{path:queried?adapter:domain,role}],
+   boundaryEdges:[['other-adapters','other-domain']],code:'export const marker=0;',
+   surface:'export {expose} from "./features/storage/adapters/index.js";',
+   consumer:'import type {expose as F} from "@fixture/other";'+body+'export function execute(){return "domain";}',
+   extra:{[domain]:'export function safe(){return "domain";} export interface Safe {value:string}',
+    [adapter]:inverse?'export {safe as expose} from "../domain/index.js"; export interface expose {value:string} export function read(){return "adapter";}'
+     :'import type {Safe} from "../domain/index.js"; export type expose=Safe; export function expose():"adapter"{return "adapter";} export function read(){return "adapter";}'}});
+ }
+ for(const emitted of [false,true]) {
+  query(`namespace value ${emitted}`,'namespace Scope {namespace F {'+(emitted?'export const data=1;':'export interface Data {value:string}')+'} type View=typeof F; '+(emitted?'const value:View=F;':'const value:View=()=>"adapter";')+'}',!emitted);
+ }
+ query('import equals value','namespace Source {export function local(){return "local" as const;}} namespace Scope {import F=Source.local; type View=typeof F; const value:View=()=>"local";}',false);
+ query('import equals namespace alias chain','namespace Source {export function local(){return "local" as const;}} namespace Scope {import S=Source; import T=S; import F=T.local; type View=typeof F; const value:View=()=>"local";}',false);
+ query('import equals erased alias chain','namespace Source {export namespace Erased {export interface Data {value:string}}} namespace Scope {import S=Source; import T=S; import F=T.Erased; type View=typeof F; const value:View=()=>"adapter";}',true);
+ query('import equals private no leak','namespace Source {export function local(){return "local" as const;}} namespace Scope {import F=Source.local; export const marker=0;} namespace Scope {type View=typeof F; const value:View=()=>"adapter";}',true);
+ for(const first of [false,true]) {
+  for(const exported of [false,true]) {
+   const declaration='namespace Scope {'+(exported?'export ':'')+'const F=()=>"local" as const; export const marker=0;}', use='namespace Scope {type View=typeof F; const value:View=()=>"'+(exported?'local':'adapter')+'";}';
+   query(`reopened ${exported} ${first}`,first?declaration+use:use+declaration,!exported);
+  }
+ }
+ for(const exported of [false,true]) {
+  query(`nested reopened ${exported}`,'namespace Root {'+(exported?'export ':'')+'namespace Scope {export const F=()=>"local" as const;}} namespace Root {'+(exported?'export ':'')+'namespace Scope {type View=typeof F; const value:View=()=>"'+(exported?'local':'adapter')+'";}}',!exported);
+ }
+ query('dotted reopened','namespace Root.Scope {export const F=()=>"local" as const;} namespace Root {export namespace Scope {type View=typeof F; const value:View=()=>"local";}}',false);
+ query('reopened exported alias','namespace Source {export function local(){return "local" as const;}} namespace Scope {export import F=Source.local;} namespace Scope {type View=typeof F; const value:View=()=>"local";}',false);
+ const value='type View=typeof F; const value:View=()=>"domain";';
+ query('inverse query control',value,false,true);
+ for(const [name,body] of [
+  ['generic function','function identity<F>(value:F):F{return value;}'],
+  ['generic type alias','type Identity<F>={value:F};'],
+  ['generic interface','interface Identity<F>{value:F}'],
+  ['generic class','class Identity<F>{value?:F;}'],
+  ['generic method','class Identity {identity<F>(value:F):F{return value;}}'],
+  ['block interface','{interface F {local:string} const value:F={local:"yes"};}'],
+  ['block type alias','{type F=string; const value:F="local";}'],
+  ['mapped parameter','type Identity<T>={[F in keyof T]:F};'],
+  ['infer parameter','type Identity<T>=T extends infer F?F:never;'],
+  ['reopened type export','namespace Scope {export interface F{local:string}} namespace Scope {const value:F={local:"yes"};}']
+ ]) {query(name,value+body,false,true);}
+ query('type shadow no leak',value+'{interface F {local:string} const value:F={local:"yes"};} const external:F={value:"adapter"};',true,true,true);
+ query('generic shadow no leak',value+'function identity<F>(value:F):F{return value;} const external:F={value:"adapter"};',true,true,true);
+ query('reopened private type no leak',value+'namespace Scope {interface F{local:string} export const marker=0;} namespace Scope {const external:F={value:"adapter"};}',true,true,true);
+ query('type parameter does not hide value','function identity<F>(value:F):F {type View=typeof F; const fn:View=()=>"adapter"; return value;}',true);
+ query('namespace cannot hide simple type',value+'namespace Scope {namespace F {export const data=1} const external:F={value:"adapter"};}',true,true,true);
+ query('erased namespace cannot hide simple type',value+'namespace Scope {namespace F {export interface Data {value:string}} const external:F={value:"adapter"};}',true,true,true);
+ query('import equals erased namespace','namespace Source {export namespace Erased {export interface Data {value:string}}} namespace Scope {import F=Source.Erased; type View=typeof F; const value:View=()=>"adapter";}',true);
+ query('import equals interface','namespace Source {export interface Data {value:string}} namespace Scope {import F=Source.Data; type View=typeof F; const value:View=()=>"adapter";}',true);
+ query('import equals function cannot hide type',value+'namespace Source {export function local(){}} namespace Scope {import F=Source.local; const external:F={value:"adapter"};}',true,true,true);
+ query('import equals class value','namespace Source {export class Local {value="local";}} namespace Scope {import F=Source.Local; type View=typeof F; const value:View=Source.Local;}',false);
+ query('import equals class type',value+'namespace Source {export class Local {local="local";}} namespace Scope {import F=Source.Local; const value:F={local:"yes"};}',false,true);
+ query('mapped constraint outside key scope',value+'type Identity={[F in keyof F]:F};',true,true,true);
+ query('infer false branch no leak',value+'type Identity<T>=T extends infer F?F:F;',true,true,true);
+ query('nested infer no leak',value+'type Identity<T>=T extends (T extends infer F?F:never)?F:never;',true,true,true);
+ const relay=feature+'/composition/lexical-relay.ts', leaf=feature+'/composition/lexical-leaf.ts';
+ for(const kind of ['namespace','const-enum','runtime-namespace','runtime-enum']) {
+  for(const route of ['local','import','reexport']) {
+   for(const safe of [false,true]) {
+    const emitted=kind.startsWith('runtime'), declaration=kind.includes('namespace')
+     ?'namespace expose {'+(emitted?'export const data=1;':'export interface Data {value:string}')+'}'
+     :(emitted?'':'const ')+'enum expose {value=1}';
+    const symbol=declaration+'export {expose};';
+    const edge=route==='local'?symbol:route==='import'?'import {expose as Alias} from "./lexical-leaf.js"; export {Alias as expose};':'export {expose} from "./lexical-leaf.js";';
+    specs.push({name:`lexical erasure star ${kind} ${route} ${safe}`,safe:safe||emitted,internal:[relay,leaf],
+     factory:factorySource.replace('export function createApi','export default function createApi'),
+     code:'import * as ns from "./lexical-relay.js"; import createApi from "../application/factory.js"; import {mutate} from "../adapters/index.js";'+(safe?'':'mutate(ns);')+'export const {execute}=createApi();',
+     extra:{[relay]:edge+'export * from "../application/factory.js";',[leaf]:symbol,
+      [adapter]:'export function read(){return "adapter";} export function mutate(ns:any){if(typeof ns.expose==="function"){ns.expose().execute=read;}}'}});
+   }
+  }
+ }
+ for(const [name,declaration,safe=true] of [
+  ['ambient member variable','namespace expose {export declare const data:number;}'],
+  ['ambient member function','namespace expose {export declare function data():void;}'],
+  ['nested-const-enum','namespace expose {export const enum Data {value=1}}',false],
+  ['nested-erased-namespace','namespace expose {export namespace Data {export interface Value {value:string}}}',false],
+  ['reopened-first','namespace expose {export const data=1;} namespace expose {export interface Data {value:string}}'],
+  ['reopened-last','namespace expose {export interface Data {value:string}} namespace expose {export const data=1;}'],
+  ['exported-value-alias','namespace Source {export function local(){}} namespace expose {export import data=Source.local;}'],
+  ['exported-erased-alias','namespace Source {export interface Local {value:string}} namespace expose {export import data=Source.Local;}']
+ ]) {
+  specs.push({name:`lexical erasure star ${name}`,safe,internal:[relay],
+   factory:factorySource.replace('export function createApi','export default function createApi'),
+   code:'import * as ns from "./lexical-relay.js"; import createApi from "../application/factory.js"; import {mutate} from "../adapters/index.js"; mutate(ns); export const {execute}=createApi();',
+   extra:{[relay]:declaration+'export {expose}; export * from "../application/factory.js";',
+    [adapter]:'export function read(){return "adapter";} export function mutate(ns:any){if(typeof ns.expose==="function"){ns.expose().execute=read;}}'}});
+ }
+ return specs;
 }

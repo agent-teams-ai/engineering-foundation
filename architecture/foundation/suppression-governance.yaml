@@ -21,7 +21,7 @@ waivers:
     decisionRef: ADR-0045
   - id: DOCS-CONSUMER-BOUNDED-JSON-COMPLEXITY
     path: packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-desired-state.ts
-    line: 47
+    line: 54
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers
@@ -40,8 +40,8 @@ waivers:
     expiresOn: 2026-11-21
     decisionRef: ADR-0032
   - id: DOCS-CONSUMER-CLI-ROUTER-COMPLEXITY
-    path: packages/docs-protocol-agent-teams/src/consumer-integration/composition/consumer-integration-cli.ts
-    line: 177
+    path: packages/docs-protocol-agent-teams/src/consumer-integration/adapters/inbound/consumer-integration-cli.ts
+    line: 179
     directive: oxlint-disable-next-line
     rules: [complexity]
     owner: foundation-maintainers

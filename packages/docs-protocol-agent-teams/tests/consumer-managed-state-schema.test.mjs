@@ -15,6 +15,13 @@ import {
   readSchema, receiptFixtures, receiptSubpath, schemaSubpath, sha256
 } from "./consumer-execution-schema-fixtures.mjs";
 
+// Docs Protocol 0.4.1 source 16e19d1ff82ceb049198c2070d45ec9031ab6cef.
+// Published split packages have distinct bytes at some identical schema IDs.
+const historicalBytes = async (specifier) => specifier === oldReceiptSubpath
+  ? readFile(new URL("../../../tests/support/historical-schemas/known-file-transaction-receipt/v1.schema.json", import.meta.url))
+  : readFile(new URL(`./fixtures/historical-execution-schemas/${specifier.split("/").at(-2)}.json`, import.meta.url));
+const historicalSchema = async (specifier) => JSON.parse(await historicalBytes(specifier));
+
 const executionValidators = {
   integration: assertConsumerIntegrationExecutionSchema,
   upgrade: assertConsumerUpgradeExecutionSchema
@@ -153,15 +160,16 @@ test("execution schemas preserve exact historical bytes and reject cross-generat
     [oldReceiptSubpath, "c400abd7cef88a4c987ac4dcbff7ceb8e63913c553440c49624f58279d2f6a61"]
   ];
   for (const [specifier, expectedDigest] of frozen) {
-    assert.equal(sha256(await readFile(new URL(import.meta.resolve(specifier)))), expectedDigest);
+    assert.equal(sha256(await historicalBytes(specifier)), expectedDigest);
   }
   const plan = await readSchema(planSubpath);
+  const historicalPlan = await historicalSchema(planSubpath);
   for (const kind of executionKinds) {
     // Each historical registry closes only over its frozen archive generation.
     const oldAjv = new Ajv2020({ strict: true, allErrors: true });
-    oldAjv.addSchema(plan);
-    oldAjv.addSchema(await readSchema(oldReceiptSubpath));
-    const old = oldAjv.compile(await readSchema(schemaSubpath(kind, false)));
+    oldAjv.addSchema(historicalPlan);
+    oldAjv.addSchema(await historicalSchema(oldReceiptSubpath));
+    const old = oldAjv.compile(await historicalSchema(schemaSubpath(kind, false)));
     assert.equal(old(execution(kind, fixtures.old)), true, JSON.stringify(old.errors));
     assert.equal(old(execution(kind, fixtures.current)), false);
     assert.ok(old.errors.some(({ instancePath, keyword }) => instancePath === "/receipt/protocol" && keyword === "const"));
@@ -188,7 +196,7 @@ test("execution schemas preserve exact historical bytes and reject cross-generat
     }
   }
   for (const [specifier, expectedDigest] of frozen) {
-    assert.equal(sha256(await readFile(new URL(import.meta.resolve(specifier)))), expectedDigest, "rejection preserves historical evidence");
+    assert.equal(sha256(await historicalBytes(specifier)), expectedDigest, "rejection preserves historical evidence");
   }
   assert.deepEqual(await receiptFixtures(), fixtures);
 });

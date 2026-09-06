@@ -91,7 +91,14 @@ test("current and historical Plan schemas keep distinct closed owners", async ()
   const plan = JSON.parse(await readFile(
     join(packageRoot, "schemas/document-plan/v1.schema.json"), "utf8"
   ));
-  assert.equal(plan.$defs.compiler.properties.id.const, "@agent-teams/engineering-foundation");
+  const historical = JSON.parse(await readFile(new URL(
+    "../../../tests/support/historical-schemas/document-plan/v1.schema.json", import.meta.url
+  ), "utf8"));
+  assert.equal(historical.$defs.compiler.properties.id.const, "@agent-teams/engineering-foundation");
+  assert.deepEqual(plan.$defs.compiler.properties.id.enum, [
+    "@agent-teams/document-authoring", "@agent-teams/engineering-foundation"
+  ]);
+  assert.equal(plan.$id, historical.$id);
   const current = JSON.parse(await readFile(
     join(packageRoot, "schemas/document-authoring/document-plan/v1.schema.json"), "utf8"
   ));

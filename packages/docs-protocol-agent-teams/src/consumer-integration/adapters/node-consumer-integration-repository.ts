@@ -147,7 +147,7 @@ function rejectPrototypeKeys(value: unknown, path = "integration profile"): void
   }
 }
 
-function assertGitHubRuntimeIdentity(desired: ConsumerIntegrationDesiredState): void {
+export function assertGitHubRuntimeIdentity(desired: Pick<ConsumerIntegrationDesiredState, "repository">): void {
   const runtimeId = process.env["GITHUB_REPOSITORY_ID"];
   const runtimeName = process.env["GITHUB_REPOSITORY"];
   if (runtimeId !== undefined && runtimeId !== desired.repository.id) {

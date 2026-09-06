@@ -79,3 +79,18 @@ export {
 export {
   createConsumerUpgradeUseCase
 } from "./application/use-cases/upgrade-consumer-integration.js";
+export type { ManagedConsumerOperations } from "./application/ports/managed-consumer-operations.js";
+export type {
+  ConsumerFinalizationOptions, ConsumerRestorationExecution, ConsumerRestorationOptions,
+  ConsumerRestorationProof, ConsumerRestorationPreparation, ConsumerRestorationIntent,
+  RestorableConsumerUpgradeExecution
+} from "./application/model/consumer-restoration.js";
+export type {
+  ConsumerRestorationAuthorityReader, ConsumerRestorationRecorder
+} from "./application/ports/consumer-restoration.js";
+export {
+  assertFullyReplacedReceipt, assertObservedRestorationReceipt, exactRestorationKeys,
+  inverseRestorationPlan, MAXIMUM_RESTORATION_PROOF_BYTES, parseConsumerRestorationPreparation,
+  parseConsumerRestorationProof, requireRestoration, restorationJson
+} from "./application/policies/consumer-restoration-proof.js";
+export { assertConsumerIntegrationDesiredStateV1 } from "./application/policies/consumer-integration-desired-state.js";

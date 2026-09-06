@@ -10,7 +10,8 @@ type SchemaId = "docs-protocol-agent-teams/docs-consumer-integration-execution" 
   "docs-consumer-integration-profile" |
   "docs-consumer-integration-profile-v2" |
   "docs-consumer-integration-profile-v3" |
-  "docs-protocol-agent-teams/docs-consumer-upgrade-execution";
+  "docs-protocol-agent-teams/docs-consumer-upgrade-execution" |
+  "docs-protocol-agent-teams/docs-consumer-restoration-execution";
 
 async function validator(
   id: SchemaId
@@ -19,7 +20,7 @@ async function validator(
   if (existing !== undefined) {return existing;}
   const loading = (async () => {
     const ajv = new Ajv2020({ allErrors: true, strict: true });
-    if (id === "docs-protocol-agent-teams/docs-consumer-integration-execution" || id === "docs-protocol-agent-teams/docs-consumer-upgrade-execution") {
+    if (id === "docs-protocol-agent-teams/docs-consumer-restoration-execution" || id === "docs-protocol-agent-teams/docs-consumer-integration-execution" || id === "docs-protocol-agent-teams/docs-consumer-upgrade-execution") {
       const [plan, mutationReceipt] = await Promise.all([
         readFile(new URL(
           "../../../schemas/docs-consumer-integration-plan/v1.schema.json",
@@ -105,4 +106,8 @@ export async function readManagedPortableProfileV3(value: unknown): Promise<Docs
     throw new TypeError("Managed portable projection requires one closed portable profile v3.");
   }
   return value;
+}
+
+export function assertConsumerRestorationExecutionSchema(value: unknown): Promise<void> {
+  return assertSchema("docs-protocol-agent-teams/docs-consumer-restoration-execution", value);
 }

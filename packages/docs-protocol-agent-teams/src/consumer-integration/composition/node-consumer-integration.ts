@@ -1,3 +1,14 @@
+import { finalizeNodeConsumerRestoration } from "../adapters/node-consumer-restoration-finalization.js";
+import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../adapters/node-consumer-restoration.js";
+import {
+  type ConsumerFinalizationOptions,
+  type ConsumerRestorationOptions,
+  type RestorableConsumerUpgradeExecution,
+  type ConsumerIntegrationExecutionV1,
+  createConsumerIntegrationUseCases,
+  createConsumerUpgradeUseCase,
+  type ConsumerUpgradeExecutionV1
+} from "../application-api.js";
 import { foundationKnownFileTransaction } from "./known-file-transaction.js";
 import { githubCohortAuthorityReader } from "../adapters/github-cohort-authority-reader.js";
 import {
@@ -7,12 +18,10 @@ import {
   packageConsumerAssetCatalogReader
 } from "../adapters/package-consumer-asset-catalog.js";
 import { nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
-import {
-  createConsumerIntegrationUseCases,
-  createConsumerUpgradeUseCase,
-  type ConsumerIntegrationExecutionV1,
-  type ConsumerUpgradeExecutionV1
-} from "../application-api.js";
+
+
+
+
 import { consumerIntegrationPlanningPorts } from "./consumer-integration-planner.js";
 
 export type {
@@ -29,6 +38,7 @@ const useCases = createConsumerIntegrationUseCases({
 const upgrade = createConsumerUpgradeUseCase({
   assets: packageConsumerAssetCatalogReader,
   authority: githubCohortAuthorityReader,
+  restoration: consumerRestorationRecorder(githubCohortAuthorityReader),
   input: nodeConsumerIntegrationInputReader,
   planning: consumerIntegrationPlanningPorts,
   sandbox: nodeConsumerUpgradeSandbox,
@@ -64,19 +74,32 @@ export function recoverConsumerIntegration(options: {
   return useCases.recover(options);
 }
 
-export function upgradeConsumerIntegration(options: {
+export async function upgradeConsumerIntegration(options: {
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
   readonly to: string;
 }): Promise<ConsumerUpgradeExecutionV1> {
-  return upgrade(options);
+  const result = await upgrade(options);
+  if (result.outcome === "prepared" || result.command !== "consumer.upgrade") {throw new TypeError("Explicit preparation is CLI-only.");}
+  return { ...result, command: "consumer.upgrade", outcome: result.outcome };
 }
 
 export function upgradeConsumerIntegrationToGeneration(options: {
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
   readonly targetGeneration: 1 | 2;
+  readonly sourceGeneration?: 1;
+  readonly restorationProofPath?: string;
+  readonly prepare?: boolean;
   readonly to: string;
-}): Promise<ConsumerUpgradeExecutionV1> {
+}): Promise<RestorableConsumerUpgradeExecution> {
   return upgrade(options);
+}
+
+export function restoreConsumerIntegration(options: ConsumerRestorationOptions) {
+  return restoreNodeConsumerIntegration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
+}
+
+export function finalizeConsumerRestoration(options: ConsumerFinalizationOptions) {
+  return finalizeNodeConsumerRestoration(options, { authority: githubCohortAuthorityReader, sandbox: nodeConsumerUpgradeSandbox });
 }

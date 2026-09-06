@@ -309,13 +309,33 @@
             {
               "path": "packages/repository-mutation/src/transaction-coordination/application/repository-mutation-envelope.ts",
               "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-evidence.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-selection.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-restoration-proof.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
             }
           ]
         },
         {
           "path": "packages/repository-mutation/src/strict-json.ts",
           "role": "domain",
-          "decision": "docs/decisions/0050-exact-json-primitive-admission.md",
+          "decision": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
           "consumers": [
             {
               "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts",
@@ -368,6 +388,10 @@
             {
               "path": "packages/repository-mutation/src/transaction-coordination/application/repository-mutation-envelope.ts",
               "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-restoration-proof.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
             }
           ]
         }

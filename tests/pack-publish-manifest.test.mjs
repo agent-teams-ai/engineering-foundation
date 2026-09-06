@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { readQualifiedReleaseArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
@@ -168,3 +170,14 @@ test("release and registry targets invoke the concrete qualified pack gate", asy
     assert.doesNotMatch(script, /stageBuiltMarkdownPublication|createTargetArchive\(/u);
   }
 });
+
+for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authorization"]) {
+  test(`actual release runtime closes archive authorization: ${scenario}`, () => {
+    // Isolate module hooks, subprocess/fetch stubs, and accelerated retry timers.
+    const result = spawnSync(process.execPath, [
+      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), scenario,
+    ], { encoding: "utf8", timeout: 30_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  });
+}

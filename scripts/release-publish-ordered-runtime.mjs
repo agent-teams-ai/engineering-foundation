@@ -381,6 +381,7 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
       inspect: inspectVersion,
       publish: async (artifact, tag) => {
         await readVerifiedArchive(artifact.archivePath, artifact.sha256);
+        assertLiveMainHead(repository, source.commit);
         executeCommand("npm", npmPublishArguments(artifact, tag), { cwd });
       },
       reconcileRelease: reconcileGithubRelease,

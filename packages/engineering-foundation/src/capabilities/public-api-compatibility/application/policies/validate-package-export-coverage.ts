@@ -1,13 +1,15 @@
+import { wildcardExpression } from "./compare-package-artifact-inventory.js";
 import {
   compareCanonicalReferences,
   type PublicApiNonTypeExportKind,
   type PublicApiPackagePolicy
 } from "../model/public-api.js";
 
-interface ObservedPackageExport {
+export interface ObservedPackageExport {
   readonly exportPath: string;
   readonly kind: "typed" | PublicApiNonTypeExportKind;
   readonly declarationEntryPoint?: string;
+  readonly targetPattern?: string;
 }
 
 const DATA_FILE = /\.(?:json|jsonc|toml|ya?ml|txt)$/u;
@@ -133,12 +135,20 @@ function resolveExportTargets(input: {
         `Typed wildcard export ${exportPath} is unsupported; enumerate its concrete subpaths.`
       );
     }
-    if (!strings.some((target) => target.includes("*"))) {
+    const wildcardTargets = [...new Set(strings)];
+    const wildcardTarget = wildcardTargets[0];
+    if (wildcardTargets.length !== 1 || wildcardTarget === undefined || !wildcardTarget.startsWith("./")) {
       throw new PackageExportCoverageError(
-        `Wildcard export ${exportPath} must resolve to a wildcard target.`
+        `Wildcard export ${exportPath} must resolve to exactly one package-relative wildcard target.`
       );
     }
-    return Object.freeze({ exportPath, kind: "wildcard" });
+    wildcardExpression(exportPath.slice(2));
+    wildcardExpression(wildcardTarget.slice(2));
+    return Object.freeze({
+      exportPath,
+      kind: "wildcard",
+      targetPattern: wildcardTarget.slice(2)
+    });
   }
   if (typeCandidates.length > 1) {
     throw new PackageExportCoverageError(
@@ -197,7 +207,7 @@ function packageExportEntries(value: unknown): readonly (readonly [string, unkno
 
 function observedExports(input: {
   readonly manifest: unknown;
-  readonly policy: PublicApiPackagePolicy;
+  readonly policy: Pick<PublicApiPackagePolicy, "packageName" | "packageRoot">;
 }): readonly ObservedPackageExport[] {
   const manifest = record(input.manifest, "package manifest");
   if (!("exports" in manifest)) {
@@ -227,6 +237,13 @@ function observedExports(input: {
     throw new PackageExportCoverageError("package.json exports contains duplicate export paths.");
   }
   return Object.freeze(exports);
+}
+
+export function observedPackageExports(input: {
+  readonly manifest: unknown;
+  readonly policy: Pick<PublicApiPackagePolicy, "packageName" | "packageRoot">;
+}): readonly ObservedPackageExport[] {
+  return observedExports(input);
 }
 
 function mapByPath<T extends { readonly exportPath: string }>(

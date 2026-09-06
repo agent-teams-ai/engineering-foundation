@@ -368,6 +368,18 @@
             {
               "path": "packages/repository-mutation/src/transaction-coordination/application/repository-mutation-envelope.ts",
               "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/artifact-public-api-evidence.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
             }
           ]
         }
@@ -1135,6 +1147,14 @@
             {
               "path": "packages/engineering-foundation/src/transaction-coordination/adapters/node/claimed-artifact-coordinate.ts",
               "owner": "engineering-foundation/transaction-coordination"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
             }
           ]
         }

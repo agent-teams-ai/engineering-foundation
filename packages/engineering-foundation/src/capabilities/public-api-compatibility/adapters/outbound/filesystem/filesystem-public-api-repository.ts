@@ -1,17 +1,8 @@
-import {
-  link,
-  mkdtemp,
-  opendir,
-  realpath,
-  rename,
-  rm,
-  stat,
-  writeFile
-} from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-
-import { assertNotCancelled, publicApiFileFailure, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
-import type { PublicApiFileReader, PublicApiPathInspection, PublicApiRepositoryEvidence } from "../../../application/ports/public-api-evidence.js";
+import { opendir } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { canonicalRoot, readPublicApiEvidenceFile, writePublicApiEvidenceFile } from "./public-api-evidence-files.js";
+import { assertNotCancelled, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
+import type { PublicApiRepositoryEvidence } from "../../../application/ports/public-api-evidence.js";
 import type { PublicApiSchemaAssertion } from "../../schema-validation.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import { publicApiBaselineAnchorPath } from "../../../application/model/public-api.js";
@@ -45,133 +36,11 @@ function inputError(code: string, message: string, phase: string): never {
   publicApiInputError(code, message, phase);
 }
 
-function contained(parent: string, candidate: string): boolean {
-  const relation = relative(parent, candidate);
-  return (
-    relation === "" ||
-    (!isAbsolute(relation) && relation !== ".." && !relation.startsWith(`..${sep}`))
-  );
-}
-
-async function canonicalRoot(consumerRoot: string): Promise<string> {
-  return realpath(consumerRoot).catch(() =>
-    inputError(
-      "CONSUMER_ROOT_UNAVAILABLE",
-      "Consumer root must be an existing accessible directory.",
-      "public-api-evidence"
-    )
-  );
-}
-
-async function safePath(
-  root: string,
-  repositoryPath: string,
-  kind: "directory" | "file",
-  paths: PublicApiPathInspection
-): Promise<string> {
-  const candidate = resolve(root, repositoryPath);
-  if (await paths.traversesSymbolicLink(root, candidate)) {
-    inputError(
-      "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED",
-      `Public API evidence cannot traverse a symbolic link: ${repositoryPath}.`,
-      "public-api-evidence"
-    );
-  }
-  const canonical = await realpath(candidate).catch(() =>
-    inputError(
-      "PUBLIC_API_EVIDENCE_UNAVAILABLE",
-      `Public API evidence is unavailable: ${repositoryPath}.`,
-      "public-api-evidence"
-    )
-  );
-  if (!contained(root, canonical)) {
-    inputError(
-      "PUBLIC_API_EVIDENCE_ESCAPE",
-      `Public API evidence escapes the consumer repository: ${repositoryPath}.`,
-      "public-api-evidence"
-    );
-  }
-  const metadata = await stat(canonical);
-  if (
-    (kind === "file" && (!metadata.isFile() || metadata.size > MAX_INPUT_BYTES)) ||
-    (kind === "directory" && !metadata.isDirectory())
-  ) {
-    inputError(
-      "PUBLIC_API_EVIDENCE_INVALID",
-      `Public API evidence is not a valid ${kind}: ${repositoryPath}.`,
-      "public-api-evidence"
-    );
-  }
-  return canonical;
-}
-
 function record(value: unknown, field: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     inputError("PUBLIC_API_EVIDENCE_INVALID", `${field} must be an object.`, "public-api-evidence");
   }
   return value as Record<string, unknown>;
-}
-
-function publicApiEvidenceReadError(
-  error: unknown,
-  repositoryPath: string,
-  phase: string
-): never {
-  if (publicApiFileFailure(error) !== undefined) {
-    const code =
-      publicApiFileFailure(error) === "symlink"
-        ? "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED"
-        : publicApiFileFailure(error) === "escape"
-          ? "PUBLIC_API_EVIDENCE_ESCAPE"
-          : publicApiFileFailure(error) === "invalid"
-            ? "PUBLIC_API_EVIDENCE_INVALID"
-            : "PUBLIC_API_EVIDENCE_UNAVAILABLE";
-    inputError(code, `Public API evidence is unavailable or changed: ${repositoryPath}.`, phase);
-  }
-  throw error;
-}
-
-async function readPublicApiEvidenceFile(input: {
-  readonly allowMissing: true;
-  readonly maxBytes: number;
-  readonly repositoryPath: string;
-  readonly root: string;
-  readonly phase: string;
-}, files: PublicApiFileReader): Promise<Buffer | undefined>;
-async function readPublicApiEvidenceFile(input: {
-  readonly allowMissing?: false;
-  readonly maxBytes: number;
-  readonly repositoryPath: string;
-  readonly root: string;
-  readonly phase: string;
-}, files: PublicApiFileReader): Promise<Buffer>;
-async function readPublicApiEvidenceFile(input: {
-  readonly allowMissing?: boolean;
-  readonly maxBytes: number;
-  readonly repositoryPath: string;
-  readonly root: string;
-  readonly phase: string;
-}, files: PublicApiFileReader): Promise<Buffer | undefined> {
-  try {
-    const bytes = await files.read({
-      candidate: resolve(input.root, input.repositoryPath),
-      maxBytes: input.maxBytes,
-      root: input.root
-    });
-    if (bytes.byteLength > input.maxBytes) {
-      inputError("PUBLIC_API_EVIDENCE_INVALID", `Public API evidence is unavailable or changed: ${input.repositoryPath}.`, input.phase);
-    }
-    return Buffer.from(bytes);
-  } catch (error) {
-    if (
-      input.allowMissing === true &&
-      publicApiFileFailure(error) !== undefined &&
-      publicApiFileFailure(error) === "missing"
-    ) {
-      return undefined;
-    }
-    return publicApiEvidenceReadError(error, input.repositoryPath, input.phase);
-  }
 }
 
 function assertBaselineAnchor(policy: PublicApiPackagePolicy): void {
@@ -417,22 +286,9 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
   ): Promise<void> {
     assertNotCancelled(signal);
     assertBaselineAnchor(policy);
-    const root = await canonicalRoot(consumerRoot);
-    const requestedBaselinePath = resolve(root, policy.releasedBaselinePath);
-    const baselinePath =
-      mode === "replace"
-        ? await safePath(root, policy.releasedBaselinePath, "file", this.#evidence.paths)
-        : join(
-            await safePath(root, dirname(policy.releasedBaselinePath), "directory", this.#evidence.paths),
-            policy.releasedBaselinePath.slice(policy.releasedBaselinePath.lastIndexOf("/") + 1)
-          );
-    if (baselinePath !== requestedBaselinePath) {
-      inputError(
-        "PUBLIC_API_EVIDENCE_ESCAPE",
-        `Public API evidence escapes the consumer repository: ${policy.releasedBaselinePath}.`,
-        "public-api-baseline-promotion"
-      );
-    }
+    await writePublicApiEvidenceFile(consumerRoot, policy.releasedBaselinePath, snapshot, {
+      mode, ...(signal === undefined ? {} : { signal }),
+      validate: async () => {
     if (!baselineMatchesPolicy(snapshot, policy)) {
       inputError(
         "PUBLIC_API_BASELINE_INVALID",
@@ -445,39 +301,7 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
       snapshot,
       "public-api-baseline-promotion"
     );
-    const temporaryDirectory = await mkdtemp(
-      join(dirname(baselinePath), ".public-api-baseline-")
-    );
-    try {
-      const temporaryPath = join(temporaryDirectory, "baseline.json");
-      await writeFile(temporaryPath, `${JSON.stringify(snapshot, null, 2)}\n`, {
-        encoding: "utf8",
-        mode: 0o644
-      });
-      assertNotCancelled(signal);
-      if (mode === "create") {
-        try {
-          await link(temporaryPath, baselinePath);
-        } catch (error) {
-          if (
-            typeof error === "object" &&
-            error !== null &&
-            "code" in error &&
-            String(error.code) === "EEXIST"
-          ) {
-            inputError(
-              "PUBLIC_API_BASELINE_BOOTSTRAP_CONFLICT",
-              `Initial public API baseline appeared concurrently: ${policy.releasedBaselinePath}.`,
-              "public-api-baseline-promotion"
-            );
-          }
-          throw error;
-        }
-      } else {
-        await rename(temporaryPath, baselinePath);
       }
-    } finally {
-      await rm(temporaryDirectory, { recursive: true, force: true });
-    }
+    }, this.#evidence);
   }
 }

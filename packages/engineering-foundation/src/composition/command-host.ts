@@ -1,3 +1,5 @@
+import { readContainedRegularFile } from "../source-inventory/node.js";
+import { AjvJsonSchemaReleaseInspector } from "../capabilities/contract-json-schema-releases/module.js";
 import { createFoundationCommandHost } from "../features/command-host/node.js";
 import { scaffoldingApi } from "./scaffolding-api.js";
 import { FoundationLocalModeService } from "./local-mode-service.js";
@@ -7,6 +9,7 @@ import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js"
 import { RULE_REGISTRY } from "./rule-registry.js";
 
 const host = createFoundationCommandHost({
+  artifactSchemaInspector: new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile }),
   scaffoldingApi, FoundationLocalModeService, inspectFoundationPackage,
   assertSchema, isFoundationSchemaId, readFoundationSchema,
   loadFoundationConfig, runFoundationCheck, RULE_REGISTRY

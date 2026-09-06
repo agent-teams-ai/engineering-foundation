@@ -342,6 +342,8 @@ function compileSchemas(documents: readonly SchemaDocument[]): Ajv2020 {
   const ajv = new Ajv2020({
     allErrors: true,
     strict: true,
+    // Open prefix tuples are valid Draft 2020-12, including released scaffold receipts.
+    strictTuples: false,
     validateFormats: true
   });
   addFormats.default(ajv);

@@ -19,3 +19,4 @@ tests/fixtures/source-dependencies/** text eol=lf
 tests/fixtures/foundation-historical-transactions/*.json text eol=lf
 tests/fixtures/repository-mutation-known-file/*.json text eol=lf
 packages/engineering-foundation/assets/transaction-coordination/historical/*.json text eol=lf
+packages/document-authoring/tests/fixtures/schema-recovery/*.json text eol=lf

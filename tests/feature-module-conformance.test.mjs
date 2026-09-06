@@ -8,6 +8,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import YAML from "yaml";
 import { validateFeatureModules } from "../scripts/check-feature-modules.mjs";
 import { registerAssemblyFacadeCases } from "./fixtures/feature-modules/assembly-facade-cases.mjs";
@@ -642,7 +643,7 @@ for (const [label, source] of [
   await f.write(f.record.path, source);
   for (const consumer of f.record.consumers) {await f.write(consumer.path, 'import {compare} from "../../../compare.js"; export const execute = () => compare();');}
   await compileFixture(f);
-  const run = spawnSync(process.execPath, ["--input-type=module", "-e", `import {compare} from ${JSON.stringify(join(f.repositoryRoot, f.record.path))}; console.log(JSON.stringify([compare(),compare()]));`], { encoding: "utf8" });
+  const run = spawnSync(process.execPath, ["--input-type=module", "-e", `import {compare} from ${JSON.stringify(pathToFileURL(join(f.repositoryRoot, f.record.path)).href)}; console.log(JSON.stringify([compare(),compare()]));`], { encoding: "utf8" });
   assert.equal(run.status, 0, run.stderr); assert.deepEqual(JSON.parse(run.stdout), [1, 2]);
   await rejects(f, "impure-primitive");
 });}

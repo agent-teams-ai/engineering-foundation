@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const cliPath = fileURLToPath(
@@ -348,9 +348,11 @@ test("node command integration leaves service creation behind parsing and preser
     assert.deepEqual(calls, []);
     assert.equal(createServices(), services);
   });
-  await host.runNodeFoundationCli(environment, "file:///disposable/package/dist/cli.js", args);
-  assert.deepEqual(calls, ["/disposable/package"]);
+  const packageRoot = join(tmpdir(), "disposable", "package");
+  const moduleUrl = pathToFileURL(join(packageRoot, "dist", "cli.js")).href;
+  await host.runNodeFoundationCli(environment, moduleUrl, args);
+  assert.deepEqual(calls, [packageRoot]);
   const sentinel = Symbol("factory failure");
   await assert.rejects(createNodeCommandHost(() => { throw sentinel; }, async create => { create(); })
-    .runNodeFoundationCli(environment, "file:///disposable/package/dist/cli.js", args), error => error === sentinel);
+    .runNodeFoundationCli(environment, moduleUrl, args), error => error === sentinel);
 });

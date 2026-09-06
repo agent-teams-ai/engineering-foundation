@@ -290,7 +290,7 @@ test("wildcard availability uses actual Node resolution for null, conditions, ar
        catch (error) { console.log(error.code); process.exitCode = 2; }`,
     ], { encoding: "utf8" });
     assert.equal(result.status, entry.resolves ? 0 : 2, label + result.stderr);
-    if (entry.resolves) { assert.equal(result.stdout.trim(), await realpath(join(root, "package/schemas/v1.schema.json")), label); }
+    if (entry.resolves) { assert.equal(await realpath(result.stdout.trim()), await realpath(join(root, "package/schemas/v1.schema.json")), label); }
     else { assert.equal(result.stdout.trim(), "ERR_PACKAGE_PATH_NOT_EXPORTED", label); }
     if (entry.accepted) {
       assert.equal(comparePackageArtifactInventory(baseline, await inspect(root), fingerprint).classification, "none", label);

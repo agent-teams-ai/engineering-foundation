@@ -106,7 +106,7 @@ test("actual ast-grep scan rejects all ambient operations in every production pa
   }
   const baseline = run();
   assert.equal(baseline.status, 1, baseline.stderr);
-  const oldPaths = new Set(JSON.parse(baseline.stdout).map((entry) => entry.file));
+  const oldPaths = new Set(JSON.parse(baseline.stdout).map((entry) => entry.file.replaceAll("\\", "/")));
   assert.deepEqual([...oldPaths], ["packages/engineering-foundation/src/index.ts"]);
   for (const name of ruleNames) {
     const path = `architecture/ast-grep/rules/no-ambient-${name}.yml`;
@@ -116,7 +116,7 @@ test("actual ast-grep scan rejects all ambient operations in every production pa
   assert.equal(current.status, 1, current.stderr);
   const diagnostics = JSON.parse(current.stdout);
   for (const { root } of PUBLISHABLE_PACKAGES) {
-    assert.equal(diagnostics.filter((entry) => entry.file === `${root}/src/index.ts`).length, 4);
+    assert.equal(diagnostics.filter((entry) => entry.file.replaceAll("\\", "/") === `${root}/src/index.ts`).length, 4);
   }
 });
 

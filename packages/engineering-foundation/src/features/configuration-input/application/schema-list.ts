@@ -3,7 +3,7 @@ type SchemaContributions = readonly [readonly [string, ...string[]], ...(readonl
 type ConcatenatedSchemaIds<Groups extends readonly (readonly string[])[]> =
   Groups extends readonly [infer Head extends readonly string[], ...infer Tail extends readonly (readonly string[])[]]
     ? readonly [...Head, ...ConcatenatedSchemaIds<Tail>]
-    : readonly [];
+    : Groups extends readonly [] ? readonly [] : readonly Groups[number][number][];
 
 export function createSchemaList<const Groups extends SchemaContributions>(groups: Groups): {
   readonly schemaIds: ConcatenatedSchemaIds<Groups>;

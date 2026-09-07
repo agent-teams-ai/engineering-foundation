@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parse as parseYaml } from "yaml";
 
@@ -16,7 +16,7 @@ const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const pnpmHooks = createRequire(import.meta.url)("../.pnpmfile.cjs").hooks;
 
 test("bootstrap CLI runs before build in a clean source checkout", async (context) => {
-  const temporary = await mkdtemp(join(tmpdir(), "TEST-bootstrap-no-dist-"));
+  const temporary = await mkdtemp(join(tmpdir(), "TEST-bootstrap-no-dist #"));
   context.after(() => rm(temporary, { recursive: true, force: true }));
   await cp(join(repositoryRoot, "scripts"), join(temporary, "scripts"), { recursive: true });
   for (const { root, manifestPath } of PUBLISHABLE_PACKAGE_CATALOG) {
@@ -37,7 +37,7 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
     join(temporary, "deny-external-io.mjs"),
   );
   const run = (args) => spawnSync(process.execPath, [
-    "--import", join(temporary, "deny-external-io.mjs"),
+    "--import", pathToFileURL(join(temporary, "deny-external-io.mjs")).href,
     join(temporary, "scripts/npm-package-bootstrap-cli.mjs"), ...args,
   ], {
     cwd: temporary,

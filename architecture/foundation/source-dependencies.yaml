@@ -464,6 +464,7 @@ boundaries:
         - node:module
         - node:os
         - node:path
+        - node:sqlite
         - node:test
         - node:url
       runtimeReferences: []

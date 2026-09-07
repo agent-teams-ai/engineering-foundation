@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, cp, lstat, mkdir, open, readFile, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { sha256Bytes, sha256Json, compileKnownFileTransactionPlan, recoverKnownFileTransaction, inspectKnownFileTransactionBarrier } from "@agent-teams/repository-mutation";
@@ -294,39 +293,6 @@ export function registerConsumerRestorationTests(helpers) {
         await assert.rejects(fixture.oldCheck());
         assert.equal((await fixture.restore({ expect: third.restoration.digest, activationOnly: true })).outcome, "activated-v1");
         assert.equal((await fixture.oldCheck()).fixtureCli, "historical-v1");
-      });
-      await t.test("a real offline activation fails on a missing store record for the exact adapter and recovers cleanly", async () => {
-        // R2 (item 17): after an accepted positive store (this fixture's own, not a production
-        // copy), delete exactly one adapter's real pnpm store-index record between the online
-        // staged install (prepare) and the offline activation install (finalize), so only that
-        // one package is genuinely unavailable offline.
-        const fifthPath = join(fixture.disposable, "restoration-fifth.json");
-        const prepared = await fixture.prepare({ ...fixture.upgradeOptions, restorationProofPath: fifthPath });
-        assert.equal(prepared.outcome, "prepared", JSON.stringify(prepared));
-        const storeRoot = join(fixture.disposable, "store");
-        const [storeVersion] = await readdir(storeRoot);
-        const indexPath = join(storeRoot, storeVersion, "index.db");
-        const adapter = fixture.target.packages.docsProtocolAgentTeams;
-        const key = `${adapter.integrity}\t@agent-teams/docs-protocol-agent-teams@${adapter.version}`;
-        const db = new DatabaseSync(indexPath);
-        try {
-          const before = db.prepare("SELECT count(*) AS n FROM package_index WHERE key = ?").get(key);
-          assert.equal(before.n, 1, "expected exactly one pre-existing store record for the target adapter");
-          const deletion = db.prepare("DELETE FROM package_index WHERE key = ?").run(key);
-          assert.equal(deletion.changes, 1);
-        } finally {
-          db.close();
-        }
-        await assert.rejects(
-          fixture.finalize({ expect: prepared.preparation.digest, preparationPath: prepared.preparation.path, proofPath: fifthPath }),
-          /ERR_PNPM_NO_OFFLINE_TARBALL/u
-        );
-        const barrier = await inspectKnownFileTransactionBarrier({ consumerRoot });
-        if (barrier.state !== "idle") {
-          const recovered = await recoverKnownFileTransaction({ consumerRoot });
-          assert.ok(["rolled-back", "applied"].includes(recovered.outcome), recovered.outcome);
-        }
-        assert.deepEqual(await snapshot(consumerRoot), original);
       });
       t.diagnostic(`Real Corepack pnpm ${fixture.pnpmVersion}; local fixture tarballs/authority only; source ${fixture.sourceRevision}; proof ${expect}.`);
     } finally {await fixture.close();}

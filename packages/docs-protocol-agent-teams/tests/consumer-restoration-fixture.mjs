@@ -146,7 +146,7 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     }
     await write("package.json", `${JSON.stringify(manifest, null, 2)}\n`);
     await write(".node-version", "24.18.0\n");
-    await write(".gitignore", "node_modules/\n");
+    await write(".gitignore", "node_modules/\n/.agent-teams-local/\n");
     await write("pnpm-workspace.yaml", `packages: []\npackageImportMethod: copy\nminimumReleaseAgeExclude:\n  - "${docsName}@${origin.packages.docsProtocol.version}"\n  - "${foundationName}@${origin.packages.engineeringFoundation.version}"\n`);
     // Real Corepack honors the manifest pin; no test corepack executable or PATH rewrite.
     const pnpmVersion = (await fixtureProcess("corepack", ["pnpm", "--version"], consumerRoot)).trim();

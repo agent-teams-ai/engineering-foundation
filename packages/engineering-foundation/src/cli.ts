@@ -403,6 +403,9 @@ async function runInformationCommand(
     case "help":
     case "--help":
     case "-h": {
+      if (json) {
+        throw new FoundationError("CONSUMER_INVALID", "--json is not accepted by help.");
+      }
       printHelp();
       return true;
     }
@@ -426,6 +429,9 @@ async function runInformationCommand(
     case "version":
     case "--version":
     case "-v": {
+      if (json) {
+        throw new FoundationError("CONSUMER_INVALID", "--json is not accepted by version.");
+      }
       process.stdout.write(`${await installedFoundationVersion()}\n`);
       return true;
     }

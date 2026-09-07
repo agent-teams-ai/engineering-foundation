@@ -132,7 +132,7 @@ export function registerConsumerRestorationTests(helpers) {
         await assert.rejects(fixture.restore({ consumerRoot: alias, expect }));
         await assertUnchanged();
       });
-      await t.test("a differently-cased root alias fails without changing either consumer", async (t) => {
+      await t.test("a differently-cased root alias fails without changing either consumer", async (subtest) => {
         // Case aliasing is filesystem-dependent (default macOS/Windows, not Linux ext4); probe
         // the real filesystem instead of assuming behavior from process.platform.
         const parent = dirname(consumerRoot);
@@ -140,13 +140,13 @@ export function registerConsumerRestorationTests(helpers) {
         const flipped = [...base].map((ch) =>
           ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()).join("");
         if (flipped === base) {
-          t.skip("consumer root name has no case-bearing characters to alias.");
+          subtest.skip("consumer root name has no case-bearing characters to alias.");
           return;
         }
         const real = await lstat(consumerRoot, { bigint: true });
         const aliasStat = await lstat(join(parent, flipped), { bigint: true }).catch(() => null);
         if (aliasStat === null || aliasStat.dev !== real.dev || aliasStat.ino !== real.ino) {
-          t.skip("filesystem does not alias a different-case path to the same consumer root.");
+          subtest.skip("filesystem does not alias a different-case path to the same consumer root.");
           return;
         }
         await assert.rejects(fixture.restore({ consumerRoot: join(parent, flipped), expect }));

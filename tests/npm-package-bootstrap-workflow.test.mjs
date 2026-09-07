@@ -1,16 +1,72 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parse as parseYaml } from "yaml";
 
 import { reconcileGithubTagRelease } from "../scripts/github-release-reconciliation.mjs";
+import { PUBLISHABLE_PACKAGE_CATALOG } from "../scripts/publishable-packages.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const pnpmHooks = createRequire(import.meta.url)("../.pnpmfile.cjs").hooks;
+
+test("bootstrap CLI runs before build in a clean source checkout", async (context) => {
+  const temporary = await mkdtemp(join(tmpdir(), "TEST-bootstrap-no-dist #"));
+  context.after(() => rm(temporary, { recursive: true, force: true }));
+  await cp(join(repositoryRoot, "scripts"), join(temporary, "scripts"), { recursive: true });
+  for (const { root, manifestPath } of PUBLISHABLE_PACKAGE_CATALOG) {
+    await mkdir(join(temporary, root), { recursive: true });
+    await cp(join(repositoryRoot, manifestPath), join(temporary, manifestPath));
+    assert.deepEqual(await readdir(join(temporary, root)), ["package.json"]);
+  }
+  const catalogPath = "architecture/foundation/npm-package-bootstrap.json";
+  const catalog = JSON.parse(await readFile(join(repositoryRoot, catalogPath), "utf8"));
+  // Test-only authority: the real release handler must reject before any fetch or audit.
+  const candidate = catalog.packages[0];
+  candidate.state = "candidate";
+  candidate.approval = null;
+  await mkdir(dirname(join(temporary, catalogPath)), { recursive: true });
+  await writeFile(join(temporary, catalogPath), JSON.stringify(catalog));
+  await cp(
+    join(repositoryRoot, "tests/fixtures/npm-package-bootstrap/scripts/deny-external-io.mjs"),
+    join(temporary, "deny-external-io.mjs"),
+  );
+  const run = (args) => spawnSync(process.execPath, [
+    "--import", pathToFileURL(join(temporary, "deny-external-io.mjs")).href,
+    join(temporary, "scripts/npm-package-bootstrap-cli.mjs"), ...args,
+  ], {
+    cwd: temporary,
+    encoding: "utf8",
+    env: { HOME: temporary, PATH: "", SystemRoot: process.env.SystemRoot ?? "" },
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024,
+  });
+  await context.test("token-window succeeds without generated packages", () => {
+    const result = run([
+      "token-window", "2026-09-07T00:00:00Z", "2026-09-08T00:00:00Z", "2026-09-07T12:00:00Z",
+    ]);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  });
+  await context.test("check-release refuses a candidate before external I/O", () => {
+    const result = run(["check-release"]);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.ok(result.stderr.includes(
+      `Error: npm package bootstrap refused: ${candidate.name} cannot advance beyond ` +
+      `${candidate.bootstrapVersion} before reviewed bootstrap approval.`,
+    ), result.stderr);
+    assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|TEST external I\/O/u);
+  });
+});
 
 test("pnpm packing canonicalizes publish-manifest key order", () => {
   const input = {

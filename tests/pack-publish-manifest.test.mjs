@@ -163,7 +163,12 @@ for (const scenario of ["complete", "archive-member-removed", "files-omits-expor
 test("release and registry targets invoke the concrete qualified pack gate", async () => {
   for (const path of ["release-publish-ordered-runtime.mjs", "registry-install-e2e.mjs"]) {
     const script = await readFile(new URL(`../scripts/${path}`, import.meta.url), "utf8");
-    assert.match(script, /import \{ packPublishableArtifacts \} from "\.\/pack-publishable-artifacts\.mjs"/u);
+    if (path === "release-publish-ordered-runtime.mjs") {
+      assert.match(script, /const \{ packPublishableArtifacts \} = await import\("\.\/pack-publishable-artifacts\.mjs"\)/u);
+      assert.doesNotMatch(script, /import \{ packPublishableArtifacts \} from/u);
+    } else {
+      assert.match(script, /import \{ packPublishableArtifacts \} from "\.\/pack-publishable-artifacts\.mjs"/u);
+    }
     assert.match(script, /const qualified = await packPublishableArtifacts\(\{ temporaryRoot(?:: destination)? \}\)/u);
     assert.match(script, /readQualifiedReleaseArtifact\(qualified\[/u);
     assert.match(script, /await readVerifiedArchive\((?:artifact|target)\.archivePath, (?:artifact|target)\.sha256\)/u);

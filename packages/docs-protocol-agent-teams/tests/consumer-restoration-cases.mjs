@@ -9,7 +9,8 @@ import { sha256Bytes, sha256Json, compileKnownFileTransactionPlan, recoverKnownF
 import { acquireMutationLease, releaseMutationLease } from "@agent-teams/repository-mutation/node";
 import { packageRoot } from "./consumer-upgrade-e2e-fixtures.mjs";
 import { managedRestorationFixture, fixtureProcess } from "./consumer-restoration-fixture.mjs";
-import { resealRestorationProof } from "./consumer-restoration-cli-fixture.mjs";
+import { retrievalTree, retrievalStoreCopy, withRetrievalEnvironment } from "./consumer-restoration-retrieval-fixture.mjs";
+import { restorationArgs, restorationCli, assertCliSuccess, resealRestorationProof } from "./consumer-restoration-cli-fixture.mjs";
 import { restorationJson } from "../dist/consumer-integration/application/policies/consumer-restoration-proof.js";
 import { assertRestorationAuthority } from "../dist/consumer-integration/adapters/node-consumer-restoration.js";
 import { GitHubCohortAuthorityReader, projectQualifiedCohortAuthority } from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
@@ -85,7 +86,116 @@ await restoreNodeConsumerIntegration(${JSON.stringify({ ...fixture.restoreOption
   });
 }
 
+const absent = async (path) => assert.rejects(readFile(path), { code: "ENOENT" });
+
+function assertNativeMissing(result, fixture) {
+  assert.notEqual(result.code, 0, JSON.stringify(result));
+  assert.equal(result.signal, null);
+  assert.notEqual(result.execution?.outcome, "upgraded");
+  assert.notEqual(result.execution?.outcome, "prepared");
+  const message = result.execution.issues[0].message;
+  assert.match(message, /ERR_PNPM_NO_OFFLINE_TARBALL/u);
+  assert.ok(message.includes(`/@agent-teams/docs-protocol-agent-teams/-/docs-protocol-agent-teams-${fixture.target.packages.docsProtocolAgentTeams.version}.tgz`), message);
+  assert.doesNotMatch(result.stderr, /real target activation passed/u);
+}
+
 export function registerConsumerRestorationTests(helpers) {
+  // Supporting native-source evidence only; published R2 still requires root's accepted full store.
+  for (const phase of ["before-prepare", "late-finalize"]) {
+    test(`native retrieval ${phase}: exact missing adapter row`, async (t) => {
+      const fixture = await managedRestorationFixture({ ...helpers, isolatedStore: true });
+      const previousTmpdir = process.env.TMPDIR;
+      try {
+        // All native staging registrations belong to this disposable TEST fixture.
+        process.env.TMPDIR = join(fixture.disposable, "retrieval-staging");
+        await mkdir(process.env.TMPDIR);
+        const original = await snapshot(fixture.consumerRoot);
+        const seeded = await fixture.upgrade(fixture.upgradeOptions);
+        assert.equal(seeded.outcome, "upgraded", JSON.stringify(seeded));
+        assert.equal((await fixture.restore({ expect: seeded.restoration.digest })).outcome, "restored");
+        assert.equal((await fixture.oldCheck()).fixtureCli, "historical-v1");
+        assert.deepEqual(await snapshot(fixture.consumerRoot), original);
+        const store = await retrievalStoreCopy(fixture, `store-${phase}`, (message) => t.diagnostic(message));
+        const proofPath = join(fixture.disposable, `${phase}.json`);
+        const seedProof = await readFile(fixture.proofPath);
+        const seedPreparation = await readFile(`${fixture.proofPath}.prepared`);
+        await withRetrievalEnvironment(store.destination, async () => {
+          if (phase === "before-prepare") {
+            await store.remove();
+            assert.equal((await fixtureProcess("git", ["status", "--porcelain"], fixture.consumerRoot)).trim(), "");
+            assert.equal((await fixtureProcess("git", ["rev-parse", "HEAD"], fixture.consumerRoot)).trim(), fixture.sourceRevision);
+            const before = await retrievalTree(fixture.consumerRoot, [".agent-teams-local"]);
+            const result = await restorationCli(fixture, ["upgrade", "--consumer", fixture.consumerRoot,
+              "--source-generation", "1", "--target-generation", "2", "--to", fixture.target.cohortId,
+              "--restoration-proof", proofPath, "--prepare", "--json"], { label: "native-before-prepare" });
+            assertNativeMissing(result, fixture);
+            assert.equal(result.execution.command, "consumer.upgrade");
+            assert.equal(result.execution.outcome, "blocked");
+            assert.equal(result.execution.issues[0].code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
+            assert.match(result.execution.issues[0].message, /<local-path>/u);
+            assert.equal(result.execution.preparation, undefined);
+            assert.equal(result.execution.receipt, undefined);
+            assert.equal(result.execution.restoration, undefined);
+            await absent(`${proofPath}.prepared`);
+            await absent(`${proofPath}.receipt`);
+            await absent(proofPath);
+            assert.deepEqual(await retrievalTree(fixture.consumerRoot, [".agent-teams-local"]), before);
+          } else {
+            const prepared = await fixture.prepare({ ...fixture.upgradeOptions, restorationProofPath: proofPath });
+            assert.equal(prepared.outcome, "prepared", JSON.stringify(prepared));
+            const selection = prepared.preparation;
+            const selectedBytes = await readFile(selection.path);
+            await store.remove();
+            const args = restorationArgs(fixture, "finalize", selection, proofPath);
+            const failure = await restorationCli(fixture, args, { label: "native-late-finalize-failure" });
+            assertNativeMissing(failure, fixture);
+            await absent(proofPath);
+            assert.equal(failure.execution.restoration, undefined);
+            const receiptBytes = await readFile(`${proofPath}.receipt`);
+            const retained = JSON.parse(receiptBytes);
+            assert.equal(retained.preparationDigest, selection.digest);
+            assert.equal(retained.receipt.outcome, "applied");
+            assert.ok(retained.receipt.operations.every(({ outcome }) => outcome === "replaced"));
+            assert.equal(retained.activation, undefined);
+            // Apply has completed; installed-tree atomicity is deliberately not claimed here.
+            const intent = JSON.parse(selectedBytes);
+            for (const operation of intent.plan.operations) {
+              assert.equal(sha256Bytes(await readFile(join(fixture.consumerRoot, operation.path))), operation.postimage.digest);
+            }
+            const failureBytes = `${JSON.stringify(failure, null, 2)}\n`;
+            const failurePath = join(fixture.disposable, "native-late-finalize-failure.json");
+            await writeFile(failurePath, failureBytes, { flag: "wx" });
+            store.repair(); // Only this exact row, only this independent test copy.
+            const retry = assertCliSuccess(await restorationCli(fixture, args, { label: "native-late-finalize-explicit-retry" }), "upgraded");
+            assert.ok(retry.receipt.operations.every(({ outcome }) => outcome === "already-satisfied"));
+            assert.deepEqual(await readFile(selection.path), selectedBytes);
+            assert.deepEqual(await readFile(`${proofPath}.receipt`), receiptBytes);
+            assert.equal(await readFile(failurePath, "utf8"), failureBytes);
+            const proof = JSON.parse(await readFile(proofPath));
+            assert.equal(proof.preparationDigest, selection.digest);
+            assert.equal(proof.activation, "verified-current-v2");
+            const adapterRoot = join(fixture.consumerRoot, "node_modules/@agent-teams/docs-protocol-agent-teams");
+            assert.equal(JSON.parse(await readFile(join(adapterRoot, "package.json"))).version, fixture.target.packages.docsProtocolAgentTeams.version);
+            assert.equal(JSON.parse(await fixtureProcess(process.execPath,
+              [join(adapterRoot, "dist/cli.js"), "check", "--consumer", fixture.consumerRoot, "--json"], fixture.consumerRoot)).outcome, "current");
+            const restored = await fixture.restore({ proofPath, expect: retry.restoration.digest });
+            assert.equal(restored.outcome, "restored");
+            assert.equal((await fixture.oldCheck()).fixtureCli, "historical-v1");
+            assert.deepEqual(await snapshot(fixture.consumerRoot), original);
+          }
+        });
+        assert.equal((await inspectKnownFileTransactionBarrier({ consumerRoot: fixture.consumerRoot })).state, "idle");
+        assert.deepEqual(await readFile(fixture.proofPath), seedProof);
+        assert.deepEqual(await readFile(`${fixture.proofPath}.prepared`), seedPreparation);
+        await store.assertSourceUnchanged();
+        t.diagnostic(`Supporting source fixture only: real Corepack pnpm ${fixture.pnpmVersion}; ${phase}; no published R2 qualification.`);
+      } finally {
+        if (previousTmpdir === undefined) {delete process.env.TMPDIR;} else {process.env.TMPDIR = previousTmpdir;}
+        await fixture.close();
+      }
+    });
+  }
+
   test("retains and restores the same managed TEST consumer with real Corepack and CAS", { skip: process.platform === "win32" }, async (t) => {
     const fixture = await managedRestorationFixture(helpers);
     const { consumerRoot, proofPath } = fixture;

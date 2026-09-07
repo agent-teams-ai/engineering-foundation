@@ -1,5 +1,17 @@
 # @agent-teams/engineering-foundation
 
+## 1.0.2
+
+### Patch Changes
+
+- [#261](https://github.com/agent-teams-ai/engineering-foundation/pull/261) [`8841f9b`](https://github.com/agent-teams-ai/engineering-foundation/commit/8841f9b534413b68fe1edbba07023fc0367c2aed) Thanks [@777genius](https://github.com/777genius)! - Reject --json for the help and version commands with the standard invalid-input JSON envelope instead of silently ignoring the flag and writing plain text.
+
+- [#263](https://github.com/agent-teams-ai/engineering-foundation/pull/263) [`cdfb13c`](https://github.com/agent-teams-ai/engineering-foundation/commit/cdfb13ca2c50c9ba7e941b9996dae8b4f5746e57) Thanks [@777genius](https://github.com/777genius)! - Document that the JSON Schema \`format\` keyword in these schema catalogs is a reader/tooling annotation, not a runtime-enforced constraint, since \`validateFormats\` is intentionally disabled. No behavior change.
+
+- Updated dependencies [[`174bcf9`](https://github.com/agent-teams-ai/engineering-foundation/commit/174bcf991592715c0e5f205d6a707bc10ec198db), [`cdfb13c`](https://github.com/agent-teams-ai/engineering-foundation/commit/cdfb13ca2c50c9ba7e941b9996dae8b4f5746e57), [`976e596`](https://github.com/agent-teams-ai/engineering-foundation/commit/976e596206b02608ef91e39521a477a7dd3702e2)]:
+  - @agent-teams/repository-mutation@0.1.2
+  - @agent-teams/document-authoring@0.2.1
+
 ## 1.0.1
 
 ### Patch Changes

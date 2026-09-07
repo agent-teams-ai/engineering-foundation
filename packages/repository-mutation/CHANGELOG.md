@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+### Patch Changes
+
+- [#264](https://github.com/agent-teams-ai/engineering-foundation/pull/264) [`174bcf9`](https://github.com/agent-teams-ai/engineering-foundation/commit/174bcf991592715c0e5f205d6a707bc10ec198db) Thanks [@777genius](https://github.com/777genius)! - Fix known-file transaction Plan compilation to reject every ancestor/descendant path relationship, not just adjacent pairs after sorting. A sibling path (for example \`managed-other\`) sorting between an ancestor (\`managed\`) and its true descendant (\`managed/child.txt\`) previously let the conflicting Plan through undetected.
+
+- [#265](https://github.com/agent-teams-ai/engineering-foundation/pull/265) [`976e596`](https://github.com/agent-teams-ai/engineering-foundation/commit/976e596206b02608ef91e39521a477a7dd3702e2) Thanks [@777genius](https://github.com/777genius)! - Add an exhaustive cross-check test proving all four independent Windows-reserved-name path checks in the repo (repository-mutation, engineering-foundation legacy-scaffolding, engineering-foundation source-dependencies, document-authoring) classify identically across reserved names, extensions, case variants, and near-miss names such as COM10 and CONMAN. No behavior change: this locks in and documents an already-consistent contract per plan section 8 item 4.
+
 ## 0.1.1
 
 ### Patch Changes

@@ -13,6 +13,7 @@ import type {
 } from "../model/known-file-transaction.js";
 import {
   findPortableRepositoryPathCollision,
+  findPortableRepositoryPathOverlap,
   portableRepositoryPathProblem
 } from "../model/repository-path.js";
 
@@ -207,22 +208,18 @@ export function compileKnownFileTransactionPlan(
   const operations = inputOperations.map(compileOperation).toSorted((left, right) =>
     binaryCompare(left.path, right.path)
   );
-  const collision = findPortableRepositoryPathCollision(
-    operations.map(({ path }) => path)
-  );
+  const paths = operations.map(({ path }) => path);
+  const collision = findPortableRepositoryPathCollision(paths);
   if (collision !== undefined) {
     throw new KnownFileTransactionPlanError(
       `Operation paths collide portably: ${collision.first} and ${collision.second}.`
     );
   }
-  for (let index = 1; index < operations.length; index += 1) {
-    const ancestor = operations[index - 1]!.path;
-    const descendant = operations[index]!.path;
-    if (descendant.startsWith(`${ancestor}/`)) {
-      throw new KnownFileTransactionPlanError(
-        `Operation paths overlap as ancestor and descendant: ${ancestor} and ${descendant}.`
-      );
-    }
+  const overlap = findPortableRepositoryPathOverlap(paths);
+  if (overlap !== undefined) {
+    throw new KnownFileTransactionPlanError(
+      `Operation paths overlap as ancestor and descendant: ${overlap.ancestor} and ${overlap.descendant}.`
+    );
   }
   const totalBytes = operations.reduce(
     (total, operation) => total + operation.postimage.size +

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, resolve as resolvePath } from "node:path";
 
-import { assertArchiveSafety } from "./pack-artifact-e2e.mjs";
+import { assertArchiveSafety } from "./pack-artifact-archive.mjs";
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
 import {
   NPM_PACKAGE_BOOTSTRAP,

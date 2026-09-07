@@ -16,7 +16,6 @@ import {
   reconcileGithubTagRelease,
 } from "./github-release-reconciliation.mjs";
 import { publishablePackageByName } from "./publishable-packages.mjs";
-import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
 import { readVerifiedArchive } from "./pack-artifact-archive.mjs";
 
 const EXPECTED_NPM_VERSION = "11.16.0";
@@ -249,6 +248,7 @@ async function packArtifacts(cwd, state, destination) {
   if (resolve(cwd) !== resolve(fileURLToPath(new URL("..", import.meta.url)))) {
     throw new Error("Release packing must use the authoritative script checkout.");
   }
+  const { packPublishableArtifacts } = await import("./pack-publishable-artifacts.mjs");
   const qualified = await packPublishableArtifacts({ temporaryRoot: destination });
   const artifacts = [];
   for (const packageInfo of state.packages.public) {

@@ -1,16 +1,20 @@
+import { currentDocumentContractFixture, fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { applyDocumentPlan } from "../packages/document-authoring/dist/application/use-cases/apply-document-plan.js";
-import { recoverDocumentTransaction } from "../packages/document-authoring/dist/application/use-cases/recover-document-transaction.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
-import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
+import { applyDocumentPlan as applyDocumentPlanWithSchema } from "../packages/document-authoring/dist/document-authoring/application/use-cases/apply-document-plan.js";
+import { recoverDocumentTransaction as recoverDocumentTransactionWithSchema } from "../packages/document-authoring/dist/document-authoring/application/use-cases/recover-document-transaction.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
+import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
 
-const fixture = JSON.parse(await readFile(fileURLToPath(
+const historicalFixture = JSON.parse(await readFile(fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
 ), "utf8"));
+
+const fixture = currentDocumentContractFixture(historicalFixture);
 
 const identity = Object.freeze({
   adapter: "node-filesystem", birthtimeNs: "3", dev: "1", ino: "2", version: 1
@@ -28,7 +32,10 @@ function harness(options = {}) {
   let releases = [];
   let coordinatorState = "idle";
   const events = [];
+  const recordedArtifacts = [];
   const dependencies = {
+    compiler: fixture.plan.compiler,
+    kernelArtifact: fixtureKernelArtifact,
     contractValidator: {
       async validatePlan(input) { events.push("validate"); return structuredClone(input); }
     },
@@ -68,7 +75,7 @@ function harness(options = {}) {
       }
     },
     journal: {
-      async create(value) { envelope = value; journalIdentity = journalAuthority; events.push("journal:create"); return journalAuthority; },
+      async create(value) { recordedArtifacts.push(value.kernelArtifact); envelope = value; journalIdentity = journalAuthority; events.push("journal:create"); return journalAuthority; },
       async read() { return envelope === undefined ? undefined : { authority: journalIdentity, envelope }; },
       async stabilizeForReconciliation() {
         events.push("journal:stabilize");
@@ -77,6 +84,7 @@ function harness(options = {}) {
       async remove(expected) { assert.deepEqual(expected, journalIdentity); envelope = undefined; journalIdentity = undefined; events.push("journal:remove"); },
       async replace({ envelope: value, expectedAuthority }) {
         assert.deepEqual(expectedAuthority, journalIdentity);
+        recordedArtifacts.push(value.kernelArtifact);
         envelope = value;
         journalIdentity = {
           authorityDigest: `sha256:${"2".repeat(64)}`,
@@ -102,7 +110,7 @@ function harness(options = {}) {
     }
   };
   return {
-    dependencies, events, releases,
+    dependencies, events, releases, recordedArtifacts,
     seedJournal(value) { envelope = value; journalIdentity = journalAuthority; },
     setCoordinatorState(value) { coordinatorState = value; },
     setDestination(value) { destination = value; },
@@ -431,7 +439,7 @@ test("unverifiable journal replacement returns manual receipt and preserves temp
   assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
 });
 
-test("same-identity already-satisfied publication completes instead of going manual", async () => {
+test("same-identity already-satisfied publication remains manual under ADR-0024", async () => {
   const subject = harness();
   subject.dependencies.publisher.publishPrepared = async () => {
     subject.setDestination("exact");
@@ -443,7 +451,9 @@ test("same-identity already-satisfied publication completes instead of going man
   const receipt = await applyDocumentPlan(subject.dependencies, {
     consumerRoot: "/fixture", plan: fixture.plan
   });
-  assert.equal(receipt.outcome, "applied");
+  assert.equal(receipt.outcome, "manual-recovery-required");
+  assert.equal(subject.state().envelope.state, "PUBLISHING");
+  assert.notEqual(subject.state().temporary, undefined);
 });
 
 test("different-identity already-satisfied publication requires manual recovery", async () => {
@@ -637,6 +647,7 @@ test("recovery preserves abort swallowed during authority replay", async () => {
 
 async function publishedEnvelope(publicationIdentity = identity) {
   return createDocumentTransactionEnvelope({
+    kernelArtifact: fixtureKernelArtifact,
     adapterContractVersion: 1,
     foundation: {
       buildIdentity: fixture.plan.compiler.buildIdentity,
@@ -650,7 +661,7 @@ async function publishedEnvelope(publicationIdentity = identity) {
     },
     operationKind: "document-authoring",
     payloadKind: "document-authoring-journal/v2",
-    recoveryHandler: { contractVersion: 2, id: "foundation.document-authoring" },
+    recoveryHandler: { contractVersion: 2, id: "document-authoring" },
     schemaVersion: 3,
     state: "PUBLISHED"
   });
@@ -680,3 +691,43 @@ for (const scenario of [
     assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
   });
 }
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+
+function applyDocumentPlan(dependencies, request) { return applyDocumentPlanWithSchema({ ...dependencies, schema: { assertSchema } }, request); }
+
+function recoverDocumentTransaction(dependencies, request) { return recoverDocumentTransactionWithSchema({ ...dependencies, schema: { assertSchema } }, request); }
+
+
+test("recovery rechecks actual stored artifacts after lease admission before effects", async () => {
+  for (const coordinate of ["compiler", "kernelArtifact"]) {
+    const subject = harness();
+    subject.setCoordinatorState("recoverable");
+    const envelope = structuredClone(await publishedEnvelope());
+    if (coordinate === "compiler") {
+      envelope.foundation.buildIdentity = `sha256:${"f".repeat(64)}`;
+      envelope.journal.plan.compiler.buildIdentity = envelope.foundation.buildIdentity;
+    } else {
+      envelope.kernelArtifact.buildIdentity = `sha256:${"f".repeat(64)}`;
+    }
+    subject.seedJournal(envelope);
+    await assert.rejects(recoverDocumentTransaction(subject.dependencies, { consumerRoot: "/fixture" }),
+      /exact recorded Authoring and Mutation artifacts/u);
+    assert.deepEqual(subject.events, ["acquire"]);
+    assert.deepEqual(subject.state().envelope, envelope);
+    assert.deepEqual(subject.releases, [{ retainTransactionBarrier: true }]);
+  }
+});
+
+
+test("every file transition preserves the kernel captured at PREPARED", async () => {
+  const subject = harness();
+  subject.dependencies.faultInjector = (point) => {
+    if (point.phase === "after-prepared-journal-durable") {
+      subject.dependencies.kernelArtifact = { ...fixtureKernelArtifact, version: "9.9.9" };
+    }
+  };
+  const receipt = await applyDocumentPlan(subject.dependencies, { consumerRoot: "/fixture", plan: fixture.plan });
+  assert.equal(receipt.outcome, "applied");
+  assert.deepEqual(subject.recordedArtifacts, Array.from({ length: 3 }, () => fixtureKernelArtifact));
+});

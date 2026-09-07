@@ -6,7 +6,7 @@ import test from "node:test";
 import {
   assertDocumentReceiptDigest,
   documentReceiptDigest,
-} from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),

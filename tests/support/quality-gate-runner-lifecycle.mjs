@@ -1,3 +1,4 @@
+import { readContainedRegularFile } from "../../packages/engineering-foundation/dist/source-inventory/node.js";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { watch } from "node:fs";
@@ -5,12 +6,15 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 
-import { createQualityGateCommand } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/gate-command.js";
+import { createQualityGateCommand } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/api.js";
 import { FilesystemPackageScriptCatalogReader } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
 import { performanceMonotonicClock } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/time/performance-monotonic-clock.js";
-import { loadQualityGatePolicy } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/contract/config.js";
-import { parseArguments } from "../../packages/engineering-foundation/dist/cli-arguments.js";
-import { createQualityGateCliCommand } from "../../packages/engineering-foundation/dist/quality-gate-cli-command.js";
+import { loadQualityGatePolicy } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/configuration/load-quality-gate-policy.js";
+import { loadStrictYamlFile } from "../../packages/engineering-foundation/dist/features/configuration-input/node.js";
+import { assertSchema } from "../../packages/engineering-foundation/dist/schema-catalog.js";
+import { parseArguments } from "../../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/cli-arguments.js";
+import { foundationCommandFailureJson } from "../../packages/engineering-foundation/dist/features/command-host/module.js";
+import { createQualityGateCliCommand } from "../../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.js";
 import { startCapturedQgrCommand } from "./quality-gate-runner-cleanup.mjs";
 
 export {
@@ -39,12 +43,15 @@ export function startInjectedQgrCliCommand({
   projectId,
 }) {
   const entrypoint = createQualityGateCliCommand({
+    failureJson: foundationCommandFailureJson,
     cancellationSource,
     commandFactory: () => createQualityGateCommand({
-      catalogReader: new FilesystemPackageScriptCatalogReader(),
+      catalogReader: new FilesystemPackageScriptCatalogReader(readContainedRegularFile),
       clock: performanceMonotonicClock,
       executor,
-      policyLoader: loadQualityGatePolicy,
+      policyLoader: (root, path, signal) => loadQualityGatePolicy(
+        { readYaml: loadStrictYamlFile, assertSchema }, root, path, signal
+      ),
     }),
     async foundationConfigLoader() {
       return {

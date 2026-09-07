@@ -1,3 +1,4 @@
+import { readContainedRegularFile } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -5,16 +6,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeAuthoringProfileReader } from "../packages/document-authoring/dist/adapters/node/node-authoring-profile-reader.js";
+import { NodeAuthoringProfileReader } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-authoring-profile-reader.js";
 import {
   assertAuthoringProfileSemantics,
   AuthoringProfileSemanticError,
   hasContiguousRequiredSegments,
   isRepositoryPathAllowedByPlacement,
   matchingPlacementRoot
-} from "../packages/document-authoring/dist/application/policies/authoring-profile-semantics.js";
-import { isDocumentRepositoryPath } from "../packages/document-authoring/dist/application/policies/document-repository-path.js";
-import { DocumentCatalogError } from "../packages/document-authoring/dist/document-catalog-error.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/authoring-profile-semantics.js";
+import { isDocumentRepositoryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-repository-path.js";
+import { DocumentCatalogError } from "../packages/document-authoring/dist/document-authoring/application/model/document-catalog-error.js";
 
 const pathVectors = JSON.parse(readFileSync(
   new URL("./fixtures/repository-path-conformance-v1.json", import.meta.url),
@@ -228,7 +229,7 @@ authoring:
         kind: not-required
 `, "utf8");
     await assert.rejects(
-      new NodeAuthoringProfileReader().read({ consumerRoot: root, path: "profile.yaml" }),
+      new NodeAuthoringProfileReader(readContainedRegularFile).read({ consumerRoot: root, path: "profile.yaml" }),
       (error) => error instanceof DocumentCatalogError &&
         error.code === "DOCUMENT_CATALOG_INPUT_INVALID" &&
         /invalid-qualified-grammar-range/u.test(error.message)
@@ -276,7 +277,7 @@ authoring:
         kind: not-required
 `, "utf8");
     await assert.rejects(
-      new NodeAuthoringProfileReader().read({ consumerRoot: root, path: "profile.yaml" }),
+      new NodeAuthoringProfileReader(readContainedRegularFile).read({ consumerRoot: root, path: "profile.yaml" }),
       (error) => error instanceof DocumentCatalogError &&
         error.code === "DOCUMENT_CATALOG_INPUT_INVALID" &&
         /incompatible-identity-placement/u.test(error.message)
@@ -310,7 +311,7 @@ authoring:
       reachability: {kind: manual-colocated-index, pathPrefix: before-required-segments, indexBasename: README.md}
 `, "utf8");
     await assert.rejects(
-      new NodeAuthoringProfileReader().read({ consumerRoot: root, path: "profile.yaml" }),
+      new NodeAuthoringProfileReader(readContainedRegularFile).read({ consumerRoot: root, path: "profile.yaml" }),
       (error) => error instanceof DocumentCatalogError &&
         /incompatible-reachability-placement/u.test(error.message)
     );
@@ -323,7 +324,7 @@ test("authority readers use the same repository path segment bound", async () =>
   const root = await mkdtemp(join(tmpdir(), "document-authority-path-bound-"));
   try {
     await assert.rejects(
-      new NodeAuthoringProfileReader().read({
+      new NodeAuthoringProfileReader(readContainedRegularFile).read({
         consumerRoot: root,
         path: "a".repeat(256)
       }),

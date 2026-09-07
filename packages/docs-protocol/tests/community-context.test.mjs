@@ -4,13 +4,13 @@ import test from "node:test";
 import {
   CommunityContextError,
   rankCommunityDocuments
-} from "../dist/community/context/ranked-search.js";
-import { projectCommunityLlmsText } from "../dist/community/context/llms-text.js";
-import { createCommunityMiniSearchIndex } from "../dist/community/context/minisearch-adapter.js";
+} from "../dist/features/portable-documentation/application/ranked-search.js";
+import { projectCommunityLlmsText } from "../dist/features/portable-documentation/application/llms-text.js";
+import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import {
   projectCommunityContext,
   projectCommunityFind
-} from "../dist/community/context/community-query.js";
+} from "../dist/features/portable-documentation/application/community-query.js";
 
 function document(overrides = {}) {
   return {
@@ -234,6 +234,7 @@ function catalog(overrides = {}) {
 
 test("fuzzy find withholds partial Foundation results and preserves diagnostics", async () => {
   const projection = await projectCommunityFind({
+    searchIndex: createCommunityMiniSearchIndex(),
     consumerRoot: "/fixture",
     foundationProfilePath: "docs.config.yaml",
     query: { text: "first", ranking: "fuzzy-advisory" },
@@ -275,6 +276,7 @@ test("context canonicalizes and validates binary selection text before binding",
     async buildCatalog() {return stable;}
   };
   const projection = await projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
     catalogBefore: stable,
     foundationProfilePath: "docs.config.yaml",
     request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query: { text: "  CAFE\u0301  " } },
@@ -290,6 +292,7 @@ test("context canonicalizes and validates binary selection text before binding",
   for (const text of ["x".repeat(1_001), "unsafe\u0000query", "lone-\ud800-surrogate"]) {
     let authorityRead = false;
     await assert.rejects(() => projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
       catalogBefore: stable,
       foundationProfilePath: "docs.config.yaml",
       request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query: { text } },
@@ -308,6 +311,7 @@ test("context canonicalizes and validates binary selection text before binding",
   ]) {
     let authorityRead = false;
     await assert.rejects(() => projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
       catalogBefore: stable,
       foundationProfilePath: "docs.config.yaml",
       request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query },
@@ -329,6 +333,7 @@ test("context rejects partial catalogs and ABA semantic digest changes", async (
     message: "Document metadata is invalid."
   }] });
   const partialProjection = await projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
     catalogBefore: partial,
     foundationProfilePath: "docs.config.yaml",
     request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query: {} },
@@ -352,6 +357,7 @@ test("context rejects partial catalogs and ABA semantic digest changes", async (
 
   const middleDigest = `sha256:${"2".repeat(64)}`;
   const abaProjection = await projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
     catalogBefore: stable,
     foundationProfilePath: "docs.config.yaml",
     request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query: {} },
@@ -385,6 +391,7 @@ test("zero-document partial context is withheld without claiming truncation", as
     }]
   });
   const projection = await projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
     catalogBefore: partial,
     foundationProfilePath: "docs.config.yaml",
     request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query: {} },
@@ -413,6 +420,7 @@ test("zero-document ABA context is authority-stale without claiming truncation",
   const stable = catalog({ documents: [] });
   const middleDigest = `sha256:${"2".repeat(64)}`;
   const projection = await projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
     catalogBefore: stable,
     foundationProfilePath: "docs.config.yaml",
     request: {
@@ -462,6 +470,7 @@ test("partial context deduplicates repeated snapshot diagnostics and preserves d
   const before = catalog({ status: "partial", diagnostics: [repeated] });
   const after = catalog({ status: "partial", diagnostics: [repeated, distinct, ...overflow] });
   const projection = await projectCommunityContext({
+    searchIndex: createCommunityMiniSearchIndex(),
     catalogBefore: before,
     foundationProfilePath: "docs.config.yaml",
     request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query: {} },
@@ -488,4 +497,24 @@ test("partial context deduplicates repeated snapshot diagnostics and preserves d
     subject: "diagnostics",
     message: "Omitted 47 additional unique diagnostics after the deterministic 255-item context evidence limit."
   });
+});
+
+
+test("community queries use the injected search index for find and context", async () => {
+  const stable = catalog();
+  const calls = [];
+  const searchIndex = {
+    replaceAll(records) { calls.push(records.map(({ id }) => id)); },
+    search(query) { calls.push(query); return [{ id: stable.documents[0].id, score: 42 }]; }
+  };
+  const foundation = {
+    async findWithEvidence() { return { catalogStatus: "complete", catalogSemanticDigest: stable.semanticDigest, diagnostics: [], documents: stable.documents }; },
+    async buildCatalog() { return stable; }
+  };
+  const query = { text: "injected-provider-only", ranking: "fuzzy-advisory" };
+  const found = await projectCommunityFind({ consumerRoot: "/fixture", foundationProfilePath: "docs.config.yaml", query, foundation, searchIndex });
+  assert.equal(found.result.matches, 1);
+  const context = await projectCommunityContext({ catalogBefore: stable, foundationProfilePath: "docs.config.yaml", request: { consumerRoot: "/fixture", profilePath: "docs.config.yaml", query }, foundation, searchIndex });
+  assert.equal(context.result.includedDocuments, 1);
+  assert.deepEqual(calls, [[stable.documents[0].id], query.text, [stable.documents[0].id], query.text]);
 });

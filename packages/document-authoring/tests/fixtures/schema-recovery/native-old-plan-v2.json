@@ -1,0 +1,110 @@
+{
+  "authority": {
+    "catalogPreimageSemanticDigest": "sha256:af61aa9f74c83a608b754babe4f25d87a59468f710157d751d795c80da7195fb",
+    "expectedCatalogPostimageSemanticDigest": "sha256:1d0c82d9372bfe6204a927cec167252684dbff5cf090871ea4dae771ed3d4f44",
+    "metadataSchema": {
+      "digest": "sha256:507a8b906e560e85fdaa5e223bf668b220eeb5402228ccceb66e14abb081be22",
+      "path": "docs/metadata.schema.json",
+      "size": 822
+    },
+    "ownerCatalog": {
+      "digest": "sha256:0a2986edc21a76d65fbae1579d857007830ef6224fde9eb45075cd55f3c37b8f",
+      "path": "docs/owners.yaml",
+      "size": 109
+    },
+    "profile": {
+      "digest": "sha256:259ab3ebbe013f401239d2ae571e6336a91575c9306abb3e28fa48178de7cebe",
+      "path": "document-authoring.yaml",
+      "size": 3778
+    },
+    "profileSemanticDigest": "sha256:c1bd273716eaa786e5b54ff3f137ac8f412b75b4fcd7f7070c27c9c0e81eb00d",
+    "template": {
+      "digest": "sha256:d23fc1d88fcffe29e7133dfcdaabf6aee4ef8b79da81966a6bec835bb5a44364",
+      "path": "docs/templates/feature.md",
+      "size": 288
+    }
+  },
+  "compiler": {
+    "buildIdentity": "sha256:d3b1ac92a741f22bc6ed971310008700d3f89b170a3cabbb317cb09597e639a0",
+    "id": "@agent-teams/engineering-foundation",
+    "version": "0.21.0"
+  },
+  "destination": "packages/example/src/features/create-widget/README.md",
+  "destinationPrecondition": {
+    "state": "absent"
+  },
+  "diagnostics": [],
+  "expectedParent": {
+    "ancestry": "real-directories",
+    "path": "packages/example/src/features/create-widget",
+    "state": "directory"
+  },
+  "identityProjection": {
+    "digest": "sha256:944bffe68fd5aefdbcfe83877acd66c148aa0ef7dd3a47842155fc31de21aced",
+    "entryCount": 2
+  },
+  "intent": {
+    "additionalMetadata": {
+      "blocked_by": [
+        "OD-001"
+      ],
+      "code_anchors": [
+        {
+          "enforcement": "required",
+          "pattern": "packages/example/src/features/create-widget/*.ts"
+        }
+      ]
+    },
+    "destination": "packages/example/src/features/create-widget/README.md",
+    "id": "feature.example.create-widget",
+    "owner": "example/create-widget",
+    "related": [
+      "ADR-0001",
+      "OD-001"
+    ],
+    "schemaVersion": 1,
+    "summary": "Freezes the current feature document creation behavior.",
+    "title": "Create Widget",
+    "type": "feature"
+  },
+  "intentDigest": "sha256:ca0427cdfc441a116db1b138729113251d3fc2f44a7e570574555ebba74989c5",
+  "output": {
+    "contentBase64": "LS0tCmlkOiBmZWF0dXJlLmV4YW1wbGUuY3JlYXRlLXdpZGdldAp0eXBlOiBmZWF0dXJlCnN0YXR1czogcHJvcG9zZWQKb3duZXI6IGV4YW1wbGUvY3JlYXRlLXdpZGdldApzdW1tYXJ5OiBGcmVlemVzIHRoZSBjdXJyZW50IGZlYXR1cmUgZG9jdW1lbnQgY3JlYXRpb24gYmVoYXZpb3IuCnJlbGF0ZWQ6CiAgLSBBRFItMDAwMQogIC0gT0QtMDAxCmJsb2NrZWRfYnk6CiAgLSBPRC0wMDEKY29kZV9hbmNob3JzOgogIC0gZW5mb3JjZW1lbnQ6IHJlcXVpcmVkCiAgICBwYXR0ZXJuOiBwYWNrYWdlcy9leGFtcGxlL3NyYy9mZWF0dXJlcy9jcmVhdGUtd2lkZ2V0LyoudHMKLS0tCgojIENyZWF0ZSBXaWRnZXQKCiMjIFNjb3BlCgojIyBQdWJsaWMgc3VyZmFjZQoKIyMgT3duZWQgYmVoYXZpb3IgYW5kIGludmFyaWFudHMKCiMjIEFwcGxpY2F0aW9uIHVzZSBjYXNlcyBhbmQgcG9ydHMKCiMjIEFkYXB0ZXJzIGFuZCBjb21wb3NpdGlvbgoKIyMgQ29udHJhY3RzIGFuZCBldmVudHMKCiMjIFBlcnNpc3RlbmNlIGFuZCBjb25jdXJyZW5jeQoKIyMgRmFpbHVyZSBhbmQgcmVjb3ZlcnkKCiMjIFZlcmlmaWNhdGlvbgo=",
+    "digest": "sha256:75acb6795c630db3318c15152136dd7c7a0e46b5a0b6f1a245691ea04ab69cdd",
+    "mediaType": "text/markdown; charset=utf-8",
+    "mode": "0644",
+    "size": 569
+  },
+  "parentMaterialization": {
+    "deepestExistingDirectory": "packages/example/src/features",
+    "finalParent": "packages/example/src/features/create-widget",
+    "missingDirectories": [
+      "packages/example/src/features/create-widget"
+    ],
+    "policy": "create-missing-real-directories"
+  },
+  "planDigest": "sha256:53a3c0203c3f428088952d8b964e2a20391ac0435a6fe2b828f39e3d4f4f4f8a",
+  "projectId": "orchestrator-qualification",
+  "protocolVersion": 2,
+  "referencedDocuments": [
+    {
+      "id": "ADR-0001",
+      "path": "docs/existing/adr-0001.md",
+      "projectionDigest": "sha256:fbd5a663fa317f5d0c83d7c0df1b2436b86016e17575d882ee5abbe708314713"
+    },
+    {
+      "id": "OD-001",
+      "path": "docs/existing/od-001.md",
+      "projectionDigest": "sha256:9942c5c5551054253976bc9374203c7d37e52eb24ea0d8c43abc67877645214f"
+    }
+  ],
+  "requiredAdapterCapabilities": [
+    "create-directories-no-replace/v1",
+    "create-file-no-replace/v1"
+  ],
+  "schemaVersion": 2,
+  "selectedOwner": {
+    "id": "example/create-widget",
+    "membershipDigest": "sha256:10684436816f856460c6c057aa8e2c642464caa6ac6b909ce769b0ab8417678f"
+  }
+}

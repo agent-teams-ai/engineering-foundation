@@ -1,6 +1,8 @@
 import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { verifyPackedScaffoldingQualification } from "./pack-scaffolding-qualification-test.mjs";
+
 import { runCommand } from "./pack-test-support.mjs";
 import { verifyInstalledTransactionBarrier } from "./transaction-barrier-e2e.mjs";
 
@@ -204,4 +206,5 @@ process.stdout.write(JSON.stringify({ outcome: "passed" }));
     throw new Error("Packed scaffolding CLI generated an unexpected package.");
   }
   await verifyPackedLibraryRecipe(fixture, repositoryRoot);
+  await verifyPackedScaffoldingQualification({ fixture, repositoryRoot });
 }

@@ -1,3 +1,5 @@
+import { currentDocumentContractFixture, fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import {
   lstat,
@@ -15,13 +17,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { createDocumentTransactionEnvelope } from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
-import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/adapters/node/node-document-journal-store-private.js";
+import { canonicalJson } from "../packages/repository-mutation/dist/serialization.js";
+import { createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import { NodeDocumentJournalStore } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-journal-store-private.js";
 import {
   createJournalReconciled,
   replaceJournalReconciled
-} from "../packages/document-authoring/dist/application/use-cases/document-journal-reconciliation.js";
+} from "../packages/document-authoring/dist/document-authoring/application/use-cases/document-journal-reconciliation.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";
 
 const requiresStrictDirectoryDurability = process.platform === "win32"
@@ -31,7 +33,7 @@ const requiresStrictDirectoryDurability = process.platform === "win32"
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url)
 );
-const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+const fixture = currentDocumentContractFixture(JSON.parse(await readFile(fixturePath, "utf8")));
 
 test("scripted fault sequences fail when a planned step is skipped or reordered", () => {
   const incomplete = createScriptedSequence(
@@ -50,13 +52,14 @@ async function envelope(destinationState = "pending") {
     schemaVersion: 3,
     operationKind: "document-authoring",
     recoveryHandler: {
-      id: "foundation.document-authoring",
+      id: "document-authoring",
       contractVersion: 2
     },
     foundation: {
       version: fixture.plan.compiler.version,
       buildIdentity: fixture.plan.compiler.buildIdentity
     },
+    kernelArtifact: fixtureKernelArtifact,
     adapterContractVersion: 1,
     payloadKind: "document-authoring-journal/v2",
     journal: {
@@ -791,7 +794,7 @@ test("preserves a legacy v1 journal as manual recovery evidence", async () => {
 
     await assert.rejects(
       store.read(),
-      /invalid strict canonical JSON/u
+      /manual recovery|exact recorded Foundation/u
     );
 
     assert.equal(await readFile(path, "utf8"), legacyBytes);
@@ -810,3 +813,5 @@ test("rejects a legacy v1 journal before creating transition evidence", async ()
     assert.deepEqual(await readdir(state), []);
   });
 });
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }

@@ -19,6 +19,7 @@ const packageName = "@agent-teams/document-authoring", docsPackageName = "@agent
 const docsProfilePath = "architecture/foundation/docs-protocol.yaml";
 const foundationProfilePath = "architecture/foundation/document-authoring.yaml";
 const timeoutMs = 120_000;
+const docsInfoArguments = ["info", "--consumer", ".", "--profile", docsProfilePath, "--json"];
 
 function assert(condition, message) {
   if (!condition) {
@@ -29,14 +30,29 @@ function assert(condition, message) {
 async function runDocsBin(consumerRoot, args) {
   const binRoot = join(consumerRoot, "node_modules", ".bin");
   if (process.platform === "win32") {
-    const bin = join(binRoot, "agent-teams-docs.cmd");
-    await lstat(bin);
-    return runCommand(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", bin, ...args],
-      consumerRoot, { timeoutMs });
+    return runWindowsDocsBin(consumerRoot, args);
   }
   const bin = join(binRoot, "agent-teams-docs");
   await lstat(bin);
   return runCommand(bin, args, consumerRoot, { timeoutMs });
+}
+
+export async function runWindowsDocsBin(consumerRoot, args, execute = runCommand) {
+  const docsRoot = await realpath(join(consumerRoot, "node_modules", "@agent-teams", "docs-protocol"));
+  const manifest = JSON.parse(await readFile(join(docsRoot, "package.json"), "utf8"));
+  assert(manifest.name === docsPackageName && manifest.bin?.["agent-teams-docs"] === "./dist/cli.js",
+    "Installed Docs Protocol must declare its public Node CLI.");
+  const cli = await realpath(join(docsRoot, manifest.bin["agent-teams-docs"]));
+  assert(isCanonicalPathInside(docsRoot, cli) && (await lstat(cli)).isFile(),
+    "Installed Docs Protocol CLI escaped its package or is not a regular file.");
+  if (args.length === docsInfoArguments.length && args.every((arg, index) => arg === docsInfoArguments[index])) {
+    // Retain actual installed-shim qualification. Only this fixed command is
+    // shell syntax; the consumer root is a cwd and never enters the command.
+    return execute(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c",
+      ".\\node_modules\\.bin\\agent-teams-docs.cmd info --consumer . --profile architecture/foundation/docs-protocol.yaml --json"
+    ], consumerRoot, { timeoutMs });
+  }
+  return execute(process.execPath, [cli, ...args], consumerRoot, { timeoutMs });
 }
 
 async function docsJsonCommand(consumerRoot, args, expectedExitCode = 0) {

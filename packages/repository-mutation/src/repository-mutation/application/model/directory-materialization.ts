@@ -1,4 +1,4 @@
-import type { PortablePathIdentity } from "./path-identity.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
 
 export type DirectoryCreatePolicy = "allow" | "forbid";
 

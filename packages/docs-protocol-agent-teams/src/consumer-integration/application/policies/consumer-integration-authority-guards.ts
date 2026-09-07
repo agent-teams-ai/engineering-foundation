@@ -1,4 +1,4 @@
-import type { KnownFileTransactionOperationInput } from "@agent-teams/repository-mutation";
+import type { KnownFileTransactionOperationInput } from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerIntegrationFileObservation,

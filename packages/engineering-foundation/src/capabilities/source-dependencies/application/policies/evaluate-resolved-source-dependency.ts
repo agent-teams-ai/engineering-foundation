@@ -1,7 +1,7 @@
 import type {
   DiagnosticEvidence,
   FoundationDiagnostic
-} from "../../../../check-contract.js";
+} from "../../../../features/validation-reporting/api.js";
 import type {
   ArchitectureBoundaryPolicy,
   ObservedSourceDependencyEdge,

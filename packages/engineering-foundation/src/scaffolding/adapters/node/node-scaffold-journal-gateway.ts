@@ -1,8 +1,10 @@
-import type { AuthorityScaffoldJournal } from "../../contract/types.js";
+import type { ScaffoldJournalStore } from "./scaffold-journal-store.js";
+import type {
+  AuthorityScaffoldJournal
+} from "../../contract/types.js";
 import { ScaffoldError } from "../../scaffold-error.js";
 import { sameJournalSlotAuthority as sameScaffoldJournalAuthority } from "@agent-teams/repository-mutation/node";
 import {
-  NodeScaffoldJournalStore,
   type ScaffoldJournalAuthority,
   type ScaffoldJournalSlotObservation,
   type StoredScaffoldJournal
@@ -48,7 +50,7 @@ function reconciliationFailure(
 }
 
 async function observeAfterFailure(
-  store: NodeScaffoldJournalStore,
+  store: ScaffoldJournalStore,
   operation: string,
   primary: unknown
 ): Promise<ScaffoldJournalSlotObservation> {
@@ -68,7 +70,7 @@ function stableStored(
 }
 
 export async function readScaffoldJournal(
-  store: NodeScaffoldJournalStore
+  store: ScaffoldJournalStore
 ): Promise<ActiveScaffoldJournal | undefined> {
   const stored = await store.read();
   return stored === undefined
@@ -77,7 +79,7 @@ export async function readScaffoldJournal(
 }
 
 export async function createScaffoldJournalReconciled(
-  store: NodeScaffoldJournalStore,
+  store: ScaffoldJournalStore,
   journal: AuthorityScaffoldJournal
 ): Promise<ScaffoldJournalAuthority> {
   try {
@@ -98,7 +100,7 @@ export async function createScaffoldJournalReconciled(
 }
 
 export async function replaceScaffoldJournalReconciled(
-  store: NodeScaffoldJournalStore,
+  store: ScaffoldJournalStore,
   active: ActiveScaffoldJournal,
   journal: AuthorityScaffoldJournal
 ): Promise<ScaffoldJournalAuthority> {
@@ -122,7 +124,7 @@ export async function replaceScaffoldJournalReconciled(
 }
 
 export async function removeScaffoldJournalReconciled(
-  store: NodeScaffoldJournalStore,
+  store: ScaffoldJournalStore,
   active: ActiveScaffoldJournal
 ): Promise<void> {
   try {

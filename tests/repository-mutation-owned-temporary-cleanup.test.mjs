@@ -14,8 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { readBoundedRegularFile } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
-import { cleanupIdentityMatchingOwnedTemporary } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
+import { readBoundedRegularFile, cleanupIdentityMatchingOwnedTemporary } from "../packages/repository-mutation/dist/node.js";
 
 async function fixture() {
   const parent = await mkdtemp(join(tmpdir(), "owned-temporary-cleanup-"));

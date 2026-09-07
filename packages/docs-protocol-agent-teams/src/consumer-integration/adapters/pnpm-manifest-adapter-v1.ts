@@ -1,20 +1,16 @@
 import { applyEdits, modify } from "jsonc-parser";
 
 import { parseJsonRecord, recordField } from "./strict-json-record.js";
-import type {
-  ConsumerIntegrationDigest,
-  ConsumerIntegrationFileObservation,
-  ConsumerIntegrationIssue,
-  QualifiedDocsCohortBindingV1
-} from "../domain/model.js";
-import type {
-  PnpmManifestPlanV1
-} from "../application/ports/consumer-integration-planners.js";
 import {
   canonicalConsumerIntegrationJson,
   canonicalDocsScripts,
-  digestBytes
-} from "../application/policies/consumer-integration-assets.js";
+  digestBytes,
+  type ConsumerIntegrationDigest,
+  type ConsumerIntegrationFileObservation,
+  type ConsumerIntegrationIssue,
+  type QualifiedDocsCohortBindingV1,
+  type PnpmManifestPlanV1
+} from "../application-api.js";
 
 const DOCS_PACKAGE = "@agent-teams/docs-protocol";
 const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
@@ -24,7 +20,7 @@ export interface CohortManifestTarget {
   readonly version: string;
 }
 
-export type { PnpmManifestPlanV1 } from "../application/ports/consumer-integration-planners.js";
+export type { PnpmManifestPlanV1 } from "../application-api.js";
 
 function issue(subject: string, code: string, message: string): ConsumerIntegrationIssue {
   return { code, severity: "error", subject, message };

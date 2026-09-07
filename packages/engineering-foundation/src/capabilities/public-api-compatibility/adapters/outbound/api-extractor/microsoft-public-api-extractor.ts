@@ -1,3 +1,4 @@
+import type { PublicApiSourceEvidence } from "../../../application/ports/public-api-evidence.js";
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,8 +16,7 @@ import {
   type ApiItem
 } from "@microsoft/api-extractor-model";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import { assertNotCancelled, isPublicApiInputError, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
 import {
   compareCanonicalReferences,
   publicApiEntrypoints,
@@ -34,7 +34,7 @@ import {
 } from "./staged-public-api-input.js";
 
 function inputError(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
+  publicApiInputError(code, message, phase);
 }
 
 const MAX_COMPILER_INPUT_BYTES = 128 * 1024 * 1024;
@@ -249,6 +249,12 @@ async function extractEntrypoint(input: {
 }
 
 export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
+  readonly #evidence: PublicApiSourceEvidence;
+
+  constructor(evidence: PublicApiSourceEvidence) {
+    this.#evidence = evidence;
+  }
+
   async extract(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,
@@ -263,7 +269,7 @@ export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
         "public-api-extraction"
       )
     );
-    const staged = await stagePackageSnapshot({ policy, root: canonicalRoot });
+    const staged = await stagePackageSnapshot({ policy, root: canonicalRoot }, this.#evidence);
     try {
       const manifestPath = stagedPathForSource({
         snapshot: staged,
@@ -275,7 +281,7 @@ export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
           readonly name?: unknown;
         };
       } catch (error) {
-        if (error instanceof CapabilityInputError) {
+        if (isPublicApiInputError(error)) {
           throw error;
         }
         inputError(

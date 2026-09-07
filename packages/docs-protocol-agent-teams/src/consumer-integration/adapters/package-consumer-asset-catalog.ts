@@ -1,16 +1,13 @@
 import { readFile } from "node:fs/promises";
 
-import type { QualifiedDocsCohortBindingV1 } from "../domain/model.js";
 import {
   digestBytes,
+  assertQualifiedDocsCohortBindingV1,
   type ConsumerAssetCatalogV1,
   type CurrentSourceExecutorV1,
-  type KnownPriorCohortCatalogEntryV1
-} from "../application/policies/consumer-integration-assets.js";
-import { assertQualifiedDocsCohortBindingV1 } from "../application/policies/consumer-integration-desired-state.js";
-import type {
-  ConsumerAssetCatalogReader
-} from "../application/ports/consumer-integration-lifecycle.js";
+  type KnownPriorCohortCatalogEntryV1,
+  type ConsumerAssetCatalogReader
+} from "../application-api.js";
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const COHORT_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u;
@@ -79,7 +76,7 @@ function runtime(value: unknown): CurrentSourceExecutorV1["runtime"] {
 
 function cohortIds(value: unknown): readonly string[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 32 ||
-    value.some((entry) => typeof entry !== "string" || !COHORT_ID.test(entry)) ||
+    !value.every((entry: unknown): entry is string => typeof entry === "string" && COHORT_ID.test(entry)) ||
     new Set(value).size !== value.length) {
     throw new TypeError("Current source executor target Cohort IDs are invalid.");
   }
@@ -120,7 +117,7 @@ function currentSource(value: unknown): CurrentSourceExecutorV1 {
 
 async function directTarget(value: unknown): Promise<KnownPriorCohortCatalogEntryV1> {
   const target = record(value, "directTargetBundle");
-  const cohort = record(target["cohort"], "directTargetBundle.cohort") as unknown as QualifiedDocsCohortBindingV1;
+  const cohort = record(target["cohort"], "directTargetBundle.cohort");
   assertQualifiedDocsCohortBindingV1(cohort);
   const [skill, callerWorkflow] = await Promise.all([
     bundleBytes(target["skillPath"], target["skillDigest"]),

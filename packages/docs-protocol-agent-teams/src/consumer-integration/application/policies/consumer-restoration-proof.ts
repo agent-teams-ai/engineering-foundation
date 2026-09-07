@@ -117,8 +117,9 @@ function parseSelected(bytes: Uint8Array, expect: string, final: boolean): Consu
   return proof;
 }
 
-export function assertObservedRestorationReceipt(plan: KnownFileTransactionPlanV1, receipt: KnownFileTransactionReceiptV1): void {
-  requireRestoration(receipt !== null && typeof receipt === "object" && Array.isArray(receipt.operations) &&
+export function assertObservedRestorationReceipt(plan: KnownFileTransactionPlanV1, value: unknown): void {
+  const receipt = value as KnownFileTransactionReceiptV1;
+  requireRestoration(value !== null && typeof value === "object" && Array.isArray(receipt.operations) &&
     receipt.operations.length === plan.operations.length, "receipt must classify every selected operation.");
   const operations = plan.operations.map(({ path, postimage }, index) => {
     const observed = receipt.operations[index];
@@ -135,9 +136,13 @@ export function parseConsumerRestorationPreparation(bytes: Uint8Array, expect: s
   return parseSelected(bytes, expect, false) as ConsumerRestorationPreparation;
 }
 
+function hasVerifiedRestorationActivation(value: unknown): boolean {
+  return value === "verified-current-v2";
+}
+
 export function parseConsumerRestorationProof(bytes: Uint8Array, expect: string): ConsumerRestorationProof {
   const proof = parseSelected(bytes, expect, true) as ConsumerRestorationProof;
-  requireRestoration(proof.activation === "verified-current-v2" && /^sha256:[0-9a-f]{64}$/u.test(proof.preparationDigest) &&
+  requireRestoration(hasVerifiedRestorationActivation(proof.activation) && /^sha256:[0-9a-f]{64}$/u.test(proof.preparationDigest) &&
     typeof proof.proofPath === "string" && proof.proofPath.startsWith("/") && proof.proofPath.length <= 4096,
   "unsupported final activation or selection evidence.");
   assertObservedRestorationReceipt(proof.plan, proof.receipt);

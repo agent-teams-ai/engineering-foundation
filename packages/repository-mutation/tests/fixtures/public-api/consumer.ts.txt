@@ -1,0 +1,35 @@
+import { applyKnownFileTransaction, recoverKnownFileTransaction, compileKnownFileTransactionPlan, type KnownFileTransactionPlanV1 } from "@agent-teams/repository-mutation";
+import { readBoundedRegularFile, type PublishPreparedAbsentFileOptions, type BoundedRegularFileRead } from "@agent-teams/repository-mutation/node";
+import type { AbsentFilePublicationOperations } from "@agent-teams/repository-mutation/qualification";
+import type { CanonicalJsonValue, CanonicalJsonPrimitive } from "@agent-teams/repository-mutation/coordination";
+import { canonicalJson, parseStrictJson } from "@agent-teams/repository-mutation/serialization";
+import { portableRepositoryPathIdentity } from "@agent-teams/repository-mutation/paths";
+import { assertKnownFileTransactionPlan } from "@agent-teams/repository-mutation/known-file";
+// @ts-expect-error private composition dependencies must not become a consumer API
+import type { KnownFileCoordination } from "@agent-teams/repository-mutation/node";
+// @ts-expect-error qualification exposes exact mechanism seams, not the private coordination object
+import type { KnownFileCoordination as QualificationCoordination } from "@agent-teams/repository-mutation/qualification";
+
+declare const operations: AbsentFilePublicationOperations;
+declare const prepared: PublishPreparedAbsentFileOptions;
+// Check both assignability directions against the released reader function contract.
+const releasedReader: typeof readBoundedRegularFile = operations.readBoundedRegularFile;
+const projectedReader: AbsentFilePublicationOperations["readBoundedRegularFile"] = readBoundedRegularFile;
+const releasedPreparedReader: typeof readBoundedRegularFile = prepared.readBoundedRegularFile;
+const projectedPreparedReader: PublishPreparedAbsentFileOptions["readBoundedRegularFile"] = readBoundedRegularFile;
+const releasedClassifier: typeof readBoundedRegularFile = prepared.classifyBoundedRegularFile;
+const projectedClassifier: PublishPreparedAbsentFileOptions["classifyBoundedRegularFile"] = readBoundedRegularFile;
+const custom: Partial<AbsentFilePublicationOperations> = { readBoundedRegularFile: async (path, limit) => readBoundedRegularFile(path, limit) };
+const observed: Promise<BoundedRegularFileRead> = projectedReader("somewhere", 42);
+// @ts-expect-error a non-file observation cannot satisfy this contract
+const invalid: AbsentFilePublicationOperations["readBoundedRegularFile"] = async () => "not an observation";
+const primitive: CanonicalJsonPrimitive = "text";
+const value: CanonicalJsonValue = { example: [primitive, false, null, 1] };
+const canonical: string = canonicalJson(value);
+const parsed: unknown = parseStrictJson(canonical);
+const path: string = portableRepositoryPathIdentity("managed/result.txt");
+const plan: KnownFileTransactionPlanV1 = compileKnownFileTransactionPlan({ operations: [{ path, precondition: { state: "absent" }, postimage: { bytes: new Uint8Array() } }] });
+assertKnownFileTransactionPlan(plan);
+const applyResult = applyKnownFileTransaction({ consumerRoot: ".", plan });
+const recoveryResult = recoverKnownFileTransaction({ consumerRoot: "." });
+void [releasedReader, projectedReader, releasedPreparedReader, projectedPreparedReader, releasedClassifier, projectedClassifier, custom, observed, invalid, parsed, applyResult, recoveryResult];

@@ -1,13 +1,16 @@
 import type {
-  AuthorityScaffoldPlan,
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
   AuthorityScaffoldReceipt
-} from "../../contract/types.js";
-import { assertAuthorityScaffoldReceiptDigest } from "../../kernel/authority-receipt.js";
-import { assertSchema } from "../../../schema-catalog.js";
+} from "../../contract/receipt-authority-types.js";
+import { assertAuthorityScaffoldReceiptDigest } from "../inbound/authority-scaffold-receipt.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
 
 /** Validates an untrusted canonical Receipt against structural and semantic evidence. */
 export async function validateAuthorityScaffoldReceipt(
   receipt: unknown,
+  assertSchema: ScaffoldSchemaValidator,
   plan?: AuthorityScaffoldPlan
 ): Promise<AuthorityScaffoldReceipt> {
   await assertSchema("scaffold-receipt/v1", receipt, "scaffold-receipt");

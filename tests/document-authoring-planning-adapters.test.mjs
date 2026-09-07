@@ -1,14 +1,15 @@
+import { readContainedRegularFile } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { NodeDocumentContractValidator } from "../packages/document-authoring/dist/adapters/node/node-document-contract-validator.js";
-import { NodeDocumentPlanningProfileReader } from "../packages/document-authoring/dist/adapters/node/node-document-planning-profile-reader.js";
-import { NodeDocumentPlanningStateReader } from "../packages/document-authoring/dist/adapters/node/node-document-planning-state-reader.js";
-import { NodeDocumentTemplateReader } from "../packages/document-authoring/dist/adapters/node/node-document-template-reader.js";
-import { DocumentPlanningError } from "../packages/document-authoring/dist/document-planning-error.js";
+import { NodeDocumentContractValidator } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-contract-validator.js";
+import { NodeDocumentPlanningProfileReader } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-planning-profile-reader.js";
+import { NodeDocumentPlanningStateReader } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-planning-state-reader.js";
+import { NodeDocumentTemplateReader } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-template-reader.js";
+import { DocumentPlanningError } from "../packages/document-authoring/dist/document-authoring/application/model/document-planning-error.js";
 
 async function disposableRepository(prefix, run) {
   const root = await mkdtemp(join(tmpdir(), prefix));
@@ -60,7 +61,7 @@ authoring:
 test("planning profile reader returns a deeply immutable full snapshot", async () => {
   await disposableRepository("document-planning-profile-", async (root) => {
     await writeFile(join(root, "profile.yaml"), profileSource(), "utf8");
-    const snapshot = await new NodeDocumentPlanningProfileReader().read({
+    const snapshot = await new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
       consumerRoot: root,
       path: "profile.yaml"
     });
@@ -87,7 +88,7 @@ test("planning profile reader defaults legacy reachability to not-required", asy
       "",
     );
     await writeFile(join(root, "profile.yaml"), legacy, "utf8");
-    const snapshot = await new NodeDocumentPlanningProfileReader().read({
+    const snapshot = await new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
       consumerRoot: root,
       path: "profile.yaml",
     });
@@ -105,7 +106,7 @@ test("planning profile maps schema and semantic failures to stable planning erro
       "utf8"
     );
     await assert.rejects(
-      new NodeDocumentPlanningProfileReader().read({
+      new NodeDocumentPlanningProfileReader(readContainedRegularFile).read({
         consumerRoot: root,
         path: "profile.yaml"
       }),
@@ -121,7 +122,7 @@ test("template reader captures bounded exact UTF-8 evidence", async () => {
     await mkdir(join(root, "docs"));
     const source = "```markdown\n---\nid: placeholder\n---\n# Placeholder\n```\n";
     await writeFile(join(root, "docs/template.md"), source, "utf8");
-    const snapshot = await new NodeDocumentTemplateReader().read({
+    const snapshot = await new NodeDocumentTemplateReader(readContainedRegularFile).read({
       consumerRoot: root,
       path: "docs/template.md"
     });
@@ -149,7 +150,7 @@ test("template reader rejects symlinks, malformed UTF-8, BOM, NUL, and oversized
         await writeFile(join(root, path), bytes);
       }
       await assert.rejects(
-        new NodeDocumentTemplateReader().read({ consumerRoot: root, path }),
+        new NodeDocumentTemplateReader(readContainedRegularFile).read({ consumerRoot: root, path }),
         (error) => error instanceof DocumentPlanningError &&
           [
             "DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE",
@@ -275,7 +276,7 @@ test("contract validator accepts v1 Intent and bounds validation diagnostics", a
 test("planning state observes absent and bounded regular-file destinations without writes", async () => {
   await disposableRepository("document-planning-state-", async (root) => {
     await mkdir(join(root, "docs/decisions"), { recursive: true });
-    const reader = new NodeDocumentPlanningStateReader();
+    const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
     const absent = await reader.observe({
       consumerRoot: root,
       destination: "docs/decisions/adr.md"
@@ -306,7 +307,7 @@ test("planning state requires an existing real contained parent ancestry", async
     await mkdir(join(root, "docs"));
     await mkdir(join(root, "outside"));
     await symlink(join(root, "outside"), join(root, "docs/link"), "dir");
-    const reader = new NodeDocumentPlanningStateReader();
+    const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
     for (const destination of [
       "missing/child/document.md",
       "docs/link/document.md"
@@ -328,7 +329,7 @@ test("planning state classifies portable collisions, directories, special files,
     await mkdir(join(root, "docs/directory.md"));
     await writeFile(join(root, "docs/large.md"), Buffer.alloc(1024 * 1024 + 1));
     await symlink(join(root, "docs/Readme.md"), join(root, "docs/link.md"));
-    const reader = new NodeDocumentPlanningStateReader();
+    const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
     const vectors = [
       ["docs/README.md", "portable-name-collision"],
       ["docs/directory.md", "directory"],
@@ -344,7 +345,7 @@ test("planning state classifies portable collisions, directories, special files,
 
 test("planning state rejects non-portable paths and checks root-level destinations", async () => {
   await disposableRepository("document-planning-root-state-", async (root) => {
-    const reader = new NodeDocumentPlanningStateReader();
+    const reader = new NodeDocumentPlanningStateReader(readContainedRegularFile);
     await assert.rejects(
       reader.observe({ consumerRoot: root, destination: "../escape.md" }),
       (error) => error instanceof DocumentPlanningError &&

@@ -1,5 +1,5 @@
-import type { WorkspacePackage } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
-import type { SourceFileSnapshot } from "../../../../source-inventory/application/model/source-file-snapshot.js";
+import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
+import type { SourceFileSnapshot } from "./source-file-snapshot.js";
 
 export type SourceArchitectureConfigSchemaVersion = 1 | 2;
 

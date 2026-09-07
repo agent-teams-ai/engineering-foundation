@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Bytes } from "@agent-teams/repository-mutation/serialization";
 
 import type {
   ConsumerIntegrationDesiredState,
@@ -145,7 +145,7 @@ export function isBootstrapKnownPriorCallerWorkflow(bytes: Uint8Array): boolean 
 }
 
 export function digestBytes(value: Uint8Array): ConsumerIntegrationDigest {
-  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+  return sha256Bytes(value);
 }
 
 export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1): string;
@@ -322,5 +322,31 @@ export function describeCanonicalConsumerAssets(
     callerWorkflowDigest,
     assetCatalogDigest,
     transitionCatalogDigest: digestBytes(Buffer.from(CANONICAL_TRANSITION_CATALOG, "utf8"))
+  });
+}
+
+/** Explicit portable-profile projection; persisted managed generations are independent. */
+export function canonicalManagedPortableProfileV4(authority: {
+  readonly foundationProfilePath: string;
+  readonly skillPath: string;
+  readonly semanticValidatorIds: readonly string[];
+}) {
+  return Object.freeze({
+    schemaVersion: 4 as const,
+    protocol: Object.freeze({ id: "agent-teams.docs-protocol" as const, version: 1 as const }),
+    foundationProfile: Object.freeze({
+      path: authority.foundationProfilePath,
+      schemaVersion: 3 as const,
+      metadataSidecarPolicy: "foundation-profile-v3-strict-merge" as const
+    }),
+    agentWorkflow: Object.freeze({ adoption: "portable-v1" as const, skillPath: authority.skillPath }),
+    relations: Object.freeze({ blockers: Object.freeze({
+      types: Object.freeze(["open-decision"]),
+      statuses: Object.freeze(["deferred", "open"]),
+      subjectIncompatibleStatuses: Object.freeze(["accepted", "active"])
+    }) }),
+    semanticValidatorIds: Object.freeze(authority.semanticValidatorIds.toSorted(
+      (left, right) => left < right ? -1 : left > right ? 1 : 0
+    ))
   });
 }

@@ -2,7 +2,7 @@ import {
   compareBinaryStrings,
   compareBinaryStringSequences
 } from "../../../../binary-string-comparator.js";
-import type { DiagnosticEvidence, FoundationDiagnostic } from "../../../../check-contract.js";
+import type { DiagnosticEvidence, FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type {
   ObservedSourceDependencyEdge,
   ObservedSourceGraph,

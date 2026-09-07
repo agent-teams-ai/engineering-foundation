@@ -1,16 +1,23 @@
 import { opendir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 
-import { CapabilityInputError } from "../../../../capability-runtime.js";
 import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../filesystem-path-safety.js";
-import {
-  assertNotCancelled,
-  assertRepositoryRelativePath
-} from "../../../../strict-yaml.js";
+  assertSourceReadActive,
+  sourceRootSymlink,
+  sourceRootUnavailable,
+  sourceRootEscape,
+  sourceRootNotDirectory,
+  sourcePathCollision,
+  sourceEntrySymlink,
+  sourceFileCountExceeded,
+  unstableSourceFile,
+  nulSourceFile,
+  sourceByteBudgetExceeded,
+  sourceConsumerUnavailable
+} from "../../../application/policies/source-input-failures.js";
+import { ContainedFileReadError, assertRepositoryRelativePath } from "../../../api.js";
+import { pathTraversesSymbolicLink, readContainedRegularFile } from "./contained-file-reader.js";
+
 import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
 import type { SourceTreeReader } from "../../../application/ports/source-tree-reader.js";
 
@@ -28,10 +35,6 @@ const MAX_SOURCE_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_SOURCE_FILES = 100_000;
 const MAX_TOTAL_SOURCE_BYTES = 512 * 1024 * 1024;
 const READ_CONCURRENCY = 32;
-
-function inputError(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
-}
 
 function toPosixPath(path: string): string {
   return path.split(sep).join("/");
@@ -56,35 +59,19 @@ async function containedDirectory(
   assertRepositoryRelativePath(repositoryPath, "source-discovery");
   const candidate = resolve(canonicalRoot, repositoryPath);
   if (await pathTraversesSymbolicLink(canonicalRoot, candidate)) {
-    inputError(
-      "SOURCE_SYMLINK_PROHIBITED",
-      `Governed source roots cannot be symbolic links: ${repositoryPath}.`,
-      "source-discovery"
-    );
+    sourceRootSymlink(repositoryPath);
   }
   let canonicalCandidate: string;
   try {
     canonicalCandidate = await realpath(candidate);
   } catch {
-    inputError(
-      "SOURCE_DIRECTORY_UNAVAILABLE",
-      `Required source directory is unavailable: ${repositoryPath}.`,
-      "source-discovery"
-    );
+    sourceRootUnavailable(repositoryPath);
   }
   if (!isContained(canonicalRoot, canonicalCandidate)) {
-    inputError(
-      "SOURCE_DIRECTORY_ESCAPE",
-      `Source directory escapes the consumer repository: ${repositoryPath}.`,
-      "source-discovery"
-    );
+    sourceRootEscape(repositoryPath);
   }
   if (!(await stat(canonicalCandidate)).isDirectory()) {
-    inputError(
-      "SOURCE_DIRECTORY_INVALID",
-      `Source path must be a directory: ${repositoryPath}.`,
-      "source-discovery"
-    );
+    sourceRootNotDirectory(repositoryPath);
   }
   return canonicalCandidate;
 }
@@ -99,14 +86,14 @@ async function discoverSourcePaths(
     const absoluteSourceRoot = await containedDirectory(canonicalRoot, governedRoot);
     const directories = [absoluteSourceRoot];
     while (directories.length > 0) {
-      assertNotCancelled(signal);
+      assertSourceReadActive(signal);
       const directoryPath = directories.pop();
       if (directoryPath === undefined) {
         break;
       }
       const directory = await opendir(directoryPath);
       for await (const entry of directory) {
-        assertNotCancelled(signal);
+        assertSourceReadActive(signal);
         const absoluteEntry = join(directoryPath, entry.name);
         inspectSourceEntry(canonicalRoot, absoluteEntry, entry, directories, paths);
       }
@@ -118,11 +105,7 @@ async function discoverSourcePaths(
     const caseFolded = portablePathIdentity(path);
     const existing = caseFoldedPaths.get(caseFolded);
     if (existing !== undefined && existing !== path) {
-      inputError(
-        "SOURCE_PATH_CASE_COLLISION",
-        `Source paths differ only by letter case: ${existing} and ${path}.`,
-        "source-discovery"
-      );
+      sourcePathCollision(existing, path);
     }
     caseFoldedPaths.set(caseFolded, path);
   }
@@ -137,11 +120,7 @@ function inspectSourceEntry(
   paths: string[]
 ): void {
   if (entry.isSymbolicLink()) {
-    inputError(
-      "SOURCE_SYMLINK_PROHIBITED",
-      `Source trees cannot contain symbolic links: ${toPosixPath(relative(canonicalRoot, absoluteEntry))}.`,
-      "source-discovery"
-    );
+    sourceEntrySymlink(toPosixPath(relative(canonicalRoot, absoluteEntry)));
   }
   if (entry.isDirectory()) {
     directories.push(absoluteEntry);
@@ -152,11 +131,7 @@ function inspectSourceEntry(
   }
   paths.push(toPosixPath(relative(canonicalRoot, absoluteEntry)));
   if (paths.length > MAX_SOURCE_FILES) {
-    inputError(
-      "SOURCE_FILE_LIMIT_EXCEEDED",
-      `Governed source contains more than ${MAX_SOURCE_FILES} files.`,
-      "source-discovery"
-    );
+    sourceFileCountExceeded(MAX_SOURCE_FILES);
   }
 }
 
@@ -170,7 +145,7 @@ async function readSourceFiles(
   for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
     const loaded = await Promise.all(
       paths.slice(index, index + READ_CONCURRENCY).map(async (path) => {
-        assertNotCancelled(signal);
+        assertSourceReadActive(signal);
         let bytes: Buffer;
         try {
           bytes = await readContainedRegularFile({
@@ -180,21 +155,13 @@ async function readSourceFiles(
           });
         } catch (error) {
           if (error instanceof ContainedFileReadError) {
-            inputError(
-              "SOURCE_FILE_INVALID",
-              `Source changed, escaped containment, or is not one stable regular file: ${path}.`,
-              "source-read"
-            );
+            unstableSourceFile(path);
           }
           throw error;
         }
         const source = bytes.toString("utf8");
         if (source.includes("\0")) {
-          inputError(
-            "SOURCE_FILE_INVALID",
-            `Source file contains prohibited NUL bytes: ${path}.`,
-            "source-read"
-          );
+          nulSourceFile(path);
         }
         return { path, source, bytes: bytes.byteLength };
       })
@@ -202,11 +169,7 @@ async function readSourceFiles(
     for (const file of loaded) {
       totalBytes += file.bytes;
       if (totalBytes > MAX_TOTAL_SOURCE_BYTES) {
-        inputError(
-          "SOURCE_SIZE_LIMIT_EXCEEDED",
-          `Governed source exceeds ${MAX_TOTAL_SOURCE_BYTES} bytes.`,
-          "source-read"
-        );
+        sourceByteBudgetExceeded(MAX_TOTAL_SOURCE_BYTES);
       }
       files.push({ path: file.path, source: file.source });
     }
@@ -220,13 +183,9 @@ export class FilesystemSourceTreeReader implements SourceTreeReader {
     governedRoots: readonly string[],
     signal?: AbortSignal
   ): Promise<readonly SourceFileSnapshot[]> {
-    assertNotCancelled(signal);
+    assertSourceReadActive(signal);
     const canonicalRoot = await realpath(consumerRoot).catch(() =>
-      inputError(
-        "CONSUMER_ROOT_UNAVAILABLE",
-        "Consumer root must be an existing accessible directory.",
-        "source-workspace"
-      )
+      sourceConsumerUnavailable()
     );
     return readSourceFiles(
       canonicalRoot,

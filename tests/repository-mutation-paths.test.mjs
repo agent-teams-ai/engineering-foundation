@@ -23,7 +23,7 @@ import {
 } from "../packages/repository-mutation/dist/repository-mutation/application/model/repository-path.js";
 import { legacyScaffoldingRepositoryPathProblem } from "../packages/engineering-foundation/dist/scaffolding/application/policies/legacy-scaffolding-repository-path.js";
 import { portableRepositoryPathProblem as sdPortableRepositoryPathProblem } from "../packages/engineering-foundation/dist/capabilities/source-dependencies/application/model/repository-path.js";
-import { isDocumentRepositoryPath } from "../packages/document-authoring/dist/application/policies/document-repository-path.js";
+import { isDocumentRepositoryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-repository-path.js";
 
 async function withTemporaryRoot(callback) {
   const root = await mkdtemp(join(tmpdir(), "repository-mutation-paths-"));

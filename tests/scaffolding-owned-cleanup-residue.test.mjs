@@ -21,7 +21,7 @@ import {
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import {
   applyAuthorityFilesystemScaffoldWithFaultInjection,
-} from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";
+} from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
 import {
   sha256Text,
 } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";

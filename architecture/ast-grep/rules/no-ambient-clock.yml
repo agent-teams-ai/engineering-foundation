@@ -4,9 +4,11 @@ severity: error
 message: Foundation source must receive time through an explicit boundary.
 note: Pass an Instant or Clock port instead of reading the ambient wall clock.
 files:
-  - "packages/engineering-foundation/src/**/*.ts"
+  - "packages/*/src/**/*.ts"
 ignores:
-  - "packages/engineering-foundation/src/**/adapters/outbound/time/system-clock.ts"
+  - "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-clock.ts"
+  - "packages/engineering-foundation/src/local-mode/adapters/outbound/time/system-clock.ts"
+  - "packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/time/system-clock.ts"
 rule:
   any:
     - pattern: Date.now()

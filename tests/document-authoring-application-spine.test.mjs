@@ -1,34 +1,39 @@
+import { currentDocumentContractFixture, fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
-  createDocumentReceipt,
-} from "../packages/document-authoring/dist/application/policies/document-receipt-policy.js";
+  createDocumentReceipt as createDocumentReceiptWithSchema,
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-receipt-policy.js";
 import {
-  assertDocumentTransactionEnvelope,
-  createDocumentTransactionEnvelope,
-} from "../packages/document-authoring/dist/application/policies/document-transaction-envelope-policy.js";
-import { documentTransactionEnvelopeDigest } from "../packages/document-authoring/dist/application/policies/document-transaction-digests.js";
+  assertDocumentTransactionEnvelope as assertDocumentTransactionEnvelopeWithSchema,
+  createDocumentTransactionEnvelope as createDocumentTransactionEnvelopeWithSchema,
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-envelope-policy.js";
+import { documentTransactionEnvelopeDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-transaction-digests.js";
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),
 );
-const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
+const historicalFixture = JSON.parse(await readFile(fixturePath, "utf8"));
+
+const fixture = currentDocumentContractFixture(historicalFixture);
 
 function preparedBody() {
   return {
     schemaVersion: 3,
     operationKind: "document-authoring",
     recoveryHandler: {
-      id: "foundation.document-authoring",
+      id: "document-authoring",
       contractVersion: 2,
     },
     foundation: {
       version: fixture.plan.compiler.version,
       buildIdentity: fixture.plan.compiler.buildIdentity,
     },
+    kernelArtifact: fixtureKernelArtifact,
     adapterContractVersion: 1,
     payloadKind: "document-authoring-journal/v2",
     journal: {
@@ -82,3 +87,9 @@ test("rejects envelope tampering and cross-state lifecycle aliases", async () =>
     /closed versioned schema|lifecycle|temporary/u,
   );
 });
+
+function createDocumentReceipt(...args) { return createDocumentReceiptWithSchema({ assertSchema }, ...args); }
+
+function createDocumentTransactionEnvelope(...args) { return createDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }
+
+function assertDocumentTransactionEnvelope(...args) { return assertDocumentTransactionEnvelopeWithSchema({ assertSchema }, ...args); }

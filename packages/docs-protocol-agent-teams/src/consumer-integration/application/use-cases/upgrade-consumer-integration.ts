@@ -2,7 +2,7 @@ import {
   compileKnownFileTransactionPlan,
   type KnownFileTransactionOperationInput,
   type KnownFileTransactionReceiptV1
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerUpgradeAuthority,

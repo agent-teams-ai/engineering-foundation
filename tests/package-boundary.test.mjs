@@ -1,7 +1,8 @@
+import { sourceDependencyAdapters } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
@@ -289,7 +290,11 @@ test("Foundation source and source-boundary authority cannot import Docs Protoco
     assert.ok(!boundary.allow.packages.includes(docsProtocolAgentTeamsName), boundary.id);
   }
   const foundationLocalMode = policy.boundaries.find(({ id }) => id === "foundation.local-mode");
-  assert.deepEqual(foundationLocalMode.allow.builtins, [
+  const localModeApplication = policy.boundaries.find(({ id }) => id === "foundation.local-mode.application");
+  const localModeAdapters = policy.boundaries.find(({ id }) => id === "foundation.local-mode.adapters");
+  assert.deepEqual(foundationLocalMode.allow.builtins, []);
+  assert.deepEqual(localModeApplication.allow.builtins, []);
+  assert.deepEqual(localModeAdapters.allow.builtins, [
     "node:fs/promises",
     "node:module",
     "node:path",
@@ -327,15 +332,8 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
     "architecture/foundation/source-dependencies.yaml",
   ), "utf8"));
   const boundaries = Object.fromEntries(policy.boundaries
-    .filter(({ id }) => [
-      "docs-protocol.adapters",
-      "docs-protocol.application",
-      "docs-protocol.composition",
-      "docs-protocol.community.bootstrap",
-      "docs-protocol.community.context",
-      "docs-protocol.domain",
-      "docs-protocol.qualification",
-    ].includes(id))
+    .filter(({ roots }) => roots.some((root) =>
+      root === "packages/docs-protocol/src" || root.startsWith("packages/docs-protocol/src/")))
     .map(({ id, roots, allow, entrypoints }) => [id, {
       roots,
       boundaries: allow.boundaries,
@@ -343,100 +341,10 @@ test("Docs Protocol retains its golden clean-layer dependency fence", async () =
       builtins: allow.builtins,
       entrypoints,
     }]));
-  assert.deepEqual(boundaries, {
-    "docs-protocol.domain": {
-      roots: ["packages/docs-protocol/src/domain"],
-      boundaries: [],
-      packages: [documentAuthoringName, repositoryMutationName],
-      builtins: ["node:path"],
-      entrypoints: [
-        "packages/docs-protocol/src/domain/document-semantics.ts",
-        "packages/docs-protocol/src/domain/model.ts",
-        "packages/docs-protocol/src/domain/model-v2.ts",
-        "packages/docs-protocol/src/domain/model-v3.ts",
-        "packages/docs-protocol/src/domain/profile-policy.ts",
-      ],
-    },
-    "docs-protocol.application": {
-      roots: ["packages/docs-protocol/src/application"],
-      boundaries: ["docs-protocol.community.context", "docs-protocol.domain"],
-      packages: [documentAuthoringName, repositoryMutationName, "yaml"],
-      builtins: [],
-      entrypoints: ["packages/docs-protocol/src/application/docs-protocol.ts"],
-    },
-    "docs-protocol.adapters": {
-      roots: ["packages/docs-protocol/src/adapters"],
-      boundaries: ["docs-protocol.application", "docs-protocol.domain"],
-      packages: [documentAuthoringName, repositoryMutationName, "ajv", "ajv-formats", "yaml"],
-      builtins: ["node:fs", "node:fs/promises", "node:path", "node:url"],
-      entrypoints: [
-        "packages/docs-protocol/src/adapters/docs-command-envelope-schema-validator.ts",
-        "packages/docs-protocol/src/adapters/document-authoring-port.ts",
-        "packages/docs-protocol/src/adapters/node-adoption-inspector.ts",
-        "packages/docs-protocol/src/adapters/node-code-anchor-matcher.ts",
-        "packages/docs-protocol/src/adapters/node-profile-reader.ts",
-        "packages/docs-protocol/src/adapters/node-profile-discovery.ts",
-      ],
-    },
-    "docs-protocol.composition": {
-      roots: [
-        "packages/docs-protocol/src/composition",
-        "packages/docs-protocol/src/index.ts",
-        "packages/docs-protocol/src/cli.ts",
-      ],
-      boundaries: [
-        "docs-protocol.adapters",
-        "docs-protocol.application",
-        "docs-protocol.community.bootstrap",
-        "docs-protocol.community.context",
-        "docs-protocol.domain",
-        "docs-protocol.qualification",
-      ],
-      packages: [documentAuthoringName],
-      builtins: [],
-      entrypoints: [
-        "packages/docs-protocol/src/index.ts",
-        "packages/docs-protocol/src/cli.ts",
-      ],
-    },
-    "docs-protocol.community.context": {
-      roots: ["packages/docs-protocol/src/community/context"],
-      boundaries: ["docs-protocol.domain"],
-      packages: ["minisearch"],
-      builtins: [],
-      entrypoints: ["packages/docs-protocol/src/community/context/index.ts"],
-    },
-    "docs-protocol.community.bootstrap": {
-      roots: ["packages/docs-protocol/src/community/bootstrap"],
-      boundaries: ["docs-protocol.domain"],
-      packages: [documentAuthoringName, repositoryMutationName],
-      builtins: ["node:crypto", "node:fs", "node:fs/promises", "node:path"],
-      entrypoints: [
-        "packages/docs-protocol/src/community/bootstrap/index.ts",
-        "packages/docs-protocol/src/community/bootstrap/portable-bootstrap-assets.ts",
-      ],
-    },
-    "docs-protocol.qualification": {
-      roots: ["packages/docs-protocol/src/qualification"],
-      boundaries: [
-        "docs-protocol.adapters",
-        "docs-protocol.application",
-        "docs-protocol.community.bootstrap",
-        "docs-protocol.domain",
-      ],
-      packages: [documentAuthoringName, "ajv"],
-      builtins: [
-        "node:child_process",
-        "node:crypto",
-        "node:fs",
-        "node:fs/promises",
-        "node:os",
-        "node:path",
-        "node:url",
-      ],
-      entrypoints: ["packages/docs-protocol/src/qualification/index.ts"],
-    },
-  });
+  const expected = JSON.parse(await readFile(new URL(
+    "./fixtures/docs-protocol-boundaries.json", import.meta.url,
+  ), "utf8"));
+  assert.deepEqual(boundaries, expected);
 });
 
 test("Docs Protocol MCP retains six governed read-only feature boundaries", async () => {
@@ -484,10 +392,10 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
       "architecture/foundation/source-dependencies.yaml",
     ), "utf8"));
     const layerIds = new Set([
-      "docs-protocol.adapters",
-      "docs-protocol.application",
-      "docs-protocol.composition",
-      "docs-protocol.domain",
+      "docs-protocol.portable-documentation.adapters",
+      "docs-protocol.portable-documentation.application",
+      "docs-protocol.portable-documentation.composition",
+      "docs-protocol.portable-documentation.domain",
     ]);
     const layers = ["domain", "application", "adapters", "composition"];
     const fixturePolicy = {
@@ -556,7 +464,7 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
         sourcePath,
         `import { marker } from "../${targetLayer}/index.js";\nexport const probe = marker;\n`,
       );
-      const rejected = await createSourceDependenciesCapability().run({
+      const rejected = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
         consumerRoot: temporaryRoot,
         configPath: "architecture/foundation/source-dependencies.yaml",
       });
@@ -571,7 +479,7 @@ test("Docs Protocol clean-layer policy rejects outward imports and permits compo
       join(temporaryRoot, "packages/docs-protocol/src/composition/index.ts"),
       "import { marker } from \"../adapters/index.js\";\nexport const probe = marker;\n",
     );
-    const accepted = await createSourceDependenciesCapability().run({
+    const accepted = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
       consumerRoot: temporaryRoot,
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
@@ -591,8 +499,6 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
     const relevantBoundaryIds = new Set([
       "docs-protocol-agent-teams.adapters",
       "docs-protocol-agent-teams.application",
-      "docs-protocol-agent-teams.domain",
-      "docs-protocol-agent-teams.generated-assets",
     ]);
     const fixturePolicy = {
       schemaVersion: 2,
@@ -605,12 +511,14 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
           ...boundary,
           entrypoints: boundary.id.endsWith(".adapters")
             ? ["packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts"]
-            : boundary.id.endsWith(".domain")
-              ? ["packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts"]
-              : [],
+            : [],
         })),
     };
     const paths = {
+      applicationApi: join(
+        temporaryRoot,
+        "packages/docs-protocol-agent-teams/src/consumer-integration/application-api.ts",
+      ),
       application: join(
         temporaryRoot,
         "packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/new-use-case.ts",
@@ -655,6 +563,7 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
         stringifyYaml(fixturePolicy, { lineWidth: 0 }),
       ),
       writeFile(paths.adapter, "export const nodeAdapter = true;\n"),
+      writeFile(paths.applicationApi, "export type { DomainMarker } from './domain/model.js';\n"),
       writeFile(paths.domain, "export interface DomainMarker { readonly id: string; }\n"),
       writeFile(
         paths.application,
@@ -662,11 +571,11 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
       ),
     ]);
 
-    const rejected = await createSourceDependenciesCapability().run({
+    const rejected = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
       consumerRoot: temporaryRoot,
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
-    assert.equal(rejected.outcome, "violations");
+    assert.equal(rejected.outcome, "violations", JSON.stringify(rejected, null, 2));
     assert.ok(rejected.diagnostics.some(({ location, ruleId }) =>
       ruleId === "architecture.source-dependencies.forbidden-boundary-dependency" &&
       location.path.endsWith("application/use-cases/new-use-case.ts")));
@@ -675,7 +584,7 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
       paths.application,
       "import type { DomainMarker } from \"../../domain/model.js\";\nexport type UseCaseMarker = DomainMarker;\n",
     );
-    const accepted = await createSourceDependenciesCapability().run({
+    const accepted = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
       consumerRoot: temporaryRoot,
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
@@ -686,7 +595,7 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
 });
 
 test("source dependency capability accepts the exact repository allowlist", async () => {
-  const report = await createSourceDependenciesCapability().run({
+  const report = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
     consumerRoot: repositoryRoot,
     configPath: "architecture/foundation/source-dependencies.yaml",
   });
@@ -733,25 +642,4 @@ test("document authoring public surface exposes no directory rollback capability
       path,
     );
   }
-});
-test("production and generic directory adapters share the internal bind kernel", async () => {
-  const productionPath = (await sourceFiles(join(
-    repositoryRoot,
-    "packages/document-authoring/src",
-  ))).find((path) => basename(path) === "node-document-parent-materializer.ts");
-  assert.notEqual(productionPath, undefined);
-  const production = await readFile(productionPath, "utf8");
-  const generic = await readFile(join(
-    repositoryRoot,
-    "packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-materialization.ts",
-  ), "utf8");
-  assert.match(production, /@agent-teams\/repository-mutation\/node/iu); assert.match(generic, /node-create-and-bind-directory\.js/iu);
-  for (const source of [production, generic]) {
-    assert.match(source, /createAndBindNodeDirectory\s*\(/u);
-  }
-  const publicMutationBarrel = await readFile(join(
-    repositoryRoot,
-    "packages/repository-mutation/src/index.ts",
-  ), "utf8");
-  assert.doesNotMatch(publicMutationBarrel, /createAndBindNodeDirectory/u);
 });

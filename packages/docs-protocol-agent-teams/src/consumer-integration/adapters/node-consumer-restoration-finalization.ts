@@ -1,12 +1,21 @@
 import { applyKnownFileTransaction, sha256Bytes, type KnownFileTransactionReceiptV1 } from "@agent-teams/repository-mutation";
 import { acquireMutationLease, claimMutation, observeMutationState, releaseMutationLease } from "@agent-teams/repository-mutation/node";
-import type { ConsumerFinalizationOptions, ConsumerRestorationPreparation, ConsumerRestorationProof, RestorableConsumerUpgradeExecution } from "../application/model/consumer-restoration.js";
-import type { ConsumerRestorationAuthorityReader } from "../application/ports/consumer-restoration.js";
-import type { ConsumerUpgradeAuthorityReader, ConsumerUpgradeSandboxPort } from "../application/ports/consumer-upgrade.js";
 import {
-  assertFullyReplacedReceipt, assertObservedRestorationReceipt, exactRestorationKeys,
-  parseConsumerRestorationProof, requireRestoration, restorationJson
-} from "../application/policies/consumer-restoration-proof.js";
+  type ConsumerFinalizationOptions,
+  type ConsumerRestorationPreparation,
+  type ConsumerRestorationProof,
+  type RestorableConsumerUpgradeExecution,
+  type ConsumerRestorationAuthorityReader,
+  assertFullyReplacedReceipt,
+  assertObservedRestorationReceipt,
+  exactRestorationKeys,
+  parseConsumerRestorationProof,
+  requireRestoration,
+  restorationJson
+} from "../application-api.js";
+
+import type { ConsumerUpgradeAuthorityReader, ConsumerUpgradeSandboxPort } from "../application/ports/consumer-upgrade.js";
+
 import { parseJsonRecord } from "./strict-json-record.js";
 import { assertRestorationAuthority } from "./node-consumer-restoration.js";
 import { assertRestorationImages, externalRestorationPath, retainRestorationProof, syncRestorationProof } from "./node-consumer-restoration-evidence.js";
@@ -33,12 +42,25 @@ async function selectedImages(root: string, preparation: ConsumerRestorationPrep
   await assertRestorationImages(root, preparation, source);
 }
 
+function assertFinalizationGenerations(source: unknown, target: unknown): void {
+  requireRestoration(source === 1 && target === 2, "finalize requires explicit generations 1->2.");
+}
+
+function isCentralFinalizationAuthority(value: { readonly repository: unknown; readonly path: unknown }): boolean {
+  return value.repository === "agent-teams-ai/.github" && value.path === "governance/docs-qualified-cohorts.json";
+}
+
+function assertFinalizationTargetGeneration(value: unknown): void {
+  requireRestoration(value === 2, "explicit V2 authority required.");
+}
+
 export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizationOptions, ports: {
   readonly authority: ConsumerRestorationAuthorityReader & ConsumerUpgradeAuthorityReader;
   readonly sandbox: ConsumerUpgradeSandboxPort;
+  readonly now?: () => number;
   readonly apply?: typeof applyKnownFileTransaction;
 }): Promise<RestorableConsumerUpgradeExecution> {
-  requireRestoration(options.sourceGeneration === 1 && options.targetGeneration === 2, "finalize requires explicit generations 1->2.");
+  assertFinalizationGenerations(options.sourceGeneration, options.targetGeneration);
   const root = await canonicalConsumerRoot(options.consumerRoot);
   const preparation = await readRestorationPreparation(root, options.preparationPath, options.expect);
   requireRestoration(options.from === preparation.sourceCohort.cohortId && options.to === preparation.targetCohort.cohortId,
@@ -58,10 +80,10 @@ export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizat
   try {
     await selectedImages(root, preparation);
     authority = await ports.authority.read({ cohortId: options.to, generation: 2, repository: preparation.consumer.repository });
-    requireRestoration(authority.repository === "agent-teams-ai/.github" && authority.path === "governance/docs-qualified-cohorts.json" &&
+    requireRestoration(isCentralFinalizationAuthority(authority) &&
       /^(?!0{40}$)[0-9a-f]{40}$/u.test(authority.revision) && authority.cohort.schemaVersion === 2 &&
       restorationJson(authority.cohort) === restorationJson(preparation.targetCohort), "fresh upgrade authority differs from selected target.");
-    await assertRestorationAuthority(ports.authority, preparation);
+    await assertRestorationAuthority(ports.authority, preparation, ports.now);
     await selectedImages(root, preparation);
     if (complete !== undefined) {await assertRestorationImages(root, preparation, false);}
     const claim = await claimMutation(lease, await observeMutationState(lease), {
@@ -75,7 +97,7 @@ export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizat
     await retainRestorationProof(receiptPath, { preparationDigest: options.expect, receipt });
     original = receipt;
   }
-  requireRestoration(authority.cohort.schemaVersion === 2, "explicit V2 authority required.");
+  assertFinalizationTargetGeneration(authority.cohort.schemaVersion);
   await assertRestorationImages(root, preparation, false);
   await ports.sandbox.activateAndVerifyV2({ consumerRoot: root, authority: { ...authority, cohort: authority.cohort } });
   await assertRestorationBinding(root, preparation);
@@ -88,7 +110,7 @@ export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizat
     return { schemaVersion: 1, command: "consumer.finalize", outcome: "upgraded", issues: [], receipt,
       restoration: { path, digest: sha256Bytes(retained.bytes) } };
   }
-  const fullyReplaced = original?.operations.every(({ outcome }) => outcome === "replaced") === true ? original : null;
+  const fullyReplaced = original.operations.every(({ outcome }) => outcome === "replaced") ? original : null;
   if (fullyReplaced !== null) {assertFullyReplacedReceipt(preparation.plan, fullyReplaced);}
   const proof: ConsumerRestorationProof = {
     ...preparation, protocol: "agent-teams.managed-v1-restoration/v1", preparationDigest: options.expect as `sha256:${string}`,

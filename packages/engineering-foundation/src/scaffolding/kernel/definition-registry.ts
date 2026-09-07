@@ -1,14 +1,16 @@
-import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
+import type { ScaffoldParameterValidation } from "../application/ports/parameter-validation.js";
 
 import type {
   ConfiguredDefinition,
   DefinitionRef,
+  ScaffoldFileContribution,
+  ScaffoldRenderingTarget
+} from "../application/model/scaffold-compilation.js";
+import type {
   JsonObject,
   JsonValue,
-  ScaffoldFileContribution,
-  ScaffoldRenderingTarget,
   Sha256Digest
-} from "../contract/types.js";
+} from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Json } from "./canonical-json.js";
 
@@ -84,19 +86,15 @@ function compareDefinitionRefs(left: DefinitionRef, right: DefinitionRef): numbe
   return 0;
 }
 
-function validationMessage(validate: ValidateFunction): string {
-  return (validate.errors ?? [])
-    .slice(0, 8)
-    .map((error) => `${error.instancePath || "/"} ${error.message ?? "is invalid"}`)
-    .join("; ")
-    .slice(0, 1000);
-}
-
 export class ScaffoldDefinitionRegistry {
   readonly #definitions: ReadonlyMap<string, ScaffoldDefinition>;
-  readonly #validators = new Map<string, ValidateFunction>();
+  readonly #parameterValidation: ScaffoldParameterValidation;
 
-  constructor(definitions: readonly ScaffoldDefinition[]) {
+  constructor(
+    definitions: readonly ScaffoldDefinition[],
+    parameterValidation: ScaffoldParameterValidation
+  ) {
+    this.#parameterValidation = parameterValidation;
     const entries = new Map<string, ScaffoldDefinition>();
     for (const definition of definitions) {
       const key = definitionKey(definition.ref);
@@ -123,19 +121,11 @@ export class ScaffoldDefinitionRegistry {
   }
 
   validateParameters(definition: ScaffoldDefinition, parameters: JsonObject): void {
-    const key = definitionKey(definition.ref);
-    let validate = this.#validators.get(key);
-    if (validate === undefined) {
-      const ajv = new Ajv2020({ allErrors: true, strict: true });
-      validate = ajv.compile(definition.parameterSchema);
-      this.#validators.set(key, validate);
-    }
-    if (!validate(parameters)) {
-      throw new ScaffoldError(
-        "SCAFFOLD_INPUT_INVALID",
-        `Invalid parameters for ${key}: ${validationMessage(validate)}`
-      );
-    }
+    this.#parameterValidation.validate({
+      definitionKey: definitionKey(definition.ref),
+      schema: definition.parameterSchema,
+      parameters
+    });
   }
 
   assertRecipeRequirements(

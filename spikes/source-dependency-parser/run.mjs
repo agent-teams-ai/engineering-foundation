@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 
 import { parseSync, Visitor } from "oxc-parser";
+import { typescriptLoaderOracle } from "./typescript-loader-oracle.mjs";
 import ts from "typescript";
 
 const supportedArguments = new Set(["--verify-only"]);
@@ -71,7 +72,7 @@ void documentation;
 void template;
 void meta;
 `,
-    expected: [],
+    expected: ["commonjs:module-require"],
   },
   {
     name: "non-literal-loads-fail-closed",
@@ -79,7 +80,6 @@ void meta;
     source: `
 declare const moduleName: string;
 void import(moduleName);
-declare function require(name: string): unknown;
 void require(moduleName);
 `,
     expected: [],
@@ -113,13 +113,13 @@ void alias;
     expected: [],
   },
   {
-    name: "shadowed-require-is-conservatively-an-edge",
+    name: "shadowed-require-is-a-user-api",
     filename: "shadowed.cts",
     source: `
 function require(name: string): string { return name; }
 void require("shadowed-require");
 `,
-    expected: ["commonjs:shadowed-require"],
+    expected: [],
   },
   {
     name: "malformed-source-fails-closed",
@@ -185,7 +185,17 @@ function parseWithOxc(filename, source) {
   const unresolvedReferences = [];
   const visitor = new Visitor({
     CallExpression(node) {
-      if (node.callee.type !== "Identifier" || node.callee.name !== "require") {
+      // This standalone parity corpus covers direct ambient loaders only.
+      // Full lexical/alias/factory behavior is asserted against the production
+      // adapter in the dedicated source-dependency-loader-edges tests.
+      const callee = node.callee;
+      const identifier = callee.type === "Identifier" && callee.name === "require"
+        ? callee : callee.type === "MemberExpression" && !callee.computed &&
+          callee.object.type === "Identifier" && callee.object.name === "module" &&
+          callee.property.type === "Identifier" && callee.property.name === "require"
+          ? callee.object : undefined;
+      if (identifier === undefined || parsed.program.body.some((statement) =>
+        statement.type === "FunctionDeclaration" && statement.id?.name === identifier.name)) {
         return;
       }
       const argument = node.arguments[0];
@@ -306,6 +316,7 @@ function parseWithTypeScript(filename, source) {
 
   const references = [];
   const unresolvedReferences = [];
+  const loaderOrigin = typescriptLoaderOracle(ts, sourceFile);
   function visit(node) {
     if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
       references.push(
@@ -351,15 +362,12 @@ function parseWithTypeScript(filename, source) {
         });
       }
     } else if (ts.isCallExpression(node)) {
-      const kind =
-        node.expression.kind === ts.SyntaxKind.ImportKeyword
-          ? "dynamic"
-          : ts.isIdentifier(node.expression) && node.expression.text === "require"
-            ? "commonjs"
-            : undefined;
+      const origin = loaderOrigin(node.expression);
+      const kind = node.expression.kind === ts.SyntaxKind.ImportKeyword ? "dynamic"
+        : origin?.kind === "loader" ? "commonjs" : undefined;
       if (kind !== undefined) {
         const argument = node.arguments[0];
-        if (argument !== undefined && ts.isStringLiteralLike(argument)) {
+        if (!origin?.opaque && argument !== undefined && ts.isStringLiteral(argument)) {
           references.push(
             reference(kind, typescriptLiteral(argument, sourceFile)),
           );
@@ -495,8 +503,8 @@ const report = {
     },
   ],
   conservativeDecisions: [
-    "A string-literal require call is an edge even when require is lexically shadowed.",
-    "A non-literal dynamic import or require call is unresolved and must fail closed.",
+    "Only proven Node loader bindings produce edges; shadowed user APIs do not.",
+    "Non-literal loads, written loader bindings, and unrepresentable bases remain unresolved; consumer runtimeReferences exceptions stay explicit.",
     "Any parser error discards partial edges and must fail closed.",
   ],
   ...(verifyOnly

@@ -4,13 +4,13 @@ import test from "node:test";
 import {
   classifyDocumentLogicalPreimage,
   isDestinationCoveredByCatalog
-} from "../packages/document-authoring/dist/application/policies/document-logical-preimage.js";
-import { DocumentPlanningPolicyError } from "../packages/document-authoring/dist/application/policies/document-planning-policy-error.js";
-import { normalizeDocumentIntent } from "../packages/document-authoring/dist/application/policies/normalize-document-intent.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-logical-preimage.js";
+import { DocumentPlanningPolicyError } from "../packages/document-authoring/dist/document-authoring/application/policies/document-planning-policy-error.js";
+import { normalizeDocumentIntent } from "../packages/document-authoring/dist/document-authoring/application/policies/normalize-document-intent.js";
 import {
   resolveDocumentAuthoring,
   selectDocumentArtifact
-} from "../packages/document-authoring/dist/application/policies/resolve-document-authoring.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/resolve-document-authoring.js";
 
 const evidence = Object.freeze({ digest: `sha256:${"0".repeat(64)}`, path: "authority.json", size: 1 });
 

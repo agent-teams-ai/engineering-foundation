@@ -1,3 +1,5 @@
+import { createNodeDocumentAuthority } from "../packages/document-authoring/dist/document-authoring/module.js";
+import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import {cp, mkdtemp, readFile, rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
@@ -9,14 +11,12 @@ import {
   planDocumentationDocument,
 } from "../packages/document-authoring/dist/index.js";
 import {
-  planNodeDocumentationDocument,
-} from "../packages/document-authoring/dist/composition/node-document-planning.js";
-import {
-  NodeDocumentAuthorityRecompiler,
-} from "../packages/document-authoring/dist/composition/node-document-authority-recompiler.js";
+  planNodeDocumentationDocument as planWithObservation,
+} from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-planning.js";
+
 import {
   DocumentPlanningError,
-} from "../packages/document-authoring/dist/document-planning-error.js";
+} from "../packages/document-authoring/dist/document-authoring/application/model/document-planning-error.js";
 
 const fixtures = fileURLToPath(
   new URL("fixtures/document-planning/orchestrator/", import.meta.url),
@@ -71,7 +71,7 @@ test("the Node document authority assessment propagates cancellation", async () 
   controller.abort();
 
   await assert.rejects(
-    new NodeDocumentAuthorityRecompiler().assess({
+    createNodeDocumentAuthority(observation).assess({
       consumerRoot: fixtures,
       plan: {},
       signal: controller.signal,
@@ -97,7 +97,7 @@ test("the Node document authority replay propagates cancellation", async () => {
       intent: vector.intent,
     });
     const controller = new AbortController();
-    const assessment = new NodeDocumentAuthorityRecompiler().assess({
+    const assessment = createNodeDocumentAuthority(observation).assess({
       consumerRoot,
       plan,
       signal: controller.signal,
@@ -108,4 +108,37 @@ test("the Node document authority replay propagates cancellation", async () => {
       return true;
     });
   });
+});
+
+function planNodeDocumentationDocument(request) { return planWithObservation(request, observation); }
+
+const observation = { repository: new FilesystemMarkdownRepository(), readFile: readContainedRegularFile, syntax: readMarkdownSyntax };
+
+test("authority replay accepts independent planner and validator ports without Node IO", async () => {
+  const { RecompileDocumentAuthority } = await import("../packages/document-authoring/dist/document-authoring/application/use-cases/document-authority-recompiler.js");
+  const { documentPlanDigest } = await import("../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js");
+  const { plan } = JSON.parse(await readFile(new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url), "utf8"));
+  const calls = [];
+  const contracts = { async validatePlan(value) { calls.push("validate"); assert.equal(value, plan); return plan; } };
+  const replay = new RecompileDocumentAuthority({ contracts, async plan(input) {
+    calls.push(input);
+    return structuredClone(plan);
+  } });
+  assert.deepEqual(await replay.assess({ consumerRoot: "/unmounted-fake", plan }), { state: "current", plan });
+  assert.deepEqual(calls, ["validate", { consumerRoot: "/unmounted-fake", profilePath: plan.authority.profile.path, intent: plan.intent }]);
+  const changed = structuredClone(plan);
+  changed.compiler.buildIdentity = `sha256:${"f".repeat(64)}`;
+  changed.planDigest = documentPlanDigest(changed);
+  assert.equal((await new RecompileDocumentAuthority({ contracts, async plan() { return changed; } })
+    .assess({ consumerRoot: "/unmounted-fake", plan })).state, "stale");
+  for (const [failure, expected] of [
+    [new DocumentPlanningError("DOCUMENT_PLANNING_INPUT_INVALID", "Authority no longer admits the input"), "stale"],
+    [new DocumentPlanningError("DOCUMENT_PLANNING_AUTHORITY_UNAVAILABLE", "Authority read failed"), "unverifiable"],
+    [new Error("Provider disconnected"), "unverifiable"]
+  ]) {
+    const result = await new RecompileDocumentAuthority({ contracts, async plan() { throw failure; } })
+      .assess({ consumerRoot: "/unmounted-fake", plan });
+    assert.equal(result.state, expected);
+    assert.ok(result.reason.endsWith(failure.message));
+  }
 });

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "protocol": "foundation.replace-known-file/v1",
+  "operations": [
+    {
+      "path": "managed/result.txt",
+      "precondition": {
+        "state": "absent"
+      },
+      "postimage": {
+        "contentBase64": "Y3JlYXRlZAo=",
+        "digest": "sha256:59134a4054b27a3fc30e1ac81d9b9168dc0561f65982151324a021fe8ce88d06",
+        "mode": 420,
+        "size": 8
+      }
+    }
+  ],
+  "planDigest": "sha256:6173a6c7a358a2f697fa029d5ad7fceae068be53661638bdf00a9a52db80f2be"
+}

@@ -10,10 +10,18 @@
       "id": "1",
       "tests": [
         "packages/document-authoring/tests/public-api-contract.test.mjs",
+        "packages/engineering-foundation/tests/repository-mutation-public-api.test.mjs",
+        "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs",
+        "tests/capability-reporting-architecture.test.mjs",
+        "tests/reporting-rest.test.mjs",
+        "packages/repository-mutation/tests/public-api-contract.test.mjs",
+        "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs",
+        "packages/repository-mutation/tests/known-file-node-api.test.mjs",
         "tests/capability-public-api.test.mjs",
         "tests/contract-json-schema-releases.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",
         "tests/document-authoring-canonical-markdown.test.mjs",
+        "tests/document-authoring-observation-boundary.test.mjs",
         "tests/document-authoring-donor-golden.test.mjs",
         "tests/document-authoring-profile-v2.test.mjs",
         "tests/document-authoring-transaction-coordination-v2.test.mjs",
@@ -24,6 +32,7 @@
         "tests/executable-specification-inspector-limits.test.mjs",
         "tests/foundation-operation-lock.test.mjs",
         "tests/foundation-transaction-coordinator.test.mjs",
+        "tests/foundation-transaction-observation.test.mjs",
         "tests/local-mode.test.mjs",
         "tests/markdown-bundle-evidence.test.mjs",
         "tests/markdown-checkout.test.mjs",
@@ -51,7 +60,15 @@
         "tests/single-current-contract-version.test.mjs",
         "tests/source-dependency-graph.test.mjs",
         "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
-        "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs"
+        "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
+        "tests/source-dependency-loader-edges.test.mjs",
+        "tests/source-dependency-loader-cli.test.mjs",
+        "tests/feature-module-conformance.test.mjs",
+        "tests/production-quality-scope.test.mjs",
+        "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
+        "packages/docs-protocol/tests/portable-dx.test.mjs",
+        "packages/engineering-foundation/tests/docs-protocol-public-api.test.mjs",
+        "packages/engineering-foundation/tests/managed-public-api.test.mjs"
       ]
     },
     {
@@ -86,13 +103,30 @@
         "tests/release-publish-policy.test.mjs",
         "tests/repository-mutation-publication.test.mjs",
         "tests/repository-mutation-directory-materialization.test.mjs",
+        "tests/repository-security-configuration.test.mjs",
+        "tests/suppression-configuration.test.mjs",
+        "tests/quality-gate-configuration.test.mjs",
+        "tests/governance-configuration.test.mjs",
+        "tests/protobuf-configuration.test.mjs",
+        "tests/public-api-configuration.test.mjs",
+        "tests/public-api-evidence-ports.test.mjs",
+        "tests/scaffolding-schema-boundary.test.mjs",
+        "tests/scaffolding-owner-composition.test.mjs",
+        "tests/transaction-schema-boundary.test.mjs",
+        "tests/json-schema-configuration.test.mjs",
+        "tests/executable-configuration.test.mjs",
+        "tests/source-configuration.test.mjs",
+        "tests/workspace-configuration.test.mjs",
+        "tests/agent-workflow-configuration.test.mjs",
         "tests/repository-security-hardening.test.mjs",
         "tests/scaffolding-adversarial.test.mjs",
         "tests/source-dependency-development-mode.test.mjs",
         "tests/source-dependency-export-authority.test.mjs",
         "tests/source-dependency-source-coverage.test.mjs",
+        "tests/source-dependency-topology-ports.test.mjs",
         "tests/source-dependency-workspace-discovery.test.mjs",
-        "tests/source-dependency-workspace-topology.test.mjs"
+        "tests/source-dependency-workspace-topology.test.mjs",
+        "packages/engineering-foundation/tests/public-api-artifact-inventory.test.mjs"
       ]
     },
     {
@@ -112,6 +146,7 @@
         "tests/document-planning-composition.test.mjs",
         "tests/document-planning-use-case.test.mjs",
         "tests/document-reachability-projection.test.mjs",
+        "tests/exact-primitive-contracts.test.mjs",
         "tests/foundation-cleanup-marker-crash.test.mjs",
         "tests/foundation-local-mode-transaction-e2e.test.mjs",
         "tests/local-mode-process-runner.test.mjs",
@@ -122,6 +157,7 @@
         "tests/registry-package-boundary.test.mjs",
         "tests/registry-publication-policy.test.mjs",
         "tests/scaffolding-authority.test.mjs",
+        "tests/scaffolding-qualification.test.mjs",
         "tests/scaffolding-canonical-contract.test.mjs",
         "tests/scaffolding-frozen-baseline.test.mjs",
         "tests/scaffolding-journal-gateway.test.mjs",
@@ -176,7 +212,13 @@
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "tests/scorecard-workflow.test.mjs",
         "tests/test-manifests.test.mjs",
-        "tests/unexpected-failure-diagnostics.test.mjs"
+        "tests/unexpected-failure-diagnostics.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
+        "tests/managed-layer-ownership.test.mjs",
+        "packages/docs-protocol/tests/qualification-application.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs"
       ]
     }
   ]

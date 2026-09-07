@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { stringify as stringifyYaml } from "yaml";
 
-import { promoteArchitectureDecisionBaseline } from "../../packages/engineering-foundation/dist/capabilities/governance-architecture-decisions/module.js";
+import { promoteArchitectureDecisionBaseline } from "./capability-adapters.mjs";
 
 export const GOVERNANCE_CONFIG_PATH =
   "architecture/foundation/governance-architecture-decisions.yaml";

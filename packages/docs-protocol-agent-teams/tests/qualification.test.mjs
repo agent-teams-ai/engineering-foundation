@@ -3,11 +3,13 @@ import { cp, link, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { Ajv2020 } from "ajv/dist/2020.js";
 
 import {
-  overlayLocalDevelopmentSkill,
-  runDocsProtocolQualificationV2
-} from "../dist/qualification/qualification-v2-runner.js";
+  overlayLocalDevelopmentSkill
+} from "../dist/qualification/adapters/outbound/node-managed-qualification.js";
+
+import { runDocsProtocolQualificationV2 } from "../dist/qualification/index.js";
 
 const fixtureRoot = new URL("./fixtures/qualification", import.meta.url).pathname;
 
@@ -28,6 +30,10 @@ test("managed qualification imports the portable public contract and marks local
   assert.deepEqual(receipt.scenarios.map(({ type }) => type), ["adr"]);
   assert.equal(receipt.derived.contractPath, "architecture/foundation/docs-protocol-qualification.json");
   assert.equal(receipt.derived.gateCommand, "pnpm docs:protocol:check");
+  const schema = JSON.parse(await readFile(new URL("../schemas/docs-protocol-qualification-receipt/v2.schema.json", import.meta.url), "utf8"));
+  const integrationSchema = JSON.parse(await readFile(new URL("../schemas/docs-consumer-integration-profile/v2.schema.json", import.meta.url), "utf8"));
+  const validate = new Ajv2020({ allErrors: true, strict: true }).addSchema(integrationSchema).compile(schema);
+  assert.equal(validate(receipt), true, JSON.stringify(validate.errors));
 });
 
 test("managed local-development Skill overlay rejects a symlink without touching its target", async () => {

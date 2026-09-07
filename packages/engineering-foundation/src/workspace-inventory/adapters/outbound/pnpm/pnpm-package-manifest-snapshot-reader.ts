@@ -2,13 +2,23 @@ import { realpath } from "node:fs/promises";
 import { isAbsolute, posix, relative, resolve, sep } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
 import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+  assertWorkspaceReadActive,
+  workspaceStringRecordRequired,
+  workspaceStringValuesRequired,
+  packageNamesArrayRequired,
+  exportBudgetExceeded,
+  invalidExportCondition,
+  invalidExportTarget,
+  mixedExportSubpaths,
+  invalidExportSubpath,
+  manifestSymlink,
+  manifestUnavailable,
+  manifestEscape,
+  manifestObjectRequired
+} from "../../../application/policies/workspace-input-failures.js";
+import type { WorkspaceManifestFileObservation } from "../../../application/ports/workspace-input-observations.js";
+import { rejectManifestObservation } from "../../../application/policies/manifest-observation-failure.js";
 import {
   DEPENDENCY_SECTIONS,
   type CatalogEntry,
@@ -26,10 +36,6 @@ const READ_CONCURRENCY = 32;
 const MAX_EXPORT_TARGET_DEPTH = 64;
 const MAX_EXPORT_TARGET_NODES = 10_000;
 
-function inputError(code: string, message: string, phase: string): never {
-  throw new CapabilityInputError({ code, message, phase, retryable: false });
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -40,15 +46,11 @@ function stringRecord(
   phase: string
 ): Readonly<Record<string, string>> {
   if (!isRecord(value)) {
-    inputError("GOVERNED_INPUT_INVALID", `${field} must be an object.`, phase);
+    workspaceStringRecordRequired(field, phase);
   }
   for (const [name, specifier] of Object.entries(value)) {
     if (name.length === 0 || typeof specifier !== "string" || specifier.length === 0) {
-      inputError(
-        "GOVERNED_INPUT_INVALID",
-        `${field} must contain non-empty string values.`,
-        phase
-      );
+      workspaceStringValuesRequired(field, phase);
     }
   }
   return value as Readonly<Record<string, string>>;
@@ -59,11 +61,7 @@ function optionalStringArray(value: unknown, field: string): readonly string[] {
     return [];
   }
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `${field} must be an array of package names.`,
-      "package-manifest"
-    );
+    packageNamesArrayRequired(field);
   }
   return value as readonly string[];
 }
@@ -76,11 +74,7 @@ function normalizedExportTarget(
 ): PackageExportTarget {
   budget.nodes += 1;
   if (depth > MAX_EXPORT_TARGET_DEPTH || budget.nodes > MAX_EXPORT_TARGET_NODES) {
-    inputError(
-      "PACKAGE_EXPORTS_INVALID",
-      `${field} export target exceeds the bounded structure budget.`,
-      "package-manifest"
-    );
+    exportBudgetExceeded(field);
   }
   if (value === null) {
     return null;
@@ -98,22 +92,14 @@ function normalizedExportTarget(
     if (
       entries.some(([condition]) => condition.length === 0 || /^(?:0|[1-9][0-9]*)$/u.test(condition))
     ) {
-      inputError(
-        "PACKAGE_EXPORTS_INVALID",
-        `${field} conditional export target is invalid.`,
-        "package-manifest"
-      );
+      invalidExportCondition(field);
     }
     return Object.freeze(Object.fromEntries(entries.map(([condition, target]) => [
       condition,
       normalizedExportTarget(target, `${field}.${condition}`, budget, depth + 1)
     ])));
   }
-  inputError(
-    "PACKAGE_EXPORTS_INVALID",
-    `${field} export target must be a string, null, array, or condition object.`,
-    "package-manifest"
-  );
+  invalidExportTarget(field);
 }
 
 function retainedTarget(value: unknown, field: string): PackageExportTarget {
@@ -161,11 +147,7 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
     }
     const subpathKeys = keys.filter((key) => key.startsWith("."));
     if (subpathKeys.length > 0 && subpathKeys.length !== keys.length) {
-      inputError(
-        "PACKAGE_EXPORTS_INVALID",
-        `${manifestPath} exports cannot mix subpaths and conditions at the same level.`,
-        "package-manifest"
-      );
+      mixedExportSubpaths(manifestPath);
     }
     if (subpathKeys.length > 0) {
       for (const subpath of subpathKeys) {
@@ -180,11 +162,7 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
               (segment === "" || segment === "." || segment === ".." || segment === "node_modules")
           )
         ) {
-          inputError(
-            "PACKAGE_EXPORTS_INVALID",
-            `${manifestPath} contains an invalid export subpath: ${subpath}.`,
-            "package-manifest"
-          );
+          invalidExportSubpath(manifestPath, subpath);
         }
         entries.push(packageExportEntry(
           subpath,
@@ -207,132 +185,113 @@ function normalizeExportSurface(value: unknown, manifestPath: string): PackageEx
   };
 }
 
-async function readJsonManifest(
-  consumerRoot: string,
-  manifestPath: string,
-  catalogs: readonly CatalogEntry[],
-  signal?: AbortSignal
-): Promise<WorkspacePackage> {
-  assertNotCancelled(signal);
-  const canonicalRoot = await realpath(consumerRoot);
-  const absolutePath = resolve(canonicalRoot, manifestPath);
-  if (await pathTraversesSymbolicLink(canonicalRoot, absolutePath)) {
-    inputError(
-      "PACKAGE_MANIFEST_SYMLINK_PROHIBITED",
-      `Workspace package manifests cannot be symbolic links: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-  const canonicalPath = await realpath(absolutePath).catch(() =>
-    inputError(
-      "PACKAGE_MANIFEST_UNAVAILABLE",
-      `Workspace package manifest is unavailable: ${manifestPath}.`,
-      "package-manifest"
-    )
-  );
-  const relation = relative(canonicalRoot, canonicalPath);
-  if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
-    inputError(
-      "PACKAGE_MANIFEST_ESCAPE",
-      `Workspace package manifest escapes the consumer repository: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-  let input: unknown;
-  try {
-    const bytes = await readContainedRegularFile({
-      candidate: canonicalPath,
-      maxBytes: MAX_MANIFEST_BYTES,
-      root: canonicalRoot
-    });
-    input = JSON.parse(bytes.toString("utf8")) as unknown;
-  } catch (error) {
-    if (!(error instanceof SyntaxError) && !(error instanceof ContainedFileReadError)) {
-      throw error;
-    }
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `Workspace package manifest changed, escaped containment, or is not stable valid JSON: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
-  if (!isRecord(input)) {
-    inputError(
-      "PACKAGE_MANIFEST_INVALID",
-      `Workspace package manifest must contain an object: ${manifestPath}.`,
-      "package-manifest"
-    );
-  }
+export class PnpmPackageManifestSnapshotReader {
+  constructor(private readonly files: WorkspaceManifestFileObservation) {}
 
-  const packageName =
-    typeof input["name"] === "string" && input["name"].length > 0
-      ? input["name"]
-      : `<unnamed:${manifestPath}>`;
-  const dependencies: DependencyDeclaration[] = [];
-  for (const section of DEPENDENCY_SECTIONS) {
-    if (input[section] === undefined) {
-      continue;
+  private async readJsonManifest(
+    consumerRoot: string,
+    manifestPath: string,
+    catalogs: readonly CatalogEntry[],
+    signal?: AbortSignal
+  ): Promise<WorkspacePackage> {
+    assertWorkspaceReadActive(signal);
+    const canonicalRoot = await realpath(consumerRoot);
+    const absolutePath = resolve(canonicalRoot, manifestPath);
+    if (await this.files.pathTraversesSymbolicLink(canonicalRoot, absolutePath)) {
+      manifestSymlink(manifestPath);
     }
-    const declarations = stringRecord(
-      input[section],
-      `${manifestPath} ${section}`,
-      "package-manifest"
+    const canonicalPath = await realpath(absolutePath).catch(() =>
+      manifestUnavailable(manifestPath)
     );
-    for (const [dependencyName, specifier] of Object.entries(declarations)) {
-      dependencies.push(normalizeDependencyDeclaration({
-        catalogs,
-        packageName,
-        manifestPath,
-        section,
-        dependencyName,
-        specifier
-      }));
+    const relation = relative(canonicalRoot, canonicalPath);
+    if (relation === ".." || relation.startsWith(`..${sep}`) || isAbsolute(relation)) {
+      manifestEscape(manifestPath);
     }
-  }
-  return {
-    name: packageName,
-    rootPath: posix.dirname(manifestPath),
-    manifestPath,
-    moduleType: input["type"] === "module" ? "module" : "commonjs",
-    ...(typeof input["packageManager"] === "string"
-      ? { packageManager: input["packageManager"] }
-      : {}),
-    dependencies: dependencies.toSorted(
-      (left, right) =>
-        compareBinaryStrings(left.dependencyName, right.dependencyName) ||
-        compareBinaryStrings(left.section, right.section)
-    ),
-    bundledDependencies: [
-      ...optionalStringArray(
-        input["bundleDependencies"],
-        `${manifestPath} bundleDependencies`
+    let input: unknown;
+    try {
+      const bytes = await this.files.read({
+        candidate: canonicalPath,
+        maxBytes: MAX_MANIFEST_BYTES,
+        root: canonicalRoot
+      });
+      input = JSON.parse(Buffer.from(bytes).toString("utf8")) as unknown;
+    } catch (error) {
+      rejectManifestObservation(error, manifestPath);
+    }
+    if (!isRecord(input)) {
+      manifestObjectRequired(manifestPath);
+    }
+
+    const packageName =
+      typeof input["name"] === "string" && input["name"].length > 0
+        ? input["name"]
+        : `<unnamed:${manifestPath}>`;
+    const dependencies: DependencyDeclaration[] = [];
+    for (const section of DEPENDENCY_SECTIONS) {
+      if (input[section] === undefined) {
+        continue;
+      }
+      const declarations = stringRecord(
+        input[section],
+        `${manifestPath} ${section}`,
+        "package-manifest"
+      );
+      for (const [dependencyName, specifier] of Object.entries(declarations)) {
+        dependencies.push(normalizeDependencyDeclaration({
+          catalogs,
+          packageName,
+          manifestPath,
+          section,
+          dependencyName,
+          specifier
+        }));
+      }
+    }
+    return {
+      name: packageName,
+      rootPath: posix.dirname(manifestPath),
+      manifestPath,
+      moduleType: input["type"] === "module" ? "module" : "commonjs",
+      ...(typeof input["packageManager"] === "string"
+        ? { packageManager: input["packageManager"] }
+        : {}),
+      dependencies: dependencies.toSorted(
+        (left, right) =>
+          compareBinaryStrings(left.dependencyName, right.dependencyName) ||
+          compareBinaryStrings(left.section, right.section)
       ),
-      ...optionalStringArray(
-        input["bundledDependencies"],
-        `${manifestPath} bundledDependencies`
-      )
-    ].toSorted(),
-    exportSurface: normalizeExportSurface(input["exports"], manifestPath)
-  };
-}
+      bundledDependencies: [
+        ...optionalStringArray(
+          input["bundleDependencies"],
+          `${manifestPath} bundleDependencies`
+        ),
+        ...optionalStringArray(
+          input["bundledDependencies"],
+          `${manifestPath} bundledDependencies`
+        )
+      ].toSorted(),
+      exportSurface: normalizeExportSurface(input["exports"], manifestPath)
+    };
+  }
 
-export async function readPnpmPackageManifestSnapshots(
-  consumerRoot: string,
-  paths: readonly string[],
-  catalogs: readonly CatalogEntry[],
-  signal?: AbortSignal
-): Promise<readonly WorkspacePackage[]> {
-  const packages: WorkspacePackage[] = [];
-  for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
-    packages.push(
-      ...(await Promise.all(
-        paths
-          .slice(index, index + READ_CONCURRENCY)
-          .map((path) => readJsonManifest(consumerRoot, path, catalogs, signal))
-      ))
+  async read(
+    consumerRoot: string,
+    paths: readonly string[],
+    catalogs: readonly CatalogEntry[],
+    signal?: AbortSignal
+  ): Promise<readonly WorkspacePackage[]> {
+    const packages: WorkspacePackage[] = [];
+    for (let index = 0; index < paths.length; index += READ_CONCURRENCY) {
+      packages.push(
+        ...(await Promise.all(
+          paths
+            .slice(index, index + READ_CONCURRENCY)
+            .map((path) => this.readJsonManifest(consumerRoot, path, catalogs, signal))
+        ))
+      );
+    }
+    return packages.toSorted((left, right) =>
+      compareBinaryStrings(left.manifestPath, right.manifestPath)
     );
   }
-  return packages.toSorted((left, right) =>
-    compareBinaryStrings(left.manifestPath, right.manifestPath)
-  );
 }

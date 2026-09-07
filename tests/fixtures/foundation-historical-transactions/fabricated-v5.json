@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 5,
+  "foundation": {
+    "version": "0.21.0",
+    "buildIdentity": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "unexpected": "no journal or handler",
+  "envelopeDigest": "sha256:7a9a162aee91b08b06dbb9e71953eda84898c78d5eb661416f9c679867fd2537"
+}

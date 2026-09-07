@@ -1,6 +1,5 @@
 import {
   assertDocumentPlanDigests,
-  assertDocumentTransactionEnvelope,
   documentTemporaryPath
 } from "@agent-teams/document-authoring/qualification";
 import type { InternalFoundationTransactionStatus } from "../../application/model/internal-transaction-status.js";
@@ -119,83 +118,4 @@ export function inspectDocumentTransactionBindings(options: {
         options.format ?? "envelope-v2"
       )
     : undefined;
-}
-
-interface CurrentEnvelopeVersionBinding {
-  readonly format: "envelope-v3" | "envelope-v4";
-  readonly handlerContractVersion: 2 | 3;
-  readonly journalVersion: 2 | 3;
-  readonly payloadKind:
-    | "document-authoring-journal/v2"
-    | "document-authoring-journal/v3";
-}
-
-function currentEnvelopeVersionBinding(
-  schemaVersion: unknown
-): CurrentEnvelopeVersionBinding {
-  return schemaVersion === 4
-    ? {
-        format: "envelope-v4",
-        handlerContractVersion: 3,
-        journalVersion: 3,
-        payloadKind: "document-authoring-journal/v3"
-      }
-    : {
-        format: "envelope-v3",
-        handlerContractVersion: 2,
-        journalVersion: 2,
-        payloadKind: "document-authoring-journal/v2"
-      };
-}
-
-export async function inspectCurrentDocumentEnvelope(options: {
-  readonly value: Record<string, unknown>;
-  readonly installedVersion: string;
-  readonly installedBuildIdentity: string;
-  readonly pending: (identity: {
-    readonly foundationVersion: string;
-    readonly foundationBuildIdentity: string;
-    readonly installedVersion: string;
-    readonly installedBuildIdentity: string;
-  }) => InternalFoundationTransactionStatus;
-}): Promise<InternalFoundationTransactionStatus> {
-  const version = currentEnvelopeVersionBinding(options.value["schemaVersion"]);
-  await assertDocumentTransactionEnvelope(options.value);
-  const foundation = options.value["foundation"];
-  const handler = options.value["recoveryHandler"];
-  const journal = options.value["journal"];
-  if (
-    options.value["operationKind"] !== "document-authoring" ||
-    options.value["payloadKind"] !== version.payloadKind ||
-    !isRecord(handler) ||
-    !["document-authoring", "foundation.document-authoring"].includes(String(handler["id"])) ||
-    handler["contractVersion"] !== version.handlerContractVersion ||
-    !isRecord(foundation) ||
-    typeof foundation["version"] !== "string" ||
-    typeof foundation["buildIdentity"] !== "string" || !isRecord(journal) ||
-    journal["schemaVersion"] !== version.journalVersion
-  ) {
-    throw new Error("Current Document transaction envelope binding is invalid.");
-  }
-  const plan = journal["plan"];
-  const compiler = isRecord(plan) ? plan["compiler"] : undefined;
-  if (!isRecord(plan) || !isRecord(compiler) ||
-    compiler["version"] !== foundation["version"] ||
-    compiler["buildIdentity"] !== foundation["buildIdentity"]) {
-    throw new Error("Current Document transaction compiler binding is invalid.");
-  }
-  const status = inspectDocumentTransactionBindings({
-    foundation,
-    format: version.format,
-    journal,
-    journalVersion: version.journalVersion,
-    plan,
-    state: options.value["state"]
-  });
-  return status ?? options.pending({
-    foundationVersion: foundation["version"],
-    foundationBuildIdentity: foundation["buildIdentity"],
-    installedVersion: options.installedVersion,
-    installedBuildIdentity: options.installedBuildIdentity
-  });
 }

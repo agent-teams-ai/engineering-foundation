@@ -20,6 +20,10 @@
       "types": "./dist/local-mode/index.d.ts",
       "import": "./dist/local-mode/index.js"
     },
+    "./scaffolding/qualification": {
+      "types": "./dist/scaffolding/qualification.d.ts",
+      "import": "./dist/scaffolding/qualification.js"
+    },
     "./scaffolding": {
       "types": "./dist/scaffolding/index.d.ts",
       "import": "./dist/scaffolding/index.js"
@@ -30,6 +34,7 @@
   },
   "files": [
     "dist",
+    "assets/transaction-coordination/historical/document-plan-v1.schema.json",
     "presets/oxlint/base.json",
     "presets/oxlint/maintainability-tests.json",
     "presets/oxlint/maintainability.json",

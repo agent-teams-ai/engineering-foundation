@@ -1,0 +1,29 @@
+{
+  "adapter": {
+    "contractVersion": 1,
+    "id": "foundation.filesystem/v1"
+  },
+  "commit": {
+    "fileAtomicity": "single-file-atomic-create",
+    "publication": "published",
+    "recoverability": "not-required",
+    "state": "committed"
+  },
+  "destination": "packages/example/src/features/create-widget/README.md",
+  "diagnostics": [],
+  "directoryMaterialization": {
+    "observedCreatedDirectories": [
+      "packages/example/src/features/create-widget"
+    ],
+    "plannedDirectories": [
+      "packages/example/src/features/create-widget"
+    ],
+    "state": "created-and-retained"
+  },
+  "outcome": "applied",
+  "planDigest": "sha256:53a3c0203c3f428088952d8b964e2a20391ac0435a6fe2b828f39e3d4f4f4f8a",
+  "protocolVersion": 2,
+  "resultDigest": "sha256:75acb6795c630db3318c15152136dd7c7a0e46b5a0b6f1a245691ea04ab69cdd",
+  "schemaVersion": 2,
+  "receiptDigest": "sha256:72ce221400c799b00894cbd2dcb806464aac234869043473a18932759bbd9479"
+}

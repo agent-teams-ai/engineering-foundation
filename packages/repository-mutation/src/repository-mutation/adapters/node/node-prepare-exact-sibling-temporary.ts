@@ -1,8 +1,9 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import type { FileHandle } from "node:fs/promises";
 
 import { AbsentFilePublicationError, type ExactFilePostimage } from "../../application/model/exact-postimage.js";
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
-import { captureFileHandleIdentity } from "./node-bounded-regular-file.js";
+import type { PortablePathIdentity } from "../../../path-identity.js";
+
 import { publicationErrorCode } from "./node-absent-file-publication-private.js";
 
 export interface PrepareExactSiblingTemporaryOptions {
@@ -20,7 +21,7 @@ export interface PrepareExactSiblingTemporaryOptions {
   readonly temporaryPath: string;
 }
 
-export async function prepareExactSiblingTemporaryWithFaults(
+export async function prepareExactSiblingTemporaryWithFaults(coordination: Pick<KnownFileCoordination, "captureFileHandleIdentity">,
   options: PrepareExactSiblingTemporaryOptions & {
     readonly faultInjector?: (point: {
       readonly phase: "after-temporary-written";
@@ -40,7 +41,7 @@ export async function prepareExactSiblingTemporaryWithFaults(
       throw error;
     });
   try {
-    const identity = await captureFileHandleIdentity(handle);
+    const identity = await coordination.captureFileHandleIdentity(handle);
     options.onIdentityCaptured(identity);
     await options.validateOpenedPath?.(identity);
     await handle.writeFile(options.postimage.bytes);
@@ -53,8 +54,8 @@ export async function prepareExactSiblingTemporaryWithFaults(
   }
 }
 
-export function prepareExactSiblingTemporary(
+export function prepareExactSiblingTemporary(coordination: Pick<KnownFileCoordination, "captureFileHandleIdentity">,
   options: PrepareExactSiblingTemporaryOptions
 ): Promise<PortablePathIdentity> {
-  return prepareExactSiblingTemporaryWithFaults(options);
+  return prepareExactSiblingTemporaryWithFaults(coordination, options);
 }

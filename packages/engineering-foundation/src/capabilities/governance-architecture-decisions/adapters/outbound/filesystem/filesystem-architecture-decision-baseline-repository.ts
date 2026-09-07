@@ -12,13 +12,8 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { lock } from "proper-lockfile";
 
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
+import { assertBaselineObservationActive, assertExpectedBaselineState, baselineObservationFailure, isBaselineInputFailure, rejectBaselineWrite } from "../../../application/policies/architecture-decision-baseline-input.js";
+import type { ArchitectureDecisionBaselineObservation } from "../../../application/ports/architecture-decision-baseline-observation.js";
 import { parseAcceptedArchitectureDecisionBaseline } from "../../../application/policies/accepted-architecture-decision-baseline.js";
 import type {
   ArchitectureDecisionBaselineExpectedState,
@@ -29,7 +24,6 @@ import type {
 import type { AcceptedArchitectureDecisionBaseline } from "../../../application/model/architecture-decision.js";
 
 const MAX_BASELINE_BYTES = 4 * 1024 * 1024;
-const WRITE_PHASE = "architecture-decision-baseline-write";
 const BASELINE_LOCK_OPTIONS = Object.freeze({
   realpath: false,
   retries: {
@@ -89,15 +83,6 @@ function hasEquivalentSerializedBaseline(
   return observed?.replaceAll("\r\n", "\n") === expected;
 }
 
-function writeError(code: string, message: string): never {
-  throw new CapabilityInputError({
-    code,
-    message,
-    phase: WRITE_PHASE,
-    retryable: false
-  });
-}
-
 async function canonicalRoot(consumerRoot: string): Promise<string | undefined> {
   try {
     const root = await realpath(consumerRoot);
@@ -109,7 +94,8 @@ async function canonicalRoot(consumerRoot: string): Promise<string | undefined> 
 
 async function targetFor(
   consumerRoot: string,
-  repositoryPath: string
+  repositoryPath: string,
+  observation: ArchitectureDecisionBaselineObservation
 ): Promise<BaselineTarget | ArchitectureDecisionBaselineReadResult> {
   const root = await canonicalRoot(consumerRoot);
   if (root === undefined) {
@@ -122,7 +108,7 @@ async function targetFor(
       message: "Accepted-decision baseline path escapes the consumer repository."
     };
   }
-  if (await pathTraversesSymbolicLink(root, candidate)) {
+  if (await observation.pathTraversesSymbolicLink(root, candidate)) {
     return {
       kind: "unsafe",
       message: "Accepted-decision baseline path traverses a symbolic link."
@@ -141,46 +127,25 @@ async function inspectBaseline(input: {
   readonly consumerRoot: string;
   readonly path: string;
   readonly signal?: AbortSignal;
-}): Promise<InspectedBaseline> {
-  assertNotCancelled(input.signal);
-  const target = await targetFor(input.consumerRoot, input.path);
+}, observation: ArchitectureDecisionBaselineObservation): Promise<InspectedBaseline> {
+  assertBaselineObservationActive(input.signal);
+  const target = await targetFor(input.consumerRoot, input.path, observation);
   if (targetIsReadResult(target)) {
     return { result: target };
   }
   let bytes: Buffer;
   try {
-    bytes = await readContainedRegularFile({
+    bytes = await observation.read({
       candidate: target.candidate,
       maxBytes: MAX_BASELINE_BYTES,
       root: target.root
     });
   } catch (error) {
-    if (error instanceof ContainedFileReadError) {
-      if (error.failure === "missing") {
-        return { result: { kind: "missing" }, target };
-      }
-      if (error.failure === "invalid") {
-        return {
-          result: {
-            kind: "invalid",
-            message: `Accepted-decision baseline must be a regular JSON file no larger than ${MAX_BASELINE_BYTES} bytes.`
-          },
-          target
-        };
-      }
-      return {
-        result: {
-          kind: "unsafe",
-          message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading."
-        },
-        target
-      };
-    }
-    throw error;
+    return { result: baselineObservationFailure(error, MAX_BASELINE_BYTES), target };
   }
   try {
     const source = bytes.toString("utf8");
-    assertNotCancelled(input.signal);
+    assertBaselineObservationActive(input.signal);
     return {
       result: {
         kind: "valid",
@@ -191,7 +156,7 @@ async function inspectBaseline(input: {
       target
     };
   } catch (error) {
-    if (error instanceof CapabilityInputError) {
+    if (isBaselineInputFailure(error)) {
       throw error;
     }
     return {
@@ -204,71 +169,42 @@ async function inspectBaseline(input: {
   }
 }
 
-function assertExpectedState(
-  current: ArchitectureDecisionBaselineReadResult,
-  expected: ArchitectureDecisionBaselineExpectedState
-): void {
-  if (current.kind === "unsafe") {
-    writeError(
-      "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET",
-      `Accepted-decision baseline target is unsafe: ${current.message}`
-    );
-  }
-  if (current.kind === "invalid") {
-    writeError(
-      "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_TARGET",
-      `Accepted-decision baseline target is invalid: ${current.message}`
-    );
-  }
-  if (expected.kind === "missing" && current.kind === "missing") {
-    return;
-  }
-  if (
-    expected.kind === "valid" &&
-    current.kind === "valid" &&
-    current.revision === expected.revision
-  ) {
-    return;
-  }
-  writeError(
-    "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT",
-    "Accepted-decision baseline changed, appeared, or became unavailable during promotion. Re-run promotion from the current repository state."
-  );
-}
-
-async function ensureSafeParent(target: BaselineTarget): Promise<void> {
+async function ensureSafeParent(
+  target: BaselineTarget,
+  observation: ArchitectureDecisionBaselineObservation
+): Promise<void> {
   if (!contained(target.root, target.parent)) {
-    writeError(
+    rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_ESCAPE",
       "Accepted-decision baseline parent escapes the consumer repository."
     );
   }
-  if (await pathTraversesSymbolicLink(target.root, target.parent)) {
-    writeError(
+  if (await observation.pathTraversesSymbolicLink(target.root, target.parent)) {
+    rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED",
       "Accepted-decision baseline parent traverses a symbolic link."
     );
   }
   try {
     await mkdir(target.parent, { mode: 0o755, recursive: true });
-    if (await pathTraversesSymbolicLink(target.root, target.parent)) {
-      writeError(
+    if (await observation.pathTraversesSymbolicLink(target.root, target.parent)) {
+      rejectBaselineWrite(
         "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED",
         "Accepted-decision baseline parent traverses a symbolic link."
       );
     }
     const canonicalParent = await realpath(target.parent);
     if (!contained(target.root, canonicalParent) || !(await stat(canonicalParent)).isDirectory()) {
-      writeError(
+      rejectBaselineWrite(
         "ARCHITECTURE_DECISION_BASELINE_WRITE_ESCAPE",
         "Accepted-decision baseline parent is not a contained directory."
       );
     }
   } catch (error) {
-    if (error instanceof CapabilityInputError) {
+    if (isBaselineInputFailure(error)) {
       throw error;
     }
-    writeError(
+    rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_UNAVAILABLE",
       "Accepted-decision baseline parent cannot be created safely."
     );
@@ -283,7 +219,7 @@ async function acquireBaselineWriteLock(
     // direct filesystem mutation that does not participate in the protocol.
     return await lock(target.candidate, BASELINE_LOCK_OPTIONS);
   } catch {
-    writeError(
+    rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_LOCK_UNAVAILABLE",
       "Accepted-decision baseline is currently being promoted by another writer. Re-run promotion from the current repository state."
     );
@@ -315,7 +251,7 @@ async function flushParentDirectory(parent: string): Promise<void> {
       await handle.close();
     }
   } catch {
-    writeError(
+    rejectBaselineWrite(
       "ARCHITECTURE_DECISION_BASELINE_WRITE_DURABILITY_FAILED",
       "Accepted-decision baseline was replaced but its parent directory could not be flushed. Reconcile the baseline before retrying."
     );
@@ -325,12 +261,14 @@ async function flushParentDirectory(parent: string): Promise<void> {
 export class FilesystemArchitectureDecisionBaselineRepository
   implements ArchitectureDecisionBaselineRepository
 {
+  constructor(private readonly observation: ArchitectureDecisionBaselineObservation) {}
+
   async read(input: {
     readonly consumerRoot: string;
     readonly path: string;
     readonly signal?: AbortSignal;
   }): Promise<ArchitectureDecisionBaselineReadResult> {
-    return (await inspectBaseline(input)).result;
+    return (await inspectBaseline(input, this.observation)).result;
   }
 
   async write(input: {
@@ -340,57 +278,57 @@ export class FilesystemArchitectureDecisionBaselineRepository
     readonly path: string;
     readonly signal?: AbortSignal;
   }): Promise<ArchitectureDecisionBaselineWriteResult> {
-    assertNotCancelled(input.signal);
+    assertBaselineObservationActive(input.signal);
     const validatedBaseline = parseAcceptedArchitectureDecisionBaseline(input.baseline);
     if (validatedBaseline === undefined) {
-      writeError(
+      rejectBaselineWrite(
         "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_INPUT",
         "Accepted-decision baseline does not match the required immutable baseline shape."
       );
     }
     const source = serializedBaseline(validatedBaseline);
     if (Buffer.byteLength(source, "utf8") > MAX_BASELINE_BYTES) {
-      writeError(
+      rejectBaselineWrite(
         "ARCHITECTURE_DECISION_BASELINE_WRITE_TOO_LARGE",
         `Accepted-decision baseline must serialize to no more than ${MAX_BASELINE_BYTES} bytes.`
       );
     }
-    const firstRead = await inspectBaseline(input);
-    assertExpectedState(firstRead.result, input.expected);
+    const firstRead = await inspectBaseline(input, this.observation);
+    assertExpectedBaselineState(firstRead.result, input.expected);
     const target = firstRead.target;
     if (target === undefined) {
-      writeError(
+      rejectBaselineWrite(
         "ARCHITECTURE_DECISION_BASELINE_WRITE_UNAVAILABLE",
         "Accepted-decision baseline target is unavailable."
       );
     }
-    await ensureSafeParent(target);
+    await ensureSafeParent(target, this.observation);
     const release = await acquireBaselineWriteLock(target);
     try {
       // The lock is held across the final revision check and atomic replacement.
       // Otherwise two cooperative writers can both pass the check, then one
       // silently replaces the other while both report success.
-      await ensureSafeParent(target);
-      const secondRead = await inspectBaseline(input);
-      assertExpectedState(secondRead.result, input.expected);
+      await ensureSafeParent(target, this.observation);
+      const secondRead = await inspectBaseline(input, this.observation);
+      assertExpectedBaselineState(secondRead.result, input.expected);
       if (hasEquivalentSerializedBaseline(secondRead.source, source)) {
         return "unchanged";
       }
-      assertNotCancelled(input.signal);
+      assertBaselineObservationActive(input.signal);
       const temporaryDirectory = await mkdtemp(
         join(target.parent, ".architecture-decision-baseline-")
       );
       try {
         const temporaryPath = join(temporaryDirectory, "baseline.json");
         await writeAndFlushTemporaryBaseline({ path: temporaryPath, source });
-        assertNotCancelled(input.signal);
-        const finalRead = await inspectBaseline(input);
-        assertExpectedState(finalRead.result, input.expected);
+        assertBaselineObservationActive(input.signal);
+        const finalRead = await inspectBaseline(input, this.observation);
+        assertExpectedBaselineState(finalRead.result, input.expected);
         if (hasEquivalentSerializedBaseline(finalRead.source, source)) {
           return "unchanged";
         }
-        if (await pathTraversesSymbolicLink(target.root, target.candidate)) {
-          writeError(
+        if (await this.observation.pathTraversesSymbolicLink(target.root, target.candidate)) {
+          rejectBaselineWrite(
             "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED",
             "Accepted-decision baseline target traverses a symbolic link."
           );

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { constants } from "node:fs";
-import fs, { readFile, link, lstat, mkdir, mkdtemp, readlink, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
+import fs, { link, lstat, mkdir, mkdtemp, readlink, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
@@ -128,14 +128,8 @@ for (const escape of [false, true]) {
   });
 }
 
-// Exercise absent Windows flags on Linux too; only the constants import changes.
-// The real open, descriptor stat, identity checks and reads remain intact.
-const helperSource = await readFile(new URL("./consumer-restoration-retrieval-fixture.mjs", import.meta.url), "utf8");
-const constantsImport = 'import { constants } from "node:fs";';
-assert.equal(helperSource.split(constantsImport).length, 2);
-const withoutFlags = await import(`data:text/javascript;base64,${Buffer.from(helperSource.replace(constantsImport,
-  'import { constants as nativeConstants } from "node:fs"; const { O_NOFOLLOW, O_NONBLOCK, ...constants } = nativeConstants;')).toString("base64")}`);
-
+// Exercise opens without optional Windows flags on Linux too. Only open flags
+// change; the real descriptor stat, identity checks and reads remain intact.
 for (const missingFlags of [false, true]) {
 for (const race of ["leaf-link", "leaf-file", "leaf-directory", "parent-link", "during-read"]) {
   test(`inventory rejects ${race} drift and closes opened handles (missing flags: ${missingFlags})`, async (t) => {
@@ -169,7 +163,8 @@ for (const race of ["leaf-link", "leaf-file", "leaf-directory", "parent-link", "
           else {await mkdir(file);}
         }
         let handle;
-        try {handle = await originalOpen(path, flags);}
+        const optionalFlags = (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
+        try {handle = await originalOpen(path, missingFlags ? flags & ~optionalFlags : flags);}
         catch (error) {openError = error; throw error;}
         opened = true;
         const close = handle.close.bind(handle);
@@ -186,7 +181,7 @@ for (const race of ["leaf-link", "leaf-file", "leaf-directory", "parent-link", "
         return handle;
       });
       syncBuiltinESMExports();
-      await assert.rejects((missingFlags ? withoutFlags.retrievalTree : retrievalTree)(parent), (error) => {
+      await assert.rejects(retrievalTree(parent), (error) => {
         if (openError) {
           assert.equal(error, openError);
           if (race === "leaf-link" && !missingFlags && typeof constants.O_NOFOLLOW === "number") {

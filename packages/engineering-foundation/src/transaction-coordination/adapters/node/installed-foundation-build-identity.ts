@@ -3,22 +3,22 @@ import { fileURLToPath } from "node:url";
 
 import { computeInstalledArtifactBuildIdentity } from "@agent-teams/repository-mutation";
 
-import type { Sha256Digest } from "../../../scaffolding/contract/types.js";
+import type { FoundationBuildIdentity } from "../../application/model/foundation-transaction-identity.js";
 
 const packageRoot = dirname(fileURLToPath(new URL("../../../../package.json", import.meta.url)));
 
 export function computeFoundationBuildIdentity(
   root: string,
   limits: { readonly maximumVisitedEntries?: number } = {}
-): Promise<Sha256Digest> {
+): Promise<FoundationBuildIdentity> {
   return computeInstalledArtifactBuildIdentity(
-    { packageRoot: root, roots: ["dist", "schemas", "presets"] },
+    { packageRoot: root, roots: ["dist", "schemas", "presets", "assets"] },
     limits
   );
 }
 
-let installedIdentity: Promise<Sha256Digest> | undefined;
-export function installedFoundationBuildIdentity(): Promise<Sha256Digest> {
+let installedIdentity: Promise<FoundationBuildIdentity> | undefined;
+export function installedFoundationBuildIdentity(): Promise<FoundationBuildIdentity> {
   installedIdentity ??= computeFoundationBuildIdentity(packageRoot);
   return installedIdentity;
 }

@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { sha256Bytes } from "../packages/engineering-foundation/dist/canonical-json.js";
-import { NodeDocumentPublisher } from "../packages/document-authoring/dist/adapters/node/node-document-publisher.js";
-import { documentPlanDigest } from "../packages/document-authoring/dist/application/policies/document-contract-digests.js";
-import { documentTemporaryPath } from "../packages/document-authoring/dist/application/policies/document-temporary-path.js";
+import { sha256Bytes } from "../packages/repository-mutation/dist/serialization.js";
+import { NodeDocumentPublisher } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-publisher.js";
+import { documentPlanDigest } from "../packages/document-authoring/dist/document-authoring/application/policies/document-contract-digests.js";
+import { documentTemporaryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-temporary-path.js";
 import {
   applyDocumentationPlan,
   inspectDocumentTransactionV1,

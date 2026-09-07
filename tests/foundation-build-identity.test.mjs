@@ -12,7 +12,7 @@ async function createRoot(prefix) {
 
 async function prepareBuild(root) {
   await Promise.all(
-    ["dist", "schemas", "presets"].map((path) =>
+    ["dist", "schemas", "presets", "assets/transaction-coordination/historical"].map((path) =>
       mkdir(join(root, path), { recursive: true }),
     ),
   );
@@ -21,6 +21,7 @@ async function prepareBuild(root) {
     writeFile(join(root, "dist", "ignored.d.ts"), "export {};\n"),
     writeFile(join(root, "schemas", "contract.json"), "{}\n"),
     writeFile(join(root, "presets", "base.json"), "{}\n"),
+    writeFile(join(root, "assets/transaction-coordination/historical/document-plan-v1.schema.json"), "{}\n"),
     writeFile(
       join(root, "package.json"),
       '{"name":"@agent-teams/engineering-foundation","version":"0.12.0"}\n',
@@ -40,6 +41,7 @@ test("build identity is path-independent and binds package and shipped artifacts
     for (const [path, changed, restored] of [
       ["dist/runtime.js", "export const value = 2;\n", "export const value = 1;\n"],
       ["package.json", '{"name":"@agent-teams/engineering-foundation","version":"0.12.1"}\n', '{"name":"@agent-teams/engineering-foundation","version":"0.12.0"}\n'],
+      ["assets/transaction-coordination/historical/document-plan-v1.schema.json", '{"const":"changed"}\n', "{}\n"],
       ["schemas/contract.json", '{"type":"object"}\n', "{}\n"],
     ]) {
       await writeFile(join(second, path), changed);

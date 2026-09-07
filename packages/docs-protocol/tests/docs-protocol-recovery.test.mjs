@@ -1,7 +1,10 @@
+import { DocsProtocol } from "../dist/features/portable-documentation/application/docs-protocol.js";
+import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
+import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DocsProtocol } from "../dist/application/docs-protocol.js";
+import { createDocsProtocolApi } from "../dist/features/docs-command/adapters/inbound/protocol-api.js";
 
 test("doctor preserves transaction diagnostics and recover ignores mutable profiles", async () => {
   let profileReads = 0;
@@ -28,12 +31,12 @@ test("doctor preserves transaction diagnostics and recover ignores mutable profi
     },
     async recover() { return recoveryReceipt; }
   };
-  const protocol = new DocsProtocol({
+  const protocol = createDocsProtocolApi(new DocsProtocol({ compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(),
     adoption: { async inspect() { return []; } },
     anchors: { async matchedPatterns() { return []; } },
     foundation,
     profiles: { async read() { profileReads += 1; throw new Error("corrupt profile"); } }
-  });
+  }));
   const doctor = await protocol.doctorV2({ consumerRoot: ".", profilePath: "architecture/foundation/docs-protocol.yaml" });
   assert.equal(doctor.envelope.outcome, "recovery-required");
   assert.equal(doctor.envelope.result.transaction.state, "recoverable");

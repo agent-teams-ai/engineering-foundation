@@ -1,19 +1,15 @@
-import type {
-  ConsumerIntegrationDigest,
-  ConsumerIntegrationFileObservation
-} from "../domain/model.js";
-import type {
-  AgentsRoutePlanV1,
-  AgentsRoutePlannerV1
-} from "../application/ports/consumer-integration-planners.js";
 import {
   canonicalManagedRoute,
   digestBytes,
   MANAGED_ROUTE_BEGIN,
-  MANAGED_ROUTE_END
-} from "../application/policies/consumer-integration-assets.js";
+  MANAGED_ROUTE_END,
+  type ConsumerIntegrationDigest,
+  type ConsumerIntegrationFileObservation,
+  type AgentsRoutePlanV1,
+  type AgentsRoutePlannerV1
+} from "../application-api.js";
 
-export type { AgentsRoutePlanV1 } from "../application/ports/consumer-integration-planners.js";
+export type { AgentsRoutePlanV1 } from "../application-api.js";
 
 function conflict(
   currentDigest: ConsumerIntegrationDigest,

@@ -17,7 +17,7 @@ import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
-import { runFoundationCheck } from "../packages/engineering-foundation/dist/check-runner.js";
+import { runFoundationCheck } from "../packages/engineering-foundation/dist/composition/foundation-check.js";
 import {
   CAPABILITY_REGISTRY,
   createCapabilityRegistry,
@@ -29,7 +29,7 @@ import {
   RULE_REGISTRY,
 } from "../packages/engineering-foundation/dist/composition/rule-registry.js";
 import { isExactVersion } from "../packages/engineering-foundation/dist/semantic-version.js";
-import { createUniqueRegistry } from "../packages/engineering-foundation/dist/unique-registry.js";
+import { createUniqueRegistry } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
 import {
   acceptedAdrHistoryViolations,
   acceptedAdrHistoryViolationsAtMergeBase,
@@ -80,6 +80,11 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
     RULE_REGISTRIES,
     CAPABILITY_MODULES.map(({ rules }) => rules),
   );
+  assert.equal(Object.isFrozen(RULE_REGISTRIES), true);
+  assert.throws(() => RULE_REGISTRIES.push(new Map()), TypeError);
+  CAPABILITY_MODULES.forEach(({ rules }, index) => {
+    assert.equal(RULE_REGISTRIES[index], rules);
+  });
   const registeredRuleCount = CAPABILITY_MODULES.reduce(
     (count, { rules }) => count + rules.size,
     0,
@@ -189,6 +194,27 @@ test("restricts released contract and API baseline mutation to the Changesets re
     ),
     ["architecture/public-api/library.json"],
   );
+});
+
+test("existing release-owned prefix covers artifact sidecars without admitting their content", () => {
+  const path = "architecture/public-api/library.artifacts.json";
+  const repo = "agent-teams-ai/engineering-foundation";
+  for (const status of ["M", "D", "T"]) {
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), [path]);
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "changeset-release/main", repo, repo), []);
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "changeset-release/main", "fork/repo", repo), [path]);
+  }
+  for (const change of [
+    { status: "R", previousPath: path, path: "tmp/sidecar.json" },
+    { status: "R", previousPath: "tmp/sidecar.json", path },
+  ]) {
+    assert.deepEqual(releaseOwnedFileViolations([change], "feat/inventory", repo, repo), [path]);
+  }
+  // Initial creation is permitted by this path guard, not accepted promotion.
+  // The capability's evidence/fixation checks remain responsible for content.
+  for (const status of ["A", "C"]) {
+    assert.deepEqual(releaseOwnedFileViolations([{ status, path }], "feat/inventory", repo, repo), []);
+  }
 });
 
 function runGit(cwd, args) {

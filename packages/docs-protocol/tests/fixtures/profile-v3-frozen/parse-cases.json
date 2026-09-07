@@ -1,0 +1,166 @@
+[
+  {
+    "name": "valid",
+    "input": {
+      "schemaVersion": 3,
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "foundationProfile": {
+        "path": ".docs-protocol/document-authoring.yaml",
+        "schemaVersion": 3,
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge"
+      },
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "semanticValidatorIds": [
+        "documentation.domain-semantics"
+      ]
+    },
+    "output": {
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "semanticValidatorIds": [
+        "documentation.domain-semantics"
+      ],
+      "adoptionPolicy": "portable-v1",
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "schemaVersion": 3,
+      "foundationProfile": {
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge",
+        "path": ".docs-protocol/document-authoring.yaml",
+        "schemaVersion": 3
+      }
+    }
+  },
+  {
+    "name": "reserved-path",
+    "input": {
+      "schemaVersion": 3,
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "foundationProfile": {
+        "path": "docs/CON.yaml",
+        "schemaVersion": 3,
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge"
+      },
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "semanticValidatorIds": [
+        "documentation.domain-semantics"
+      ]
+    },
+    "output": {
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "semanticValidatorIds": [
+        "documentation.domain-semantics"
+      ],
+      "adoptionPolicy": "portable-v1",
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "schemaVersion": 3,
+      "foundationProfile": {
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge",
+        "path": "docs/CON.yaml",
+        "schemaVersion": 3
+      }
+    }
+  },
+  {
+    "name": "extra-key",
+    "input": {
+      "schemaVersion": 3,
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "foundationProfile": {
+        "path": ".docs-protocol/document-authoring.yaml",
+        "schemaVersion": 3,
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge"
+      },
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "semanticValidatorIds": [
+        "documentation.domain-semantics"
+      ],
+      "hooks": []
+    },
+    "error": {
+      "name": "DocsProfileError",
+      "message": "profile must contain exactly: agentWorkflow, foundationProfile, protocol, schemaVersion, semanticValidatorIds."
+    }
+  },
+  {
+    "name": "duplicate-id",
+    "input": {
+      "schemaVersion": 3,
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "foundationProfile": {
+        "path": ".docs-protocol/document-authoring.yaml",
+        "schemaVersion": 3,
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge"
+      },
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "semanticValidatorIds": [
+        "same",
+        "same"
+      ]
+    },
+    "error": {
+      "name": "DocsProfileError",
+      "message": "profile.semanticValidatorIds must not contain duplicates."
+    }
+  },
+  {
+    "name": "invalid-path",
+    "input": {
+      "schemaVersion": 3,
+      "protocol": {
+        "id": "agent-teams.docs-protocol",
+        "version": 1
+      },
+      "foundationProfile": {
+        "path": "../escape.yaml",
+        "schemaVersion": 3,
+        "metadataSidecarPolicy": "foundation-profile-v3-strict-merge"
+      },
+      "agentWorkflow": {
+        "adoption": "portable-v1",
+        "skillPath": ".agents/skills/docs-authoring/SKILL.md"
+      },
+      "semanticValidatorIds": [
+        "documentation.domain-semantics"
+      ]
+    },
+    "error": {
+      "name": "DocsProfileError",
+      "message": "profile.foundationProfile.path is invalid."
+    }
+  }
+]

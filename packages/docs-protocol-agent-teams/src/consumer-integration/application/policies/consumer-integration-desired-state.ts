@@ -22,20 +22,27 @@ const MANAGED_STATE_PATH = "architecture/foundation/docs-protocol-managed-state.
 const WORKFLOW_REPOSITORY = "agent-teams-ai/.github";
 const WORKFLOW_PATH = ".github/workflows/docs-protocol-check.yml";
 
-function hasUniqueEntries(entries: readonly string[]): boolean {
-  return new Set(entries).size === entries.length;
+function hasExactKeys(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) &&
+    Object.keys(value).toSorted().join("\u0000") === [...keys].toSorted().join("\u0000");
 }
 
-function hasExactKeys(value: object, keys: readonly string[]): boolean {
-  return Object.keys(value).toSorted().join("\u0000") === [...keys].toSorted().join("\u0000");
+function matches(value: unknown, pattern: RegExp): value is string {
+  return typeof value === "string" && pattern.test(value);
 }
 
-function hasValidGovernedRoots(roots: readonly string[] | undefined): boolean {
-  return roots === undefined || (roots.length > 0 && roots.length <= 32 &&
-    hasUniqueEntries(roots) && roots.every((root) => REPOSITORY_PATH.test(root)));
+function stringList(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.length <= 2048 && Array.from(value).every((entry: unknown) => typeof entry === "string") &&
+    new Set(value).size === value.length;
 }
 
-function isCanonicalUtcSeconds(value: string): boolean {
+function hasValidGovernedRoots(roots: unknown): boolean {
+  return roots === undefined || (stringList(roots) && roots.length > 0 && roots.length <= 32 &&
+    roots.every((root) => REPOSITORY_PATH.test(root)));
+}
+
+function isCanonicalUtcSeconds(value: unknown): boolean {
+  if (typeof value !== "string") {return false;}
   const milliseconds = Date.parse(value);
   return Number.isFinite(milliseconds) &&
     new Date(milliseconds).toISOString().replace(".000", "") === value;
@@ -59,7 +66,7 @@ function assertPlainBoundedJson(value: unknown): void {
       throw new TypeError("Consumer input must be acyclic plain JSON data.");
     }
     seen.add(candidate);
-    const prototype = Object.getPrototypeOf(candidate);
+    const prototype: unknown = Object.getPrototypeOf(candidate);
     if (prototype !== Object.prototype && prototype !== Array.prototype && prototype !== null) {
       throw new TypeError("Consumer input must use plain JSON objects and arrays.");
     }
@@ -77,190 +84,128 @@ function assertPlainBoundedJson(value: unknown): void {
   visit(value, 0);
 }
 
-function hasValidCohortAuthority(cohort: QualifiedDocsCohortBindingV1): boolean {
-  return COHORT_ID.test(cohort.cohortId) &&
-    NONZERO_SHA256.test(cohort.recordDigest) &&
-    NONZERO_SHA256.test(cohort.qualificationEventDigest) &&
-    isCanonicalUtcSeconds(cohort.eligibleAfter) &&
-    hasUniqueEntries(cohort.upgradeFrom) &&
-    hasUniqueEntries(cohort.rollbackTo) &&
-    cohort.upgradeFrom.every((entry) => COHORT_ID.test(entry)) &&
-    cohort.rollbackTo.every((entry) => COHORT_ID.test(entry));
+function hasValidAuthority(cohort: Record<string, unknown>, generation: 1 | 2): boolean {
+  const upgrades = cohort["upgradeFrom"];
+  const rollbacks = cohort["rollbackTo"];
+  if (!stringList(upgrades) || !stringList(rollbacks)) {return false;}
+  return cohort["schemaVersion"] === generation &&
+    (cohort["channel"] === "rc" || cohort["channel"] === "stable") &&
+    matches(cohort["cohortId"], COHORT_ID) &&
+    matches(cohort["recordDigest"], NONZERO_SHA256) &&
+    matches(cohort["qualificationEventDigest"], NONZERO_SHA256) &&
+    isCanonicalUtcSeconds(cohort["eligibleAfter"]) &&
+    upgrades.every((entry) => COHORT_ID.test(entry)) &&
+    rollbacks.every((entry) => COHORT_ID.test(entry)) &&
+    (generation === 1 || (upgrades.length <= 32 && rollbacks.length <= 32 &&
+      !upgrades.includes(cohort["cohortId"]) &&
+      rollbacks.every((entry) => entry !== cohort["cohortId"] && upgrades.includes(entry))));
 }
 
-function hasValidPackages(cohort: QualifiedDocsCohortBindingV1): boolean {
-  const packages = cohort.packages;
-  return SEMVER.test(packages.docsProtocol.version) &&
-    SEMVER.test(packages.engineeringFoundation.version) &&
-    INTEGRITY.test(packages.docsProtocol.integrity) &&
-    INTEGRITY.test(packages.engineeringFoundation.integrity);
+function hasValidPackages(value: unknown, keys: readonly string[]): boolean {
+  return hasExactKeys(value, keys) && keys.every((key) => {
+    const coordinate = value[key];
+    return hasExactKeys(coordinate, ["version", "integrity"]) &&
+      matches(coordinate["version"], SEMVER) && matches(coordinate["integrity"], INTEGRITY);
+  });
 }
 
-function hasValidWorkflow(
-  cohort: { readonly workflow: QualifiedDocsCohortBindingV1["workflow"] }
-): boolean {
-  const workflow = cohort.workflow;
-  return workflow.repository === WORKFLOW_REPOSITORY &&
-    workflow.path === WORKFLOW_PATH &&
-    NONZERO_SHA.test(workflow.revision) &&
-    NONZERO_SHA.test(workflow.blobSha);
+function hasValidWorkflow(value: unknown): boolean {
+  return hasExactKeys(value, ["repository", "path", "revision", "blobSha"]) &&
+    value["repository"] === WORKFLOW_REPOSITORY && value["path"] === WORKFLOW_PATH &&
+    matches(value["revision"], NONZERO_SHA) && matches(value["blobSha"], NONZERO_SHA);
+}
+
+function hasValidAssets(value: unknown): boolean {
+  const keys = ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"];
+  return hasExactKeys(value, keys) && keys.every((key) => matches(value[key], NONZERO_SHA256));
+}
+
+function hasValidSchemasAndRuntime(cohort: Record<string, unknown>, generation: 1 | 2): boolean {
+  const schemas = cohort["schemas"];
+  const runtime = cohort["runtime"];
+  return hasExactKeys(schemas, ["consumerIntegration", "managedState", "docsProtocol"]) &&
+    schemas["consumerIntegration"] === (generation === 1 ? 1 : 3) &&
+    schemas["managedState"] === generation && schemas["docsProtocol"] === 1 &&
+    hasExactKeys(runtime, ["node", "pnpm", "runtimeClosureDigest"]) &&
+    runtime["node"] === ">=24.18.0 <25" && runtime["pnpm"] === ">=11.17.0 <12" &&
+    matches(runtime["runtimeClosureDigest"], NONZERO_SHA256);
+}
+
+function hasValidCohort(cohort: unknown, generation: 1 | 2): boolean {
+  return hasExactKeys(cohort, [
+    "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
+    "eligibleAfter", "upgradeFrom", "rollbackTo", "packages", "workflow", "assets", "schemas", "runtime"
+  ]) && hasValidAuthority(cohort, generation) &&
+    hasValidPackages(cohort["packages"], generation === 1
+      ? ["docsProtocol", "engineeringFoundation"]
+      : QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key)) &&
+    hasValidWorkflow(cohort["workflow"]) && hasValidAssets(cohort["assets"]) &&
+    hasValidSchemasAndRuntime(cohort, generation);
 }
 
 export function assertQualifiedDocsCohortBindingV1(
-  cohort: QualifiedDocsCohortBindingV1
-): void {
+  cohort: unknown
+): asserts cohort is QualifiedDocsCohortBindingV1 {
   assertPlainBoundedJson(cohort);
-  const valid = hasExactKeys(cohort, [
-    "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
-    "eligibleAfter", "upgradeFrom", "rollbackTo", "packages", "workflow", "assets",
-    "schemas", "runtime"
-  ]) &&
-    hasExactKeys(cohort.packages, ["docsProtocol", "engineeringFoundation"]) &&
-    hasExactKeys(cohort.packages.docsProtocol, ["version", "integrity"]) &&
-    hasExactKeys(cohort.packages.engineeringFoundation, ["version", "integrity"]) &&
-    hasExactKeys(cohort.workflow, ["repository", "path", "revision", "blobSha"]) &&
-    hasExactKeys(cohort.assets, [
-      "skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"
-    ]) &&
-    hasExactKeys(cohort.schemas, [
-      "consumerIntegration", "managedState", "docsProtocol"
-    ]) &&
-    hasExactKeys(cohort.runtime, ["node", "pnpm", "runtimeClosureDigest"]) &&
-    cohort.schemaVersion === 1 &&
-    hasValidCohortAuthority(cohort) &&
-    hasValidPackages(cohort) &&
-    hasValidWorkflow(cohort) &&
-    NONZERO_SHA256.test(cohort.assets.skillDigest) &&
-    NONZERO_SHA256.test(cohort.assets.callerWorkflowDigest) &&
-    NONZERO_SHA256.test(cohort.assets.assetCatalogDigest) &&
-    NONZERO_SHA256.test(cohort.assets.transitionCatalogDigest) &&
-    cohort.runtime.node === ">=24.18.0 <25" &&
-    cohort.runtime.pnpm === ">=11.17.0 <12" &&
-    NONZERO_SHA256.test(cohort.runtime.runtimeClosureDigest);
-  if (!valid) {
+  if (!hasValidCohort(cohort, 1)) {
     throw new TypeError("Qualified Docs Cohort binding is invalid or unsupported.");
   }
 }
 
-function hasValidCohortAuthorityV2(cohort: QualifiedDocsCohortBindingV2): boolean {
-  const upgradeSet = new Set(cohort.upgradeFrom);
-  return cohort.schemaVersion === 2 &&
-    (cohort.channel === "rc" || cohort.channel === "stable") &&
-    COHORT_ID.test(cohort.cohortId) &&
-    NONZERO_SHA256.test(cohort.recordDigest) &&
-    NONZERO_SHA256.test(cohort.qualificationEventDigest) &&
-    isCanonicalUtcSeconds(cohort.eligibleAfter) &&
-    cohort.upgradeFrom.length <= 32 && cohort.rollbackTo.length <= 32 &&
-    hasUniqueEntries(cohort.upgradeFrom) && hasUniqueEntries(cohort.rollbackTo) &&
-    cohort.upgradeFrom.every((entry) => COHORT_ID.test(entry) && entry !== cohort.cohortId) &&
-    cohort.rollbackTo.every((entry) => COHORT_ID.test(entry) &&
-      entry !== cohort.cohortId && upgradeSet.has(entry));
-}
-
-function hasValidCohortAssetsV2(cohort: QualifiedDocsCohortBindingV2): boolean {
-  return NONZERO_SHA256.test(cohort.assets.skillDigest) &&
-    NONZERO_SHA256.test(cohort.assets.callerWorkflowDigest) &&
-    NONZERO_SHA256.test(cohort.assets.assetCatalogDigest) &&
-    NONZERO_SHA256.test(cohort.assets.transitionCatalogDigest);
-}
-
-function hasValidCohortSchemasAndRuntimeV2(cohort: QualifiedDocsCohortBindingV2): boolean {
-  return cohort.schemas.consumerIntegration === 3 &&
-    cohort.schemas.managedState === 2 &&
-    cohort.schemas.docsProtocol === 1 &&
-    cohort.runtime.node === ">=24.18.0 <25" &&
-    cohort.runtime.pnpm === ">=11.17.0 <12" &&
-    NONZERO_SHA256.test(cohort.runtime.runtimeClosureDigest);
-}
-
 export function assertQualifiedDocsCohortBindingV2(
-  cohort: QualifiedDocsCohortBindingV2
-): void {
+  cohort: unknown
+): asserts cohort is QualifiedDocsCohortBindingV2 {
   assertPlainBoundedJson(cohort);
-  const packageKeys = QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key);
-  const packageCoordinatesValid = QUALIFIED_DOCS_COHORT_V2_PACKAGES.every(({ key }) => {
-    const coordinate = cohort.packages[key];
-    return hasExactKeys(coordinate, ["version", "integrity"]) &&
-      SEMVER.test(coordinate.version) && INTEGRITY.test(coordinate.integrity);
-  });
-  const valid = hasExactKeys(cohort, [
-    "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
-    "eligibleAfter", "upgradeFrom", "rollbackTo", "packages", "workflow", "assets",
-    "schemas", "runtime"
-  ]) &&
-    hasExactKeys(cohort.packages, packageKeys) &&
-    packageCoordinatesValid &&
-    hasExactKeys(cohort.workflow, ["repository", "path", "revision", "blobSha"]) &&
-    hasExactKeys(cohort.assets, [
-      "skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"
-    ]) &&
-    hasExactKeys(cohort.schemas, ["consumerIntegration", "managedState", "docsProtocol"]) &&
-    hasExactKeys(cohort.runtime, ["node", "pnpm", "runtimeClosureDigest"]) &&
-    hasValidCohortAuthorityV2(cohort) &&
-    hasValidWorkflow(cohort) &&
-    hasValidCohortAssetsV2(cohort) &&
-    hasValidCohortSchemasAndRuntimeV2(cohort);
-  if (!valid) {
+  if (!hasValidCohort(cohort, 2)) {
     throw new TypeError("Qualified Docs Cohort v2 binding is invalid or unsupported.");
   }
 }
 
-export function assertConsumerIntegrationDesiredStateV1(
-  desired: ConsumerIntegrationDesiredStateV1
-): void {
-  assertPlainBoundedJson(desired);
-  assertQualifiedDocsCohortBindingV1(desired.cohort);
-  const valid = hasExactKeys(desired, [
+function hasValidRepository(repository: unknown): boolean {
+  return hasExactKeys(repository, ["provider", "id", "nameWithOwner"]) &&
+    repository["provider"] === "github" && matches(repository["id"], REPOSITORY_ID) &&
+    matches(repository["nameWithOwner"], REPOSITORY);
+}
+
+function hasValidQualification(value: unknown): boolean {
+  return hasExactKeys(value, ["contractPath", "gateCommand"]) &&
+    value["contractPath"] === "architecture/foundation/docs-protocol-qualification.json" &&
+    value["gateCommand"] === "pnpm docs:protocol:check";
+}
+
+function hasValidDesired(desired: unknown, version: 1 | 3): boolean {
+  if (typeof desired !== "object" || desired === null) {return false;}
+  const roots = "governedDocsRoots" in desired ? desired.governedDocsRoots : undefined;
+  if (!hasExactKeys(desired, [
     "schemaVersion", "repository", "integrationRoot", "packageManager", "profilePath",
     "skillPath", "callerWorkflowPath", "managedStatePath", "cohort",
-    ...(desired.governedDocsRoots === undefined ? [] : ["governedDocsRoots"])
-  ]) &&
-    hasExactKeys(desired.repository, ["provider", "id", "nameWithOwner"]) &&
-    desired.schemaVersion === 1 &&
-    desired.integrationRoot === "." &&
-    desired.packageManager === "pnpm" &&
-    desired.profilePath === PROFILE_PATH &&
-    desired.skillPath === SKILL_PATH &&
-    desired.callerWorkflowPath === CALLER_WORKFLOW_PATH &&
-    desired.managedStatePath === MANAGED_STATE_PATH &&
-    desired.repository.provider === "github" &&
-    REPOSITORY_ID.test(desired.repository.id) &&
-    REPOSITORY.test(desired.repository.nameWithOwner) &&
-    hasValidGovernedRoots(desired.governedDocsRoots) &&
-    desired.cohort.schemaVersion === 1;
-  if (!valid) {
+    ...(version === 3 ? ["qualification"] : []),
+    ...(roots === undefined ? [] : ["governedDocsRoots"])
+  ])) {return false;}
+  const qualification = desired["qualification"];
+  return desired["schemaVersion"] === version && desired["integrationRoot"] === "." &&
+    desired["packageManager"] === "pnpm" && desired["profilePath"] === PROFILE_PATH &&
+    desired["skillPath"] === SKILL_PATH && desired["callerWorkflowPath"] === CALLER_WORKFLOW_PATH &&
+    desired["managedStatePath"] === MANAGED_STATE_PATH &&
+    hasValidRepository(desired["repository"]) && hasValidGovernedRoots(roots) &&
+    hasValidCohort(desired["cohort"], version === 1 ? 1 : 2) &&
+    (version === 1 || hasValidQualification(qualification));
+}
+
+export function assertConsumerIntegrationDesiredStateV1(
+  desired: unknown
+): asserts desired is ConsumerIntegrationDesiredStateV1 {
+  assertPlainBoundedJson(desired);
+  if (!hasValidDesired(desired, 1)) {
     throw new TypeError("Consumer integration desired state is invalid or unsupported.");
   }
 }
 
 export function assertConsumerIntegrationDesiredStateV3(
-  desired: ConsumerIntegrationDesiredStateV3
-): void {
+  desired: unknown
+): asserts desired is ConsumerIntegrationDesiredStateV3 {
   assertPlainBoundedJson(desired);
-  assertQualifiedDocsCohortBindingV2(desired.cohort);
-  const valid = hasExactKeys(desired, [
-    "schemaVersion", "repository", "integrationRoot", "packageManager", "profilePath",
-    "skillPath", "callerWorkflowPath", "managedStatePath", "qualification", "cohort",
-    ...(desired.governedDocsRoots === undefined ? [] : ["governedDocsRoots"])
-  ]) &&
-    hasExactKeys(desired.repository, ["provider", "id", "nameWithOwner"]) &&
-    hasExactKeys(desired.qualification, ["contractPath", "gateCommand"]) &&
-    desired.schemaVersion === 3 &&
-    desired.integrationRoot === "." &&
-    desired.packageManager === "pnpm" &&
-    desired.profilePath === PROFILE_PATH &&
-    desired.skillPath === SKILL_PATH &&
-    desired.callerWorkflowPath === CALLER_WORKFLOW_PATH &&
-    desired.managedStatePath === MANAGED_STATE_PATH &&
-    desired.qualification.contractPath ===
-      "architecture/foundation/docs-protocol-qualification.json" &&
-    desired.qualification.gateCommand === "pnpm docs:protocol:check" &&
-    desired.repository.provider === "github" &&
-    REPOSITORY_ID.test(desired.repository.id) &&
-    REPOSITORY.test(desired.repository.nameWithOwner) &&
-    hasValidGovernedRoots(desired.governedDocsRoots) &&
-    desired.cohort.schemaVersion === 2;
-  if (!valid) {
+  if (!hasValidDesired(desired, 3)) {
     throw new TypeError("Consumer integration desired state v3 is invalid or unsupported.");
   }
 }

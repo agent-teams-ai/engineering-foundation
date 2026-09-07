@@ -170,3 +170,62 @@ continuing recovery. The one-argument API and CLI are unchanged;
 The current built-in Composition is a testing-only conformance fixture. Product
 package and feature recipes, structured updates, and Nx integration require
 separate capability qualification before they become available.
+
+## Disposable scaffold crash qualification
+
+Developer tests can import `runScaffoldCrashQualification` and the types
+`ScaffoldQualificationPhase`, `ScaffoldQualificationPoint`, and
+`ScaffoldQualificationPhaseCallback` from
+`@agent-teams/engineering-foundation/scaffolding/qualification`.
+This testing-only entrypoint uses the existing production apply dependencies and
+returns the existing `ScaffoldReceipt` for the existing `ScaffoldPlan`.
+The entrypoint also explicitly reexports these canonical types and the types
+referenced by their public signatures. These are the same type declarations as
+the main scaffolding entrypoint; no parallel Plan or Receipt model is introduced.
+Do not import it from production runtime code.
+
+```ts
+import { runScaffoldCrashQualification } from
+  "@agent-teams/engineering-foundation/scaffolding/qualification";
+
+// In a disposable fixture's writer child process, using a publicly planned Plan:
+await runScaffoldCrashQualification(consumerRoot, plan, async point => {
+  if (point.phase === "after-hard-link") process.exit(73);
+});
+```
+
+The callback is required and must be a function; an invalid callback rejects
+with `TypeError` before apply. Every supported event is awaited at its existing
+checkpoint and receives a fresh frozen object containing only `phase`.
+The supported phases are:
+
+- `after-journal-temporary-synced`
+- `after-journal-prepared`
+- `before-operation-authority-recheck`
+- `after-journal-operation-publishing`
+- `after-temporary-synced`
+- `after-hard-link`
+- `after-journal-operation-published`
+- `before-final-authority-recheck`
+- `after-final-verification`
+- `before-journal-quarantine`
+- `after-journal-unlinked`
+
+Events can repeat for operations and journal replacements; this list does not
+promise a universal ordering or one event per phase. Private temporary-written,
+recovery-scope, and unknown future events are excluded. Callback return values
+grant no authority. Throws or rejections follow existing apply error/cleanup
+behavior and do not demonstrate a crash. A normal receipt certifies no crash.
+
+The caller owns the disposable fixture and child process. Run existing public
+`recoverFilesystemScaffold` in a fresh process after exit 73, then check planned
+bytes, production reapply idempotency, and preservation of user-owned drift.
+The first journal temporary cut can fail closed on an orphan Foundation
+transaction temporary; publication temporary-sync and hard-link cuts can require
+bounded manual recovery. A final journal-unlinked cut can yield no recovery
+receipt. Qualification does not promise convergence at every cut.
+
+Callbacks are trusted test code with the caller's Node privileges, not sandboxed
+code. The function does not spawn, kill, retry, recover, or clean up a fixture.
+Exit 73 demonstrates process interruption, not physical power-loss durability;
+existing filesystem and Windows directory-sync limitations still apply.

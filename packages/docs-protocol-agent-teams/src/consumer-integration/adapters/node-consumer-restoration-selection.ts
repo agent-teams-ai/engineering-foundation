@@ -1,10 +1,16 @@
 import { basename, dirname } from "node:path";
 import { inspectKnownFileTransactionBarrier, sha256Bytes } from "@agent-teams/repository-mutation";
-import type { ConsumerRestorationIntent, ConsumerRestorationOptions, ConsumerRestorationPreparation } from "../application/model/consumer-restoration.js";
 import {
-  MAXIMUM_RESTORATION_PROOF_BYTES, parseConsumerRestorationPreparation,
-  parseConsumerRestorationProof, requireRestoration, restorationJson
-} from "../application/policies/consumer-restoration-proof.js";
+  type ConsumerRestorationIntent,
+  type ConsumerRestorationOptions,
+  type ConsumerRestorationPreparation,
+  MAXIMUM_RESTORATION_PROOF_BYTES,
+  parseConsumerRestorationPreparation,
+  parseConsumerRestorationProof,
+  requireRestoration,
+  restorationJson
+} from "../application-api.js";
+
 import {
   assertRestorationPlanSource, externalRestorationPath, historicalRestorationProfile,
   restorationArtifacts, restorationConsumer, restorationGit

@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
-import type { QualifiedDocsCohortBindingV2 } from "../domain/model.js";
-import { canonicalConsumerIntegrationJson } from "../application/policies/consumer-integration-assets.js";
 import {
+  canonicalConsumerIntegrationJson,
   QUALIFIED_DOCS_COHORT_V2_EDGES,
-  qualifiedDocsCohortV2PackageEntries
-} from "../application/policies/qualified-docs-cohort-v2.js";
+  qualifiedDocsCohortV2PackageEntries,
+  type QualifiedDocsCohortBindingV2
+} from "../application-api.js";
 import { PnpmRuntimeClosureError } from "./pnpm-runtime-closure-v1.js";
 
 // Protocol label: independent of the consumer's supported pnpm CLI version.

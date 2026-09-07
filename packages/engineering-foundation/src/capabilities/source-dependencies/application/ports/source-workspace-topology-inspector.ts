@@ -1,5 +1,5 @@
 import type { SourceWorkspaceTopology } from "../model/source-workspace-topology.js";
-import type { WorkspaceInventory } from "../../../../workspace-inventory/application/model/workspace-inventory.js";
+import type { WorkspaceInventory } from "../../../../workspace-inventory/api.js";
 
 export interface SourceBoundaryRootDescription {
   readonly boundaryId: string;

@@ -178,7 +178,7 @@ export function sha256Bytes(value: Uint8Array): `sha256:${string}` {
 }
 
 export function sha256Text(value: string): `sha256:${string}` {
-  return sha256Bytes(Buffer.from(value, "utf8"));
+  return `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
 }
 
 export function sha256Json(value: CanonicalJsonValue): `sha256:${string}` {

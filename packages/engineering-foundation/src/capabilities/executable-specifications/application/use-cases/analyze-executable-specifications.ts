@@ -1,5 +1,4 @@
-import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { CapabilityInputError,assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { ExecutableSpecificationCatalog } from "../model/executable-specification.js";
 import {
   evaluateExecutableSpecificationTopology,

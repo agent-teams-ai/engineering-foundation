@@ -1,10 +1,14 @@
 import type {
   AuthorityScaffoldJournal,
-  AuthorityScaffoldOperationReceipt,
-  AuthorityScaffoldPlan,
-  AuthorityScaffoldReceipt
+  AuthorityScaffoldOperationReceipt
 } from "../../contract/types.js";
-import { assessScaffoldPlanAuthority } from "./node-plan-authority.js";
+import type {
+  AuthorityScaffoldPlan
+} from "../../application/model/scaffold-compilation.js";
+import type {
+  AuthorityScaffoldReceipt
+} from "../../contract/receipt-authority-types.js";
+import type { AssessScaffoldPlanAuthority } from "./scaffold-filesystem-dependencies.js";
 import { assertSafeExistingAncestors } from "./filesystem-path-guard.js";
 import { classifyFilesystemOperation } from "./filesystem-operation-state.js";
 import { createRecoveryRequiredReceipt } from "./filesystem-journal-state.js";
@@ -52,12 +56,13 @@ export async function safeClassifyPlan(
 }
 
 export async function resolveAuthority(options: {
+  readonly assessPlanAuthority: AssessScaffoldPlanAuthority;
   readonly root: string;
   readonly journal: AuthorityScaffoldJournal;
   readonly recovered: boolean;
   readonly observedOperations?: readonly AuthorityScaffoldOperationReceipt[];
 }): Promise<AuthorityScaffoldReceipt | undefined> {
-  const assessment = await assessScaffoldPlanAuthority(
+  const assessment = await options.assessPlanAuthority(
     options.root,
     options.journal.plan
   );

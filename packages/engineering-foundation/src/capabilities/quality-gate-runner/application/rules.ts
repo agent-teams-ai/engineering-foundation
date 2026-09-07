@@ -1,4 +1,4 @@
-import { createUniqueRegistry } from "../../../unique-registry.js";
+import { createUniqueRegistry } from "../../../features/validation-reporting/api.js";
 
 const DOCUMENTATION =
   "https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/quality-gate-runner.md";

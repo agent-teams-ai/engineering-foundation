@@ -6,13 +6,13 @@ import { dirname, isAbsolute, join, relative as relativePath, resolve, sep } fro
 import { DatabaseSync } from "node:sqlite";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const identity = (stat) => [stat.dev, stat.ino, stat.mode];
+const stability = (stat) => [...identity(stat), stat.size, stat.mtimeMs, stat.ctimeMs, stat.nlink];
 
 // One bounded observation of an idle fixture, not a concurrent filesystem snapshot.
 async function fileHash(path, expected) {
   const parent = await realpath(dirname(path));
   const parentStat = await lstat(parent);
-  const identity = (stat) => [stat.dev, stat.ino, stat.mode];
-  const stability = (stat) => [...identity(stat), stat.size, stat.mtimeMs, stat.ctimeMs, stat.nlink];
   assert.ok(expected.isFile(), path);
   // These flags are absent on Windows. Descriptor identity remains mandatory
   // before reading, even when the platform cannot reject leaf links at open.

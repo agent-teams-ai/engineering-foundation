@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { cp, lstat, readFile, readdir, readlink, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative as relativePath, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -47,19 +47,19 @@ async function resolvedTarget(path, depth = 0) {
     if (error.code !== "ENOENT") {throw error;}
     const stat = await lstat(path).catch((cause) => {
       if (cause.code !== "ENOENT") {throw cause;}
-      return undefined;
+      return;
     });
     if (stat?.isSymbolicLink()) {
       return resolvedTarget(resolve(dirname(path), await readlink(path)), depth + 1);
     }
     const parent = dirname(path);
     assert.notEqual(parent, path);
-    return join(await resolvedTarget(parent, depth + 1), relative(parent, path));
+    return join(await resolvedTarget(parent, depth + 1), relativePath(parent, path));
   }
 }
 
 const inside = (root, path) => {
-  const tail = relative(root, path);
+  const tail = relativePath(root, path);
   return tail === "" || (!isAbsolute(tail) && tail !== ".." && !tail.startsWith(`..${sep}`));
 };
 
@@ -77,7 +77,7 @@ async function assertRegistryLinks(fixture, source, destination, entries, diagno
       const target = resolve(dirname(join(store, path)), entry.target);
       // Rebase only the fixture ancestor alias; retain lexical and resolved containment.
       const literal = inside(resolve(fixture.disposable), target)
-        ? resolve(disposable, relative(resolve(fixture.disposable), target)) : target;
+        ? resolve(disposable, relativePath(resolve(fixture.disposable), target)) : target;
       const resolved = await resolvedTarget(literal).catch((error) => {assert.fail(`${label}: ${error.message}`);});
       assert.ok(allowed.some((root) => inside(root, literal) && inside(root, resolved)) &&
         ![source, destination].some((root) => inside(root, literal) || inside(root, resolved)), label);

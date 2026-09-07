@@ -370,6 +370,42 @@ test("V2 binds coexisting raw peer snapshots of one managed physical coordinate"
   assert.notEqual(digest(singlePeer), coexistingDigest);
 });
 
+function coexistingPeerLockOnEdgeSource() {
+  // document-authoring has an outgoing managed edge (-> repository-mutation), unlike the
+  // sink repository-mutation used by coexistingPeerLock(). Both raw variants keep that
+  // edge, so this exercises managedEdges deduplication, not just physical-resolution binding.
+  const authoringLocator = "@agent-teams/document-authoring@0.2.0";
+  const lock = acceptedLock();
+  lock.packages[authoringLocator].peerDependencies = { peer: "*" };
+  lock.packages["peer@1.0.0"] = { resolution: { integrity: coordinate.integrity } };
+  lock.snapshots["peer@1.0.0"] = {};
+  lock.snapshots[`${authoringLocator}(peer@1.0.0)`] = {
+    ...lock.snapshots[authoringLocator],
+    optionalDependencies: { peer: "1.0.0" }
+  };
+  lock.snapshots["@agent-teams/engineering-foundation@1.0.1"]
+    .dependencies["@agent-teams/document-authoring"] = "0.2.0(peer@1.0.0)";
+  return lock;
+}
+
+test("V2 dedupes a managed edge repeated by coexisting raw peer snapshots of its source", () => {
+  const coexisting = coexistingPeerLockOnEdgeSource();
+  // Before the managedEdges dedup fix this threw DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH
+  // ("edges are not exactly closed"): both the bare and peer-qualified document-authoring
+  // snapshots re-emit the same documentAuthoring -> repositoryMutation managed edge.
+  const coexistingDigest = digest(coexisting);
+  assert.notEqual(coexistingDigest, acceptedDigest);
+  assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(
+    Buffer.from(stringify(coexisting)),
+    { cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: coexistingDigest } } }
+  ));
+  // The edge is still real: dropping it from both raw snapshots must still be detected.
+  const noEdge = coexistingPeerLockOnEdgeSource();
+  delete noEdge.snapshots["@agent-teams/document-authoring@0.2.0"].dependencies["@agent-teams/repository-mutation"];
+  delete noEdge.snapshots["@agent-teams/document-authoring@0.2.0(peer@1.0.0)"].dependencies["@agent-teams/repository-mutation"];
+  assert.throws(() => digest(noEdge), closureError);
+});
+
 test("V2 rejects genuinely conflicting managed coordinates before hashing", () => {
   const twoVersions = coexistingPeerLock();
   twoVersions.packages["@agent-teams/repository-mutation@0.1.2"] = {

@@ -73,6 +73,7 @@ function projectRuntimeClosure(
   const pending = roots.map(({ locator: value }) => ({ locator: value, depth: 0 }));
   const visited = new Set<string>();
   const managedEdges: { from: string; to: string }[] = [];
+  const managedEdgeKeys = new Set<string>();
   while (pending.length > 0) {
     const current = pending.shift()!;
     if (visited.has(current.locator)) {
@@ -108,7 +109,14 @@ function projectRuntimeClosure(
       edgeByName.set(edge.name, physicalEdge);
       pending.push({ locator: edge.locator, depth: current.depth + 1 });
       if (from !== undefined && expected.some(({ name }) => name === edge.name)) {
-        managedEdges.push({ from: from.name, to: edge.name });
+        // Coexisting raw peer variants of the same managed source (R1) revisit this
+        // source's edges once per variant; the same logical (from, to) managed edge
+        // must still be counted exactly once against the closed seven-edge set.
+        const edgeKey = `${from.name},${edge.name}`;
+        if (!managedEdgeKeys.has(edgeKey)) {
+          managedEdgeKeys.add(edgeKey);
+          managedEdges.push({ from: from.name, to: edge.name });
+        }
       }
     }
   }

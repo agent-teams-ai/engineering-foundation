@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/document-authoring",
-  "packageVersion": "0.2.0",
+  "packageVersion": "0.2.1",
   "status": "supported",
   "wildcardExports": [
     {
@@ -266,10 +266,10 @@
     }
   ],
   "archive": {
-    "sha256": "sha256:c5267f37d833127099bb38f15d2d551a4068f2f18cc41a0f9a48578cd57babad",
-    "manifestDigest": "sha256:73c1bde6685dacc7f8b765cdac8490ac766a6271b4c7c027be0abd2d00de104c",
-    "integrity": "sha512-URN1GWnbcFHIdCFCZgi2c45Md2gIHMOlypZ2r/plGzxjxu00uF3Er+9LPhejnl7Ro6ALojsqH9EJ2y4QtSQ7TA==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
+    "sha256": "sha256:ccf4099c700b9bbe5d95918aeda516a68e383b866c8da4fb11660dbafe381eab",
+    "manifestDigest": "sha256:b56948913a238a10dc3dbd17bc1aa0762d29f10c4bd5a4f93247f641f6807498",
+    "integrity": "sha512-ggTDsd0+7hNgwlICVgU/98RvIKeM2HPfrym41SXgRePff0FMSPKVqTF4Fppm8ngQSzacKTbu9VsRCU2fO5u7yg==",
+    "sourceCommit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
     "memberDigests": [
       {
         "path": "schemas/document-authoring-profile/v1.schema.json",

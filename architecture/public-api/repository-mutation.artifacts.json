@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/repository-mutation",
-  "packageVersion": "0.1.1",
+  "packageVersion": "0.1.2",
   "status": "supported",
   "wildcardExports": [
     {
@@ -63,10 +63,10 @@
     }
   ],
   "archive": {
-    "sha256": "sha256:a3e0c4a9f9cb75d29dafbdd47172518ab3229658fab2416a5d418999ee249a57",
-    "manifestDigest": "sha256:d47c4d885cdc66e6640c6b2d9f3968acc7839141e6ac838638fc2431919f0811",
-    "integrity": "sha512-BRPxUgZf2BPT6ABejAGQwswyaDP1B5A29u8mhVs4dihvLkLPXInUJ5FrQVdfkIWPOW/coNqwpGUX1Equ7mMHNw==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
+    "sha256": "sha256:863e0f125f236da737fc5e41a87f2d5095c6c519ad19b007eb4a538812bce8bf",
+    "manifestDigest": "sha256:ad994ee84bf404009f0d66c8864540299fefac541d3a8f132f4bc2422c2f990e",
+    "integrity": "sha512-ZSK/F57kBFxw/P1UlJcuXEtBzoXILfQrLV33XriiPzJdJoKw4Zq5RvJPc2F3329KPWGeANNg2lMGMpi/jkMDoA==",
+    "sourceCommit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
     "memberDigests": [
       {
         "path": "schemas/known-file-transaction-plan/v1.schema.json",

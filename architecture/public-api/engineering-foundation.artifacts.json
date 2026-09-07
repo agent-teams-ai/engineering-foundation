@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.0.1",
+  "packageVersion": "1.0.2",
   "status": "supported",
   "wildcardExports": [
     {
@@ -453,10 +453,10 @@
     }
   ],
   "archive": {
-    "sha256": "sha256:edf07e45e06f03c2fa30c456c5301d3741522d201257374bb725deba3493837e",
-    "manifestDigest": "sha256:07b82fe5dd8fb0f24d090726940253b83ed6d58797912f40e237cb1eccd0cbb2",
-    "integrity": "sha512-9noUjExIvCCc8lftPAxikTUrJLvvhwC1yFkjzZ46W37BAmfS/Y4bobaMWM/YYUFaO0vyGXWiv93f9ftz2Ho5Nw==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
+    "sha256": "sha256:082e54e95d7eae51c188318b99db04f35a6d8edad5ba68c5d24ceddce24d024b",
+    "manifestDigest": "sha256:21b8a5d3639fb92b817e57a7068749423b1ed7fd7a0e2406dc6d2569627bdea0",
+    "integrity": "sha512-fo7iBwLhnCdaPc7gPEW/QL5RnOEjBXbpFdUECKWjEnjRk44ivz3LXsqJxMpWEsB3ftgwkKv8BvpMT17UvlrHtQ==",
+    "sourceCommit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
     "memberDigests": [
       {
         "path": "presets/oxlint/base.json",

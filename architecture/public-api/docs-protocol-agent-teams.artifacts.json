@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.1.1",
+  "packageVersion": "0.1.2",
   "status": "supported",
   "wildcardExports": [
     {
@@ -416,10 +416,10 @@
     }
   ],
   "archive": {
-    "sha256": "sha256:6723ca9115bf06bd8da5eff7f7227c3497cb369bdcf0751943732f0484d1c4eb",
-    "manifestDigest": "sha256:21c7812f8487b5466981125e887091607ebbf37068bf9dcc17d78a0413791383",
-    "integrity": "sha512-RrhG4TG2cw210iNkemztv/iH1tbeuC5kXRA6DzC4if2TI2W5Zzuh5uWGDXVItYWOIlBjh7gKwJb35pB2sILb+A==",
-    "sourceCommit": "c1ef6cb11867a7504ec03706e10e19761c5271fc",
+    "sha256": "sha256:6ea277df133e303f03abd84cf0a7e9dfcc26f8c37427d2a93ebe2beb2e650828",
+    "manifestDigest": "sha256:1aa89877c84064ebad036ce04b17bf461003302dc7c1601b66abb55fcd5f9110",
+    "integrity": "sha512-6gHZ9R5LD6NtjYlyw7uaD28eQdnX/CCD8Joo0lMULCpqyQiRgeBKYnOcNEMC8JYT3EZmRCT18IbHf2iseiY0GQ==",
+    "sourceCommit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
     "memberDigests": [
       {
         "path": "schemas/docs-consumer-integration-execution/v1.schema.json",

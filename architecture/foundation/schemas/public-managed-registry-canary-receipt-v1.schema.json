@@ -64,9 +64,9 @@
           "required": ["name", "version", "integrity", "latest", "signatureVerified", "provenanceCommit", "provenanceAncestorOfExpectedCommit", "tarballEntries"],
           "properties": {
             "name": { "const": "@agent-teams/docs-protocol-mcp" },
-            "version": { "const": "0.2.1" },
+            "version": { "const": "0.2.2" },
             "integrity": { "$ref": "#/$defs/integrity" },
-            "latest": { "const": "0.2.1" },
+            "latest": { "const": "0.2.2" },
             "signatureVerified": { "const": true },
             "provenanceCommit": { "$ref": "#/$defs/commit" },
             "provenanceAncestorOfExpectedCommit": { "const": true },
@@ -93,7 +93,7 @@
           "required": ["serverName", "serverVersion", "startupValidated", "readOnlyToolNames", "readOnlyToolsValidated", "consumerTreeUnchanged", "cleanShutdown"],
           "properties": {
             "serverName": { "const": "@agent-teams/docs-protocol-mcp" },
-            "serverVersion": { "const": "0.2.1" },
+            "serverVersion": { "const": "0.2.2" },
             "startupValidated": { "const": true },
             "readOnlyToolNames": {
               "type": "array",

@@ -14,7 +14,7 @@ export const CENTRAL_AUTHORITY = Object.freeze({
 });
 export const SUPPORTING_MCP_PACKAGE = Object.freeze({
   name: "@agent-teams/docs-protocol-mcp",
-  version: "0.2.1",
+  version: "0.2.2",
 });
 
 async function fetchAuthorityJson(url, fetcher) {

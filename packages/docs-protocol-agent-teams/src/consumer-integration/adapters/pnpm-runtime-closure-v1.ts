@@ -25,7 +25,7 @@ interface SourceClosureEdge extends ClosureEdge {
 
 type ClosureRoot = SourceClosureEdge;
 
-export interface PnpmRuntimeClosureTarget {
+interface PnpmRuntimeClosureTarget {
   readonly name: string;
   readonly version: string;
   readonly integrity: string;
@@ -247,7 +247,7 @@ function projectRuntimeClosure(
   return { packages: projectedPackages, snapshots: projectedByLocator };
 }
 
-export function computePnpmRuntimeClosureDigestForTargets(
+function computePnpmRuntimeClosureDigestForTargets(
   lock: JsonRecord,
   expected: readonly PnpmRuntimeClosureTarget[]
 ): `sha256:${string}` {

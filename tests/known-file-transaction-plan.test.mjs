@@ -8,6 +8,19 @@ import {
 
 const bytes = (value) => Buffer.from(value, "utf8");
 const compile = (operations) => compileKnownFileTransactionPlan({ operations });
+const create = (path) => ({
+  path,
+  precondition: { state: "absent" },
+  postimage: { bytes: bytes(`${path}\n`) }
+});
+
+function permutations(values) {
+  if (values.length < 2) {return [values];}
+  return values.flatMap((value, index) => permutations([
+    ...values.slice(0, index),
+    ...values.slice(index + 1)
+  ]).map((tail) => [value, ...tail]));
+}
 
 test("compiles a deterministic sorted create and replace-known Plan", () => {
   const replacement = {
@@ -88,6 +101,60 @@ test("rejects operation paths that overlap as ancestor and descendant", () => {
       postimage: { bytes: bytes("child\n") }
     }
   ] }), /ancestor and descendant/u);
+});
+
+for (const paths of [
+  ["managed", "managed-other", "managed/child.txt"],
+  ["Managed", "managed-other", "managed/child.txt"],
+  ["managed", "managed-other", "MANAGED/child.txt"],
+  ["pkg/managed", "pkg/managed-other", "PKG/Managed/deep/child.txt"]
+]) {
+test(`rejects every permutation of ${paths.join(", ")} in compile and validate`, () => {
+  // Independently valid single-operation Plans supply the image bytes. Wire
+  // validation must reject the relationship before its final digest check.
+  const singles = new Map(paths.map((path) => [path, compile([create(path)]).operations[0]]));
+  for (const permutation of permutations(paths)) {
+    assert.throws(
+      () => compile(permutation.map(create)),
+      /ancestor and descendant/u,
+      permutation.join(", ")
+    );
+    assert.throws(() => assertKnownFileTransactionPlan({
+      schemaVersion: 1,
+      protocol: "agent-teams.repository-mutation.known-file/v1",
+      operations: permutation.map((path) => singles.get(path)),
+      planDigest: `sha256:${"0".repeat(64)}`
+    }), /ancestor and descendant/u, permutation.join(", "));
+  }
+});
+}
+
+test("permits siblings and segment prefixes with stable binary ordering", () => {
+  const paths = ["managed/first.txt", "managed-other", "MANAGED/second.txt"];
+  const expected = compile(paths.map(create));
+  assert.deepEqual(expected.operations.map(({ path }) => path), [
+    "MANAGED/second.txt", "managed-other", "managed/first.txt"
+  ]);
+  for (const permutation of permutations(paths)) {
+    assert.deepEqual(compile(permutation.map(create)), expected);
+    assertKnownFileTransactionPlan(compile(permutation.map(create)));
+  }
+  assertKnownFileTransactionPlan(compile(["a", "a-b/c", "ab/c"].map(create)));
+});
+
+test("preserves the existing ASCII-only contract for NFC and decomposed paths", () => {
+  const single = compile([create("ascii")]).operations[0];
+  for (const spelling of ["caf\u00e9", "cafe\u0301"]) {
+    for (const permutation of permutations([spelling, `${spelling}-other`, `${spelling}/child.txt`])) {
+      assert.throws(() => compile(permutation.map(create)), /not portable: invalid-character/u);
+      assert.throws(() => assertKnownFileTransactionPlan({
+        schemaVersion: 1,
+        protocol: "agent-teams.repository-mutation.known-file/v1",
+        operations: permutation.map((path) => ({ ...single, path })),
+        planDigest: `sha256:${"0".repeat(64)}`
+      }), /not portable: invalid-character/u);
+    }
+  }
 });
 
 test("rejects non-canonical or tampered wire Plans", () => {

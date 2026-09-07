@@ -178,7 +178,10 @@ test("workflow inputs are minimal non-circular authority references", () => {
   assert.equal(authority.coordinates.some(({ name }) => name === SUPPORTING_MCP_PACKAGE.name), false);
 });
 
-test("supporting MCP precondition has one fixed exact public coordinate", () => {
+test("supporting MCP precondition requires exact public 0.2.2 and refuses previous releases", () => {
+  assert.deepEqual(SUPPORTING_MCP_PACKAGE, {
+    name: "@agent-teams/docs-protocol-mcp", version: "0.2.2",
+  });
   const packument = {
     "dist-tags": { latest: SUPPORTING_MCP_PACKAGE.version },
     versions: {
@@ -189,16 +192,16 @@ test("supporting MCP precondition has one fixed exact public coordinate", () => 
     },
   };
   assert.deepEqual(supportingMcpCoordinate(packument), supportingMcp);
-  const previous = {
-    ...SUPPORTING_MCP_PACKAGE, version: "0.2.0", dist: { integrity: supportingMcp.integrity },
-  };
-  assert.throws(
-    () => supportingMcpCoordinate({
-      "dist-tags": { latest: previous.version },
-      versions: { [previous.version]: previous },
-    }),
-    /exact latest/u,
-  );
+  for (const version of ["0.2.1", "0.2.0"]) {
+    const previous = { ...SUPPORTING_MCP_PACKAGE, version, dist: { integrity: supportingMcp.integrity } };
+    assert.throws(
+      () => supportingMcpCoordinate({
+        "dist-tags": { latest: version },
+        versions: { ...packument.versions, [version]: previous },
+      }),
+      /exact latest/u,
+    );
+  }
   assert.throws(
     () => supportingMcpCoordinate({ ...packument, "dist-tags": { latest: "0.1.1" } }),
     /exact latest/u,
@@ -539,9 +542,12 @@ test("canonical canary receipt validates central binding and exact unique packag
   for (const [section, field] of [
     ["package", "version"], ["package", "latest"], ["mcp", "serverVersion"],
   ]) {
-    const staleSupportingCoordinate = structuredClone(receipt);
-    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "0.2.0";
-    assert.equal(validate(staleSupportingCoordinate), false, `stale supporting MCP ${section}.${field}`);
+    assert.equal(receipt.supportingReleasePrecondition[section][field], "0.2.2");
+    for (const version of ["0.2.1", "0.2.0"]) {
+      const staleSupportingCoordinate = structuredClone(receipt);
+      staleSupportingCoordinate.supportingReleasePrecondition[section][field] = version;
+      assert.equal(validate(staleSupportingCoordinate), false, `stale supporting MCP ${section}.${field}: ${version}`);
+    }
   }
   const duplicate = structuredClone(receipt);
   duplicate.packages[1].name = duplicate.packages[0].name;

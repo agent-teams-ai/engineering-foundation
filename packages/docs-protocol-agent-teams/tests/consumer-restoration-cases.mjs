@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, cp, lstat, mkdir, open, readFile, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { sha256Bytes, sha256Json, compileKnownFileTransactionPlan, recoverKnownFileTransaction, inspectKnownFileTransactionBarrier } from "@agent-teams/repository-mutation";
@@ -45,6 +45,42 @@ await restoreNodeConsumerIntegration(${JSON.stringify({ ...fixture.restoreOption
     child.once("error", reject);
     child.once("close", (code, signal) => {
       try {assert.equal(signal, "SIGKILL", `code=${code}: ${stderr}`); resolve();} catch (error) {reject(error);}
+    });
+  });
+}
+
+// Real live ChildProcess: the fault injector pauses in place and signals readiness instead of
+// self-terminating, so the external SIGTERM below lands deterministically mid-transaction.
+function terminateInverse(fixture, expect, phase) {
+  const sentinel = "FAULT_POINT_REACHED";
+  const script = `
+import {restoreNodeConsumerIntegration} from ${JSON.stringify(uri("dist/consumer-integration/adapters/node-consumer-restoration.js"))};
+import {NodeConsumerUpgradeSandbox} from ${JSON.stringify(uri("dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js"))};
+import {applyKnownFileTransaction as applyKnownFileTransactionWithFaults} from ${JSON.stringify(uri("../repository-mutation/dist/qualification/index.js"))};
+const projection=cohort=>({repository:'agent-teams-ai/.github',path:'governance/docs-qualified-cohorts.json',revision:'8'.repeat(40),cohort});
+await restoreNodeConsumerIntegration(${JSON.stringify({ ...fixture.restoreOptions, expect })}, {
+ authority:{readRestoration:async()=>({source:projection(${JSON.stringify(fixture.target)}),target:projection(${JSON.stringify(fixture.origin)})})},
+ sandbox:new NodeConsumerUpgradeSandbox(),
+ apply:options=>applyKnownFileTransactionWithFaults({...options,faultInjector:async point=>{if(point.phase===${JSON.stringify(phase)}){process.stderr.write(${JSON.stringify(`${sentinel}\n`)});await new Promise(r=>setTimeout(r,10000));}}})
+});`;
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ["--input-type=module", "-e", script], { stdio: ["ignore", "pipe", "pipe"] });
+    let stderr = "";
+    let terminated = false;
+    child.stderr.on("data", (data) => {
+      stderr += data;
+      if (!terminated && stderr.includes(sentinel)) {
+        terminated = true;
+        child.kill("SIGTERM");
+      }
+    });
+    child.once("error", reject);
+    child.once("close", (code, signal) => {
+      try {
+        assert.equal(terminated, true, `fault point ${phase} was never reached: ${stderr}`);
+        assert.equal(signal, "SIGTERM", `code=${code}: ${stderr}`);
+        resolve();
+      } catch (error) {reject(error);}
     });
   });
 }
@@ -133,6 +169,26 @@ export function registerConsumerRestorationTests(helpers) {
         await assert.rejects(fixture.restore({ consumerRoot: alias, expect }));
         await assertUnchanged();
       });
+      await t.test("a differently-cased root alias fails without changing either consumer", async (subtest) => {
+        // Case aliasing is filesystem-dependent (default macOS/Windows, not Linux ext4); probe
+        // the real filesystem instead of assuming behavior from process.platform.
+        const parent = dirname(consumerRoot);
+        const base = consumerRoot.slice(parent.length + 1);
+        const flipped = [...base].map((ch) =>
+          ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()).join("");
+        if (flipped === base) {
+          subtest.skip("consumer root name has no case-bearing characters to alias.");
+          return;
+        }
+        const real = await lstat(consumerRoot, { bigint: true });
+        const aliasStat = await lstat(join(parent, flipped), { bigint: true }).catch(() => null);
+        if (aliasStat === null || aliasStat.dev !== real.dev || aliasStat.ino !== real.ino) {
+          subtest.skip("filesystem does not alias a different-case path to the same consumer root.");
+          return;
+        }
+        await assert.rejects(fixture.restore({ consumerRoot: join(parent, flipped), expect }));
+        await assertUnchanged();
+      });
       await t.test("foreign file bytes, modes, untracked files and symlinks survive refusals", async () => {
         const readme = join(consumerRoot, "README.md"); const before = await readFile(readme);
         await writeFile(readme, "foreign edit\n");
@@ -171,6 +227,15 @@ export function registerConsumerRestorationTests(helpers) {
       });
       await t.test("APPLYING process death recovers exact V2; COMMITTED remains cleanup", async () => {
         await killInverse(fixture, expect, "after-operation-published");
+        assert.notEqual((await inspectKnownFileTransactionBarrier({ consumerRoot })).state, "idle");
+        await assert.rejects(fixture.restore({ expect }), /active transaction/u);
+        const recovered = await recoverKnownFileTransaction({ consumerRoot });
+        assert.equal(recovered.outcome, "rolled-back");
+        await assertUnchanged();
+        assert.deepEqual(await readFile(proofPath), proofBytes);
+      });
+      await t.test("an external SIGTERM to a live child mid-transaction fails closed without changing the consumer", async () => {
+        await terminateInverse(fixture, expect, "after-operation-published");
         assert.notEqual((await inspectKnownFileTransactionBarrier({ consumerRoot })).state, "idle");
         await assert.rejects(fixture.restore({ expect }), /active transaction/u);
         const recovered = await recoverKnownFileTransaction({ consumerRoot });

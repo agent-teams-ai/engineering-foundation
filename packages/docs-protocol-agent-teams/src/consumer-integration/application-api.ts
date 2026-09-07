@@ -50,6 +50,7 @@ export {
   assertQualifiedDocsCohortBindingV2
 } from "./application/policies/consumer-integration-desired-state.js";
 export {
+  QUALIFIED_DOCS_COHORT_V2_EDGES,
   QUALIFIED_DOCS_COHORT_V2_PACKAGES,
   qualifiedDocsCohortV2DirectPackageEntries,
   qualifiedDocsCohortV2PackageEntries

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { link, mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
+import { link, mkdir, open, readFile, readdir, rename, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -14,23 +14,105 @@ import { compileKnownFileTransactionEnvelope } from "../packages/repository-muta
 import { fixture, killAtCheckpoint, plan, posixTest, replacementPlan, temporaryDirectory } from "./support/known-file-transaction-node-fixtures.mjs";
 import { assertKnownFileSchemaIdentity, readHistoricalKnownFileFixture } from "./support/known-file-transaction-schema-fixtures.mjs";
 
-async function persistedTree(root, ignoreOperationLock = true) {
+async function persistedTree(root, ignoreOperationLock = true, openFile = open) {
   const entries = [];
   for (const path of (await readdir(root, { recursive: true })).toSorted()) {
     // A refused recovery may retain/update its cooperative lock barrier. All
     // journal, temporary, destination and directory identities must survive.
     if (ignoreOperationLock && path === join(".agent-teams-local", "foundation-operation.lock")) {continue;}
     const full = join(root, path);
-    const metadata = await stat(full, { bigint: true });
+    // stat follows links as before and observes directory identities without
+    // opening directories (unsupported on Windows). File evidence comes only
+    // from one handle, even if the pathname is replaced after it is opened.
+    let metadata = await stat(full, { bigint: true });
+    let bytes;
+    if (metadata.isFile()) {
+      const handle = await openFile(full, "r");
+      try {
+        metadata = await handle.stat({ bigint: true });
+        assert.ok(metadata.isFile(), "Persisted file changed type during observation.");
+        bytes = await handle.readFile();
+      } finally {
+        await handle.close();
+      }
+    }
     entries.push({ path, dev: metadata.dev, ino: metadata.ino, birthtimeNs: metadata.birthtimeNs,
       mode: metadata.mode,
       // APFS counts the intentionally retained lock file in its parent's links.
       // Keep every journal/file link count and every directory identity exact.
       nlink: ignoreOperationLock && path === ".agent-teams-local" ? undefined : metadata.nlink,
-      bytes: metadata.isFile() ? await readFile(full) : undefined });
+      bytes });
   }
   return entries;
 }
+
+test("persisted snapshots retain directory identities without opening directories", async (context) => {
+  const root = await fixture(context);
+  const entries = await persistedTree(root, false, async (path, flags) => {
+    assert.ok((await stat(path)).isFile(), "Windows cannot open directories as files.");
+    return open(path, flags);
+  });
+  for (const entry of entries) {
+    const metadata = await stat(join(root, entry.path), { bigint: true });
+    for (const field of ["dev", "ino", "birthtimeNs", "mode", "nlink"]) { assert.equal(entry[field], metadata[field]); }
+  }
+  assert.equal(entries.find(({ path }) => path === "managed").bytes, undefined);
+  assert.deepEqual(entries.find(({ bytes }) => bytes !== undefined).bytes, Buffer.from("old\n"));
+});
+
+posixTest("persisted file metadata and bytes survive pathname replacement on one handle", async (context) => {
+  const root = await fixture(context);
+  const destination = join(root, "managed", "existing.txt");
+  const original = await stat(destination, { bigint: true });
+  const entries = await persistedTree(root, false, async (path, flags) => {
+    const handle = await open(path, flags);
+    return {
+      async stat(options) {
+        const metadata = await handle.stat(options);
+        await rename(path, `${path}.original`);
+        await writeFile(path, "replacement\n");
+        return metadata;
+      },
+      readFile: () => handle.readFile(),
+      close: () => handle.close()
+    };
+  });
+  const entry = entries.find(({ path }) => path === join("managed", "existing.txt"));
+  assert.equal(entry.ino, original.ino);
+  assert.deepEqual(entry.bytes, Buffer.from("old\n"));
+  assert.equal(await readFile(destination, "utf8"), "replacement\n");
+});
+
+test("persisted snapshots close file handles when metadata or byte reads fail", async (context) => {
+  const root = await fixture(context);
+  for (const failingOperation of ["stat", "readFile"]) {
+    const failure = new Error(`snapshot ${failingOperation} failure`);
+    let closed = false;
+    await assert.rejects(persistedTree(root, false, async (path, flags) => {
+      const handle = await open(path, flags);
+      return {
+        stat: (options) => failingOperation === "stat" ? Promise.reject(failure) : handle.stat(options),
+        readFile: () => Promise.reject(failure),
+        async close() { await handle.close(); closed = true; }
+      };
+    }), (error) => error === failure);
+    assert.equal(closed, true);
+  }
+});
+
+posixTest("persisted snapshots preserve followed symlink and hardlink evidence", async (context) => {
+  const root = await fixture(context);
+  const destination = join(root, "managed", "existing.txt");
+  await link(destination, join(root, "hardlink"));
+  await symlink(destination, join(root, "symlink"));
+  await symlink(join(root, "managed"), join(root, "directory-link"), "dir");
+  const entries = await persistedTree(root, false);
+  const original = entries.find(({ path }) => path === join("managed", "existing.txt"));
+  for (const path of ["hardlink", "symlink"]) { assert.deepEqual(entries.find((entry) => entry.path === path), { ...original, path }); }
+  assert.equal(original.nlink, 2n);
+  const directory = entries.find(({ path }) => path === "managed");
+  assert.deepEqual(entries.find(({ path }) => path === "directory-link"), { ...directory, path: "directory-link" });
+});
 
 async function assertManualOnly(root, expectedError) {
   const before = await persistedTree(root);

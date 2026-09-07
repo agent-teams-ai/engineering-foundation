@@ -37,7 +37,7 @@ export function wildcardExpression(pattern: string): RegExp {
     throw new Error(`Artifact wildcard target must be a normalized package path with one *: ${pattern}.`);
   }
   const [prefix, suffix] = pattern.split("*");
-  artifactPathIdentity(pattern.replace("*", "artifact"));
+  artifactPathIdentity(`${prefix ?? ""}artifact${suffix ?? ""}`);
   return new RegExp(`^${escapeExpression(prefix ?? "")}(.+)${escapeExpression(suffix ?? "")}$`, "u");
 }
 

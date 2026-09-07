@@ -4,7 +4,7 @@ import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 
-import { comparePackageArtifactInventory } from "../dist/capabilities/public-api-compatibility/application/policies/compare-package-artifact-inventory.js";
+import { comparePackageArtifactInventory, wildcardExpression } from "../dist/capabilities/public-api-compatibility/application/policies/compare-package-artifact-inventory.js";
 import { readArtifactBaseline, mapReleasedArtifactBaseline } from "../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.js";
 import { ArtifactPublicApiEvidence } from "../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/artifact-public-api-evidence.js";
 import { FilesystemPublicApiRepository } from "../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.js";
@@ -17,6 +17,27 @@ function dependencies(current, accepted) {
   return { repository: artifacts, extractor: artifacts, fingerprint,
     acceptedDecisionEvidence: { readAcceptedDecisionEvidence() { return Promise.resolve(accepted); } } };
 }
+
+test("wildcard matching validates both sentinel halves and requires exactly one star", () => {
+  for (const [pattern, member] of [
+    ["*", "artifact"], ["schemas/*.schema.json", "schemas/v1.schema.json"],
+    ["prefix*", "prefix-value"], ["*suffix", "value-suffix"],
+    ["schemas/pre[1]+(x)*.json", "schemas/pre[1]+(x)value.json"]
+  ]) {
+    assert.ok(wildcardExpression(pattern).test(member), pattern);
+  }
+  assert.equal(wildcardExpression("schemas/*.json").test("schemas/.json"), false);
+  assert.equal(wildcardExpression("schemas/*.json").test("schemas/v1Xjson"), false);
+  assert.equal(wildcardExpression("schemas/*.json").test("other/schemas/v1.json"), false);
+  for (const pattern of [
+    "schemas/file.json", "schemas/**", "*/*", "pre*suf*fix", "../schemas/*",
+    "schemas///*", "schemas/./*", "node_modules/*", "schemas/../*",
+    "schemas/CON.*", "*/NUL.json", "*/node_modules/file", "schemas/*.",
+    "schemas/\\*", "schemas/%2e*", "schemas/*#", "schemas/*?", "schemas/*\n"
+  ]) {
+    assert.throws(() => wildcardExpression(pattern), /Artifact/u, pattern);
+  }
+});
 
 test("unchanged schema passes; a new schema is additive; $id, const and constraints are breaking", async (t) => {
   const root = await fixture(t);

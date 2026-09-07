@@ -1,5 +1,29 @@
 # @agent-teams/engineering-foundation
 
+## 1.1.0
+
+### Minor Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Compare concrete wildcard exports and exported JSON Schema bytes through the
+  existing public API release policy. Prepare initial records from retained
+  archives explicitly; ordinary checks never create a missing artifact baseline.
+  Promotion validates typed and artifact surfaces before writing and rejects
+  same-version mutation and stale artifact evidence.
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Add the testing-only scaffolding/qualification entrypoint with runScaffoldCrashQualification. It awaits eleven typed scaffold checkpoints using the production authority, journal and transaction dependencies, enabling disposable consumer crash tests to retain public recovery and exact byte/drift assertions. Production scaffolding APIs and persisted formats are unchanged.
+
+### Patch Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Read process environment and time through explicit Node boundaries. Use one
+  observed instant for both restoration authority bindings, reject invalid clock
+  observations, and retain the offline Corepack network restriction.
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Preserve document envelope v3/v4 and known-file envelope v5 as untrusted manual evidence in split Foundation. Matching claimed version and build strings never grant their local recovery leases; diagnostics direct operators to the claimed owner's exact external reader. Keep current wire6 known-file owner/kernel checks and scaffolding recovery, and bind the frozen historical Plan dependency used by envelope v2. This patch requires the coordinated owner schema cutover before publication.
+
+- Updated dependencies [[`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87)]:
+  - @agent-teams/document-authoring@0.3.0
+  - @agent-teams/repository-mutation@0.2.0
+
 ## 1.0.2
 
 ### Patch Changes

@@ -1,5 +1,23 @@
 # @agent-teams/docs-protocol
 
+## 0.6.0
+
+### Minor Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Add explicit profile v4 blocker vocabulary and reviewed docs-new apply with expectedPlanDigest. Preserve historical profile v3 and CLI envelope bytes, and separate documentation policy, bootstrap, command presentation and qualification into feature-owned boundaries with injected YAML and search adapters.
+
+  Keep public request, JSON metadata and receipt types independent of private authoring observations; expose the closed DocsReceiptOutcome type and retain docsProfilePath as an explicit function export.
+
+### Patch Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Exclude existing installation and Git infrastructure from disposable qualification copies using the shared evidence policy, preserving consumer source and recovery authority.
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Capture the apply mode and expected Plan digest before asynchronous authoring work, so changes to the caller-owned request cannot disable preview approval or turn preview into apply.
+
+- Updated dependencies [[`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87)]:
+  - @agent-teams/document-authoring@0.3.0
+  - @agent-teams/repository-mutation@0.2.0
+
 ## 0.5.2
 
 ### Patch Changes

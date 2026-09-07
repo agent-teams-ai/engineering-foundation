@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readlink, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { retrievalStoreCopy, retrievalTree } from "./consumer-restoration-retrieval-fixture.mjs";
 
-async function seeded(t) {
-  const disposable = await mkdtemp(join(tmpdir(), "retrieval-helper-TEST-"));
+async function seeded(t, base = tmpdir()) {
+  const disposable = await mkdtemp(join(base, "retrieval-helper-TEST-"));
   t.after(() => rm(disposable, { recursive: true, force: true }));
   const consumerRoot = join(disposable, "consumer");
   const store = join(disposable, "store");
@@ -76,5 +76,52 @@ for (const kind of ["payload", "unrelated", "shared-store", "copy-store", "neste
     });
     await assert.rejects(lstat(join(fixture.disposable, "copy")), { code: "ENOENT" });
     assert.deepEqual(await retrievalTree(fixture.store), before);
+  });
+}
+
+for (const escape of [false, true]) {
+  test(`aliased temporary ancestor ${escape ? "rejects dangling escape" : "copies literal registry links"}`, async (t) => {
+    const owned = await mkdtemp(join(tmpdir(), "item17-alias-TEST-"));
+    try {
+      const real = await realpath(owned);
+      await mkdir(join(real, "temporary"));
+      const alias = join(real, "alias");
+      await symlink(join(real, "temporary"), alias);
+      const fixture = await seeded(t, alias);
+      const canonical = await realpath(fixture.disposable);
+      assert.notEqual(fixture.disposable, canonical);
+      const links = {
+        absolute: fixture.consumerRoot,
+        canonical: join(canonical, "consumer"),
+        relative: relative(join(fixture.store, "v11/projects"), fixture.consumerRoot),
+        dangling: join(fixture.disposable, "retrieval-staging/removed/staged"),
+      };
+      if (escape) {
+        await symlink(fixture.store, join(fixture.disposable, "retrieval-staging/escape"));
+        links.dangling = join(fixture.disposable, "retrieval-staging/escape/missing/staged");
+      }
+      for (const [name, target] of Object.entries(links)) {
+        await symlink(target, join(fixture.store, "v11/projects", name));
+      }
+      const before = await retrievalTree(fixture.store);
+      if (escape) {
+        await assert.rejects(retrievalStoreCopy(fixture, "copy"), (error) => {
+          assert.ok(error.message.includes(JSON.stringify(links.dangling)));
+          return true;
+        });
+        await assert.rejects(lstat(join(canonical, "copy")), { code: "ENOENT" });
+        assert.deepEqual(await retrievalTree(fixture.store), before);
+      } else {
+        const copy = await retrievalStoreCopy(fixture, "copy");
+        assert.equal(copy.destination, join(canonical, "copy"));
+        assert.deepEqual((await retrievalTree(copy.destination)).entries, before.entries);
+        for (const [name, target] of Object.entries(links)) {
+          assert.equal(await readlink(join(copy.destination, "v11/projects", name)), target);
+        }
+        await copy.remove();
+        copy.repair();
+        await copy.assertSourceUnchanged();
+      }
+    } finally {await rm(owned, { recursive: true, force: true });}
   });
 }

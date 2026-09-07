@@ -74,7 +74,10 @@ async function assertRegistryLinks(fixture, source, destination, entries, diagno
     if (count++ < 16) {diagnostic(label);}
     assert.match(path, /^v11\/projects\/[^/\\]+$/u, label);
     for (const store of [source, destination]) {
-      const literal = resolve(dirname(join(store, path)), entry.target);
+      const target = resolve(dirname(join(store, path)), entry.target);
+      // Rebase only the fixture ancestor alias; retain lexical and resolved containment.
+      const literal = inside(resolve(fixture.disposable), target)
+        ? resolve(disposable, relative(resolve(fixture.disposable), target)) : target;
       const resolved = await resolvedTarget(literal).catch((error) => {assert.fail(`${label}: ${error.message}`);});
       assert.ok(allowed.some((root) => inside(root, literal) && inside(root, resolved)) &&
         ![source, destination].some((root) => inside(root, literal) || inside(root, resolved)), label);
@@ -86,7 +89,8 @@ async function assertRegistryLinks(fixture, source, destination, entries, diagno
 // Caller has awaited the complete V1 -> V2 -> V1 lifecycle: no store writer remains.
 // Copy every file, including committed WAL and metadata, before opening ONLY the copy.
 export async function retrievalStoreCopy(fixture, name, diagnostic = () => {}) {
-  const source = join(fixture.disposable, "store");
+  const disposable = await realpath(fixture.disposable);
+  const source = await realpath(join(disposable, "store"));
   const before = await retrievalTree(source);
   const metadata = [];
   for (const path of Object.keys(before.entries).filter((candidate) => candidate.includes("/metadata") && candidate.endsWith(".jsonl"))) {
@@ -99,8 +103,8 @@ export async function retrievalStoreCopy(fixture, name, diagnostic = () => {}) {
         `complete metadata for ${pkg.version} / ${pkg.integrity}`);
     }
   }
-  const destination = join(fixture.disposable, name);
-  assert.equal(dirname(destination), await realpath(fixture.disposable));
+  const destination = await resolvedTarget(join(disposable, name));
+  assert.equal(dirname(destination), disposable);
   assert.notEqual(destination, source);
   await assertRegistryLinks(fixture, source, destination, before.entries, diagnostic);
   await cp(source, destination, { recursive: true, errorOnExist: true, force: false,

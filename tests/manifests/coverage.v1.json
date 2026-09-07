@@ -44,6 +44,7 @@
       "packages/docs-protocol-agent-teams/tests/consumer-lockfile-v2-policy.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-restoration-retrieval-fixture.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",

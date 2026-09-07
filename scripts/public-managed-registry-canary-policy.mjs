@@ -365,6 +365,18 @@ export function hostilePolicyMatrix(authority) {
 }
 
 export function finalizeCanaryReceipt(body) {
+  // The reusable receipt schema owns shape; this release-owned boundary owns identity.
+  const supporting = body.supportingReleasePrecondition;
+  const coordinate = supportingMcpCoordinate({
+    "dist-tags": { latest: supporting?.package?.latest },
+    versions: { [supporting?.package?.version]: {
+      ...supporting?.package, dist: { integrity: supporting?.package?.integrity },
+    } },
+  });
+  if (supporting?.mcp?.serverName !== coordinate.name ||
+      supporting.mcp.serverVersion !== coordinate.version) {
+    fail("supporting release MCP server identity must match the exact release coordinate");
+  }
   return Object.freeze({ ...body, receiptDigest: canonicalReceiptDigest(body) });
 }
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -178,21 +179,17 @@ test("workflow inputs are minimal non-circular authority references", () => {
   assert.equal(authority.coordinates.some(({ name }) => name === SUPPORTING_MCP_PACKAGE.name), false);
 });
 
-test("supporting MCP precondition selects the final release coordinate and rejects stale publication", () => {
+test("supporting MCP precondition selects the current release coordinate and rejects stale publication", () => {
+  const { name, version } = SUPPORTING_MCP_PACKAGE;
+  const manifest = JSON.parse(readFileSync(new URL("../packages/docs-protocol-mcp/package.json", import.meta.url), "utf8"));
+  assert.deepEqual(SUPPORTING_MCP_PACKAGE, { name: manifest.name, version: manifest.version });
   const packument = {
-    "dist-tags": { latest: "0.2.2" },
-    versions: {
-      "0.2.2": {
-        name: "@agent-teams/docs-protocol-mcp",
-        version: "0.2.2",
-        dist: { integrity: supportingMcp.integrity },
-      },
-    },
+    "dist-tags": { latest: version },
+    versions: { [version]: { name, version, dist: { integrity: supportingMcp.integrity } } },
   };
   assert.deepEqual(supportingMcpCoordinate(packument), supportingMcp);
-  const previous = {
-    ...SUPPORTING_MCP_PACKAGE, version: "0.2.1", dist: { integrity: supportingMcp.integrity },
-  };
+  const differentVersion = `${BigInt(version.split(".")[0]) + 1n}.0.0`;
+  const previous = { name, version: differentVersion, dist: { integrity: supportingMcp.integrity } };
   assert.throws(
     () => supportingMcpCoordinate({
       "dist-tags": { latest: previous.version },
@@ -200,22 +197,19 @@ test("supporting MCP precondition selects the final release coordinate and rejec
     }),
     /exact latest/u,
   );
-  assert.throws(
-    () => supportingMcpCoordinate({ ...packument, "dist-tags": { latest: "0.1.1" } }),
-    /exact latest/u,
-  );
   for (const mutate of [
-    (value) => { delete value.versions["0.2.2"]; },
-    (value) => { value.versions["0.2.2"].name = "@agent-teams/docs-protocol"; },
-    (value) => { value.versions["0.2.2"].version = "0.2.1"; },
-    (value) => { value["dist-tags"].latest = "0.2.3"; },
+    (value) => { delete value.versions[version]; },
+    (value) => { value.versions[version].name = "@agent-teams/docs-protocol"; },
+    (value) => { value.versions[version].version = differentVersion; },
+    (value) => { value["dist-tags"].latest = differentVersion; },
+    (value) => { delete value["dist-tags"].latest; },
   ]) {
     const invalid = structuredClone(packument);
     mutate(invalid);
     assert.throws(() => supportingMcpCoordinate(invalid), /exact latest/u);
   }
   const drift = structuredClone(packument);
-  drift.versions[SUPPORTING_MCP_PACKAGE.version].dist.integrity = "sha512-not-canonical";
+  drift.versions[version].dist.integrity = "sha512-not-canonical";
   assert.throws(() => supportingMcpCoordinate(drift), /canonical sha512 SRI/u);
 });
 
@@ -551,9 +545,28 @@ test("canonical canary receipt validates central binding and exact unique packag
     ["package", "version"], ["package", "latest"], ["mcp", "serverVersion"],
   ]) {
     const staleSupportingCoordinate = structuredClone(receipt);
-    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "0.2.1";
-    assert.equal(validate(staleSupportingCoordinate), false, `stale supporting MCP ${section}.${field}`);
+    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = `${BigInt(supportingMcp.version.split(".")[0]) + 1n}.0.0`;
+    assert.equal(validate(staleSupportingCoordinate), true, "schema describes structure, not release authority");
+    assert.throws(() => finalizeCanaryReceipt(staleSupportingCoordinate), /supporting release/u);
+    staleSupportingCoordinate.supportingReleasePrecondition[section][field] = "^1.0.0";
+    assert.equal(validate(staleSupportingCoordinate), false);
   }
+  const stale = structuredClone(receipt);
+  const differentVersion = `${BigInt(supportingMcp.version.split(".")[0]) + 1n}.0.0`;
+  stale.supportingReleasePrecondition.package.version = differentVersion;
+  stale.supportingReleasePrecondition.package.latest = differentVersion;
+  stale.supportingReleasePrecondition.mcp.serverVersion = differentVersion;
+  assert.equal(validate(stale), true);
+  assert.throws(() => finalizeCanaryReceipt(stale), /exact latest/u);
+  for (const [section, field] of [["package", "name"], ["mcp", "serverName"]]) {
+    const wrongName = structuredClone(receipt);
+    wrongName.supportingReleasePrecondition[section][field] = "@agent-teams/docs-protocol";
+    assert.equal(validate(wrongName), false);
+    assert.throws(() => finalizeCanaryReceipt(wrongName), /supporting release/u);
+  }
+  const invalidIntegrity = structuredClone(receipt);
+  invalidIntegrity.supportingReleasePrecondition.package.integrity = "sha512-not-canonical";
+  assert.throws(() => finalizeCanaryReceipt(invalidIntegrity), /canonical sha512 SRI/u);
   const duplicate = structuredClone(receipt);
   duplicate.packages[1].name = duplicate.packages[0].name;
   assert.equal(validate(duplicate), false);

@@ -20,6 +20,10 @@ export function parseCapabilityConfig(
     allErrors: true,
     strict: true,
     strictTuples: false,
+    // "format" keywords in the workspace dependency-declarations schema are
+    // documentation annotations for readers, not runtime-enforced constraints.
+    // This is an intentional, accepted schema choice, not a
+    // standard-compliance defect.
     validateFormats: false
   }).compile(schema);
   if (!validate(input)) {

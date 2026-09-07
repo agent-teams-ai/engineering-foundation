@@ -128,7 +128,10 @@ export function registerConsumerRestorationTests(helpers) {
               "--source-generation", "1", "--target-generation", "2", "--to", fixture.target.cohortId,
               "--restoration-proof", proofPath, "--prepare", "--json"], { label: "native-before-prepare" });
             assertNativeMissing(result, fixture);
-            assert.match(result.execution.issues[0].message, /[/\\]staged(?:\s|[/\\]|$)/u);
+            assert.equal(result.execution.command, "consumer.upgrade");
+            assert.equal(result.execution.outcome, "blocked");
+            assert.equal(result.execution.issues[0].code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
+            assert.match(result.execution.issues[0].message, /<local-path>/u);
             assert.equal(result.execution.preparation, undefined);
             assert.equal(result.execution.receipt, undefined);
             assert.equal(result.execution.restoration, undefined);

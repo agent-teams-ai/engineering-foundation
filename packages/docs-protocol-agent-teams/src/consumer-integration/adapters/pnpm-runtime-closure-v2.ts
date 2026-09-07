@@ -97,13 +97,15 @@ function projectRuntimeClosure(
       ...sortedEdges(snapshot, "dependencies", current.locator),
       ...sortedEdges(snapshot, "optionalDependencies", current.locator)
     ];
+    // Both raw references bind; only a conflicting physical resolution is ambiguous.
     const edgeByName = new Map<string, string>();
     for (const edge of edges) {
+      const physicalEdge = edge.locator.split("(", 1)[0]!;
       const prior = edgeByName.get(edge.name);
-      if (prior !== undefined && prior !== edge.locator) {
+      if (prior !== undefined && prior !== physicalEdge) {
         fail(`Runtime closure locator ${current.locator} has ambiguous dependency ${edge.name}.`);
       }
-      edgeByName.set(edge.name, edge.locator);
+      edgeByName.set(edge.name, physicalEdge);
       pending.push({ locator: edge.locator, depth: current.depth + 1 });
       if (from !== undefined && expected.some(({ name }) => name === edge.name)) {
         managedEdges.push({ from: from.name, to: edge.name });
@@ -111,12 +113,15 @@ function projectRuntimeClosure(
     }
   }
   const locators = [...visited].toSorted((left, right) => left.localeCompare(right));
+  // Each managed name resolves once physically; its raw peer snapshots all stay bound.
+  const physicalResolutions = new Set(locators.map((value) => value.split("(", 1)[0]!));
   for (const entry of expected) {
     const physicalLocator = `${entry.name}@${entry.version}`;
-    const matches = locators.filter((value) => value.split("(", 1)[0] === physicalLocator);
+    const matches = [...physicalResolutions].filter((value) => value.startsWith(`${entry.name}@`));
     const packageEntry = record(packages[physicalLocator], `${entry.name} package`);
     const resolution = record(packageEntry["resolution"], `${entry.name} resolution`);
-    if (matches.length !== 1 || resolution["integrity"] !== entry.integrity) {
+    if (matches.length !== 1 || matches[0] !== physicalLocator ||
+      resolution["integrity"] !== entry.integrity) {
       fail(`${entry.name} runtime closure coordinate differs from the Cohort.`);
     }
   }

@@ -333,17 +333,96 @@ test("V2 retains package, dependency depth and serialized evidence bounds", () =
 });
 
 
-test("V2 rejects ambiguous edges and managed coordinates before hashing", () => {
+// Central retains every raw peer snapshot of one selected physical coordinate.
+function coexistingPeerLock() {
+  const lock = acceptedLock();
+  lock.packages[mutationLocator].peerDependencies = { peer: "*" };
+  lock.packages["peer@1.0.0"] = { resolution: { integrity: coordinate.integrity } };
+  lock.snapshots["peer@1.0.0"] = {};
+  lock.snapshots[`${mutationLocator}(peer@1.0.0)`] = { optionalDependencies: { peer: "1.0.0" } };
+  lock.snapshots["@agent-teams/docs-protocol@0.5.1"]
+    .dependencies["@agent-teams/repository-mutation"] = "0.1.1(peer@1.0.0)";
+  return lock;
+}
+
+test("V2 binds coexisting raw peer snapshots of one managed physical coordinate", () => {
+  const coexisting = coexistingPeerLock();
+  const coexistingDigest = digest(coexisting);
+  assert.notEqual(coexistingDigest, acceptedDigest);
+  assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(
+    Buffer.from(stringify(coexisting)),
+    { cohort: { ...acceptedCohort, runtime: { runtimeClosureDigest: coexistingDigest } } }
+  ));
+  // Neither raw snapshot is dropped: editing either one moves the digest.
+  const editedPeer = coexistingPeerLock();
+  editedPeer.snapshots[`${mutationLocator}(peer@1.0.0)`].transitivePeerDependencies = ["peer"];
+  assert.notEqual(digest(editedPeer), coexistingDigest);
+  const editedBare = coexistingPeerLock();
+  editedBare.snapshots[mutationLocator].transitivePeerDependencies = ["peer"];
+  assert.notEqual(digest(editedBare), coexistingDigest);
+  // Removing the last parent of the bare snapshot leaves only the peer-qualified one.
+  const singlePeer = coexistingPeerLock();
+  for (const snapshot of Object.values(singlePeer.snapshots)) {
+    if (snapshot.dependencies?.["@agent-teams/repository-mutation"] === "0.1.1") {
+      snapshot.dependencies["@agent-teams/repository-mutation"] = "0.1.1(peer@1.0.0)";
+    }
+  }
+  assert.notEqual(digest(singlePeer), coexistingDigest);
+});
+
+test("V2 rejects genuinely conflicting managed coordinates before hashing", () => {
+  const twoVersions = coexistingPeerLock();
+  twoVersions.packages["@agent-teams/repository-mutation@0.1.2"] = {
+    resolution: { integrity: coordinate.integrity }
+  };
+  twoVersions.snapshots["@agent-teams/repository-mutation@0.1.2"] = {};
+  twoVersions.snapshots["@agent-teams/document-authoring@0.2.0"]
+    .dependencies["@agent-teams/repository-mutation"] = "0.1.2";
+  assert.throws(() => digest(twoVersions), /coordinate differs/u);
+  const absent = acceptedLock();
+  for (const snapshot of Object.values(absent.snapshots)) {
+    delete snapshot.dependencies?.["@agent-teams/repository-mutation"];
+  }
+  assert.throws(() => digest(absent), /coordinate differs/u);
+  const drifted = structuredClone(acceptedCohort);
+  drifted.packages.repositoryMutation.integrity = coordinate.integrity;
+  assert.throws(() => computePnpmRuntimeClosureDigestV2(acceptedLock(), drifted), closureError);
+});
+
+test("V2 admits a Node-context-only edge pair and still rejects ambiguous versions", () => {
   const ambiguous = acceptedLock();
   ambiguous.snapshots[mutationLocator].dependencies = { leaf: "1.0.0" };
   ambiguous.snapshots[mutationLocator].optionalDependencies = { leaf: "2.0.0" };
   assert.throws(() => digest(ambiguous), /ambiguous dependency leaf/u);
-  const duplicate = acceptedLock();
-  duplicate.snapshots[`${mutationLocator}(peer@1.0.0)`] = duplicate.snapshots[mutationLocator];
-  const protocol = duplicate.snapshots["@agent-teams/docs-protocol@0.5.1"];
-  protocol.dependencies["@agent-teams/repository-mutation"] = "0.1.1(peer@1.0.0)";
-  assert.throws(() => digest(duplicate), /coordinate differs/u);
-  const drifted = structuredClone(acceptedCohort);
-  drifted.packages.repositoryMutation.integrity = coordinate.integrity;
-  assert.throws(() => computePnpmRuntimeClosureDigestV2(acceptedLock(), drifted), closureError);
+  const pair = acceptedLock();
+  pair.packages["peer-leaf@1.0.0"] = {
+    resolution: { integrity: coordinate.integrity },
+    peerDependencies: { "@types/node": "*" }
+  };
+  for (const node of ["24.13.3", "24.13.4"]) {
+    pair.packages[`@types/node@${node}`] = { resolution: { integrity: coordinate.integrity } };
+    pair.snapshots[`@types/node@${node}`] = {};
+    pair.snapshots[`peer-leaf@1.0.0(@types/node@${node})`] = {
+      optionalDependencies: { "@types/node": node }
+    };
+  }
+  pair.snapshots[mutationLocator].dependencies = { "peer-leaf": "1.0.0(@types/node@24.13.3)" };
+  pair.snapshots[mutationLocator].optionalDependencies = {
+    "peer-leaf": "1.0.0(@types/node@24.13.4)"
+  };
+  const pairDigest = digest(pair);
+  assert.notEqual(pairDigest, acceptedDigest);
+  // Both raw references were traversed and bound, not collapsed onto one context.
+  for (const node of ["24.13.3", "24.13.4"]) {
+    const edited = structuredClone(pair);
+    edited.snapshots[`peer-leaf@1.0.0(@types/node@${node})`].transitivePeerDependencies = ["x"];
+    assert.notEqual(digest(edited), pairDigest);
+  }
+  const conflicting = structuredClone(pair);
+  conflicting.packages["peer-leaf@2.0.0"] = { resolution: { integrity: coordinate.integrity } };
+  conflicting.snapshots["peer-leaf@2.0.0(@types/node@24.13.4)"] = {};
+  conflicting.snapshots[mutationLocator].optionalDependencies = {
+    "peer-leaf": "2.0.0(@types/node@24.13.4)"
+  };
+  assert.throws(() => digest(conflicting), /ambiguous dependency peer-leaf/u);
 });

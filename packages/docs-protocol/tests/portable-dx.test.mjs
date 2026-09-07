@@ -1,3 +1,4 @@
+import { createNodeDocsApi } from "../dist/features/docs-command/adapters/inbound/node-docs-api.js";
 import { DocsProtocol } from "../dist/features/portable-documentation/application/docs-protocol.js";
 import { YamlCompiledOutputReader } from "../dist/features/portable-documentation/adapters/outbound/yaml-compiled-output-reader.js";
 import { createCommunityMiniSearchIndex } from "../dist/features/portable-documentation/adapters/outbound/minisearch-adapter.js";
@@ -306,3 +307,74 @@ test("matching approval preserves foreign transaction evidence encountered by Ap
   assert.deepEqual(await readFile(evidencePath), evidence);
   await assert.rejects(readFile(join(root, preview.envelope.result.documentPath)), { code: "ENOENT" });
 }));
+
+for (const pauseAt of ["profile", "plan"]) {
+  for (const mutation of ["clear", "replace", "preview", "disable", "matching", "direct"]) {
+    test(`invocation approval capture at ${pauseAt}: ${mutation}`, supported, async () => portableRepository(async (root) => {
+      const preview = await docsNewV2(request(root, { apply: false }));
+      const matchingDigest = preview.envelope.result.planDigest;
+      assert.equal(preview.envelope.result.writeState, "preview");
+      const entered = Promise.withResolvers();
+      const released = Promise.withResolvers();
+      let paused = false;
+      let applies = 0;
+      async function pause(stage) {
+        if (stage !== pauseAt || paused) {return;}
+        paused = true;
+        entered.resolve();
+        await released.promise;
+      }
+      class PausedProfiles extends NodeDocsProfileReader {
+        async read(input) {
+          await pause("profile");
+          return super.read(input);
+        }
+      }
+      class PausedAuthoring extends NodeDocumentAuthoringPort {
+        async plan(input) {
+          const compiled = await super.plan(input);
+          await pause("plan");
+          return compiled;
+        }
+        async apply(input) {
+          applies++;
+          return super.apply(input);
+        }
+      }
+      const api = createNodeDocsApi(() => createDocsProtocolApi(new DocsProtocol({
+        compiledOutput: new YamlCompiledOutputReader(), searchIndex: createCommunityMiniSearchIndex(),
+        foundation: new PausedAuthoring(), profiles: new PausedProfiles(),
+        adoption: new NodeDocsAdoptionInspector(), anchors: new NodeCodeAnchorMatcher()
+      })));
+      const input = request(root, {
+        apply: mutation !== "preview",
+        ...(mutation === "preview" || mutation === "direct" ? {} : {
+          expectedPlanDigest: mutation === "matching" ? matchingDigest : `sha256:${"f".repeat(64)}`
+        })
+      });
+      const before = await snapshot(root);
+      const pending = api.docsNewV2(input);
+      await entered.promise;
+      try {
+        if (mutation === "clear") {input.expectedPlanDigest = undefined;}
+        if (mutation === "replace") {input.expectedPlanDigest = matchingDigest;}
+        if (mutation === "preview") {input.apply = true;}
+        if (mutation === "disable") {input.apply = false; input.expectedPlanDigest = undefined;}
+        if (mutation === "matching") {input.expectedPlanDigest = `sha256:${"e".repeat(64)}`; input.apply = false;}
+      } finally {released.resolve();}
+      const result = await pending;
+      const positive = mutation === "matching" || mutation === "direct";
+      assert.equal(applies, positive ? 1 : 0);
+      if (positive) {
+        assert.equal(result.exitCode, 0);
+        assert.equal(result.envelope.result.writeState, "applied");
+        assert.equal(await readFile(join(root, result.envelope.result.documentPath), "utf8"), preview.envelope.result.compiled.document.content);
+      } else {
+        assert.deepEqual(await snapshot(root), before);
+        assert.equal(result.exitCode, mutation === "preview" ? 0 : 1);
+        assert.equal(result.envelope.outcome, mutation === "preview" ? "success" : "authority-stale");
+        assert.equal(result.envelope.result.writeState, mutation === "preview" ? "preview" : "blocked");
+      }
+    }));
+  }
+}

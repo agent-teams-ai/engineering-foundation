@@ -245,7 +245,10 @@ export class DocsProtocol {
   }
 
   async newDocumentV2(request: DocsNewRequest): Promise<DocsOperationResult<DocsNewResultV2, "docs.new">> {
-    const invalidApproval = documentPlanApprovalFailure(request);
+    // Bind approval to invocation values before any caller-owned request can change.
+    const { apply, expectedPlanDigest } = request;
+    const approval = { apply, ...(expectedPlanDigest === undefined ? {} : { expectedPlanDigest }) };
+    const invalidApproval = documentPlanApprovalFailure(approval);
     if (invalidApproval !== undefined) {return execution("docs.new", invalidApproval.outcome, invalidApproval.result, invalidApproval.diagnostics);}
     request.signal?.throwIfAborted();
     const profile = await this.#profiles.read(request);
@@ -309,7 +312,7 @@ export class DocsProtocol {
       parentPolicy: "create-missing-real-directories",
       ...withSignal(request.signal)
     });
-    const staleApproval = documentPlanApprovalFailure(request, plan.planDigest);
+    const staleApproval = documentPlanApprovalFailure(approval, plan.planDigest);
     if (staleApproval !== undefined) {return execution("docs.new", staleApproval.outcome, staleApproval.result, staleApproval.diagnostics);}
     const profileAfterPlan = await this.#profiles.read(request);
     const [descriptionAfterPlan, catalogAfterPlan] = await Promise.all([
@@ -343,7 +346,7 @@ export class DocsProtocol {
       blockedBy: relations.blockedBy,
       related: relations.related
     });
-    if (!request.apply) {
+    if (!apply) {
       return execution("docs.new", "success", Object.freeze({ kind: "new" as const, reservation: "none" as const, writeState: "preview" as const, documentPath: plan.destination, planDigest: plan.planDigest, compiled, reachability }), anchorDiagnostics);
     }
     // This is the last cooperative authority check before Apply. A malicious

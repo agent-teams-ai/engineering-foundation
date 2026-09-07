@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Add an explicit, data-only projection from portable profile v3 to v4 while preserving managed profile, Cohort, state and qualification generations. Validate command execution receipts through new owner-qualified schemas and the exported Mutation receipt schema, preserving historical schema bytes.
+
+  Bound authority response streaming even when Content-Length is missing or incorrect. Preserve byte-proved source permissions when staging a disposable consumer upgrade, independently of Git archive settings and extraction umask.
+
+  Separate managed use cases, inbound commands, qualification adapters and composition. Select the concrete Mutation implementation in composition and keep its observations behind the managed application port.
+
+### Patch Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Read process environment and time through explicit Node boundaries. Use one
+  observed instant for both restoration authority bindings, reject invalid clock
+  observations, and retain the offline Corepack network restriction.
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Preserve released schema export paths and their published bytes alongside the
+  current owner-specific schemas. Historical Foundation qualification uses its
+  separate exact schema generation, without replacing the public Mutation or
+  Authoring schema surface with older Foundation definitions.
+- Updated dependencies [[`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87), [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87)]:
+  - @agent-teams/docs-protocol@0.6.0
+  - @agent-teams/repository-mutation@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Restore the historical known-file Plan and Receipt schemas to their exact
+  Foundation 0.21.0 bytes. Current callers must select the new
+  `schemas/repository-mutation/known-file-transaction-{plan,receipt}/v1.schema.json`
+  exports. Current wire version 1, protocol, digests, envelope version 6, and exact
+  owner and kernel recovery bindings remain unchanged. Historical journals require
+  their retained exact Foundation artifact or manual recovery; no bridge is added.
+
+  This slice requires the coordinated Authoring, Foundation, and Managed schema
+  reference closure before publication.
+
+### Patch Changes
+
+- [#260](https://github.com/agent-teams-ai/engineering-foundation/pull/260) [`1637266`](https://github.com/agent-teams-ai/engineering-foundation/commit/1637266f6485d72492b1c7131d81100a6020ad87) Thanks [@777genius](https://github.com/777genius)! - Preserve released schema export paths and their published bytes alongside the
+  current owner-specific schemas. Historical Foundation qualification uses its
+  separate exact schema generation, without replacing the public Mutation or
+  Authoring schema surface with older Foundation definitions.
+
 ## 0.1.2
 
 ### Patch Changes

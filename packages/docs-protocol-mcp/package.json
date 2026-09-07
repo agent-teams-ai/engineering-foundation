@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/docs-protocol-mcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Open-source read-only MCP stdio adapter for documentation governed by the Agent Teams docs protocol in any repository.",
   "license": "Apache-2.0",
   "type": "module",

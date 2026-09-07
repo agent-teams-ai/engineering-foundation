@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2
+
+### Patch Changes
+
+- [#267](https://github.com/agent-teams-ai/engineering-foundation/pull/267) [`ef8f60f`](https://github.com/agent-teams-ai/engineering-foundation/commit/ef8f60f8f077df761af463be6e88fa42fb26bbc6) Thanks [@777genius](https://github.com/777genius)! - Match the accepted Cohort V2 runtime closure digest contract, including its five
+  coordinates, seven managed edges and complete raw peer and optional dependency
+  graph. Preserve historical V1 serialization and Node type peer normalization.
+- Updated dependencies [[`174bcf9`](https://github.com/agent-teams-ai/engineering-foundation/commit/174bcf991592715c0e5f205d6a707bc10ec198db), [`976e596`](https://github.com/agent-teams-ai/engineering-foundation/commit/976e596206b02608ef91e39521a477a7dd3702e2)]:
+  - @agent-teams/repository-mutation@0.1.2
+  - @agent-teams/docs-protocol@0.5.2
+
 ## 0.1.1
 
 ### Patch Changes

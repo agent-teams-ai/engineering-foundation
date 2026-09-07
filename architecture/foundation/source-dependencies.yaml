@@ -617,6 +617,8 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cli-fixture.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-finalization-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-fixture.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-retrieval-fixture.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-restoration-retrieval-fixture.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-selection-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs
@@ -650,6 +652,7 @@ boundaries:
         - node:module
         - node:os
         - node:path
+        - node:sqlite
         - node:test
         - node:events
         - node:http

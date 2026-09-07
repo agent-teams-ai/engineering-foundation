@@ -65,7 +65,7 @@ async function fixtureRegistry(packages) {
 
 const projection = (cohort) => ({ repository: "agent-teams-ai/.github", path: "governance/docs-qualified-cohorts.json", revision: "8".repeat(40), cohort });
 
-export async function managedRestorationFixture({ cohortV2, desired, preserveForeign = false }) {
+export async function managedRestorationFixture({ cohortV2, desired, preserveForeign = false, isolatedStore = false }) {
   const disposable = await mkdtemp(join(tmpdir(), "managed-restoration-TEST-"));
   const consumerRoot = join(disposable, "consumer");
   await mkdir(consumerRoot);
@@ -124,9 +124,14 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     registry = await fixtureRegistry(packages);
     setEnv("npm_config_registry", registry.base);
     setEnv("pnpm_config_registry", registry.base);
-    const store = process.env.npm_config_store_dir ?? join(disposable, "store");
+    const store = isolatedStore ? join(disposable, "store") : process.env.npm_config_store_dir ?? join(disposable, "store");
     setEnv("npm_config_store_dir", store);
     setEnv("pnpm_config_store_dir", store);
+    if (isolatedStore) {
+      // Keep registry metadata in the same independently copyable fixture cache.
+      setEnv("npm_config_cache_dir", store);
+      setEnv("pnpm_config_cache_dir", store);
+    }
     setEnv("CI", "true");
     const current = desired(origin, 2);
     setEnv("GITHUB_REPOSITORY_ID", current.repository.id);
@@ -141,7 +146,7 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     }
     await write("package.json", `${JSON.stringify(manifest, null, 2)}\n`);
     await write(".node-version", "24.18.0\n");
-    await write(".gitignore", "node_modules/\n");
+    await write(".gitignore", "node_modules/\n/.agent-teams-local/\n");
     await write("pnpm-workspace.yaml", `packages: []\npackageImportMethod: copy\nminimumReleaseAgeExclude:\n  - "${docsName}@${origin.packages.docsProtocol.version}"\n  - "${foundationName}@${origin.packages.engineeringFoundation.version}"\n`);
     // Real Corepack honors the manifest pin; no test corepack executable or PATH rewrite.
     const pnpmVersion = (await fixtureProcess("corepack", ["pnpm", "--version"], consumerRoot)).trim();

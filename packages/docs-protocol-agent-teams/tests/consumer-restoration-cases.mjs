@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, cp, lstat, mkdir, open, readFile, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 import { sha256Bytes, sha256Json, compileKnownFileTransactionPlan, recoverKnownFileTransaction, inspectKnownFileTransactionBarrier } from "@agent-teams/repository-mutation";
@@ -130,6 +130,26 @@ export function registerConsumerRestorationTests(helpers) {
         assert.deepEqual(await snapshot(transplanted), migrated);
         const alias = join(fixture.disposable, "alias"); await symlink(consumerRoot, alias);
         await assert.rejects(fixture.restore({ consumerRoot: alias, expect }));
+        await assertUnchanged();
+      });
+      await t.test("a differently-cased root alias fails without changing either consumer", async (t) => {
+        // Case aliasing is filesystem-dependent (default macOS/Windows, not Linux ext4); probe
+        // the real filesystem instead of assuming behavior from process.platform.
+        const parent = dirname(consumerRoot);
+        const base = consumerRoot.slice(parent.length + 1);
+        const flipped = [...base].map((ch) =>
+          ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()).join("");
+        if (flipped === base) {
+          t.skip("consumer root name has no case-bearing characters to alias.");
+          return;
+        }
+        const real = await lstat(consumerRoot, { bigint: true });
+        const aliasStat = await lstat(join(parent, flipped), { bigint: true }).catch(() => null);
+        if (aliasStat === null || aliasStat.dev !== real.dev || aliasStat.ino !== real.ino) {
+          t.skip("filesystem does not alias a different-case path to the same consumer root.");
+          return;
+        }
+        await assert.rejects(fixture.restore({ consumerRoot: join(parent, flipped), expect }));
         await assertUnchanged();
       });
       await t.test("foreign file bytes, modes, untracked files and symlinks survive refusals", async () => {

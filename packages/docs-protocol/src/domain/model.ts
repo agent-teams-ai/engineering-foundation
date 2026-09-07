@@ -90,6 +90,7 @@ export interface DocsNewRequest {
   readonly blockedBy?: readonly string[];
   readonly codeAnchors?: readonly DocumentJsonValue[];
   readonly additionalMetadata?: Readonly<Record<string, DocumentJsonValue>>;
+  readonly expectedPlanDigest?: `sha256:${string}`;
   readonly signal?: AbortSignal;
 }
 

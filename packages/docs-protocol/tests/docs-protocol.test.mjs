@@ -75,7 +75,7 @@ function plan(intent) {
   };
 }
 
-function harness(options = {}) {
+export function harness(options = {}) {
   const calls = { apply: 0, buildCatalog: 0, describe: 0, find: 0, plan: [] };
   const defaultDescription = { authority: { templates: [] }, catalog: { collections: [], excludedPrefixes: [] }, projectId: "fixture-project", profileSchemaVersion: 3, semanticDigest: PROFILE_SEMANTIC_DIGEST, metadataSchemaPath: "docs/metadata.schema.json", metadataSidecar: { kind: "none" }, ownerIds: ["architecture/tooling"], types, authorityPaths: [] };
   const defaultCatalog = { projectId: "fixture-project", status: "complete", diagnostics: [], documents: [

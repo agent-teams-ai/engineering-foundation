@@ -188,6 +188,27 @@ function projectTransaction(inspection: Awaited<ReturnType<DocumentAuthoringPort
   });
 }
 
+function expectedPlanDigestMismatch(
+  request: DocsNewRequest,
+  plan: { readonly planDigest: string }
+): DocsExecutionV2<DocsNewResultV2> | undefined {
+  if (request.expectedPlanDigest === undefined || request.expectedPlanDigest === plan.planDigest) {
+    return undefined;
+  }
+  return execution("docs.new", "authority-stale", Object.freeze({
+    kind: "new" as const,
+    reservation: "none" as const,
+    writeState: "blocked" as const,
+    reason: "authority-stale" as const
+  }), [{
+    ruleId: "docs.new.plan-digest-mismatch",
+    severity: "error",
+    phase: "authority",
+    subject: "--expect",
+    message: "Plan digest does not match the expected value; review a fresh dry run."
+  }]);
+}
+
 export class DocsProtocol {
   readonly #adoption: DocsAdoptionInspector;
   readonly #anchors: CodeAnchorMatcher;
@@ -350,6 +371,8 @@ export class DocsProtocol {
     if (!request.apply) {
       return execution("docs.new", "success", Object.freeze({ kind: "new" as const, reservation: "none" as const, writeState: "preview" as const, documentPath: plan.destination, planDigest: plan.planDigest, compiled, reachability }), anchorDiagnostics);
     }
+    const digestMismatch = expectedPlanDigestMismatch(request, plan);
+    if (digestMismatch !== undefined) {return digestMismatch;}
     // This is the last cooperative authority check before Apply. A malicious
     // same-OS-user can still race the following syscall; portable Node has no
     // directory-handle-relative transaction primitive that closes that gap.

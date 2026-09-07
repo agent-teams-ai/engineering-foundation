@@ -53,6 +53,7 @@
     ],
     "3": [
       "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+      "packages/docs-protocol/tests/docs-protocol-expected-plan-digest.test.mjs",
       "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",
       "packages/docs-protocol/tests/docs-protocol.test.mjs",
       "packages/docs-protocol/tests/envelope-schema.test.mjs",
@@ -87,6 +88,7 @@
     "packages/docs-protocol/tests/community-bootstrap.test.mjs",
     "packages/docs-protocol/tests/community-context.test.mjs",
     "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+    "packages/docs-protocol/tests/docs-protocol-expected-plan-digest.test.mjs",
     "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",
     "packages/docs-protocol/tests/docs-protocol.test.mjs",
     "packages/docs-protocol/tests/direct-split-structure.test.mjs",

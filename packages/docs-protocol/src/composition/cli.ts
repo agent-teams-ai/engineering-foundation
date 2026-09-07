@@ -358,6 +358,10 @@ async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: Com
   if (dryRun === apply) {
     throw new CliInputError("Exactly one of --dry-run or --apply is required.");
   }
+  const expectedPlanDigest = args.one("--expect");
+  if (expectedPlanDigest !== undefined && !apply) {
+    throw new CliInputError("--expect is valid only with --apply.");
+  }
   const related = args.many("--related");
   const blockedBy = args.many("--blocked-by");
   const codeAnchors = args.many("--code-anchor").map(parseCodeAnchor);
@@ -376,6 +380,7 @@ async function dispatchNew(protocol: DocsProtocol, args: Arguments, options: Com
     execution: await protocol.newDocumentV2({
       ...options,
       apply,
+      ...(expectedPlanDigest === undefined ? {} : { expectedPlanDigest: expectedPlanDigest as `sha256:${string}` }),
       intent: { type, id, title, owner, summary, ...(slug === undefined ? {} : { slug }), ...(destination === undefined ? {} : { destination }) },
       ...(related.length === 0 ? {} : { related }),
       ...(blockedBy.length === 0 ? {} : { blockedBy }),

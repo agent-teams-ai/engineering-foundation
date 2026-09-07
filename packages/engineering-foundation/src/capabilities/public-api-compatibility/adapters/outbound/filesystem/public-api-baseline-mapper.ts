@@ -1,4 +1,4 @@
-import { CapabilityInputError } from "../../../../../capability-runtime.js";
+import { publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
 import { isExactVersion } from "../../../../../semantic-version.js";
 import {
   compareCanonicalReferences,
@@ -11,12 +11,7 @@ import {
 type PublicApiBaselineSchemaId = "package-public-api-baseline/v1";
 
 function inputError(message: string): never {
-  throw new CapabilityInputError({
-    code: "PUBLIC_API_BASELINE_INVALID",
-    message,
-    phase: "public-api-evidence",
-    retryable: false
-  });
+  publicApiInputError("PUBLIC_API_BASELINE_INVALID", message, "public-api-evidence");
 }
 
 function record(value: unknown, field: string): Record<string, unknown> {

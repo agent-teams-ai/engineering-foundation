@@ -9,7 +9,7 @@ import {
   compileKnownFileTransactionPlan
 } from "../packages/repository-mutation/dist/index.js";
 import { applyKnownFileTransaction, recoverKnownFileTransaction } from "../packages/repository-mutation/dist/qualification/index.js";
-import { canonicalJson } from "../packages/engineering-foundation/dist/canonical-json.js";
+import { canonicalJson } from "../packages/repository-mutation/dist/serialization.js";
 import { classifyKnownFileRecoveryTransition } from "../packages/repository-mutation/dist/repository-mutation/application/policies/classify-known-file-recovery-transition.js";
 import { compileKnownFileTransactionEnvelope } from "../packages/repository-mutation/dist/repository-mutation/application/policies/known-file-transaction-envelope.js";
 import { createScriptedSequence } from "./support/scripted-sequence.mjs";

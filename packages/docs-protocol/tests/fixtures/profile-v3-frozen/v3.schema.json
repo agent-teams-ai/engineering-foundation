@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-profile/v3",
+  "title": "Portable Docs Protocol Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocol", "foundationProfile", "agentWorkflow", "semanticValidatorIds"],
+  "properties": {
+    "schemaVersion": { "const": 3 },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "const": "agent-teams.docs-protocol" },
+        "version": { "const": 1 }
+      }
+    },
+    "foundationProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "schemaVersion", "metadataSidecarPolicy"],
+      "properties": {
+        "path": { "$ref": "#/$defs/repositoryPath" },
+        "schemaVersion": { "const": 3 },
+        "metadataSidecarPolicy": { "const": "foundation-profile-v3-strict-merge" }
+      }
+    },
+    "agentWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adoption", "skillPath"],
+      "properties": {
+        "adoption": { "const": "portable-v1" },
+        "skillPath": { "$ref": "#/$defs/repositoryPath" }
+      }
+    },
+    "semanticValidatorIds": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/lowerId" }
+    }
+  },
+  "$defs": {
+    "lowerId": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[a-z0-9][a-z0-9._/-]*$" },
+    "repositoryPath": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._@-]{1,255}(?:/[A-Za-z0-9._@-]{1,255})*$" }
+  }
+}

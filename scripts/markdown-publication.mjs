@@ -12,9 +12,9 @@ import { boundedDirectoryEntries, canonicalPublishManifest, materializeStableTre
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 
 const authoringName = "@agent-teams/document-authoring";
-const runtimePath = "dist/adapters/markdown-runtime.js";
+const runtimePath = "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js";
 const privateArtifacts = new Set([
-  "dist/adapters/markdown-runtime.d.ts", "dist/adapters/markdown-runtime.d.ts.map", `${runtimePath}.map`,
+  "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.d.ts", "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.d.ts.map", `${runtimePath}.map`,
 ]);
 
 function fail(reason) { throw new Error(`Markdown publication is invalid: ${reason}.`); }

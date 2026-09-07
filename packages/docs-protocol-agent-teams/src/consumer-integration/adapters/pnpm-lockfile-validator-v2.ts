@@ -1,6 +1,8 @@
-import type { ConsumerIntegrationDesiredStateV3 } from "../domain/model.js";
-import { QUALIFIED_DOCS_COHORT_V2_EDGES, qualifiedDocsCohortV2PackageEntries } from
-  "../application/policies/qualified-docs-cohort-v2.js";
+import {
+  QUALIFIED_DOCS_COHORT_V2_EDGES,
+  qualifiedDocsCohortV2PackageEntries,
+  type ConsumerIntegrationDesiredStateV3
+} from "../application-api.js";
 import { assertQualifiedPnpmLockfileTargets } from "./pnpm-lockfile-validator-v1.js";
 import { computePnpmRuntimeClosureDigestV2 } from "./pnpm-runtime-closure-v2.js";
 

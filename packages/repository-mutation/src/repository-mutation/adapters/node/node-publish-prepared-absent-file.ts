@@ -1,7 +1,8 @@
-import type { ExactFilePostimage } from "../../application/model/exact-postimage.js";
-import { AbsentFilePublicationError } from "../../application/model/exact-postimage.js";
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
-import { readBoundedRegularFile } from "./node-bounded-regular-file.js";
+import type { BoundedRegularFileRead, KnownFileCoordination } from "./known-file-coordination.js";
+import { type ExactFilePostimage, AbsentFilePublicationError } from "../../application/model/exact-postimage.js";
+
+import type { PortablePathIdentity } from "../../../path-identity.js";
+
 import type { DirectoryDurability } from "./node-directory-durability.js";
 import {
   classifyExactFilePostimageWith,
@@ -21,7 +22,7 @@ async function verifyPreparedTemporary(options: {
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
   readonly postimage: ExactFilePostimage;
-  readonly readBoundedRegularFile: typeof readBoundedRegularFile;
+  readonly readBoundedRegularFile: KnownFileCoordination["readBoundedRegularFile"];
   readonly temporaryPath: string;
 }): Promise<void> {
   const stableTemporary = await options.readBoundedRegularFile(
@@ -45,7 +46,7 @@ export async function verifyPublishedAbsentFile(options: {
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
   readonly postimage: ExactFilePostimage;
-  readonly readBoundedRegularFile: typeof readBoundedRegularFile;
+  readonly readBoundedRegularFile: KnownFileCoordination["readBoundedRegularFile"];
 }): Promise<void> {
   const publishedFile = await options.readBoundedRegularFile(
     options.destinationPath,
@@ -65,14 +66,14 @@ export async function verifyPublishedAbsentFile(options: {
 
 export interface PublishPreparedAbsentFileOptions {
   readonly allowUnsupportedDirectoryDurability: boolean;
-  readonly classifyBoundedRegularFile: typeof readBoundedRegularFile;
+  readonly classifyBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
   readonly destinationPath: string;
   readonly displayPath: string;
   readonly expectedIdentity: PortablePathIdentity;
   readonly link: (source: string, destination: string) => Promise<void>;
   readonly parent: string;
   readonly postimage: ExactFilePostimage;
-  readonly readBoundedRegularFile: typeof readBoundedRegularFile;
+  readonly readBoundedRegularFile: (path: string, maximumBytes: number) => Promise<BoundedRegularFileRead>;
   readonly syncDirectory: (
     path: string
   ) => Promise<DirectoryDurability>;

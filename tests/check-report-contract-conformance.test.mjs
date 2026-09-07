@@ -108,7 +108,7 @@ async function assertSchemaConformance({ declarationName, declarationPath, schem
 test("FoundationCheckReport is structurally exhaustive with its released v1 schema", async () => {
   await assertSchemaConformance({
     declarationName: "FoundationCheckReport",
-    declarationPath: join(distRoot, "check-contract.js"),
+    declarationPath: join(distRoot, "features/validation-reporting/api.js"),
     schemaPath: join(schemaRoot, "foundation-check-report", "v1.schema.json"),
   });
 });
@@ -116,7 +116,7 @@ test("FoundationCheckReport is structurally exhaustive with its released v1 sche
 test("FoundationCommandErrorEnvelope is exhaustive with its released v1 schema", async () => {
   await assertSchemaConformance({
     declarationName: "FoundationCommandErrorEnvelope",
-    declarationPath: join(distRoot, "command-error.js"),
+    declarationPath: join(distRoot, "features/command-host/adapters/inbound/cli/command-error.js"),
     schemaPath: join(schemaRoot, "foundation-command-error", "v1.schema.json"),
   });
 });

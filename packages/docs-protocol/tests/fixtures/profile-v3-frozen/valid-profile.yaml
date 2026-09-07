@@ -1,0 +1,13 @@
+schemaVersion: 3
+protocol:
+  id: agent-teams.docs-protocol
+  version: 1
+foundationProfile:
+  path: .docs-protocol/document-authoring.yaml
+  schemaVersion: 3
+  metadataSidecarPolicy: foundation-profile-v3-strict-merge
+agentWorkflow:
+  adoption: portable-v1
+  skillPath: .agents/skills/docs-authoring/SKILL.md
+semanticValidatorIds:
+  - documentation.domain-semantics

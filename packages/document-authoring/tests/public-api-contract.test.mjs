@@ -11,8 +11,7 @@ const repositoryRoot = resolve(packageRoot, "../..");
 const fixtures = join(packageRoot, "tests/fixtures/public-api");
 
 async function materializeConsumerSources(consumerRoot) {
-  // These are installed-consumer source templates, not producer package source.
-  // Restore the actual extensions without rewriting imports or fixture bytes.
+  // Preserve the reviewed installed-consumer bytes, including recovery probes.
   for (const name of ["consumer.ts", "runtime-consumer.mjs"]) {
     const bytes = await readFile(join(fixtures, `${name}.txt`));
     const destination = join(consumerRoot, name);
@@ -29,9 +28,20 @@ async function linkDependency(source, destination) {
 
 async function copyInstalledPackage(sourceRoot, targetRoot) {
   await mkdir(targetRoot, { recursive: true });
-  await Promise.all(["dist", "schemas", "package.json"].map((path) =>
-    cp(join(sourceRoot, path), join(targetRoot, path), { recursive: true })
-  ));
+  const archive = `${targetRoot}.tgz`;
+  const packed = spawnSync("pnpm", ["pack", "--out", archive], {
+    cwd: sourceRoot, encoding: "utf8", timeout: 60_000,
+    env: { ...process.env, COREPACK_HOME: process.env.COREPACK_HOME ?? "/tmp/ef-corepack",
+      pnpm_config_verify_deps_before_run: "false" },
+    shell: process.platform === "win32"
+  });
+  assert.equal(packed.error, undefined, packed.error?.message);
+  assert.equal(packed.status, 0, packed.stdout + packed.stderr);
+  const extracted = spawnSync("tar", ["-xzf", archive, "--strip-components=1", "-C", targetRoot], {
+    encoding: "utf8", timeout: 30_000
+  });
+  assert.equal(extracted.error, undefined, extracted.error?.message);
+  assert.equal(extracted.status, 0, extracted.stdout + extracted.stderr);
   const manifest = JSON.parse(await readFile(join(sourceRoot, "package.json"), "utf8"));
   for (const name of Object.keys(manifest.dependencies ?? {})) {
     if (name === "@agent-teams/repository-mutation") { continue; }
@@ -43,7 +53,7 @@ async function materializeInstalledConsumer(t) {
   const consumerRoot = await realpath(await mkdtemp(join(tmpdir(), "document-authoring-api-consumer-")));
   t.after(() => rm(consumerRoot, { force: true, recursive: true }));
   const scopeRoot = join(consumerRoot, "node_modules", "@agent-teams");
-  // Install copied build outputs and their schemas under real export maps.
+  // Install real packed archives and their schemas under real export maps.
   // Only external, already pinned dependencies link to the coordinator's install.
   // Registry/package-publication qualification remains a separate gate.
   await Promise.all([
@@ -51,6 +61,11 @@ async function materializeInstalledConsumer(t) {
     copyInstalledPackage(join(repositoryRoot, "packages/repository-mutation"), join(scopeRoot, "repository-mutation")),
     linkDependency(join(repositoryRoot, "node_modules/@types/node"), join(consumerRoot, "node_modules/@types/node")),
     materializeConsumerSources(consumerRoot),
+    cp(join(repositoryRoot, "tests/support/document-authoring-schema-closures.mjs"), join(consumerRoot, "schema-closures.mjs")),
+    cp(join(repositoryRoot, "tests/support/historical-schema-fixtures.mjs"), join(consumerRoot, "historical-schema-fixtures.mjs")),
+    cp(join(repositoryRoot, "tests/support/historical-schemas"), join(consumerRoot, "historical-schemas"), { recursive: true }),
+    cp(join(packageRoot, "tests/fixtures/schema-recovery"), join(consumerRoot, "native"), { recursive: true }),
+    linkDependency(join(packageRoot, "node_modules/ajv"), join(consumerRoot, "node_modules/ajv")),
     writeFile(join(consumerRoot, "package.json"), JSON.stringify({
       name: "document-authoring-public-api-consumer", private: true, type: "module"
     }))
@@ -97,6 +112,11 @@ async function runRuntimeCase(consumerRoot, { generation, entrypoint, operation,
   assert.deepEqual(JSON.parse(output), { generation, entrypoint, operation, outcome: "passed" });
 }
 
+test("installed JavaScript consumer rejects v1 at explicit V2 admission", async (t) => {
+  const consumerRoot = await materializeInstalledConsumer(t);
+  await runRuntimeCase(consumerRoot, { generation: 1, entrypoint: "V2", operation: "reject-v1" });
+});
+
 test("installed consumer applies, replays and recovers exact v1/v2 receipts", {
   skip: process.platform === "win32" ? "Document writer requires strict POSIX directory durability." : false
 }, async (t) => {
@@ -114,6 +134,21 @@ test("installed consumer applies, replays and recovers exact v1/v2 receipts", {
           await runRuntimeCase(consumerRoot, { generation, entrypoint, operation: "recover", checkpoint });
         });
       }
+    }
+  }
+});
+
+test("same-version changed Authoring or Mutation archive bytes refuse recovery", {
+  skip: process.platform === "win32" ? "Document writer requires strict POSIX directory durability." : false
+}, async (t) => {
+  const consumerRoot = await materializeInstalledConsumer(t);
+  for (const generation of [1, 2]) {
+    for (const checkpoint of ["document-authoring", "repository-mutation"]) {
+      await t.test(`v${generation} changed ${checkpoint}`, async () => {
+        await runRuntimeCase(consumerRoot, {
+          generation, entrypoint: "generic", operation: "artifact-drift", checkpoint
+        });
+      });
     }
   }
 });

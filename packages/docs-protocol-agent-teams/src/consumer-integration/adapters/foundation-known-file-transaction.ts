@@ -1,16 +1,22 @@
-import {
-  applyKnownFileTransaction,
-  inspectKnownFileTransactionBarrier,
-  recoverKnownFileTransaction
-} from "@agent-teams/repository-mutation";
-
 import type {
   ConsumerIntegrationTransactionPort
-} from "../application/ports/consumer-integration-lifecycle.js";
+} from "../application-api.js";
 
-export const foundationKnownFileTransaction: ConsumerIntegrationTransactionPort =
-  Object.freeze({
-    inspect: inspectKnownFileTransactionBarrier,
-    apply: applyKnownFileTransaction,
-    recover: recoverKnownFileTransaction
+export function createFoundationKnownFileTransaction(
+  operations: ConsumerIntegrationTransactionPort
+): ConsumerIntegrationTransactionPort {
+  return Object.freeze<ConsumerIntegrationTransactionPort>({
+    async inspect(options: { readonly consumerRoot: string }) {
+      const observation = await operations.inspect(options);
+      return observation.state === "idle"
+        ? Object.freeze({ state: "idle" as const })
+        : Object.freeze({
+            state: "recovery-required" as const,
+            code: observation.code,
+            message: observation.message
+          });
+    },
+    apply(options) { return operations.apply(options); },
+    recover(options) { return operations.recover(options); }
   });
+}

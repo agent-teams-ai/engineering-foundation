@@ -3,15 +3,21 @@ import {
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
+} from "../../features/validation-reporting/api.js";
 import { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 import type { JsonSchemaReleaseInspector } from "./application/ports/json-schema-release-inspector.js";
 import { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
+
+import { loadCapabilityConfig, type JsonSchemaConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+import { readContainedRegularFile } from "../../source-inventory/node.js";
+import type { JsonSchemaFileReader } from "./api.js";
+
+const schemaFiles: JsonSchemaFileReader = { read: readContainedRegularFile };
 
 export { AjvJsonSchemaReleaseInspector } from "./adapters/outbound/filesystem/ajv-json-schema-release-inspector.js";
 export {
@@ -35,19 +41,21 @@ export {
 export { verifyJsonSchemaRelease } from "./application/use-cases/verify-json-schema-release.js";
 
 export interface JsonSchemaReleaseCapabilityDependencies {
+  readonly assertSchema: JsonSchemaConfigurationDependencies["assertSchema"];
   readonly inspector?: JsonSchemaReleaseInspector;
 }
 
 export function createJsonSchemaReleaseCapability(
-  dependencies: JsonSchemaReleaseCapabilityDependencies = {}
+  dependencies: JsonSchemaReleaseCapabilityDependencies
 ): CapabilityDefinition {
-  const inspector = dependencies.inspector ?? new AjvJsonSchemaReleaseInspector();
+  const inspector = dependencies.inspector ?? new AjvJsonSchemaReleaseInspector(schemaFiles);
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
       try {
         const policy = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal
@@ -75,4 +83,10 @@ export function createJsonSchemaReleaseCapability(
       }
     }
   });
+}
+
+export function createJsonSchemaInspector(
+  readArtifact: (repositoryPath: string) => Promise<Buffer | undefined>
+): JsonSchemaReleaseInspector {
+  return new AjvJsonSchemaReleaseInspector(schemaFiles, readArtifact);
 }

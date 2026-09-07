@@ -18,8 +18,8 @@ import {
   syncFoundationStateDirectory,
   syncFoundationStateDirectoryStrictly,
 } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-state-directory.js";
-import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/node-foundation-transaction-coordinator.js";
-import { readBoundedRegularFile } from "../packages/repository-mutation/dist/repository-mutation/adapters/node/node-bounded-regular-file.js";
+import { createNodeFoundationTransactionCoordinator } from "../packages/engineering-foundation/dist/composition/node-foundation-transaction-coordinator.js";
+import { readBoundedRegularFile } from "../packages/repository-mutation/dist/node.js";
 import { scaffoldTransactionEvidenceExists } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-transaction-evidence.js";
 
 const prefix = "foundation-transaction.cleanup-residue.";

@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   documentationCatalogSemanticDigest,
   projectDocumentationCatalogSemanticTransitionV2,
-} from "../packages/document-authoring/dist/application/policies/document-authoring-semantic-digests.js";
+} from "../packages/document-authoring/dist/document-authoring/application/policies/document-authoring-semantic-digests.js";
 
 const evidence = Object.freeze({
   digest: `sha256:${"1".repeat(64)}`,

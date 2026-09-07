@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { repositorySecurityInputError } from "./repository-security-input.js";
+import { repositorySecurityInputError } from "../../../application/policies/repository-security-input.js";
 
 const MAX_WORKFLOW_DIGEST_BYTES = 32 * 1024 * 1024;
 

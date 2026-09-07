@@ -1,20 +1,18 @@
+import { mapAuthoritySelection } from "../inbound/map-authority-selection.js";
 import type {
   AuthorityScaffoldReadSet,
   ScaffoldAuthorityEvidenceV1,
-  ScaffoldAuthorityVerifierV1,
   AuthorityScaffoldCompilationInput,
   AuthorityScaffoldPlan,
   AuthorityScaffoldTarget,
-  ScaffoldRenderingIntent,
   AuthorityScaffoldingConfig,
   AuthorityScaffoldTargetCatalog
-} from "../../contract/types.js";
+} from "../../application/model/scaffold-compilation.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { createScaffoldAuthorityEvidence } from "../../kernel/authority-evidence.js";
 import { assertAuthorityScaffoldPlanDigest } from "../../kernel/plan-validation.js";
-import { ScaffoldError } from "../../scaffold-error.js";
-import { assertSchema } from "../../../schema-catalog.js";
-import { parseStrictYamlSource } from "../../../strict-yaml.js";
+import type { ScaffoldSchemaValidator } from "../schema-validation.js";
+import type { ScaffoldAuthorityObservation } from "../../application/ports/authority-observation.js";
 import {
   assertion,
   readContainedRepositoryFile,
@@ -28,60 +26,6 @@ export type ScaffoldAuthorityInputFaultInjector = (
   point: { readonly phase: "before-authority-source-stability-check" }
 ) => Promise<void> | void;
 
-function requireExactlyOne<T>(
-  values: readonly T[],
-  predicate: (value: T) => boolean,
-  message: string
-): T {
-  const matches = values.filter(predicate);
-  if (matches.length !== 1) {
-    throw new ScaffoldError("SCAFFOLD_INPUT_INVALID", message);
-  }
-  return matches[0] as T;
-}
-
-interface UnresolvedAuthorityScaffoldTarget {
-  readonly id: string;
-  readonly role: string;
-  readonly path: string;
-  readonly packageName: string;
-  readonly ownerDocumentId: string;
-}
-
-interface UnresolvedAuthorityScaffoldTargetCatalog {
-  readonly version: 1;
-  readonly packages: readonly UnresolvedAuthorityScaffoldTarget[];
-}
-
-function mapAuthorityCatalog(
-  value: unknown
-): UnresolvedAuthorityScaffoldTargetCatalog {
-  const raw = value as {
-    readonly version: 1;
-    readonly packages: readonly {
-      readonly id: string;
-      readonly role: string;
-      readonly path: string;
-      readonly package_name: string;
-      readonly owner_document: string;
-    }[];
-  };
-  return Object.freeze({
-    version: 1,
-    packages: Object.freeze(
-      raw.packages.map((entry) =>
-        Object.freeze({
-          id: entry.id,
-          role: entry.role,
-          path: entry.path,
-          packageName: entry.package_name,
-          ownerDocumentId: entry.owner_document
-        })
-      )
-    )
-  });
-}
-
 async function assertAuthoritySourceSetStable(options: {
   readonly consumerRoot: string;
   readonly configPath: string;
@@ -90,25 +34,27 @@ async function assertAuthoritySourceSetStable(options: {
   readonly documentRoots: readonly string[];
   readonly ownerIndexDigest: string;
   readonly expected: readonly ReturnType<typeof assertion>[];
-}): Promise<void> {
+}, observation: ScaffoldAuthorityObservation): Promise<void> {
   const [files, owner] = await Promise.all([
     Promise.all([
       readContainedRepositoryFile(
         options.consumerRoot,
         options.configPath,
-        "scaffolding-config-stability"
+        "scaffolding-config-stability",
+        observation
       ),
       readContainedRepositoryFile(
         options.consumerRoot,
         options.catalogPath,
-        "scaffold-target-catalog-stability"
+        "scaffold-target-catalog-stability",
+        observation
       )
     ]),
     resolveOwnerDocument({
       consumerRoot: options.consumerRoot,
       documentRoots: options.documentRoots,
       ownerDocumentId: options.ownerDocumentId
-    })
+    }, observation)
   ]);
   const observed = [...files.map(assertion), assertion(owner.file)];
   if (
@@ -137,7 +83,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
   readonly configFile: LoadedRepositoryFile;
   readonly configValue: unknown;
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
-}): Promise<AuthorityScaffoldCompilationInput> {
+}, assertSchema: ScaffoldSchemaValidator, observation: ScaffoldAuthorityObservation): Promise<AuthorityScaffoldCompilationInput> {
   await Promise.all([
     assertSchema("scaffolding-config/v1", options.configValue, "scaffolding-config"),
     assertSchema("scaffold-intent/v1", options.intent, "scaffold-intent")
@@ -146,9 +92,10 @@ async function loadAuthorityScaffoldCompilationInput(options: {
   const catalogFile = await readContainedRepositoryFile(
     options.consumerRoot,
     config.targetCatalogPath,
-    "scaffold-target-catalog"
+    "scaffold-target-catalog",
+    observation
   );
-  const catalogValue = parseStrictYamlSource(
+  const catalogValue = observation.parseYaml(
     catalogFile.source,
     "scaffold-target-catalog"
   );
@@ -157,37 +104,12 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     catalogValue,
     "scaffold-target-catalog"
   );
-  const unresolvedCatalog = mapAuthorityCatalog(catalogValue);
-  const intent = options.intent as ScaffoldRenderingIntent;
-  const composition = requireExactlyOne(
-    config.compositions,
-    (candidate) => candidate.id === intent.compositionId,
-    `Composition must exist exactly once: ${intent.compositionId}.`
-  );
-  const target = requireExactlyOne(
-    unresolvedCatalog.packages,
-    (candidate) => candidate.id === intent.targetRef,
-    `Scaffold target must exist exactly once: ${intent.targetRef}.`
-  );
-  const authorityVerifiers = composition.authorityVerifiers as readonly ScaffoldAuthorityVerifierV1[];
-  if (authorityVerifiers.length !== 1) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "The selected Composition must contain exactly one authority verifier."
-    );
-  }
-  const verifier = authorityVerifiers[0];
-  if (verifier === undefined) {
-    throw new ScaffoldError(
-      "SCAFFOLD_INPUT_INVALID",
-      "The selected Composition must admit exactly one supported authority verifier."
-    );
-  }
+  const { intent, target, verifier } = mapAuthoritySelection(config, catalogValue, options.intent);
   const owner = await resolveOwnerDocument({
     consumerRoot: options.consumerRoot,
     documentRoots: verifier.parameters.documentRoots,
     ownerDocumentId: target.ownerDocumentId
-  });
+  }, observation);
   if (!verifier.parameters.allowedStatuses.includes(owner.status)) {
     throw new ScaffoldAuthorityStaleError(
       "Owner document status is not admitted by the selected Composition."
@@ -243,7 +165,7 @@ async function loadAuthorityScaffoldCompilationInput(options: {
     documentRoots: verifier.parameters.documentRoots,
     ownerIndexDigest: owner.indexDigest,
     expected: authorityReadSet
-  });
+  }, observation);
   return Object.freeze({
     foundationVersion: options.foundationVersion,
     configPath: options.configPath,
@@ -261,30 +183,32 @@ export async function loadAuthorityScaffoldCompilationInputFromFile(options: {
   readonly intentPath: string;
   readonly foundationVersion: string;
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
-}): Promise<AuthorityScaffoldCompilationInput> {
+}, assertSchema: ScaffoldSchemaValidator, observation: ScaffoldAuthorityObservation): Promise<AuthorityScaffoldCompilationInput> {
   const [configFile, intentFile] = await Promise.all([
     readContainedRepositoryFile(
       options.consumerRoot,
       options.configPath,
-      "scaffolding-config"
+      "scaffolding-config",
+      observation
     ),
     readContainedRepositoryFile(
       options.consumerRoot,
       options.intentPath,
-      "scaffold-intent"
+      "scaffold-intent",
+      observation
     )
   ]);
   return loadAuthorityScaffoldCompilationInput({
     consumerRoot: options.consumerRoot,
     configPath: options.configPath,
     foundationVersion: options.foundationVersion,
-    intent: parseStrictYamlSource(intentFile.source, "scaffold-intent"),
+    intent: observation.parseYaml(intentFile.source, "scaffold-intent"),
     configFile,
-    configValue: parseStrictYamlSource(configFile.source, "scaffolding-config"),
+    configValue: observation.parseYaml(configFile.source, "scaffolding-config"),
     ...(options.faultInjector === undefined
       ? {}
       : { faultInjector: options.faultInjector })
-  });
+  }, assertSchema, observation);
 }
 
 export async function loadAuthorityScaffoldCompilationInputFromIntent(options: {
@@ -293,11 +217,12 @@ export async function loadAuthorityScaffoldCompilationInputFromIntent(options: {
   readonly foundationVersion: string;
   readonly intent: unknown;
   readonly faultInjector?: ScaffoldAuthorityInputFaultInjector;
-}): Promise<AuthorityScaffoldCompilationInput> {
+}, assertSchema: ScaffoldSchemaValidator, observation: ScaffoldAuthorityObservation): Promise<AuthorityScaffoldCompilationInput> {
   const configFile = await readContainedRepositoryFile(
     options.consumerRoot,
     options.configPath,
-    "scaffolding-config"
+    "scaffolding-config",
+    observation
   );
   return loadAuthorityScaffoldCompilationInput({
     consumerRoot: options.consumerRoot,
@@ -305,24 +230,27 @@ export async function loadAuthorityScaffoldCompilationInputFromIntent(options: {
     foundationVersion: options.foundationVersion,
     intent: options.intent,
     configFile,
-    configValue: parseStrictYamlSource(configFile.source, "scaffolding-config"),
+    configValue: observation.parseYaml(configFile.source, "scaffolding-config"),
     ...(options.faultInjector === undefined
       ? {}
       : { faultInjector: options.faultInjector })
-  });
+  }, assertSchema, observation);
 }
 
 export async function readAuthorityScaffoldPlanFile(
   consumerRoot: string,
-  planPath: string
+  planPath: string,
+  assertSchema: ScaffoldSchemaValidator,
+  observation: ScaffoldAuthorityObservation
 ): Promise<AuthorityScaffoldPlan> {
   const planFile = await readContainedRepositoryFile(
     consumerRoot,
     planPath,
     "scaffold-plan",
+    observation,
     MAX_SCAFFOLD_PLAN_BYTES
   );
-  const value = parseStrictYamlSource(planFile.source, "scaffold-plan");
+  const value = observation.parseYaml(planFile.source, "scaffold-plan");
   await assertSchema("scaffold-plan/v1", value, "scaffold-plan");
   const plan = value as AuthorityScaffoldPlan;
   assertAuthorityScaffoldPlanDigest(plan);

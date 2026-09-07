@@ -1,4 +1,4 @@
-import type { KnownFileTransactionReceiptV1 } from "@agent-teams/repository-mutation";
+import type { KnownFileTransactionReceiptV1 } from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerIntegrationIssue,

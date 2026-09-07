@@ -4,13 +4,17 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { assertFeatureOutsideSchemaCycles, assertSchemaAssemblyImportRejected } from "./helpers/schema-assembly-boundaries.mjs";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import { FilesystemMarkdownRepository } from "../packages/document-authoring/dist/documentation-observation/adapters/outbound/filesystem/filesystem-markdown-repository.js";
 import { anchorsForMarkdownDocument } from "../packages/document-authoring/dist/documentation-observation/application/model/markdown-document.js";
 import { analyzeDocumentationLocalReferences } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/application/use-cases/analyze-documentation-local-references.js";
-import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/contract/config.js";
+import { loadCapabilityConfig as loadWithDependencies } from "../packages/engineering-foundation/dist/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.js";
+import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import { loadStrictYamlFile } from "../packages/engineering-foundation/dist/features/configuration-input/node.js";
+const loadCapabilityConfig = (root, path, signal) => loadWithDependencies({ assertSchema, readYaml: loadStrictYamlFile }, root, path, signal);
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = join(
@@ -294,4 +298,49 @@ test("reports missing directory README targets separately", async () => {
       "documentation.local-references.directory-readme-missing"
     ]);
   });
+});
+
+test("configuration adapter consumes only its explicit YAML and schema dependencies", async () => {
+  const input = { schemaVersion: 1, markdownRoots: ["notes", "docs"], anchorProfile: "github" };
+  const signal = new AbortController().signal;
+  const calls = [];
+  const policy = await loadWithDependencies({
+    async readYaml(...args) { calls.push(["read", ...args]); return input; },
+    async assertSchema(...args) { calls.push(["schema", ...args]); }
+  }, "explicit-memory-consumer", "policy.yaml", signal);
+  assert.deepEqual(calls, [
+    ["read", "explicit-memory-consumer", "policy.yaml", "documentation-local-references-config", signal],
+    ["schema", "documentation-local-references/v1", input, "documentation-local-references-config"]
+  ]);
+  assert.deepEqual(policy, { anchorProfile: "github", markdownRoots: ["docs", "notes"] });
+  assert.ok(Object.isFrozen(policy));
+  assert.ok(Object.isFrozen(policy.markdownRoots));
+  assert.deepEqual(input.markdownRoots, ["notes", "docs"]);
+});
+
+test("configuration adapter preserves schema rejection before normalizing input", async () => {
+  const failure = new Error("explicit schema rejection");
+  let observed = 0;
+  await assert.rejects(loadWithDependencies({
+    async readYaml() { return null; },
+    async assertSchema(id, input, phase) {
+      assert.equal(id, "documentation-local-references/v1");
+      assert.equal(input, null);
+      assert.equal(phase, "documentation-local-references-config");
+      observed += 1;
+      throw failure;
+    }
+  }, "explicit-memory-consumer", "policy.yaml"), (error) => error === failure);
+  assert.equal(observed, 1);
+});
+
+test("documentation configuration no longer joins the module schema assembly cycle", async () => {
+  await assertFeatureOutsideSchemaCycles("documentation-local-references");
+});
+
+test("source policy rejects reintroducing schema assembly inside the documentation adapter", async () => {
+  await assertSchemaAssemblyImportRejected(
+    "packages/engineering-foundation/src/capabilities/documentation-local-references/adapters/inbound/configuration/load-capability-config.ts",
+    "../../../../../schema-catalog.js"
+  );
 });

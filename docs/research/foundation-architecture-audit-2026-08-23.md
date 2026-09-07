@@ -245,7 +245,7 @@ capabilities ждать этого не обязаны.
 
 ### Unexpected errors теряют безопасную причину
 
-[`check-runner.ts`](../../packages/engineering-foundation/src/check-runner.ts) и
+[`check-runner.ts`](https://github.com/agent-teams-ai/engineering-foundation/blob/ae9d022a003978e30d33006132beaa5b49fc6f80/packages/engineering-foundation/src/check-runner.ts) и
 все 12 зарегистрированных capability module wrappers превращают неожиданные
 исключения в общий
 `FOUNDATION_CHECK_FAILED` или `CAPABILITY_EXECUTION_FAILED`. Пользователь видит

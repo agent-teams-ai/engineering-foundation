@@ -1,3 +1,4 @@
+import { consumerProcessEnvironment } from "./node-consumer-environment.js";
 import { realpath } from "node:fs/promises";
 import { dirname } from "node:path";
 import { execFile } from "node:child_process";
@@ -6,11 +7,9 @@ import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationFileObservation,
-  ConsumerIntegrationSnapshot
-} from "../domain/model.js";
-import type {
+  ConsumerIntegrationSnapshot,
   ConsumerIntegrationInputReader
-} from "../application/ports/consumer-integration-lifecycle.js";
+} from "../application-api.js";
 import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
@@ -150,8 +149,9 @@ function rejectPrototypeKeys(value: unknown, path = "integration profile"): void
 }
 
 export function assertGitHubRuntimeIdentity(desired: Pick<ConsumerIntegrationDesiredState, "repository">): void {
-  const runtimeId = process.env["GITHUB_REPOSITORY_ID"];
-  const runtimeName = process.env["GITHUB_REPOSITORY"];
+  const environment = consumerProcessEnvironment();
+  const runtimeId = environment["GITHUB_REPOSITORY_ID"];
+  const runtimeName = environment["GITHUB_REPOSITORY"];
   if (runtimeId !== undefined && runtimeId !== desired.repository.id) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_REPOSITORY_ID_MISMATCH",

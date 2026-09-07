@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "16e19d1ff82ceb049198c2070d45ec9031ab6cef",
+  "packageName": "@agent-teams/engineering-foundation",
+  "packageVersion": "0.21.0",
+  "files": {
+    "document-intent/v1.schema.json": "4ffee43f8f65524178dd47d4be225a4ffbdfff1627a2206a47ff5b47959b5d79",
+    "document-plan/v1.schema.json": "ff7a9c57837454ea8807b0c7459ea3bb796bf0ea8cafdeee261fccaea3e00397",
+    "document-plan/v2.schema.json": "73437548ad22cca5e7ef88e379e583a39549b42ddeaee86721cd50bb1d604939",
+    "foundation-transaction-envelope/v3.schema.json": "26734b3ee0997a8db9659f801015ce5bbd955443d49aba26e10f932accbcbc9f",
+    "foundation-transaction-envelope/v4.schema.json": "ab37421d4672885774b43ba1f8310ad7fb044c0e6e7a1ae359ca2a1bbea18224",
+    "document-receipt/v1.schema.json": "d5e508012eb75afe2cc0f85e0c6c2da4ddb4121da23236d3238856c9748ef40f",
+    "document-receipt/v2.schema.json": "92a7834a132d47c9e03885fa128dc6b6f3c284896c4f72cebb6190911ecc429a",
+    "known-file-transaction-plan/v1.schema.json": "80e5295d93bba425dcfde4e928f0a48986745b55a5e7b1177fbcb13571940df9",
+    "known-file-transaction-receipt/v1.schema.json": "c400abd7cef88a4c987ac4dcbff7ceb8e63913c553440c49624f58279d2f6a61"
+  }
+}

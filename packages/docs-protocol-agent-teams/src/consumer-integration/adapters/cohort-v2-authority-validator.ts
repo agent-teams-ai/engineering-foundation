@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   QUALIFIED_DOCS_COHORT_V2_PACKAGES
-} from "../application/policies/qualified-docs-cohort-v2.js";
+} from "../application-api.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 
 const GIT_SHA = /^(?!0{40}$)[0-9a-f]{40}$/u;

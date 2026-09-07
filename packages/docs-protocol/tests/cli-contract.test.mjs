@@ -6,12 +6,57 @@ import test from "node:test";
 import {
   docsCliErrorExecution,
   validatedMachineExecution,
-} from "../dist/composition/cli.js";
-import { assertDocsCommandEnvelopeSchema } from "../dist/adapters/docs-command-envelope-schema-validator.js";
+} from "../dist/features/docs-command/composition/cli.js";
+import { assertDocsCommandEnvelopeSchema } from "../dist/features/docs-command/adapters/outbound/docs-command-envelope-schema-validator.js";
+import { renderDocsHumanV2 } from "../dist/features/docs-command/adapters/inbound/docs-human-renderer.js";
+import { harness } from "./fixtures/protocol-harness.mjs";
 
 const execute = promisify(execFile);
 const cli = new URL("../dist/cli.js", import.meta.url);
 const fixture = new URL("./fixtures/portable-qualification", import.meta.url).pathname;
+
+for (const { name, args, expected } of [
+  {
+    name: "v2 recovery",
+    args: ["recover"],
+    expected: '{"schemaVersion":2,"protocol":{"id":"agent-teams.docs-protocol","version":1},'
+      + '"command":"docs.recover","outcome":"success","diagnostics":[],"result":'
+      + '{"kind":"recover","transactionState":"no-pending-transaction","writeState":"unchanged"}}\n',
+  },
+  {
+    name: "v3 ranked find",
+    args: ["find", "--text", "zzzz-no-document", "--fuzzy"],
+    expected: '{"schemaVersion":3,"protocol":{"id":"agent-teams.docs-protocol","version":1},'
+      + '"command":"docs.find","outcome":"success","diagnostics":[{"ruleId":"docs.find.fuzzy-advisory",'
+      + '"severity":"info","phase":"query","subject":"query.ranking",'
+      + '"message":"Fuzzy ranking is advisory; verify document authority and current status before acting."}],'
+      + '"result":{"kind":"find","matches":0,"documents":[],"ranking":"fuzzy-advisory"}}\n',
+  },
+]) {
+  test(`legacy machine bytes remain stable for ${name}`, async () => {
+    const result = await execute(process.execPath, [cli.pathname, ...args, "--consumer", fixture, "--json"]);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout, expected);
+  });
+}
+
+test("human new preview exposes the concrete Plan digest for reviewed apply", async () => {
+  const { protocol } = harness();
+  const preview = await protocol.newDocumentV2({
+    consumerRoot: ".", profilePath: "docs.config.yaml", apply: false,
+    intent: { type: "adr", id: "ADR-0083", title: "Tenant isolation", owner: "architecture/tooling", summary: "Defines tenant isolation." }
+  });
+  const rendered = renderDocsHumanV2(preview.envelope);
+  assert.ok(rendered.split("\n").includes(`Plan: ${preview.envelope.result.planDigest}`));
+  assert.notEqual(preview.envelope.result.planDigest, preview.envelope.result.compiled.document.digest);
+});
+
+test("human info preserves absent, empty and populated semantic validator displays", () => {
+  for (const [semanticValidatorIds, expected] of [[undefined, "none"], [[], "none"], [["docs.one", "docs.two"], "docs.one,docs.two"]]) {
+    const rendered = renderDocsHumanV2({ command: "docs.info", outcome: "success", diagnostics: [], result: { semanticValidatorIds } });
+    assert.ok(rendered.split("\n").includes(`Semantic validators: ${expected}`));
+  }
+});
 
 test("help succeeds through one pnpm-style separator", async () => {
   const result = await execute(process.execPath, [cli.pathname, "--", "--help"]);
@@ -19,6 +64,23 @@ test("help succeeds through one pnpm-style separator", async () => {
   assert.doesNotMatch(result.stdout, /consumer|qualify/u);
   assert.match(result.stdout, /agent-teams-docs-managed/u);
   assert.equal(result.stderr, "");
+});
+
+test("help and version honor explicit JSON mode", async () => {
+  for (const cliArguments of [["--help", "--json"], ["--version", "--json"], ["--json", "--help"], ["--", "--version", "--json"], ["--json", "--version"]]) {
+    await assert.rejects(execute(process.execPath, [cli.pathname, ...cliArguments]), (error) => {
+      assert.equal(error.code, 2);
+      assert.equal(error.stderr, "");
+      const envelope = JSON.parse(error.stdout);
+      assert.equal(envelope.command, "docs.info");
+      assert.equal(envelope.outcome, "invalid-input");
+      assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.invalid-input.validation");
+      return true;
+    });
+  }
+  const version = await execute(process.execPath, [cli.pathname, "--version"]);
+  assert.match(version.stdout, /^docs-protocol [0-9]+\.[0-9]+\.[0-9]+/u);
+  assert.equal(version.stderr, "");
 });
 
 test("help covers every public command and find documents all common options", async () => {
@@ -87,6 +149,7 @@ test("new subcommand help documents the explicit mutation boundary", async () =>
   const result = await execute(process.execPath, [cli.pathname, "new", "--help"]);
   assert.match(result.stdout, /\(--dry-run\|--apply\)/u);
   assert.match(result.stdout, /--blocked-by/u);
+  assert.match(result.stdout, /--expect/u);
 });
 
 test("human info and zero-match find expose useful authoring context", async () => {
@@ -227,4 +290,22 @@ test("SIGTERM cancels the Docs Protocol CLI through its AbortSignal", {
   assert.equal(envelope.outcome, "cancelled");
   assert.equal(envelope.diagnostics[0].ruleId, "docs.cli.cancelled.cancelled");
   await assertDocsCommandEnvelopeSchema(envelope);
+});
+
+
+test("subcommand JSON help has deterministic envelope, stdout, stderr and exit status", async () => {
+  for (const command of ["info", "find", "context", "new", "doctor", "recover", "check", "init"]) {
+    const args = [cli.pathname, command, "--json", "--help"];
+    let error;
+    try {await execute(process.execPath, args);} catch (failure) {error = failure;}
+    assert.ok(error);
+    {
+      assert.equal(error.code, 2);
+      assert.equal(error.stderr, "");
+      const envelope = JSON.parse(error.stdout);
+      assert.equal(envelope.command, `docs.${command}`);
+      assert.equal(envelope.outcome, "invalid-input");
+      await assertDocsCommandEnvelopeSchema(envelope);
+    }
+  }
 });

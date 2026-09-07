@@ -13,7 +13,7 @@ import {
 import {
   BuildDocumentationCatalog,
   BuildDocumentationCatalogV2,
-} from "../packages/document-authoring/dist/application/use-cases/build-documentation-catalog.js";
+} from "../packages/document-authoring/dist/document-authoring/application/use-cases/build-documentation-catalog.js";
 
 const digest = `sha256:${"0".repeat(64)}`;
 

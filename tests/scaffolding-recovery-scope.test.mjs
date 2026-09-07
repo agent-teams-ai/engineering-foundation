@@ -21,7 +21,7 @@ import {
 } from "../packages/engineering-foundation/dist/scaffolding/index.js";
 import {
   recoverAuthorityFilesystemScaffoldWithFaultInjection,
-} from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-recovery.js";
+} from "../packages/engineering-foundation/dist/composition/scaffold-filesystem.js";
 import {
   sha256Json,
 } from "../packages/engineering-foundation/dist/scaffolding/kernel/canonical-json.js";

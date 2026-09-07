@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/document-authoring/document-plan/v2",
+  "title": "Document Plan v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "protocolVersion", "compiler", "projectId", "intent", "intentDigest", "authority", "selectedOwner", "identityProjection", "referencedDocuments", "destination", "expectedParent", "parentMaterialization", "destinationPrecondition", "output", "requiredAdapterCapabilities", "diagnostics", "planDigest"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "protocolVersion": { "const": 2 },
+    "compiler": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/compiler" },
+    "projectId": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/lowerId" },
+    "intent": { "$ref": "https://agent-teams.ai/schemas/document-intent/v1" },
+    "intentDigest": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/digest" },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "metadataSchema", "ownerCatalog", "template", "profileSemanticDigest", "catalogPreimageSemanticDigest", "expectedCatalogPostimageSemanticDigest"],
+      "properties": {
+        "profile": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/authoritySource" },
+        "metadataSchema": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/authoritySource" },
+        "metadataSidecar": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/authoritySource" },
+        "profileSemanticDigest": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/digest" },
+        "catalogPreimageSemanticDigest": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/digest" },
+        "expectedCatalogPostimageSemanticDigest": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/digest" },
+        "ownerCatalog": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/authoritySource" },
+        "template": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/templateAuthoritySource" }
+      }
+    },
+    "selectedOwner": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/selectedOwner" },
+    "identityProjection": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/identityProjection" },
+    "referencedDocuments": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/referencedDocument" }
+    },
+    "destination": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/repositoryPath" },
+    "expectedParent": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/expectedParent" },
+    "parentMaterialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "deepestExistingDirectory", "missingDirectories", "finalParent"],
+      "properties": {
+        "policy": { "const": "create-missing-real-directories" },
+        "deepestExistingDirectory": { "$ref": "#/$defs/repositoryDirectory" },
+        "missingDirectories": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/repositoryPath" }
+        },
+        "finalParent": { "$ref": "#/$defs/repositoryDirectory" }
+      }
+    },
+    "destinationPrecondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": { "state": { "const": "absent" } }
+    },
+    "output": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/output" },
+    "requiredAdapterCapabilities": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "create-directories-no-replace/v1" },
+        { "const": "create-file-no-replace/v1" }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "diagnostics": {
+      "type": "array",
+      "maxItems": 256,
+      "items": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/diagnostic" }
+    },
+    "planDigest": { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/digest" }
+  },
+  "$defs": {
+    "repositoryDirectory": {
+      "oneOf": [
+        { "const": "." },
+        { "$ref": "https://agent-teams.ai/schemas/document-authoring/document-plan/v1#/$defs/repositoryPath" }
+      ]
+    }
+  }
+}

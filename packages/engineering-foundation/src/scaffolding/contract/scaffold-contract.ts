@@ -1,11 +1,15 @@
 import type {
-  AuthorityScaffoldRecoveryScope,
+  AuthorityScaffoldRecoveryScope
+} from "../application/model/recovery-scope.js";
+import type {
   ConfiguredDefinition,
-  DefinitionRef,
+  DefinitionRef
+} from "../application/model/scaffold-compilation.js";
+import type {
   JsonObject,
   RepositoryPath,
   Sha256Digest
-} from "./types.js";
+} from "../application/model/scaffold-values.js";
 
 /** Public name for the single inward-owned v1 recovery scope contract. */
 export type ScaffoldRecoveryScope = AuthorityScaffoldRecoveryScope;

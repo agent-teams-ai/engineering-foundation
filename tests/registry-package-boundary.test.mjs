@@ -19,13 +19,87 @@ import {
   verifyWindowsDocsRecoveryQualification
 } from "../scripts/registry-document-authoring-policy.mjs";
 import {
+  runWindowsDocsBin,
   writeDocsProtocolProfileFixture
 } from "../scripts/registry-document-authoring-e2e.mjs";
 import {
   NodeDocsProfileReader
-} from "../packages/docs-protocol/dist/adapters/node-profile-reader.js";
+} from "../packages/docs-protocol/dist/features/portable-documentation/adapters/outbound/node-profile-reader.js";
 import { docsCheckV2, docsContextV1 } from "../packages/docs-protocol/dist/index.js";
 import { canonicalDocsScripts } from "../packages/docs-protocol-agent-teams/dist/index.js";
+
+async function docsBinFixture(context) {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "registry-docs-bin-"));
+  context.after(() => rm(temporaryRoot, { force: true, recursive: true }));
+  const root = join(temporaryRoot, "consumer & spaces %literal%");
+  const docsRoot = join(root, "node_modules", "@agent-teams", "docs-protocol");
+  await mkdir(join(docsRoot, "dist"), { recursive: true });
+  await mkdir(join(root, "node_modules", ".bin"));
+  await writeFile(join(docsRoot, "package.json"), JSON.stringify({
+    name: "@agent-teams/docs-protocol", type: "module", bin: { "agent-teams-docs": "./dist/cli.js" }
+  }));
+  await writeFile(join(docsRoot, "dist", "cli.js"), 'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n');
+  return { root, docsRoot };
+}
+
+test("Windows docs dispatch preserves hostile argument bytes through the installed Node CLI", async (context) => {
+  const { root, docsRoot } = await docsBinFixture(context);
+  const args = ["new", "--title", 'quotes " & echo INJECTED | more > marker < input ^ %PATH% !value!',
+    "--summary", "Unicode Ω and spaces", "", "trailing\\", "line\nbreak"];
+  const result = await runWindowsDocsBin(root, args);
+  assert.equal(result.stderr, "");
+  assert.deepEqual(JSON.parse(result.stdout), args);
+  const calls = [];
+  await runWindowsDocsBin(root, args, async (...call) => { calls.push(call); });
+  assert.deepEqual(calls, [[process.execPath,
+    [await realpath(join(docsRoot, "dist", "cli.js")), ...args], root, { timeoutMs: 120_000 }]]);
+});
+
+test("Windows docs shim qualification dispatches only the fixed public info command", async (context) => {
+  const { root } = await docsBinFixture(context);
+  const args = ["info", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml", "--json"];
+  const calls = [];
+  const execute = async (...call) => { calls.push(call); return { stdout: "shim output", stderr: "" }; };
+  assert.deepEqual(await runWindowsDocsBin(root, args, execute), { stdout: "shim output", stderr: "" });
+  assert.deepEqual(calls[0], [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c",
+    ".\\node_modules\\.bin\\agent-teams-docs.cmd info --consumer . --profile architecture/foundation/docs-protocol.yaml --json"
+  ], root, { timeoutMs: 120_000 }]);
+  await runWindowsDocsBin(root, [...args, "& echo INJECTED"], execute);
+  assert.equal(calls[1][0], process.execPath);
+});
+
+test("Windows docs dispatch refuses changed manifest bindings and missing CLI files", async (context) => {
+  const { root, docsRoot } = await docsBinFixture(context);
+  const execute = () => assert.fail(`Invalid installed CLI at ${docsRoot} must not launch a process.`);
+  for (const manifest of [
+    { name: "@other/docs", bin: { "agent-teams-docs": "./dist/cli.js" } },
+    { name: "@agent-teams/docs-protocol", bin: { "agent-teams-docs": "../outside.js" } },
+    { name: "@agent-teams/docs-protocol", bin: {} }
+  ]) {
+    await writeFile(join(docsRoot, "package.json"), JSON.stringify(manifest));
+    await assert.rejects(runWindowsDocsBin(root, ["find", "text"], execute), /declare its public Node CLI/u);
+  }
+  await writeFile(join(docsRoot, "package.json"), JSON.stringify({
+    name: "@agent-teams/docs-protocol", bin: { "agent-teams-docs": "./dist/cli.js" }
+  }));
+  await rm(join(docsRoot, "dist", "cli.js"));
+  await assert.rejects(runWindowsDocsBin(root, ["find", "text"], execute), /ENOENT/u);
+});
+
+test("Windows docs qualification executes the installed shim and refuses missing or broken shims", {
+  skip: process.platform !== "win32"
+}, async (context) => {
+  const { root } = await docsBinFixture(context);
+  const args = ["info", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml", "--json"];
+  const shim = join(root, "node_modules", ".bin", "agent-teams-docs.cmd");
+  await assert.rejects(runWindowsDocsBin(root, args));
+  await writeFile(shim, `@"${process.execPath}" "%~dp0..\\@agent-teams\\docs-protocol\\dist\\cli.js" %*\r\n`);
+  const result = await runWindowsDocsBin(root, args);
+  assert.equal(result.stderr, "");
+  assert.deepEqual(JSON.parse(result.stdout), args);
+  await writeFile(shim, "@exit /b 37\r\n");
+  await assert.rejects(runWindowsDocsBin(root, args), (error) => error.code === 37);
+});
 
 test("managed canonical Skill supports portable adoption and bounded context with a custom profile", async () => {
   const root = await mkdtemp(join(tmpdir(), "managed-portable-adoption-"));

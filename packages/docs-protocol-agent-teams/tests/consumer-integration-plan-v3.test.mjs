@@ -212,3 +212,93 @@ test("profile v3 blocks modified managed bytes, forged asset digests, and V1 cat
     /does not accept V1 asset catalogs/u
   );
 });
+
+test("unknown desired input retains closed generations and bounded plain-data validation", async () => {
+  const { assertConsumerIntegrationDesiredStateV3 } = await import(
+    "../dist/consumer-integration/application/policies/consumer-integration-desired-state.js"
+  );
+  for (const mutate of [
+    (v) => {v.schemaVersion = 4;},
+    (v) => {v.packageManager = "npm";},
+    (v) => {v.repository.provider = "gitlab";},
+    (v) => {v.repository.id = 123;},
+    (v) => {v.qualification.gateCommand = "pnpm arbitrary";},
+    (v) => {v.cohort.schemaVersion = 1;},
+    (v) => {v.cohort.schemas.managedState = 1;},
+    (v) => {v.cohort.schemas.consumerIntegration = 4;},
+    (v) => {v.cohort.runtime.node = "*";},
+    (v) => {v.cohort.channel = "latest";},
+    (v) => {v.cohort.packages.repositoryMutation.version = 1;},
+    (v) => {v.cohort.packages.extra = {};},
+    (v) => {v.cohort.upgradeFrom = [null];},
+    (v) => {v.cohort.rollbackTo = [v.cohort.cohortId];},
+    (v) => {v.cohort.upgradeFrom.push(v.cohort.upgradeFrom[0]);},
+    (v) => {v.governedDocsRoots = ["../outside"];},
+    (v) => {v.governedDocsRoots = []; v.governedDocsRoots.length = 1;},
+    (v) => {v.cohort.upgradeFrom = []; v.cohort.upgradeFrom.length = 0xffffffff;},
+    (v) => {v.extra = true;},
+    (v) => {v.cycle = v;},
+    (v) => {Object.setPrototypeOf(v.repository, { hidden: true });},
+    (v) => {Object.defineProperty(v, "hidden", { value: true });},
+    (v) => {v[Symbol("secret")] = true;}
+  ]) {
+    const input = desired();
+    mutate(input);
+    assert.throws(() => assertConsumerIntegrationDesiredStateV3(input), TypeError);
+  }
+  for (const input of [null, undefined, {}, [], "profile"]) {
+    assert.throws(() => assertConsumerIntegrationDesiredStateV3(input), TypeError);
+  }
+  const accessor = desired();
+  let reads = 0;
+  Object.defineProperty(accessor.cohort, "channel", { enumerable: true, get() {reads++; return "rc";} });
+  assert.throws(() => assertConsumerIntegrationDesiredStateV3(accessor), /accessors/u);
+  assert.equal(reads, 0);
+  assert.doesNotThrow(() => assertConsumerIntegrationDesiredStateV3(desired()));
+});
+
+test("optional portable projection leaves exact old managed state readable and stale plans refused", async () => {
+  const { projectManagedPortableProfileV4 } = await import("../dist/index.js");
+  const { readFile } = await import("node:fs/promises");
+  const { compileKnownFileTransactionPlan } = await import("@agent-teams/repository-mutation");
+  const { createConsumerIntegrationUseCases } = await import(
+    "../dist/consumer-integration/application/use-cases/run-consumer-integration.js"
+  );
+  const target = desired();
+  const current = applyFullAssetOperations(snapshot(), compileConsumerIntegration(
+    { desired: target, snapshot: snapshot() }, ports([])
+  ));
+  const before = await readFile(new URL("./fixtures/managed-state-v2-original.json", import.meta.url));
+  assert.equal(digest(before), "sha256:5759c488f584c6738e043f7dd643d0dd2c055aae4ad9d3301237b96918e8967a");
+  assert.deepEqual(current.managedState.bytes, before, "current projection must reproduce original HEAD bytes");
+  current.managedState = file(before);
+  const historical = await readFile(new URL("./fixtures/managed-portable-profile-v3.yaml", import.meta.url));
+  const postimage = await projectManagedPortableProfileV4(historical);
+  const optionalPlan = compileKnownFileTransactionPlan({ operations: [{
+    path: target.profilePath,
+    precondition: { state: "known-file", acceptedPreimages: [{ bytes: historical, mode: 0o644 }] },
+    postimage: { bytes: postimage, mode: 0o644 }
+  }] });
+  assert.equal(optionalPlan.operations.length, 1);
+  assert.equal(optionalPlan.operations[0].path, target.profilePath);
+  assert.deepEqual(Buffer.from(optionalPlan.operations[0].postimage.contentBase64, "base64"), postimage);
+  assert.equal(compileConsumerIntegration({ desired: target, snapshot: current }, ports([])).plan.outcome, "current");
+  assert.deepEqual(current.managedState.bytes, before);
+  const pending = { ...current, skill: absent };
+  const reviewed = compileConsumerIntegration({ desired: target, snapshot: pending }, ports([]));
+  pending.integrationProfile = file("changed exact integration authority\n");
+  let writes = 0;
+  const useCases = createConsumerIntegrationUseCases({
+    input: { async read() {return { root: "/disposable", desired: target, snapshot: pending };} },
+    planning: ports([]), assets: { async read() {throw new Error("V1 catalog must not be read");} },
+    transaction: {
+      async inspect() {return { state: "idle" };},
+      async apply() {writes++; throw new Error("must refuse before mutation");}
+    }
+  });
+  const rejected = await useCases.apply({ consumerRoot: "/disposable", expect: reviewed.plan.planDigest });
+  assert.equal(rejected.outcome, "blocked");
+  assert.equal(rejected.issues[0].code, "DOCS_CONSUMER_STALE_PLAN");
+  assert.equal(writes, 0);
+  assert.deepEqual(current.managedState.bytes, before);
+});

@@ -42,11 +42,12 @@ import {
   seedRegistryInParallel,
 } from "./registry-seed-scheduler.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
-import { stageBuiltMarkdownPublication } from "./markdown-publication.mjs";
+import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
+import { readQualifiedReleaseArtifact } from "./release-publish-ordered-runtime.mjs";
+import { readVerifiedArchive } from "./pack-artifact-archive.mjs";
 import {
   DOCS_PROTOCOL_PACKAGE_NAME,
   registryQualificationPackages,
-  stageQualificationPackage,
 } from "./registry-qualification-packages.mjs";
 
 const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
@@ -201,24 +202,12 @@ async function collectRuntimeDependencyClosure() {
   );
 }
 
-async function createTargetArchive(releasePackage, index) {
-  const destination = join(temporaryRoot, "target", String(index));
-  await mkdir(destination, { recursive: true });
-  const builtPackageRoot = await stageQualificationPackage({
-    destination,
-    foundationPackageName: FOUNDATION_PACKAGE_NAME,
-    releasePackage,
-    repositoryRoot,
-  });
-  const packageRoot = await stageBuiltMarkdownPublication({
-    repositoryRoot, packageRoot: builtPackageRoot, temporaryRoot: destination,
-  });
-  await runPnpm(["pack", "--pack-destination", destination], packageRoot);
-  const manifest = await readManifest(packageRoot);
-  const archiveName = `${manifest.name.replace("@", "").replace("/", "-")}-${manifest.version}.tgz`;
-  const archivePath = join(destination, archiveName);
-  await lstat(archivePath);
-  return Object.freeze({ archivePath, manifest });
+async function createTargetArchives() {
+  const qualified = await packPublishableArtifacts({ temporaryRoot });
+  return Promise.all(REGISTRY_QUALIFICATION_PACKAGES.map(async (entry) => {
+    const manifest = await readManifest(join(repositoryRoot, entry.root));
+    return Object.freeze(await readQualifiedReleaseArtifact(qualified[entry.name], manifest));
+  }));
 }
 
 async function startRegistry() {
@@ -532,9 +521,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
 
 let registry;
 try {
-  const targets = await runRegistryPhase("target-archive", () =>
-    Promise.all(REGISTRY_QUALIFICATION_PACKAGES.map(createTargetArchive)),
-  );
+  const targets = await runRegistryPhase("target-archive", createTargetArchives);
   const dependencies = await runRegistryPhase(
     "dependency-closure",
     collectRuntimeDependencyClosure,
@@ -548,6 +535,7 @@ try {
   );
   await runRegistryPhase("target-publish", async () => {
     for (const target of targets) {
+      await readVerifiedArchive(target.archivePath, target.sha256);
       await publishArchive(
         target.archivePath,
         registry.registryUrl,

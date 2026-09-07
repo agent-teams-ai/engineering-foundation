@@ -108,9 +108,9 @@ export async function prepareMarkdownSource({ lock, entryBytes, readArchive }) {
     for (const [key, node] of plan.nodes) { await materializeArchive(node, roots.get(key), readArchive, { archives, budget, inputs }); }
     for (const [key, node] of plan.nodes) { await linkDependencies(roots.get(key), node.dependencies, roots); }
     await linkDependencies(packageRoot, plan.roots, roots);
-    await mkdir(join(packageRoot, "dist/adapters"), { recursive: true });
-    await writeFile(join(packageRoot, "dist/adapters/markdown-runtime.js"), entryBytes, { flag: "wx", mode: 0o444 });
-    inputs.set(join(packageRoot, "dist/adapters/markdown-runtime.js"), entryBytes);
+    await mkdir(join(packageRoot, "dist/documentation-observation/adapters/outbound/filesystem"), { recursive: true });
+    await writeFile(join(packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js"), entryBytes, { flag: "wx", mode: 0o444 });
+    inputs.set(join(packageRoot, "dist/documentation-observation/adapters/outbound/filesystem/markdown-runtime.js"), entryBytes);
     await writeFile(join(packageRoot, "package.json"), '{"type":"module"}\n', { flag: "wx", mode: 0o444 });
     return { packageRoot, archives, inputs, sourceClosureSha256: markdownSnapshotSha256(plan),
       snapshotKeys: new Map([...roots].map(([key, path]) => [path, key])),

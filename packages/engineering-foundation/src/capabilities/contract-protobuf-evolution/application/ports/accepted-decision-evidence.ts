@@ -19,3 +19,5 @@ export interface AcceptedDecisionEvidencePort {
     input: ReadAcceptedDecisionEvidenceInput
   ): Promise<AcceptedDecisionEvidence>;
 }
+
+export type { AcceptedArchitectureDecisionReader } from "../../../governance-architecture-decisions/api.js";

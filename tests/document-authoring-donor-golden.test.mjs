@@ -1,3 +1,4 @@
+import { readMarkdownSyntax } from "../packages/document-authoring/dist/documentation-observation/module.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -9,9 +10,9 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml } from "yaml";
 
 import {
-  parseGovernedTemplateSkeleton,
+  parseGovernedTemplateSkeleton as parseSkeletonWithReader,
   renderCanonicalDocument,
-} from "../packages/document-authoring/dist/adapters/canonical-markdown.js";
+} from "../packages/document-authoring/dist/document-authoring/adapters/canonical-markdown.js";
 
 const corpusRoot = fileURLToPath(
   new URL(
@@ -273,3 +274,5 @@ test("freezes donor path projection for all six artifact types", () => {
     runbook: "docs/operations/frozen-widget-outage.md",
   });
 });
+
+function parseGovernedTemplateSkeleton(source) { return parseSkeletonWithReader(source, readMarkdownSyntax); }

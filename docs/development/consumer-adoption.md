@@ -28,9 +28,44 @@ adapters for supported agents, and expose `check:changed`, `check:fast`, and
 keeps only its policy mapping and existing required CI call. See the
 [agent workflow reference](../reference/repository-agent-workflow.md).
 
-Blocking CI runs the full check plus registry assertions. Local source work uses
-the guarded attach/status/detach lifecycle; manifests and lockfiles keep the
-published exact version throughout.
+Local source work uses the guarded attach/status/detach lifecycle; manifests and
+lockfiles keep the published exact version throughout.
+
+## Required integration gate
+
+**Adoption is incomplete until required CI blocks merging on the full configured
+Foundation check and the applicable consumer checks.** Installing the package,
+declaring scripts, or passing a local changed-file check does not establish this
+gate. Each consumer must explicitly select its applicable capabilities.
+
+Required CI must execute `foundation:check`, `foundation:assert-dev-only`, and
+`foundation:assert-registry`, plus the consumer's applicable lint, typecheck,
+test, and capability-qualification commands. `check:changed` and `check:fast`
+provide feedback but cannot replace the complete required checks.
+Static `foundation check` validates gate-runner and executable-specification
+configuration; it does not execute those scripts or prove they succeeded.
+
+Record each capability, its actual executed command, and its required status.
+The required status must fail when a prerequisite fails, is cancelled, is
+skipped, or is missing. `continue-on-error` and conditional job selection must
+not turn absent evidence into a successful merge gate. Use the consumer's
+existing required checks, rulesets, ownership review, and trusted validation to
+protect changes to policy, exclusions, suppressions, and the CI gate itself.
+A workflow file alone is not proof that repository protection requires it.
+
+Qualify adoption in a disposable consumer with one permitted dependency and a
+deliberately forbidden dependency that makes the installed check fail. Record
+the source-dependency schema and the exact selected source universe. V1 governs
+only `governedRoots`; a source outside those roots is not an unknown-source
+failure. V2 closes ownership inside its explicitly selected package universe:
+place unknown-source and unknown-package fixtures inside that universe. Moving
+from v1 to v2 requires explicit consumer policy activation. Preserve valid
+generated-output references and existing documented exceptions in both tests.
+
+Retain results for the exact candidate source, lockfile, configuration, and
+installed artifacts. Reuse equivalent existing fixtures; a new testing framework
+is not required. Consumer runtime or mutation qualification must use explicitly
+authorized test projects and must not execute against a real project by default.
 
 ## Configuration
 
@@ -100,18 +135,24 @@ configuration but never runs the scripts. See the
 
 ## Current contract version policy
 
-Foundation-owned configuration, evidence and protocol contracts currently have
-one active identity: `v1`. Before independent production adoption, a breaking
-correction updates that sole `v1` shape and all known consumers in one reviewed
-release and adoption wave. The current package does not ship parallel legacy
-schemas, cross-version compatibility readers or migration routers.
+Contract versions are governed per contract, not by a package-wide `v1` rule.
+Source-dependencies configuration already has explicit `v1` and `v2` contracts;
+consumers select the supported version deliberately. A configuration upgrade
+does not authorize rewriting persisted Plans, Receipts, journals or Cohorts.
+
+Persisted evidence retains its exact owner, generation and build identity.
+Historical recovery uses the qualified implementation and artifact for that
+generation, within its documented support window; installing a newer package
+does not make an old journal compatible. See the
+[transaction recovery decision](../decisions/0024-versioned-document-transaction-recovery.md)
+and [qualified Cohort contract](../decisions/0045-five-coordinate-qualified-docs-cohort.md).
 
 The Public API checker accepts an immutable single-entrypoint `v1` release
 baseline and normalizes it to the current multi-entrypoint `v1` comparison
 model. This preserves release evidence without creating another schema
 identity. New baseline promotion always writes the current `v1` shape.
 
-A Foundation-owned `v2` is allowed only after a new accepted ADR proves a real
+A new Foundation-owned contract generation requires an accepted ADR proving a real
 non-atomic migration boundary, such as an independently deployed exact-version
 consumer or persisted contract instance. The ADR must define migration evidence,
 support duration and retirement. Published npm artifacts and accepted ADRs remain
@@ -172,6 +213,21 @@ An exported workspace subpath in v2 remains subject to both the importing
 manifest declaration and the boundary package allowlist even when the target
 package also contains development-only source. Version 1 keeps the conservative
 mixed-package rule described below.
+
+Package permissions are package-granular in both source policy generations.
+`allow.packages: ["@customer/library"]` does not independently allow
+`@customer/library/contracts` while denying an exported
+`@customer/library/admin`. Export availability and dependency declarations remain
+separate checks. For npm aliases, the allowlist names the import slot, not the
+underlying registry target. Local relative imports between governed boundaries
+still require their allowed boundary edges and public entrypoints.
+
+The v2 exported-subpath ownership check above distinguishes runtime from
+mixed development packages; it is not a general per-subpath permission policy.
+If a consumer requires finer package permissions, record its concrete forbidden
+and allowed imports before designing an explicit policy extension. Do not infer
+that protection from a package allowlist or silently reorganize the consumer's
+physical packages to compensate for this limitation.
 
 Source boundaries default to `dependencyMode: runtime`. A boundary containing
 only test, specification, generator, or other development tooling may declare
@@ -235,11 +291,12 @@ contract.
 1. The consumer repository's configured dependency updater opens an exact-version
    update pull request. Foundation does not prescribe a specific updater.
 2. CI installs from the registry and runs all foundation and consumer checks.
-3. Before independent production adoption, breaking Foundation-owned contract
-   corrections keep the sole current `v1` and update every known consumer in the
-   same coordinated wave. Historical schemas remain available only inside their
-   immutable exact registry artifacts. After real independent adoption, a new
-   contract version and migration window require the ADR evidence in ADR-0019.
+3. Identify each configuration and persisted-evidence generation before updating.
+   Adopt configuration changes explicitly, including source-dependencies `v2`.
+   Preserve historical journal and receipt bytes and their qualified exact-build
+   recovery route. New generations and retirement windows require the applicable
+   accepted ADR; a coordinated update does not waive recovery compatibility.
+   Unknown in-flight state blocks that consumer's cutover until it is resolved.
 4. A local foundation checkout may be attached for development, but a PR is not
    mergeable until registry mode is restored and proven.
 5. A package update never silently adds a capability declaration or opt-in

@@ -1,6 +1,6 @@
 import type { KnownFileTransactionPlanV1 } from "@agent-teams/repository-mutation";
 import type { ConsumerIntegrationDesiredStateV1, ConsumerIntegrationDesiredStateV3, QualifiedDocsCohortBindingV2 } from "../domain/model.js";
-import { requireRestoration, restorationJson } from "../application/policies/consumer-restoration-proof.js";
+import { requireRestoration, restorationJson } from "../application-api.js";
 import {
   CANONICAL_DOCS_SKILL_V2, canonicalCallerWorkflow, canonicalDocsScriptsDigest,
   canonicalManagedRoute, canonicalManagedState, describeCanonicalConsumerAssets, digestBytes

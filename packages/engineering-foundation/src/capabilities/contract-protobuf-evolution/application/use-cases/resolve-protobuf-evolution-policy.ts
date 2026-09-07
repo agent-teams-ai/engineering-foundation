@@ -1,4 +1,4 @@
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type {
   ProtobufEvolutionConfiguration,
   ProtobufEvolutionPolicy

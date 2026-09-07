@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/docs-protocol",
+  "packageVersion": "0.5.2",
+  "status": "supported",
+  "wildcardExports": [
+    {
+      "exportPath": "./schemas/*",
+      "targetPattern": "schemas/*",
+      "members": [
+        "schemas/docs-protocol-portable-command-envelope/v1.schema.json",
+        "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
+        "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
+        "schemas/docs-protocol-profile/v3.schema.json",
+        "schemas/docs-protocol/v1.schema.json"
+      ]
+    }
+  ],
+  "jsonSchemas": [
+    {
+      "path": "schemas/docs-protocol-portable-command-envelope/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-portable-command-envelope/v1",
+      "digest": "sha256:b00207b5484f3bf477909bc8b1272701212eda9dbe1eefd6fb263c6df4a69c11",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "docs.info",
+            "docs.find",
+            "docs.new",
+            "docs.doctor",
+            "docs.recover",
+            "docs.check"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "conflict",
+            "violation",
+            "authority-stale",
+            "recovery-required",
+            "invalid-input",
+            "execution-failure",
+            "cancelled"
+          ]
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-portable-command-envelope/v2",
+      "digest": "sha256:6120aab2431b23a8694c4bfbaf11d90dc7e63fa9cb1d2e97226ed9fb23b31712",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "docs.info",
+            "docs.find",
+            "docs.new",
+            "docs.doctor",
+            "docs.recover",
+            "docs.check"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "conflict",
+            "violation",
+            "authority-stale",
+            "recovery-required",
+            "invalid-input",
+            "execution-failure",
+            "cancelled"
+          ]
+        },
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-portable-command-envelope/v3",
+      "digest": "sha256:01a20da3d9cdbeef31cad0f937d591e1664fa92e48a4d03cae508e62237e1739",
+      "discriminators": {
+        "command": {
+          "enum": [
+            "docs.info",
+            "docs.find",
+            "docs.context",
+            "docs.init",
+            "docs.new",
+            "docs.doctor",
+            "docs.recover",
+            "docs.check"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "success",
+            "conflict",
+            "violation",
+            "authority-stale",
+            "recovery-required",
+            "invalid-input",
+            "execution-failure",
+            "cancelled"
+          ]
+        },
+        "schemaVersion": {
+          "const": 3
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol-profile/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol-profile/v3",
+      "digest": "sha256:50e3b1af16d183db5f18334a8aec9128a19c4fa9bebe56aa22a4a2823395f27f",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 3
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-protocol/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-protocol/v1",
+      "digest": "sha256:8c71e07f9cf9b8980cf5fe68ac80fda85cb1ec0f6ad05c79f029b77e4c67a774",
+      "discriminators": {
+        "id": {
+          "const": "agent-teams.docs-protocol"
+        },
+        "version": {
+          "const": 1
+        }
+      }
+    }
+  ],
+  "archive": {
+    "sha256": "sha256:5151de2050ffe7464129a60feee2f417fcdf1ce22a5a0d0b7bb3b5cf8031d10a",
+    "manifestDigest": "sha256:1be0efd57225cf6f12510655a7a0d69b8e54f079901a414fbe0af52a29dc2224",
+    "integrity": "sha512-hr9ZjoxfrQJ8ETjSiTr0q6sNcNnYGoTcfZymX6HZzZ9e1IxEHIePKTytsKgU1tIPygfV4HPhOiaLEddR4WwwIg==",
+    "sourceCommit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
+    "memberDigests": [
+      {
+        "path": "schemas/docs-protocol-portable-command-envelope/v1.schema.json",
+        "digest": "sha256:b00207b5484f3bf477909bc8b1272701212eda9dbe1eefd6fb263c6df4a69c11"
+      },
+      {
+        "path": "schemas/docs-protocol-portable-command-envelope/v2.schema.json",
+        "digest": "sha256:6120aab2431b23a8694c4bfbaf11d90dc7e63fa9cb1d2e97226ed9fb23b31712"
+      },
+      {
+        "path": "schemas/docs-protocol-portable-command-envelope/v3.schema.json",
+        "digest": "sha256:01a20da3d9cdbeef31cad0f937d591e1664fa92e48a4d03cae508e62237e1739"
+      },
+      {
+        "path": "schemas/docs-protocol-profile/v3.schema.json",
+        "digest": "sha256:50e3b1af16d183db5f18334a8aec9128a19c4fa9bebe56aa22a4a2823395f27f"
+      },
+      {
+        "path": "schemas/docs-protocol/v1.schema.json",
+        "digest": "sha256:8c71e07f9cf9b8980cf5fe68ac80fda85cb1ec0f6ad05c79f029b77e4c67a774"
+      }
+    ]
+  }
+}

@@ -6,7 +6,7 @@
     "./.oxlintrc.repository-mutation-budgets.json"
   ],
   "ignorePatterns": [
-    "packages/engineering-foundation/dist/**",
-    "packages/docs-protocol/dist/**"
+    "packages/*/dist/**",
+    "packages/*/node_modules/**"
   ]
 }

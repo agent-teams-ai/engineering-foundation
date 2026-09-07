@@ -1,7 +1,7 @@
 import {
   compileKnownFileTransactionPlan,
   type KnownFileTransactionOperationInput
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/known-file";
 
 import type { ConsumerIntegrationPlanningPorts } from "../ports/consumer-integration-planners.js";
 import type {
@@ -38,19 +38,32 @@ export function issue(code: string, subject: string, message: string): ConsumerI
   return { code, severity: "error", subject, message };
 }
 
-export function assertSnapshotRuntime(snapshot: ConsumerIntegrationSnapshot): void {
+function assertFileObservation(
+  observation: object, key: string
+): asserts observation is Extract<ConsumerIntegrationFileObservation, { state: "file" }> {
+  if (!("state" in observation) || observation.state !== "file" || !("bytes" in observation) ||
+    !(observation.bytes instanceof Uint8Array) || !("mode" in observation) ||
+    typeof observation.mode !== "number" || !Number.isInteger(observation.mode) ||
+    observation.mode < 0 || observation.mode > 0o777 ||
+    Object.keys(observation).toSorted().join("\u0000") !== "bytes\u0000mode\u0000state") {
+    throw new TypeError(`File snapshot observation is invalid: ${key}.`);
+  }
+}
+
+export function assertSnapshotRuntime(snapshot: unknown): asserts snapshot is ConsumerIntegrationSnapshot {
   const expected = [
     "agents", "callerWorkflow", "integrationProfile", "lockfile",
     "managedState", "packageManifest", "skill"
   ];
-  if (Object.getPrototypeOf(snapshot) !== Object.prototype ||
+  if (typeof snapshot !== "object" || snapshot === null || Object.getPrototypeOf(snapshot) !== Object.prototype ||
     Object.keys(snapshot).toSorted().join("\u0000") !== expected.join("\u0000")) {
     throw new TypeError("Consumer snapshot must contain only the seven V1 observations.");
   }
   let totalBytes = 0;
   for (const key of expected) {
-    const observation = snapshot[key as keyof ConsumerIntegrationSnapshot];
-    if (Object.getPrototypeOf(observation) !== Object.prototype) {
+    const observation: unknown = (snapshot as Record<string, unknown>)[key];
+    if (typeof observation !== "object" || observation === null || !("state" in observation) ||
+      Object.getPrototypeOf(observation) !== Object.prototype) {
       throw new TypeError(`Consumer snapshot observation is invalid: ${key}.`);
     }
     if (observation.state === "absent") {
@@ -59,11 +72,7 @@ export function assertSnapshotRuntime(snapshot: ConsumerIntegrationSnapshot): vo
       }
       continue;
     }
-    if (observation.state !== "file" || !(observation.bytes instanceof Uint8Array) ||
-      !Number.isInteger(observation.mode) || observation.mode < 0 || observation.mode > 0o777 ||
-      Object.keys(observation).toSorted().join("\u0000") !== "bytes\u0000mode\u0000state") {
-      throw new TypeError(`File snapshot observation is invalid: ${key}.`);
-    }
+    assertFileObservation(observation, key);
     totalBytes += observation.bytes.byteLength;
     if (totalBytes > 64 * 1024 * 1024) {
       throw new TypeError("Consumer snapshot exceeds the bounded 64 MiB runtime contract.");

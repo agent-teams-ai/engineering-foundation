@@ -3,12 +3,12 @@ import { mkdtemp, mkdir, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { assertSchema } from "../packages/document-authoring/dist/schema-catalog.js";
+import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 
 import {
   planDocumentParentMaterializationV2
 } from "../packages/document-authoring/dist/index.js";
-import { NodeDocumentParentMaterializerV2 } from "../packages/document-authoring/dist/adapters/node/node-document-parent-materializer.js";
+import { NodeDocumentParentMaterializerV2 } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-parent-materializer.js";
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "foundation-document-parent-v2-"));

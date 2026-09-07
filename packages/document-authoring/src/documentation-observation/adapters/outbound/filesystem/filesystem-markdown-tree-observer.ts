@@ -1,8 +1,8 @@
 import { extname, resolve } from "node:path";
 
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { CapabilityInputError } from "../../../application/model/input-problem.js";
+import { assertNotCancelled } from "../../../application/policies/cancellation.js";
 import type {
   MarkdownDocumentObservation,
   MarkdownObservationIssue,

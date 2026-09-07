@@ -1,5 +1,5 @@
-import type { FoundationDiagnostic } from "../../../../check-contract.js";
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
+import { assertNotCancelled } from "../../../../features/validation-reporting/api.js";
 import type { MarkdownRepository } from "@agent-teams/document-authoring/observation";
 import type {
   ArchitectureDecision,

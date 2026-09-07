@@ -4,7 +4,7 @@ import { isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
 
 import type {
   ConsumerIntegrationFileObservation
-} from "../domain/model.js";
+} from "../application-api.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 
 export const MAXIMUM_PROFILE_BYTES = 256 * 1024;

@@ -1,6 +1,6 @@
+import { registerSecurityObservationPortTests } from "./support/security-observation-ports.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
-import { compareBinaryStrings } from "../packages/engineering-foundation/dist/binary-string-comparator.js";
+import { sha256, digestWorkflows } from "./support/repository-security-digests.mjs";
+
+registerSecurityObservationPortTests();
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const cliPath = join(repositoryRoot, "packages", "engineering-foundation", "dist", "cli.js");
@@ -64,27 +66,6 @@ const TOOL_CONFIGS = {
     workflowPath: ".github/workflows/ci.yml",
   },
 };
-
-function sha256(value) {
-  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
-}
-
-function digestWorkflows(workflows) {
-  const hash = createHash("sha256");
-  hash.update("repository-security-workflows-v1\0");
-  for (const [path, source] of Object.entries(workflows).toSorted(([left], [right]) =>
-    compareBinaryStrings(left, right),
-  )) {
-    const bytes = Buffer.from(source, "utf8");
-    hash.update(path);
-    hash.update("\0");
-    hash.update(String(bytes.byteLength));
-    hash.update("\0");
-    hash.update(bytes);
-    hash.update("\0");
-  }
-  return `sha256:${hash.digest("hex")}`;
-}
 
 function ciWorkflow({
   actionlintNonBlocking = false,

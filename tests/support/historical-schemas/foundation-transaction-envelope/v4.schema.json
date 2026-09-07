@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v4",
+  "title": "Foundation Document Transaction Envelope v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "operationKind", "recoveryHandler", "foundation", "adapterContractVersion", "payloadKind", "journal", "payloadDigest", "state", "envelopeDigest"],
+  "properties": {
+    "schemaVersion": { "const": 4 },
+    "operationKind": { "const": "document-authoring" },
+    "recoveryHandler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contractVersion"],
+      "properties": {
+        "id": { "const": "foundation.document-authoring" },
+        "contractVersion": { "const": 3 }
+      }
+    },
+    "foundation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "buildIdentity"],
+      "properties": {
+        "version": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/semver" },
+        "buildIdentity": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/digest" }
+      }
+    },
+    "adapterContractVersion": { "const": 1 },
+    "payloadKind": { "const": "document-authoring-journal/v3" },
+    "journal": { "$ref": "#/$defs/documentJournalV3" },
+    "payloadDigest": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/digest" },
+    "state": { "enum": ["PREPARED", "MATERIALIZING", "PUBLISHING", "PUBLISHED"] },
+    "envelopeDigest": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/digest" }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/preparedEnvelope" },
+    { "$ref": "#/$defs/materializingEnvelope" },
+    { "$ref": "#/$defs/publishingEnvelope" },
+    { "$ref": "#/$defs/publishedEnvelope" }
+  ],
+  "$defs": {
+    "parentMaterialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchorIdentity", "createdDirectories"],
+      "properties": {
+        "anchorIdentity": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/nonzeroPhysicalIdentity" },
+        "createdDirectories": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "identity"],
+            "properties": {
+              "path": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/repositoryPath" },
+              "identity": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/nonzeroPhysicalIdentity" }
+            }
+          }
+        },
+        "pendingDirectory": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/repositoryPath" }
+      }
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "state"],
+      "properties": {
+        "path": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/repositoryPath" },
+        "state": { "enum": ["pending", "preexisting", "materializing", "publishing", "published"] }
+      }
+    },
+    "documentJournalV3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "plan", "destination", "parentMaterialization"],
+      "properties": {
+        "schemaVersion": { "const": 3 },
+        "plan": { "$ref": "https://agent-teams.ai/schemas/document-plan/v2" },
+        "destination": { "$ref": "#/$defs/destination" },
+        "parentMaterialization": { "$ref": "#/$defs/parentMaterialization" },
+        "ownedTemporary": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/ownedTemporary" },
+        "publicationIdentity": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/nonzeroPhysicalIdentity" }
+      }
+    },
+    "preparedEnvelope": {
+      "type": "object",
+      "properties": {
+        "state": { "const": "PREPARED" },
+        "journal": {
+          "type": "object",
+          "properties": {
+            "destination": { "type": "object", "properties": { "state": { "enum": ["pending", "preexisting"] } } },
+            "parentMaterialization": {
+              "type": "object",
+              "properties": {
+                "createdDirectories": { "type": "array", "maxItems": 0 },
+                "pendingDirectory": false
+              }
+            },
+            "ownedTemporary": false,
+            "publicationIdentity": false
+          }
+        }
+      }
+    },
+    "materializingEnvelope": {
+      "type": "object",
+      "properties": {
+        "state": { "const": "MATERIALIZING" },
+        "journal": {
+          "type": "object",
+          "properties": {
+            "destination": { "type": "object", "properties": { "state": { "const": "materializing" } } },
+            "plan": {
+              "type": "object",
+              "properties": {
+                "parentMaterialization": {
+                  "type": "object",
+                  "properties": {
+                    "missingDirectories": { "type": "array", "minItems": 1 }
+                  }
+                }
+              }
+            },
+            "ownedTemporary": false,
+            "publicationIdentity": false
+          }
+        }
+      }
+    },
+    "publishingEnvelope": {
+      "type": "object",
+      "properties": {
+        "state": { "const": "PUBLISHING" },
+        "journal": {
+          "type": "object",
+          "required": ["ownedTemporary"],
+          "properties": {
+            "destination": { "type": "object", "properties": { "state": { "const": "publishing" } } },
+            "ownedTemporary": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/ownedTemporary" },
+            "publicationIdentity": false
+          }
+        }
+      }
+    },
+    "publishedEnvelope": {
+      "type": "object",
+      "properties": {
+        "state": { "const": "PUBLISHED" },
+        "journal": {
+          "type": "object",
+          "required": ["publicationIdentity"],
+          "properties": {
+            "destination": { "type": "object", "properties": { "state": { "const": "published" } } },
+            "publicationIdentity": { "$ref": "https://agent-teams.ai/schemas/foundation-transaction-envelope/v3#/$defs/nonzeroPhysicalIdentity" },
+            "ownedTemporary": false
+          }
+        }
+      }
+    }
+  }
+}

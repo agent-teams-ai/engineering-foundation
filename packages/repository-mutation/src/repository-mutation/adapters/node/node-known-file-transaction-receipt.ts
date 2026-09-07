@@ -1,7 +1,7 @@
 import { sha256Json } from "../../../canonical-json.js";
 import type { KnownFileTransactionReceiptV1 } from "../../application/model/known-file-transaction.js";
 import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import { KnownFileTransactionError } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 
 export function compileRolledBackReceipt(
   journal: KnownFileTransactionJournalV1

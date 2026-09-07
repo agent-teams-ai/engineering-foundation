@@ -10,96 +10,88 @@ export class StrictJsonError extends Error {
   }
 }
 
-class JsonCursor {
-  #offset = 0;
-  readonly #source: string;
+function validateStrictJsonSource(source: string): void {
+  let offset = 0;
 
-  constructor(source: string) {
-    this.#source = source;
+  function space(): void {
+    while (/\s/u.test(source[offset] ?? "")) {offset += 1;}
   }
 
-  get done(): boolean {
-    this.#space();
-    return this.#offset === this.#source.length;
+  function take(expected: string): void {
+    space();
+    if (!source.startsWith(expected, offset)) {throw new StrictJsonError("syntax");}
+    offset += expected.length;
   }
 
-  #space(): void {
-    while (/\s/u.test(this.#source[this.#offset] ?? "")) {this.#offset += 1;}
-  }
-
-  #take(expected: string): void {
-    this.#space();
-    if (!this.#source.startsWith(expected, this.#offset)) {throw new StrictJsonError("syntax");}
-    this.#offset += expected.length;
-  }
-
-  #string(): string {
-    this.#space();
-    const start = this.#offset;
-    if (this.#source[this.#offset] !== '"') {throw new StrictJsonError("syntax");}
-    this.#offset += 1;
-    while (this.#offset < this.#source.length) {
-      const character = this.#source[this.#offset];
+  function string(): string {
+    space();
+    const start = offset;
+    if (source[offset] !== '"') {throw new StrictJsonError("syntax");}
+    offset += 1;
+    while (offset < source.length) {
+      const character = source[offset];
       if (character === '"') {
-        this.#offset += 1;
+        offset += 1;
         try {
-          return JSON.parse(this.#source.slice(start, this.#offset)) as string;
+          return JSON.parse(source.slice(start, offset)) as string;
         } catch {
           throw new StrictJsonError("syntax");
         }
       }
-      if (character === "\\") {this.#offset += 1;}
-      this.#offset += 1;
+      if (character === "\\") {offset += 1;}
+      offset += 1;
     }
     throw new StrictJsonError("syntax");
   }
 
-  value(): void {
-    this.#space();
-    const character = this.#source[this.#offset];
-    if (character === "{") {return this.#object();}
-    if (character === "[") {return this.#array();}
-    if (character === '"') { this.#string(); return; }
-    const remainder = this.#source.slice(this.#offset);
+  function value(): void {
+    space();
+    const character = source[offset];
+    if (character === "{") { object(); return; }
+    if (character === "[") { array(); return; }
+    if (character === '"') { string(); return; }
+    const remainder = source.slice(offset);
     const token = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/u.exec(remainder)?.[0];
     if (token === undefined) {throw new StrictJsonError("syntax");}
-    this.#offset += token.length;
+    offset += token.length;
   }
 
-  #array(): void {
-    this.#take("[");
-    this.#space();
-    if (this.#source[this.#offset] === "]") { this.#offset += 1; return; }
+  function array(): void {
+    take("[");
+    space();
+    if (source[offset] === "]") { offset += 1; return; }
     for (;;) {
-      this.value();
-      this.#space();
-      if (this.#source[this.#offset] === "]") { this.#offset += 1; return; }
-      this.#take(",");
+      value();
+      space();
+      if (source[offset] === "]") { offset += 1; return; }
+      take(",");
     }
   }
 
-  #object(): void {
-    this.#take("{");
+  function object(): void {
+    take("{");
     const keys = new Set<string>();
-    this.#space();
-    if (this.#source[this.#offset] === "}") { this.#offset += 1; return; }
+    space();
+    if (source[offset] === "}") { offset += 1; return; }
     for (;;) {
-      const key = this.#string();
+      const key = string();
       if (keys.has(key)) {throw new StrictJsonError("duplicate-key");}
       keys.add(key);
-      this.#take(":");
-      this.value();
-      this.#space();
-      if (this.#source[this.#offset] === "}") { this.#offset += 1; return; }
-      this.#take(",");
+      take(":");
+      value();
+      space();
+      if (source[offset] === "}") { offset += 1; return; }
+      take(",");
     }
   }
+
+  value();
+  space();
+  if (offset !== source.length) {throw new StrictJsonError("syntax");}
 }
 
 export function parseStrictJson(source: string): unknown {
-  const cursor = new JsonCursor(source);
-  cursor.value();
-  if (!cursor.done) {throw new StrictJsonError("syntax");}
+  validateStrictJsonSource(source);
   try {
     return JSON.parse(source) as unknown;
   } catch {

@@ -1,7 +1,7 @@
+import type { SecurityEvidenceObservation } from "../../../application/ports/security-evidence-observation.js";
 import { opendir } from "node:fs/promises";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
-import { assertNotCancelled } from "../../../../../strict-yaml.js";
 import type {
   CompositeActionEvidence,
   RepositorySecurityPolicy,
@@ -15,7 +15,7 @@ import {
   readRequiredEvidenceFile,
   resolveSafeEvidencePath
 } from "./repository-security-filesystem.js";
-import { repositorySecurityInputError } from "./repository-security-input.js";
+import { assertSecurityObservationActive, repositorySecurityInputError } from "../../../application/policies/repository-security-input.js";
 import {
   collectCompositeActionWorkflowUses,
   collectCompositeActionUses,
@@ -42,15 +42,16 @@ function isReusableWorkflowUse(use: string, workflowDirectory: string): boolean 
 }
 
 async function readCompositeActionDescriptor(
+  observation: SecurityEvidenceObservation,
   root: string,
   localUse: string
 ): Promise<{ readonly path: string; readonly source: Uint8Array }> {
   const actionDirectory = localUse.slice(2);
-  await resolveSafeEvidencePath(root, actionDirectory);
+  await resolveSafeEvidencePath(observation, root, actionDirectory);
   const candidates = await Promise.all(
     ["action.yml", "action.yaml"].map(async (name) => {
       const path = `${actionDirectory}/${name}`;
-      const source = await readOptionalEvidenceFile(root, path);
+      const source = await readOptionalEvidenceFile(observation, root, path);
       return source === undefined ? undefined : { path, source };
     })
   );
@@ -74,6 +75,7 @@ async function readCompositeActionDescriptor(
 }
 
 async function readLocalCompositeActions(
+  observation: SecurityEvidenceObservation,
   root: string,
   workflowDirectory: string,
   rootUses: readonly WorkflowUseEvidence[]
@@ -93,9 +95,9 @@ async function readLocalCompositeActions(
       continue;
     }
     visited.add(next.uses);
-    const descriptor = await readCompositeActionDescriptor(root, next.uses);
+    const descriptor = await readCompositeActionDescriptor(observation, root, next.uses);
     sourceEntries.push(descriptor);
-    const discovered = collectCompositeActionUses(descriptor.path, descriptor.source);
+    const discovered = collectCompositeActionUses(observation.parseYaml, descriptor.path, descriptor.source);
     compositeActions.push(discovered);
     const discoveredUses = collectCompositeActionWorkflowUses(discovered);
     nestedUses.push(...discoveredUses);
@@ -116,15 +118,16 @@ async function readLocalCompositeActions(
 }
 
 export async function readWorkflowDirectoryEvidence(
+  observation: SecurityEvidenceObservation,
   root: string,
   policy: RepositorySecurityPolicy,
   signal?: AbortSignal
 ): Promise<WorkflowDirectoryEvidence> {
-  const directory = await resolveSafeEvidencePath(root, policy.workflowDirectory);
+  const directory = await resolveSafeEvidencePath(observation, root, policy.workflowDirectory);
   const names: string[] = [];
   const handle = await opendir(directory);
   for await (const entry of handle) {
-    assertNotCancelled(signal);
+    assertSecurityObservationActive(signal);
     if (entry.isSymbolicLink() || !entry.isFile() || !/\.ya?ml$/iu.test(entry.name)) {
       repositorySecurityInputError(
         "REPOSITORY_SECURITY_WORKFLOW_ENTRY_INVALID",
@@ -137,12 +140,13 @@ export async function readWorkflowDirectoryEvidence(
   const sourceEntries: { path: string; source: Uint8Array }[] = [];
   for (const name of names.toSorted()) {
     const repositoryPath = `${policy.workflowDirectory}/${name}`;
-    const source = await readRequiredEvidenceFile(root, repositoryPath);
+    const source = await readRequiredEvidenceFile(observation, root, repositoryPath);
     sourceEntries.push({ path: repositoryPath, source });
-    workflows.push(parseWorkflow(repositoryPath, source.toString("utf8")));
+    workflows.push(parseWorkflow(observation.parseYaml, repositoryPath, source.toString("utf8")));
   }
   const rootUses = collectWorkflowUses(workflows);
   const localCompositeActions = await readLocalCompositeActions(
+    observation,
     root,
     policy.workflowDirectory,
     rootUses

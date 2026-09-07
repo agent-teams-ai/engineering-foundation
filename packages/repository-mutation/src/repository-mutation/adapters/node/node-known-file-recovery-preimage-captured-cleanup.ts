@@ -1,16 +1,13 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { lstat, rmdir, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 import type { KnownFileTransactionPlanV1 } from "../../application/model/known-file-transaction.js";
-import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import { deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import {
-  knownFileErrorCode,
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  sameKnownFileIdentity
-} from "./node-known-file-transaction-filesystem.js";
+import { knownFileErrorCode, matchesKnownFileImage, sameKnownFileIdentity } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 import { observeRecoveryFile } from "./node-known-file-recovery-filesystem.js";
 import type { KnownFileRecoveryFaultInjector } from "./node-known-file-recovery-state.js";
 
@@ -24,7 +21,7 @@ function matchesRollbackCopy(
     matchesKnownFileImage(observed, preimage);
 }
 
-export async function cleanupRestoredCapturedPreimage(options: {
+export async function cleanupRestoredCapturedPreimage(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">, options: {
   readonly destination: string;
   readonly faultInjector?: KnownFileRecoveryFaultInjector;
   readonly journalOperation: KnownFileTransactionJournalV1["operations"][number] & {
@@ -56,7 +53,7 @@ export async function cleanupRestoredCapturedPreimage(options: {
     );
   }
   const preimage = options.operation.precondition.acceptedPreimages[matched]!;
-  const destinationObserved = await observeRecoveryFile(
+  const destinationObserved = await observeRecoveryFile(coordination,
     options.destination,
     options.recoveryMaximumBytes
   );
@@ -71,7 +68,7 @@ export async function cleanupRestoredCapturedPreimage(options: {
     `.${basename(options.operation.path)}.agent-teams.rollback.${options.operationIndex}.tmp`
   );
   if (options.journalOperation.rollbackTemporaryIdentity !== undefined) {
-    const rollbackObserved = await observeRecoveryFile(rollbackPath, preimage.size);
+    const rollbackObserved = await observeRecoveryFile(coordination, rollbackPath, preimage.size);
     if (rollbackObserved.state === "file") {
       const expectedRollback = deserializeKnownFileIdentity(
         options.journalOperation.rollbackTemporaryIdentity
@@ -104,7 +101,7 @@ export async function cleanupRestoredCapturedPreimage(options: {
       `Rollback capture directory changed during cleanup: ${options.operation.path}.`
     );
   }
-  const capturedObserved = await observeRecoveryFile(
+  const capturedObserved = await observeRecoveryFile(coordination,
     options.paths.captured,
     options.recoveryMaximumBytes
   );
@@ -126,7 +123,7 @@ export async function cleanupRestoredCapturedPreimage(options: {
       path: options.operation.path
     });
   }
-  const retiredObserved = await observeRecoveryFile(
+  const retiredObserved = await observeRecoveryFile(coordination,
     options.paths.retired,
     options.recoveryMaximumBytes
   );

@@ -1,12 +1,9 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import {
-  ContainedFileReadError,
-  pathTraversesSymbolicLink,
-  readContainedRegularFile
-} from "../../../../../filesystem-path-safety.js";
-import { repositorySecurityInputError } from "./repository-security-input.js";
+import type { SecurityEvidenceObservation } from "../../../application/ports/security-evidence-observation.js";
+import { rejectSecurityFileReadFailure } from "../../../application/policies/security-file-read-failure.js";
+import { repositorySecurityInputError } from "../../../application/policies/repository-security-input.js";
 
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
@@ -25,11 +22,12 @@ export async function resolveConsumerRoot(consumerRoot: string): Promise<string>
 }
 
 export async function resolveSafeEvidencePath(
+  observation: SecurityEvidenceObservation,
   root: string,
   repositoryPath: string
 ): Promise<string> {
   const candidate = resolve(root, repositoryPath);
-  if (await pathTraversesSymbolicLink(root, candidate)) {
+  if (await observation.traversesSymbolicLink(root, candidate)) {
     repositorySecurityInputError(
       "REPOSITORY_SECURITY_SYMLINK_PROHIBITED",
       `Security evidence cannot traverse a symbolic link: ${repositoryPath}.`
@@ -57,66 +55,37 @@ export async function resolveSafeEvidencePath(
   return canonical;
 }
 
-function mapFileReadFailure(error: ContainedFileReadError, repositoryPath: string): never {
-  if (error.failure === "escape") {
-    repositorySecurityInputError(
-      "REPOSITORY_SECURITY_EVIDENCE_ESCAPE",
-      `Security evidence escapes the repository: ${repositoryPath}.`
-    );
-  }
-  if (error.failure === "symlink") {
-    repositorySecurityInputError(
-      "REPOSITORY_SECURITY_SYMLINK_PROHIBITED",
-      `Security evidence cannot traverse a symbolic link: ${repositoryPath}.`
-    );
-  }
-  if (error.failure === "invalid") {
-    repositorySecurityInputError(
-      "REPOSITORY_SECURITY_EVIDENCE_INVALID",
-      `Security evidence is not a valid file: ${repositoryPath}.`
-    );
-  }
-  repositorySecurityInputError(
-    "REPOSITORY_SECURITY_EVIDENCE_UNAVAILABLE",
-    `Security evidence is unavailable or changed while reading: ${repositoryPath}.`
-  );
-}
-
 export async function readRequiredEvidenceFile(
+  observation: SecurityEvidenceObservation,
   root: string,
   repositoryPath: string
 ): Promise<Buffer> {
   try {
-    return await readContainedRegularFile({
+    const source = await observation.read({
       candidate: resolve(root, repositoryPath),
       maxBytes: MAX_FILE_BYTES,
       root
     });
+    return Buffer.isBuffer(source) ? source : Buffer.from(source);
   } catch (error) {
-    if (error instanceof ContainedFileReadError) {
-      mapFileReadFailure(error, repositoryPath);
-    }
-    throw error;
+    rejectSecurityFileReadFailure(error, repositoryPath, false);
   }
 }
 
 export async function readOptionalEvidenceFile(
+  observation: SecurityEvidenceObservation,
   root: string,
   repositoryPath: string
 ): Promise<Buffer | undefined> {
   try {
-    return await readContainedRegularFile({
+    const source = await observation.read({
       candidate: resolve(root, repositoryPath),
       maxBytes: MAX_FILE_BYTES,
       root
     });
+    return Buffer.isBuffer(source) ? source : Buffer.from(source);
   } catch (error) {
-    if (error instanceof ContainedFileReadError) {
-      if (error.failure === "missing") {
-        return undefined;
-      }
-      mapFileReadFailure(error, repositoryPath);
-    }
-    throw error;
+    rejectSecurityFileReadFailure(error, repositoryPath, true);
+    return undefined;
   }
 }

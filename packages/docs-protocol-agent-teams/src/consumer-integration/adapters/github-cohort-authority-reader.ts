@@ -1,21 +1,16 @@
-import type {
-  ConsumerUpgradeAuthorityReader
-} from "../application/ports/consumer-upgrade.js";
-import type {
-  ConsumerIntegrationDesiredState,
-  ConsumerIntegrationDesiredStateV1,
-  ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2,
-  QualifiedDocsCohortBindingV1,
-  QualifiedDocsCohortBindingV2
-} from "../domain/model.js";
+import { consumerTimeMilliseconds } from "./node-consumer-clock.js";
 import {
   assertQualifiedDocsCohortBindingV1,
-  assertQualifiedDocsCohortBindingV2
-} from "../application/policies/consumer-integration-desired-state.js";
-import {
-  QUALIFIED_DOCS_COHORT_V2_PACKAGES
-} from "../application/policies/qualified-docs-cohort-v2.js";
+  assertQualifiedDocsCohortBindingV2,
+  QUALIFIED_DOCS_COHORT_V2_PACKAGES,
+  type ConsumerUpgradeAuthorityReader,
+  type ConsumerIntegrationDesiredState,
+  type ConsumerIntegrationDesiredStateV1,
+  type ConsumerUpgradeAuthorityV1,
+  type ConsumerUpgradeAuthorityV2,
+  type QualifiedDocsCohortBindingV1,
+  type QualifiedDocsCohortBindingV2
+} from "../application-api.js";
 import {
   assertCohortAuthorityV2,
   assertCohortEventChainV2
@@ -71,28 +66,63 @@ function string(value: unknown, subject: string): string {
   return value;
 }
 
+async function rejectAuthorityBody(
+  body: Pick<ReadableStream<Uint8Array>, "cancel"> | null,
+  error: ConsumerIntegrationNodeError
+): Promise<never> {
+  try {
+    await body?.cancel(error);
+  } catch (cause) {
+    throw new ConsumerIntegrationNodeError(error.code, error.message, { cause });
+  }
+  throw error;
+}
+
 async function responseBytes(response: Response, subject: string): Promise<Uint8Array> {
   if (!response.ok) {
-    throw new ConsumerIntegrationNodeError(
+    return rejectAuthorityBody(response.body, new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_UNAVAILABLE",
       `${subject} returned HTTP ${response.status}.`
-    );
+    ));
   }
   const declared = Number(response.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAXIMUM_AUTHORITY_BYTES) {
-    throw new ConsumerIntegrationNodeError(
+    return rejectAuthorityBody(response.body, new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
       `${subject} exceeds the authority size limit.`
-    );
+    ));
   }
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength === 0 || bytes.byteLength > MAXIMUM_AUTHORITY_BYTES) {
-    throw new ConsumerIntegrationNodeError(
-      "DOCS_CONSUMER_AUTHORITY_INVALID",
-      `${subject} has invalid or overlong bytes.`
-    );
+  const invalidBytes = new ConsumerIntegrationNodeError(
+    "DOCS_CONSUMER_AUTHORITY_INVALID",
+    `${subject} has invalid or overlong bytes.`
+  );
+  if (response.body === null) {throw invalidBytes;}
+  const reader = response.body.getReader();
+  // Copy into bounded storage; tiny chunks must not create an unbounded object list.
+  let bytes = new Uint8Array(64 * 1024);
+  let byteLength = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {break;}
+      const nextLength = byteLength + value.byteLength;
+      if (nextLength > MAXIMUM_AUTHORITY_BYTES) {
+        return await rejectAuthorityBody(reader, invalidBytes);
+      }
+      if (nextLength > bytes.byteLength) {
+        const capacity = Math.min(MAXIMUM_AUTHORITY_BYTES, Math.max(nextLength, bytes.byteLength * 2));
+        const expanded = new Uint8Array(capacity);
+        expanded.set(bytes.subarray(0, byteLength));
+        bytes = expanded;
+      }
+      bytes.set(value, byteLength);
+      byteLength = nextLength;
+    }
+    if (byteLength === 0) {throw invalidBytes;}
+    return bytes.subarray(0, byteLength);
+  } finally {
+    reader.releaseLock();
   }
-  return bytes;
 }
 
 function timeoutSignal(): AbortSignal {
@@ -390,7 +420,7 @@ export function projectQualifiedCohortAuthority(input: {
   readonly repository: ConsumerIntegrationDesiredState["repository"];
   readonly revision: string;
   readonly restorationBinding?: "origin" | "source";
-}): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
+}, nowMilliseconds = consumerTimeMilliseconds()): ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 {
   if (input.registry["schema_version"] !== 1) {
     throw new ConsumerIntegrationNodeError(
       "DOCS_CONSUMER_AUTHORITY_INVALID",
@@ -416,7 +446,7 @@ export function projectQualifiedCohortAuthority(input: {
   );
   if (input.restorationBinding !== undefined && lifecycle.state === "SUPERSEDED") {
     const until = typeof lifecycle.supportUntil === "string" ? Date.parse(lifecycle.supportUntil) : NaN;
-    if (!Number.isFinite(until) || Date.now() >= until) {
+    if (!Number.isFinite(until) || !Number.isFinite(nowMilliseconds) || nowMilliseconds >= until) {
       throw new ConsumerIntegrationNodeError("DOCS_CONSUMER_COHORT_NOT_SELECTABLE", "Recorded binding support has expired.");
     }
   } else if (!(input.restorationBinding === "source" && lifecycle.state === "SUSPENDED")) {
@@ -433,9 +463,11 @@ export function projectQualifiedCohortAuthority(input: {
 
 export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityReader {
   readonly #fetcher: AuthorityFetch;
+  readonly #now: () => number;
 
-  public constructor(fetcher: AuthorityFetch = globalThis.fetch) {
+  public constructor(fetcher: AuthorityFetch = globalThis.fetch, now: () => number = consumerTimeMilliseconds) {
     this.#fetcher = fetcher;
+    this.#now = now;
   }
 
   public async readRestoration(options: {
@@ -446,12 +478,13 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
     const revision = await resolveAuthorityRevision(this.#fetcher);
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
     const common = { registry, revision, repository: options.repository };
+    const now = this.#now();
     const source = projectQualifiedCohortAuthority({ ...common,
       cohortId: options.source.cohortId, generation: 2, restorationBinding: "source"
-    });
+    }, now);
     const target = projectQualifiedCohortAuthority({ ...common,
       cohortId: options.origin.cohortId, generation: 1, restorationBinding: "origin"
-    });
+    }, now);
     return { source, target };
   }
 
@@ -475,7 +508,7 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
       );
     }
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
-    return projectQualifiedCohortAuthority({ ...options, registry, revision });
+    return projectQualifiedCohortAuthority({ ...options, registry, revision }, this.#now());
   }
 }
 

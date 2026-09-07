@@ -1,16 +1,9 @@
 import { lstat, mkdir, opendir, realpath } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import type {
-  BoundDirectoryCreation,
-  CapturedDirectory,
-  DirectoryCreatePolicy,
-  DirectoryMaterializationProjection,
-  ProjectedDirectory,
-  UnboundDirectoryCreationRecovery
-} from "../../application/model/directory-materialization.js";
-import { DirectoryMutationError } from "../../application/model/directory-materialization.js";
-import type { PortablePathIdentity } from "../../application/model/path-identity.js";
+import { type BoundDirectoryCreation, type CapturedDirectory, type DirectoryCreatePolicy, type DirectoryMaterializationProjection, type ProjectedDirectory, type UnboundDirectoryCreationRecovery, DirectoryMutationError } from "../../application/model/directory-materialization.js";
+
+import type { PortablePathIdentity } from "../../../path-identity.js";
 import {
   portableRepositoryPathIdentity,
   portableRepositoryPathProblem

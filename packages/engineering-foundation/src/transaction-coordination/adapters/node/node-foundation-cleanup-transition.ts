@@ -7,7 +7,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 
-import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../../foundation-state-contract.js";
+import { FOUNDATION_TRANSACTION_CLEANUP_RESIDUE_PREFIX } from "../../application/model/foundation-transaction-identity.js";
 import type {
   OwnedTemporaryCleanupTransition,
   OwnedTemporaryCleanupTransitionPort,

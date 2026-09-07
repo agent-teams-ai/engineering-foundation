@@ -1,7 +1,7 @@
 import {
   compileKnownFileTransactionPlan,
   type KnownFileTransactionOperationInput
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerIntegrationPlanningPorts

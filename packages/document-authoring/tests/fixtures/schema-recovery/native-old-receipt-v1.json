@@ -1,0 +1,20 @@
+{
+  "adapter": {
+    "contractVersion": 1,
+    "id": "foundation.filesystem/v1"
+  },
+  "commit": {
+    "atomicity": "single-file-atomic-create",
+    "publication": "published",
+    "recoverability": "not-required",
+    "state": "committed"
+  },
+  "destination": "docs/decisions/9001-frozen-adr.md",
+  "diagnostics": [],
+  "outcome": "applied",
+  "planDigest": "sha256:cc1ccfa0740503be7ce11394927f5e3e42e1078b2801fd765a1f51b1bedbef37",
+  "protocolVersion": 1,
+  "resultDigest": "sha256:2b5c091fe48891f907aa8ddc27d763af77b8994eef4a45589c086e9992a3671b",
+  "schemaVersion": 1,
+  "receiptDigest": "sha256:6a136decfffc1b1005dbdd75a3cae1d56081a506cb8613b261d59a26bc87e824"
+}

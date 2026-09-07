@@ -1,14 +1,13 @@
 import { lstat, opendir, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { Sha256Digest } from "../../contract/types.js";
+import type {
+  Sha256Digest
+} from "../../application/model/scaffold-values.js";
 import { sha256Json } from "../../kernel/canonical-json.js";
 import { ScaffoldError } from "../../scaffold-error.js";
-import { pathTraversesSymbolicLink } from "../../../filesystem-path-safety.js";
-import {
-  assertRepositoryRelativePath,
-  parseStrictYamlSource
-} from "../../../strict-yaml.js";
+import type { ScaffoldAuthorityObservation } from "../../application/ports/authority-observation.js";
+import { assertScaffoldAuthorityPath } from "../../application/policies/authority-path.js";
 import {
   readContainedRepositoryFile,
   type LoadedRepositoryFile
@@ -55,7 +54,7 @@ function compareStrings(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function parseOwnerFrontmatter(source: string): OwnerDocumentMetadata {
+function parseOwnerFrontmatter(source: string, observation: ScaffoldAuthorityObservation): OwnerDocumentMetadata {
   const normalized = source.replace(/\r\n?/gu, "\n");
   if (!normalized.startsWith("---\n")) {
     throw new ScaffoldError(
@@ -70,7 +69,7 @@ function parseOwnerFrontmatter(source: string): OwnerDocumentMetadata {
       "Authority document YAML frontmatter must have a closing delimiter."
     );
   }
-  const parsed = parseStrictYamlSource(
+  const parsed = observation.parseYaml(
     normalized.slice(4, end),
     "scaffold-owner-document"
   );
@@ -95,8 +94,8 @@ async function listMarkdownFilesInRoot(options: {
   readonly canonicalConsumerRoot: string;
   readonly documentRoot: string;
   readonly budget: AuthorityDocumentTraversalBudget;
-}): Promise<readonly string[]> {
-  assertRepositoryRelativePath(
+}, observation: ScaffoldAuthorityObservation): Promise<readonly string[]> {
+  assertScaffoldAuthorityPath(
     options.documentRoot,
     "scaffold-owner-document-root"
   );
@@ -105,7 +104,7 @@ async function listMarkdownFilesInRoot(options: {
     options.documentRoot
   );
   if (
-    (await pathTraversesSymbolicLink(
+    (await observation.pathTraversesSymbolicLink(
       options.canonicalConsumerRoot,
       absoluteRoot
     )) ||
@@ -177,7 +176,8 @@ async function listMarkdownFilesInRoot(options: {
 
 async function listAuthorityDocumentPaths(
   consumerRoot: string,
-  documentRoots: readonly string[]
+  documentRoots: readonly string[],
+  observation: ScaffoldAuthorityObservation
 ): Promise<readonly string[]> {
   try {
     const normalizedRoots = documentRoots
@@ -206,7 +206,7 @@ async function listAuthorityDocumentPaths(
           canonicalConsumerRoot,
           documentRoot,
           budget
-        }))
+        }, observation))
       );
     }
     paths.sort(compareStrings);
@@ -236,7 +236,7 @@ export async function resolveOwnerDocument(options: {
   readonly consumerRoot: string;
   readonly documentRoots: readonly string[];
   readonly ownerDocumentId: string;
-}): Promise<ResolvedOwnerDocument> {
+}, observation: ScaffoldAuthorityObservation): Promise<ResolvedOwnerDocument> {
   if (!OWNER_DOCUMENT_ID_PATTERN.test(options.ownerDocumentId)) {
     throw new ScaffoldError(
       "SCAFFOLD_INPUT_INVALID",
@@ -245,7 +245,8 @@ export async function resolveOwnerDocument(options: {
   }
   const paths = await listAuthorityDocumentPaths(
     options.consumerRoot,
-    options.documentRoots
+    options.documentRoots,
+    observation
   );
   const index: {
     readonly path: string;
@@ -260,9 +261,10 @@ export async function resolveOwnerDocument(options: {
     const file = await readContainedRepositoryFile(
       options.consumerRoot,
       path,
-      "scaffold-owner-document"
+      "scaffold-owner-document",
+      observation
     );
-    const metadata = parseOwnerFrontmatter(file.source);
+    const metadata = parseOwnerFrontmatter(file.source, observation);
     index.push({ path: file.path, id: metadata.id, status: metadata.status });
     if (metadata.id === options.ownerDocumentId) {
       matches.push({ file, metadata });

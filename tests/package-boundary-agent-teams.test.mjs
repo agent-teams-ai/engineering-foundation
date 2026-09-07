@@ -11,6 +11,8 @@ const repositoryRoot = resolve(import.meta.dirname, "..");
 const repositoryMutationName = "@agent-teams/repository-mutation";
 const docsProtocolAgentTeamsName = "@agent-teams/docs-protocol-agent-teams";
 
+const docsProtocolName = "@agent-teams/docs-protocol";
+
 test("Agent Teams consumer integration is absent from Core and owned by its adapter", async () => {
   const policy = parseYaml(await readFile(join(
     repositoryRoot,
@@ -41,14 +43,13 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
     allow: {
       boundaries: [
         "docs-protocol-agent-teams.application",
-        "docs-protocol-agent-teams.domain",
       ],
       packages: [
         repositoryMutationName,
         "ajv",
-        "ajv-formats",
         "jsonc-parser",
         "yaml",
+        docsProtocolName,
       ],
       builtins: [
         "node:child_process",
@@ -64,13 +65,15 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
     entrypoints: [
       "agents-route-adapter-v1.ts", "consumer-integration-schema-validator.ts",
       "consumer-upgrade-file-projectors.ts", "foundation-known-file-transaction.ts",
-      "github-cohort-authority-reader.ts", "node-consumer-integration-repository.ts",
+      "github-cohort-authority-reader.ts", "inbound/consumer-integration-cli.ts",
+      "inbound/managed-cli.ts", "managed-qualification-input.ts",
+      "node-consumer-integration-repository.ts",
       "node-consumer-restoration.ts", "node-consumer-restoration-finalization.ts",
-      "node-consumer-restoration-evidence.ts",
-      "node-consumer-repository-files.ts", "node-consumer-upgrade-source-proof.ts",
-      "node-consumer-upgrade-sandbox.ts", "package-consumer-asset-catalog.ts",
+      "node-consumer-upgrade-sandbox.ts", "node-consumer-upgrade-target.ts",
+      "package-consumer-asset-catalog.ts",
+      "pnpm-lockfile-validator-v1.ts", "pnpm-lockfile-validator-v2.ts",
       "pnpm-manifest-adapter-v1.ts", "pnpm-manifest-adapter-v2.ts",
-      "pnpm-lockfile-validator-v2.ts", "pnpm-runtime-closure-v1.ts",
+      "pnpm-manifest-planner.ts", "pnpm-runtime-closure-v1.ts",
       "pnpm-runtime-closure-v2.ts",
     ].map((name) => `${adapterRoot}/${name}`),
   });

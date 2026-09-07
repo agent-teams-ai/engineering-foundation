@@ -1,14 +1,11 @@
-import type {
-  ConsumerIntegrationDigest,
-  ConsumerIntegrationFileObservation,
-  QualifiedDocsCohortBindingV2
-} from "../domain/model.js";
-import type { PnpmManifestPlanV1 } from "../application/ports/consumer-integration-planners.js";
 import {
   qualifiedDocsCohortV2DirectPackageEntries,
-  qualifiedDocsCohortV2PackageEntries
-} from
-  "../application/policies/qualified-docs-cohort-v2.js";
+  qualifiedDocsCohortV2PackageEntries,
+  type ConsumerIntegrationDigest,
+  type ConsumerIntegrationFileObservation,
+  type QualifiedDocsCohortBindingV2,
+  type PnpmManifestPlanV1
+} from "../application-api.js";
 import {
   planPnpmManifestTargets,
   projectPnpmManifestCohortTargets

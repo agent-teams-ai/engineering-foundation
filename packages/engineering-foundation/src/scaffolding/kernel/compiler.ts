@@ -1,8 +1,6 @@
 import type {
   ConfiguredDefinition,
   DefinitionRef,
-  JsonObject,
-  JsonValue,
   ScaffoldRenderingCompiler,
   ScaffoldRenderingComposition,
   ScaffoldRenderingCompositionSelection,
@@ -12,9 +10,13 @@ import type {
   ScaffoldRenderingOperation,
   ScaffoldRenderingResolution,
   ScaffoldRenderingTarget,
-  ScaffoldFileContribution,
+  ScaffoldFileContribution
+} from "../application/model/scaffold-compilation.js";
+import type {
+  JsonObject,
+  JsonValue,
   Sha256Digest
-} from "../contract/types.js";
+} from "../application/model/scaffold-values.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import {
   canonicalJson,

@@ -1,3 +1,5 @@
+import { inventory, evidence } from "../packages/engineering-foundation/tests/fixtures/public-api-artifact-fixture.mjs";
+import { writeArtifactBaseline } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
@@ -328,6 +330,10 @@ test("requires explicit non-type export classification in current schema v1", as
       { exportPath: "./package.json", kind: "data" },
     ];
     await writeFile(configPath, stringifyYaml(config, { lineWidth: 0 }), "utf8");
+    assert.equal(check(consumerRoot).report.capabilities[0].problem?.code, "PUBLIC_API_ARTIFACT_BASELINE_MISSING");
+    const [snapshot] = await inventory.inspect(consumerRoot, config.packages);
+    await writeArtifactBaseline({ root: consumerRoot, policy: config.packages[0],
+      snapshot: { ...snapshot, status: "supported" }, mode: "create" }, evidence);
     assert.equal(check(consumerRoot).result.status, 0);
   });
 });

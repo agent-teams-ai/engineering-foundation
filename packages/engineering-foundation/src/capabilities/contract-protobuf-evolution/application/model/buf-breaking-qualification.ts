@@ -1,5 +1,5 @@
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
-import { CapabilityInputError } from "../../../../capability-runtime.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type {
   BufBreakingFinding,
   BufBreakingQualificationBinding,

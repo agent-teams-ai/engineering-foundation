@@ -1,3 +1,4 @@
+import type { KnownFileCoordination } from "./known-file-coordination.js";
 import {
   constants,
   lstat,
@@ -10,23 +11,12 @@ import {
 import { basename, dirname, join } from "node:path";
 
 import type { KnownFileImageV1 } from "../../application/model/known-file-transaction.js";
-import type { KnownFileTransactionJournalV1 } from "../../application/model/known-file-transaction-journal.js";
-import { deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
-import {
-  captureFileHandleIdentity,
-  readBoundedRegularFile,
-  readBoundedRegularFileHandle
-} from "./node-bounded-regular-file.js";
+import { type KnownFileTransactionJournalV1, deserializeKnownFileIdentity } from "../../application/model/known-file-transaction-journal.js";
+
+
 import { syncDirectoryStrictly } from "./node-directory-durability.js";
-import {
-  knownFileErrorCode,
-  knownFileCaptureDirectoryName,
-  knownFileImageBytes,
-  KnownFileTransactionError,
-  matchesKnownFileImage,
-  sameKnownFileIdentity,
-  type ObservedKnownFile
-} from "./node-known-file-transaction-filesystem.js";
+import { knownFileErrorCode, knownFileCaptureDirectoryName, knownFileImageBytes, matchesKnownFileImage, sameKnownFileIdentity, type ObservedKnownFile } from "./node-known-file-transaction-filesystem.js";
+import { KnownFileTransactionError } from "../../application/model/known-file-transaction-error.js";
 
 export function knownFileCapturePaths(options: {
   readonly operationPath: string;
@@ -87,7 +77,7 @@ async function assertCaptureDirectoryIdentity(
   return true;
 }
 
-export async function cleanupCommittedKnownFileCaptures(
+export async function cleanupCommittedKnownFileCaptures(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   root: string,
   journal: KnownFileTransactionJournalV1,
   faultInjector?: (point: {
@@ -120,7 +110,7 @@ export async function cleanupCommittedKnownFileCaptures(
         parent,
         `.${basename(operation.path)}.agent-teams.rollback.${index}.tmp`
       );
-      const rollback = await observeRecoveryFile(rollbackPath, preimage.size);
+      const rollback = await observeRecoveryFile(coordination, rollbackPath, preimage.size);
       if (rollback.state === "file") {
         const expectedRollback = deserializeKnownFileIdentity(
           journalOperation.rollbackTemporaryIdentity
@@ -156,7 +146,7 @@ export async function cleanupCommittedKnownFileCaptures(
         `Committed replacement lacks captured preimage authority: ${operation.path}.`
       );
     }
-    const captured = await readBoundedRegularFile(
+    const captured = await coordination.readBoundedRegularFile(
       paths.captured,
       operation.precondition.acceptedPreimages[journalOperation.matchedPreimage]!.size
     );
@@ -190,13 +180,13 @@ export async function cleanupCommittedKnownFileCaptures(
   }
 }
 
-export async function observeRecoveryFile(
+export async function observeRecoveryFile(coordination: Pick<KnownFileCoordination, "readBoundedRegularFile">,
   path: string,
   maximumBytes: number
 ): Promise<ObservedKnownFile> {
   let observed;
   try {
-    observed = await readBoundedRegularFile(path, maximumBytes);
+    observed = await coordination.readBoundedRegularFile(path, maximumBytes);
   } catch (error) {
     if (knownFileErrorCode(error) === "ENOENT") {return { state: "absent" };}
     throw error;
@@ -215,19 +205,19 @@ export async function observeRecoveryFile(
   };
 }
 
-export async function prepareRollbackTemporary(options: {
+export async function prepareRollbackTemporary(coordination: Pick<KnownFileCoordination, "captureFileHandleIdentity" | "readBoundedRegularFile" | "readBoundedRegularFileHandle">, options: {
   readonly expectedIdentity?: ReturnType<typeof deserializeKnownFileIdentity>;
   readonly operationPath: string;
   readonly path: string;
   readonly preimage: KnownFileImageV1;
-}): Promise<Awaited<ReturnType<typeof captureFileHandleIdentity>>> {
+}): Promise<Awaited<ReturnType<KnownFileCoordination["captureFileHandleIdentity"]>>> {
   let handle: FileHandle;
   let rollbackIdentity;
   let created = false;
   try {
     handle = await open(options.path, "wx", 0o600);
     created = true;
-    rollbackIdentity = await captureFileHandleIdentity(handle);
+    rollbackIdentity = await coordination.captureFileHandleIdentity(handle);
   } catch (error) {
     if (knownFileErrorCode(error) !== "EEXIST") {throw error;}
     if (options.expectedIdentity === undefined) {
@@ -239,7 +229,7 @@ export async function prepareRollbackTemporary(options: {
     const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
     handle = await open(options.path, constants.O_RDWR | noFollow);
     try {
-      const stale = await readBoundedRegularFileHandle(
+      const stale = await coordination.readBoundedRegularFileHandle(
         handle,
         options.path,
         options.preimage.size
@@ -253,7 +243,7 @@ export async function prepareRollbackTemporary(options: {
           `Rollback temporary is foreign or modified: ${options.operationPath}.`
         );
       }
-      rollbackIdentity = await captureFileHandleIdentity(handle);
+      rollbackIdentity = await coordination.captureFileHandleIdentity(handle);
       if (!sameKnownFileIdentity(rollbackIdentity, stale.identity) ||
         !sameKnownFileIdentity(rollbackIdentity, options.expectedIdentity)) {
         throw new KnownFileTransactionError(
@@ -294,7 +284,7 @@ export async function prepareRollbackTemporary(options: {
   } else {
     await handle.close();
   }
-  const prepared = await readBoundedRegularFile(options.path, options.preimage.size);
+  const prepared = await coordination.readBoundedRegularFile(options.path, options.preimage.size);
   if (prepared.outcome !== "read" ||
     !sameKnownFileIdentity(prepared.identity, rollbackIdentity) ||
     !matchesKnownFileImage({

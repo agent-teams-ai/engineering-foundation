@@ -1,7 +1,10 @@
+import { createNodeDocumentAuthority } from "../../packages/document-authoring/dist/document-authoring/module.js";
+import { FilesystemMarkdownRepository, readContainedRegularFile, readMarkdownSyntax } from "../../packages/document-authoring/dist/documentation-observation/module.js";
 import { readFile } from "node:fs/promises";
 
-import { applyNodeDocumentationPlanPrivately } from "../../packages/document-authoring/dist/composition/node-document-writing-private.js";
+import { applyNodeDocumentationPlan as applyNodeDocumentationPlanWithAuthority } from "../../packages/document-authoring/dist/document-authoring/adapters/node/node-document-writing.js";
 
+const observation = { repository: new FilesystemMarkdownRepository(), readFile: readContainedRegularFile, syntax: readMarkdownSyntax };
 const [consumerRoot, planPath, checkpoint = "none"] = process.argv.slice(2);
 if (consumerRoot === undefined || planPath === undefined) {
   throw new Error("Expected consumer root and Plan path.");
@@ -49,3 +52,5 @@ try {
   });
   process.exitCode = 1;
 }
+
+function applyNodeDocumentationPlanPrivately(request, operations) { return applyNodeDocumentationPlanWithAuthority(request, createNodeDocumentAuthority(observation), operations); }

@@ -37,12 +37,17 @@ pnpm spike:source-parser
 
 ## Findings
 
-- Both parsers match the independent expected model on all nine shared cases.
+- Both parsers match the independent expected model on all nine shared cases
+  in the 2026-09-05 A1 corpus. This standalone syntax spike remains isolated from
+  Foundation internals; its TypeScript oracle uses the compiler binder. The
+  dedicated loader tests exercise production lexical/alias/base behavior against
+  independent expectations.
 - Oxc accepts source-phase imports that TypeScript 6 reports as malformed.
 - Non-literal dynamic imports and `require` calls remain unresolved and fail
   closed; parser errors discard partial edges.
-- A shadowed string-literal `require` is conservatively treated as an edge. Scope
-  analysis is outside the parser adapter's responsibility.
+- A1 corrects the original conservative shadowed-`require` finding: lexical
+  user bindings are preserved. `module.require`, require aliases, and builtin
+  `createRequire` origins are now observed.
 - On an Apple Silicon development host, the complete Oxc parse, AST transfer,
   visit, and normalization path was about 24-26% slower than the TypeScript 6
   path for the small, medium, and large synthetic profiles. The difference is
@@ -51,6 +56,71 @@ pnpm spike:source-parser
 - TypeScript 7 does not expose the established Compiler API from its stable root
   export. Depending on `typescript/unstable/*` would make the architecture gate
   depend on an intentionally unstable API.
+
+## A1 bounded loader contract (2026-09-05)
+
+| Syntax and lexical origin | Base and observation |
+| --- | --- |
+| Unshadowed `require` and ordinary require aliases; `module.require` calls retaining the module receiver, including receiver aliases and static string members | Importer; commonjs edge for a literal argument |
+| Detached `module.require` through an identifier, destructuring or sequence | Unresolved commonjs; receiver-dependent base is unknown |
+| Named/default/namespace `module` or `node:module` imports; CommonJS or TS import-equals builtin namespaces | Factory provenance through `createRequire` |
+| Unshadowed/builtin-imported `process.getBuiltinModule` | Builtin edge for a known literal builtin; otherwise unresolved |
+| Proven `createRequire(import.meta.url)` call or alias | Importer; commonjs edge |
+| Proven factory with any other filename, URL or expression | Unresolved commonjs; never guessed relative to the importer |
+| Written loader bindings, default/conditional/logical aliases, known `.call`/`.apply` calls and `.bind` results | Unresolved commonjs; finite provenance, without flow execution |
+| Body `var` redeclaring a parameter with a possible loader default | Preserve parameter provenance as unresolved commonjs; body and parameter bindings remain separate |
+| `.cjs`/`.cts` wrapper `var require` or `var module`, without an initializer or writes | Retain the wrapper loader; ordinary calls have importer-relative edges, detached methods remain unresolved |
+| Script-only `.js`/`.jsx`/`.ts`/`.tsx` wrapper-name `var` declarations, including TypeScript with only erased module declarations | Execution mode is unavailable at the parser port; possible CommonJS origin stays unresolved |
+| User parameters, locals, imports and ambient value declarations | No Node identity; type-only bindings do not shadow runtime values |
+
+Namespace-member destructuring preserves the selected origin, including the
+receiver uncertainty of a detached module method. Native Node 24.18.0 resolves
+the same detached relative load differently when cwd changes; it cannot be
+represented by an importer-relative edge. Calls retaining the receiver and
+ordinary require aliases preserve their base under that same cwd change. Lexical
+collection covers function/parameter, block, loop, catch, switch, class and
+TypeScript namespace scopes; `var` hoisting and default-parameter scope are
+separate. A body `var` receives the parameter's possible value without allowing
+body assignments to rewrite parameter-default closures. An unrelated outer
+binding never initializes a function's plain `var`. Namespace aliases share
+conservative member-write evidence. Mixed or
+cyclic alias origins do not erase known loader possibilities. String locations
+and parse-error discard remain unchanged.
+
+Explicit `.mjs`/`.mts` and runtime ESM syntax give wrapper-name `var` declarations
+local identity. Type-only imports/exports and exported ambient declarations are
+erased by native TypeScript stripping and cannot prove ESM execution; Oxc's
+syntactic module classification alone is insufficient. Runtime import/export
+declarations, `import.meta` and top-level await remain ESM syntax; await inside a
+function does not select the file's execution mode. Lexical `let`/`const`, nested function `var`, and TypeScript
+ambient value declarations also shadow the ambient names. Declaration files
+provide no CommonJS wrapper initialization. The parser receives a filename and
+source, not package metadata or compiler settings: script-only filenames cannot
+establish execution mode, and unbound Node names retain the existing conventional
+loader interpretation without proving that the runtime supplies them.
+
+Assignments and initialized wrapper/body redeclarations retain any prior possible
+loader origin conservatively. Even a reset to a user function remains unresolved
+when this finite analysis has seen a loader; it does not execute control flow to
+prove that the reset precedes every call. Paired native controls demonstrate that
+such a reset can avoid loading at runtime, while independent local declarations
+and writes with no loader provenance produce no loader evidence.
+
+All opaque observations use the existing normalized unresolved-reference model.
+The owning consumer's explicit `runtimeReferences` allowance remains effective;
+only the matching kind permits it. Accepted opacity stays graph evidence and
+creates no invented edge. The existing
+diagnostic rule is `unresolved-runtime-reference`, including unrepresentable
+bases. This contract does not infer loaders returned from arbitrary user
+functions, stored in containers, selected through dynamic properties, passed
+through arbitrary higher-order functions, or created by eval. It does not claim
+complete analysis of JavaScript execution. Native Node fixtures independently
+prove that identical specifiers under different bases can target different bytes.
+
+Dedicated loader tests exercise the complete installed CLI under schema v1 and
+v2, including allowed/forbidden edges, runtime/type-only cycles, scoped exceptions,
+and unchanged consumer bytes. Registry installation and release qualification
+remain separate coordinator gates.
 
 ## Recommendation
 

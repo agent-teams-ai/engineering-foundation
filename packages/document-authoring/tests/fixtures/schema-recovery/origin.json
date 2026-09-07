@@ -1,0 +1,33 @@
+{
+  "historicalArtifact": {
+    "name": "@agent-teams/engineering-foundation",
+    "version": "0.21.0",
+    "archiveSha256": "2bba329d67d5716da3ef9dd626b410d88b22c4006b56c1fe4a05984e8ed3765c",
+    "buildIdentity": "sha256:d3b1ac92a741f22bc6ed971310008700d3f89b170a3cabbb317cb09597e639a0"
+  },
+  "source": "Retained native writer corpus from schema-disposition; current-document-envelope files are historical kernel-less candidate evidence, not current contracts.",
+  "sha256": {
+    "old-document-plan-v1.json": "d2f5b3f44bfe69a0bddaba201d430fef913e6d641ad6191e129e7e036e8e20a5",
+    "old-document-plan-v2.json": "89135cb8e78694bdf3398e090b8ffa82820648a6fe54d0e369d2f64575982076",
+    "old-document-envelope-v1.json": "78b0cd4f9a10007d3582c8dd99acb86e8ccd48ec2c980dc05011c52c2509c563",
+    "old-document-envelope-v2.json": "da93f76df917b8fabe93afbf0f6d1cfe50763686b7ddc5229f41d2f1751df73e",
+    "current-document-envelope-v1.json": "8e25e7a2f1beb4bc7a63bd5315c3761a3021c7b76dd429df8ee4c0e0ba6ba65a",
+    "current-document-envelope-v2.json": "33d0e22e082019083be35ec4538191bf241ad46d77bedacbde44e0c78d5cfe6d",
+    "native-old-receipt-v1.json": "4b0fc23e2ec273490e603ea589c35a9fbfaf68153d3244faf3954d60007d700a",
+    "native-old-receipt-v2.json": "488966106be1e9d33b653e7266adb9ec05d01bd6030218076202544fde4cdc7a",
+    "native-old-plan-v1.json": "5b33a253101b538c032d12eca6a056b1bf3554e0605827ee67c42a21ce22e742",
+    "native-old-plan-v2.json": "b1a29333a6844b5735b0d56b531613a0e7281f34db708bc1312a7e54ffa5fdae",
+    "native-old-envelope-v1.json": "77a09bfcf0c2ec3e3982adb172a0a75b4677a996deff379633ba0061a1788de9",
+    "native-old-envelope-v2.json": "bfd15ff03077db0701b5ba72aa08414e0adb9657c8cf3c29194690b64ba80fe5"
+  },
+  "frozenSchemaSha256": {
+    "document-intent/v1": "4ffee43f8f65524178dd47d4be225a4ffbdfff1627a2206a47ff5b47959b5d79",
+    "document-plan/v1": "ff7a9c57837454ea8807b0c7459ea3bb796bf0ea8cafdeee261fccaea3e00397",
+    "document-plan/v2": "73437548ad22cca5e7ef88e379e583a39549b42ddeaee86721cd50bb1d604939",
+    "document-receipt/v1": "d5e508012eb75afe2cc0f85e0c6c2da4ddb4121da23236d3238856c9748ef40f",
+    "document-receipt/v2": "92a7834a132d47c9e03885fa128dc6b6f3c284896c4f72cebb6190911ecc429a",
+    "foundation-transaction-envelope/v3": "26734b3ee0997a8db9659f801015ce5bbd955443d49aba26e10f932accbcbc9f",
+    "foundation-transaction-envelope/v4": "ab37421d4672885774b43ba1f8310ad7fb044c0e6e7a1ae359ca2a1bbea18224"
+  },
+  "nativeReproduction": "native-old-* files were produced in disposable fixtures by the SHA-256 verified Foundation 0.21.0 archive on Node 24.18.0 with exact preinstalled dependency versions. Envelope bytes were captured at the native durable PUBLISHING checkpoint. Current Authoring refused unchanged evidence; exact Foundation recovered and replayed both generations."
+}

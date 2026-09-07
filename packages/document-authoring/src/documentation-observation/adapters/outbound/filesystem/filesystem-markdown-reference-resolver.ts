@@ -1,6 +1,6 @@
 import { extname, resolve } from "node:path";
 
-import { assertNotCancelled } from "../../../../strict-yaml.js";
+import { assertNotCancelled } from "../../../application/policies/cancellation.js";
 import type { MarkdownReferenceResolution } from "../../../application/model/markdown-document.js";
 import type { ResolveMarkdownReferenceRequest } from "../../../application/ports/markdown-repository.js";
 import { FilesystemMarkdownDocumentReader } from "./filesystem-markdown-document-reader.js";

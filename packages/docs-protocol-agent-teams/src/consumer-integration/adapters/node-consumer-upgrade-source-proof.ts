@@ -3,13 +3,11 @@ import { rm } from "node:fs/promises";
 import { isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
 
 import type {
-  ConsumerUpgradeManagedPreimagesV2
-} from "../application/ports/consumer-upgrade.js";
-import type {
+  ConsumerUpgradeManagedPreimagesV2,
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationSnapshot
-} from "../domain/model.js";
+} from "../application-api.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import {
   INTEGRATION_PROFILE_PATH,

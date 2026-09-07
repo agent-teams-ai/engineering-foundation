@@ -1,0 +1,13 @@
+{
+  "originalBase": "588a50d99fcb02dce5389407ebd5eba9d901b6b3",
+  "sources": {
+    "v3.schema.json": "packages/docs-protocol/schemas/docs-protocol-profile/v3.schema.json",
+    "valid-profile.yaml": "packages/docs-protocol/tests/fixtures/valid-profile.yaml"
+  },
+  "generatedWith": "Original-base pure parser, transpiled by installed esbuild 0.28.2; no checkpoint implementation used.",
+  "sha256": {
+    "v3.schema.json": "50e3b1af16d183db5f18334a8aec9128a19c4fa9bebe56aa22a4a2823395f27f",
+    "valid-profile.yaml": "8f59d87cff9026a808f40af309f9f331d5e55fbe1f2b1c5f5031ecda1b6a5bd2",
+    "parse-cases.json": "6c436329edf2bca312263f4d5708d1e1fae86a1abc264b8b9b6349457f051ffc"
+  }
+}

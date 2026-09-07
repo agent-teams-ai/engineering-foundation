@@ -57,22 +57,33 @@ templates and indexes, a documentation Skill, and one marker-bounded route in
 `AGENTS.md`. It does not edit a package manifest, lockfile, workflow, or existing
 create-only target. A changed preimage requires a fresh preview.
 
-The generated `docs.config.yaml` is discovered automatically:
+The generated `docs.config.yaml` is discovered automatically. Preview a decision:
 
 ```bash
-docs-protocol find "tenant isolation" --fuzzy
-docs-protocol context "tenant isolation" --fuzzy --max-documents 12
-docs-protocol new --type tutorial --id docs.tutorial.first-run \
-  --title "First run" --owner documentation/team \
-  --summary "Complete the first successful run." --dry-run
-docs-protocol check
+docs-protocol new --type adr --id ADR-0001 --title "Portable documentation" \
+  --owner documentation/team --summary "Adopt portable documentation." \
+  --dry-run --json
 ```
 
-Use the same explicit `new` inputs with `--apply` only after reviewing the
-preview. Fuzzy ranking and context are disposable advice; identity, metadata,
-paths, collision checks, and writes always come from the canonical catalog.
-The public Node API exposes the same info/find/context/new/check and portable
-init plan/apply/recover behavior without a terminal.
+Review its compiled bytes, then apply the **new-document** preview digest:
+
+```bash
+docs-protocol new --type adr --id ADR-0001 --title "Portable documentation" \
+  --owner documentation/team --summary "Adopt portable documentation." \
+  --apply --expect sha256:NEW_PLAN_DIGEST_FROM_PREVIEW --json
+```
+
+Add the returned `markdownLink` to the returned `indexPath`, then verify:
+
+```bash
+docs-protocol find "portable documentation" --fuzzy --json
+docs-protocol context "portable documentation" --fuzzy --max-documents 12 --json
+docs-protocol check --json
+```
+
+Fuzzy ranking and context are disposable advice; identity, metadata, paths,
+collision checks, and writes come from the canonical catalog. The public Node
+API exposes the same operations without a terminal.
 
 See the [community workflow](https://github.com/agent-teams-ai/engineering-foundation/blob/main/docs/reference/open-source-docs-protocol.md)
 for the complete safety contract.
@@ -84,7 +95,15 @@ production `dependencies`. The portable profile is `docs.config.yaml`; override
 it explicitly with `--profile` and override the repository with `--consumer`.
 
 `new` requires exactly one of `--dry-run` or `--apply`. Preview never reserves
-an ID or writes. Apply creates only the planned document and reports the exact
+an ID or writes. For reviewed Apply, pass its `planDigest` as `--expect` (Node:
+`DocsNewRequest.expectedPlanDigest`). Malformed digests return `invalid-input`
+(exit 2); a different compiled Plan returns `authority-stale` (exit 1). Both
+have no mutation effects. `--expect` is valid only with `--apply`. Explicit
+direct `--apply` without `--expect` compiles and applies current authority;
+it does not claim approval of an earlier preview. Matching the digest still
+requires current profile policy, authority, anchors, and transaction checks.
+
+Apply creates only the planned document and reports the exact
 index path and Markdown link; it never edits an index.
 Every authoring request selects Document Authoring's closed
 `create-missing-real-directories` policy. The resulting Plan v2 may create only
@@ -104,7 +123,8 @@ v1 vocabulary. Repeat `--code-anchor` with one strict JSON value. Repeat
 
 ## Profile routing
 
-The portable v3 protocol profile routes to a Document Authoring profile v3.
+Portable profile v4 routes to a Document Authoring profile v3. Existing portable
+profile v3 remains readable with its historical semantics.
 Document Authoring alone loads inline frontmatter and any declared metadata
 sidecar, performs the strict path-to-full-metadata merge, validates the final
 instance, and exposes a bounded inert metadata projection. Docs Protocol never
@@ -114,13 +134,27 @@ The referenced Document Authoring profile is the only authority for authorable
 types, identity, placement, heading, owners, required metadata, and explicit
 reachability. `not-required` requires a human-readable reason; omission is
 invalid. The Docs Protocol profile contains only routing, protocol identity,
-the agent Skill route, and opaque semantic validator IDs.
+the agent Skill route, opaque semantic validator IDs, and v4's required data-only
+`relations.blockers` policy. Its `types` and `statuses` admit blocker targets;
+`subjectIncompatibleStatuses` forbids blockers on those subject states. Starter
+v4 data permits proposed ADR/Diataxis blockers; consumers choose their own
+vocabulary. [Profile v4 migration](docs/profile-v4.md) records wire identities,
+frozen v3 compatibility, portable path rules, migration and rollback.
+
+Metadata JSON Schema `format` is an annotation: Document Authoring uses
+`validateFormats: false`. It does not assert URI, date, or other format validity.
+Use explicit supported schema constraints when validity is required.
+The [data-only feature example](docs/feature-module-example.md) demonstrates
+consumer-owned DDD/Clean boundaries using the existing source policy schema.
 
 The portable JSON schemas are exported under
 `@agent-teams/docs-protocol/schemas/*`.
 Machine output uses one JSON envelope with protocol ID/version and stable exit
-codes: `0` success, `1` violation/conflict/recovery, `2` invalid input, `3`
+codes: `0` success, `1` violation/conflict/stale/recovery, `2` invalid input, `3`
 execution failure, and `130` cancellation.
+Human `--help`, subcommand `--help`, and `--version` use stdout and exit 0.
+With `--json`, help/version return a schema-valid invocation error on stdout,
+exit 2, and empty stderr; their human text has no JSON success contract.
 Generic v1/v2 commands retain their existing envelope shapes. Portable
 `init`, bounded `context`, and opt-in fuzzy `find` use the additive v3 envelope;
 default exact `find` remains v2. Consumers must dispatch on `schemaVersion` and

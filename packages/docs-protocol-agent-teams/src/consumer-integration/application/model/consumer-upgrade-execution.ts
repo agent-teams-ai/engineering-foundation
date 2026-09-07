@@ -1,6 +1,6 @@
 import type {
   KnownFileTransactionReceiptV1
-} from "@agent-teams/repository-mutation";
+} from "@agent-teams/repository-mutation/known-file";
 
 import type {
   ConsumerIntegrationDigest,

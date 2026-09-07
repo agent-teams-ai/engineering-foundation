@@ -15,10 +15,10 @@
     "build": "tsc --build tsconfig.json --pretty false",
     "buf-qualification:e2e": "pnpm build && node scripts/buf-qualification-e2e.mjs",
     "buf-qualification:e2e:built": "node scripts/buf-qualification-e2e.mjs",
-    "check": "pnpm docs:terminology:check && pnpm lint && pnpm typecheck && pnpm foundation:check:built && pnpm release-owned-files:check && pnpm architecture:patterns && pnpm architecture:patterns:test && pnpm nx:graph:check && pnpm test:built && pnpm test:coverage:built && pnpm package:check:built",
+    "check": "pnpm quality:scope:check && pnpm docs:terminology:check && pnpm lint && pnpm typecheck && pnpm foundation:check:built && pnpm release-owned-files:check && pnpm architecture:patterns && pnpm architecture:patterns:test && pnpm nx:graph:check && pnpm test:built && pnpm test:coverage:built && pnpm package:check:built && pnpm architecture:features:check",
     "verify": "pnpm security:workflows && pnpm check && pnpm buf-qualification:e2e:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e && pnpm dead-code:check && pnpm parser-spike:check",
     "check:changed": "pnpm build && node packages/engineering-foundation/dist/cli.js agent-workflow changed --consumer .",
-    "check:fast": "pnpm docs:terminology:check && pnpm release-graph:check && pnpm test:manifests:check && pnpm lint:fast && pnpm typecheck",
+    "check:fast": "pnpm docs:terminology:check && pnpm release-graph:check && pnpm test:manifests:check && pnpm lint:fast && pnpm typecheck && pnpm quality:scope:check && pnpm architecture:features:check",
     "changeset": "changeset",
     "changeset:coverage": "node scripts/check-changeset-coverage.mjs",
     "clean": "node scripts/clean.mjs",
@@ -30,7 +30,7 @@
     "lint": "pnpm lint:fast && pnpm lint:typed",
     "lint:fast": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config .",
     "lint:fast:files": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config",
-    "lint:typed": "oxlint --config .oxlintrc.type-aware.json --deny-warnings --disable-nested-config packages/engineering-foundation/src",
+    "lint:typed": "node scripts/check-production-quality.mjs typed",
     "lint:typed:files": "oxlint --config .oxlintrc.type-aware.json --deny-warnings --disable-nested-config",
     "quality:gate:fast": "pnpm build && node packages/engineering-foundation/dist/cli.js gate run fast --consumer .",
     "architecture:patterns": "node scripts/run-ast-grep.mjs scan --config sgconfig.yml --error=unused-suppression",
@@ -63,7 +63,10 @@
     "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
     "test:qgr:lifecycle:built": "node --test --test-concurrency=1 tests/quality-gate-runner.test.mjs tests/quality-gate-runner-lifecycle.test.mjs tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs tests/quality-gate-runner-remediation.test.mjs",
     "test:shard:built": "node scripts/run-test-shard.mjs",
-    "typecheck": "tsc --build tsconfig.json --pretty false"
+    "typecheck": "tsc --build tsconfig.json --pretty false",
+    "quality:scope:check": "node scripts/check-production-quality.mjs",
+    "architecture:features:check": "pnpm build && node scripts/check-feature-modules.mjs",
+    "architecture:features:plan": "node scripts/check-feature-modules.mjs plan"
   },
   "devDependencies": {
     "@ast-grep/cli": "catalog:",

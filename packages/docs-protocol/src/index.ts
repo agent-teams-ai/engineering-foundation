@@ -1,21 +1,18 @@
-export { renderDocsHumanV2, renderDocsHumanV3, runDocsCli } from "./composition/cli.js";
 export {
-  docsContextV1,
-  docsCheckV2,
-  docsDoctorV2,
-  docsFindV2,
-  docsFindV3,
-  docsInfoV2,
-  docsNewV2,
-  docsProfilePath,
-  docsRecoverV2
-} from "./composition/node-docs-api.js";
-export type { DocsConsumerRequest } from "./composition/node-docs-api.js";
+  renderDocsHumanV2,
+  renderDocsHumanV3,
+  runDocsCli
+} from "./features/docs-command/index.js";
+export { docsContextV1, docsCheckV2, docsDoctorV2, docsFindV2, docsFindV3, docsInfoV2, docsNewV2, docsProfilePath, docsRecoverV2 } from "./features/docs-command/sdk.js";
+export { DOCS_PROTOCOL_ID, DOCS_PROTOCOL_VERSION, validatePortableRepositoryPath, validatePortableRepositoryPathV2, CommunityContextError, projectCommunityLlmsText, rankCommunityDocuments, CommunityMiniSearchIndex, createCommunityMiniSearchIndex } from "./features/portable-documentation/sdk.js";
+export type { DocsConsumerRequest, DocsCommandEnvelopeV2, DocsExecutionV2, DocsCommandEnvelopeV3, DocsExecutionV3 } from "./features/docs-command/sdk.js";
+export type { DocsDiagnostic } from "./features/docs-command/contracts/command.js";
+export type { DocsCommandOutcome, DocsCodeAnchor, DocsFindDocument, DocsFindQuery, DocsNewResult, DocsReceiptOutcome, DocsNewRequest, DocsTypeProfile, ReachabilityAction, DocsCommandV2, DocsCompiledDocumentV1, DocsJsonValueV2, DocsNewResultV2, DocsProtocolProfileV3, DocsProtocolProfileV4, DocsBlockerPolicy, DocsCommandV3, DocsContextLimitsV1, DocsContextRequestV1, DocsContextResultV1, DocsContextSelectionV1, DocsFindQueryV3, DocsFindResultV3, CommunityContextCatalog, CommunityContextLimits, CommunityLlmsTextInput, CommunityLlmsTextProjection, CommunityRankedDocument, CommunitySearchHit, CommunitySearchIndex, CommunitySearchRecord, EffectiveCommunityContextLimits, RankCommunityDocumentsInput } from "./features/portable-documentation/sdk.js";
 export {
   docsInitApply,
   docsInitPlan,
   docsInitRecover
-} from "./composition/node-docs-bootstrap-api.js";
+} from "./features/portable-bootstrap/sdk.js";
 export type {
   DocsInitApplyResult,
   DocsInitApplyRequest,
@@ -28,59 +25,4 @@ export type {
   DocsInitRecovery,
   DocsInitRecoveryRequired,
   DocsInitRequest
-} from "./composition/node-docs-bootstrap-api.js";
-export {
-  DOCS_PROTOCOL_ID,
-  DOCS_PROTOCOL_VERSION
-} from "./domain/model.js";
-export { validatePortableRepositoryPath } from "./domain/profile-policy.js";
-export type {
-  DocsCommandOutcome,
-  DocsCodeAnchor,
-  DocsDiagnostic,
-  DocsFindDocument,
-  DocsFindQuery,
-  DocsNewResult,
-  DocsNewRequest,
-  DocsTypeProfile,
-  ReachabilityAction
-} from "./domain/model.js";
-export type {
-  DocsCommandEnvelopeV2,
-  DocsCommandV2,
-  DocsCompiledDocumentV1,
-  DocsExecutionV2,
-  DocsJsonValueV2,
-  DocsNewResultV2,
-  DocsProtocolProfileV3
-} from "./domain/model-v2.js";
-export type {
-  DocsCommandEnvelopeV3,
-  DocsCommandV3,
-  DocsContextLimitsV1,
-  DocsContextRequestV1,
-  DocsContextResultV1,
-  DocsContextSelectionV1,
-  DocsExecutionV3,
-  DocsFindQueryV3,
-  DocsFindResultV3
-} from "./domain/model-v3.js";
-export {
-  CommunityContextError,
-  CommunityMiniSearchIndex,
-  createCommunityMiniSearchIndex,
-  projectCommunityLlmsText,
-  rankCommunityDocuments
-} from "./community/context/index.js";
-export type {
-  CommunityContextCatalog,
-  CommunityContextLimits,
-  CommunityLlmsTextInput,
-  CommunityLlmsTextProjection,
-  CommunityRankedDocument,
-  CommunitySearchHit,
-  CommunitySearchIndex,
-  CommunitySearchRecord,
-  EffectiveCommunityContextLimits,
-  RankCommunityDocumentsInput
-} from "./community/context/index.js";
+} from "./features/portable-bootstrap/sdk.js";

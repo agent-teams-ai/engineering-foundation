@@ -1,4 +1,9 @@
-import type { JsonValue, ScaffoldPlan } from "../contract/types.js";
+import type {
+  JsonValue
+} from "../application/model/scaffold-values.js";
+import type {
+  ScaffoldPlan
+} from "../application/model/scaffold-compilation.js";
 import { ScaffoldError } from "../scaffold-error.js";
 import { sha256Bytes, sha256Json } from "./canonical-json.js";
 import {

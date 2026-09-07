@@ -46,3 +46,24 @@ test("portable command schemas reject managed commands structurally", async () =
     assert.equal(schema.properties.command.enum.includes("docs.qualify"), false);
   }
 });
+
+test("portable application projections depend on data ports rather than provider adapters", async () => {
+  const root = join(packageRoot, "src/features/portable-documentation");
+  const core = await files(join(root, "application"));
+  for (const path of core) {
+    const source = await readFile(path, "utf8");
+    assert.doesNotMatch(source, /from ["'](?:yaml|minisearch|node:fs(?:\/promises)?|.*\/adapters\/|.*\/composition\/|.*\/contracts\/)/u, path);
+  }
+  for (const path of await files(join(root, "domain"))) {
+    assert.doesNotMatch(await readFile(path, "utf8"), /from ["'](?:@agent-teams\/document-authoring|.*\/application\/|.*\/adapters\/)/u, path);
+  }
+  const bootstrap = await files(join(packageRoot, "src/features/portable-bootstrap/application"));
+  for (const path of bootstrap) {
+    assert.doesNotMatch(await readFile(path, "utf8"), /from ["'](?:node:fs(?:\/promises)?|@agent-teams\/repository-mutation|.*\/adapters\/)/u, path);
+  }
+  for (const relative of [
+    "application/compiled-output-reader.ts", "application/authoring-observation.ts"
+  ]) {
+    assert.doesNotMatch(await readFile(join(root, relative), "utf8"), /:\s*(?:Buffer|FileHandle|BigIntStats)\b/u);
+  }
+});

@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   prepareRegistryDocsProtocolMcpFixture,
 } from "../scripts/registry-docs-protocol-mcp-e2e.mjs";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -16,6 +18,19 @@ function successfulCheck() {
     result: { valid: true },
   };
 }
+
+test("Windows fixture loads the built renderer and passes the real read-only check", async (t) => {
+  const consumerRoot = await realpath(await mkdtemp(join(tmpdir(), "registry-renderer-test-")));
+  t.after(() => rm(consumerRoot, { recursive: true, force: true }));
+  const installedDocsRoot = join(repositoryRoot, "packages", "docs-protocol");
+  const result = await prepareRegistryDocsProtocolMcpFixture({
+    consumerRoot,
+    installedDocsRoot,
+    docsCli: join(installedDocsRoot, "dist", "cli.js"),
+  }, { platform: "win32" });
+  assert.equal(result.documentId, "docs.tutorials.index");
+  assert.match(await readFile(join(consumerRoot, "AGENTS.md"), "utf8"), /docs/iu);
+});
 
 test("win32 registry fixture uses installed package assets without init or new apply", async () => {
   const calls = [];

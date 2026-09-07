@@ -476,16 +476,17 @@ async function nativeTypeScriptCtsResolution(exports) {
       writeFile(join(packageRoot, "dist", "import.d.mts"), "declare const value: 1; export default value;\n", "utf8"),
       writeFile(join(packageRoot, "dist", "require.d.cts"), "declare const value: 1; export = value;\n", "utf8"),
       writeFile(join(consumerRoot, "app.cts"), 'import value = require("@fixture/oracle");\nexport = value;\n', "utf8"),
+      writeFile(join(consumerRoot, "tsconfig.json"), JSON.stringify({
+        compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", noEmit: true },
+        files: ["app.cts"],
+      }), "utf8"),
     ]);
     return spawnSync(
       process.execPath,
       [
         join(process.cwd(), "node_modules", "typescript", "lib", "tsc.js"),
-        "--module", "NodeNext",
-        "--moduleResolution", "NodeNext",
-        "--noEmit",
+        "--project", join(consumerRoot, "tsconfig.json"),
         "--pretty", "false",
-        join(consumerRoot, "app.cts"),
       ],
       { cwd: consumerRoot, encoding: "utf8" },
     );

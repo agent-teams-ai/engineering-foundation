@@ -1,9 +1,10 @@
-import { readAcceptedArchitectureDecisionEvidence } from "../../../../governance-architecture-decisions/module.js";
 import type {
+  AcceptedArchitectureDecisionReader,
   AcceptedDecisionEvidence,
   AcceptedDecisionEvidencePort,
   ReadAcceptedDecisionEvidenceInput
 } from "../../../application/ports/accepted-decision-evidence.js";
+
 
 /**
  * Anti-corruption layer for immutable architecture-decision governance. A
@@ -14,10 +15,12 @@ import type {
 export class GovernanceAcceptedDecisionEvidenceAcl
   implements AcceptedDecisionEvidencePort
 {
+  constructor(private readonly readAcceptedArchitectureDecisionEvidence: AcceptedArchitectureDecisionReader) {}
+
   async readAcceptedDecisionEvidence(
     input: ReadAcceptedDecisionEvidenceInput
   ): Promise<AcceptedDecisionEvidence> {
-    const evidence = await readAcceptedArchitectureDecisionEvidence({
+    const evidence = await this.readAcceptedArchitectureDecisionEvidence({
       consumerRoot: input.consumerRoot,
       baselinePath: input.baselinePath,
       configPath: input.governanceConfigPath,

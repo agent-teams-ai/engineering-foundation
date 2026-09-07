@@ -36,19 +36,24 @@ function binaryCompare(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function hasPlainPrototype(value: object): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function assertInertInputGraph(value: unknown, subject: string, depth = 0): void {
   if (depth > 8) {
     throw new KnownFileTransactionPlanError(`${subject} is too deeply nested.`);
   }
   if (value instanceof Uint8Array || value === null || typeof value !== "object") {return;}
-  if (!Array.isArray(value) && ![Object.prototype, null].includes(Object.getPrototypeOf(value))) {
+  if (!Array.isArray(value) && !hasPlainPrototype(value)) {
     throw new KnownFileTransactionPlanError(`${subject} must contain only plain data.`);
   }
   const keys = Reflect.ownKeys(value);
   for (const key of keys) {
     if (typeof key !== "string" || (Array.isArray(value) && key === "length")) {continue;}
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
+    if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
       throw new KnownFileTransactionPlanError(`${subject} must contain only enumerable data properties.`);
     }
     assertInertInputGraph(descriptor.value, subject, depth + 1);
@@ -56,13 +61,14 @@ function assertInertInputGraph(value: unknown, subject: string, depth = 0): void
 }
 
 function inertInputOperations(input: CompileKnownFileTransactionPlanInput): readonly KnownFileTransactionOperationInput[] {
-  if (typeof input !== "object" || input === null || Array.isArray(input) ||
-    ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
-    Reflect.ownKeys(input).length !== 1) {
+  const candidate: unknown = input;
+  if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate) ||
+    !hasPlainPrototype(candidate) ||
+    Reflect.ownKeys(candidate).length !== 1) {
     throw new KnownFileTransactionPlanError("Known-file transaction input is not one plain operations record.");
   }
-  const descriptor = Object.getOwnPropertyDescriptor(input, "operations");
-  if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable ||
+  const descriptor = Object.getOwnPropertyDescriptor(candidate, "operations");
+  if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true ||
     !Array.isArray(descriptor.value) || descriptor.value.length > MAXIMUM_OPERATION_COUNT) {
     throw new KnownFileTransactionPlanError(
       `A transaction supports at most ${MAXIMUM_OPERATION_COUNT} operations.`

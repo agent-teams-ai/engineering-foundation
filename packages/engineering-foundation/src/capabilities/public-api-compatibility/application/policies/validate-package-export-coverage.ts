@@ -1,13 +1,15 @@
+import { wildcardExpression } from "./compare-package-artifact-inventory.js";
 import {
   compareCanonicalReferences,
   type PublicApiNonTypeExportKind,
   type PublicApiPackagePolicy
 } from "../model/public-api.js";
 
-interface ObservedPackageExport {
+export interface ObservedPackageExport {
   readonly exportPath: string;
   readonly kind: "typed" | PublicApiNonTypeExportKind;
   readonly declarationEntryPoint?: string;
+  readonly targetPattern?: string;
 }
 
 const DATA_FILE = /\.(?:json|jsonc|toml|ya?ml|txt)$/u;
@@ -62,6 +64,30 @@ function stringTargets(value: unknown, output: string[]): void {
       stringTargets(candidate, output);
     }
   }
+}
+
+// The artifact model has one target and no condition availability dimension.
+// Admit only shapes whose every branch provides that target for any condition set.
+function unconditionalWildcardTarget(value: unknown, exportPath: string): string {
+  if (typeof value === "string") { return value; }
+  let branches: readonly unknown[] = [];
+  if (Array.isArray(value)) {
+    branches = value;
+  } else if (typeof value === "object" && value !== null) {
+    const conditions = value as Readonly<Record<string, unknown>>;
+    if (Object.hasOwn(conditions, "default") &&
+        Object.keys(conditions).every((key) => !key.startsWith(".") && !/^(?:0|[1-9][0-9]*)$/u.test(key))) {
+      branches = Object.values(conditions);
+    }
+  }
+  if (branches.length > 0) {
+    const targets = branches.map((branch) => unconditionalWildcardTarget(branch, exportPath));
+    const target = targets[0];
+    if (target !== undefined && targets.every((candidate) => candidate === target)) { return target; }
+  }
+  throw new PackageExportCoverageError(
+    `Wildcard export ${exportPath} has unsupported conditional or array availability; require one unconditional target.`
+  );
 }
 
 function typeTargets(value: unknown, output: string[]): void {
@@ -133,12 +159,19 @@ function resolveExportTargets(input: {
         `Typed wildcard export ${exportPath} is unsupported; enumerate its concrete subpaths.`
       );
     }
-    if (!strings.some((target) => target.includes("*"))) {
+    const wildcardTarget = unconditionalWildcardTarget(input.target, exportPath);
+    if (!wildcardTarget.startsWith("./")) {
       throw new PackageExportCoverageError(
-        `Wildcard export ${exportPath} must resolve to a wildcard target.`
+        `Wildcard export ${exportPath} must resolve to exactly one package-relative wildcard target.`
       );
     }
-    return Object.freeze({ exportPath, kind: "wildcard" });
+    wildcardExpression(exportPath.slice(2));
+    wildcardExpression(wildcardTarget.slice(2));
+    return Object.freeze({
+      exportPath,
+      kind: "wildcard",
+      targetPattern: wildcardTarget.slice(2)
+    });
   }
   if (typeCandidates.length > 1) {
     throw new PackageExportCoverageError(
@@ -197,7 +230,7 @@ function packageExportEntries(value: unknown): readonly (readonly [string, unkno
 
 function observedExports(input: {
   readonly manifest: unknown;
-  readonly policy: PublicApiPackagePolicy;
+  readonly policy: Pick<PublicApiPackagePolicy, "packageName" | "packageRoot">;
 }): readonly ObservedPackageExport[] {
   const manifest = record(input.manifest, "package manifest");
   if (!("exports" in manifest)) {
@@ -227,6 +260,13 @@ function observedExports(input: {
     throw new PackageExportCoverageError("package.json exports contains duplicate export paths.");
   }
   return Object.freeze(exports);
+}
+
+export function observedPackageExports(input: {
+  readonly manifest: unknown;
+  readonly policy: Pick<PublicApiPackagePolicy, "packageName" | "packageRoot">;
+}): readonly ObservedPackageExport[] {
+  return observedExports(input);
 }
 
 function mapByPath<T extends { readonly exportPath: string }>(

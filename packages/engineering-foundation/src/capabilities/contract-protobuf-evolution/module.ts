@@ -1,24 +1,27 @@
+import { readContainedRegularFile } from "../../source-inventory/node.js";
+import { parseStrictYamlSource } from "../../features/configuration-input/yaml.js";
 import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
-} from "../../capability-runtime.js";
-import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
+} from "../../features/validation-reporting/api.js";
 import { FilesystemBufBreakingQualificationEvidence } from "./adapters/outbound/qualification/filesystem-buf-breaking-qualification-evidence.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
-  CAPABILITY_ID,
-  loadCapabilityConfig
+  CAPABILITY_ID
 } from "./contract/config.js";
 import { evaluateProtobufEvolution } from "./application/policies/evaluate-protobuf-evolution.js";
 import type { AcceptedDecisionEvidencePort } from "./application/ports/accepted-decision-evidence.js";
 import type { BufBreakingQualificationEvidencePort } from "./application/ports/buf-breaking-qualification-evidence.js";
 import { resolveProtobufEvolutionPolicy } from "./application/use-cases/resolve-protobuf-evolution-policy.js";
 
+import { loadCapabilityConfig, type ProtobufConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
+import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+
 export {
   evaluateProtobufEvolution
-} from "./application/policies/evaluate-protobuf-evolution.js";
+} from "./api.js";
 export type {
   ApprovedProtobufBreakingChange,
   BufBreakingEvidence,
@@ -32,36 +35,40 @@ export type {
   ProtobufEvolutionPolicy,
   ReleasedProtobufContractEvidence,
   Sha256Digest
-} from "./application/model/protobuf-release-evidence.js";
+} from "./api.js";
 export type {
   AcceptedDecisionEvidence,
   AcceptedDecisionEvidencePort,
   ReadAcceptedDecisionEvidenceInput
-} from "./application/ports/accepted-decision-evidence.js";
+} from "./api.js";
 export {
   PROTOBUF_EVOLUTION_RULES,
   PROTOBUF_EVOLUTION_RULES_BY_ID
-} from "./application/rules.js";
+} from "./api.js";
 
 export interface ProtobufEvolutionCapabilityDependencies {
-  readonly acceptedDecisionEvidence?: AcceptedDecisionEvidencePort;
+  readonly assertSchema: ProtobufConfigurationDependencies["assertSchema"];
+  readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
   readonly bufBreakingQualificationEvidence?: BufBreakingQualificationEvidencePort;
 }
 
 export function createProtobufEvolutionCapability(
-  dependencies: ProtobufEvolutionCapabilityDependencies = {}
+  dependencies: ProtobufEvolutionCapabilityDependencies
 ): CapabilityDefinition {
   const acceptedDecisionEvidence =
-    dependencies.acceptedDecisionEvidence ?? new GovernanceAcceptedDecisionEvidenceAcl();
+    dependencies.acceptedDecisionEvidence;
   const bufBreakingQualificationEvidence =
     dependencies.bufBreakingQualificationEvidence ??
-    new FilesystemBufBreakingQualificationEvidence();
+    new FilesystemBufBreakingQualificationEvidence(dependencies.assertSchema, {
+      read: readContainedRegularFile, parseYaml: parseStrictYamlSource
+    });
   return Object.freeze({
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
       try {
         const configuration = await loadCapabilityConfig(
+          { readYaml: loadStrictYamlFile, assertSchema: dependencies.assertSchema },
           invocation.consumerRoot,
           invocation.configPath,
           invocation.signal
@@ -90,3 +97,5 @@ export function createProtobufEvolutionCapability(
     }
   });
 }
+
+export { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";

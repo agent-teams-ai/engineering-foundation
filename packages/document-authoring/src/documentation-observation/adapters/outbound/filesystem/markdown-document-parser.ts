@@ -1,4 +1,4 @@
-import { GithubSlugger, toString, remarkFrontmatter, remarkGfm, remarkParse, unified, visit as visitMarkdown } from "../../../../adapters/markdown-runtime.js";
+import { GithubSlugger, toString, remarkFrontmatter, remarkGfm, remarkParse, unified, visit as visitMarkdown } from "./markdown-runtime.js";
 import {
   isAlias,
   isMap,

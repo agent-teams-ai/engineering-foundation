@@ -17,7 +17,7 @@ import { computePnpmRuntimeClosureDigestV2 } from "../dist/consumer-integration/
 import { createConsumerUpgradeUseCase } from "../dist/consumer-integration/application/use-cases/upgrade-consumer-integration.js";
 import { nodeConsumerIntegrationInputReader } from "../dist/consumer-integration/adapters/node-consumer-integration-repository.js";
 import { consumerIntegrationPlanningPorts } from "../dist/consumer-integration/composition/consumer-integration-planner.js";
-import { foundationKnownFileTransaction } from "../dist/consumer-integration/adapters/foundation-known-file-transaction.js";
+import { foundationKnownFileTransaction } from "../dist/consumer-integration/composition/known-file-transaction.js";
 import { NodeConsumerUpgradeSandbox } from "../dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js";
 import { finalizeNodeConsumerRestoration } from "../dist/consumer-integration/adapters/node-consumer-restoration-finalization.js";
 import { consumerRestorationRecorder, restoreNodeConsumerIntegration } from "../dist/consumer-integration/adapters/node-consumer-restoration.js";
@@ -102,7 +102,7 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     };
     const snapshots = lockfileObjectForV2(target).snapshots;
     if (preserveForeign) {snapshots["@agent-teams/repository-mutation@99.0.0"].dependencies = { "consumer-shared": "2.0.0" };}
-    const managedCli = `// TEST fixture delegates to the retained implementation, not a published package claim.\nimport {runManagedConsumerCommand} from ${JSON.stringify(pathToFileURL(join(packageRoot, "dist/consumer-integration/composition/consumer-integration-cli.js")).href)};\nprocess.exitCode=await runManagedConsumerCommand(process.argv.slice(2));\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_TARGET_FAIL==='1') process.exitCode=1;\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_KILL_CONTROLLER==='1') process.kill(process.ppid,'SIGKILL');\n`;
+    const managedCli = `// TEST fixture delegates to the retained implementation, not a published package claim.\nimport {managedConsumerCommand as runManagedConsumerCommand} from ${JSON.stringify(pathToFileURL(join(packageRoot, "dist/consumer-integration/composition/managed-command.js")).href)};\nprocess.exitCode=await runManagedConsumerCommand(process.argv.slice(2));\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_TARGET_FAIL==='1') process.exitCode=1;\nif(process.argv[2]==='check' && process.env.MANAGED_RESTORATION_KILL_CONTROLLER==='1') process.kill(process.ppid,'SIGKILL');\n`;
     for (const [key, name] of Object.entries(names)) {
       const pkg = await fixturePackage(disposable, name, "99.0.0", snapshots[`${name}@99.0.0`].dependencies ?? {},
         key === "docsProtocolAgentTeams" ? managedCli : undefined);

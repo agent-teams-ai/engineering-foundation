@@ -1,3 +1,4 @@
+import { createWorkflowProcess } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
@@ -117,7 +118,7 @@ test("executes pnpm through its shell-free package entrypoint", async () => {
       `require("node:fs").writeFileSync(".fake-pnpm-args.json", JSON.stringify(process.argv.slice(2)));\n`,
       "utf8",
     );
-    const result = await new PnpmPackageScriptRunner({ pnpmHome }).run({
+    const result = await new PnpmPackageScriptRunner({ pnpmHome }, createWorkflowProcess()).run({
       consumerRoot,
       script: "lint:files",
       paths: ["src/file with space.ts"],

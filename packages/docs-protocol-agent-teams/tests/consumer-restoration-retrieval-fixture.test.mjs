@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { lstat, mkdir, mkdtemp, readlink, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import fs, { readFile, link, lstat, mkdir, mkdtemp, readlink, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -63,7 +65,7 @@ for (const kind of ["payload", "unrelated", "shared-store", "copy-store", "neste
     if (kind === "shared-store") {target = join(fixture.store, "v11/files");}
     if (kind === "copy-store") {target = join(fixture.disposable, "copy/v11/files");}
     if (kind === "ancestor-escape") {
-      await symlink(fixture.store, join(fixture.consumerRoot, "escape"));
+      await symlink(fixture.store, join(fixture.consumerRoot, "escape"), "dir");
       target = join(fixture.consumerRoot, "escape/v11/files");
     }
     await mkdir(dirname(join(fixture.store, path)), { recursive: true });
@@ -86,7 +88,7 @@ for (const escape of [false, true]) {
       const real = await realpath(owned);
       await mkdir(join(real, "temporary"));
       const alias = join(real, "alias");
-      await symlink(join(real, "temporary"), alias);
+      await symlink(join(real, "temporary"), alias, "dir");
       const fixture = await seeded(t, alias);
       const canonical = await realpath(fixture.disposable);
       assert.notEqual(fixture.disposable, canonical);
@@ -97,7 +99,7 @@ for (const escape of [false, true]) {
         dangling: join(fixture.disposable, "retrieval-staging/removed/staged"),
       };
       if (escape) {
-        await symlink(fixture.store, join(fixture.disposable, "retrieval-staging/escape"));
+        await symlink(fixture.store, join(fixture.disposable, "retrieval-staging/escape"), "dir");
         links.dangling = join(fixture.disposable, "retrieval-staging/escape/missing/staged");
       }
       for (const [name, target] of Object.entries(links)) {
@@ -124,4 +126,94 @@ for (const escape of [false, true]) {
       }
     } finally {await rm(owned, { recursive: true, force: true });}
   });
+}
+
+// Exercise absent Windows flags on Linux too; only the constants import changes.
+// The real open, descriptor stat, identity checks and reads remain intact.
+const helperSource = await readFile(new URL("./consumer-restoration-retrieval-fixture.mjs", import.meta.url), "utf8");
+const constantsImport = 'import { constants } from "node:fs";';
+assert.equal(helperSource.split(constantsImport).length, 2);
+const withoutFlags = await import(`data:text/javascript;base64,${Buffer.from(helperSource.replace(constantsImport,
+  'import { constants as nativeConstants } from "node:fs"; const { O_NOFOLLOW, O_NONBLOCK, ...constants } = nativeConstants;')).toString("base64")}`);
+
+for (const missingFlags of [false, true]) {
+for (const race of ["leaf-link", "leaf-file", "leaf-directory", "parent-link", "during-read"]) {
+  test(`inventory rejects ${race} drift and closes opened handles (missing flags: ${missingFlags})`, async (t) => {
+    const owned = await mkdtemp(join(tmpdir(), "item17-inventory-TEST-"));
+    const originalOpen = fs.open;
+    let opened = false;
+    let closed = false;
+    let intercepted = false;
+    let reads = 0;
+    let openError;
+    try {
+      const parent = join(owned, "tree");
+      const file = join(parent, "payload");
+      const foreign = join(owned, "foreign");
+      await mkdir(parent);
+      await mkdir(foreign);
+      await writeFile(file, "original bytes");
+      await writeFile(join(foreign, "target"), "foreign bytes");
+      // Same leaf inode makes this specifically exercise parent identity checks.
+      await link(file, join(foreign, "payload"));
+      t.mock.method(fs, "open", async (path, flags) => {
+        if (path !== file || intercepted) {return originalOpen(path, flags);}
+        intercepted = true;
+        if (race === "parent-link") {
+          await rename(parent, join(owned, "old-tree"));
+          await symlink(foreign, parent, "dir");
+        } else if (race !== "during-read") {
+          await rename(file, join(parent, "old-payload"));
+          if (race === "leaf-link") {await symlink(join(foreign, "target"), file);}
+          else if (race === "leaf-file") {await writeFile(file, "replacement bytes");}
+          else {await mkdir(file);}
+        }
+        let handle;
+        try {handle = await originalOpen(path, flags);}
+        catch (error) {openError = error; throw error;}
+        opened = true;
+        const close = handle.close.bind(handle);
+        t.mock.method(handle, "close", async () => {await close(); closed = true;});
+        const read = handle.readFile.bind(handle);
+        t.mock.method(handle, "readFile", async () => {
+          reads++;
+          assert.equal(race, "during-read", "foreign descriptor must never be read");
+          const bytes = await read();
+          assert.equal(bytes.toString(), "original bytes");
+          await writeFile(file, "changed length during descriptor read");
+          return bytes;
+        });
+        return handle;
+      });
+      syncBuiltinESMExports();
+      await assert.rejects((missingFlags ? withoutFlags.retrievalTree : retrievalTree)(parent), (error) => {
+        if (openError) {
+          assert.equal(error, openError);
+          if (race === "leaf-link" && !missingFlags && typeof constants.O_NOFOLLOW === "number") {
+            assert.equal(error.code, "ELOOP");
+          } else {
+            assert.equal(race, "leaf-directory");
+            assert.equal(process.platform, "win32");
+            assert.equal(error.code, "EISDIR");
+          }
+        } else {
+          assert.equal(error.code, "ERR_ASSERTION");
+          const message = race === "parent-link" ? "parent changed:"
+            : race === "during-read" ? "file changed during read:"
+            : race === "leaf-directory" ? file : "file changed before read:";
+          assert.ok(error.message.includes(message), error.message);
+        }
+        return true;
+      });
+      assert.ok(intercepted);
+      assert.equal(opened, !openError);
+      assert.equal(reads, race === "during-read" ? 1 : 0);
+      assert.equal(closed, opened);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      await rm(owned, { recursive: true, force: true });
+    }
+  });
+}
 }

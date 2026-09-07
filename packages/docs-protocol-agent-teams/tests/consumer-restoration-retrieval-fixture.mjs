@@ -1,10 +1,39 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cp, lstat, readFile, readdir, readlink, realpath } from "node:fs/promises";
+import { constants } from "node:fs";
+import { cp, lstat, open, readFile, readdir, readlink, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative as relativePath, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+
+// One bounded observation of an idle fixture, not a concurrent filesystem snapshot.
+async function fileHash(path, expected) {
+  const parent = await realpath(dirname(path));
+  const parentStat = await lstat(parent);
+  const identity = (stat) => [stat.dev, stat.ino, stat.mode];
+  const stability = (stat) => [...identity(stat), stat.size, stat.mtimeMs, stat.ctimeMs, stat.nlink];
+  assert.ok(expected.isFile(), path);
+  // These flags are absent on Windows. Descriptor identity remains mandatory
+  // before reading, even when the platform cannot reject leaf links at open.
+  // Where supported, NONBLOCK prevents a raced FIFO from hanging at open.
+  const noFollow = typeof constants.O_NOFOLLOW === "number" ? constants.O_NOFOLLOW : 0;
+  const nonBlock = typeof constants.O_NONBLOCK === "number" ? constants.O_NONBLOCK : 0;
+  const handle = await open(path, constants.O_RDONLY | noFollow | nonBlock);
+  try {
+    const before = await handle.stat();
+    assert.ok(before.isFile(), path);
+    assert.deepEqual(stability(before), stability(expected), `file changed before read: ${path}`);
+    assert.equal(await realpath(dirname(path)), parent, `parent changed: ${path}`);
+    assert.deepEqual(identity(await lstat(parent)), identity(parentStat), `parent changed: ${path}`);
+    const bytes = await handle.readFile();
+    assert.deepEqual(stability(await handle.stat()), stability(before), `file changed during read: ${path}`);
+    assert.deepEqual(stability(await lstat(path)), stability(before), `file replaced during read: ${path}`);
+    assert.equal(await realpath(dirname(path)), parent, `parent changed: ${path}`);
+    assert.deepEqual(identity(await lstat(parent)), identity(parentStat), `parent changed: ${path}`);
+    return hash(bytes);
+  } finally {await handle.close();}
+}
 
 // Includes installed files, virtual-store lock, symlink targets, directories and Git.
 // lstat/readlink never follow a dependency symlink out of this tree.
@@ -20,7 +49,7 @@ export async function retrievalTree(root, excluded = []) {
         if (relative === "" && excluded.includes(name)) {continue;}
         await visit(relative ? `${relative}/${name}` : name);
       }
-    } else {assert.ok(stat.isFile(), path); entry.hash = hash(await readFile(path));}
+    } else {entry.hash = await fileHash(path, stat);}
     result[relative] = entry;
   }
   await visit("");

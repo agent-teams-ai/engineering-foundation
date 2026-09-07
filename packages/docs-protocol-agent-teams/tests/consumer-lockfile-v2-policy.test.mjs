@@ -380,7 +380,7 @@ function coexistingPeerLockOnEdgeSource() {
   lock.packages["peer@1.0.0"] = { resolution: { integrity: coordinate.integrity } };
   lock.snapshots["peer@1.0.0"] = {};
   lock.snapshots[`${authoringLocator}(peer@1.0.0)`] = {
-    ...lock.snapshots[authoringLocator],
+    ...structuredClone(lock.snapshots[authoringLocator]),
     optionalDependencies: { peer: "1.0.0" }
   };
   lock.snapshots["@agent-teams/engineering-foundation@1.0.1"]

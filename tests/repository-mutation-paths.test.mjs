@@ -22,6 +22,8 @@ import {
   portableRepositoryPathProblem
 } from "../packages/repository-mutation/dist/repository-mutation/application/model/repository-path.js";
 import { legacyScaffoldingRepositoryPathProblem } from "../packages/engineering-foundation/dist/scaffolding/application/policies/legacy-scaffolding-repository-path.js";
+import { portableRepositoryPathProblem as sdPortableRepositoryPathProblem } from "../packages/engineering-foundation/dist/capabilities/source-dependencies/application/model/repository-path.js";
+import { isDocumentRepositoryPath } from "../packages/document-authoring/dist/document-authoring/application/policies/document-repository-path.js";
 
 async function withTemporaryRoot(callback) {
   const root = await mkdtemp(join(tmpdir(), "repository-mutation-paths-"));
@@ -229,4 +231,80 @@ test("strict directory durability rejects an unsupported Windows result", async 
       error instanceof StrictDirectoryDurabilityError &&
       error.message.includes("journal-directory"),
   );
+});
+
+// Exhaustive cross-check: all four Windows-reserved-name check implementations must
+// agree on every fixture case. Implementations compared:
+//   Impl 1 – portableRepositoryPathProblem          (repository-mutation)
+//   Impl 2 – legacyScaffoldingRepositoryPathProblem (engineering-foundation, frozen v1)
+//   Impl 3 – sdPortableRepositoryPathProblem        (engineering-foundation/source-dependencies)
+//   Impl 4 – isDocumentRepositoryPath               (document-authoring)
+const windowsReservedCrossCheckFixtures = [
+  // --- segments that ARE Windows reserved names ---
+  { segment: "CON",          reserved: true },
+  { segment: "PRN",          reserved: true },
+  { segment: "AUX",          reserved: true },
+  { segment: "NUL",          reserved: true },
+  { segment: "COM1",         reserved: true },
+  { segment: "COM5",         reserved: true },
+  { segment: "COM9",         reserved: true },
+  { segment: "LPT1",         reserved: true },
+  { segment: "LPT5",         reserved: true },
+  { segment: "LPT9",         reserved: true },
+  { segment: "con",          reserved: true },   // lowercase
+  { segment: "Con",          reserved: true },   // mixed case
+  { segment: "CON.txt",      reserved: true },   // with extension
+  { segment: "lpt9.md",      reserved: true },   // from shared fixture
+  { segment: "NUL.log",      reserved: true },
+  { segment: "COM1.ts",      reserved: true },
+  { segment: "prn.backup",   reserved: true },
+  { segment: "AUX.extra.bak", reserved: true },  // multiple dots
+  // --- segments that are NOT Windows reserved names ---
+  { segment: "console",      reserved: false },
+  { segment: "console.md",   reserved: false },  // from shared fixture
+  { segment: "CONMAN",       reserved: false },  // reserved prefix, different name
+  { segment: "prnt",         reserved: false },
+  { segment: "auxiliary",    reserved: false },
+  { segment: "nullify",      reserved: false },
+  { segment: "common",       reserved: false },
+  { segment: "COM0",         reserved: false },  // COM0 is not reserved
+  { segment: "LPT0",         reserved: false },  // LPT0 is not reserved
+  { segment: "COM10",        reserved: false },  // COM10 is not reserved
+  { segment: "COM1A",        reserved: false },  // COM1 prefix but extra char
+];
+
+test("all four Windows-reserved-name implementations classify identically", () => {
+  for (const { segment, reserved } of windowsReservedCrossCheckFixtures) {
+    const path = `docs/${segment}`;
+
+    // Impl 1: portableRepositoryPathProblem (repository-mutation)
+    assert.equal(
+      portableRepositoryPathProblem(path) === "reserved-name",
+      reserved,
+      `Impl1 (repository-mutation): ${segment}`
+    );
+
+    // Impl 2: legacyScaffoldingRepositoryPathProblem (engineering-foundation)
+    assert.equal(
+      legacyScaffoldingRepositoryPathProblem(path) === "reserved-name",
+      reserved,
+      `Impl2 (legacy-scaffolding): ${segment}`
+    );
+
+    // Impl 3: portableRepositoryPathProblem (source-dependencies) — returns
+    // a generic message string; any non-undefined return means "rejected".
+    // For these fixtures the reserved name is the only reason to reject.
+    assert.equal(
+      sdPortableRepositoryPathProblem(path) !== undefined,
+      reserved,
+      `Impl3 (source-dependencies): ${segment}`
+    );
+
+    // Impl 4: isDocumentRepositoryPath (document-authoring) — returns boolean.
+    assert.equal(
+      !isDocumentRepositoryPath(path),
+      reserved,
+      `Impl4 (document-authoring): ${segment}`
+    );
+  }
 });

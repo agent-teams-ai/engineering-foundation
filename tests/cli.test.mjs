@@ -143,6 +143,26 @@ test("uses the stable invalid-invocation exit code", () => {
   }
 });
 
+test("rejects --json for help and version with an invalidCommand JSON envelope", () => {
+  for (const commandArguments of [
+    ["help", "--json"],
+    ["version", "--json"],
+  ]) {
+    const result = spawnSync(process.execPath, [cliPath, ...commandArguments], {
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 2, commandArguments.join(" "));
+    assert.equal(result.stderr, "");
+    const envelope = JSON.parse(result.stdout);
+    assert.equal(envelope.schemaVersion, 1);
+    assert.equal(envelope.outcome, "invalid-input");
+    assert.equal(envelope.error.code, "CONSUMER_INVALID");
+    assert.equal(typeof envelope.error.message, "string");
+    assert.equal(envelope.error.retryable, false);
+  }
+});
+
 test("renders every requested JSON invocation failure as one JSON envelope", () => {
   for (const commandArguments of [
     ["check", "--format", "json", "--unknown-option"],

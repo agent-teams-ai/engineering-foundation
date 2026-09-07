@@ -23,6 +23,10 @@ export function createSchemaCatalog<SchemaId extends string>(
     // Canonical schemas use open prefix tuples; strictTuples rejects that valid
     // Draft 2020-12 shape as a style warning rather than a validation error.
     strictTuples: false,
+    // "format" keywords in consumer/capability schemas are documentation
+    // annotations for tooling and readers, not runtime-enforced constraints.
+    // This is an intentional, accepted schema-catalog choice, not a
+    // standard-compliance defect.
     validateFormats: false
   });
   const validators = new Map<SchemaId, ValidateFunction>();

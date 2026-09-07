@@ -342,6 +342,9 @@ async function runInformationCommand<SchemaId extends string>(
     case "help":
     case "--help":
     case "-h": {
+      if (json) {
+        throw invalidCommand("--json is not accepted by help.");
+      }
       printHelp();
       return true;
     }
@@ -361,6 +364,9 @@ async function runInformationCommand<SchemaId extends string>(
     case "version":
     case "--version":
     case "-v": {
+      if (json) {
+        throw invalidCommand("--json is not accepted by version.");
+      }
       process.stdout.write(`${await services.installedVersion()}\n`);
       return true;
     }

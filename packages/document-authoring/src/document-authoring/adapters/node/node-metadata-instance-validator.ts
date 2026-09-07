@@ -90,6 +90,10 @@ export class NodeMetadataInstanceValidator implements MetadataInstanceValidator 
       allErrors: true,
       strict: true,
       strictTuples: false,
+      // "format" keywords in document metadata schemas are documentation
+      // annotations for authors/tooling, not runtime-enforced constraints.
+      // This is an intentional, accepted schema choice, not a
+      // standard-compliance defect.
       validateFormats: false
     });
     let validate;

@@ -36,6 +36,10 @@ const dependencies: Record<DocumentAuthoringSchemaId, readonly DocumentAuthoring
   ]
 };
 const packageRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+// validateFormats is disabled: "format" keywords in these schemas (e.g. date-time)
+// are documentation annotations for consumers/tooling, not runtime-enforced
+// constraints. This is an intentional, accepted schema-catalog choice, not a
+// standard-compliance defect.
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictTuples: false, validateFormats: false });
 const validators = new Map<DocumentAuthoringSchemaId, ValidateFunction>();
 const loads = new Map<DocumentAuthoringSchemaId, Promise<string>>();

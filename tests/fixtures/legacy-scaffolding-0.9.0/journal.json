@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "state": "PREPARED",
+  "plan": {
+    "authority": {
+      "configPath": "architecture/foundation/scaffolding.yaml",
+      "targetCatalogPath": "architecture/package-catalog.yaml"
+    },
+    "authorityEvidence": {
+      "evidenceDigest": "sha256:613f35d3ae9a3e642db5115863ae7675c707e4a00288acb21fe7bdc856921335",
+      "ownerDocument": {
+        "id": "domain.contexts.project-management",
+        "path": "docs/domain/contexts/project-management/README.md",
+        "status": "accepted"
+      },
+      "projectId": "agent-teams-platform",
+      "schemaVersion": 1,
+      "sources": [
+        {
+          "assertion": {
+            "digest": "sha256:a1a1f2a7d46f712fd8a44b41a943cea7e6439c6d915667215abed83704ae79ea",
+            "path": "architecture/foundation/scaffolding.yaml",
+            "size": 698,
+            "state": "file"
+          },
+          "role": "config"
+        },
+        {
+          "assertion": {
+            "digest": "sha256:732edd9f36d089d17719a79bb1fbef8374826c8255d83dffb3ae9d561ac65721",
+            "path": "docs/domain/contexts/project-management/README.md",
+            "size": 9860,
+            "state": "file"
+          },
+          "role": "owner-document"
+        },
+        {
+          "assertion": {
+            "digest": "sha256:458af8313256c8b021cdc0f49c6a638ea13ad0d8bc9e7bebce0125cb056a7bca",
+            "path": "architecture/package-catalog.yaml",
+            "size": 1505,
+            "state": "file"
+          },
+          "role": "target-catalog"
+        }
+      ],
+      "targetIdentityDigest": "sha256:575ecfbb317f231e79b1b1c1004ce1e22db5f03e7a1a42e9535ad9279f98791a",
+      "targetRef": "context.project-management",
+      "verifier": {
+        "contractVersion": 1,
+        "id": "foundation.markdown-yaml-owner"
+      }
+    },
+    "authoritySnapshotDigest": "sha256:c1344970f2d316dbfcc034f1ecc9f50b065a2ed2edcbaabf4c58bc6be7e6e38e",
+    "compiler": {
+      "id": "@agent-teams/engineering-foundation",
+      "version": "0.9.0"
+    },
+    "composition": {
+      "facets": [],
+      "id": "platform-private-context",
+      "policies": [],
+      "recipe": {
+        "contractVersion": 1,
+        "id": "foundation.node-typescript-library-boundary"
+      },
+      "scaffoldProfile": {
+        "contractVersion": 1,
+        "id": "foundation.node-typescript-pnpm-esm"
+      }
+    },
+    "definitions": [
+      {
+        "contractDigest": "sha256:f3f5dff41767853e78f7bacedee3fbaef6b96a0fb70cbb843dcd311ed12b88c3",
+        "kind": "recipe",
+        "ref": {
+          "contractVersion": 1,
+          "id": "foundation.node-typescript-library-boundary"
+        }
+      },
+      {
+        "contractDigest": "sha256:09c81de71ac8a4663d0834ef3fcf1db839527e7a7845e3fb77fd6b30f61a67da",
+        "kind": "scaffold-profile",
+        "ref": {
+          "contractVersion": 1,
+          "id": "foundation.node-typescript-pnpm-esm"
+        }
+      }
+    ],
+    "diagnostics": [],
+    "intent": {
+      "compositionId": "platform-private-context",
+      "schemaVersion": 1,
+      "targetRef": "context.project-management"
+    },
+    "intentDigest": "sha256:d73e363b925f7dfc5bb3ccf1fae153178c04ece607aaf7819abed0a45bb13b28",
+    "operations": [
+      {
+        "after": {
+          "contentBase64": "ewogICJuYW1lIjogIkBhZ2VudC10ZWFtcy9wbGF0Zm9ybS1wcm9qZWN0LW1hbmFnZW1lbnQiLAogICJ2ZXJzaW9uIjogIjAuMC4wIiwKICAicHJpdmF0ZSI6IHRydWUsCiAgInR5cGUiOiAibW9kdWxlIiwKICAic2NyaXB0cyI6IHsKICAgICJidWlsZCI6ICJ0c2MgLS1wcm9qZWN0IHRzY29uZmlnLmpzb24gLS1wcmV0dHkgZmFsc2UiLAogICAgImNoZWNrIjogInBucG0gcnVuIGNsZWFuICYmIHBucG0gcnVuIHR5cGVjaGVjayAmJiBwbnBtIHJ1biBidWlsZCAmJiBwbnBtIHJ1biB0ZXN0IiwKICAgICJjbGVhbiI6ICJub2RlIC1lIFwiY29uc3QgZnM9cmVxdWlyZSgnbm9kZTpmcycpOyBmb3IgKGNvbnN0IHBhdGggb2YgWydkaXN0JywnLmNhY2hlJ10pIGZzLnJtU3luYyhwYXRoLCB7IHJlY3Vyc2l2ZTogdHJ1ZSwgZm9yY2U6IHRydWUgfSlcIiIsCiAgICAicHJlcGFjayI6ICJwbnBtIHJ1biBjbGVhbiAmJiBwbnBtIHJ1biBidWlsZCIsCiAgICAidGVzdCI6ICJub2RlIC0tdGVzdCAtLXRlc3QtY29uY3VycmVuY3k9MSIsCiAgICAidHlwZWNoZWNrIjogInRzYyAtLXByb2plY3QgdHNjb25maWcuanNvbiAtLW5vRW1pdCAtLXByZXR0eSBmYWxzZSIKICB9LAogICJhZ2VudFRlYW1zQXJjaGl0ZWN0dXJlIjogewogICAgInJvbGUiOiAiYm91bmRlZC1jb250ZXh0IiwKICAgICJvd25lckRvY3VtZW50IjogImRvbWFpbi5jb250ZXh0cy5wcm9qZWN0LW1hbmFnZW1lbnQiCiAgfSwKICAiZmlsZXMiOiBbCiAgICAiZGlzdCIKICBdLAogICJleHBvcnRzIjogewogICAgIi4iOiB7CiAgICAgICJ0eXBlcyI6ICIuL2Rpc3QvaW5kZXguZC50cyIsCiAgICAgICJpbXBvcnQiOiAiLi9kaXN0L2luZGV4LmpzIgogICAgfQogIH0KfQo=",
+          "digest": "sha256:2f2ee04938a34a64959b1c9b0813717941e8856d3fff3486fff7daa2d0c6667c",
+          "mediaType": "application/json",
+          "mode": "0644",
+          "size": 860
+        },
+        "causes": [
+          "foundation.node-typescript-library-boundary"
+        ],
+        "id": "materialize/packages/contexts/project-management/package.json",
+        "kind": "materialize-file",
+        "path": "packages/contexts/project-management/package.json",
+        "precondition": {
+          "state": "absent"
+        }
+      },
+      {
+        "after": {
+          "contentBase64": "ZXhwb3J0IHt9Owo=",
+          "digest": "sha256:8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+          "mediaType": "text/plain",
+          "mode": "0644",
+          "size": 11
+        },
+        "causes": [
+          "foundation.node-typescript-library-boundary"
+        ],
+        "id": "materialize/packages/contexts/project-management/src/index.ts",
+        "kind": "materialize-file",
+        "path": "packages/contexts/project-management/src/index.ts",
+        "precondition": {
+          "state": "absent"
+        }
+      },
+      {
+        "after": {
+          "contentBase64": "ewogICJleHRlbmRzIjogIi4uLy4uLy4uL3RzY29uZmlnLmpzb24iLAogICJjb21waWxlck9wdGlvbnMiOiB7CiAgICAiY29tcG9zaXRlIjogdHJ1ZSwKICAgICJkZWNsYXJhdGlvbiI6IHRydWUsCiAgICAiZGVjbGFyYXRpb25NYXAiOiB0cnVlLAogICAgIm5vRW1pdCI6IGZhbHNlLAogICAgIm91dERpciI6ICJkaXN0IiwKICAgICJyb290RGlyIjogInNyYyIsCiAgICAidHNCdWlsZEluZm9GaWxlIjogIi5jYWNoZS90c2NvbmZpZy50c2J1aWxkaW5mbyIKICB9LAogICJpbmNsdWRlIjogWwogICAgInNyYy8qKi8qLnRzIiwKICAgICJzcmMvKiovKi50c3giLAogICAgInNyYy8qKi8qLm10cyIsCiAgICAic3JjLyoqLyouY3RzIgogIF0KfQo=",
+          "digest": "sha256:ece1ab03cef51adae03228d66cd3c28e3b2feac96558a1a4164f9466abc0b913",
+          "mediaType": "application/json",
+          "mode": "0644",
+          "size": 362
+        },
+        "causes": [
+          "foundation.node-typescript-library-boundary"
+        ],
+        "id": "materialize/packages/contexts/project-management/tsconfig.json",
+        "kind": "materialize-file",
+        "path": "packages/contexts/project-management/tsconfig.json",
+        "precondition": {
+          "state": "absent"
+        }
+      }
+    ],
+    "planDigest": "sha256:15bba7607a7f806331686c087a355dfe0d72808acb13a93d9712b9b450a9c883",
+    "projectId": "agent-teams-platform",
+    "protocolVersion": 1,
+    "readSet": [
+      {
+        "digest": "sha256:a1a1f2a7d46f712fd8a44b41a943cea7e6439c6d915667215abed83704ae79ea",
+        "path": "architecture/foundation/scaffolding.yaml",
+        "size": 698,
+        "state": "file"
+      },
+      {
+        "digest": "sha256:458af8313256c8b021cdc0f49c6a638ea13ad0d8bc9e7bebce0125cb056a7bca",
+        "path": "architecture/package-catalog.yaml",
+        "size": 1505,
+        "state": "file"
+      },
+      {
+        "digest": "sha256:732edd9f36d089d17719a79bb1fbef8374826c8255d83dffb3ae9d561ac65721",
+        "path": "docs/domain/contexts/project-management/README.md",
+        "size": 9860,
+        "state": "file"
+      }
+    ],
+    "requiredAdapterCapabilities": [
+      "materialize-file/v1"
+    ],
+    "resolved": {
+      "facets": [],
+      "policies": [],
+      "profileParameters": {
+        "tsconfigBase": "tsconfig.json"
+      },
+      "recipeParameters": {}
+    },
+    "schemaVersion": 1,
+    "target": {
+      "id": "context.project-management",
+      "ownerDocument": {
+        "id": "domain.contexts.project-management",
+        "path": "docs/domain/contexts/project-management/README.md"
+      },
+      "packageName": "@agent-teams/platform-project-management",
+      "path": "packages/contexts/project-management",
+      "role": "bounded-context"
+    }
+  },
+  "operations": [
+    {
+      "operationId": "materialize/packages/contexts/project-management/package.json",
+      "path": "packages/contexts/project-management/package.json",
+      "state": "published"
+    },
+    {
+      "operationId": "materialize/packages/contexts/project-management/src/index.ts",
+      "path": "packages/contexts/project-management/src/index.ts",
+      "state": "pending"
+    },
+    {
+      "operationId": "materialize/packages/contexts/project-management/tsconfig.json",
+      "path": "packages/contexts/project-management/tsconfig.json",
+      "state": "pending"
+    }
+  ]
+}

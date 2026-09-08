@@ -297,13 +297,13 @@ test("lifecycle sequences independently implemented ports around durable phases"
   assert.equal(attached.status.mode, "LOCAL");
   assert.equal(attached.status.linkState.attachedAt, "2026-08-12T00:00:00.000Z");
   assert.deepEqual(fixture.trace, [
-    "coordinator", "lock", "slot", "mode:REGISTRY:true", "mode:REGISTRY:true", "target", "git",
+    "coordinator", "slot", "lock", "slot", "mode:REGISTRY:true", "mode:REGISTRY:true", "target", "git",
     "prepare", "ignore", "write:ATTACHING", "link", "write:LOCAL", "mode:LOCAL:true", "git", "slot", "release:false"
   ]);
   fixture.trace.length = 0;
   assert.equal((await fixture.service.detach(fixture.consumerRoot)).mode, "REGISTRY");
   assert.deepEqual(fixture.trace, [
-    "mode:LOCAL:false", "coordinator", "lock", "slot", "mode:LOCAL:true", "write:DETACHING",
+    "mode:LOCAL:false", "coordinator", "slot", "lock", "slot", "mode:LOCAL:true", "write:DETACHING",
     "restore", "remove", "slot", "release:false", "mode:REGISTRY:false"
   ]);
 });
@@ -311,7 +311,7 @@ test("lifecycle sequences independently implemented ports around durable phases"
 test("alternate ports reject stale admission and cancellation before any link effect", async () => {
   const stale = await memoryLifecycle({ stale: true });
   await assert.rejects(stale.service.attach(stale.consumerRoot, stale.targetPackageRoot), { code: "LOCAL_STATE_INVALID" });
-  assert.deepEqual(stale.trace, ["coordinator", "lock", "slot", "mode:REGISTRY:true", "mode:REGISTRY:true", "slot", "release:false"]);
+  assert.deepEqual(stale.trace, ["coordinator", "slot", "lock", "slot", "mode:REGISTRY:true", "mode:REGISTRY:true", "slot", "release:false"]);
   const cancelled = new Error("cancelled package observation");
   const fixture = await memoryLifecycle({ cancelTarget: cancelled });
   await assert.rejects(fixture.service.attach(fixture.consumerRoot, fixture.targetPackageRoot), (error) => error === cancelled);

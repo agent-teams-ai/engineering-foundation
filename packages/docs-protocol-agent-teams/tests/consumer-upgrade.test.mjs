@@ -1387,3 +1387,99 @@ registerConsumerRestorationTests({ cohortV2, desired, rawRegistry, sourceCohort 
 registerRestorationFinalizationTests({ cohortV2, desired });
 
 registerRestorationSelectionTests({ cohortV2, desired });
+
+function consumerClosureVariant(cohort) {
+  const lock = lockfileObjectForV2(cohort);
+  const locator = `@agent-teams/repository-mutation@${cohort.packages.repositoryMutation.version}`;
+  lock.snapshots[locator].dependencies = { "registry-leaf": "2.0.0" };
+  lock.snapshots[locator].optionalDependencies = { "@types/node": "24.18.0" };
+  lock.packages[locator].peerDependencies = { "@types/node": "*" };
+  lock.packages[locator].peerDependenciesMeta = { "@types/node": { optional: true } };
+  for (const key of ["registry-leaf@2.0.0", "@types/node@24.18.0"]) {
+    lock.packages[key] = { resolution: { integrity: V2_INTEGRITY } };
+    lock.snapshots[key] = {};
+  }
+  return lock;
+}
+
+async function consumerClosureFixture() {
+  const cohort = cohortV2("docs-consumer-closure-test");
+  cohort.runtime.runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfileObjectForV2(cohort), cohort);
+  const target = desiredV3(cohort);
+  const root = await mkdtemp(join(tmpdir(), "TEST-consumer-closure-"));
+  const restoreIdentity = useGitHubRepositoryIdentity(target.repository);
+  const lock = consumerClosureVariant(cohort);
+  await mkdir(join(root, "architecture/foundation"), { recursive: true });
+  await writeFile(join(root, "architecture/foundation/docs-consumer-integration.json"), JSON.stringify(target));
+  await writeFile(join(root, "package.json"), JSON.stringify(sourceManifestV2(cohort, target.profilePath)));
+  await writeFile(join(root, ".node-version"), "24.18.0\n");
+  runGit(root, ["init", "-q"]);
+  return { root, target, lock, close: async () => {
+    restoreIdentity(); await rm(root, { recursive: true, force: true });
+  } };
+}
+
+const closureBytes = (lock) => Buffer.from(JSON.stringify(lock));
+
+test("consumer v3 reads its registry closure without replacing isolated authority", async () => {
+  const fixture = await consumerClosureFixture();
+  try {
+    const { assertQualifiedPnpmLockfileV2 } = await import("../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js");
+    const authority = JSON.stringify(fixture.target);
+    const bytes = closureBytes(fixture.lock);
+    assert.notEqual(computePnpmRuntimeClosureDigestV2(fixture.lock, fixture.target.cohort),
+      fixture.target.cohort.runtime.runtimeClosureDigest);
+    assert.throws(() => assertQualifiedPnpmLockfileV2(bytes, fixture.target),
+      (error) => error?.code === "DOCS_CONSUMER_RUNTIME_CLOSURE_MISMATCH");
+    await writeFile(join(fixture.root, "pnpm-lock.yaml"), bytes);
+    const result = await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root });
+    assert.equal(JSON.stringify(result.desired), authority);
+    assert.deepEqual(result.snapshot.lockfile.bytes, bytes);
+  } finally {await fixture.close();}
+});
+
+test("consumer v3 still refuses invalid coordinates, roles, edges and graph evidence", async () => {
+  const fixture = await consumerClosureFixture();
+  const mutation = "@agent-teams/repository-mutation@1.0.0";
+  try {
+    for (const mutate of [
+      (lock) => {lock.packages[mutation].resolution.integrity = `sha512-${"B".repeat(86)}==`;},
+      (lock) => {lock.importers["."].dependencies = lock.importers["."].devDependencies; delete lock.importers["."].devDependencies;},
+      (lock) => {delete lock.snapshots["@agent-teams/document-authoring@1.0.0"].dependencies["@agent-teams/repository-mutation"];},
+      (lock) => {lock.importers["."].devDependencies.alias = { specifier: "npm:@agent-teams/repository-mutation@1.0.0", version: mutation };},
+      (lock) => {lock.packages["@agent-teams/repository-mutation@2.0.0"] = lock.packages[mutation]; lock.snapshots["@agent-teams/repository-mutation@2.0.0"] = {};},
+      (lock) => {delete lock.snapshots["registry-leaf@2.0.0"];},
+      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.integrity = "sha512-invalid";}
+    ]) {
+      const lock = structuredClone(fixture.lock);
+      mutate(lock);
+      await writeFile(join(fixture.root, "pnpm-lock.yaml"), closureBytes(lock));
+      await assert.rejects(nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root }),
+        (error) => error?.code?.startsWith("DOCS_CONSUMER_"));
+    }
+  } finally {await fixture.close();}
+});
+
+test("restoration admits consumer closure variation but preserves the non-owned graph", async () => {
+  const { assertRestorationLockScope } = await import("../dist/consumer-integration/adapters/node-consumer-restoration-lock.js");
+  const { parse } = await import("yaml");
+  const target = cohortV2("docs-restoration-closure-test");
+  target.runtime.runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfileObjectForV2(target), target);
+  const source = { cohort: { packages: {
+    docsProtocol: { version: "0.1.0", integrity: V2_INTEGRITY },
+    engineeringFoundation: { version: "0.1.0", integrity: V2_INTEGRITY }
+  }, runtime: { runtimeClosureDigest: `sha256:${"0".repeat(64)}` } } };
+  const before = parse(lockfileFor(source.cohort));
+  const after = consumerClosureVariant(target);
+  for (const lock of [before, after]) {
+    lock.importers["."].devDependencies.foreign = { specifier: "1.0.0", version: "1.0.0" };
+    lock.packages["foreign@1.0.0"] = { resolution: { integrity: V2_INTEGRITY } };
+    lock.snapshots["foreign@1.0.0"] = {};
+  }
+  const authority = JSON.stringify(target);
+  assert.doesNotThrow(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)));
+  assert.equal(JSON.stringify(target), authority);
+  after.packages["foreign@1.0.0"].resolution.integrity = `sha512-${"B".repeat(86)}==`;
+  assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)),
+    /non-owned/u);
+});

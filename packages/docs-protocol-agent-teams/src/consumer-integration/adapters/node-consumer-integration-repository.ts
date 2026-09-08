@@ -13,7 +13,7 @@ import type {
 import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
-import { assertQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
+import { observeQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 import {
   scanConsumerRepositoryTopology,
@@ -265,7 +265,7 @@ async function assertQualifiedLockfile(
       assertQualifiedPnpmLockfileV1(observation.bytes, desired);
       break;
     case 3:
-      assertQualifiedPnpmLockfileV2(observation.bytes, desired);
+      observeQualifiedPnpmLockfileV2(observation.bytes, desired);
       break;
   }
   return observation;

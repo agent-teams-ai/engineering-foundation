@@ -2,7 +2,7 @@ import { isNode, parseDocument, visit } from "yaml";
 import type { ConsumerIntegrationDesiredStateV1, ConsumerIntegrationDesiredStateV3 } from "../domain/model.js";
 import { requireRestoration, restorationJson } from "../application-api.js";
 import { assertQualifiedPnpmLockfileV1 } from "./pnpm-lockfile-validator-v1.js";
-import { assertQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
+import { observeQualifiedPnpmLockfileV2 } from "./pnpm-lockfile-validator-v2.js";
 
 type RecordValue = Record<string, unknown>;
 const managedRoots = new Set(["@agent-teams/docs-protocol", "@agent-teams/engineering-foundation", "@agent-teams/docs-protocol-agent-teams"]);
@@ -81,9 +81,9 @@ function nonOwnedProjection(lock: RecordValue): RecordValue {
 
 export function assertRestorationLockScope(before: Uint8Array, after: Uint8Array,
   source: ConsumerIntegrationDesiredStateV1, target: ConsumerIntegrationDesiredStateV3): void {
-  // Existing qualification validates exact coordinates, registry provenance, edges and closure digests.
+  // Validate consumer coordinates, provenance and edges without equating its graph to isolated qualification.
   assertQualifiedPnpmLockfileV1(before, source);
-  assertQualifiedPnpmLockfileV2(after, target);
+  observeQualifiedPnpmLockfileV2(after, target);
   const sourceLock = parse(before), targetLock = parse(after);
   requireRestoration(restorationJson(sourceLock.comments) === restorationJson(targetLock.comments),
     "lock migration changes consumer comments.");

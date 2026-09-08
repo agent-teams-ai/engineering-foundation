@@ -51,6 +51,31 @@ The scope adds no journal field, envelope, schema version, callback, metadata
 extension, or repository-root identity, so recovery remains portable across a
 cloned repository under the documented cooperative-writer threat model.
 
+## Legacy 0.9.0 refusal and incompatible locks
+
+The Foundation coordinator refuses a strictly recognized legacy scaffolding v1
+journal from exact compiler 0.9.0 before acquiring its operation lock when the
+installed reader differs. This also includes a recognized journal classified as
+manual recovery because its lock is incompatible or cannot be observed safely.
+An existing regular operation lock prevents the directory-only 0.9.0 reader
+from entering recovery. Status preserves compiler attribution and reports
+`manual-recovery-required` without an executable recovery route. There is no
+supported automatic barrier handoff; the journal and lock remain preserved.
+
+An absent lock or directory lock is only an advisory observation, not evidence
+that an old writer has stopped or that exact-reader recovery will succeed.
+Preflight only refuses: idle and other observations still require lock
+acquisition and fresh inspection under that lock. An old journal appearing
+after preflight can still cause a late refusal that retains a regular barrier.
+This correction does not recover an already incompatible barrier, repair the
+old writer's lease lifetime, prevent every race, or cover direct mutators in
+other packages that do not use the Foundation coordinator.
+
+Retain supported exact recovery artifacts and historical evidence. Pending,
+incompatible, and unknown consumer transactions continue to block that consumer's
+cutover through its existing admission procedure. Readiness of this bounded fix
+does not establish recovery, release qualification, or consumer migration.
+
 ## Disposable scaffold crash qualification
 
 Developer tests can import `runScaffoldCrashQualification` and the types

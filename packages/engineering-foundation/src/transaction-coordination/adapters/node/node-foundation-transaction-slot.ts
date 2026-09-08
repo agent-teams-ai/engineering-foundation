@@ -1,5 +1,6 @@
-import { opendir } from "node:fs/promises";
-import { join } from "node:path";
+import type { BigIntStats } from "node:fs";
+import { lstat, opendir, realpath } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { TextDecoder } from "node:util";
 
 import {
@@ -7,7 +8,8 @@ import {
   FOUNDATION_REGISTRY_BACKUP,
   FOUNDATION_TRANSACTION_FILE,
   KNOWN_FILE_TRANSACTION_TEMPORARY_FILE,
-  LOCAL_STATE_DIRECTORY
+  LOCAL_STATE_DIRECTORY,
+  LOCAL_OPERATION_LOCK
 } from "../../application/model/foundation-transaction-identity.js";
 import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
 import type {
@@ -23,6 +25,7 @@ import { inspectFoundationTransitionEvidence } from "./foundation-transition-evi
 const maximumTransactionBytes = 32 * 1024 * 1024;
 const maximumLinkStateBytes = 64 * 1024;
 const maximumStateDirectoryEntries = 1024;
+const maximumOperationLockBytes = 64 * 1024;
 const strictUtf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
 function isMissing(error: unknown): boolean {
@@ -35,6 +38,86 @@ function isMissing(error: unknown): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function hasUnverifiableOperationLockEntries(stateDirectory: string): Promise<boolean> {
+  const directory = await opendir(stateDirectory);
+  try {
+    let count = 0;
+    for (;;) {
+      const entry = await directory.read();
+      if (entry === null) {break;}
+      count += 1;
+      if (count > maximumStateDirectoryEntries ||
+          (entry.name !== LOCAL_OPERATION_LOCK &&
+           portableRepositoryPathIdentity(entry.name) === portableRepositoryPathIdentity(LOCAL_OPERATION_LOCK))) {
+        return true;
+      }
+    }
+  } finally {
+    await directory.close();
+  }
+  return false;
+}
+
+function stateDirectoryObservationChanged(before: BigIntStats, after: BigIntStats): boolean {
+  return before.dev !== after.dev || before.ino !== after.ino ||
+    before.birthtimeNs !== after.birthtimeNs || before.ctimeNs !== after.ctimeNs ||
+    !after.isDirectory() || after.isSymbolicLink();
+}
+
+function operationLockObservationChanged(
+  first: BigIntStats | undefined,
+  last: BigIntStats | undefined
+): boolean {
+  return (first === undefined ? last !== undefined :
+    last === undefined || first.dev !== last.dev || first.ino !== last.ino ||
+    first.birthtimeNs !== last.birthtimeNs || first.ctimeNs !== last.ctimeNs ||
+    first.mtimeNs !== last.mtimeNs || first.size !== last.size || first.mode !== last.mode);
+}
+
+async function observeLegacyOperationLock(stateDirectory: string): Promise<"compatible" | "regular" | "unverifiable"> {
+  try {
+    const canonicalParent = await realpath(dirname(stateDirectory));
+    const before = await lstat(stateDirectory, { bigint: true });
+    if (!before.isDirectory() || before.isSymbolicLink() ||
+        await realpath(stateDirectory) !== join(canonicalParent, LOCAL_STATE_DIRECTORY)) {
+      return "unverifiable";
+    }
+    if (await hasUnverifiableOperationLockEntries(stateDirectory)) {
+      return "unverifiable";
+    }
+    const path = join(stateDirectory, LOCAL_OPERATION_LOCK);
+    const first = await lstat(path, { bigint: true }).catch((error: unknown): BigIntStats | undefined => {
+      if (isMissing(error)) {return;}
+      throw error;
+    });
+    let result: "compatible" | "regular" | "unverifiable" = "unverifiable";
+    if (first === undefined || first.isDirectory()) {
+      result = "compatible";
+    } else if (first.isFile()) {
+      // No token parsing or ownership claim: even an active regular lock is
+      // incompatible with the exact 0.9.0 directory-only reader.
+      const record = await readBoundedRegularFile(path, maximumOperationLockBytes);
+      if (record.outcome === "read" && record.identity.dev === first.dev &&
+          record.identity.ino === first.ino && record.identity.birthtimeNs === first.birthtimeNs) {
+        result = "regular";
+      }
+    }
+    const last = await lstat(path, { bigint: true }).catch((error: unknown): BigIntStats | undefined => {
+      if (isMissing(error)) {return;}
+      throw error;
+    });
+    const after = await lstat(stateDirectory, { bigint: true });
+    if (stateDirectoryObservationChanged(before, after) ||
+        await realpath(stateDirectory) !== join(canonicalParent, LOCAL_STATE_DIRECTORY) ||
+        operationLockObservationChanged(first, last)) {
+      return "unverifiable";
+    }
+    return result;
+  } catch {
+    return "unverifiable";
+  }
 }
 
 function manual(
@@ -273,6 +356,29 @@ export class NodeFoundationTransactionSlot implements FoundationTransactionSlot 
         "multiple-transactions",
         "Local-mode and transaction-slot recovery evidence coexist; both were preserved and require manual recovery."
       );
+    }
+    if (localMode.state === "idle" && transaction.state === "pending" &&
+        transaction.operationKind === "scaffolding" && transaction.format === "legacy-scaffolding-v1" &&
+        transaction.foundationVersion === "0.9.0") {
+      const lock = await observeLegacyOperationLock(this.#stateDirectory);
+      if (lock !== "compatible") {
+        const message = lock === "regular"
+          ? "The observed regular operation lock prevents the exact Foundation 0.9.0 directory-only reader from entering recovery."
+          : "The operation lock could not be observed safely for the exact Foundation 0.9.0 reader.";
+        return {
+          state: "manual-recovery-required",
+          reason: "recovery-handler-unavailable",
+          operationKind: "scaffolding",
+          foundationVersion: transaction.foundationVersion,
+          diagnostics: [{
+            code: "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED",
+            message: `The recognized legacy scaffolding v1 journal from Foundation 0.9.0 was preserved. ${message} Manual recovery is required; mutation and consumer cutover remain blocked. No supported automatic handoff is available.`
+          }, ...transaction.diagnostics.filter(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH").map(({ code }) => ({
+            code,
+            message: "The recorded Foundation 0.9.0 compiler differs from the installed reader; its recovery route is not established for the observed lock."
+          }))]
+        };
+      }
     }
     return transaction.state === "idle" ? localMode : transaction;
   }

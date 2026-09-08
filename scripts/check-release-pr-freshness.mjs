@@ -43,6 +43,22 @@ function canonicalMarkdown(value) {
     .trim();
 }
 
+// Match the GitHub formatter's plain issue references without discarding link
+// destinations or changing authored links. This repository's formatter is fixed
+// by .changeset/config.json; PR body comparison still uses the original Markdown.
+function linkifyIssueReferences(value) {
+  return value
+    .split("\n")
+    .map((line) =>
+      line.replaceAll(/\[.*?\]\(.*?\)|\B#([1-9]\d*)\b/gu, (match, issue) =>
+        issue
+          ? `[#${issue}](https://github.com/agent-teams-ai/engineering-foundation/issues/${issue})`
+          : match,
+      ),
+    )
+    .join("\n");
+}
+
 function pullRequestField(pullRequest, directName, ownerName, nestedName) {
   const direct = pullRequest?.[directName];
   return direct === undefined ? pullRequest?.[ownerName]?.[nestedName] : direct;
@@ -366,8 +382,11 @@ async function packageReleaseSection(context, releasePackage) {
       ).map((violation) => `${releasePackage.name}: ${violation}`),
       ...missingSummaryViolations(
         releasePackage.name,
-        generatedRelease,
-        packageChangesets,
+        linkifyIssueReferences(generatedRelease),
+        packageChangesets.map((changeset) => ({
+          ...changeset,
+          summary: linkifyIssueReferences(changeset.summary),
+        })),
       ),
     ],
   };

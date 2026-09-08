@@ -54,7 +54,7 @@ function generatedRelease(version, summaries) {
   };
 }
 
-async function createFixture() {
+async function createFixture(summary = "Alpha package change.") {
   const root = await mkdtemp(join(tmpdir(), "foundation-release-freshness-"));
   await mkdir(join(root, ".changeset"), { recursive: true });
   await mkdir(join(root, "packages", "engineering-foundation"), { recursive: true });
@@ -66,7 +66,7 @@ async function createFixture() {
     join(root, "packages", "engineering-foundation", "CHANGELOG.md"),
     "# " + packageName + "\n\n## 1.0.0\n",
   );
-  await writeFile(join(root, ".changeset", "alpha.md"), changeset("Alpha package change."));
+  await writeFile(join(root, ".changeset", "alpha.md"), changeset(summary));
   await git(root, "init", "-b", "main");
   await git(root, "config", "user.name", "Foundation Test");
   await git(root, "config", "user.email", "foundation-test@example.invalid");
@@ -136,7 +136,7 @@ async function createRelease(
   baseRevision,
   version,
   summaries,
-  { prereleaseChangesets = [] } = {},
+  { prereleaseChangesets = [], generated = generatedRelease(version, summaries) } = {},
 ) {
   await git(root, "checkout", "--detach", baseRevision);
   for (const id of ["alpha", "beta"]) {
@@ -150,7 +150,6 @@ async function createRelease(
       JSON.stringify({ mode: "pre", tag: "rc", changesets: prereleaseChangesets }),
     );
   }
-  const generated = generatedRelease(version, summaries);
   await writeFile(
     join(root, "packages", "engineering-foundation", "package.json"),
     JSON.stringify({ name: packageName, version }),
@@ -625,6 +624,148 @@ test("existing release PR binding waits for the post-update revision tuple", asy
       { cwd: fixture.root },
     );
     assert.match(wrongNumber.join("\n"), /number changed during attestation/u);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+// Captured from f61bc034's generated 1.1.1 changelog (release run 34221971848)
+// and 8823036c's legacy-scaffold-refusal Changeset, without running the formatter.
+const legacyScaffoldSummary = `Preserve recognized 0.9.0 legacy scaffold evidence by refusing mismatching readers
+before Foundation lock acquisition. Report incompatible regular locks as manual
+recovery without an executable route; retain existing barriers and under-lock
+admission checks. Refs #260 and #271.`;
+const legacyScaffoldSection = `## 1.1.1
+
+### Patch Changes
+
+- [#276](https://github.com/agent-teams-ai/engineering-foundation/pull/276) [\`8823036\`](https://github.com/agent-teams-ai/engineering-foundation/commit/8823036c0c4c8036f267b1173329e7dd4c51733e) Thanks [@777genius](https://github.com/777genius)! - Preserve recognized 0.9.0 legacy scaffold evidence by refusing mismatching readers
+  before Foundation lock acquisition. Report incompatible regular locks as manual
+  recovery without an executable route; retain existing barriers and under-lock
+  admission checks. Refs [#260](https://github.com/agent-teams-ai/engineering-foundation/issues/260) and [#271](https://github.com/agent-teams-ai/engineering-foundation/issues/271).
+
+- [#276](https://github.com/agent-teams-ai/engineering-foundation/pull/276) [\`8823036\`](https://github.com/agent-teams-ai/engineering-foundation/commit/8823036c0c4c8036f267b1173329e7dd4c51733e) Thanks [@777genius](https://github.com/777genius)! - Classify contained baseline replacements during promotion observations as write conflicts while preserving ordinary read and unsafe-target behavior.`;
+
+for (const [label, transform, accepted] of [
+  ["official generated issue links", (value) => value, true],
+  ["plain issue references", (value) => value.replaceAll(
+    /\[#(260|271)\]\(https:\/\/github\.com\/agent-teams-ai\/engineering-foundation\/issues\/\1\)/gu,
+    "#$1",
+  ), true],
+  ["forged destination", (value) => value.replace("issues/260", "issues/999"), false],
+  ["forged label", (value) => value.replace("[#260]", "[#999]"), false],
+  ["unrelated repository", (value) => value.replace("engineering-foundation/issues/260", "other/issues/260"), false],
+  ["arbitrary destination", (value) => value.replace("https://github.com/agent-teams-ai/engineering-foundation/issues/260", "https://example.invalid/260"), false],
+  ["pull destination", (value) => value.replace("issues/260", "pull/260"), false],
+  ["unrelated owner", (value) => value.replace("agent-teams-ai/engineering-foundation/issues/260", "other/engineering-foundation/issues/260"), false],
+  ["insecure destination", (value) => value.replace("https://github.com/agent-teams-ai/engineering-foundation/issues/260", "http://github.com/agent-teams-ai/engineering-foundation/issues/260"), false],
+  ["destination query", (value) => value.replace("issues/260)", "issues/260?forged)"), false],
+  ["destination fragment", (value) => value.replace("issues/260)", "issues/260#forged)"), false],
+  ["changed summary", (value) => value.replace("without an executable route", "with an executable route"), false],
+  ["missing reference", (value) => value.replace(" and [#271](https://github.com/agent-teams-ai/engineering-foundation/issues/271)", ""), false],
+]) {
+  test(`legacy scaffold freshness: ${label}`, async () => {
+    const fixture = await createFixture(legacyScaffoldSummary);
+    try {
+      const section = transform(legacyScaffoldSection);
+      const generated = {
+        changelog: `# ${packageName}\n\n${section}\n\n## 1.0.0\n`,
+        body: `# Releases\n${section.replace("## 1.1.1", `## ${packageName}@1.1.1`)}`,
+      };
+      const release = await createRelease(
+        fixture.root, fixture.mainA, "1.1.1", [], { generated },
+      );
+      const result = await violations(
+        fixture.root, fixture.mainA, fixture.mainA, release, release.head,
+      );
+      if (accepted) {
+        assert.deepEqual(result, []);
+        const alteredBody = { ...release, body: release.body.replace("issues/260", "issues/999") };
+        if (alteredBody.body !== release.body) {
+          assert.match(
+            (await violations(fixture.root, fixture.mainA, fixture.mainA, alteredBody, release.head)).join("\n"),
+            /does not exactly match all generated changelog entries/u,
+          );
+        }
+      } else {
+        assert.match(result.join("\n"), /missing the summary from \.changeset\/alpha\.md/u);
+      }
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+}
+
+// Explicit expected text follows the pinned formatter's per-line link skipping;
+// these fixtures do not call the formatter or reproduce its replacement regex.
+const issue260 = "[#260](https://github.com/agent-teams-ai/engineering-foundation/issues/260)";
+const issue271 = "[#271](https://github.com/agent-teams-ai/engineering-foundation/issues/271)";
+const authoredIssueLink = "See [case #260](https://example.invalid).";
+
+for (const [label, summary, rendered, accepted] of [
+  ["unchanged authored link", authoredIssueLink, authoredIssueLink, true],
+  ["authored link collision", authoredIssueLink,
+    `See [case ${issue260}](https://example.invalid).`, false],
+  ["authored destination preserved",
+    "See [case #260](https://example.invalid/#271).",
+    "See [case #260](https://example.invalid/#271).", true],
+  ["authored destination mutation", authoredIssueLink,
+    "See [case #260](https://example.invalid/changed).", false],
+  ["punctuation adjacent references", "Refs (#260). #260,#271",
+    `Refs (${issue260}). ${issue260},${issue271}`, true],
+  ["word boundaries", "Refs x#260 #0 #01 #260suffix (#271).",
+    `Refs x#260 #0 #01 #260suffix (${issue271}).`, true],
+  ["multiline references and authored links",
+    "Refs (#260).\nSee [case #260](https://example.invalid/#271).\n#260,#271",
+    `Refs (${issue260}).\n  See [case #260](https://example.invalid/#271).\n  ${issue260},${issue271}`, true],
+  ["link skipping does not cross lines",
+    "See [case #260\ncontinued #271](https://example.invalid).",
+    `See [case ${issue260}\n  continued ${issue271}](https://example.invalid).`, true],
+]) {
+  test(`issue reference freshness: ${label}`, async () => {
+    const fixture = await createFixture(summary);
+    try {
+      const release = await createRelease(
+        fixture.root, fixture.mainA, "1.1.0", [rendered],
+      );
+      const result = await violations(
+        fixture.root, fixture.mainA, fixture.mainA, release, release.head,
+      );
+      if (accepted) {
+        assert.deepEqual(result, []);
+      } else {
+        assert.match(result.join("\n"), /missing the summary from \.changeset\/alpha\.md/u);
+      }
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("repeated issue-bearing summaries require one occurrence per Changeset", async () => {
+  const fixture = await createFixture("Refs (#260).");
+  try {
+    await writeFile(
+      join(fixture.root, ".changeset", "beta.md"), changeset("Refs (#260)."),
+    );
+    await git(fixture.root, "add", ".changeset/beta.md");
+    await git(fixture.root, "commit", "-m", "test: repeat issue-bearing summary");
+    const main = await git(fixture.root, "rev-parse", "HEAD");
+    const rendered = `Refs (${issue260}).`;
+    const incomplete = await createRelease(fixture.root, main, "1.1.0", [rendered]);
+    const result = await violations(
+      fixture.root, main, main, incomplete, incomplete.head,
+    );
+    assert.equal(result.length, 1);
+    assert.match(result[0], /missing the summary from \.changeset\/(alpha|beta)\.md/u);
+
+    const complete = await createRelease(
+      fixture.root, main, "1.1.0", [rendered, rendered],
+    );
+    assert.deepEqual(
+      await violations(fixture.root, main, main, complete, complete.head),
+      [],
+    );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }

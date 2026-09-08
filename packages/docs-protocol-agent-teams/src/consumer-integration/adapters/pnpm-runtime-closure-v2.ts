@@ -64,6 +64,17 @@ function compareEdges(left: { from: string; to: string }, right: { from: string;
   return left.from === right.from ? left.to.localeCompare(right.to) : left.from.localeCompare(right.from);
 }
 
+function assertRegistryResolution(resolution: JsonRecord, locator: string): void {
+  if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
+    fail(`Runtime closure locator ${locator} has no exact registry SRI.`);
+  }
+  const tarball = resolution["tarball"];
+  if (tarball !== undefined && (typeof tarball !== "string" ||
+    !tarball.startsWith("https://registry.npmjs.org/"))) {
+    fail(`Runtime closure locator ${locator} must resolve from registry.npmjs.org.`);
+  }
+}
+
 function projectRuntimeClosure(
   packages: JsonRecord,
   snapshots: JsonRecord,
@@ -90,14 +101,7 @@ function projectRuntimeClosure(
     const packageEntry = record(packages[physicalLocator], `Runtime closure package ${physicalLocator}`);
     const snapshot = record(snapshots[current.locator], `Runtime closure snapshot ${current.locator}`);
     const resolution = record(packageEntry["resolution"], `Runtime closure resolution ${physicalLocator}`);
-    if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
-      fail(`Runtime closure locator ${current.locator} has no exact registry SRI.`);
-    }
-    const tarball = resolution["tarball"];
-    if (tarball !== undefined && (typeof tarball !== "string" ||
-      !tarball.startsWith("https://registry.npmjs.org/"))) {
-      fail(`Runtime closure locator ${current.locator} must resolve from registry.npmjs.org.`);
-    }
+    assertRegistryResolution(resolution, current.locator);
     const from = expected.find((entry) => physicalLocator === `${entry.name}@${entry.version}`);
     const edges = [
       ...sortedEdges(snapshot, "dependencies", current.locator),

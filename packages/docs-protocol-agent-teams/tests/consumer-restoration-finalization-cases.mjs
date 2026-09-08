@@ -24,6 +24,44 @@ async function retryAndRestore(fixture, selected, path, label) {
 }
 
 export function registerRestorationFinalizationTests(helpers) {
+  test("future source and target eligibility permits selected prepare, finalize, activation and restore", { skip: process.platform === "win32" }, async () => {
+    const future = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().replace(/\.[0-9]{3}Z$/u, "Z");
+    const fixture = await managedRestorationFixture({ ...helpers, sourceEligibleAfter: future, targetEligibleAfter: future });
+    try {
+      const original = await restorationSnapshot(fixture.consumerRoot);
+      const { path, selection } = await prepare(fixture, "future-eligibility");
+      assert.deepEqual(await restorationSnapshot(fixture.consumerRoot), original);
+      // Independently retain and select the actual preparation bytes before finalization.
+      const preparedBytes = await readFile(selection.path);
+      assert.equal(sha256Bytes(preparedBytes), selection.digest);
+      const prepared = JSON.parse(preparedBytes);
+      assert.equal(prepared.sourceCohort.eligibleAfter, future);
+      assert.equal(prepared.targetCohort.eligibleAfter, future);
+      const selectedPath = `${selection.path}.selected`;
+      await writeFile(selectedPath, preparedBytes, { flag: "wx" });
+      const selected = { path: selectedPath, digest: sha256Bytes(await readFile(selectedPath)) };
+      const finalized = await restorationCli(fixture, restorationArgs(fixture, "finalize", selected, path), { label: "future-finalize" });
+      const upgraded = assertCliSuccess(finalized, "upgraded");
+      assert.equal(upgraded.receipt.outcome, "applied");
+      assert.match(finalized.stderr, /real target activation passed/u);
+      assert.notDeepEqual(await restorationSnapshot(fixture.consumerRoot), original);
+      const proofBytes = await readFile(upgraded.restoration.path);
+      assert.equal(sha256Bytes(proofBytes), upgraded.restoration.digest);
+      const proof = JSON.parse(proofBytes);
+      assert.equal(proof.preparationDigest, selected.digest);
+      assert.equal(proof.sourceCohort.eligibleAfter, future);
+      assert.equal(proof.targetCohort.eligibleAfter, future);
+      assertCliSuccess(await restorationCli(fixture, restorationArgs(fixture, "restore", upgraded.restoration, path), { label: "future-restore" }), "restored");
+      assert.deepEqual(await restorationSnapshot(fixture.consumerRoot), original);
+      assert.equal((await fixture.oldCheck()).fixtureCli, "historical-v1");
+      assertCliSuccess(await restorationCli(fixture, [...restorationArgs(fixture, "restore", upgraded.restoration, path), "--activation-only"], { label: "future-activation-only" }), "activated-v1");
+      assert.deepEqual(await restorationSnapshot(fixture.consumerRoot), original);
+      assert.equal((await fixture.oldCheck()).fixtureCli, "historical-v1");
+      assert.equal((await inspectKnownFileTransactionBarrier({ consumerRoot: fixture.consumerRoot })).state, "idle");
+      assert.ok(Date.parse(future) > Date.now());
+    } finally {await fixture.close();}
+  });
+
   test("selected finalization survives real final-write errors and preserves colliding evidence", { skip: process.platform !== "linux" }, async (t) => {
     const fixture = await managedRestorationFixture(helpers);
     try {

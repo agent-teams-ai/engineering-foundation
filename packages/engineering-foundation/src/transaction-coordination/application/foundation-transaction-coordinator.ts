@@ -62,6 +62,18 @@ function isKnownFileRecoveryAllowed(
     !status.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH");
 }
 
+function isLegacyScaffoldingPreflightRefusal(status: InternalFoundationTransactionStatus): boolean {
+  return (
+    (status.state === "pending" || status.state === "manual-recovery-required") &&
+    status.operationKind === "scaffolding" &&
+    status.foundationVersion === "0.9.0" &&
+    (status.state === "pending"
+      ? status.format === "legacy-scaffolding-v1"
+      : status.reason === "recovery-handler-unavailable" && status.format === undefined) &&
+    status.diagnostics.some(({ code }) => code === "FOUNDATION_TRANSACTION_VERSION_MISMATCH")
+  );
+}
+
 export interface FoundationTransactionLease {
   readonly status: InternalFoundationTransactionStatus;
   release(options?: { readonly retainTransactionBarrier?: boolean }): Promise<void>;
@@ -87,6 +99,17 @@ export class FoundationTransactionCoordinator {
     readonly requestedMutation: FoundationMutationKind;
     readonly allowRecoveryOf?: "document-authoring" | "known-file-transaction" | "local-mode" | "scaffolding";
   }): Promise<FoundationTransactionLease> {
+    // This observation may only deny. Admission still uses a fresh inspection
+    // under the existing lock, including when an old writer appears afterward.
+    // The Node slot preserves mismatch attribution when it replaces a strictly
+    // recognized v1 pending route with the existing format-less manual status.
+    const preflight = await this.#slot.inspect();
+    if (preflight.state !== "idle" && isLegacyScaffoldingPreflightRefusal(preflight)) {
+      throw new FoundationTransactionError({
+        requestedMutation: options.requestedMutation,
+        status: preflight
+      });
+    }
     const release = await this.#lock.acquire();
     let held = true;
     try {

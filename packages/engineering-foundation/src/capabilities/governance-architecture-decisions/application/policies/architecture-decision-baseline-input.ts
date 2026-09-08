@@ -74,3 +74,16 @@ export function baselineObservationFailure(
     message: "Accepted-decision baseline is unavailable, unsafe, or changed while reading."
   };
 }
+
+export function baselineWriteObservationFailure(
+  error: unknown,
+  maxBytes: number
+): ArchitectureDecisionBaselineReadResult {
+  if (error instanceof ContainedFileReadError && error.failure === "changed") {
+    rejectBaselineWrite(
+      "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT",
+      "Accepted-decision baseline changed while observing the promotion target. Re-run promotion from the current repository state."
+    );
+  }
+  return baselineObservationFailure(error, maxBytes);
+}

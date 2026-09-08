@@ -45,11 +45,16 @@ Status reports package version, source path, Git commit, dirty state, and one of
 - `INVALID`: marker, manifest, installed package, or source evidence disagree.
 
 Status also reports shared transaction evidence. A frozen legacy scaffolding
-journal exposes its exact recovery command and package version. An incomplete
+journal exposes its exact recovery command and package version when its observed
+lock permits that route. Exact 0.9.0 evidence with a regular or unverifiable lock
+instead preserves compiler attribution and reports manual recovery without an
+executable route; see [legacy recovery limits](../reference/scaffolding-recovery.md#legacy-090-refusal-and-incompatible-locks).
+An incomplete
 local-mode phase exposes `detach` as its only automatic recovery route. A
 verified envelope v2 is preserved with its recorded package identity but remains
 manual until its registered handler is implemented and capability-qualified. Attach and
-detach acquire the shared operation lock and refuse to switch package bytes
+detach refuse recognized mismatching 0.9.0 evidence before acquiring the shared
+operation lock; other observations still acquire and inspect afresh. They refuse to switch package bytes
 while any foreign, incompatible, unknown, or manual-recovery evidence exists.
 
 Detach removes only the foundation link and atomically restores the preserved

@@ -1342,7 +1342,8 @@
             }
           ],
           "testRoots": [
-            "tests/foundation-transaction-coordinator.test.mjs"
+            "tests/foundation-transaction-coordinator.test.mjs",
+            "tests/foundation-legacy-scaffolding-refusal.test.mjs"
           ]
         },
         {

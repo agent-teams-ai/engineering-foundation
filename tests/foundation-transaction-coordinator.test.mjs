@@ -237,54 +237,6 @@ test("never grants recovery to envelope v2 before its handler is qualified", asy
   );
 });
 
-test("recognizes a frozen legacy scaffolding v1 journal and its exact compiler", async () => {
-  const root = await createRoot();
-  try {
-    await cp(scaffoldFixtureRoot, root, { recursive: true });
-    const plan = await planScaffoldFromFile({
-      consumerRoot: root,
-      intentPath: "intents/create-fixture.yaml",
-    });
-    const journal = {
-      schemaVersion: 1,
-      state: "PREPARED",
-      plan,
-      operations: plan.operations.map((operation) => ({
-        operationId: operation.id,
-        path: operation.path,
-        state: "pending",
-      })),
-    };
-    await writeJson(slotPath(root), journal);
-    const status = await createNodeFoundationTransactionSlot({
-      consumerRoot: root,
-      installedBuildIdentity,
-      installedVersion: plan.compiler.version,
-    }).inspect();
-    assert.deepEqual(
-      {
-        state: status.state,
-        operationKind: status.operationKind,
-        format: status.format,
-        foundationVersion: status.foundationVersion,
-        recovery: status.recovery,
-      },
-      {
-        state: "pending",
-        operationKind: "scaffolding",
-        format: "legacy-scaffolding-v1",
-        foundationVersion: plan.compiler.version,
-        recovery: {
-          commandId: "scaffold-recover",
-          exactFoundationVersion: plan.compiler.version,
-        },
-      },
-    );
-  } finally {
-    await rm(root, { force: true, recursive: true });
-  }
-});
-
 test("preserves exact verified envelope v2 evidence until its recovery handler exists", async () => {
   const root = await createRoot();
   try {

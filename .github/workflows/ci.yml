@@ -462,6 +462,9 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm package:check
+        env:
+          # Disposable hosted runner owns final fixture-tree cleanup.
+          AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS: "1"
 
   windows-registry:
     name: windows-registry

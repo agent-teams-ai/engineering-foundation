@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cp, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdtemp, open, readFile, readdir, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +35,113 @@ function baselineWithDigest(baseline, character) {
 
 
 export function registerBaselineObservationPortCases() {
+  for (const observationNumber of [1, 2, 3]) {
+    test(`baseline replacement during contained read ${observationNumber} rejects the losing writer`, async () => {
+      await withFixture(async (root) => {
+        const ordinary = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
+        const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
+        const current = await ordinary.read(input);
+        assert.equal(current.kind, "valid");
+        const expected = { kind: "valid", revision: current.revision };
+        const winner = baselineWithDigest(current.value, "b");
+        let winnerBytes;
+        let reads = 0;
+        let containedFailure;
+        let paths = 0;
+        let pathsAtFailure;
+        const repository = new FilesystemArchitectureDecisionBaselineRepository({
+          async pathTraversesSymbolicLink(...args) {
+            paths += 1;
+            return pathTraversesSymbolicLink(...args);
+          },
+          async read(location) {
+            reads += 1;
+            if (reads !== observationNumber) {return readContainedRegularFile(location);}
+            try {
+              return await readContainedRegularFile(location, {
+                lstat, realpath, stat: (path) => stat(path, { bigint: true }),
+                async open(path, flags) {
+                  const handle = await open(path, flags);
+                  let snapshots = 0;
+                  let closePromise;
+                  const close = () => closePromise ??= handle.close();
+                  return {
+                    close,
+                    read: (...args) => handle.read(...args),
+                    async stat() {
+                      const snapshot = await handle.stat({ bigint: true });
+                      if (++snapshots === 1) {
+                        if (process.platform === "win32") {
+                          // Windows qualifies stale-descriptor snapshot detection, not live-openhandle replacement.
+                          await close();
+                        }
+                        if (observationNumber === 1) {
+                          // A cooperative winner completes; Linux/macOS retain the loser's open read handle.
+                          assert.equal(await ordinary.write({ ...input, baseline: winner, expected }), "updated");
+                        } else {
+                          // Locked observations still detect non-cooperative atomic replacement.
+                          const replacement = join(root, "replacement.json");
+                          await writeFile(replacement, `${JSON.stringify(winner)}\n`);
+                          await rename(replacement, path);
+                        }
+                        winnerBytes = await readFile(path);
+                      }
+                      return snapshot;
+                    }
+                  };
+                }
+              });
+            } catch (error) {
+              containedFailure = error;
+              pathsAtFailure = paths;
+              throw error;
+            }
+          }
+        });
+        await assert.rejects(repository.write({ ...input, baseline: baselineWithDigest(current.value, "a"), expected }),
+          (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"));
+        assert.ok(containedFailure instanceof ContainedFileReadError);
+        assert.equal(containedFailure.failure, "changed");
+        assert.equal(reads, observationNumber);
+        assert.equal(paths, pathsAtFailure);
+        assert.deepEqual(await readFile(baselinePath(root)), winnerBytes);
+        assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) =>
+          name.startsWith(".architecture-decision-baseline-") || name.endsWith(".lock")), []);
+      });
+    });
+
+    test(`baseline write observation ${observationNumber} preserves hostile and opaque failures`, async () => {
+      await withFixture(async (root) => {
+        const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
+        const current = await new FilesystemArchitectureDecisionBaselineRepository(baselineObservation).read(input);
+        const before = await readFile(baselinePath(root));
+        const cancellation = new CapabilityInputError({
+          code: "EXECUTION_CANCELLED", message: "Cancelled", phase: "execution", retryable: false
+        });
+        const impostor = Object.assign(new Error("opaque changed failure"), { name: "ContainedFileReadError", failure: "changed" });
+        for (const failure of ["escape", "symlink", "unavailable", "invalid", cancellation, impostor]) {
+          const thrown = typeof failure === "string" ? new ContainedFileReadError(failure) : failure;
+          let reads = 0;
+          const repository = new FilesystemArchitectureDecisionBaselineRepository({
+            pathTraversesSymbolicLink,
+            async read(location) {
+              if (++reads === observationNumber) {throw thrown;}
+              return readContainedRegularFile(location);
+            }
+          });
+          await assert.rejects(repository.write({ ...input, baseline: baselineWithDigest(current.value, "a"),
+            expected: { kind: "valid", revision: current.revision } }), (error) => typeof failure !== "string"
+            ? error === thrown : hasProblemCode(error, failure === "invalid"
+              ? "ARCHITECTURE_DECISION_BASELINE_WRITE_INVALID_TARGET" : "ARCHITECTURE_DECISION_BASELINE_WRITE_UNSAFE_TARGET"));
+          assert.equal(reads, observationNumber);
+          assert.deepEqual(await readFile(baselinePath(root)), before);
+          assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) =>
+            name.startsWith(".architecture-decision-baseline-") || name.endsWith(".lock")), []);
+        }
+      });
+    });
+  }
+
   test("baseline observation port preserves bounds, error identity and failure mapping", async () => {
     await withFixture(async (root) => {
       const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };

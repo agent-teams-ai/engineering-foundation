@@ -483,10 +483,30 @@ test("restoration rereads protected main and keeps source and original target at
   observedTime = NaN;
   await assert.rejects(reader.readRestoration(options), /support has expired/u);
   const proof = { sourceCohort: first.target.cohort, targetCohort: first.source.cohort, consumer: { repository: REPOSITORY } };
-  const eligible = Math.max(Date.parse(proof.sourceCohort.eligibleAfter), Date.parse(proof.targetCohort.eligibleAfter));
   const fixedAuthority = { readRestoration: async () => first };
-  await assert.rejects(assertRestorationAuthority(fixedAuthority, proof, () => eligible - 1));
-  await assertRestorationAuthority(fixedAuthority, proof, () => eligible);
+  const future = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().replace(/\.[0-9]{3}Z$/u, "Z");
+  for (const [futureOrigin, futureSuccessor] of [[true, true], [true, false], [false, true]]) {
+    const candidateOrigin = { ...origin, ...(futureOrigin ? { eligibleAfter: future } : {}) };
+    const candidateSuccessor = { ...successor, ...(futureSuccessor ? { eligibleAfter: future } : {}) };
+    const candidateOld = centralRegistry(candidateOrigin), candidateNext = v2Registry(candidateSuccessor);
+    const candidate = { schema_version: 1, cohorts: [...candidateOld.cohorts, ...candidateNext.cohorts],
+      events: [...candidateOld.events, ...candidateNext.events] };
+    let previous = null;
+    candidate.events.forEach((event, index) => {
+      event.sequence = index + 1;
+      event.previous_event_digest = previous;
+      event.event_digest = authorityDigest(event, "event_digest", "agent-teams.docs-qualified-cohort-event/v1");
+      previous = event.event_digest;
+    });
+    const project = (cohort, generation) => projectQualifiedCohortAuthority({ cohortId: cohort.cohortId,
+      generation, registry: candidate, repository: REPOSITORY, revision });
+    const original = project(candidateOrigin, 1).cohort, target = project(candidateSuccessor, 2).cohort;
+    const currentReader = new GitHubCohortAuthorityReader(async (url) =>
+      new Response(JSON.stringify(String(url).endsWith("/commits/main") ? { sha: revision } : candidate)));
+    assert.ok(Date.parse(future) > Date.now());
+    await assertRestorationAuthority(currentReader, { sourceCohort: original, targetCohort: target,
+      consumer: { repository: REPOSITORY } });
+  }
   for (const invalidTime of [NaN, Infinity, -Infinity]) {
     await assert.rejects(assertRestorationAuthority(fixedAuthority, proof, () => invalidTime));
   }

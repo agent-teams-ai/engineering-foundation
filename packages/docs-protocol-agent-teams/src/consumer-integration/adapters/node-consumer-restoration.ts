@@ -85,9 +85,7 @@ export async function assertRestorationAuthority(reader: ConsumerRestorationAuth
     restorationJson(authority.source.cohort) === restorationJson(proof.targetCohort) &&
     restorationJson(authority.target.cohort) === restorationJson(proof.sourceCohort) &&
     proof.targetCohort.rollbackTo.includes(proof.sourceCohort.cohortId) &&
-    proof.targetCohort.upgradeFrom.includes(proof.sourceCohort.cohortId) &&
-    Date.parse(proof.sourceCohort.eligibleAfter) <= observedAt &&
-    Date.parse(proof.targetCohort.eligibleAfter) <= observedAt,
+    proof.targetCohort.upgradeFrom.includes(proof.sourceCohort.cohortId),
   "fresh protected authority must authorize the exact qualified original rollback edge.");
 }
 

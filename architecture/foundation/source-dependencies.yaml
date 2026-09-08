@@ -612,6 +612,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-reconciliation-authority-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cli-fixture.mjs

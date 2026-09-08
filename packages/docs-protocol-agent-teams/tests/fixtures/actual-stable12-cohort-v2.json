@@ -1,0 +1,241 @@
+{
+  "cohort_generation": 2,
+  "cohort_id": "docs-2026-09-07-stable12",
+  "channel": "stable",
+  "packages": [
+    {
+      "name": "@agent-teams/repository-mutation",
+      "role": "transitive",
+      "version": "0.1.2",
+      "integrity": "sha512-ZSK/F57kBFxw/P1UlJcuXEtBzoXILfQrLV33XriiPzJdJoKw4Zq5RvJPc2F3329KPWGeANNg2lMGMpi/jkMDoA==",
+      "registry": "https://registry.npmjs.org/",
+      "published_at": "2026-09-07T16:34:32.553Z",
+      "provenance": {
+        "source_repository": "agent-teams-ai/engineering-foundation",
+        "source_repository_id": 1316243988,
+        "source_workflow": ".github/workflows/release.yml",
+        "source_commit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
+        "workflow_run_id": 34143477924,
+        "workflow_run_attempt": 1,
+        "registry_attestation_url": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2frepository-mutation@0.1.2",
+        "workflow_run_url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924",
+        "signature_verified": true,
+        "reconciliation": {
+          "workflow_run_attempt": 2,
+          "release_job_id": 101813993229
+        }
+      }
+    },
+    {
+      "name": "@agent-teams/document-authoring",
+      "role": "transitive",
+      "version": "0.2.1",
+      "integrity": "sha512-ggTDsd0+7hNgwlICVgU/98RvIKeM2HPfrym41SXgRePff0FMSPKVqTF4Fppm8ngQSzacKTbu9VsRCU2fO5u7yg==",
+      "registry": "https://registry.npmjs.org/",
+      "published_at": "2026-09-07T16:35:01.037Z",
+      "provenance": {
+        "source_repository": "agent-teams-ai/engineering-foundation",
+        "source_repository_id": 1316243988,
+        "source_workflow": ".github/workflows/release.yml",
+        "source_commit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
+        "workflow_run_id": 34143477924,
+        "workflow_run_attempt": 1,
+        "registry_attestation_url": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fdocument-authoring@0.2.1",
+        "workflow_run_url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924",
+        "signature_verified": true,
+        "reconciliation": {
+          "workflow_run_attempt": 2,
+          "release_job_id": 101813993229
+        }
+      }
+    },
+    {
+      "name": "@agent-teams/docs-protocol",
+      "role": "direct",
+      "version": "0.5.2",
+      "integrity": "sha512-hr9ZjoxfrQJ8ETjSiTr0q6sNcNnYGoTcfZymX6HZzZ9e1IxEHIePKTytsKgU1tIPygfV4HPhOiaLEddR4WwwIg==",
+      "registry": "https://registry.npmjs.org/",
+      "published_at": "2026-09-07T16:35:13.177Z",
+      "provenance": {
+        "source_repository": "agent-teams-ai/engineering-foundation",
+        "source_repository_id": 1316243988,
+        "source_workflow": ".github/workflows/release.yml",
+        "source_commit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
+        "workflow_run_id": 34143477924,
+        "workflow_run_attempt": 1,
+        "registry_attestation_url": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fdocs-protocol@0.5.2",
+        "workflow_run_url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924",
+        "signature_verified": true,
+        "reconciliation": {
+          "workflow_run_attempt": 2,
+          "release_job_id": 101813993229
+        }
+      }
+    },
+    {
+      "name": "@agent-teams/docs-protocol-agent-teams",
+      "role": "direct",
+      "version": "0.1.2",
+      "integrity": "sha512-6gHZ9R5LD6NtjYlyw7uaD28eQdnX/CCD8Joo0lMULCpqyQiRgeBKYnOcNEMC8JYT3EZmRCT18IbHf2iseiY0GQ==",
+      "registry": "https://registry.npmjs.org/",
+      "published_at": "2026-09-07T16:35:26.024Z",
+      "provenance": {
+        "source_repository": "agent-teams-ai/engineering-foundation",
+        "source_repository_id": 1316243988,
+        "source_workflow": ".github/workflows/release.yml",
+        "source_commit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
+        "workflow_run_id": 34143477924,
+        "workflow_run_attempt": 1,
+        "registry_attestation_url": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fdocs-protocol-agent-teams@0.1.2",
+        "workflow_run_url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924",
+        "signature_verified": true,
+        "reconciliation": {
+          "workflow_run_attempt": 2,
+          "release_job_id": 101813993229
+        }
+      }
+    },
+    {
+      "name": "@agent-teams/engineering-foundation",
+      "role": "direct",
+      "version": "1.0.2",
+      "integrity": "sha512-fo7iBwLhnCdaPc7gPEW/QL5RnOEjBXbpFdUECKWjEnjRk44ivz3LXsqJxMpWEsB3ftgwkKv8BvpMT17UvlrHtQ==",
+      "registry": "https://registry.npmjs.org/",
+      "published_at": "2026-09-07T16:53:33.595Z",
+      "provenance": {
+        "source_repository": "agent-teams-ai/engineering-foundation",
+        "source_repository_id": 1316243988,
+        "source_workflow": ".github/workflows/release.yml",
+        "source_commit": "1d064016687c8b0e74e3f30905aff67d9c981c18",
+        "workflow_run_id": 34143477924,
+        "workflow_run_attempt": 2,
+        "registry_attestation_url": "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fengineering-foundation@1.0.2",
+        "workflow_run_url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924",
+        "signature_verified": true
+      }
+    }
+  ],
+  "dependency_edges": [
+    {
+      "from": "@agent-teams/document-authoring",
+      "to": "@agent-teams/repository-mutation"
+    },
+    {
+      "from": "@agent-teams/docs-protocol",
+      "to": "@agent-teams/document-authoring"
+    },
+    {
+      "from": "@agent-teams/docs-protocol",
+      "to": "@agent-teams/repository-mutation"
+    },
+    {
+      "from": "@agent-teams/docs-protocol-agent-teams",
+      "to": "@agent-teams/docs-protocol"
+    },
+    {
+      "from": "@agent-teams/docs-protocol-agent-teams",
+      "to": "@agent-teams/repository-mutation"
+    },
+    {
+      "from": "@agent-teams/engineering-foundation",
+      "to": "@agent-teams/document-authoring"
+    },
+    {
+      "from": "@agent-teams/engineering-foundation",
+      "to": "@agent-teams/repository-mutation"
+    }
+  ],
+  "reusable_workflow": {
+    "repository": "agent-teams-ai/.github",
+    "path": ".github/workflows/docs-protocol-check.yml",
+    "revision": "1811a66513a0136d3305385ade1db6f476c1f44a",
+    "repository_id": 1316243981,
+    "blob_sha": "9bcbe54dfec6280045ac596e55c1f14ce5f176e1"
+  },
+  "schemas": {
+    "consumer_integration": 3,
+    "managed_state": 2,
+    "docs_protocol": 1,
+    "qualification_receipt": 3,
+    "foundation_plan": 1,
+    "foundation_journal": 1,
+    "foundation_receipt": 1,
+    "foundation_envelope": 5
+  },
+  "assets": {
+    "skill": {
+      "package": "@agent-teams/docs-protocol-agent-teams",
+      "path": "skills/docs/SKILL.md",
+      "digest": "sha256:a86d8c9b990124f11b50b1c6703e1aeb5e3b981d51f7e8f5c163c4f5b987d7c5"
+    },
+    "caller_workflow": {
+      "package": "@agent-teams/docs-protocol-agent-teams",
+      "path": "assets/docs-protocol.yml",
+      "digest": "sha256:1d4424682157e101f3ae98538a19e59ceeb2fcf8b96687f2694fec77315276ac",
+      "rendered_digest": "sha256:3d074c5d7096a219171ce7c444ffa2760480183d2381342ece32ba55fae3b7fa"
+    },
+    "asset_catalog": {
+      "package": "@agent-teams/docs-protocol-agent-teams",
+      "path": "assets/catalog.json",
+      "digest": "sha256:3ec380a1a6dd8534824ba82ff23affba993e19e9cb6b3c5e424ea9973ad686da"
+    },
+    "transition_catalog": {
+      "package": "@agent-teams/docs-protocol-agent-teams",
+      "path": "assets/transition-catalog.json",
+      "digest": "sha256:7d7d5308e5495dc159b34aaaceaf5953e4649a1330a96065585777464d68d06c"
+    }
+  },
+  "runtime": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.17.0 <12",
+    "apply_platforms": [
+      "linux",
+      "macos"
+    ],
+    "check_plan_platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ]
+  },
+  "runtime_closure": {
+    "schema_version": 2,
+    "domain": "agent-teams.docs-runtime-closure/v2",
+    "package_manager": "pnpm@11.20.0",
+    "lockfile_version": "9.0",
+    "package_count": 82,
+    "projection_path": "governance/docs-runtime-closures/sha256-7ddae93eea4e62ea98242c28a1a57cafe539c0a5a5bc06113b99ff0f3f3a00a1.json",
+    "digest": "sha256:7ddae93eea4e62ea98242c28a1a57cafe539c0a5a5bc06113b99ff0f3f3a00a1"
+  },
+  "eligible_after": "2026-09-07T16:53:34Z",
+  "upgrade_from": [
+    "docs-2026-08-28-stable8",
+    "docs-2026-08-28-stable9.1",
+    "docs-2026-08-31-stable10"
+  ],
+  "rollback_to": [
+    "docs-2026-08-28-stable8",
+    "docs-2026-08-28-stable9.1",
+    "docs-2026-08-31-stable10"
+  ],
+  "canary_repositories": [
+    {
+      "repository_id": 1336577313,
+      "repository": "agent-teams-ai/docs-protocol-canary-20260817"
+    }
+  ],
+  "evidence_references": [
+    "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924",
+    "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924/job/101810360365",
+    "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/34143477924/job/101813993229",
+    "https://github.com/agent-teams-ai/engineering-foundation/commit/1d064016687c8b0e74e3f30905aff67d9c981c18",
+    "https://github.com/agent-teams-ai/.github/blob/1811a66513a0136d3305385ade1db6f476c1f44a/.github/workflows/docs-protocol-check.yml",
+    "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2frepository-mutation@0.1.2",
+    "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fdocument-authoring@0.2.1",
+    "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fdocs-protocol@0.5.2",
+    "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fdocs-protocol-agent-teams@0.1.2",
+    "https://registry.npmjs.org/-/npm/v1/attestations/@agent-teams%2fengineering-foundation@1.0.2",
+    "Offline data checkpoint from sealed root-accepted publication and canonical closure GO. First four artifacts retain failed origin attempt 1 with successful reconciliation attempt 2. Live provenance verification and normal PR integration remain root-owned; no consumer lifecycle or fleet acceptance."
+  ],
+  "record_digest": "sha256:9cd6951900b838bdec78685d00d569f1a5e5a838dcf8f5836b6ec491c9b665fd"
+}

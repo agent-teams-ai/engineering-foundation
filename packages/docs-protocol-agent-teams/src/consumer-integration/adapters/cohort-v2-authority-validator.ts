@@ -92,9 +92,24 @@ function assertReferences(value: unknown, subject: string): void {
   }
 }
 
+function assertReconciliation(value: unknown, packageName: string): void {
+  const reconciliation = record(value, `${packageName} provenance reconciliation`);
+  if (!hasExactKeys(reconciliation, ["workflow_run_attempt", "release_job_id"])) {
+    invalid(`${packageName} provenance reconciliation must match its closed two-entry shape.`);
+  }
+  assertPositiveInteger(
+    reconciliation["workflow_run_attempt"], `${packageName} reconciliation run attempt`
+  );
+  assertPositiveInteger(
+    reconciliation["release_job_id"], `${packageName} reconciliation release job ID`
+  );
+}
+
 function assertProvenance(value: unknown, packageName: string, version: string): void {
   const provenance = record(value, `${packageName} provenance`);
-  if (!hasExactKeys(provenance, PROVENANCE_KEYS) ||
+  const hasReconciliation = Object.hasOwn(provenance, "reconciliation");
+  const keys = hasReconciliation ? [...PROVENANCE_KEYS, "reconciliation"] : PROVENANCE_KEYS;
+  if (!hasExactKeys(provenance, keys) ||
     provenance["source_repository"] !== "agent-teams-ai/engineering-foundation" ||
     provenance["source_repository_id"] !== 1_316_243_988 ||
     provenance["signature_verified"] !== true) {
@@ -104,6 +119,7 @@ function assertProvenance(value: unknown, packageName: string, version: string):
   assertPattern(provenance["source_commit"], GIT_SHA, `${packageName} source commit`);
   assertPositiveInteger(provenance["workflow_run_id"], `${packageName} workflow run ID`);
   assertPositiveInteger(provenance["workflow_run_attempt"], `${packageName} run attempt`);
+  if (hasReconciliation) {assertReconciliation(provenance["reconciliation"], packageName);}
   const runId = provenance["workflow_run_id"];
   if (provenance["registry_attestation_url"] !==
       `https://registry.npmjs.org/-/npm/v1/attestations/${

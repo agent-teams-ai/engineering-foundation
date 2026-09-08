@@ -1,3 +1,4 @@
+import { actualOrgV2Registry, registerReconciliationAuthorityTests } from "./consumer-reconciliation-authority-cases.mjs";
 import assert from "node:assert/strict";
 import { registerRestorationAuthorityTest } from "./consumer-restoration-cases.mjs";
 import { createHash } from "node:crypto";
@@ -23,9 +24,6 @@ const REPOSITORY = {
 };
 const repositoryMutationReceiptSchema = JSON.parse(await readFile(new URL(
   import.meta.resolve("@agent-teams/repository-mutation/schemas/repository-mutation/known-file-transaction-receipt/v1.schema.json")
-), "utf8"));
-const actualOrgV2Registry = JSON.parse(await readFile(new URL(
-  "./fixtures/actual-org-cohort-v2.json", import.meta.url
 ), "utf8"));
 
 const canonical = (entry) => Array.isArray(entry)
@@ -203,6 +201,8 @@ test("projects the actual org Cohort v2 authority shape and rejects drift", () =
       (error) => error?.code === "DOCS_CONSUMER_AUTHORITY_INVALID");
   }
 });
+
+registerReconciliationAuthorityTests({ actualOrgV2Registry, authorityDigest, bindRegistry, REPOSITORY, V2_PACKAGE_NAMES });
 
 test("fails closed on current Cohort v2 nested authority drift", () => {
   const input = {

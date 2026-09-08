@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { lstat, readFile, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import test from "node:test";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { compileKnownFileTransactionPlan, sha256Bytes } from "@agent-teams/repository-mutation";
@@ -24,7 +24,7 @@ async function expectBlocked(fixture, args, label) {
 }
 
 export function registerRestorationSelectionTests(helpers) {
-  test("production strict schemas and actual CLI preserve success, activation-only and error envelopes", { skip: process.platform === "win32" }, async () => {
+  test("production strict schemas and actual CLI preserve success, activation-only and error envelopes", { skip: process.platform === "win32" }, async (t) => {
     await assertConsumerRestorationExecutionSchema({ schemaVersion: 1, command: "consumer.restore", outcome: "blocked", issues: [] });
     await assertConsumerUpgradeExecutionSchema({ schemaVersion: 1, command: "consumer.finalize", outcome: "blocked", issues: [] });
     await assert.rejects(assertConsumerRestorationExecutionSchema({ schemaVersion: 1, command: "consumer.restore", outcome: "restored", issues: [] }), /proofDigest/u);
@@ -46,6 +46,22 @@ export function registerRestorationSelectionTests(helpers) {
       assert.equal(prepared.outcome, "prepared");
       const selection = prepared.preparation;
       const finalize = restorationArgs(fixture, "finalize", selection);
+      await t.test("finalize rejects a differently-cased root alias before mutation", async (subtest) => {
+        const base = basename(fixture.consumerRoot);
+        const flipped = [...base].map((ch) => ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase()).join("");
+        const alias = join(dirname(fixture.consumerRoot), flipped);
+        const real = await lstat(fixture.consumerRoot, { bigint: true });
+        const aliasStat = await lstat(alias, { bigint: true }).catch(() => null);
+        if (flipped === base || aliasStat === null || aliasStat.dev !== real.dev || aliasStat.ino !== real.ino) {
+          subtest.skip("filesystem does not alias a different-case path to the same consumer root.");
+          return;
+        }
+        const args = [...finalize]; args[args.indexOf("--consumer") + 1] = alias;
+        const rejected = await expectBlocked(fixture, args, "case-alias-finalize");
+        assert.match(rejected.execution.issues[0].message, /canonical/u);
+        assert.deepEqual(await restorationSnapshot(fixture.consumerRoot), original);
+        await assert.rejects(readFile(fixture.proofPath), { code: "ENOENT" });
+      });
       for (const args of [
         ["restore", "--from", "v2", "--to", "v1", "--json"],
         ["restore", "--from", "v2", "--from", "v2", "--json"],

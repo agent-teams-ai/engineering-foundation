@@ -73,7 +73,7 @@ export async function finalizeNodeConsumerRestoration(options: ConsumerFinalizat
     "existing final proof differs from the selected intent or destination; preserve it.");
   const receiptPath = await externalRestorationPath(`${path}.receipt`, root);
   let original = await retainedReceipt(root, receiptPath, preparation, options.expect);
-  await assertRestorationBinding(root, preparation);
+  await assertRestorationBinding(options.consumerRoot, preparation);
   let receipt: KnownFileTransactionReceiptV1;
   let authority;
   const lease = await acquireMutationLease(root);

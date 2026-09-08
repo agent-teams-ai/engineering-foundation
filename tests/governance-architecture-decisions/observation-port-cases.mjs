@@ -36,7 +36,7 @@ function baselineWithDigest(baseline, character) {
 
 export function registerBaselineObservationPortCases() {
   for (const observationNumber of [1, 2, 3]) {
-    test(`baseline replacement during contained read ${observationNumber} rejects the losing writer`, async () => {
+    test(`baseline replacement during contained read ${observationNumber} rejects the losing writer`, async (t) => {
       await withFixture(async (root) => {
         const ordinary = new FilesystemArchitectureDecisionBaselineRepository(baselineObservation);
         const input = { consumerRoot: root, path: "architecture/decisions/accepted-decisions.json" };
@@ -47,6 +47,26 @@ export function registerBaselineObservationPortCases() {
         let winnerBytes;
         let reads = 0;
         let containedFailure;
+        // Temporary isolated Windows diagnostic: retain only the first operation failure.
+        let firstFailure;
+        const errno = new Set(["EACCES", "EBADF", "EBUSY", "EEXIST", "EIO", "EISDIR", "ELOOP",
+          "EMFILE", "ENFILE", "ENOENT", "ENOSPC", "ENOTDIR", "ENOTEMPTY", "EPERM", "EROFS", "EXDEV"]);
+        async function observe(phase, operation) {
+          try {
+            return await operation();
+          } catch (error) {
+            if (firstFailure === undefined) {
+              firstFailure = { phase, code: "OTHER" };
+              try {
+                const code = error?.code;
+                if (errno.has(code)) {firstFailure.code = code;}
+              } catch {
+                // Diagnostic inspection must not replace the original thrown value.
+              }
+            }
+            throw error;
+          }
+        }
         let paths = 0;
         let pathsAtFailure;
         const repository = new FilesystemArchitectureDecisionBaselineRepository({
@@ -59,26 +79,30 @@ export function registerBaselineObservationPortCases() {
             if (reads !== observationNumber) {return readContainedRegularFile(location);}
             try {
               return await readContainedRegularFile(location, {
-                lstat, realpath, stat: (path) => stat(path, { bigint: true }),
+                lstat: (...args) => observe("reader.lstat", () => lstat(...args)),
+                realpath: (...args) => observe("reader.realpath", () => realpath(...args)),
+                stat: (path) => observe("reader.stat", () => stat(path, { bigint: true })),
                 async open(path, flags) {
-                  const handle = await open(path, flags);
+                  const handle = await observe("reader.open", () => open(path, flags));
                   let snapshots = 0;
                   return {
-                    close: () => handle.close(),
-                    read: (...args) => handle.read(...args),
+                    close: () => observe("reader.close", () => handle.close()),
+                    read: (...args) => observe("reader.read", () => handle.read(...args)),
                     async stat() {
-                      const snapshot = await handle.stat({ bigint: true });
+                      const snapshot = await observe("reader.handle.stat", () => handle.stat({ bigint: true }));
                       if (++snapshots === 1) {
                         if (observationNumber === 1) {
                           // A cooperative winner completes while the loser holds only a read handle.
-                          assert.equal(await ordinary.write({ ...input, baseline: winner, expected }), "updated");
+                          await observe("winner.write", async () => {
+                            assert.equal(await ordinary.write({ ...input, baseline: winner, expected }), "updated");
+                          });
                         } else {
                           // Locked observations still detect non-cooperative atomic replacement.
                           const replacement = join(root, "replacement.json");
-                          await writeFile(replacement, `${JSON.stringify(winner)}\n`);
-                          await rename(replacement, path);
+                          await observe("winner.writeFile", () => writeFile(replacement, `${JSON.stringify(winner)}\n`));
+                          await observe("winner.rename", () => rename(replacement, path));
                         }
-                        winnerBytes = await readFile(path);
+                        winnerBytes = await observe("winner.readFile", () => readFile(path));
                       }
                       return snapshot;
                     }
@@ -89,6 +113,14 @@ export function registerBaselineObservationPortCases() {
               containedFailure = error;
               pathsAtFailure = paths;
               throw error;
+            } finally {
+              const failure = containedFailure instanceof ContainedFileReadError ? containedFailure.failure : null;
+              t.diagnostic(JSON.stringify({
+                containedFailure: ["missing", "invalid", "changed", "escape", "symlink", "unavailable"].includes(failure)
+                  ? failure : null,
+                code: firstFailure?.code ?? null,
+                phase: firstFailure?.phase ?? null
+              }));
             }
           }
         });

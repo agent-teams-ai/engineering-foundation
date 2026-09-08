@@ -1509,7 +1509,7 @@ test("restoration admits consumer closure variation but preserves the non-owned 
     const hostile = structuredClone(after);
     hostile.packages[locator].resolution.tarball = "https://attacker.invalid/payload.tgz";
     assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(hostile), source, desiredV3(target)),
-      /registry\.npmjs\.org/u);
+      { message: `Runtime closure locator ${locator} must resolve from registry.npmjs.org.` });
     const alternateSource = structuredClone(after);
     Object.assign(alternateSource.packages[locator].resolution,
       { type: "git", repo: "https://attacker.invalid/repo.git", commit: "a".repeat(40) });

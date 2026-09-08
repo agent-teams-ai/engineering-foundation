@@ -12,7 +12,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { lock } from "proper-lockfile";
 
-import { assertBaselineObservationActive, assertExpectedBaselineState, baselineObservationFailure, isBaselineInputFailure, rejectBaselineWrite } from "../../../application/policies/architecture-decision-baseline-input.js";
+import { assertBaselineObservationActive, assertExpectedBaselineState, baselineObservationFailure, baselineWriteObservationFailure, isBaselineInputFailure, rejectBaselineWrite } from "../../../application/policies/architecture-decision-baseline-input.js";
 import type { ArchitectureDecisionBaselineObservation } from "../../../application/ports/architecture-decision-baseline-observation.js";
 import { parseAcceptedArchitectureDecisionBaseline } from "../../../application/policies/accepted-architecture-decision-baseline.js";
 import type {
@@ -123,11 +123,15 @@ function targetIsReadResult(
   return "kind" in value;
 }
 
-async function inspectBaseline(input: {
-  readonly consumerRoot: string;
-  readonly path: string;
-  readonly signal?: AbortSignal;
-}, observation: ArchitectureDecisionBaselineObservation): Promise<InspectedBaseline> {
+async function inspectBaseline(
+  input: {
+    readonly consumerRoot: string;
+    readonly path: string;
+    readonly signal?: AbortSignal;
+  },
+  observation: ArchitectureDecisionBaselineObservation,
+  observationFailure: typeof baselineObservationFailure = baselineObservationFailure
+): Promise<InspectedBaseline> {
   assertBaselineObservationActive(input.signal);
   const target = await targetFor(input.consumerRoot, input.path, observation);
   if (targetIsReadResult(target)) {
@@ -141,7 +145,7 @@ async function inspectBaseline(input: {
       root: target.root
     });
   } catch (error) {
-    return { result: baselineObservationFailure(error, MAX_BASELINE_BYTES), target };
+    return { result: observationFailure(error, MAX_BASELINE_BYTES), target };
   }
   try {
     const source = bytes.toString("utf8");
@@ -293,7 +297,7 @@ export class FilesystemArchitectureDecisionBaselineRepository
         `Accepted-decision baseline must serialize to no more than ${MAX_BASELINE_BYTES} bytes.`
       );
     }
-    const firstRead = await inspectBaseline(input, this.observation);
+    const firstRead = await inspectBaseline(input, this.observation, baselineWriteObservationFailure);
     assertExpectedBaselineState(firstRead.result, input.expected);
     const target = firstRead.target;
     if (target === undefined) {
@@ -309,7 +313,7 @@ export class FilesystemArchitectureDecisionBaselineRepository
       // Otherwise two cooperative writers can both pass the check, then one
       // silently replaces the other while both report success.
       await ensureSafeParent(target, this.observation);
-      const secondRead = await inspectBaseline(input, this.observation);
+      const secondRead = await inspectBaseline(input, this.observation, baselineWriteObservationFailure);
       assertExpectedBaselineState(secondRead.result, input.expected);
       if (hasEquivalentSerializedBaseline(secondRead.source, source)) {
         return "unchanged";
@@ -322,7 +326,7 @@ export class FilesystemArchitectureDecisionBaselineRepository
         const temporaryPath = join(temporaryDirectory, "baseline.json");
         await writeAndFlushTemporaryBaseline({ path: temporaryPath, source });
         assertBaselineObservationActive(input.signal);
-        const finalRead = await inspectBaseline(input, this.observation);
+        const finalRead = await inspectBaseline(input, this.observation, baselineWriteObservationFailure);
         assertExpectedBaselineState(finalRead.result, input.expected);
         if (hasEquivalentSerializedBaseline(finalRead.source, source)) {
           return "unchanged";

@@ -65,12 +65,26 @@ function compareEdges(left: { from: string; to: string }, right: { from: string;
 }
 
 function assertRegistryResolution(resolution: JsonRecord, packageLocator: string): void {
+  if (Object.keys(resolution).some((key) => key !== "integrity" && key !== "tarball")) {
+    fail(`Runtime closure locator ${packageLocator} must use a registry resolution.`);
+  }
   if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
     fail(`Runtime closure locator ${packageLocator} has no exact registry SRI.`);
   }
   const tarball = resolution["tarball"];
-  if (tarball !== undefined && (typeof tarball !== "string" ||
-    !tarball.startsWith("https://registry.npmjs.org/"))) {
+  if (tarball === undefined) {
+    return;
+  }
+  if (typeof tarball !== "string") {
+    fail(`Runtime closure locator ${packageLocator} has a non-string registry tarball.`);
+  }
+  let source: URL;
+  try {
+    source = new URL(tarball, "https://registry.npmjs.org/");
+  } catch {
+    fail(`Runtime closure locator ${packageLocator} has an invalid registry tarball.`);
+  }
+  if (source.origin !== "https://registry.npmjs.org" || source.username !== "" || source.password !== "") {
     fail(`Runtime closure locator ${packageLocator} must resolve from registry.npmjs.org.`);
   }
 }

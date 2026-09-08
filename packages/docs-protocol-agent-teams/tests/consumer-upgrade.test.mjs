@@ -1437,6 +1437,16 @@ test("consumer v3 reads its registry closure without replacing isolated authorit
     const result = await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root });
     assert.equal(JSON.stringify(result.desired), authority);
     assert.deepEqual(result.snapshot.lockfile.bytes, bytes);
+    for (const tarball of ["/registry-leaf/-/registry-leaf-2.0.0.tgz", "registry-leaf/-/registry-leaf-2.0.0.tgz",
+      "https://registry.npmjs.org:443/registry-leaf/-/registry-leaf-2.0.0.tgz"]) {
+      const variant = structuredClone(fixture.lock);
+      variant.packages["registry-leaf@2.0.0"].resolution.tarball = tarball;
+      const variantBytes = closureBytes(variant);
+      await writeFile(join(fixture.root, "pnpm-lock.yaml"), variantBytes);
+      const observed = await nodeConsumerIntegrationInputReader.read({ consumerRoot: fixture.root });
+      assert.equal(JSON.stringify(observed.desired), authority);
+      assert.deepEqual(observed.snapshot.lockfile.bytes, variantBytes);
+    }
   } finally {await fixture.close();}
 });
 
@@ -1454,7 +1464,12 @@ test("consumer v3 still refuses invalid coordinates, roles, edges and graph evid
       (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.integrity = "sha512-invalid";},
       (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.tarball = "https://attacker.invalid/payload.tgz";},
       (lock) => {lock.packages["@types/node@24.18.0"].resolution.tarball = "https://registry.npmjs.org.attacker.invalid/payload.tgz";},
-      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.tarball = 7;}
+      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.tarball = 7;},
+      (lock) => {Object.assign(lock.packages["registry-leaf@2.0.0"].resolution,
+        { type: "git", repo: "https://attacker.invalid/repo.git", commit: "a".repeat(40) });},
+      (lock) => {lock.packages["@types/node@24.18.0"].resolution.gitHosted = true;},
+      (lock) => {Object.assign(lock.packages["registry-leaf@2.0.0"].resolution,
+        { type: "directory", directory: "/tmp/foreign" });}
     ]) {
       const lock = structuredClone(fixture.lock);
       mutate(lock);
@@ -1484,11 +1499,22 @@ test("restoration admits consumer closure variation but preserves the non-owned 
   const authority = JSON.stringify(target);
   assert.doesNotThrow(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)));
   assert.equal(JSON.stringify(target), authority);
+  for (const tarball of ["/registry-leaf/-/registry-leaf-2.0.0.tgz",
+    "https://registry.npmjs.org:443/registry-leaf/-/registry-leaf-2.0.0.tgz"]) {
+    const variant = structuredClone(after);
+    variant.packages["registry-leaf@2.0.0"].resolution.tarball = tarball;
+    assert.doesNotThrow(() => assertRestorationLockScope(closureBytes(before), closureBytes(variant), source, desiredV3(target)));
+  }
   for (const locator of ["registry-leaf@2.0.0", "@types/node@24.18.0"]) {
     const hostile = structuredClone(after);
     hostile.packages[locator].resolution.tarball = "https://attacker.invalid/payload.tgz";
     assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(hostile), source, desiredV3(target)),
       /registry\.npmjs\.org/u);
+    const alternateSource = structuredClone(after);
+    Object.assign(alternateSource.packages[locator].resolution,
+      { type: "git", repo: "https://attacker.invalid/repo.git", commit: "a".repeat(40) });
+    assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(alternateSource), source, desiredV3(target)),
+      /registry resolution/u);
   }
   after.packages["foreign@1.0.0"].resolution.integrity = `sha512-${"B".repeat(86)}==`;
   assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)),

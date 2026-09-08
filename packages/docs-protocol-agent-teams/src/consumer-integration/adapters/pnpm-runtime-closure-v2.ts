@@ -93,6 +93,11 @@ function projectRuntimeClosure(
     if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
       fail(`Runtime closure locator ${current.locator} has no exact registry SRI.`);
     }
+    const tarball = resolution["tarball"];
+    if (tarball !== undefined && (typeof tarball !== "string" ||
+      !tarball.startsWith("https://registry.npmjs.org/"))) {
+      fail(`Runtime closure locator ${current.locator} must resolve from registry.npmjs.org.`);
+    }
     const from = expected.find((entry) => physicalLocator === `${entry.name}@${entry.version}`);
     const edges = [
       ...sortedEdges(snapshot, "dependencies", current.locator),

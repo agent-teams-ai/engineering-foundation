@@ -1399,6 +1399,8 @@ function consumerClosureVariant(cohort) {
     lock.packages[key] = { resolution: { integrity: V2_INTEGRITY } };
     lock.snapshots[key] = {};
   }
+  lock.packages["registry-leaf@2.0.0"].resolution.tarball = "https://registry.npmjs.org/registry-leaf/-/registry-leaf-2.0.0.tgz";
+  lock.packages["@types/node@24.18.0"].resolution.tarball = "https://registry.npmjs.org/@types/node/-/node-24.18.0.tgz";
   return lock;
 }
 
@@ -1449,7 +1451,10 @@ test("consumer v3 still refuses invalid coordinates, roles, edges and graph evid
       (lock) => {lock.importers["."].devDependencies.alias = { specifier: "npm:@agent-teams/repository-mutation@1.0.0", version: mutation };},
       (lock) => {lock.packages["@agent-teams/repository-mutation@2.0.0"] = lock.packages[mutation]; lock.snapshots["@agent-teams/repository-mutation@2.0.0"] = {};},
       (lock) => {delete lock.snapshots["registry-leaf@2.0.0"];},
-      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.integrity = "sha512-invalid";}
+      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.integrity = "sha512-invalid";},
+      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.tarball = "https://attacker.invalid/payload.tgz";},
+      (lock) => {lock.packages["@types/node@24.18.0"].resolution.tarball = "https://registry.npmjs.org.attacker.invalid/payload.tgz";},
+      (lock) => {lock.packages["registry-leaf@2.0.0"].resolution.tarball = 7;}
     ]) {
       const lock = structuredClone(fixture.lock);
       mutate(lock);
@@ -1479,6 +1484,12 @@ test("restoration admits consumer closure variation but preserves the non-owned 
   const authority = JSON.stringify(target);
   assert.doesNotThrow(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)));
   assert.equal(JSON.stringify(target), authority);
+  for (const locator of ["registry-leaf@2.0.0", "@types/node@24.18.0"]) {
+    const hostile = structuredClone(after);
+    hostile.packages[locator].resolution.tarball = "https://attacker.invalid/payload.tgz";
+    assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(hostile), source, desiredV3(target)),
+      /registry\.npmjs\.org/u);
+  }
   after.packages["foreign@1.0.0"].resolution.integrity = `sha512-${"B".repeat(86)}==`;
   assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)),
     /non-owned/u);

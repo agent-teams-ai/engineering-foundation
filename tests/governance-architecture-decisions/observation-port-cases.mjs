@@ -63,14 +63,20 @@ export function registerBaselineObservationPortCases() {
                 async open(path, flags) {
                   const handle = await open(path, flags);
                   let snapshots = 0;
+                  let closePromise;
+                  const close = () => closePromise ??= handle.close();
                   return {
-                    close: () => handle.close(),
+                    close,
                     read: (...args) => handle.read(...args),
                     async stat() {
                       const snapshot = await handle.stat({ bigint: true });
                       if (++snapshots === 1) {
+                        if (process.platform === "win32") {
+                          // Windows qualifies stale-descriptor snapshot detection, not live-openhandle replacement.
+                          await close();
+                        }
                         if (observationNumber === 1) {
-                          // A cooperative winner completes while the loser holds only a read handle.
+                          // A cooperative winner completes; Linux/macOS retain the loser's open read handle.
                           assert.equal(await ordinary.write({ ...input, baseline: winner, expected }), "updated");
                         } else {
                           // Locked observations still detect non-cooperative atomic replacement.

@@ -64,6 +64,31 @@ function compareEdges(left: { from: string; to: string }, right: { from: string;
   return left.from === right.from ? left.to.localeCompare(right.to) : left.from.localeCompare(right.from);
 }
 
+function assertRegistryResolution(resolution: JsonRecord, packageLocator: string): void {
+  if (Object.keys(resolution).some((key) => key !== "integrity" && key !== "tarball")) {
+    fail(`Runtime closure locator ${packageLocator} must use a registry resolution.`);
+  }
+  if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
+    fail(`Runtime closure locator ${packageLocator} has no exact registry SRI.`);
+  }
+  const tarball = resolution["tarball"];
+  if (tarball === undefined) {
+    return;
+  }
+  if (typeof tarball !== "string") {
+    fail(`Runtime closure locator ${packageLocator} has a non-string registry tarball.`);
+  }
+  let source: URL;
+  try {
+    source = new URL(tarball, "https://registry.npmjs.org/");
+  } catch {
+    fail(`Runtime closure locator ${packageLocator} has an invalid registry tarball.`);
+  }
+  if (source.origin !== "https://registry.npmjs.org" || source.username !== "" || source.password !== "") {
+    fail(`Runtime closure locator ${packageLocator} must resolve from registry.npmjs.org.`);
+  }
+}
+
 function projectRuntimeClosure(
   packages: JsonRecord,
   snapshots: JsonRecord,
@@ -90,9 +115,7 @@ function projectRuntimeClosure(
     const packageEntry = record(packages[physicalLocator], `Runtime closure package ${physicalLocator}`);
     const snapshot = record(snapshots[current.locator], `Runtime closure snapshot ${current.locator}`);
     const resolution = record(packageEntry["resolution"], `Runtime closure resolution ${physicalLocator}`);
-    if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
-      fail(`Runtime closure locator ${current.locator} has no exact registry SRI.`);
-    }
+    assertRegistryResolution(resolution, current.locator);
     const from = expected.find((entry) => physicalLocator === `${entry.name}@${entry.version}`);
     const edges = [
       ...sortedEdges(snapshot, "dependencies", current.locator),

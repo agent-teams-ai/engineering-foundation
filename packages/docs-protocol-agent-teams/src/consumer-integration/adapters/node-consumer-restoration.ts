@@ -100,7 +100,7 @@ export async function restoreNodeConsumerIntegration(options: ConsumerRestoratio
   const { proof, digest } = await readSelectedRestorationProof(root, options);
   requireRestoration(options.from === proof.targetCohort.cohortId && options.to === proof.sourceCohort.cohortId,
     "command must name the exact recorded source and target Cohorts.");
-  const source = await assertRestorationBinding(root, proof);  const inverse = inverseRestorationPlan(proof.plan);
+  const source = await assertRestorationBinding(options.consumerRoot, proof);  const inverse = inverseRestorationPlan(proof.plan);
   let receipt;
   const lease = await acquireMutationLease(root);
   try {

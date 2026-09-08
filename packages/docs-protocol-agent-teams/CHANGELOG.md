@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- [#274](https://github.com/agent-teams-ai/engineering-foundation/pull/274) [`17f0fc5`](https://github.com/agent-teams-ai/engineering-foundation/commit/17f0fc5b34519616c95d7b2223ec8547016b18f1) Thanks [@777genius](https://github.com/777genius)! - Reject aliased consumer root paths during restoration and selected finalization before mutation by validating the original caller path against the retained consumer binding.
+
+- [#274](https://github.com/agent-teams-ai/engineering-foundation/pull/274) [`17f0fc5`](https://github.com/agent-teams-ai/engineering-foundation/commit/17f0fc5b34519616c95d7b2223ec8547016b18f1) Thanks [@777genius](https://github.com/777genius)! - Validate managed consumer and restoration lockfiles without requiring their registry dependency closure to equal the isolated qualification graph. Preserve exact managed coordinates, integrity, root roles, internal edges and restoration ownership checks.
+
+  Require every reachable tarball, including optional dependencies, to resolve from the npm registry before accepting a differing consumer graph.
+
+- [#275](https://github.com/agent-teams-ai/engineering-foundation/pull/275) [`c8b9c18`](https://github.com/agent-teams-ai/engineering-foundation/commit/c8b9c1875b94d65f5e4aa59b569893eda2279f13) Thanks [@777genius](https://github.com/777genius)! - Remove restoration age gates that rejected otherwise authorized Cohorts with future eligibleAfter timestamps. Restorable prepare, finalize, and restore now follow the informational eligibility policy while preserving authority and support-expiry checks.
+
 ## 0.2.1
 
 ### Patch Changes

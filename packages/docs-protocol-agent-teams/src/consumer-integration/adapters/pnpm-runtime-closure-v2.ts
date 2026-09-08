@@ -64,14 +64,14 @@ function compareEdges(left: { from: string; to: string }, right: { from: string;
   return left.from === right.from ? left.to.localeCompare(right.to) : left.from.localeCompare(right.from);
 }
 
-function assertRegistryResolution(resolution: JsonRecord, locator: string): void {
+function assertRegistryResolution(resolution: JsonRecord, packageLocator: string): void {
   if (typeof resolution["integrity"] !== "string" || !SHA512_SRI.test(resolution["integrity"])) {
-    fail(`Runtime closure locator ${locator} has no exact registry SRI.`);
+    fail(`Runtime closure locator ${packageLocator} has no exact registry SRI.`);
   }
   const tarball = resolution["tarball"];
   if (tarball !== undefined && (typeof tarball !== "string" ||
     !tarball.startsWith("https://registry.npmjs.org/"))) {
-    fail(`Runtime closure locator ${locator} must resolve from registry.npmjs.org.`);
+    fail(`Runtime closure locator ${packageLocator} must resolve from registry.npmjs.org.`);
   }
 }
 

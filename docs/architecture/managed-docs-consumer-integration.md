@@ -119,6 +119,8 @@ optional `--authority-revision` is a freshness assertion and must equal current
 protected main. The Cohort's `eligible_after` timestamp remains informational;
 lifecycle state, canary enrollment, and explicit `upgrade_from` are the local
 selection gates.
+This informational timestamp policy also applies to restorable prepare, finalize,
+and restore, including activation-only recovery.
 
 `check` and `plan` remain deterministic offline observations. `apply` accepts
 only a newly rebuilt Plan whose digest equals the caller's expectation, then

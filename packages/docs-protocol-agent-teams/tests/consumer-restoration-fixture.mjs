@@ -65,7 +65,11 @@ async function fixtureRegistry(packages) {
 
 const projection = (cohort) => ({ repository: "agent-teams-ai/.github", path: "governance/docs-qualified-cohorts.json", revision: "8".repeat(40), cohort });
 
-export async function managedRestorationFixture({ cohortV2, desired, preserveForeign = false, isolatedStore = false }) {
+function setFixtureEligibleAfterIfDefined(cohort, eligibleAfter) {
+  if (eligibleAfter !== undefined) {cohort.eligibleAfter = eligibleAfter;}
+}
+
+export async function managedRestorationFixture({ cohortV2, desired, preserveForeign = false, isolatedStore = false, sourceEligibleAfter, targetEligibleAfter }) {
   const disposable = await mkdtemp(join(tmpdir(), "managed-restoration-TEST-"));
   const consumerRoot = join(disposable, "consumer");
   await mkdir(consumerRoot);
@@ -76,6 +80,8 @@ export async function managedRestorationFixture({ cohortV2, desired, preserveFor
     const { catalog } = await sourceCohort();
     const historical = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === "docs-2026-08-31-stable10");
     const origin = structuredClone(historical.cohort);
+    // Set fixture metadata before profiles, managed state and restoration proofs are hashed.
+    setFixtureEligibleAfterIfDefined(origin, sourceEligibleAfter);
     const docsName = "@agent-teams/docs-protocol";
     const foundationName = "@agent-teams/engineering-foundation";
     const oldCli = `import assert from 'node:assert/strict';
@@ -96,6 +102,7 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     origin.packages.engineeringFoundation.integrity = packages[0].integrity;
     origin.packages.docsProtocol.integrity = packages[1].integrity;
     const target = cohortV2("docs-restoration-test-v2", { upgradeFrom: [origin.cohortId], rollbackTo: [origin.cohortId], version: "99.0.0" });
+    setFixtureEligibleAfterIfDefined(target, targetEligibleAfter);
     const names = {
       repositoryMutation: "@agent-teams/repository-mutation", documentAuthoring: "@agent-teams/document-authoring",
       docsProtocol: docsName, docsProtocolAgentTeams: "@agent-teams/docs-protocol-agent-teams", engineeringFoundation: foundationName

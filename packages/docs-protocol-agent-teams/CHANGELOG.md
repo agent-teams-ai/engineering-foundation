@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- [#272](https://github.com/agent-teams-ai/engineering-foundation/pull/272) [`49a95e8`](https://github.com/agent-teams-ai/engineering-foundation/commit/49a95e8075ec8e552e6a35c2955d36c5f0b6b930) Thanks [@777genius](https://github.com/777genius)! - Accept the central authority's optional closed publication reconciliation provenance while preserving original publication fields and full record digest validation.
+
 ## 0.2.0
 
 ### Minor Changes

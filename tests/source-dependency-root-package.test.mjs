@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { join } from "node:path";
 import { sourceConfigPath } from "./helpers/source-dependency-v2-fixture.mjs";
-import { writeFile } from "node:fs/promises";
+import { rm, symlink, writeFile } from "node:fs/promises";
 import {
   assertV3Problem, assertV3Rule, checkV3, saveV3Policy,
   v3Boundary, withV3Fixture, writeV3File,
@@ -432,7 +433,8 @@ for (const [name, mutate] of [
       checkV3(root);
       mutate(policy);
       await saveV3Policy(root, policy);
-      assertV3Problem(root, "SOURCE_ARCHITECTURE_CONFIG_INVALID");
+      assertV3Problem(root, name === "overlapping boundary roots"
+        ? "SOURCE_BOUNDARY_AMBIGUOUS" : "SOURCE_ARCHITECTURE_CONFIG_INVALID");
     });
   });
 }
@@ -474,5 +476,140 @@ test("v3 root scope still rejects a source outside all boundaries", async () => 
     checkV3(root);
     await writeV3File(root, "tooling/task/src/unclassified.ts", "export {};\n");
     assertV3Rule(root, "unclassified-source-file", "tooling/task/src/unclassified.ts");
+  });
+});
+
+for (const [name, files, code] of [
+  ["case source collision", ["Index.ts"], "SOURCE_PATH_CASE_COLLISION"],
+  ["NFC-equivalent sources", ["café.ts", "cafe\u0301.ts"], "SOURCE_PATH_CASE_COLLISION"],
+  ["device source", ["con.ts"], "SOURCE_DISCOVERY_PATH_INVALID"],
+  ["alternate stream source", ["index.ts:payload"], "SOURCE_DISCOVERY_PATH_INVALID"],
+]) {
+  test(`v3 root scan rejects ${name}`, async () => {
+    await withV3Fixture(async (root) => {
+      checkV3(root);
+      for (const file of files) {
+        await writeV3File(root, `tooling/task/src/${file}`, "export {};\n");
+      }
+      assertV3Problem(root, code);
+    });
+  });
+}
+
+for (const path of ["tooling/package.json", "tooling/task/package.json"]) {
+  test(`v3 refuses malformed ancestor manifest ${path}`, async () => {
+    await withV3Fixture(async (root) => {
+      checkV3(root);
+      await writeV3File(root, path, "{");
+      assertV3Problem(root, "PACKAGE_MANIFEST_INVALID", path);
+    });
+  });
+}
+
+for (const [path, target, kind, code] of [
+  ["tooling/package.json", "package.json", "file", "SOURCE_SYMLINK_PROHIBITED"],
+  ["tooling/task/src/alias.ts", "tooling/task/src/index.ts", "file", "SOURCE_SYMLINK_PROHIBITED"],
+  ["tooling/task/src/alias", "tooling/task/src", "dir", "SOURCE_SYMLINK_PROHIBITED"],
+]) {
+  test(`v3 refuses physical alias ${path}`, async () => {
+    await withV3Fixture(async (root) => {
+      checkV3(root);
+      await symlink(join(root, target), join(root, path), kind);
+      assertV3Problem(root, code);
+    });
+  });
+}
+
+test("v3 refuses a missing root source directory", async () => {
+  await withV3Fixture(async (root) => {
+    checkV3(root);
+    await rm(join(root, "tooling/task/src"), { recursive: true });
+    assertV3Problem(root, "SOURCE_DIRECTORY_UNAVAILABLE");
+  });
+});
+
+for (const typeOnly of [false, true]) {
+  test(`v3 marker-owned root and child retain ${typeOnly ? "type-only" : "runtime"} package cycles`, async () => {
+    await withV3Fixture(async (root, policy) => {
+      await writeV3File(root, "package.json", {
+        name: "@fixture/root", type: "module", exports: { ".": "./tooling/task/src/index.ts" },
+        dependencies: { "@fixture/domain": "workspace:*" },
+      });
+      await writeV3File(root, "packages/domain/package.json", {
+        name: "@fixture/domain", type: "module", exports: { ".": "./src/index.ts" },
+        dependencies: { "@fixture/root": "workspace:*" },
+      });
+      policy.boundaries[0].allow.packages = ["@fixture/root"];
+      policy.boundaries.at(-1).allow.packages = ["@fixture/domain"];
+      await writeV3File(root, "tooling/task/package.json", { type: "module" });
+      await writeV3File(root, "packages/domain/src/package.json", { type: "module" });
+      await saveV3Policy(root, policy);
+      checkV3(root);
+      const statement = (name) => typeOnly ? `export type { Value } from "${name}";\n`
+        : `import "${name}";\n`;
+      await writeV3File(root, "tooling/task/src/index.ts", statement("@fixture/domain"));
+      checkV3(root);
+      await writeV3File(root, "packages/domain/src/index.ts", statement("@fixture/root"));
+      const report = checkV3(root, "violations");
+      assert.ok(report.diagnostics.some(({ ruleId }) => ruleId ===
+        `architecture.source-dependencies.package-${typeOnly ? "type-only" : "runtime"}-cycle`),
+      JSON.stringify(report));
+    });
+  });
+}
+
+test("v3 root cannot borrow a child's external declarations", async () => {
+  await withV3Fixture(async (root, policy) => {
+    await writeV3File(root, "packages/domain/package.json", {
+      name: "@fixture/domain", type: "module", dependencies: { "fixture-external": "1.0.0" },
+    });
+    policy.boundaries.at(-1).allow.packages = ["fixture-external"];
+    await saveV3Policy(root, policy);
+    checkV3(root);
+    await writeV3File(root, "tooling/task/src/index.ts", 'import "fixture-external";\n');
+    assertV3Rule(root, "undeclared-external-dependency", "tooling/task/src/index.ts");
+  });
+});
+
+test("v3 root export claims cannot contradict observed source or authorize self imports", async () => {
+  await withV3Fixture(async (root, policy) => {
+    const other = v3Boundary("root.other", "tooling/other/src");
+    policy.governedRoots.push("tooling/other/src");
+    policy.boundaries.push(other);
+    await writeV3File(root, "tooling/other/src/index.ts", "export {};\n");
+    await writeV3File(root, "package.json", {
+      name: "@fixture/root", type: "module", exports: { "./task": "./tooling/task/src/index.ts" },
+    });
+    policy.boundaries[2].packageExports = ["./task"];
+    await saveV3Policy(root, policy);
+    checkV3(root);
+    delete policy.boundaries[2].packageExports;
+    other.packageExports = ["./task"];
+    await saveV3Policy(root, policy);
+    assertV3Problem(root, "SOURCE_EXPORT_BOUNDARY_INVALID");
+    delete other.packageExports;
+    policy.boundaries[2].packageExports = ["./task"];
+    other.allow.packages = ["@fixture/root"];
+    await saveV3Policy(root, policy);
+    await writeV3File(root, "tooling/other/src/index.ts", 'import "@fixture/root/task";\n');
+    assertV3Rule(root, "self-package-import-boundary-unresolved", "tooling/other/src/index.ts");
+  });
+});
+
+test("v3 root participation requires a real named package", async () => {
+  await withV3Fixture(async (root) => {
+    checkV3(root);
+    await writeV3File(root, "package.json", { private: true, type: "module" });
+    assertV3Problem(root, "WORKSPACE_IDENTITY_INVALID");
+  });
+});
+
+test("v3 a pure marker cannot satisfy a package selector", async () => {
+  await withV3Fixture(async (root, policy) => {
+    await writeV3File(root, "tooling/task/package.json", { type: "module" });
+    checkV3(root);
+    policy.packageRoots.push("tooling/task");
+    await saveV3Policy(root, policy);
+    assertV3Problem(root, "PACKAGE_ROOT_EMPTY", "tooling/task");
   });
 });

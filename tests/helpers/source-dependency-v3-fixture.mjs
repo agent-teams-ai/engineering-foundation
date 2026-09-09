@@ -86,7 +86,7 @@ export function checkV3(root, outcome = "passed", requestedVersion = 3) {
   assert.equal(capability.capabilityId, "architecture.source-dependencies");
   assert.equal(capability.outcome, outcome, result.stdout);
   assert.equal(capability.capabilityConfigSchemaVersion, requestedVersion, result.stdout);
-  assert.equal(result.status, outcome === "passed" ? 0 : 1, result.stdout);
+  assert.equal(result.status, { passed: 0, violations: 1, "invalid-input": 2 }[outcome], result.stdout);
   if (outcome === "passed") {
     assert.deepEqual(capability.diagnostics, []);
   }

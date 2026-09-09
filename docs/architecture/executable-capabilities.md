@@ -134,7 +134,7 @@ The second implementation validates observed source relationships:
 - cross-package relative imports cannot bypass package boundaries;
 - imported package subpaths are exported;
 - unsupported or unresolvable governed imports fail closed.
-- the single source-dependency schema requires declared target entrypoints for
+- source-dependency schemas require declared target entrypoints for
   cross-boundary local imports;
 - boundary and package cycles are checked separately for runtime and type-only
   edges over one normalized immutable observed graph.
@@ -184,8 +184,10 @@ qualified immutable package must precede consumer activation. Consumer catalogs,
 original source/edge preservation, runtime/development classification and
 installed-CLI qualification remain consumer-owned.
 
-Generated `dist` directories are never source evidence. After ordinary governed
-resolution fails, a version 2 development boundary may admit a structured,
+Package-level generated `dist` output is excluded unless explicitly reopened by
+governed roots. Nested `dist` and `coverage` beneath source or pure type markers
+remain source evidence. After ordinary governed resolution fails, a version 2
+or 3 development boundary may admit a structured,
 same-package relative `dist` output candidate. Its literal form, package owner,
 containment, and every existing ancestor are checked; symlinks and traversal
 fail closed. Missing output remains lexical build-output evidence rather than a

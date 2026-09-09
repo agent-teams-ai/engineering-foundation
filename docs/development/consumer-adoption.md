@@ -153,8 +153,9 @@ published version is designated here; v1/v2 consumers need no mandatory migratio
 ## Current contract version policy
 
 Contract versions are governed per contract, not by a package-wide `v1` rule.
-Source-dependencies configuration already has explicit `v1` and `v2` contracts;
-consumers select the supported version deliberately. A configuration upgrade
+Source-dependencies configuration has explicit `v1` and `v2` contracts and an
+additive `v3` contract pending package qualification; consumers select a version
+supported by their exact installed package deliberately. A configuration upgrade
 does not authorize rewriting persisted Plans, Receipts, journals or Cohorts.
 
 Persisted evidence retains its exact owner, generation and build identity.

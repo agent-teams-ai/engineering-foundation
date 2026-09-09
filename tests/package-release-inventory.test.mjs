@@ -503,3 +503,28 @@ test("package self-check rejects manifest expansion beyond the allowlist", async
     await rm(root, { force: true, recursive: true });
   }
 });
+
+test("source v3 schema is required by package and archive inventories", async () => {
+  const schema = "schemas/architecture-source-dependencies/v3.schema.json";
+  assert.ok(FOUNDATION_PACKAGE_FILE_ALLOWLIST.includes(schema));
+  assert.ok(FOUNDATION_REQUIRED_ARTIFACT_PATHS.includes(schema));
+  const entries = ["package/package.json", "package/LICENSE", "package/README.md",
+    ...FOUNDATION_REQUIRED_ARTIFACT_PATHS.map((path) => `package/${path}`)];
+  assertArchiveListing(entries.join("\n"), FOUNDATION_REQUIRED_ARTIFACT_PATHS);
+  assert.throws(() => assertArchiveListing(entries.filter((path) => path !== `package/${schema}`)
+    .join("\n"), FOUNDATION_REQUIRED_ARTIFACT_PATHS), /Required package entry missing: package\/schemas\/architecture-source-dependencies\/v3.schema.json/u);
+  const root = await mkdtemp(join(tmpdir(), "foundation-v3-schema-inventory-"));
+  try {
+    await cp(repositoryPackageRoot, root, {
+      recursive: true,
+      filter: (source) => !source.includes("node_modules") && !source.includes("tsconfig.tsbuildinfo"),
+    });
+    await symlink(new URL("node_modules", repositoryPackageRoot), join(root, "node_modules"), "junction");
+    await inspectFoundationPackage(root);
+    await rm(join(root, schema));
+    await assert.rejects(inspectFoundationPackage(root), (error) =>
+      error?.code === "PACKAGE_INVALID" && error.message.includes(schema));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

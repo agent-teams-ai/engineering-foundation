@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, opendir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
@@ -519,7 +520,14 @@ test("source v3 schema is required by package and archive inventories", async ()
       recursive: true,
       filter: (source) => !source.includes("node_modules") && !source.includes("tsconfig.tsbuildinfo"),
     });
-    await symlink(new URL("node_modules", repositoryPackageRoot), join(root, "node_modules"), "junction");
+    const manifest = JSON.parse(await readFile(new URL("package.json", repositoryPackageRoot), "utf8"));
+    const requireFromPackage = createRequire(new URL("package.json", repositoryPackageRoot));
+    // Resolve each installed dependency before linking: it may live at the workspace root.
+    for (const name of Object.keys(manifest.dependencies)) {
+      const target = join(root, "node_modules", name);
+      await mkdir(dirname(target), { recursive: true });
+      await symlink(dirname(requireFromPackage.resolve(`${name}/package.json`)), target, "junction");
+    }
     await inspectFoundationPackage(root);
     await rm(join(root, schema));
     await assert.rejects(inspectFoundationPackage(root), (error) =>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3
+
+### Patch Changes
+
+- [#281](https://github.com/agent-teams-ai/engineering-foundation/pull/281) [`43436c2`](https://github.com/agent-teams-ai/engineering-foundation/commit/43436c2f502a83483c096b2a8278bf38500d5bce) Thanks [@777genius](https://github.com/777genius)! - Use isolated copy imports for consumer upgrades so pnpm store hardlinks do not fail installed CLI safety checks. Preserve the prior installation on an install failure and retain both errors and backup evidence if restoration fails.
+
 ## 0.2.2
 
 ### Patch Changes

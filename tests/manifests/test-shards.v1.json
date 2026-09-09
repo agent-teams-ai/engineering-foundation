@@ -125,6 +125,7 @@
         "tests/source-dependency-export-authority.test.mjs",
         "tests/source-dependency-root-package.test.mjs",
         "tests/source-dependency-v3-observation.test.mjs",
+        "tests/source-dependency-v3-review-regressions.test.mjs",
         "tests/source-dependency-source-coverage.test.mjs",
         "tests/source-dependency-topology-ports.test.mjs",
         "tests/source-dependency-workspace-discovery.test.mjs",

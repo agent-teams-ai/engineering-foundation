@@ -24,6 +24,7 @@ export async function readGovernedSourceFiles(
   governedRoots: readonly string[],
   options: {
     readonly fileSystem: SourceWorkspaceFileSystem;
+    readonly consumedBytes?: number;
     readonly limits?: Partial<SourceWorkspaceDiscoveryLimits>;
     readonly signal?: AbortSignal;
   }
@@ -36,7 +37,10 @@ export async function readGovernedSourceFiles(
     )
     .toSorted(compareBinaryStrings);
   const snapshots: SourceFileSnapshot[] = [];
-  let totalBytes = 0;
+  let totalBytes = options.consumedBytes ?? 0;
+  if (!Number.isSafeInteger(totalBytes) || totalBytes < 0 || totalBytes > limits.maxTotalSourceBytes) {
+    throw new TypeError("Consumed source workspace bytes must fit the validated total byte limit.");
+  }
   for (const path of selectedPaths) {
     assertNotCancelled(options.signal);
     assertSafeRepositoryPath(path);

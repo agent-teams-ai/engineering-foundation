@@ -178,10 +178,8 @@ export class PnpmSourceWorkspaceTopologyInspector
       input.governedRoots,
       {
         fileSystem: this.#fileSystem,
-        limits: observations === undefined ? this.#limits : {
-          ...this.#limits,
-          maxTotalSourceBytes: this.#limits.maxTotalSourceBytes - observations.manifestBytes
-        },
+        limits: this.#limits,
+        consumedBytes: observations?.manifestBytes ?? 0,
         ...(input.signal === undefined ? {} : { signal: input.signal })
       }
     );

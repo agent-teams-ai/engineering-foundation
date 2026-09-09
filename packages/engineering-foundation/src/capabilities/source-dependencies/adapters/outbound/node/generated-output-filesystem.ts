@@ -150,7 +150,7 @@ export function generatedOutputFilesystemIsSafe(input: {
   if (relation === ".." || relation.startsWith(`..${sep}`)) {
     return false;
   }
-  const manifests = input.enforceManifestFences === true ? new GeneratedOutputManifestObservations() : undefined;
+  const manifests = input.enforceManifestFences === true ? new GeneratedOutputManifestObservations(canonicalRoot) : undefined;
   const snapshots: GeneratedPathSnapshot[] = [];
   const stable = (): boolean => snapshotsAreStable(root, snapshots) &&
     (manifests?.stable() ?? true) && snapshotsAreStable(root, snapshots);

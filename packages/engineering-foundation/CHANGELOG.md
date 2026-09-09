@@ -1,5 +1,16 @@
 # @agent-teams/engineering-foundation
 
+## 1.1.1
+
+### Patch Changes
+
+- [#276](https://github.com/agent-teams-ai/engineering-foundation/pull/276) [`8823036`](https://github.com/agent-teams-ai/engineering-foundation/commit/8823036c0c4c8036f267b1173329e7dd4c51733e) Thanks [@777genius](https://github.com/777genius)! - Preserve recognized 0.9.0 legacy scaffold evidence by refusing mismatching readers
+  before Foundation lock acquisition. Report incompatible regular locks as manual
+  recovery without an executable route; retain existing barriers and under-lock
+  admission checks. Refs [#260](https://github.com/agent-teams-ai/engineering-foundation/issues/260) and [#271](https://github.com/agent-teams-ai/engineering-foundation/issues/271).
+
+- [#276](https://github.com/agent-teams-ai/engineering-foundation/pull/276) [`8823036`](https://github.com/agent-teams-ai/engineering-foundation/commit/8823036c0c4c8036f267b1173329e7dd4c51733e) Thanks [@777genius](https://github.com/777genius)! - Classify contained baseline replacements during promotion observations as write conflicts while preserving ordinary read and unsafe-target behavior.
+
 ## 1.1.0
 
 ### Minor Changes

@@ -133,11 +133,29 @@ has made the installed CLI available. Static `foundation check` validates the
 configuration but never runs the scripts. See the
 [quality gate runner reference](../reference/quality-gate-runner.md).
 
+For root-owned source, schema v3 adoption is pending combined producer and
+package qualification. Its explicit `rootPackage: true` selects the root's real
+package identity only for root-owned declared governed scopes; root-only policies
+use `packageRoots: []`. Overlapping selectors such as `packages` and
+`packages/contexts` retain direct-child selection and deduplicate observations.
+They do not permit overlapping source ownership or recursive package selection.
+
+Preserve the consumer's existing governed paths, boundaries, entrypoints and
+allowed-edge witness when preparing that migration. Test excluded new packages,
+nested package fences and each root-owned source group through the installed
+public CLI. Pure single-field module-type markers retain enclosing ownership;
+adding any field creates package authority and must not bypass selection.
+A passing synthetic producer fixture does not qualify the consumer's real source
+graph. Keep the existing policy active until the exact supporting package,
+registry lock, full consumer gates and rejecting mutations pass. No supporting
+published version is designated here; v1/v2 consumers need no mandatory migration.
+
 ## Current contract version policy
 
 Contract versions are governed per contract, not by a package-wide `v1` rule.
-Source-dependencies configuration already has explicit `v1` and `v2` contracts;
-consumers select the supported version deliberately. A configuration upgrade
+Source-dependencies configuration has explicit `v1` and `v2` contracts and an
+additive `v3` contract pending package qualification; consumers select a version
+supported by their exact installed package deliberately. A configuration upgrade
 does not authorize rewriting persisted Plans, Receipts, journals or Cohorts.
 
 Persisted evidence retains its exact owner, generation and build identity.

@@ -2213,6 +2213,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/analyze-source-dependencies.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/api.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/source-package-exports.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/selected-source-package-topology.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/source-package-ownership.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-file-snapshot.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-tree-reader.ts

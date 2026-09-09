@@ -1,7 +1,7 @@
 import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
 import type { SourceFileSnapshot } from "./source-file-snapshot.js";
 
-export type SourceArchitectureConfigSchemaVersion = 1 | 2;
+export type SourceArchitectureConfigSchemaVersion = 1 | 2 | 3;
 
 const SOURCE_DEPENDENCY_KINDS = [
   "commonjs",
@@ -69,6 +69,11 @@ export type SourceArchitecturePolicy =
       readonly schemaVersion: 2;
       /** Closed-world roots whose package manifests and source are governed. */
       readonly packageRoots: readonly string[];
+    })
+  | (SourceArchitecturePolicyBase & {
+      readonly schemaVersion: 3;
+      readonly packageRoots: readonly string[];
+      readonly includeRootPackage: boolean;
     });
 
 export interface ClassifiedSourceFile extends ParsedSourceFile {

@@ -13,6 +13,7 @@ export interface SourceWorkspacePackageTopology {
 }
 
 export interface SourceWorkspaceTopology {
+  readonly ownership?: import("../policies/source-package-ownership.js").SourcePackageOwnership;
   readonly canonicalConsumerRoot: string;
   readonly consumerRootIdentity: {
     readonly device: string;

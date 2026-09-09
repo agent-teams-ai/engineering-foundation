@@ -1,3 +1,4 @@
+import { sourcePackageOwner, type SourcePackageOwnership } from "../policies/source-package-ownership.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { assertNotCancelled,
   CapabilityInputError,
@@ -76,7 +77,7 @@ function selectBoundary(
     const specificity = matchingBoundarySpecificity(
       file.path,
       boundary,
-      policy.schemaVersion === 2
+      policy.schemaVersion !== 1
     );
     if (specificity !== undefined) {
       matches.push({ boundary, specificity });
@@ -86,7 +87,7 @@ function selectBoundary(
     return undefined;
   }
 
-  if (policy.schemaVersion === 2 && matches.length > 1) {
+  if (policy.schemaVersion !== 1 && matches.length > 1) {
     const candidateIds = matches
       .map((match) => match.boundary.id)
       .toSorted(compareBinaryStrings)
@@ -140,8 +141,9 @@ function classifyFiles(
   policy: SourceArchitecturePolicy,
   packages: readonly WorkspacePackage[],
   parser: SourceDependencyParser,
-  signal: AbortSignal | undefined
+  options: { readonly signal?: AbortSignal; readonly ownership?: SourcePackageOwnership }
 ): readonly ClassifiedSourceFile[] {
+  const { signal, ownership } = options;
   const classified: ClassifiedSourceFile[] = [];
   for (const file of files) {
     assertNotCancelled(signal);
@@ -150,11 +152,9 @@ function classifyFiles(
       path: normalizeRepositoryPath(file.path)
     };
     const boundary = selectBoundary(normalizedFile, policy);
-    const workspacePackage = containingPackage(
-      normalizedFile.path,
-      packages,
-      policy.schemaVersion === 2
-    );
+    const workspacePackage = ownership === undefined
+      ? containingPackage(normalizedFile.path, packages, policy.schemaVersion !== 1)
+      : sourcePackageOwner(normalizedFile.path, packages, ownership);
     if (boundary === undefined || workspacePackage === undefined) {
       continue;
     }
@@ -190,7 +190,7 @@ function buildPackageExportBoundaries(
   inventory: WorkspaceInventory,
   graph: ObservedSourceGraph
 ): ReadonlyMap<string, ReadonlyMap<string, string>> {
-  if (policy.schemaVersion !== 2) {
+  if (policy.schemaVersion === 1) {
     return new Map();
   }
   const packageNamesByBoundary = new Map<string, Set<string>>();
@@ -254,9 +254,10 @@ export async function analyzeSourceDependencies(
   input: AnalyzeSourceDependenciesInput,
   dependencies: AnalyzeSourceDependenciesDependencies
 ): Promise<readonly FoundationDiagnostic[]> {
-  if (input.policy.schemaVersion === 2) {
+  if (input.policy.schemaVersion !== 1) {
     const topology = await dependencies.topologyInspector.inspect({
       consumerRoot: input.consumerRoot,
+      ...(input.policy.schemaVersion === 3 ? { v3: { includeRootPackage: input.policy.includeRootPackage } } : {}),
       workspaceManifestPath: input.policy.workspaceManifestPath,
       packageRoots: input.policy.packageRoots,
       governedRoots: input.policy.governedRoots,
@@ -276,12 +277,16 @@ export async function analyzeSourceDependencies(
       input.policy,
       inventory.packages,
       dependencies.parser,
-      input.signal
+      {
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
+        ...(topology.ownership === undefined ? {} : { ownership: topology.ownership })
+      }
     );
     const graph = buildObservedSourceGraph({
       consumerRoot: topology.canonicalConsumerRoot,
       consumerRootIdentity: topology.consumerRootIdentity,
       enforceWorkspaceBindings: true,
+      enforceGeneratedManifestFences: input.policy.schemaVersion === 3,
       inventory,
       packageTypeScopes,
       governedWorkspacePackageManifestPaths: new Set(
@@ -325,7 +330,7 @@ export async function analyzeSourceDependencies(
     input.policy,
     inventory.packages,
     dependencies.parser,
-    input.signal
+    input.signal === undefined ? {} : { signal: input.signal }
   );
   const graph = buildObservedSourceGraph({
     consumerRoot: input.consumerRoot,

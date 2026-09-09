@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { cp, mkdir, mkdtemp, opendir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
@@ -501,5 +502,37 @@ test("package self-check rejects manifest expansion beyond the allowlist", async
     );
   } finally {
     await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("source v3 schema is required by package and archive inventories", async () => {
+  const schema = "schemas/architecture-source-dependencies/v3.schema.json";
+  assert.ok(FOUNDATION_PACKAGE_FILE_ALLOWLIST.includes(schema));
+  assert.ok(FOUNDATION_REQUIRED_ARTIFACT_PATHS.includes(schema));
+  const entries = ["package/package.json", "package/LICENSE", "package/README.md",
+    ...FOUNDATION_REQUIRED_ARTIFACT_PATHS.map((path) => `package/${path}`)];
+  assertArchiveListing(entries.join("\n"), FOUNDATION_REQUIRED_ARTIFACT_PATHS);
+  assert.throws(() => assertArchiveListing(entries.filter((path) => path !== `package/${schema}`)
+    .join("\n"), FOUNDATION_REQUIRED_ARTIFACT_PATHS), /Required package entry missing: package\/schemas\/architecture-source-dependencies\/v3.schema.json/u);
+  const root = await mkdtemp(join(tmpdir(), "foundation-v3-schema-inventory-"));
+  try {
+    await cp(repositoryPackageRoot, root, {
+      recursive: true,
+      filter: (source) => !source.includes("node_modules") && !source.includes("tsconfig.tsbuildinfo"),
+    });
+    const manifest = JSON.parse(await readFile(new URL("package.json", repositoryPackageRoot), "utf8"));
+    const requireFromPackage = createRequire(new URL("package.json", repositoryPackageRoot));
+    // Resolve each installed dependency before linking: it may live at the workspace root.
+    for (const name of Object.keys(manifest.dependencies)) {
+      const target = join(root, "node_modules", name);
+      await mkdir(dirname(target), { recursive: true });
+      await symlink(dirname(requireFromPackage.resolve(`${name}/package.json`)), target, "junction");
+    }
+    await inspectFoundationPackage(root);
+    await rm(join(root, schema));
+    await assert.rejects(inspectFoundationPackage(root), (error) =>
+      error?.code === "PACKAGE_INVALID" && error.message.includes(schema));
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });

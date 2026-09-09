@@ -678,7 +678,8 @@ test("registered config admission snapshots capability IDs at composition", asyn
 });
 
 test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
-  assert.equal(FOUNDATION_SCHEMA_IDS.length, 31);
+  assert.equal(FOUNDATION_SCHEMA_IDS.length, 32);
+  assert.ok(FOUNDATION_SCHEMA_IDS.includes("architecture-source-dependencies/v3"));
   assert.equal(new Set(FOUNDATION_SCHEMA_IDS).size, FOUNDATION_SCHEMA_IDS.length);
   for (const id of FOUNDATION_SCHEMA_IDS) {
     const source = await readFoundationSchema(id);

@@ -4,7 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -49,7 +49,7 @@ function boundary(id, root, options = {}) {
 async function fixture(root, schemaVersion, options = {}) {
   const config = {
     schemaVersion, workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
-    ...(schemaVersion === 2 ? { packageRoots: ["packages"] } : {}),
+    ...(schemaVersion >= 2 ? { packageRoots: ["packages"] } : {}),
     governedRoots: ["packages/app/src", "packages/core/src"],
     boundaries: [
       boundary("app.a", "packages/app/src/a", options),
@@ -94,7 +94,7 @@ async function check(root, cli, expectedRules, extraPaths = []) {
   return report;
 }
 
-for (const schemaVersion of [1, 2]) {
+for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: loader edges, exceptions, and cycles`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const loaders = [
@@ -171,7 +171,7 @@ createRequire(new URL("../b/index.ts", import.meta.url))("./dep.cjs");`;
   });
 });
 
-for (const schemaVersion of [1, 2]) {
+for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: wrapper and parameter provenance`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const cases = [
@@ -271,7 +271,7 @@ for (const schemaVersion of [1, 2]) {
   });
 }
 
-for (const schemaVersion of [1, 2]) {
+for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: erased exports do not hide possible wrapper loads`, async () => {
     await withInstalledCli(async (root, cli) => {
       await fixture(root, schemaVersion, { source: "export const marker = 1;" });
@@ -297,7 +297,7 @@ for (const schemaVersion of [1, 2]) {
   });
 }
 
-for (const schemaVersion of [1, 2]) {
+for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: user function hoisting preserves both declaration orders`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       for (const extension of ["cjs", "cts", "js", "ts"]) {
@@ -329,7 +329,7 @@ for (const schemaVersion of [1, 2]) {
   });
 }
 
-for (const schemaVersion of [1, 2]) {
+for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: ARCH assignment and process default counterexamples`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const cases = [
@@ -385,3 +385,34 @@ for (const schemaVersion of [1, 2]) {
     });
   });
 }
+
+test("installed CLI preserves historical source schemas and exposes canonical v3 bytes", async () => {
+  const { createHash } = await import("node:crypto");
+  await withInstalledCli(async (root, cli) => {
+    // The CLI has schema <id>, not a schema-list command. Inspect its installed
+    // catalog contribution and exercise every listed source schema through CLI.
+    const { FOUNDATION_SCHEMA_IDS } = await import(pathToFileURL(join(dirname(cli), "schema-ids.js")).href);
+    assert.deepEqual(FOUNDATION_SCHEMA_IDS.filter((id) => id.startsWith("architecture-source-dependencies/")), [
+      "architecture-source-dependencies/v1", "architecture-source-dependencies/v2", "architecture-source-dependencies/v3",
+    ]);
+    const digests = new Map([
+      [1, "e09297414ef883272c492f14319f50b74dc4e12603352ede80b893723b296f80"],
+      [2, "90a43d2058014bb12b9b6d87e13d8a43c1de532e1b67c52b9c57b81e4ef7d5bd"],
+    ]);
+    for (const version of [1, 2, 3]) {
+      const id = `architecture-source-dependencies/v${version}`;
+      const expected = await readFile(join(packageInput, "schemas", `${id}.schema.json`));
+      const result = spawnSync(process.execPath, [cli, "schema", id], {
+        cwd: root, timeout: 30_000,
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr?.toString());
+      assert.deepEqual(result.stdout, expected);
+      assert.equal(JSON.parse(expected).$id,
+        `https://schemas.agent-teams.ai/engineering-foundation/${id}`);
+      if (digests.has(version)) {
+        assert.equal(createHash("sha256").update(expected).digest("hex"), digests.get(version));
+      }
+    }
+  });
+});

@@ -83,7 +83,7 @@ test("source architecture schema v2 is strict and explicit while v1 stays loadab
 
   await withTemporaryDirectory(async (consumerRoot) => {
     await Promise.all(
-      [1, 2, 3].map((version) =>
+      [1, 2, 4].map((version) =>
         writeFile(
           join(consumerRoot, `v${version}.yaml`),
           sourceArchitectureConfig(version),
@@ -106,7 +106,7 @@ test("source architecture schema v2 is strict and explicit while v1 stays loadab
       (error) => error?.name === "CapabilityInputError",
     );
     await assert.rejects(
-      () => loadCapabilityConfig(consumerRoot, "v3.yaml"),
+      () => loadCapabilityConfig(consumerRoot, "v4.yaml"),
       (error) => error?.problem?.code === "SOURCE_ARCHITECTURE_CONFIG_INVALID",
     );
   });

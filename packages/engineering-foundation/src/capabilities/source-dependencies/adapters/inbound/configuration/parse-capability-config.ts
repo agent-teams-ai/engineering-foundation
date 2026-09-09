@@ -46,10 +46,10 @@ function string(value: unknown, field: string): string {
 }
 
 function schemaVersion(value: unknown): SourceArchitectureConfigSchemaVersion {
-  if (value === 1 || value === 2) {
+  if (value === 1 || value === 2 || value === 3) {
     return value;
   }
-  inputError("schemaVersion must be 1 or 2.");
+  inputError("schemaVersion must be 1, 2 or 3.");
 }
 
 function sortedStrings(value: unknown, field: string): readonly string[] {
@@ -112,7 +112,7 @@ function sortedOverlapPair(
 }
 
 function validateGovernedRootOverlap(policy: SourceArchitecturePolicy): void {
-  if (policy.schemaVersion !== 2) {
+  if (policy.schemaVersion === 1) {
     return;
   }
   const priorRoots = new Map<string, PortableOwnedRoot>();
@@ -138,7 +138,7 @@ function validateBoundaryRootOverlap(
     readonly root: string;
   }[]
 ): void {
-  if (policy.schemaVersion !== 2) {
+  if (policy.schemaVersion === 1) {
     return;
   }
   const sortedRoots = ownedBoundaryRoots
@@ -170,7 +170,7 @@ function normalizePolicyPaths(
 ): readonly string[] {
   return Object.freeze(
     sortedStrings(value, field).map((path) => {
-      if (version === 2) {
+      if (version !== 1) {
         validatePortableV2Path(path, field);
       }
       return normalizeRepositoryPath(path);
@@ -202,7 +202,7 @@ function normalizePackageExports(value: unknown, field: string): readonly string
 }
 
 function validatePackageRootOverlap(policy: SourceArchitecturePolicy): void {
-  if (policy.schemaVersion !== 2) {
+  if (policy.schemaVersion === 1) {
     return;
   }
   const priorRoots = new Map<string, PortableOwnedRoot>();
@@ -210,7 +210,9 @@ function validatePackageRootOverlap(policy: SourceArchitecturePolicy): void {
     .map((root) => portableOwnedRoot(root))
     .toSorted(comparePortableOwnedRoots);
   for (const root of roots) {
-    const overlap = priorAncestor(root.identity, priorRoots);
+    const overlap = policy.schemaVersion === 3
+      ? priorRoots.get(root.identity)
+      : priorAncestor(root.identity, priorRoots);
     if (overlap !== undefined) {
       const [first, second] = sortedOverlapPair(overlap, root);
       inputError(
@@ -252,7 +254,7 @@ interface BoundaryLocationValidationInput {
 function validateBoundaryLocations(input: BoundaryLocationValidationInput): void {
   const { boundary, policy } = input;
   for (const root of boundary.roots) {
-    if (policy.schemaVersion === 2) {
+    if (policy.schemaVersion !== 1) {
       validatePortableV2Path(root, "architecture boundary root");
     }
     if (policy.schemaVersion === 1 && input.boundaryRoots.has(root)) {
@@ -269,7 +271,7 @@ function validateBoundaryLocations(input: BoundaryLocationValidationInput): void
     input.ownedBoundaryRoots.push({ boundaryId: boundary.id, root });
   }
   for (const entrypoint of boundary.entrypoints) {
-    if (policy.schemaVersion === 2) {
+    if (policy.schemaVersion !== 1) {
       validatePortableV2Path(entrypoint, "architecture boundary entrypoint");
     }
     if (input.boundaryEntrypoints.has(entrypoint)) {
@@ -299,7 +301,7 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
   }> = [];
   validatePackageRootOverlap(policy);
   for (const root of policy.governedRoots) {
-    if (policy.schemaVersion === 2) {
+    if (policy.schemaVersion !== 1) {
       validatePortableV2Path(root, "governed root");
     }
     if (governedRoots.has(root)) {
@@ -348,7 +350,7 @@ function mapBoundary(
   const indexedField = `boundaries[${index}]`;
   const boundary = record(value, indexedField);
   const id = string(boundary["id"], `${indexedField}.id`);
-  const field = version === 2 ? `boundary ${JSON.stringify(id)}` : indexedField;
+  const field = version !== 1 ? `boundary ${JSON.stringify(id)}` : indexedField;
   const allow = record(boundary["allow"], `${field}.allow`);
   const entrypoints = normalizePolicyPaths(
     boundary["entrypoints"],
@@ -362,7 +364,7 @@ function mapBoundary(
   return Object.freeze({
     id,
     dependencyMode,
-    packageExports: version === 2
+    packageExports: version !== 1
       ? normalizePackageExports(boundary["packageExports"] ?? [], `${field}.packageExports`)
       : Object.freeze([]),
     roots: normalizePolicyPaths(
@@ -430,7 +432,9 @@ export function parseSourceArchitecturePolicy(header: SourceArchitectureConfigur
       ? Object.freeze({ ...common, schemaVersion: 1 })
       : Object.freeze({
           ...common,
-          schemaVersion: 2,
+          ...(version === 3
+            ? { schemaVersion: 3 as const, includeRootPackage: root["rootPackage"] === true }
+            : { schemaVersion: 2 as const }),
           packageRoots: normalizePolicyPaths(
             root["packageRoots"],
             "packageRoots",

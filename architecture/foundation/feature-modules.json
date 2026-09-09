@@ -1052,6 +1052,10 @@
               "owner": "engineering-foundation/source-dependencies"
             },
             {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/root-package-source-scopes.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
               "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/selected-package-source-discovery.ts",
               "owner": "engineering-foundation/source-dependencies"
             },
@@ -1073,6 +1077,10 @@
             },
             {
               "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/evaluate-source-workspace-coverage.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/policies/selected-source-package-topology.ts",
               "owner": "engineering-foundation/source-dependencies"
             },
             {
@@ -1700,6 +1708,9 @@
           ],
           "testRoots": [
             "tests/source-dependency-graph.test.mjs",
+            "tests/source-dependency-root-package.test.mjs",
+            "tests/source-dependency-v3-observation.test.mjs",
+            "tests/source-dependency-v3-review-regressions.test.mjs",
             "tests/source-dependency-workspace-topology.test.mjs",
             "tests/source-dependency-topology-ports.test.mjs"
           ]

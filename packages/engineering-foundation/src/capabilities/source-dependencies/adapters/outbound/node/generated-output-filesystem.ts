@@ -1,3 +1,4 @@
+import { GeneratedOutputManifestObservations } from "./generated-output-manifest-observations.js";
 import { lstatSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, sep } from "node:path";
 
@@ -112,8 +113,26 @@ function snapshotsAreStable(
     snapshots.every((snapshot) => pathIsStable(root.canonicalRoot, snapshot));
 }
 
+function matchesExpectedIdentity(
+  actual: GeneratedFilesystemIdentity,
+  expected: GeneratedFilesystemIdentity | undefined
+): boolean {
+  return expected === undefined || (actual.device === expected.device && actual.inode === expected.inode);
+}
+
+function observeNestedDirectory(
+  packageRoot: string,
+  snapshot: GeneratedPathSnapshot,
+  manifests: GeneratedOutputManifestObservations | undefined
+): boolean {
+  const relation = relative(packageRoot, snapshot.lexicalPath);
+  return manifests === undefined || snapshot.kind !== "directory" || relation === "" ||
+    relation === ".." || relation.startsWith(`..${sep}`) || manifests.observe(snapshot.lexicalPath);
+}
+
 export function generatedOutputFilesystemIsSafe(input: {
   readonly consumerRoot: string;
+  readonly enforceManifestFences?: boolean;
   readonly expectedPackageRootIdentity?: GeneratedFilesystemIdentity;
   readonly expectedRootIdentity?: GeneratedFilesystemIdentity;
   readonly packageRoot: string;
@@ -131,7 +150,13 @@ export function generatedOutputFilesystemIsSafe(input: {
   if (relation === ".." || relation.startsWith(`..${sep}`)) {
     return false;
   }
+  const manifests = input.enforceManifestFences === true ? new GeneratedOutputManifestObservations(canonicalRoot) : undefined;
   const snapshots: GeneratedPathSnapshot[] = [];
+  const stable = (): boolean => snapshotsAreStable(root, snapshots) &&
+    (manifests?.stable() ?? true) && snapshotsAreStable(root, snapshots);
+  if (absolutePackage === canonicalRoot && !matchesExpectedIdentity(root, input.expectedPackageRootIdentity)) {
+    return false;
+  }
   let current = canonicalRoot;
   const targetSegments = input.target.split("/").filter((segment) => segment !== ".");
   for (const [index, segment] of targetSegments.entries()) {
@@ -142,9 +167,9 @@ export function generatedOutputFilesystemIsSafe(input: {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         return false;
       }
-      return snapshotsAreStable(root, snapshots) &&
+      return stable() &&
         pathRemainsMissing(current) &&
-        snapshotsAreStable(root, snapshots) &&
+        stable() &&
         pathRemainsMissing(current);
     }
     const snapshot = pathSnapshot(
@@ -154,14 +179,14 @@ export function generatedOutputFilesystemIsSafe(input: {
     );
     if (
       snapshot === undefined ||
-      (current === absolutePackage &&
-        input.expectedPackageRootIdentity !== undefined &&
-        (snapshot.device !== input.expectedPackageRootIdentity.device ||
-          snapshot.inode !== input.expectedPackageRootIdentity.inode))
+      (current === absolutePackage && !matchesExpectedIdentity(snapshot, input.expectedPackageRootIdentity))
     ) {
       return false;
     }
     snapshots.push(snapshot);
+    if (!observeNestedDirectory(absolutePackage, snapshot, manifests)) {
+      return false;
+    }
   }
-  return snapshotsAreStable(root, snapshots);
+  return stable();
 }

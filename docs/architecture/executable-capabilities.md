@@ -134,7 +134,7 @@ The second implementation validates observed source relationships:
 - cross-package relative imports cannot bypass package boundaries;
 - imported package subpaths are exported;
 - unsupported or unresolvable governed imports fail closed.
-- the single source-dependency schema requires declared target entrypoints for
+- source-dependency schemas require declared target entrypoints for
   cross-boundary local imports;
 - boundary and package cycles are checked separately for runtime and type-only
   edges over one normalized immutable observed graph.
@@ -152,8 +152,42 @@ cancellable, symlink-free and snapshot-revalidated before evidence is returned.
 The released version 1 schema and loader remain available to external consumers;
 adopting version 2 is still an explicit consumer policy change.
 
-Generated `dist` directories are never source evidence. After ordinary governed
-resolution fails, a version 2 development boundary may admit a structured,
+The additive schema v3 contract is pending combined implementation validation
+and package qualification; it is not a release or consumer-adoption claim.
+It adds optional `rootPackage: true` to select the named root `package.json` as
+dependency authority only for declared governed roots that it owns. Root-only
+configuration uses `packageRoots: []`; empty selectors otherwise remain invalid.
+An opt-in without any root-owned governed scope fails. Literal `.` is not a
+selector, governed root, boundary root, or entrypoint.
+
+V3 permits overlapping selection containers such as `packages` and
+`packages/contexts`. Each still selects only its own package or immediate child
+packages. Traversal and budgets count each observed path once; selecting a
+manifest twice never creates another source owner. Every source has one nearest
+selected package-authority manifest and one boundary. Root selection cannot
+absorb loose source from an ordinary selection container, and a relative import
+into root source outside the declared scopes remains unresolved.
+
+In v3, nested package-authority manifests fence ownership even when excluded by
+pnpm or unnamed. Only an object with exactly `type: module` or `type: commonjs`
+is a pure module-type marker: it affects parser interpretation but retains the
+enclosing package's dependency authority. Any additional field, including an
+empty dependency map, makes it an authority fence. Both roles retain exact
+byte and filesystem revalidation. Pure markers do not hide nested `dist` or
+`coverage` source. Existing same-package development-output admission also
+requires stable marker evidence and rejects nested package authority.
+
+V1/v2 schema bytes and behavior remain unchanged by this opt-in contract;
+Foundation's own policy remains v2. Root configuration and report versions stay
+independent of the capability schema. Combined producer checks and a separately
+qualified immutable package must precede consumer activation. Consumer catalogs,
+original source/edge preservation, runtime/development classification and
+installed-CLI qualification remain consumer-owned.
+
+Package-level generated `dist` output is excluded unless explicitly reopened by
+governed roots. Nested `dist` and `coverage` beneath source or pure type markers
+remain source evidence. After ordinary governed resolution fails, a version 2
+or 3 development boundary may admit a structured,
 same-package relative `dist` output candidate. Its literal form, package owner,
 containment, and every existing ancestor are checked; symlinks and traversal
 fail closed. Missing output remains lexical build-output evidence rather than a

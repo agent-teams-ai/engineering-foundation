@@ -94,6 +94,15 @@ contract-evolution, suppression, public API, and repository-security checks are
 adopted independently with consumer-owned policy and capability-qualification evidence.
 Installing or upgrading this package never enables them automatically.
 
+Source-dependency schema v3 is pending combined validation and package
+qualification. Explicit `rootPackage: true` governs only declared root-owned
+source scopes; overlapping package selectors retain direct-child selection and
+unique source ownership. Pure module-type markers preserve enclosing dependency
+authority, while other nested manifests fence it. Existing v1/v2 consumers and
+Foundation's v2 policy remain unchanged. See the
+[source dependency contract](../../docs/architecture/executable-capabilities.md#architecturesource-dependencies)
+for scope and the separate consumer-qualification requirement.
+
 `quality.executable-specifications` optionally validates a consumer-owned JSON
 catalog connecting schemas, documents, generated types, ownership evidence, and
 independent consumer gate scripts. It never runs those scripts or imports

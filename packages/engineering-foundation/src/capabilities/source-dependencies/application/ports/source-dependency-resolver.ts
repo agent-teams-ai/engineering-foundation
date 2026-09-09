@@ -13,6 +13,7 @@ export interface ResolveSourceDependencyInput {
     readonly inode: string;
   };
   readonly enforceWorkspaceBindings?: boolean;
+  readonly enforceGeneratedManifestFences?: boolean;
   readonly file: ClassifiedSourceFile;
   readonly governedFilePaths: ReadonlySet<string>;
   readonly governedWorkspacePackageManifestPaths?: ReadonlySet<string>;

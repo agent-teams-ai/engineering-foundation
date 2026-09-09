@@ -236,6 +236,7 @@ function generatedOutputCandidate(
     owner?.name !== input.file.workspacePackage.name ||
     owner.manifestPath !== input.file.workspacePackage.manifestPath ||
     !generatedOutputFilesystemIsSafe({
+      enforceManifestFences: input.enforceGeneratedManifestFences ?? false,
       consumerRoot: input.consumerRoot,
       ...(input.consumerRootIdentity === undefined
         ? {}

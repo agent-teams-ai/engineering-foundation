@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, opendir, readFile, rename, rm, symlink } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, opendir, readFile, realpath, rename, rm, symlink } from "node:fs/promises";
+import { join, normalize } from "node:path";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -359,11 +359,13 @@ for (const candidate of ["tooling/package.json", "tooling/task/src/index.ts"]) {
       await inspectV3Topology(root);
       const controller = new AbortController();
       const files = sourceTopologyAdapters().fileReader;
+      // Topology reads use the canonical root and may use POSIX separators.
+      const target = normalize(join(await realpath(root), candidate));
       let cancelled = false;
       await assert.rejects(() => inspectV3Topology(root, {
         fileSystem: { async readContainedFile(input) {
           const bytes = await files.read(input);
-          if (input.candidate === join(root, candidate)) {
+          if (normalize(input.candidate) === target) {
             cancelled = true;
             controller.abort();
           }

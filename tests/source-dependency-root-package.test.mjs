@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { join } from "node:path";
+import { join, normalize } from "node:path";
 import { sourceConfigPath } from "./helpers/source-dependency-v2-fixture.mjs";
-import { rm, symlink, writeFile } from "node:fs/promises";
+import { opendir, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import {
-  assertV3Problem, assertV3Rule, checkV3, saveV3Policy,
+  assertV3Problem, assertV3Rule, checkV3, inspectV3Topology, saveV3Policy,
   v3Boundary, withV3Fixture, writeV3File,
 } from "./helpers/source-dependency-v3-fixture.mjs";
 
@@ -485,13 +485,45 @@ for (const [name, files, code] of [
   ["device source", ["con.ts"], "SOURCE_DISCOVERY_PATH_INVALID"],
   ["alternate stream source", ["index.ts:payload"], "SOURCE_DISCOVERY_PATH_INVALID"],
 ]) {
-  test(`v3 root scan rejects ${name}`, async () => {
+  test(`v3 root scan rejects ${name}`, async (t) => {
     await withV3Fixture(async (root) => {
       checkV3(root);
+      const directory = join(await realpath(root), "tooling/task/src");
+      let observed = false;
+      // The scanner contract covers enumerated names. NTFS streams and names
+      // folded by the host filesystem cannot supply these directory entries.
+      await assert.rejects(() => inspectV3Topology(root, {
+        fileSystem: { async opendir(path) {
+          const entries = [];
+          for await (const entry of await opendir(path)) { entries.push(entry); }
+          if (normalize(path) === normalize(directory)) {
+            observed = true;
+            const source = entries.find((entry) => entry.name === "index.ts");
+            assert.ok(source);
+            entries.push(...files.map((file) => Object.assign(Object.create(source), { name: file })));
+          }
+          return { async *[Symbol.asyncIterator]() { yield* entries; } };
+        } },
+      }), (error) => error?.problem?.code === code);
+      assert.equal(observed, true, "the intended root source directory must be observed");
+
+      // Retain the public CLI / real-filesystem assertion whenever the exact
+      // fixture names coexist. Exclusive creation prevents case-fold overwrites.
       for (const file of files) {
-        await writeV3File(root, `tooling/task/src/${file}`, "export {};\n");
+        try {
+          await writeFile(join(directory, file), "export {};\n", {
+            flag: code === "SOURCE_PATH_CASE_COLLISION" ? "wx" : "w",
+          });
+        } catch (error) {
+          if (error.code !== "EEXIST" || code !== "SOURCE_PATH_CASE_COLLISION") { throw error; }
+        }
       }
-      assertV3Problem(root, code);
+      const names = await readdir(directory);
+      if (["index.ts", ...files].every((file) => names.includes(file))) {
+        assertV3Problem(root, code);
+      } else {
+        t.diagnostic("Host cannot enumerate the exact fixture names; scanner-port rejection asserted above.");
+      }
     });
   });
 }

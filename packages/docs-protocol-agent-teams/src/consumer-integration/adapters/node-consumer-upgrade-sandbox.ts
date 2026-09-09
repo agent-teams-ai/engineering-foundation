@@ -7,6 +7,7 @@ import {
   readdir,
   realpath,
   readlink,
+  rename,
   rm,
   writeFile
 } from "node:fs/promises";
@@ -241,14 +242,38 @@ async function operationForChangedPath(input: {
 }
 
 async function installCohort(root: string, offline: boolean, environment: () => NodeJS.ProcessEnv): Promise<void> {
-  await runPnpm(root, [
-    "install",
-    offline ? "--offline" : "--prefer-offline",
-    offline ? "--frozen-lockfile" : "--no-frozen-lockfile",
-    "--ignore-scripts",
-    "--ignore-pnpmfile",
-    "--verify-store-integrity"
-  ], environment);
+  // pnpm skips existing imports even in copy mode. Keep the prior installation
+  // until a fresh import succeeds; --force also bypasses package installability.
+  const backup = await mkdtemp(join(root, ".docs-consumer-upgrade-modules-"));
+  const modules = join(root, "node_modules");
+  const priorModules = join(backup, "node_modules");
+  let moved = false;
+  try {
+    await rename(modules, priorModules);
+    moved = true;
+  } catch (error) {
+    await rm(backup, { recursive: true, force: true });
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {throw error;}
+  }
+  try {
+    await runPnpm(root, [
+      "install",
+      offline ? "--offline" : "--prefer-offline",
+      offline ? "--frozen-lockfile" : "--no-frozen-lockfile",
+      "--package-import-method=copy",
+      "--ignore-scripts",
+      "--ignore-pnpmfile",
+      "--verify-store-integrity"
+    ], environment);
+  } catch (error) {
+    if (moved) {
+      await rm(modules, { recursive: true, force: true });
+      await rename(priorModules, modules);
+    }
+    await rm(backup, { recursive: true, force: true });
+    throw error;
+  }
+  await rm(backup, { recursive: true, force: true });
 }
 
 export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {

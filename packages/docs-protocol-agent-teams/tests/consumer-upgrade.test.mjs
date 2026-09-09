@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { registerRestorationSelectionTests } from "./consumer-restoration-selection-cases.mjs";
 import { registerRestorationFinalizationTests } from "./consumer-restoration-finalization-cases.mjs";
 import { registerConsumerRestorationTests } from "./consumer-restoration-cases.mjs";
-import { readFileSync } from "node:fs";
+import { chmodSync, readdirSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { chmod, link, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, link, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -1679,5 +1679,84 @@ test("installed CLI guards retain symlink, nonregular and hardlink rejection for
         await rm(cli, { recursive: true });
       }
     }
+  } finally {await rm(root, { recursive: true, force: true });}
+});
+
+test("real pnpm offline install failure preserves prior modules inode and bytes on activation and restoration", {
+  skip: process.platform === "win32" ? "POSIX archive and hardlink fixture" : false,
+  timeout: 180_000
+}, async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-consumer-upgrade-install-failure-"));
+  const consumerRoot = join(root, "consumer");
+  const prior = await sourceCohort();
+  const current = desired(prior.cohort, 1);
+  try {
+    await mkdir(consumerRoot);
+    await writeFile(join(consumerRoot, "package.json"), sourceSnapshot(current, prior.catalog).packageManifest.bytes);
+    await writeFile(join(consumerRoot, "pnpm-workspace.yaml"), await hardlinkInstallFixture(root, [prior.cohort]));
+    isolatedPnpm(consumerRoot, ["--package-import-method=hardlink"]);
+    const modules = join(consumerRoot, "node_modules");
+    const cli = join(modules, "@agent-teams/docs-protocol/dist/cli.js");
+    const before = await lstat(cli);
+    const modulesBefore = await lstat(modules);
+    const bytes = await readFile(cli);
+    const lock = await readFile(join(consumerRoot, "pnpm-lock.yaml"));
+    assert.ok(before.nlink > 1);
+    // Remove only this fixture's archives and store: a fresh frozen import must fail offline.
+    for (const entry of await readdir(root)) {
+      if (entry !== "consumer") {await rm(join(root, entry), { recursive: true, force: true });}
+    }
+    let installAttempts = 0;
+    const sandbox = new NodeConsumerUpgradeSandbox(() => {
+      installAttempts += 1;
+      assert.throws(() => readFileSync(cli), { code: "ENOENT" }, "prior modules moved before pnpm starts");
+      return { ...process.env, CI: "true" };
+    });
+    for (const method of ["activateAndVerifyV1", "restoreAndVerifyV1"]) {
+      await assert.rejects(sandbox[method]({ consumerRoot, current, authority: prior }), (error) => {
+        assert.equal(error.code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
+        assert.match(error.message, /ENOENT|ERR_PNPM/u);
+        return true;
+      });
+      assert.equal((await lstat(modules)).ino, modulesBefore.ino);
+      assert.equal((await lstat(cli)).ino, before.ino);
+      assert.equal((await lstat(cli)).mode, before.mode);
+      assert.deepEqual(await readFile(cli), bytes);
+      assert.deepEqual(await readFile(join(consumerRoot, "pnpm-lock.yaml")), lock);
+      assert.equal((await readdir(consumerRoot)).some((name) => name.startsWith(".docs-consumer-upgrade-modules-")), false);
+      await assert.rejects(readFile(join(root, "calls.jsonl")), { code: "ENOENT" });
+    }
+    assert.equal(installAttempts, 2);
+    const permissionProbe = join(root, "permission-probe");
+    await mkdir(permissionProbe, { mode: 0o500 });
+    let respectsPermissions = false;
+    try {await writeFile(join(permissionProbe, "probe"), "probe");}
+    catch (error) {if (error.code !== "EACCES") {throw error;} respectsPermissions = true;}
+    finally {await chmod(permissionProbe, 0o700);}
+    await t.test("restoration failure retains both errors and backup evidence", {
+      skip: respectsPermissions ? false : "requires filesystem permissions without DAC override"
+    }, async () => {
+      let retained;
+      const failingRestore = new NodeConsumerUpgradeSandbox(() => {
+        retained = join(consumerRoot, readdirSync(consumerRoot).find((name) =>
+          name.startsWith(".docs-consumer-upgrade-modules-")));
+        chmodSync(retained, 0o500);
+        return { ...process.env, CI: "true" };
+      });
+      try {
+        await assert.rejects(failingRestore.restoreAndVerifyV1({ consumerRoot, current }), (error) => {
+          assert.match(error.message, /preserve .* for manual recovery/u);
+          assert.ok(error.cause instanceof AggregateError);
+          assert.equal(error.cause.errors[0].code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
+          assert.equal(error.cause.errors[1].code, "EACCES");
+          return true;
+        });
+        const retainedCli = join(retained, "node_modules/@agent-teams/docs-protocol/dist/cli.js");
+        assert.equal((await lstat(retainedCli)).ino, before.ino);
+        assert.deepEqual(await readFile(retainedCli), bytes);
+      } finally {
+        if (retained) {await chmod(retained, 0o700);}
+      }
+    });
   } finally {await rm(root, { recursive: true, force: true });}
 });

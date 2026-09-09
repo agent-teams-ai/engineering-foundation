@@ -244,6 +244,7 @@ async function operationForChangedPath(input: {
 async function installCohort(root: string, offline: boolean, environment: () => NodeJS.ProcessEnv): Promise<void> {
   // pnpm skips existing imports even in copy mode. Keep the prior installation
   // until a fresh import succeeds; --force also bypasses package installability.
+  // This backup is not journaled: interruption leaves evidence for manual recovery.
   const backup = await mkdtemp(join(root, ".docs-consumer-upgrade-modules-"));
   const modules = join(root, "node_modules");
   const priorModules = join(backup, "node_modules");
@@ -266,11 +267,19 @@ async function installCohort(root: string, offline: boolean, environment: () => 
       "--verify-store-integrity"
     ], environment);
   } catch (error) {
-    if (moved) {
-      await rm(modules, { recursive: true, force: true });
-      await rename(priorModules, modules);
+    try {
+      if (moved) {
+        await rm(modules, { recursive: true, force: true });
+        await rename(priorModules, modules);
+      }
+      await rm(backup, { recursive: true, force: true });
+    } catch (restoreError) {
+      throw new ConsumerIntegrationNodeError(
+        "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED",
+        `Installation failed and prior modules could not be restored; preserve ${backup} for manual recovery.`,
+        { cause: new AggregateError([error, restoreError], "Installation and modules restoration failed.") }
+      );
     }
-    await rm(backup, { recursive: true, force: true });
     throw error;
   }
   await rm(backup, { recursive: true, force: true });

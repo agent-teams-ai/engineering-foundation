@@ -405,7 +405,7 @@ function evaluateGeneratedOutputCandidate(
   policy: SourceArchitecturePolicy
 ): readonly FoundationDiagnostic[] {
   if (
-    policy.schemaVersion === 2 &&
+    policy.schemaVersion !== 1 &&
     sourceBoundary.dependencyMode === "development" &&
     resolution.workspacePackageName === edge.fromWorkspacePackageName &&
     resolution.workspacePackageManifestPath === edge.fromWorkspacePackageManifestPath

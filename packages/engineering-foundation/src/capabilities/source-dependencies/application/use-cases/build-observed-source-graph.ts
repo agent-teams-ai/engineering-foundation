@@ -25,6 +25,7 @@ export interface BuildObservedSourceGraphInput {
     readonly inode: string;
   };
   readonly enforceWorkspaceBindings?: boolean;
+  readonly enforceGeneratedManifestFences?: boolean;
   readonly inventory: WorkspaceInventory;
   readonly packageTypeScopes?: readonly {
     readonly moduleType: "commonjs" | "module";
@@ -293,6 +294,7 @@ export function buildObservedSourceGraph(
                 ? {}
                 : { consumerRootIdentity: input.consumerRootIdentity }),
               enforceWorkspaceBindings: input.enforceWorkspaceBindings ?? false,
+              enforceGeneratedManifestFences: input.enforceGeneratedManifestFences ?? false,
               file,
               governedFilePaths,
               ...(input.governedWorkspacePackageManifestPaths === undefined

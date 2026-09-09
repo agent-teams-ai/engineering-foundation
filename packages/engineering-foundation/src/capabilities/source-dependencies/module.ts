@@ -5,6 +5,7 @@ import {
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
 import type { SourceTreeReader } from "./application/ports/source-tree-reader.js";
+import type { SourceArchitectureConfigSchemaVersion } from "./application/model/source-workspace.js";
 import type { WorkspaceInventoryReader } from "../../workspace-inventory/api.js";
 import type { SourceWorkspaceInventorySnapshotReader } from "./application/ports/source-workspace-topology-inspector.js";
 import { NodeSourceDependencyResolver } from "./adapters/outbound/node/node-source-dependency-resolver.js";
@@ -47,7 +48,7 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
-      let requestedSchemaVersion: 1 | 2 = CAPABILITY_CONFIG_SCHEMA_VERSION;
+      let requestedSchemaVersion: SourceArchitectureConfigSchemaVersion = 2;
       try {
         const policy = await loadCapabilityConfig(
           { readYaml: loadStrictYamlFile, assertSchema: input.assertSchema },

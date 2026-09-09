@@ -8,6 +8,7 @@ export interface SourceBoundaryRootDescription {
 
 export interface InspectSourceWorkspaceTopologyInput {
   readonly consumerRoot: string;
+  readonly v3?: { readonly includeRootPackage: boolean };
   readonly workspaceManifestPath: string;
   readonly packageRoots: readonly string[];
   readonly governedRoots: readonly string[];

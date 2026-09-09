@@ -1,3 +1,4 @@
+import { sourcePackageOwner } from "../../../application/policies/source-package-ownership.js";
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import {
   sourceTopologyInputError as inputError,
@@ -74,6 +75,8 @@ export class PnpmSourceWorkspaceTopologyInspector
       consumerRootSnapshot,
       discovered,
       inventory,
+      observations,
+      ownership,
       packageTypeScopes,
       selectedManifestPaths,
       selectedPackages
@@ -93,11 +96,9 @@ export class PnpmSourceWorkspaceTopologyInspector
     ]
       .toSorted(compareBinaryStrings)
       .find((root) =>
-        rootOutsideSelectedPackages(
-          root,
-          selectedPackages,
-          selectedManifestPaths
-        )
+        ownership === undefined
+          ? rootOutsideSelectedPackages(root, selectedPackages, selectedManifestPaths)
+          : sourcePackageOwner(root, selectedPackages, ownership) === undefined
       );
     if (outsideRoot !== undefined) {
       inputError(
@@ -148,7 +149,7 @@ export class PnpmSourceWorkspaceTopologyInspector
     const packages = buildSelectedPackageSourceTopology(
       selectedPackages,
       discovered.sourcePaths,
-      selectedManifestPaths
+      ownership?.ownershipManifestPaths ?? selectedManifestPaths
     ).map((workspacePackage) => Object.freeze({
       ...workspacePackage,
       filesystemIdentity: packageRootIdentities.get(workspacePackage.rootPath) ??
@@ -158,7 +159,9 @@ export class PnpmSourceWorkspaceTopologyInspector
         )
     }));
     const unownedSourcePath = discovered.sourcePaths.find((path) =>
-      rootOutsideSelectedPackages(path, selectedPackages, selectedManifestPaths)
+      ownership === undefined
+        ? rootOutsideSelectedPackages(path, selectedPackages, selectedManifestPaths)
+        : sourcePackageOwner(path, selectedPackages, ownership) === undefined
     );
     if (unownedSourcePath !== undefined) {
       inputError(
@@ -175,7 +178,10 @@ export class PnpmSourceWorkspaceTopologyInspector
       input.governedRoots,
       {
         fileSystem: this.#fileSystem,
-        limits: this.#limits,
+        limits: observations === undefined ? this.#limits : {
+          ...this.#limits,
+          maxTotalSourceBytes: this.#limits.maxTotalSourceBytes - observations.manifestBytes
+        },
         ...(input.signal === undefined ? {} : { signal: input.signal })
       }
     );
@@ -192,7 +198,9 @@ export class PnpmSourceWorkspaceTopologyInspector
       ],
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
+    await observations?.revalidate();
     return Object.freeze({
+      ...(ownership === undefined ? {} : { ownership }),
       canonicalConsumerRoot,
       consumerRootIdentity: Object.freeze({
         device: String(consumerRootSnapshot.canonicalMetadata.dev),

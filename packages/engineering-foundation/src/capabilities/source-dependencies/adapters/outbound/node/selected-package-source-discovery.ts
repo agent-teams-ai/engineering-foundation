@@ -6,9 +6,7 @@ import {
   assertSourceTopologyActive as assertNotCancelled,
   sourceTopologyInputError as inputError
 } from "../../../api.js";
-import type { WorkspacePackage } from "../../../application/model/workspace-inventory.js";
 import { portablePathIsInside, portableRepositoryPathIdentity } from "../../../application/model/repository-path.js";
-import type { SourceWorkspacePackageTopology } from "../../../application/model/source-workspace-topology.js";
 import {
   assertSafeRepositoryPath,
   captureStableRepositoryPath,
@@ -63,7 +61,8 @@ interface DirectoryCursor {
   readonly repositoryPath: string;
 }
 
-interface DiscoveryBudget {
+export interface DiscoveryBudget {
+  readonly observedEntries?: Set<string>;
   entries: number;
   manifests: number;
   sourceFiles: number;
@@ -111,10 +110,15 @@ function assertSafeDirectoryEntryName(name: string): void {
   }
 }
 
-function recordEntry(
+export function recordDiscoveryEntry(
+  path: string,
   budget: DiscoveryBudget,
   limits: SourceWorkspaceDiscoveryLimits
 ): void {
+  if (budget.observedEntries?.has(path) === true) {
+    return;
+  }
+  budget.observedEntries?.add(path);
   if (budget.entries >= limits.maxDirectoryEntries) {
     inputError(
       "SOURCE_DISCOVERY_LIMIT_EXCEEDED",
@@ -206,7 +210,7 @@ async function readStableDirectoryEntries(
         completed = true;
         break;
       }
-      recordEntry(input.budget, input.limits);
+      recordDiscoveryEntry(childRepositoryPath(input.cursor.repositoryPath, result.value.name), input.budget, input.limits);
       assertSafeDirectoryEntryName(result.value.name);
       entries.push(result.value);
     }
@@ -303,10 +307,46 @@ function assertPortablePaths(paths: readonly string[], kind: string): void {
   }
 }
 
+async function observedPackageRoot(
+  path: string,
+  entries: readonly Dirent[],
+  selectors: ReadonlySet<string>,
+  observe: ((manifestPath: string) => Promise<boolean>) | undefined
+): Promise<boolean> {
+  const authority = observe === undefined ? true : await observe(childRepositoryPath(path, "package.json"));
+  return authority && isPackageRootLocation(path, selectors) &&
+    entries.some((entry) => entry.name === "package.json" && entry.isFile());
+}
+
+function recordDiscoveredFile(
+  repositoryPath: string,
+  state: {
+    readonly manifestPaths: Set<string>;
+    readonly sourcePaths: Set<string>;
+    readonly budget: DiscoveryBudget;
+    readonly limits: SourceWorkspaceDiscoveryLimits;
+    readonly observesManifests: boolean;
+  }
+): void {
+  if (posix.basename(repositoryPath) === "package.json") {
+    if (state.observesManifests) {
+      state.manifestPaths.add(repositoryPath);
+    } else {
+      recordPath(repositoryPath, state.manifestPaths, "manifest", state.budget, state.limits);
+    }
+  }
+  if (SOURCE_EXTENSIONS.has(posix.extname(repositoryPath))) {
+    recordPath(repositoryPath, state.sourcePaths, "source", state.budget, state.limits);
+  }
+}
+
 export async function discoverSourceWorkspacePaths(
   canonicalConsumerRoot: string,
   options: {
     readonly repositoryRoots: readonly string[];
+    readonly rootSourceRoots?: readonly string[];
+    readonly budget?: DiscoveryBudget;
+    readonly observeManifest?: (manifestPath: string) => Promise<boolean>;
     readonly selectedPackageRoots?: readonly string[];
     readonly governedRoots?: readonly string[];
     readonly boundaryRoots?: readonly string[];
@@ -319,7 +359,7 @@ export async function discoverSourceWorkspacePaths(
   const operations = createSourceWorkspaceDirectorySystem(options.fileSystem);
   const limits = sourceWorkspaceDiscoveryLimits(options.limits);
   const hooks = options.hooks ?? {};
-  const budget: DiscoveryBudget = { entries: 0, manifests: 0, sourceFiles: 0 };
+  const budget: DiscoveryBudget = options.budget ?? { entries: 0, manifests: 0, sourceFiles: 0 };
   const manifestPaths = new Set<string>();
   const sourcePaths = new Set<string>();
   const symbolicLinkPaths = new Set<string>();
@@ -331,7 +371,9 @@ export async function discoverSourceWorkspacePaths(
     options.repositoryRoots.map(portableRepositoryPathIdentity)
   );
   const sourceRootIdentities = explicitSourceRootIdentities(options.governedRoots, options.boundaryRoots);
-  const directories: DirectoryCursor[] = options.repositoryRoots
+  assertPortablePaths(options.repositoryRoots, "Workspace package root");
+  const visited = new Set<string>();
+  const directories: DirectoryCursor[] = [...options.repositoryRoots, ...(options.rootSourceRoots ?? [])]
     .toSorted(compareBinaryStrings)
     .toReversed()
     .map((repositoryPath) => {
@@ -350,6 +392,10 @@ export async function discoverSourceWorkspacePaths(
     if (cursor === undefined) {
       break;
     }
+    if (options.observeManifest !== undefined && visited.has(cursor.repositoryPath)) {
+      continue;
+    }
+    visited.add(cursor.repositoryPath);
     const { captured, entries } = await readStableDirectoryEntries({
       budget,
       canonicalConsumerRoot,
@@ -362,9 +408,9 @@ export async function discoverSourceWorkspacePaths(
     directorySnapshots.push(captured);
     // A package root is the configured path or a manifest-bearing direct child.
     // Nested source/type scopes cannot turn their coverage/dist into build output.
-    const cursorIsPackageRoot =
-      isPackageRootLocation(cursor.repositoryPath, repositoryRootIdentities) &&
-      entries.some((entry) => entry.name === "package.json" && entry.isFile());
+    const cursorIsPackageRoot = await observedPackageRoot(
+      cursor.repositoryPath, entries, repositoryRootIdentities, options.observeManifest
+    );
     const childDirectories: DirectoryCursor[] = [];
     for (const entry of entries) {
       assertNotCancelled(options.signal);
@@ -387,24 +433,10 @@ export async function discoverSourceWorkspacePaths(
       } else if (entry.isDirectory()) {
         childDirectories.push({ absolutePath, repositoryPath });
       } else if (entry.isFile()) {
-        if (entry.name === "package.json") {
-          recordPath(
-            repositoryPath,
-            manifestPaths,
-            "manifest",
-            budget,
-            limits
-          );
-        }
-        if (SOURCE_EXTENSIONS.has(posix.extname(entry.name))) {
-          recordPath(
-            repositoryPath,
-            sourcePaths,
-            "source",
-            budget,
-            limits
-          );
-        }
+        recordDiscoveredFile(repositoryPath, {
+          manifestPaths, sourcePaths, budget, limits,
+          observesManifests: options.observeManifest !== undefined
+        });
       }
     }
     directories.push(...childDirectories.toReversed());
@@ -425,101 +457,4 @@ export async function discoverSourceWorkspacePaths(
   });
 }
 
-function packageByPortableRoot(
-  packages: readonly WorkspacePackage[]
-): ReadonlyMap<string, WorkspacePackage> {
-  const byRoot = new Map<string, WorkspacePackage>();
-  for (const workspacePackage of packages) {
-    const identity = portableRepositoryPathIdentity(workspacePackage.rootPath);
-    const existing = byRoot.get(identity);
-    if (existing !== undefined) {
-      inputError(
-        "WORKSPACE_PACKAGE_ROOT_DUPLICATE",
-        `Workspace package roots share a portable identity: ${existing.rootPath} and ${workspacePackage.rootPath}.`
-      );
-    }
-    byRoot.set(identity, workspacePackage);
-  }
-  return byRoot;
-}
-
-function packageRootIdentities(
-  manifestPaths: readonly string[]
-): ReadonlySet<string> {
-  return new Set(
-    manifestPaths.map((manifestPath) =>
-      portableRepositoryPathIdentity(
-        manifestPath === "package.json" ? "." : posix.dirname(manifestPath)
-      )
-    )
-  );
-}
-
-function owningPackage(
-  path: string,
-  packagesByRoot: ReadonlyMap<string, WorkspacePackage>,
-  ownershipRoots: ReadonlySet<string>
-): WorkspacePackage | undefined {
-  let candidate = portableRepositoryPathIdentity(path);
-  for (;;) {
-    if (ownershipRoots.has(candidate)) {
-      return packagesByRoot.get(candidate);
-    }
-    if (candidate === ".") {
-      return undefined;
-    }
-    const separator = candidate.lastIndexOf("/");
-    candidate = separator === -1 ? "." : candidate.slice(0, separator);
-  }
-}
-
-export function buildSelectedPackageSourceTopology(
-  packages: readonly WorkspacePackage[],
-  sourcePaths: readonly string[],
-  allManifestPaths: readonly string[]
-): readonly Omit<SourceWorkspacePackageTopology, "filesystemIdentity">[] {
-  const packagesByRoot = packageByPortableRoot(packages);
-  const ownershipRoots = packageRootIdentities(allManifestPaths);
-  const pathsByRoot = new Map<string, string[]>();
-  for (const workspacePackage of packages) {
-    pathsByRoot.set(portableRepositoryPathIdentity(workspacePackage.rootPath), []);
-  }
-  for (const path of sourcePaths) {
-    const workspacePackage = owningPackage(path, packagesByRoot, ownershipRoots);
-    if (workspacePackage !== undefined) {
-      pathsByRoot
-        .get(portableRepositoryPathIdentity(workspacePackage.rootPath))
-        ?.push(path);
-    }
-  }
-  return Object.freeze(
-    packages
-      .toSorted((left, right) => compareBinaryStrings(left.rootPath, right.rootPath))
-      .map((workspacePackage) =>
-        Object.freeze({
-          manifestPath: workspacePackage.manifestPath,
-          name: workspacePackage.name,
-          rootPath: workspacePackage.rootPath,
-          sourcePaths: Object.freeze(
-            (pathsByRoot.get(
-              portableRepositoryPathIdentity(workspacePackage.rootPath)
-            ) ?? []).toSorted(compareBinaryStrings)
-          )
-        })
-      )
-  );
-}
-
-export function rootOutsideSelectedPackages(
-  repositoryPath: string,
-  packages: readonly WorkspacePackage[],
-  allManifestPaths: readonly string[]
-): boolean {
-  return (
-    owningPackage(
-      repositoryPath,
-      packageByPortableRoot(packages),
-      packageRootIdentities(allManifestPaths)
-    ) === undefined
-  );
-}
+export { buildSelectedPackageSourceTopology, rootOutsideSelectedPackages } from "../../../application/policies/selected-source-package-topology.js";

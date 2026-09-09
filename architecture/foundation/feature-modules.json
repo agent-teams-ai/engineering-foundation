@@ -1700,6 +1700,8 @@
           ],
           "testRoots": [
             "tests/source-dependency-graph.test.mjs",
+            "tests/source-dependency-root-package.test.mjs",
+            "tests/source-dependency-v3-observation.test.mjs",
             "tests/source-dependency-workspace-topology.test.mjs",
             "tests/source-dependency-topology-ports.test.mjs"
           ]

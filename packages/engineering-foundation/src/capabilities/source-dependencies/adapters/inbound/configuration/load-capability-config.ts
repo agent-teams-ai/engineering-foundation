@@ -4,12 +4,13 @@ import { readSourceArchitectureHeader, parseSourceArchitecturePolicy } from "./p
 
 export interface SourceArchitectureConfigurationDependencies {
   readonly readYaml: (consumerRoot: string, configPath: string, phase: string) => Promise<unknown>;
-  readonly assertSchema: (schemaId: "architecture-source-dependencies/v1" | "architecture-source-dependencies/v2", input: unknown, phase: string) => Promise<void>;
+  readonly assertSchema: (schemaId: "architecture-source-dependencies/v1" | "architecture-source-dependencies/v2" | "architecture-source-dependencies/v3", input: unknown, phase: string) => Promise<void>;
 }
 
 const SOURCE_ARCHITECTURE_SCHEMA_IDS = Object.freeze({
   1: "architecture-source-dependencies/v1",
-  2: "architecture-source-dependencies/v2"
+  2: "architecture-source-dependencies/v2",
+  3: "architecture-source-dependencies/v3"
 } as const);
 
 export async function loadCapabilityConfig(
@@ -22,7 +23,7 @@ export async function loadCapabilityConfig(
   let input: unknown;
   try {
     // This contained read is bounded. Completing it once lets cancellation
-    // reports retain the requested v1/v2 schema version without a second read.
+    // reports retain the requested schema version without a second read.
     input = await dependencies.readYaml(consumerRoot, configPath, "source-architecture-config");
   } catch (error) {
     assertConfigurationNotCancelled(signal);

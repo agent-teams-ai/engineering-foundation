@@ -51,6 +51,9 @@ Oxc adapter. This monorepo uses schema v2 with the explicit `packages` package
 root, while the published v1 contract remains loadable for existing consumers. See
 [Executable capabilities](docs/architecture/executable-capabilities.md) and
 [the parser spike](docs/research/source-dependency-parser-spike.md).
+The additive v3 root-package and overlapping-selection contract is pending
+combined validation and package qualification; consumer activation remains an
+explicit, separately qualified policy change.
 Suppression governance, released public API compatibility, and the publishing-
 repository security baseline are accepted, implemented, released, and
 dogfooded. Consumers still enable each capability explicitly and must satisfy

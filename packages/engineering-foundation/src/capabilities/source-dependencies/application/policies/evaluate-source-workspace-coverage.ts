@@ -1,3 +1,4 @@
+import { sourcePackageOwner, type SourcePackageOwnership } from "./source-package-ownership.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
@@ -20,8 +21,12 @@ function topologyError(code: string, message: string): never {
 
 function owningPackage(
   path: string,
-  packages: readonly SourceWorkspacePackageTopology[]
+  packages: readonly SourceWorkspacePackageTopology[],
+  ownership?: SourcePackageOwnership
 ): SourceWorkspacePackageTopology | undefined {
+  if (ownership !== undefined) {
+    return sourcePackageOwner(path, packages, ownership);
+  }
   return packages
     .filter((workspacePackage) =>
       portablePathIsInside(path, workspacePackage.rootPath)
@@ -35,10 +40,11 @@ function owningPackage(
 
 function assertGovernedRootOwnership(
   policy: SourceArchitecturePolicy,
-  packages: readonly SourceWorkspacePackageTopology[]
+  packages: readonly SourceWorkspacePackageTopology[],
+  ownership?: SourcePackageOwnership
 ): void {
   for (const root of policy.governedRoots.toSorted(compareBinaryStrings)) {
-    if (owningPackage(root, packages) === undefined) {
+    if (owningPackage(root, packages, ownership) === undefined) {
       topologyError(
         "SOURCE_ROOT_OUTSIDE_WORKSPACE",
         `Governed root is outside the schema v2 packageRoots contract: ${root}.`
@@ -49,15 +55,19 @@ function assertGovernedRootOwnership(
 
 function assertBoundaryOwnership(
   policy: SourceArchitecturePolicy,
-  packages: readonly SourceWorkspacePackageTopology[]
+  packages: readonly SourceWorkspacePackageTopology[],
+  ownership?: SourcePackageOwnership
 ): void {
   for (const boundary of policy.boundaries) {
-    const paths = [...boundary.roots, ...boundary.entrypoints].toSorted(
+    const observedPaths = ownership === undefined ? [] : packages.flatMap((owner) =>
+      owner.sourcePaths.filter((path) => boundary.roots.some((root) => portablePathIsInside(path, root)))
+    );
+    const paths = [...boundary.roots, ...boundary.entrypoints, ...observedPaths].toSorted(
       compareBinaryStrings
     );
     const owners = new Map<string, SourceWorkspacePackageTopology>();
     for (const path of paths) {
-      const owner = owningPackage(path, packages);
+      const owner = owningPackage(path, packages, ownership);
       if (owner === undefined) {
         topologyError(
           "SOURCE_ROOT_OUTSIDE_WORKSPACE",
@@ -81,22 +91,24 @@ function assertBoundaryOwnership(
 function packageHasGovernedRoot(
   workspacePackage: SourceWorkspacePackageTopology,
   governedRoots: readonly string[],
-  packages: readonly SourceWorkspacePackageTopology[]
+  packages: readonly SourceWorkspacePackageTopology[],
+  ownership?: SourcePackageOwnership
 ): boolean {
   return governedRoots.some(
-    (root) => owningPackage(root, packages)?.rootPath === workspacePackage.rootPath
+    (root) => owningPackage(root, packages, ownership)?.rootPath === workspacePackage.rootPath
   );
 }
 
 function uncoveredSourceDiagnostics(
   policy: SourceArchitecturePolicy,
   workspacePackage: SourceWorkspacePackageTopology,
-  packages: readonly SourceWorkspacePackageTopology[]
+  packages: readonly SourceWorkspacePackageTopology[],
+  ownership?: SourcePackageOwnership
 ): readonly FoundationDiagnostic[] {
   return workspacePackage.sourcePaths
     .filter(
       (path) =>
-        owningPackage(path, packages)?.rootPath === workspacePackage.rootPath &&
+        owningPackage(path, packages, ownership)?.rootPath === workspacePackage.rootPath &&
         !policy.governedRoots.some((root) => portablePathIsInside(path, root))
     )
     .toSorted(compareBinaryStrings)
@@ -121,8 +133,8 @@ export function evaluateSourceWorkspaceCoverage(
   policy: SourceArchitecturePolicy,
   topology: SourceWorkspaceTopology
 ): readonly FoundationDiagnostic[] {
-  assertGovernedRootOwnership(policy, topology.packages);
-  assertBoundaryOwnership(policy, topology.packages);
+  assertGovernedRootOwnership(policy, topology.packages, topology.ownership);
+  assertBoundaryOwnership(policy, topology.packages, topology.ownership);
   const diagnostics: FoundationDiagnostic[] = [];
   for (const workspacePackage of topology.packages.toSorted((left, right) =>
     compareBinaryStrings(left.rootPath, right.rootPath)
@@ -131,7 +143,8 @@ export function evaluateSourceWorkspaceCoverage(
       !packageHasGovernedRoot(
         workspacePackage,
         policy.governedRoots,
-        topology.packages
+        topology.packages,
+        topology.ownership
       ) &&
       workspacePackage.rootPath !== "."
     ) {
@@ -154,7 +167,7 @@ export function evaluateSourceWorkspaceCoverage(
       continue;
     }
     diagnostics.push(
-      ...uncoveredSourceDiagnostics(policy, workspacePackage, topology.packages)
+      ...uncoveredSourceDiagnostics(policy, workspacePackage, topology.packages, topology.ownership)
     );
   }
   return Object.freeze(diagnostics);

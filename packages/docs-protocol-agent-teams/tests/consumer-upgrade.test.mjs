@@ -6,7 +6,7 @@ import { registerRestorationFinalizationTests } from "./consumer-restoration-fin
 import { registerConsumerRestorationTests } from "./consumer-restoration-cases.mjs";
 import { chmodSync, readdirSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { chmod, link, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, link, lstat, mkdir, mkdtemp, open, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -1682,6 +1682,15 @@ test("installed CLI guards retain symlink, nonregular and hardlink rejection for
   } finally {await rm(root, { recursive: true, force: true });}
 });
 
+async function readFixtureFileSnapshot(path) {
+  const handle = await open(path, "r");
+  try {
+    return { stat: await handle.stat(), bytes: await handle.readFile() };
+  } finally {
+    await handle.close();
+  }
+}
+
 test("real pnpm offline install failure preserves prior modules inode and bytes on activation and restoration", {
   skip: process.platform === "win32" ? "POSIX archive and hardlink fixture" : false,
   timeout: 180_000
@@ -1697,9 +1706,8 @@ test("real pnpm offline install failure preserves prior modules inode and bytes 
     isolatedPnpm(consumerRoot, ["--package-import-method=hardlink"]);
     const modules = join(consumerRoot, "node_modules");
     const cli = join(modules, "@agent-teams/docs-protocol/dist/cli.js");
-    const before = await lstat(cli);
+    const { stat: before, bytes } = await readFixtureFileSnapshot(cli);
     const modulesBefore = await lstat(modules);
-    const bytes = await readFile(cli);
     const lock = await readFile(join(consumerRoot, "pnpm-lock.yaml"));
     assert.ok(before.nlink > 1);
     // Remove only this fixture's archives and store: a fresh frozen import must fail offline.
@@ -1719,9 +1727,10 @@ test("real pnpm offline install failure preserves prior modules inode and bytes 
         return true;
       });
       assert.equal((await lstat(modules)).ino, modulesBefore.ino);
-      assert.equal((await lstat(cli)).ino, before.ino);
-      assert.equal((await lstat(cli)).mode, before.mode);
-      assert.deepEqual(await readFile(cli), bytes);
+      const restored = await readFixtureFileSnapshot(cli);
+      assert.equal(restored.stat.ino, before.ino);
+      assert.equal(restored.stat.mode, before.mode);
+      assert.deepEqual(restored.bytes, bytes);
       assert.deepEqual(await readFile(join(consumerRoot, "pnpm-lock.yaml")), lock);
       assert.equal((await readdir(consumerRoot)).some((name) => name.startsWith(".docs-consumer-upgrade-modules-")), false);
       await assert.rejects(readFile(join(root, "calls.jsonl")), { code: "ENOENT" });
@@ -1752,8 +1761,9 @@ test("real pnpm offline install failure preserves prior modules inode and bytes 
           return true;
         });
         const retainedCli = join(retained, "node_modules/@agent-teams/docs-protocol/dist/cli.js");
-        assert.equal((await lstat(retainedCli)).ino, before.ino);
-        assert.deepEqual(await readFile(retainedCli), bytes);
+        const retainedSnapshot = await readFixtureFileSnapshot(retainedCli);
+        assert.equal(retainedSnapshot.stat.ino, before.ino);
+        assert.deepEqual(retainedSnapshot.bytes, bytes);
       } finally {
         if (retained) {await chmod(retained, 0o700);}
       }

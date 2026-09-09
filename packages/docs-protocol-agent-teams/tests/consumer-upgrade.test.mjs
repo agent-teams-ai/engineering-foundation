@@ -4,10 +4,11 @@ import assert from "node:assert/strict";
 import { registerRestorationSelectionTests } from "./consumer-restoration-selection-cases.mjs";
 import { registerRestorationFinalizationTests } from "./consumer-restoration-finalization-cases.mjs";
 import { registerConsumerRestorationTests } from "./consumer-restoration-cases.mjs";
-import { readFileSync } from "node:fs";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmodSync, readdirSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { chmod, link, lstat, mkdir, mkdtemp, open, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 
 import {
@@ -1519,4 +1520,253 @@ test("restoration admits consumer closure variation but preserves the non-owned 
   after.packages["foreign@1.0.0"].resolution.integrity = `sha512-${"B".repeat(86)}==`;
   assert.throws(() => assertRestorationLockScope(closureBytes(before), closureBytes(after), source, desiredV3(target)),
     /non-owned/u);
+});
+
+// Local archives isolate package importing from registry/cohort qualification.
+async function hardlinkInstallFixture(root, cohorts) {
+  const overrides = {};
+  const names = {
+    docsProtocol: "docs-protocol", engineeringFoundation: "engineering-foundation",
+    docsProtocolAgentTeams: "docs-protocol-agent-teams",
+    repositoryMutation: "repository-mutation", documentAuthoring: "document-authoring"
+  };
+  for (const cohort of cohorts) {
+    for (const [role, { version }] of Object.entries(cohort.packages)) {
+      const name = `@agent-teams/${names[role]}`;
+      const key = `${name}@${version}`;
+      if (overrides[key]) {continue;}
+      const directory = join(root, `${names[role]}-${version}`);
+      await mkdir(join(directory, "package/dist"), { recursive: true });
+      await writeFile(join(directory, "package/package.json"), JSON.stringify({
+        name, version
+      }));
+      await writeFile(join(directory, "package/dist/cli.js"), `
+const { appendFileSync, lstatSync, mkdirSync, readFileSync, writeFileSync } = require("node:fs");
+const { dirname, join } = require("node:path");
+const root = process.cwd();
+const args = process.argv.slice(2);
+const nlink = lstatSync(__filename).nlink;
+if (nlink !== 1) {throw new Error("CLI must be copied before execution");}
+appendFileSync(${JSON.stringify(join(root, "calls.jsonl"))}, JSON.stringify({
+  name: ${JSON.stringify(name)}, version: ${JSON.stringify(version)}, root, args, nlink
+}) + "\\n");
+const profile = JSON.parse(readFileSync(join(root, "architecture/foundation/docs-consumer-integration.json")));
+if (args[0] === "apply") {
+  for (const path of [profile.skillPath, profile.callerWorkflowPath, profile.managedStatePath]) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), "isolated installed CLI asset\\n");
+  }
+}
+console.log(JSON.stringify(args[0] === "plan"
+  ? { outcome: "change-required", plan: { planDigest: "sha256:fixture" } }
+  : { outcome: args[0] === "apply" ? "applied" : "current" }));
+`);
+      const archive = join(directory, "fixture.tgz");
+      execFileSync("tar", ["czf", archive, "package"], { cwd: directory });
+      overrides[key] = `file:${archive}`;
+    }
+  }
+  return JSON.stringify({ packages: [], overrides, storeDir: join(root, "store"),
+    packageImportMethod: "hardlink", offline: true });
+}
+
+function isolatedPnpm(root, flags) {
+  return execFileSync("corepack", ["pnpm", "install", "--offline", "--ignore-scripts",
+    "--ignore-pnpmfile", "--verify-store-integrity", ...flags], {
+    cwd: root, encoding: "utf8", timeout: 60_000,
+    env: { ...process.env, COREPACK_ENABLE_NETWORK: "0", CI: "true" }
+  });
+}
+
+test("real pnpm copies staged CLIs and reimports hardlinks for offline activation and both restorations", {
+  skip: process.platform === "win32" ? "POSIX archive and hardlink fixture" : false,
+  timeout: 180_000
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-consumer-upgrade-hardlinks-"));
+  const consumerRoot = join(root, "consumer");
+  const prior = await sourceCohort();
+  const current = desired(prior.cohort, 1);
+  const authority = { cohort: cohortV2("docs-hardlink-target") };
+  const profilePath = "architecture/foundation/docs-consumer-integration.json";
+  const cliPath = (name) => join(consumerRoot, "node_modules/@agent-teams", name, "dist/cli.js");
+  const sandbox = new NodeConsumerUpgradeSandbox(() => ({ ...process.env, CI: "true" }));
+  try {
+    await mkdir(consumerRoot);
+    const workspace = await hardlinkInstallFixture(root, [prior.cohort, authority.cohort]);
+    const snapshot = sourceSnapshot(current, prior.catalog);
+    snapshot.integrationProfile = fileObservation(Buffer.from(JSON.stringify(current)));
+    for (const [key, path] of [
+      ["integrationProfile", profilePath], ["packageManifest", "package.json"],
+      ["agents", "AGENTS.md"], ["skill", current.skillPath],
+      ["callerWorkflow", current.callerWorkflowPath], ["managedState", current.managedStatePath]
+    ]) {
+      await mkdir(dirname(join(consumerRoot, path)), { recursive: true });
+      await writeFile(join(consumerRoot, path), snapshot[key].bytes);
+    }
+    await writeFile(join(consumerRoot, "pnpm-workspace.yaml"), workspace);
+    await writeFile(join(consumerRoot, ".gitignore"), "node_modules/\n");
+    await writeFile(join(consumerRoot, ".npmrc"),
+      `store-dir=${join(root, "store")}\noffline=true\npackage-import-method=hardlink\nregistry=http://127.0.0.1:1/\n`);
+    const seedOutput = isolatedPnpm(consumerRoot, ["--package-import-method=hardlink"]);
+    const historical = cliPath("docs-protocol");
+    const linked = await lstat(historical);
+    assert.ok(linked.nlink > 1, `real pnpm must reproduce store hardlinks: ${seedOutput}`);
+    isolatedPnpm(consumerRoot, ["--package-import-method=copy", "--frozen-lockfile"]);
+    assert.equal((await lstat(historical)).ino, linked.ino, "copy alone does not reimport");
+    assert.ok((await lstat(historical)).nlink > 1);
+    await assert.rejects(assertInstalledHistoricalIntegrationCurrent(consumerRoot, async () => {
+      assert.fail("hardlink guard must reject before execution");
+    }), { code: "DOCS_CONSUMER_UPGRADE_TARGET_INVALID" });
+    snapshot.lockfile = fileObservation(await readFile(join(consumerRoot, "pnpm-lock.yaml")));
+    runGit(consumerRoot, ["init", "-q"]);
+    runGit(consumerRoot, ["add", "."]);
+    runGit(consumerRoot, ["-c", "user.name=TEST", "-c", "user.email=test@example.invalid",
+      "commit", "-qm", "test: isolated hardlink source"]);
+    const sourceHead = runGit(consumerRoot, ["rev-parse", "HEAD"]);
+    const prepared = await sandbox.prepareV1ToV2({
+      consumerRoot, current, authority, expectedSourceRevision: sourceHead,
+      expectedSourceSnapshot: snapshot
+    });
+    assert.ok(prepared.operations.some(({ path }) => path === "package.json"));
+    assert.equal((await lstat(historical)).ino, linked.ino, "staging leaves original install intact");
+    const stagedCalls = (await readFile(join(root, "calls.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
+    assert.deepEqual(stagedCalls.map(({ args }) => args[0]), ["plan", "apply", "check"]);
+    assert.ok(stagedCalls.every((call) => call.root !== consumerRoot && call.nlink === 1));
+    await sandbox.restoreAndVerifyV1({ consumerRoot, current });
+    assert.equal((await lstat(historical)).nlink, 1);
+    assert.deepEqual(await readFile(join(consumerRoot, "pnpm-lock.yaml")), snapshot.lockfile.bytes);
+    for (const operation of prepared.operations) {
+      await writeFile(join(consumerRoot, operation.path), operation.postimage.bytes);
+    }
+    const managed = cliPath("docs-protocol-agent-teams");
+    const targetLock = await readFile(join(consumerRoot, "pnpm-lock.yaml"));
+    for (const method of ["activateAndVerifyV1", "activateAndVerifyV2", "restoreAndVerifyV2"]) {
+      isolatedPnpm(consumerRoot, ["--package-import-method=hardlink", "--force", "--frozen-lockfile"]);
+      assert.ok((await lstat(managed)).nlink > 1, `${method} starts with real hardlinks`);
+      runGit(consumerRoot, ["add", "."]);
+      runGit(consumerRoot, ["-c", "user.name=TEST", "-c", "user.email=test@example.invalid",
+        "commit", "--allow-empty", "-qm", "test: isolated target"]);
+      await sandbox[method]({ consumerRoot, authority, current: desiredV3(authority.cohort) });
+      assert.equal((await lstat(managed)).nlink, 1, method);
+      assert.deepEqual(await readFile(join(consumerRoot, "pnpm-lock.yaml")), targetLock);
+      assert.equal(runGit(consumerRoot, ["status", "--porcelain"]), "");
+    }
+    const calls = (await readFile(join(root, "calls.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
+    assert.deepEqual(calls.slice(3).map(({ args }) => args.slice(0, 2)), [
+      ["consumer", "check"], ["check", "--consumer"], ["check", "--consumer"], ["check", "--consumer"]
+    ]);
+    assert.ok(calls.every(({ nlink }) => nlink === 1));
+  } finally {await rm(root, { recursive: true, force: true });}
+});
+
+test("installed CLI guards retain symlink, nonregular and hardlink rejection for both owners", async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-consumer-upgrade-cli-guard-"));
+  try {
+    const specimen = join(root, "specimen.js");
+    await writeFile(specimen, "// inert fixture\n");
+    for (const [name, guard] of [
+      ["docs-protocol", assertInstalledHistoricalIntegrationCurrent],
+      ["docs-protocol-agent-teams", assertInstalledIntegrationCurrent]
+    ]) {
+      const cli = join(root, "node_modules/@agent-teams", name, "dist/cli.js");
+      await mkdir(dirname(cli), { recursive: true });
+      for (const create of [() => mkdir(cli), () => link(specimen, cli),
+        ...(process.platform === "win32" ? [] : [() => symlink(specimen, cli)])]) {
+        await create();
+        await assert.rejects(guard(root, async () => {
+          assert.fail("unsafe CLI must be rejected before execution");
+        }), { code: "DOCS_CONSUMER_UPGRADE_TARGET_INVALID" });
+        await rm(cli, { recursive: true });
+      }
+    }
+  } finally {await rm(root, { recursive: true, force: true });}
+});
+
+async function readFixtureFileSnapshot(path) {
+  const handle = await open(path, "r");
+  try {
+    return { stat: await handle.stat(), bytes: await handle.readFile() };
+  } finally {
+    await handle.close();
+  }
+}
+
+test("real pnpm offline install failure preserves prior modules inode and bytes on activation and restoration", {
+  skip: process.platform === "win32" ? "POSIX archive and hardlink fixture" : false,
+  timeout: 180_000
+}, async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-consumer-upgrade-install-failure-"));
+  const consumerRoot = join(root, "consumer");
+  const prior = await sourceCohort();
+  const current = desired(prior.cohort, 1);
+  try {
+    await mkdir(consumerRoot);
+    await writeFile(join(consumerRoot, "package.json"), sourceSnapshot(current, prior.catalog).packageManifest.bytes);
+    await writeFile(join(consumerRoot, "pnpm-workspace.yaml"), await hardlinkInstallFixture(root, [prior.cohort]));
+    isolatedPnpm(consumerRoot, ["--package-import-method=hardlink"]);
+    const modules = join(consumerRoot, "node_modules");
+    const cli = join(modules, "@agent-teams/docs-protocol/dist/cli.js");
+    const { stat: before, bytes } = await readFixtureFileSnapshot(cli);
+    const modulesBefore = await lstat(modules);
+    const lock = await readFile(join(consumerRoot, "pnpm-lock.yaml"));
+    assert.ok(before.nlink > 1);
+    // Remove only this fixture's archives and store: a fresh frozen import must fail offline.
+    for (const entry of await readdir(root)) {
+      if (entry !== "consumer") {await rm(join(root, entry), { recursive: true, force: true });}
+    }
+    let installAttempts = 0;
+    const sandbox = new NodeConsumerUpgradeSandbox(() => {
+      installAttempts += 1;
+      assert.throws(() => readFileSync(cli), { code: "ENOENT" }, "prior modules moved before pnpm starts");
+      return { ...process.env, CI: "true" };
+    });
+    for (const method of ["activateAndVerifyV1", "restoreAndVerifyV1"]) {
+      await assert.rejects(sandbox[method]({ consumerRoot, current, authority: prior }), (error) => {
+        assert.equal(error.code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
+        assert.match(error.message, /ENOENT|ERR_PNPM/u);
+        return true;
+      });
+      assert.equal((await lstat(modules)).ino, modulesBefore.ino);
+      const restored = await readFixtureFileSnapshot(cli);
+      assert.equal(restored.stat.ino, before.ino);
+      assert.equal(restored.stat.mode, before.mode);
+      assert.deepEqual(restored.bytes, bytes);
+      assert.deepEqual(await readFile(join(consumerRoot, "pnpm-lock.yaml")), lock);
+      assert.equal((await readdir(consumerRoot)).some((name) => name.startsWith(".docs-consumer-upgrade-modules-")), false);
+      await assert.rejects(readFile(join(root, "calls.jsonl")), { code: "ENOENT" });
+    }
+    assert.equal(installAttempts, 2);
+    const permissionProbe = join(root, "permission-probe");
+    await mkdir(permissionProbe, { mode: 0o500 });
+    let respectsPermissions = false;
+    try {await writeFile(join(permissionProbe, "probe"), "probe");}
+    catch (error) {if (error.code !== "EACCES") {throw error;} respectsPermissions = true;}
+    finally {await chmod(permissionProbe, 0o700);}
+    await t.test("restoration failure retains both errors and backup evidence", {
+      skip: respectsPermissions ? false : "requires filesystem permissions without DAC override"
+    }, async () => {
+      let retained;
+      const failingRestore = new NodeConsumerUpgradeSandbox(() => {
+        retained = join(consumerRoot, readdirSync(consumerRoot).find((name) =>
+          name.startsWith(".docs-consumer-upgrade-modules-")));
+        chmodSync(retained, 0o500);
+        return { ...process.env, CI: "true" };
+      });
+      try {
+        await assert.rejects(failingRestore.restoreAndVerifyV1({ consumerRoot, current }), (error) => {
+          assert.match(error.message, /preserve .* for manual recovery/u);
+          assert.ok(error.cause instanceof AggregateError);
+          assert.equal(error.cause.errors[0].code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
+          assert.equal(error.cause.errors[1].code, "EACCES");
+          return true;
+        });
+        const retainedCli = join(retained, "node_modules/@agent-teams/docs-protocol/dist/cli.js");
+        const retainedSnapshot = await readFixtureFileSnapshot(retainedCli);
+        assert.equal(retainedSnapshot.stat.ino, before.ino);
+        assert.deepEqual(retainedSnapshot.bytes, bytes);
+      } finally {
+        if (retained) {await chmod(retained, 0o700);}
+      }
+    });
+  } finally {await rm(root, { recursive: true, force: true });}
 });

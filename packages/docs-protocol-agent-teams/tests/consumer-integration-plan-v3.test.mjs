@@ -6,6 +6,7 @@ import {
   BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
   CANONICAL_DOCS_SKILL_V2,
   canonicalCallerWorkflow,
+  canonicalManagedState,
   canonicalDocsScriptsDigest,
   describeCanonicalConsumerAssets
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
@@ -270,8 +271,17 @@ test("optional portable projection leaves exact old managed state readable and s
   ));
   const before = await readFile(new URL("./fixtures/managed-state-v2-original.json", import.meta.url));
   assert.equal(digest(before), "sha256:5759c488f584c6738e043f7dd643d0dd2c055aae4ad9d3301237b96918e8967a");
-  assert.deepEqual(current.managedState.bytes, before, "current projection must reproduce original HEAD bytes");
-  current.managedState = file(before);
+  const historicalAssets = JSON.parse(before.toString("utf8")).assets;
+  assert.deepEqual(Buffer.from(canonicalManagedState(target, historicalAssets)), before,
+    "explicit historical assets must reproduce the immutable original bytes");
+  const currentBefore = Buffer.from(current.managedState.bytes);
+  if (historicalAssets.transitionCatalogDigest !== target.cohort.assets.transitionCatalogDigest) {
+    const historicalSnapshot = { ...current, managedState: file(before) };
+    assert.equal(compileConsumerIntegration(
+      { desired: target, snapshot: historicalSnapshot }, ports([])
+    ).plan.outcome, "blocked", "new catalog authority must not relabel historical managed state");
+    assert.deepEqual(historicalSnapshot.managedState.bytes, before);
+  }
   const historical = await readFile(new URL("./fixtures/managed-portable-profile-v3.yaml", import.meta.url));
   const postimage = await projectManagedPortableProfileV4(historical);
   const optionalPlan = compileKnownFileTransactionPlan({ operations: [{
@@ -283,7 +293,7 @@ test("optional portable projection leaves exact old managed state readable and s
   assert.equal(optionalPlan.operations[0].path, target.profilePath);
   assert.deepEqual(Buffer.from(optionalPlan.operations[0].postimage.contentBase64, "base64"), postimage);
   assert.equal(compileConsumerIntegration({ desired: target, snapshot: current }, ports([])).plan.outcome, "current");
-  assert.deepEqual(current.managedState.bytes, before);
+  assert.deepEqual(current.managedState.bytes, currentBefore);
   const pending = { ...current, skill: absent };
   const reviewed = compileConsumerIntegration({ desired: target, snapshot: pending }, ports([]));
   pending.integrationProfile = file("changed exact integration authority\n");
@@ -300,5 +310,5 @@ test("optional portable projection leaves exact old managed state readable and s
   assert.equal(rejected.outcome, "blocked");
   assert.equal(rejected.issues[0].code, "DOCS_CONSUMER_STALE_PLAN");
   assert.equal(writes, 0);
-  assert.deepEqual(current.managedState.bytes, before);
+  assert.deepEqual(current.managedState.bytes, currentBefore);
 });

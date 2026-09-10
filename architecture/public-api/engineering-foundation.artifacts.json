@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.1.1",
+  "packageVersion": "1.2.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -23,6 +23,7 @@
       "members": [
         "schemas/architecture-source-dependencies/v1.schema.json",
         "schemas/architecture-source-dependencies/v2.schema.json",
+        "schemas/architecture-source-dependencies/v3.schema.json",
         "schemas/contract-json-schema-release-baseline/v1.schema.json",
         "schemas/contract-json-schema-releases/v1.schema.json",
         "schemas/contract-protobuf-breaking-qualification/v1.schema.json",
@@ -73,6 +74,19 @@
       "discriminators": {
         "schemaVersion": {
           "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/architecture-source-dependencies/v3.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/architecture-source-dependencies/v3",
+      "digest": "sha256:fd900aeffb7a69859a7d31a78b77e8491bbe333f3e4c03c0ca3b49be85503b87",
+      "discriminators": {
+        "rootPackage": {
+          "const": true
+        },
+        "schemaVersion": {
+          "const": 3
         }
       }
     },

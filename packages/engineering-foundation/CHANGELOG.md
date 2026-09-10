@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.2.0
+
+### Minor Changes
+
+- [#283](https://github.com/agent-teams-ai/engineering-foundation/pull/283) [`9daa344`](https://github.com/agent-teams-ai/engineering-foundation/commit/9daa34422bfb06afebb32dc3e7a798c14416c8cf) Thanks [@777genius](https://github.com/777genius)! - Add opt-in source-dependency schema v3 with bounded root-package source ownership and overlapping direct-package selection. Pure module-type scopes preserve enclosing dependency authority. Existing v1/v2 configurations remain supported; consumers adopt v3 explicitly.
+
 ## 1.1.1
 
 ### Patch Changes

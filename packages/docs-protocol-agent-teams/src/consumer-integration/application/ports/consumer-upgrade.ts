@@ -25,6 +25,15 @@ export interface ConsumerUpgradeAuthorityReader {
   }): Promise<ConsumerUpgradeAuthority>;
 }
 
+export interface ConsumerTargetLockfileInput {
+  readonly path: string;
+  readonly sha256: string;
+}
+
+export interface ConsumerTargetLockfileReader {
+  read(input: ConsumerTargetLockfileInput, consumerRoot: string): Promise<Uint8Array>;
+}
+
 export interface PreparedConsumerUpgradeV1 {
   readonly operations: readonly KnownFileTransactionOperationInput[];
 }
@@ -58,6 +67,7 @@ export interface ConsumerUpgradeSandboxPort {
     readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
   }): Promise<PreparedConsumerUpgradeV1>;
   prepareV1ToV2(options: {
+    readonly targetLockfile?: Uint8Array;
     readonly authority: ConsumerUpgradeAuthorityV2;
     readonly consumerRoot: string;
     readonly current: ConsumerIntegrationDesiredStateV1;

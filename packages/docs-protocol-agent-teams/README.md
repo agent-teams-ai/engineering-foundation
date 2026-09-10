@@ -73,3 +73,25 @@ and Cohort qualification mechanisms still compute their own digests. Restoring
 the saved v3 profile is an explicit rollback only while its paths and document
 vocabulary satisfy v3 and no incompatible transaction is pending; downgrading a
 package alone is not recovery. Published versions remain immutable.
+
+For an explicit restorable 1-to-2 preparation, select an exact target lock with
+`--target-lockfile /absolute/external/pnpm-lock.yaml --target-lockfile-sha256 sha256:HEX`
+alongside `upgrade --source-generation 1 --target-generation 2 --prepare
+--restoration-proof /absolute/external/proof.json --to COHORT`. Both target-lock
+flags are required together. The digest uses 64 lowercase hexadecimal digits.
+
+The input must be a nonempty regular file of at most 32 MiB, with canonical
+parents, no symlink or hardlink, outside the consumer, controller and kernel
+roots. Preparation retains the validated bytes, checks the selected cohort's
+strict runtime closure and preserves the original lock's comments, settings,
+importers and foreign graphs. Conflicts are rejected; no dependency merge occurs.
+Only the disposable staged lock is replaced, after normal managed projection.
+The selected mode installs with `--prefer-offline --frozen-lockfile`, retaining
+copy import, ignored scripts/pnpmfile and store-integrity checks. Preparation
+rejects any lock-byte or strict-closure change after installation and target apply.
+
+Omitting these flags retains normal preparation behavior. Activation and restore
+remain offline and frozen. Existing preparation/proof schemas and deterministic
+controller build identity recording are unchanged. A new preparation must be
+reviewed with its own digest and retained controller; old proofs are not rewritten.
+Source tests do not establish public-package lifecycle qualification or release.

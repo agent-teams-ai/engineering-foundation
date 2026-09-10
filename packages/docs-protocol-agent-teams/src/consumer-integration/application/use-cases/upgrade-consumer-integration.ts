@@ -5,6 +5,8 @@ import {
 } from "@agent-teams/repository-mutation/known-file";
 
 import type {
+  ConsumerTargetLockfileInput,
+  ConsumerTargetLockfileReader,
   ConsumerUpgradeAuthority,
   ConsumerUpgradeAuthorityReader,
   ConsumerUpgradeManagedPreimagesV2,
@@ -33,6 +35,7 @@ import {
 import type { ConsumerRestorationRecorder } from "../ports/consumer-restoration.js";
 
 export interface ConsumerUpgradePorts extends ConsumerIntegrationLifecyclePorts {
+  readonly targetLockfile?: ConsumerTargetLockfileReader;
   readonly authority: ConsumerUpgradeAuthorityReader;
   readonly restoration?: ConsumerRestorationRecorder;
   readonly sandbox: ConsumerUpgradeSandboxPort;
@@ -173,8 +176,14 @@ async function rollbackReceiptOwnedReplacements(
   }
 }
 
-function restorationOptionIssue(options: { readonly prepare?: boolean; readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2; readonly to: string },
+function restorationOptionIssue(options: { readonly targetLockfile?: ConsumerTargetLockfileInput; readonly prepare?: boolean; readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2; readonly to: string },
   desired: ConsumerIntegrationDesiredState, recorder: ConsumerRestorationRecorder | undefined): RestorableConsumerUpgradeExecution | undefined {
+  if (options.targetLockfile !== undefined &&
+    (options.prepare !== true || options.sourceGeneration !== 1 || options.targetGeneration !== 2 ||
+      options.restorationProofPath === undefined || !/^sha256:[a-f0-9]{64}$/.test(options.targetLockfile.sha256))) {
+    return blocked(issue("DOCS_CONSUMER_TARGET_LOCK_INVALID", options.to,
+      "Target lock requires its SHA256 and explicit 1->2 preparation with restoration proof."));
+  }
   if (options.restorationProofPath !== undefined &&
     (options.prepare !== true || options.sourceGeneration !== 1 || options.targetGeneration !== 2 ||
     desired.schemaVersion !== 1 || recorder === undefined)) {
@@ -197,6 +206,7 @@ async function prepareRestoration(recorder: ConsumerRestorationRecorder | undefi
 }
 
 interface ConsumerUpgradeOptions {
+  readonly targetLockfile?: ConsumerTargetLockfileInput;
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
   readonly targetGeneration?: 1 | 2;
@@ -293,12 +303,14 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         `Central authority does not permit a transition from ${input.desired.cohort.cohortId}.`
       ), authority);
     }
+    const targetLockfile = await readTargetLockfile(options.targetLockfile, ports.targetLockfile, input.root);
     const transition = await prepareTransition({
       authority,
       current: input.desired,
       repositoryHead: input.repositoryHead,
       root: input.root,
       sandbox: ports.sandbox,
+      ...(targetLockfile === undefined ? {} : { targetLockfile }),
       snapshot: input.snapshot,
       source
     });
@@ -353,6 +365,7 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
 }
 
 async function prepareTransition(input: {
+  readonly targetLockfile?: Uint8Array;
   readonly authority: ConsumerUpgradeAuthority;
   readonly current: ConsumerIntegrationDesiredState;
   readonly repositoryHead: string;
@@ -402,6 +415,7 @@ async function prepareTransition(input: {
   if (input.current.schemaVersion === 1 && isAuthorityV2(input.authority)) {
     return {
       prepared: await input.sandbox.prepareV1ToV2({
+        ...(input.targetLockfile === undefined ? {} : { targetLockfile: input.targetLockfile }),
         ...common, authority: input.authority, current: input.current
       }),
       activateAndVerify: () => input.sandbox.activateAndVerifyV2({
@@ -414,4 +428,11 @@ async function prepareTransition(input: {
     };
   }
   return undefined;
+}
+
+async function readTargetLockfile(input: ConsumerTargetLockfileInput | undefined,
+  reader: ConsumerTargetLockfileReader | undefined, root: string): Promise<Uint8Array | undefined> {
+  if (input === undefined) {return undefined;}
+  if (reader === undefined) {throw new TypeError("Target lock preparation requires its input reader.");}
+  return reader.read(input, root);
 }

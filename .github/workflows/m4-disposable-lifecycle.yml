@@ -1,0 +1,61 @@
+name: M4 disposable published lifecycle
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/m4-disposable-lifecycle.yml
+      - scripts/m4-disposable-lifecycle.mjs
+      - tests/m4-disposable-lifecycle.test.mjs
+      - packages/docs-protocol-agent-teams/tests/fixtures/target-lockfile/candidate-target-lock.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m4-disposable-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ github.event.pull_request.base.sha || github.event.before || github.event.repository.default_branch }}
+          head-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fail-on-severity: moderate
+          vulnerability-check: true
+          warn-only: false
+  lifecycle:
+    needs: dependency-review
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - run: npm install --global corepack@0.36.0 --ignore-scripts
+      - run: node --test tests/m4-disposable-lifecycle.test.mjs
+      - name: Stable9.1 to stable18 and exact restoration in a fresh TEST clone
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/m4-disposable-lifecycle.mjs
+      - name: Retain success and failure evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: m4-disposable-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/TEST-m4-${{ github.run_id }}-${{ github.run_attempt }}/evidence
+          if-no-files-found: error
+          retention-days: 30

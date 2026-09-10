@@ -201,6 +201,7 @@
         "tests/executable-specifications.test.mjs",
         "tests/foundation-build-identity.test.mjs",
         "tests/foundation-cleanup-transition.test.mjs",
+        "tests/m4-disposable-lifecycle.test.mjs",
         "tests/package-release-inventory.test.mjs",
         "tests/performance-signals.test.mjs",
         "tests/public-api-export-coverage.test.mjs",

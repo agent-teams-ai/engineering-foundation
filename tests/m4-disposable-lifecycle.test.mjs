@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { M4, barrierProbe, installedPackageVersion, qualificationProbe, runDirectoryName, selectedPostimage, snapshot } from "../scripts/m4-disposable-lifecycle.mjs";
+
+test("M4 resolves both transitive manifests from physical pnpm package owners", async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-m4-pnpm-"));
+  try {
+    await mkdir(join(root, "node_modules/@agent-teams"), { recursive: true });
+    for (const [owner, dependency, version] of [["docs-protocol", "document-authoring", "0.3.0"],
+      ["docs-protocol-agent-teams", "repository-mutation", "0.2.0"]]) {
+      const scope = join(root, "node_modules/.pnpm", owner, "node_modules/@agent-teams");
+      for (const name of [owner, dependency]) {
+        await mkdir(join(scope, name), { recursive: true });
+        await writeFile(join(scope, name, "package.json"), JSON.stringify({ name: `@agent-teams/${name}`, version,
+          exports: { "./package.json": "./package.json" } }));
+      }
+      await symlink(join(scope, owner), join(root, "node_modules/@agent-teams", owner), "junction");
+      assert.equal(await installedPackageVersion(root, dependency), version);
+    }
+  } finally {await rm(root, { recursive: true, force: true });}
+});
+
+test("M4 probes execute actual ESM import-only package exports", async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-m4-esm-"));
+  try {
+    for (const [name, entry, source] of [
+      ["docs-protocol-agent-teams", "./qualification", "export function observeDocsProtocolQualificationV3Lockfile(input) { if (!(input.lockfileBytes instanceof Uint8Array)) throw Error('bytes required'); return {runtimeClosureDigest: input.profile.digest}; }"],
+      ["repository-mutation", ".", "export async function inspectKnownFileTransactionBarrier(input) { if (!input.consumerRoot) throw Error('root required'); return {state:'idle'}; }"]
+    ]) {
+      const path = join(root, "node_modules/@agent-teams", name);
+      await mkdir(path, { recursive: true });
+      await writeFile(join(path, "package.json"), JSON.stringify({ name: `@agent-teams/${name}`, type: "module", exports: { [entry]: { import: "./entry.js" } } }));
+      await writeFile(join(path, "entry.js"), source);
+    }
+    const run = (program, argument) => JSON.parse(execFileSync(process.execPath,
+      ["--input-type=module", "--eval", program, argument], { cwd: root, encoding: "utf8" }));
+    assert.deepEqual(run(barrierProbe, root), { state: "idle" });
+    assert.deepEqual(run(qualificationProbe, JSON.stringify({ profile: { digest: "expected" }, lockfileBase64: "eA==" })),
+      { runtimeClosureDigest: "expected" });
+  } finally {await rm(root, { recursive: true, force: true });}
+});
+
+test("M4 refuses non-hosted and ambiguous run identities before allocation", () => {
+  for (const env of [{}, { GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "../consumer", GITHUB_RUN_ATTEMPT: "1" },
+    { GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "1", GITHUB_RUN_ATTEMPT: "0" }]) {
+    assert.throws(() => runDirectoryName(env));
+  }
+  assert.equal(runDirectoryName({ GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "2" }), "TEST-m4-123-2");
+});
+
+test("M4 selection binds exact bytes and rejects substituted or duplicate operation images", async () => {
+  const bytes = await readFile(new URL("../packages/docs-protocol-agent-teams/tests/fixtures/target-lockfile/candidate-target-lock.yaml", import.meta.url));
+  assert.equal(`sha256:${createHash("sha256").update(bytes).digest("hex")}`, M4.lockDigest);
+  const operation = { path: "pnpm-lock.yaml", postimage: { contentBase64: bytes.toString("base64"), digest: M4.lockDigest } };
+  assert.deepEqual(selectedPostimage({ plan: { operations: [operation] } }, "pnpm-lock.yaml"), bytes);
+  assert.throws(() => selectedPostimage({ plan: { operations: [operation, operation] } }, "pnpm-lock.yaml"));
+  assert.throws(() => selectedPostimage({ plan: { operations: [{ ...operation, postimage: {
+    ...operation.postimage, contentBase64: Buffer.from("tampered").toString("base64")
+  } }] } }, "pnpm-lock.yaml"));
+});
+
+test("M4 inventory retains ignored product files and modes but excludes installation and kernel evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-m4-inventory-"));
+  try {
+    await writeFile(join(root, "ignored.txt"), "source", { mode: 0o755 });
+    for (const name of [".git", "node_modules", ".agent-teams-local"]) {
+      await mkdir(join(root, name)); await writeFile(join(root, name, "generated"), "ignored");
+    }
+    const entries = await snapshot(root);
+    assert.deepEqual(entries.map(entry => entry.path), ["ignored.txt"]);
+    if (process.platform !== "win32") {assert.equal(entries[0].mode, 0o755);}
+    await symlink(join(root, "ignored.txt"), join(root, "alias"));
+    await assert.rejects(snapshot(root), /Nonregular/u);
+  } finally {await rm(root, { recursive: true, force: true });}
+});

@@ -17,7 +17,7 @@ import {
 import {
   packageConsumerAssetCatalogReader
 } from "../adapters/package-consumer-asset-catalog.js";
-import { nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
+import { nodeConsumerTargetLockfileReader, nodeConsumerUpgradeSandbox } from "../adapters/node-consumer-upgrade-sandbox.js";
 
 
 
@@ -36,6 +36,7 @@ const useCases = createConsumerIntegrationUseCases({
 });
 
 const upgrade = createConsumerUpgradeUseCase({
+  targetLockfile: nodeConsumerTargetLockfileReader,
   assets: packageConsumerAssetCatalogReader,
   authority: githubCohortAuthorityReader,
   restoration: consumerRestorationRecorder(githubCohortAuthorityReader),

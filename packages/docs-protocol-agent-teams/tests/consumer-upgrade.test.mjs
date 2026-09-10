@@ -1,3 +1,4 @@
+import { registerTargetLockfileSandboxTests } from "./fixtures/target-lockfile/consumer-target-lockfile-sandbox-cases.mjs";
 import { assertConsumerUpgradeExecutionSchema } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
 /* oxlint-disable max-lines, max-lines-per-function -- Disposable E2E keeps setup and cleanup local. */
 import assert from "node:assert/strict";
@@ -592,6 +593,38 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
   assert.equal(migration.outcome, "upgraded");
   assert.equal(crossGenerationStaged, true);
   assert.equal(crossGenerationActivated, true);
+
+  const selectedBytes = Buffer.from("independently selected lock");
+  const selection = { path: "/external/target.yaml", sha256: `sha256:${"a".repeat(64)}` };
+  let readerCalls = 0;
+  const preparation = { path: "/external/proof.prepared", digest: `sha256:${"b".repeat(64)}` };
+  const selectedUpgrade = createConsumerUpgradeUseCase({
+    ...ports,
+    authority: { read: async () => crossGenerationAuthority },
+    targetLockfile: { read: async (input, root) => {
+      readerCalls++; assert.deepEqual(input, selection); assert.equal(root, "/consumer");
+      return selectedBytes;
+    } },
+    restoration: { prepare: async () => preparation },
+    sandbox: { ...ports.sandbox, prepareV1ToV2: async input => {
+      assert.equal(input.targetLockfile, selectedBytes);
+      return ports.sandbox.prepareV1();
+    } }
+  });
+  const selectedOptions = { consumerRoot: "/consumer", to: crossGenerationAuthority.cohort.cohortId,
+    sourceGeneration: 1, targetGeneration: 2, prepare: true,
+    restorationProofPath: "/external/proof", targetLockfile: selection };
+  const selectedResult = await selectedUpgrade(selectedOptions);
+  assert.equal(selectedResult.outcome, "prepared");
+  assert.deepEqual(selectedResult.preparation, preparation);
+  assert.equal(readerCalls, 1);
+  for (const invalid of [
+    { sourceGeneration: undefined }, { prepare: false }, { restorationProofPath: undefined },
+    { targetGeneration: 1 }, { targetLockfile: { ...selection, sha256: "bad" } }
+  ]) {
+    assert.equal((await selectedUpgrade({ ...selectedOptions, ...invalid })).outcome, "blocked");
+  }
+  assert.equal(readerCalls, 1, "invalid modes never reach the selected input reader");
 
   crossGenerationActivationFailure = true;
   calls.length = 0;
@@ -1770,3 +1803,5 @@ test("real pnpm offline install failure preserves prior modules inode and bytes 
     });
   } finally {await rm(root, { recursive: true, force: true });}
 });
+
+registerTargetLockfileSandboxTests({ desired, cohortV2 });

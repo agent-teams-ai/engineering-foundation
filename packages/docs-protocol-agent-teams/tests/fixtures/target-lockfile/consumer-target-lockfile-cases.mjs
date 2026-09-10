@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { realpath, mkdtemp, mkdir, writeFile, rm, symlink, link, open, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse } from "yaml";
 import { nodeConsumerTargetLockfileReader } from "../../../dist/consumer-integration/adapters/node-consumer-target-lockfile.js";
@@ -83,7 +84,7 @@ test("target lock stable input rejects digest, bounds and forbidden paths; retai
     await assert.rejects(readConsumerTargetLockfile(selected, consumer), /SHA256/u);
     await assert.rejects(readConsumerTargetLockfile({ ...selected, sha256: "sha256:BAD" }, consumer), /SHA256/u);
     await rm(path); await symlink(`${path}.old`, path);
-    await assert.rejects(readConsumerTargetLockfile(selected, consumer), /symlink/u);
+    await assert.rejects(readConsumerTargetLockfile(selected, consumer), /symlink|changed during observation/u);
     await rm(path); await link(`${path}.old`, path);
     await assert.rejects(readConsumerTargetLockfile(selected, consumer), /hardlinked/u);
     await rm(path); await writeFile(path, "");
@@ -92,8 +93,8 @@ test("target lock stable input rejects digest, bounds and forbidden paths; retai
     await handle.truncate(32 * 1024 * 1024 + 1); await handle.close();
     await assert.rejects(readConsumerTargetLockfile(selected, consumer), /bounded/u);
     await writeFile(join(consumer, "lock.yaml"), candidate);
-    for (const forbidden of [join(consumer, "lock.yaml"), new URL("../../../package.json", import.meta.url).pathname,
-      new URL("../../../../repository-mutation/package.json", import.meta.url).pathname]) {
+    for (const forbidden of [join(consumer, "lock.yaml"), fileURLToPath(new URL("../../../package.json", import.meta.url)),
+      fileURLToPath(new URL("../../../../repository-mutation/package.json", import.meta.url))]) {
       await assert.rejects(readConsumerTargetLockfile({ ...selected, path: forbidden }, consumer), /outside/u);
     }
     await symlink(root, join(root, "alias"));

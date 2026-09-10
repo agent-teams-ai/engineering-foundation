@@ -75,7 +75,7 @@ async function installController(root, run) {
   const archive = join(tooling, "controller.tgz");
   await run("controller-download", "curl", ["--fail", "--silent", "--show-error", "--max-filesize", "5242880",
     "--output", archive, "https://registry.npmjs.org/@agent-teams/docs-protocol-agent-teams/-/docs-protocol-agent-teams-0.2.4.tgz"]);
-  assert.equal(`sha512:${createHash("sha512").update(await readFile(archive)).digest("base64")}`, M4.controllerIntegrity);
+  assert.equal(`sha512-${createHash("sha512").update(await readFile(archive)).digest("base64")}`, M4.controllerIntegrity);
   await writeFile(join(tooling, "package.json"), '{"name":"test-m4-controller","private":true}\n', { flag: "wx" });
   await run("controller-install", "npm", ["install", "--ignore-scripts", "--package-lock=false", archive], tooling);
   const controller = await realpath(join(tooling, "node_modules/@agent-teams/docs-protocol-agent-teams"));

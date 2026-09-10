@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   digestBytes,
   assertQualifiedDocsCohortBindingV1,
+  assertQualifiedDocsCohortBindingV2,
   type ConsumerAssetCatalogV1,
   type CurrentSourceExecutorV1,
   type KnownPriorCohortCatalogEntryV1,
@@ -115,20 +116,35 @@ function currentSource(value: unknown): CurrentSourceExecutorV1 {
   });
 }
 
-async function directTarget(value: unknown): Promise<KnownPriorCohortCatalogEntryV1> {
+async function directTarget(value: unknown): Promise<KnownPriorCohortCatalogEntryV1 | undefined> {
   const target = record(value, "directTargetBundle");
+  if (!hasExactKeys(target, [
+    "cohort", "skillPath", "skillDigest", "callerWorkflowPath", "callerWorkflowDigest",
+    "agentsRouteDigest", "docsScriptsDigest"
+  ])) {throw new TypeError("Direct-target bundle fields are invalid.");}
   const cohort = record(target["cohort"], "directTargetBundle.cohort");
-  assertQualifiedDocsCohortBindingV1(cohort);
+  if (cohort["schemaVersion"] === 2) {
+    assertQualifiedDocsCohortBindingV2(cohort);
+  } else {
+    assertQualifiedDocsCohortBindingV1(cohort);
+  }
   const [skill, callerWorkflow] = await Promise.all([
     bundleBytes(target["skillPath"], target["skillDigest"]),
     bundleBytes(target["callerWorkflowPath"], target["callerWorkflowDigest"])
   ]);
+  const agentsRouteDigest = digest(target["agentsRouteDigest"], "directTargetBundle.agentsRouteDigest");
+  const docsScriptsDigest = digest(target["docsScriptsDigest"], "directTargetBundle.docsScriptsDigest");
+  if (target["skillDigest"] !== cohort.assets.skillDigest ||
+    target["callerWorkflowDigest"] !== cohort.assets.callerWorkflowDigest) {
+    throw new TypeError("Direct-target bundle assets differ from their Cohort binding.");
+  }
+  if (cohort.schemaVersion === 2) {return undefined;}
   return Object.freeze({
     cohort,
     skill,
     callerWorkflow,
-    agentsRouteDigest: digest(target["agentsRouteDigest"], "directTargetBundle.agentsRouteDigest"),
-    docsScriptsDigest: digest(target["docsScriptsDigest"], "directTargetBundle.docsScriptsDigest")
+    agentsRouteDigest,
+    docsScriptsDigest
   });
 }
 
@@ -159,10 +175,14 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
   const currentSourceExecutors = sources.map(currentSource).filter(({ packages }) =>
     packages.docsProtocol.version === docsVersion
   );
-  const directTargetBundles = await Promise.all(targets.map(directTarget));
-  const directTargetIds = new Set(directTargetBundles.map(({ cohort }) => cohort.cohortId));
-  if (directTargetIds.size !== directTargetBundles.length || currentSourceExecutors.some(
-    ({ directTargetCohortIds }) => directTargetCohortIds.some((id) => !directTargetIds.has(id))
+  const loadedTargets = await Promise.all(targets.map(directTarget));
+  // V2 history is validated above, but is not executable by the V1 planner.
+  const directTargetBundles = loadedTargets.filter((target) => target !== undefined);
+  const directTargetIds = new Set(targets.map((target: unknown) =>
+    record(record(target, "directTargetBundle")["cohort"], "cohort")["cohortId"]));
+  const legacyTargetIds = new Set(directTargetBundles.map(({ cohort }) => cohort.cohortId));
+  if (directTargetIds.size !== targets.length || currentSourceExecutors.some(
+    ({ directTargetCohortIds }) => directTargetCohortIds.some((id) => !legacyTargetIds.has(id))
   )) {
     throw new TypeError("Consumer transition catalog target Cohort identities must be unique.");
   }

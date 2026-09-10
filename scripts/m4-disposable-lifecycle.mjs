@@ -19,6 +19,16 @@ const profilePath = "architecture/foundation/docs-consumer-integration.json";
 const lockFixture = new URL("../packages/docs-protocol-agent-teams/tests/fixtures/target-lockfile/candidate-target-lock.yaml", import.meta.url);
 const sha256 = bytes => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
+export const qualificationProbe = `
+import { observeDocsProtocolQualificationV3Lockfile } from '@agent-teams/docs-protocol-agent-teams/qualification';
+const input = JSON.parse(process.argv[1]);
+console.log(JSON.stringify(observeDocsProtocolQualificationV3Lockfile({
+  profile: input.profile, lockfileBytes: Buffer.from(input.lockfileBase64, 'base64')
+})));`;
+export const barrierProbe = `
+import { inspectKnownFileTransactionBarrier } from '@agent-teams/repository-mutation';
+console.log(JSON.stringify(await inspectKnownFileTransactionBarrier({ consumerRoot: process.argv[1] })));`;
+
 export function runDirectoryName(environment) {
   assert.equal(environment.GITHUB_ACTIONS, "true", "M4 runs only in a disposable hosted job");
   for (const key of ["GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"]) {
@@ -93,7 +103,7 @@ async function assertImages(root, operations, source) {
   }
 }
 
-async function observeSelection(controller, preparation, evidence) {
+async function observeSelection(controller, preparation, evidence, run) {
   const profile = JSON.parse(selectedPostimage(preparation, profilePath));
   const bytes = selectedPostimage(preparation, "pnpm-lock.yaml");
   assert.equal(sha256(bytes), M4.lockDigest);
@@ -101,9 +111,8 @@ async function observeSelection(controller, preparation, evidence) {
   const expected = { docsProtocol: "0.6.0", docsProtocolAgentTeams: "0.2.3", engineeringFoundation: "1.1.1",
     documentAuthoring: "0.3.0", repositoryMutation: "0.2.0" };
   for (const [key, version] of Object.entries(expected)) {assert.equal(profile.cohort.packages[key].version, version);}
-  const require = createRequire(join(controller, "package.json"));
-  const qualification = await import(pathToFileURL(require.resolve("@agent-teams/docs-protocol-agent-teams/qualification")).href);
-  const observed = qualification.observeDocsProtocolQualificationV3Lockfile({ profile, lockfileBytes: bytes });
+  const observed = JSON.parse(await run("selected-closure-probe", process.execPath,
+    ["--input-type=module", "--eval", qualificationProbe, JSON.stringify({ profile, lockfileBase64: bytes.toString("base64") })], controller));
   assert.equal(observed.runtimeClosureDigest, M4.closure);
   assert.equal(profile.cohort.runtime.runtimeClosureDigest, M4.closure);
   await writeFile(join(evidence, "selected-closure.json"), `${JSON.stringify(observed)}\n`, { flag: "wx" });
@@ -123,9 +132,9 @@ async function lifecycle(root, evidence, run, controller) {
   assert.deepEqual(await snapshot(consumer), source);
   const historical = join(consumer, "node_modules/@agent-teams/docs-protocol/dist/cli.js");
   assert.equal(JSON.parse(await run("source-current", process.execPath, [historical, "consumer", "check", "--consumer", consumer, "--json"], consumer)).outcome, "current");
-  const require = createRequire(join(controller, "package.json"));
-  const kernel = await import(pathToFileURL(require.resolve("@agent-teams/repository-mutation")).href);
-  assert.equal((await kernel.inspectKnownFileTransactionBarrier({ consumerRoot: consumer })).state, "idle");
+  const inspectBarrier = async label => JSON.parse(await run(`barrier-${label}`, process.execPath,
+    ["--input-type=module", "--eval", barrierProbe, consumer], controller));
+  assert.equal((await inspectBarrier("source")).state, "idle");
   const authority = await run("authority", "gh", ["api", "repos/agent-teams-ai/.github/commits/main", "--jq", ".sha"]);
   assert.match(authority, /^[a-f0-9]{40}$/u);
   const lock = await readFile(lockFixture);
@@ -143,7 +152,7 @@ async function lifecycle(root, evidence, run, controller) {
   for (const path of [proofPath, `${proofPath}.prepared`, `${proofPath}.receipt`]) {
     await assert.rejects(lstat(path), { code: "ENOENT" });
   }
-  assert.equal((await kernel.inspectKnownFileTransactionBarrier({ consumerRoot: consumer })).state, "idle");
+  assert.equal((await inspectBarrier("tampered-refusal")).state, "idle");
   const prepared = JSON.parse(await run("prepare", process.execPath, prepare(selectedPath), consumer));
   assert.equal(prepared.outcome, "prepared");
   assert.equal(prepared.preparation.path, `${proofPath}.prepared`);
@@ -155,7 +164,7 @@ async function lifecycle(root, evidence, run, controller) {
   assert.equal(preparation.controller.version, M4.controllerVersion);
   assert.equal(preparation.kernel.version, "0.2.0");
   await assertImages(consumer, preparation.plan.operations, true);
-  await observeSelection(controller, preparation, evidence);
+  await observeSelection(controller, preparation, evidence, run);
   assert.deepEqual(await snapshot(consumer), source);
   const finalized = JSON.parse(await run("finalize", process.execPath, [cli, "finalize", "--consumer", consumer,
     "--from", M4.from, "--to", M4.to, "--source-generation", "1", "--target-generation", "2",
@@ -179,7 +188,7 @@ async function lifecycle(root, evidence, run, controller) {
   assert.equal(await run("restored-head", "git", ["rev-parse", "HEAD"], consumer), M4.source);
   assert.equal(await run("restored-tree", "git", ["rev-parse", "HEAD^{tree}"], consumer), tree);
   assert.equal(JSON.parse(await run("restored-current", process.execPath, [historical, "consumer", "check", "--consumer", consumer, "--json"], consumer)).outcome, "current");
-  const barrier = await kernel.inspectKnownFileTransactionBarrier({ consumerRoot: consumer });
+  const barrier = await inspectBarrier("restored");
   assert.equal(barrier.state, "idle");
   await writeFile(join(evidence, "result.json"), `${JSON.stringify({ outcome: "passed", source: M4.source, tree,
     closure: M4.closure, lockDigest: M4.lockDigest, controller: proof.controller, kernel: proof.kernel,

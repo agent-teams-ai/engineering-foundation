@@ -1,10 +1,31 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { M4, runDirectoryName, selectedPostimage, snapshot } from "../scripts/m4-disposable-lifecycle.mjs";
+import { M4, barrierProbe, qualificationProbe, runDirectoryName, selectedPostimage, snapshot } from "../scripts/m4-disposable-lifecycle.mjs";
+
+test("M4 probes execute actual ESM import-only package exports", async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-m4-esm-"));
+  try {
+    for (const [name, entry, source] of [
+      ["docs-protocol-agent-teams", "./qualification", "export function observeDocsProtocolQualificationV3Lockfile(input) { if (!(input.lockfileBytes instanceof Uint8Array)) throw Error('bytes required'); return {runtimeClosureDigest: input.profile.digest}; }"],
+      ["repository-mutation", ".", "export async function inspectKnownFileTransactionBarrier(input) { if (!input.consumerRoot) throw Error('root required'); return {state:'idle'}; }"]
+    ]) {
+      const path = join(root, "node_modules/@agent-teams", name);
+      await mkdir(path, { recursive: true });
+      await writeFile(join(path, "package.json"), JSON.stringify({ name: `@agent-teams/${name}`, type: "module", exports: { [entry]: { import: "./entry.js" } } }));
+      await writeFile(join(path, "entry.js"), source);
+    }
+    const run = (program, argument) => JSON.parse(execFileSync(process.execPath,
+      ["--input-type=module", "--eval", program, argument], { cwd: root, encoding: "utf8" }));
+    assert.deepEqual(run(barrierProbe, root), { state: "idle" });
+    assert.deepEqual(run(qualificationProbe, JSON.stringify({ profile: { digest: "expected" }, lockfileBase64: "eA==" })),
+      { runtimeClosureDigest: "expected" });
+  } finally {await rm(root, { recursive: true, force: true });}
+});
 
 test("M4 refuses non-hosted and ambiguous run identities before allocation", () => {
   for (const env of [{}, { GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "../consumer", GITHUB_RUN_ATTEMPT: "1" },

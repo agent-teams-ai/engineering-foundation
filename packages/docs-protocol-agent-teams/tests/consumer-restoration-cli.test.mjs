@@ -28,6 +28,10 @@ test("injected managed operations preserve restoration routing and exact CLI env
       human: "consumer.finalize: blocked\n"
     }
   ];
+  cases.push({ ...cases[0],
+    argv: [...cases[0].argv, "--target-lockfile", "/target.yaml", "--target-lockfile-sha256", digest],
+    options: { ...cases[0].options, targetLockfile: { path: "/target.yaml", sha256: digest } }
+  });
   for (const fixture of cases) {
     for (const json of [false, true]) {
       const script = `
@@ -148,4 +152,29 @@ test("restoration admission preserves historical replacement and retry receipt s
   const inverse = inverseRestorationPlan(plan);
   assert.deepEqual(inverse.operations[0].postimage, plan.operations[0].precondition.acceptedPreimages[0]);
   assert.deepEqual(inverse.operations[0].precondition.acceptedPreimages[0], plan.operations[0].postimage);
+});
+
+test("target lock CLI rejects incomplete selection and every unsupported preparation mode before dispatch", () => {
+  const cli = new URL("../dist/consumer-integration/adapters/inbound/consumer-integration-cli.js", import.meta.url).href;
+  const selection = ["--target-lockfile", "/target.yaml", "--target-lockfile-sha256", `sha256:${"a".repeat(64)}`];
+  const base = ["upgrade", "--to", "target", "--target-generation", "2", "--source-generation", "1", "--restoration-proof", "/proof", "--prepare"];
+  const without = flag => base.filter((value, index) => value !== flag && base[index - 1] !== flag);
+  const cases = [
+    [...base, ...selection.slice(0, 2)], [...base, ...selection.slice(2)],
+    [...base, ...selection.slice(0, 3), "sha256:bad"],
+    [...without("--prepare"), ...selection], [...without("--restoration-proof"), ...selection],
+    [...without("--source-generation"), ...selection],
+    [...base.map((value, index) => base[index - 1] === "--target-generation" ? "1" : value), ...selection],
+    [...base, ...selection, ...selection]
+  ];
+  for (const argv of cases) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", `
+import assert from 'node:assert/strict';
+import { createManagedConsumerCommand } from ${JSON.stringify(cli)};
+let calls = 0;
+const code = await createManagedConsumerCommand({ upgrade: async () => {calls++;} })(${JSON.stringify([...argv, "--json"])});
+assert.equal(calls, 0); assert.notEqual(code, 0);
+`], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+  }
 });

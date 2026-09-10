@@ -177,6 +177,7 @@ Options:
   --consumer PATH               Git repository root (default: .)
   --authority-revision SHA      Optional exact protected .github revision
   --source-generation 1 --restoration-proof PATH --prepare  Stage and select before mutation
+  --target-lockfile PATH --target-lockfile-sha256 sha256:HEX  Select exact external lock for 1->2 preparation
   --json                        Emit one bounded versioned JSON envelope
   --help                        Show this help
 `;
@@ -234,12 +235,24 @@ export function createManagedConsumerCommand(operations: ManagedConsumerOperatio
         }
         const restorationProofPath = args.one("--restoration-proof");
         const prepare = args.flag("--prepare");
+        const targetLockfilePath = args.one("--target-lockfile");
+        const targetLockfileSha256 = args.one("--target-lockfile-sha256");
         const sourceGeneration = args.one("--source-generation");
         if (sourceGeneration !== undefined && sourceGeneration !== "1") {
           throw new ConsumerCliInputError("Restorable upgrade requires --source-generation 1.");
         }
+        if (targetLockfilePath !== undefined || targetLockfileSha256 !== undefined) {
+          if (targetLockfilePath === undefined || targetLockfileSha256 === undefined ||
+            !SHA256.test(targetLockfileSha256) || !prepare || sourceGeneration !== "1" ||
+            generation !== "2" || restorationProofPath === undefined) {
+            throw new ConsumerCliInputError("Target lock requires both flags and explicit 1->2 --prepare with --restoration-proof.");
+          }
+        }
         args.assertConsumed();
         execution = await operations.upgrade({
+          ...(targetLockfilePath === undefined ? {} : {
+            targetLockfile: { path: targetLockfilePath, sha256: targetLockfileSha256! }
+          }),
           consumerRoot,
           to,
           targetGeneration: Number(generation) as 1 | 2,

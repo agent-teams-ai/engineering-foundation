@@ -1,3 +1,4 @@
+import { registerConsumerTargetLockfileTests } from "./fixtures/target-lockfile/consumer-target-lockfile-cases.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -462,3 +463,5 @@ test("V2 admits a Node-context-only edge pair and still rejects ambiguous versio
   };
   assert.throws(() => digest(conflicting), /ambiguous dependency peer-leaf/u);
 });
+
+registerConsumerTargetLockfileTests();

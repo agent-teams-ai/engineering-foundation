@@ -606,6 +606,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-lockfile-snapshot-selection.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-lockfile-v2-policy.test.mjs

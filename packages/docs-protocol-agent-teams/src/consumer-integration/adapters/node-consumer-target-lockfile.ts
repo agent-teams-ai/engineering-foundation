@@ -2,6 +2,7 @@ import type { KnownFileTransactionOperationInput } from "@agent-teams/repository
 import { createHash } from "node:crypto";
 import type { BigIntStats } from "node:fs";
 import { constants } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
 import { lstat, open, realpath } from "node:fs/promises";
 import type { ConsumerTargetLockfileInput, ConsumerTargetLockfileReader } from "../application/ports/consumer-upgrade.js";
 import { externalRestorationPath } from "./node-consumer-restoration-evidence.js";
@@ -19,17 +20,11 @@ export async function readConsumerTargetLockfile(
     throw new TypeError("Target lock SHA256 must be sha256: followed by 64 lowercase hex digits.");
   }
   const path = await externalRestorationPath(requestedPath, await realpath(consumerRoot));
-  const initial = await lstat(path, { bigint: true });
-  if (!initial.isFile() || initial.isSymbolicLink()) {
-    throw new TypeError("Target lock must be a regular file without symlinks.");
-  }
-  const handle = await open(path, constants.O_RDONLY | constants.O_NONBLOCK |
-    (process.platform === "win32" ? 0 : constants.O_NOFOLLOW));
+  const handle = await openTargetLock(path);
   try {
     const before = await handle.stat({ bigint: true });
     if (!before.isFile() || before.nlink !== 1n || before.size < 1n ||
-      before.size > BigInt(MAXIMUM_LOCKFILE_BYTES) ||
-      initial.dev !== before.dev || initial.ino !== before.ino) {
+      before.size > BigInt(MAXIMUM_LOCKFILE_BYTES)) {
       throw new TypeError("Target lock must be one bounded, non-hardlinked regular file.");
     }
     // Read at most the observed size plus one, even if a concurrent writer grows it.
@@ -53,6 +48,18 @@ export async function readConsumerTargetLockfile(
     return bytes;
   } finally {
     await handle.close();
+  }
+}
+
+async function openTargetLock(path: string): Promise<FileHandle> {
+  try {
+    return await open(path, constants.O_RDONLY | constants.O_NONBLOCK |
+      (process.platform === "win32" ? 0 : constants.O_NOFOLLOW));
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ELOOP") {
+      throw new TypeError("Target lock must be a regular file without symlinks.", { cause: error });
+    }
+    throw error;
   }
 }
 

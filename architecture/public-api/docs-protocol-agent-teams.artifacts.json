@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.2.4",
+  "packageVersion": "0.2.5",
   "status": "release-candidate",
   "wildcardExports": [
     {

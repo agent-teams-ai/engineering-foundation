@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4
+
+### Patch Changes
+
+- [#286](https://github.com/agent-teams-ai/engineering-foundation/pull/286) [`03f5b16`](https://github.com/agent-teams-ai/engineering-foundation/commit/03f5b1602321789a00ddc166585f397dd839b1f4) Thanks [@777genius](https://github.com/777genius)! - Accept an explicit SHA256-selected external target lock for restorable 1-to-2 upgrade preparation. Validate strict target closure and historical lock scope before frozen staging, retain observed bytes, and reject lock changes before preparation capture.
+
 ## 0.2.3
 
 ### Patch Changes

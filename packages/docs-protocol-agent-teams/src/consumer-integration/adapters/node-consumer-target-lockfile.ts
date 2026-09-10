@@ -12,7 +12,7 @@ import { assertRestorationLockScope } from "./node-consumer-restoration-lock.js"
 import { MAXIMUM_LOCKFILE_BYTES, readStableConsumerFile } from "./node-consumer-repository-files.js";
 
 // A fixed feature helper: the caller retains this observation, never the pathname.
-export async function readConsumerTargetLockfile(
+async function readConsumerTargetLockfile(
   input: ConsumerTargetLockfileInput, consumerRoot: string
 ): Promise<Uint8Array> {
   const { path: requestedPath, sha256 } = input;

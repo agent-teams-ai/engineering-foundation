@@ -1,4 +1,4 @@
-import { readConsumerTargetLockfile } from "../../../dist/consumer-integration/adapters/node-consumer-target-lockfile.js";
+import { nodeConsumerTargetLockfileReader } from "../../../dist/consumer-integration/adapters/node-consumer-target-lockfile.js";
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -11,6 +11,8 @@ import { NodeConsumerUpgradeSandbox } from "../../../dist/consumer-integration/a
 import { describeCanonicalConsumerAssets } from "../../../dist/consumer-integration/application/policies/consumer-integration-assets.js";
 import { sourceCohort, sourceManifest, lockfileFor, runGit } from "../../consumer-upgrade-e2e-fixtures.mjs";
 import { historicalTargetLock, candidate, digest, expected, packages, bytes } from "./consumer-target-lockfile-fixture.mjs";
+
+const readConsumerTargetLockfile = nodeConsumerTargetLockfileReader.read;
 
 export function registerTargetLockfileSandboxTests({ desired, cohortV2 }) {
   test("target lock sandbox validates before install, retains selection, freezes preparation and verifies before capture", async (t) => {

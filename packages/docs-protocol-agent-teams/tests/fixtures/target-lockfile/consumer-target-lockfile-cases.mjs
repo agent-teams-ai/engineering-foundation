@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { parse } from "yaml";
-import { readConsumerTargetLockfile } from "../../../dist/consumer-integration/adapters/node-consumer-target-lockfile.js";
+import { nodeConsumerTargetLockfileReader } from "../../../dist/consumer-integration/adapters/node-consumer-target-lockfile.js";
 import { assertQualifiedPnpmLockfileV2 } from "../../../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js";
 import { computePnpmRuntimeClosureDigestV2 } from "../../../dist/consumer-integration/adapters/pnpm-runtime-closure-v2.js";
 import { assertRestorationLockScope } from "../../../dist/consumer-integration/adapters/node-consumer-restoration-lock.js";
@@ -13,6 +13,7 @@ import { lockfileFor } from "../../consumer-upgrade-e2e-fixtures.mjs";
 import { historicalTargetLock, candidate, digest, expected, lock, packages, target, bytes } from "./consumer-target-lockfile-fixture.mjs";
 
 const commented = value => Buffer.concat([Buffer.from("# consumer-owned\n"), bytes(value)]);
+const readConsumerTargetLockfile = nodeConsumerTargetLockfileReader.read;
 
 export function registerConsumerTargetLockfileTests() {
 test("target lock specimen proves exact ce9b89 to e2c56ef six-delta regression", () => {

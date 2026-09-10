@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { cp, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
 
 import { loadPackageConsumerAssetCatalog } from "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
 import { CANONICAL_TRANSITION_CATALOG } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
@@ -39,9 +39,11 @@ test("package loader rejects malformed or corrupted generation2 history before l
     for (const path of ["dist", "assets", "package.json"]) {
       await cp(join(packageRoot, path), join(sandbox, path), { recursive: true });
     }
-    await symlink(join(packageRoot, "node_modules"), join(sandbox, "node_modules"), "dir");
-    const { loadPackageConsumerAssetCatalog: load } = await import(pathToFileURL(
-      join(sandbox, "dist/consumer-integration/adapters/package-consumer-asset-catalog.js")));
+    await symlink(join(packageRoot, "node_modules"), join(sandbox, "node_modules"),
+      process.platform === "win32" ? "junction" : "dir");
+    const load = () => execFileSync(process.execPath, ["--input-type=module", "--eval",
+      "import { loadPackageConsumerAssetCatalog } from './dist/consumer-integration/adapters/package-consumer-asset-catalog.js'; await loadPackageConsumerAssetCatalog();"
+    ], { cwd: sandbox, stdio: "pipe" });
     const original = JSON.parse(CANONICAL_TRANSITION_CATALOG);
     const catalogPath = join(sandbox, "assets/transition-catalog.json");
     for (const mutate of [
@@ -53,11 +55,11 @@ test("package loader rejects malformed or corrupted generation2 history before l
       const catalog = structuredClone(original);
       mutate(catalog.directTargetBundles.at(-1));
       await writeFile(catalogPath, JSON.stringify(catalog));
-      await assert.rejects(load(), TypeError);
+      assert.throws(load, /TypeError/u);
     }
     await writeFile(catalogPath, CANONICAL_TRANSITION_CATALOG);
     await writeFile(join(sandbox, original.directTargetBundles.at(-1).skillPath), "tampered");
-    await assert.rejects(load(), /digest mismatch/u);
+    assert.throws(load, /digest mismatch/u);
   } finally {
     await rm(sandbox, { recursive: true, force: true });
   }

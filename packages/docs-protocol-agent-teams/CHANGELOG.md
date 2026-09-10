@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5
+
+### Patch Changes
+
+- [#288](https://github.com/agent-teams-ai/engineering-foundation/pull/288) [`1f265ef`](https://github.com/agent-teams-ai/engineering-foundation/commit/1f265ef41328d5e7b85d19d4f01791064c445271) Thanks [@777genius](https://github.com/777genius)! - Bundle the exact qualified stable18 projection and content-addressed Skill and caller assets so successor Cohorts can prove their upgrade origin and rollback evidence. Validate both historical generations while keeping generation2 history out of the legacy generation1 planner.
+
 ## 0.2.4
 
 ### Patch Changes

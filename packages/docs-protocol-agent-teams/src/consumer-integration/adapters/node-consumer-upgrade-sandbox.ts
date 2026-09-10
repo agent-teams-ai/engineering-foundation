@@ -1,3 +1,4 @@
+import { assertCapturedConsumerTargetLockfile, validateConsumerTargetLockfile, verifyConsumerTargetLockfile } from "./node-consumer-target-lockfile.js";
 import { consumerProcessEnvironment } from "./node-consumer-environment.js";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -241,7 +242,7 @@ async function operationForChangedPath(input: {
   });
 }
 
-async function installCohort(root: string, offline: boolean, environment: () => NodeJS.ProcessEnv): Promise<void> {
+async function installCohort(root: string, offline: boolean, environment: () => NodeJS.ProcessEnv, frozen = offline): Promise<void> {
   // pnpm skips existing imports even in copy mode. Keep the prior installation
   // until a fresh import succeeds; --force also bypasses package installability.
   // This backup is not journaled: interruption leaves evidence for manual recovery.
@@ -260,7 +261,7 @@ async function installCohort(root: string, offline: boolean, environment: () => 
     await runPnpm(root, [
       "install",
       offline ? "--offline" : "--prefer-offline",
-      offline ? "--frozen-lockfile" : "--no-frozen-lockfile",
+      frozen ? "--frozen-lockfile" : "--no-frozen-lockfile",
       "--package-import-method=copy",
       "--ignore-scripts",
       "--ignore-pnpmfile",
@@ -293,6 +294,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   }
 
   private async prepareGeneration(options: {
+    readonly selectedLock?: Uint8Array;
     readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
     readonly current: UpgradeDesiredState;
@@ -300,6 +302,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
     readonly managedPreimages?: ConsumerUpgradeManagedPreimagesV2;
   }): Promise<PreparedConsumerUpgradeV1> {
+    const { selectedLock } = options;
     const head = await assertCleanGitRoot(options.consumerRoot);
     if (head !== options.expectedSourceRevision) {
       throw new ConsumerIntegrationNodeError(
@@ -355,6 +358,9 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
               ...fileInput, authority: options.authority, current: options.current
             });
       } else {throw new Error("unreachable");}
+      const validatedLock = await validateConsumerTargetLockfile(
+        selectedLock, projected.profile, options.current, beforeRoot
+      );
       await Promise.all([
         writeProjectedFile(stagedRoot, INTEGRATION_PROFILE_PATH, projected.profile),
         writeProjectedFile(stagedRoot, "package.json", projected.manifest),
@@ -362,7 +368,11 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
           writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.migrationWorkspace)
         ])
       ]);
-      await installCohort(stagedRoot, false, this.#environment);
+      if (selectedLock !== undefined) {
+        await writeProjectedFile(stagedRoot, "pnpm-lock.yaml", selectedLock);
+      }
+      await installCohort(stagedRoot, false, this.#environment, selectedLock !== undefined);
+      await verifyConsumerTargetLockfile(validatedLock, stagedRoot);
       if (projected.targetWorkspace !== undefined) {
         await writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.targetWorkspace);
       }
@@ -384,6 +394,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       if (!isAuthorityV1(options.authority)) {
         await assertManagedAssetsCreatedV2(stagedRoot, options.current);
       }
+      await verifyConsumerTargetLockfile(validatedLock, stagedRoot);
       const changed = changedInventoryPaths(
         await repositoryInventory(beforeRoot),
         await repositoryInventory(stagedRoot)
@@ -415,6 +426,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
         sourceRoot: beforeRoot,
         stagedRoot
       })));
+      assertCapturedConsumerTargetLockfile(validatedLock, operations);
       return Object.freeze({ operations: Object.freeze(operations) });
     } finally {
       await rm(temporary, { force: true, recursive: true });
@@ -443,13 +455,16 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
   }
 
   public prepareV1ToV2(options: {
+    readonly targetLockfile?: Uint8Array;
     readonly authority: ConsumerUpgradeAuthorityV2;
     readonly consumerRoot: string;
     readonly current: ConsumerIntegrationDesiredStateV1;
     readonly expectedSourceRevision: string;
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
   }): Promise<PreparedConsumerUpgradeV1> {
-    return this.prepareGeneration(options);
+    const selectedLock = options.targetLockfile === undefined ? undefined
+      : Uint8Array.from(options.targetLockfile);
+    return this.prepareGeneration({ ...options, ...(selectedLock === undefined ? {} : { selectedLock }) });
   }
 
   private async activateAndVerifyGeneration(options: {
@@ -505,3 +520,5 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
 
 export const nodeConsumerUpgradeSandbox: ConsumerUpgradeSandboxPort =
   Object.freeze(new NodeConsumerUpgradeSandbox());
+
+export { nodeConsumerTargetLockfileReader } from "./node-consumer-target-lockfile.js";

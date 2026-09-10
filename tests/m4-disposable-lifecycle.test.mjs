@@ -5,7 +5,25 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { M4, barrierProbe, qualificationProbe, runDirectoryName, selectedPostimage, snapshot } from "../scripts/m4-disposable-lifecycle.mjs";
+import { M4, barrierProbe, installedPackageVersion, qualificationProbe, runDirectoryName, selectedPostimage, snapshot } from "../scripts/m4-disposable-lifecycle.mjs";
+
+test("M4 resolves both transitive manifests from physical pnpm package owners", async () => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-m4-pnpm-"));
+  try {
+    await mkdir(join(root, "node_modules/@agent-teams"), { recursive: true });
+    for (const [owner, dependency, version] of [["docs-protocol", "document-authoring", "0.3.0"],
+      ["docs-protocol-agent-teams", "repository-mutation", "0.2.0"]]) {
+      const scope = join(root, "node_modules/.pnpm", owner, "node_modules/@agent-teams");
+      for (const name of [owner, dependency]) {
+        await mkdir(join(scope, name), { recursive: true });
+        await writeFile(join(scope, name, "package.json"), JSON.stringify({ name: `@agent-teams/${name}`, version,
+          exports: { "./package.json": "./package.json" } }));
+      }
+      await symlink(join(scope, owner), join(root, "node_modules/@agent-teams", owner), "junction");
+      assert.equal(await installedPackageVersion(root, dependency), version);
+    }
+  } finally {await rm(root, { recursive: true, force: true });}
+});
 
 test("M4 probes execute actual ESM import-only package exports", async () => {
   const root = await mkdtemp(join(tmpdir(), "TEST-m4-esm-"));

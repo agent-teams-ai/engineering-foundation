@@ -196,14 +196,22 @@ async function lifecycle(root, evidence, run, controller) {
     foundationChecks: ["assert-dev-only", "assert-registry"], inventoryRestored: true })}\n`, { flag: "wx" });
 }
 
+export async function installedPackageVersion(consumer, name) {
+  const modules = join(consumer, "node_modules/@agent-teams");
+  let path = join(modules, name, "package.json");
+  if (name === "document-authoring" || name === "repository-mutation") {
+    const owner = name === "document-authoring" ? "docs-protocol" : "docs-protocol-agent-teams";
+    const require = createRequire(await realpath(join(modules, owner, "package.json")));
+    path = require.resolve(`@agent-teams/${name}/package.json`);
+  }
+  return JSON.parse(await readFile(path)).version;
+}
+
 async function verifyTarget(consumer, run) {
   const modules = join(consumer, "node_modules/@agent-teams");
   for (const [name, version] of Object.entries({ "docs-protocol": "0.6.0", "docs-protocol-agent-teams": "0.2.3",
     "engineering-foundation": "1.1.1", "document-authoring": "0.3.0", "repository-mutation": "0.2.0" })) {
-    const require = createRequire(join(modules, name === "document-authoring" ? "docs-protocol" : "docs-protocol-agent-teams", "package.json"));
-    const path = name === "document-authoring" || name === "repository-mutation"
-      ? require.resolve(`@agent-teams/${name}/package.json`) : join(modules, name, "package.json");
-    assert.equal(JSON.parse(await readFile(path)).version, version);
+    assert.equal(await installedPackageVersion(consumer, name), version);
   }
   assert.equal(JSON.parse(await run("target-current", process.execPath,
     [join(modules, "docs-protocol-agent-teams/dist/cli.js"), "check", "--consumer", consumer, "--json"], consumer)).outcome, "current");

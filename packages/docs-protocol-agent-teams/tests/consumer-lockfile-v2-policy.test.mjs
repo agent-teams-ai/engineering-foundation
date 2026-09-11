@@ -269,7 +269,7 @@ test("V2 projects optionality from cohort roots despite unrelated required consu
 test("V2 still rejects version, integrity and optional-edge drift with shared required roots", () => {
   const mutations = [
     (lock) => {
-      lock.packages["tslib@2.8.2"] = lock.packages["tslib@2.8.1"];
+      lock.packages["tslib@2.8.2"] = structuredClone(lock.packages["tslib@2.8.1"]);
       lock.snapshots["tslib@2.8.2"] = {};
       lock.snapshots["@emnapi/core@1.11.2"].dependencies.tslib = "2.8.2";
     },

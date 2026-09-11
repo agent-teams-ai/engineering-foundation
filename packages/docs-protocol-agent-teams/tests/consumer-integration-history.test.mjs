@@ -12,21 +12,26 @@ import { CANONICAL_TRANSITION_CATALOG } from "../dist/consumer-integration/appli
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 
-test("stable18 history binds exact generation2 authority and immutable assets", async () => {
+test("stable18 and stable19 history bind exact generation2 authority and immutable assets", async () => {
   const catalog = JSON.parse(CANONICAL_TRANSITION_CATALOG);
-  const bundle = catalog.directTargetBundles.find(({ cohort }) =>
-    cohort.cohortId === "docs-2026-09-10-stable18");
-  assert.equal(bundle.cohort.schemaVersion, 2);
-  assert.equal(bundle.cohort.recordDigest,
-    "sha256:a156140015084e74459f1bc8dc6c61dfad9bf5d8f85cfbcba8cfdd7700f1867a");
-  assert.equal(bundle.cohort.qualificationEventDigest,
-    "sha256:5dfc82cfcb9f6be5484369ce4a39ff23dd6f4b74836f9fc5a164a4bf6dd56e18");
-  assert.equal(bundle.cohort.packages.docsProtocolAgentTeams.version, "0.2.3");
-  for (const [key, name] of [["skill", "skill.md"], ["callerWorkflow", "caller.yml"]]) {
-    assert.equal(bundle[`${key}Path`],
-      `assets/history/${bundle[`${key}Digest`].replace(":", "-")}/${name}`);
-    assert.equal(digest(await readFile(join(import.meta.dirname, "..", bundle[`${key}Path`]))),
-      bundle.cohort.assets[`${key}Digest`]);
+  for (const [cohortId, recordDigest, eventDigest, version] of [
+    ["docs-2026-09-10-stable18", "a156140015084e74459f1bc8dc6c61dfad9bf5d8f85cfbcba8cfdd7700f1867a",
+      "5dfc82cfcb9f6be5484369ce4a39ff23dd6f4b74836f9fc5a164a4bf6dd56e18", "0.2.3"],
+    ["docs-2026-09-10-stable19", "4dab45bfb69bc75ab63180f22e18ad036ed87107f11d2edd843c5f1f82b5f5bf",
+      "30385945e581851788e955d406f4e7264c731f3a29a8b9cff4c3ecce1c3bd05a", "0.2.5"]
+  ]) {
+    const bundle = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === cohortId);
+    assert.ok(bundle, `Missing qualified upgrade origin ${cohortId}`);
+    assert.equal(bundle.cohort.schemaVersion, 2);
+    assert.equal(bundle.cohort.recordDigest, `sha256:${recordDigest}`);
+    assert.equal(bundle.cohort.qualificationEventDigest, `sha256:${eventDigest}`);
+    assert.equal(bundle.cohort.packages.docsProtocolAgentTeams.version, version);
+    for (const [key, name] of [["skill", "skill.md"], ["callerWorkflow", "caller.yml"]]) {
+      assert.equal(bundle[`${key}Path`],
+        `assets/history/${bundle[`${key}Digest`].replace(":", "-")}/${name}`);
+      assert.equal(digest(await readFile(join(import.meta.dirname, "..", bundle[`${key}Path`]))),
+        bundle.cohort.assets[`${key}Digest`]);
+    }
   }
   const legacy = await loadPackageConsumerAssetCatalog();
   assert.ok(legacy.directTargetBundles.every(({ cohort }) => cohort.schemaVersion === 1));

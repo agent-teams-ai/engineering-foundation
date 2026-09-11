@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.7
+
+### Patch Changes
+
+- [#292](https://github.com/agent-teams-ai/engineering-foundation/pull/292) [`fdc680c`](https://github.com/agent-teams-ai/engineering-foundation/commit/fdc680c6170549a225779aeedaa3fab508c405ff) Thanks [@777genius](https://github.com/777genius)! - Retain the exact qualified stable19 transition origin so successor Cohorts can prove upgrades from stable19 without weakening historical asset or generation checks.
+
 ## 0.2.6
 
 ### Patch Changes

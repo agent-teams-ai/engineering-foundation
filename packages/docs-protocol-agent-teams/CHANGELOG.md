@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.6
+
+### Patch Changes
+
+- [#290](https://github.com/agent-teams-ai/engineering-foundation/pull/290) [`6568db2`](https://github.com/agent-teams-ai/engineering-foundation/commit/6568db2d8df52cc1d68b932a947dc851c152a573) Thanks [@777genius](https://github.com/777genius)! - Derive runtime closure optional markers from the qualified cohort roots so unrelated consumer dependencies can share exact packages without changing qualification evidence. Preserve version, integrity, peer-context and dependency-edge enforcement.
+
 ## 0.2.5
 
 ### Patch Changes

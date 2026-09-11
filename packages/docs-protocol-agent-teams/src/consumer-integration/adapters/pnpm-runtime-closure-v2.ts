@@ -164,7 +164,37 @@ function projectRuntimeClosure(
   return { locators, managedEdges };
 }
 
-/** V2 binds raw peer-qualified snapshots; V1's type-only peer normalization is historical. */
+function projectSnapshotOptionality(
+  snapshots: JsonRecord,
+  roots: readonly ClosureEdge[],
+  locators: readonly string[]
+): JsonRecord {
+  // pnpm's optional flag describes reachability from every importer. Recompute
+  // it for the qualified roots so unrelated consumer roots cannot change evidence.
+  // The complete graph was already validated and bounded by projectRuntimeClosure.
+  const required = new Set<string>();
+  const pending = roots.map((root) => root.locator);
+  while (pending.length > 0) {
+    const current = pending.shift()!;
+    if (required.has(current)) {
+      continue;
+    }
+    required.add(current);
+    const snapshot = record(snapshots[current], `Runtime closure snapshot ${current}`);
+    pending.push(...sortedEdges(snapshot, "dependencies", current).map((edge) => edge.locator));
+  }
+  return Object.fromEntries(locators.map((value) => {
+    const snapshot = { ...record(snapshots[value], `Runtime closure snapshot ${value}`) };
+    if (required.has(value)) {
+      delete snapshot["optional"];
+    } else {
+      snapshot["optional"] = true;
+    }
+    return [value, snapshot];
+  }));
+}
+
+/** V2 binds raw peer-qualified snapshots with cohort-relative optional reachability. */
 export function computePnpmRuntimeClosureDigestV2(
   lock: JsonRecord,
   cohort: QualifiedDocsCohortBindingV2
@@ -213,7 +243,7 @@ export function computePnpmRuntimeClosureDigestV2(
       }
     ])) } },
     packages: Object.fromEntries(physicalLocators.map((value) => [value, packages[value]])),
-    snapshots: Object.fromEntries(closure.locators.map((value) => [value, snapshots[value]]))
+    snapshots: projectSnapshotOptionality(snapshots, roots, closure.locators)
   };
   const source = `${canonicalConsumerIntegrationJson({
     domain: "agent-teams.docs-runtime-closure/v2",

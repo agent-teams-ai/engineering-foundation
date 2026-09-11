@@ -239,6 +239,58 @@ test("V2 matches the independent accepted b8a wire contract", () => {
   assert.equal(digest(acceptedLock()), acceptedDigest);
 });
 
+function withUnrelatedRequiredRoot() {
+  const lock = acceptedLock();
+  lock.importers["."].devDependencies["consumer-tool"] = {
+    specifier: "1.0.0", version: "1.0.0"
+  };
+  lock.packages["consumer-tool@1.0.0"] = { resolution: { integrity: coordinate.integrity } };
+  lock.snapshots["consumer-tool@1.0.0"] = {
+    dependencies: { "@emnapi/core": "1.11.2", "@emnapi/runtime": "1.11.2" }
+  };
+  for (const locator of [
+    "@emnapi/core@1.11.2", "@emnapi/runtime@1.11.2", "@emnapi/wasi-threads@1.2.2", "tslib@2.8.1"
+  ]) {
+    delete lock.snapshots[locator].optional;
+  }
+  return lock;
+}
+
+test("V2 projects optionality from cohort roots despite unrelated required consumer paths", () => {
+  const lock = withUnrelatedRequiredRoot();
+  const original = structuredClone(lock);
+  assert.equal(digest(lock), acceptedDigest);
+  assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(
+    Buffer.from(stringify(lock)), { cohort: acceptedCohort }
+  ));
+  assert.deepEqual(lock, original, "projection must never alter the consumer lock");
+});
+
+test("V2 still rejects version, integrity and optional-edge drift with shared required roots", () => {
+  const mutations = [
+    (lock) => {
+      lock.packages["tslib@2.8.2"] = lock.packages["tslib@2.8.1"];
+      lock.snapshots["tslib@2.8.2"] = {};
+      lock.snapshots["@emnapi/core@1.11.2"].dependencies.tslib = "2.8.2";
+    },
+    (lock) => { lock.packages["tslib@2.8.1"].resolution.integrity = coordinate.integrity; },
+    (lock) => {
+      const parser = lock.snapshots["oxc-parser@0.142.0"];
+      parser.dependencies["@oxc-parser/binding-wasm32-wasi"] =
+        parser.optionalDependencies["@oxc-parser/binding-wasm32-wasi"];
+      delete parser.optionalDependencies["@oxc-parser/binding-wasm32-wasi"];
+    }
+  ];
+  for (const mutate of mutations) {
+    const lock = withUnrelatedRequiredRoot();
+    mutate(lock);
+    assert.notEqual(digest(lock), acceptedDigest);
+    assert.throws(() => assertQualifiedPnpmLockfileV2(
+      Buffer.from(stringify(lock)), { cohort: acceptedCohort }
+    ), closureError);
+  }
+});
+
 test("V2 validator accepts central b8a and rejects the old V1-style digest", () => {
   const bytes = Buffer.from(stringify(acceptedLock()));
   assert.doesNotThrow(() => assertQualifiedPnpmLockfileV2(bytes, { cohort: acceptedCohort }));

@@ -38,6 +38,14 @@ exact transitive Cohort coordinates. Managed qualification verifies their
 versions, integrities, and permitted lockfile edges without projecting them as
 additional root dependencies.
 
+Runtime closure v2 derives each snapshot's `optional` marker from reachability
+through required dependency edges starting at the three qualified roots. pnpm's
+whole-importer marker can differ when unrelated consumer tools require the same
+package. Projection leaves the consumer lock unchanged and still binds exact
+versions, integrities, raw peer snapshots, all package metadata and both required
+and optional dependency edges. Existing isolated-cohort evidence bytes remain
+unchanged; V1's historical projection is unchanged.
+
 ## New-only command boundary
 
 Managed operations use only the distinct `agent-teams-docs-managed` executable

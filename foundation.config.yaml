@@ -18,5 +18,7 @@ capabilities:
     configPath: architecture/foundation/repository-agent-workflow.yaml
   repository.security-baseline:
     configPath: architecture/foundation/repository-security-baseline.yaml
+  contract.json-schema-releases:
+    configPath: architecture/foundation/json-schema-releases.yaml
   workspace.dependency-declarations:
     configPath: architecture/foundation/dependency-declarations.yaml

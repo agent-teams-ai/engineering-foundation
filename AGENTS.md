@@ -21,7 +21,14 @@ Hard rules:
   never become documentation sources of truth;
 - use conventional commits and short feature branches;
 - run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
-- run `pnpm verify` before opening a pull request.
+- run `pnpm verify` before opening a pull request;
+- a JSON Schema family support claim requires `contract.json-schema-releases`
+  plus corpus and consumer evidence; exported schema bytes without that claim
+  stay artifact-protected;
+- schema mutation of a claimed family needs a new public contract version and a
+  release-owned baseline, not edited old bytes;
+- greening CI by shrinking governed scope, pending a root, or adding an
+  unbounded suppression is forbidden.
 
 Start with:
 

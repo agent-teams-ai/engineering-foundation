@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "contractId": "docs-protocol-profile",
+  "publicContractVersion": "3.0.0",
+  "schemaSetDigest": "sha256:665c80818bf75ae847033067caad1fa7d01db1c387d49c33d43f56d3e5175f58",
+  "fixtureCorpusDigest": "sha256:5faf138f630b4fb58b6cf8df46441a6531538651ae41e191d680ab1a01ce4603",
+  "supportedConsumers": [
+    {
+      "consumerId": "get-modular",
+      "consumerVersion": "0.1.0",
+      "contractId": "docs-protocol-profile",
+      "contractVersion": "3.0.0",
+      "schemaSetDigest": "sha256:665c80818bf75ae847033067caad1fa7d01db1c387d49c33d43f56d3e5175f58",
+      "fixtureCorpusDigest": "sha256:5faf138f630b4fb58b6cf8df46441a6531538651ae41e191d680ab1a01ce4603",
+      "evidenceDigest": "sha256:b895915fecca9b68b76515b10739416949c7411d8eb0fbb165558452220649a0",
+      "outcome": "passed"
+    }
+  ]
+}

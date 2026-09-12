@@ -23,6 +23,7 @@ fullScanPaths:
   - .github/workflows
   - .oxlintrc.json
   - .oxlintrc.type-aware.json
+  - architecture/contracts
   - architecture/foundation
   - knip.json
   - nx.json

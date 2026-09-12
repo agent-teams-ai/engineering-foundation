@@ -45,12 +45,17 @@ These terms describe different facts and must not be used interchangeably:
 | `documentation.local-references` | Yes | Yes | Yes | Only by explicit declaration |
 | `governance.architecture-decisions` | Yes | Yes | Yes | Only by explicit declaration and baseline promotion |
 | `contract.protobuf-evolution` | Yes | Yes | No contract owned here | Only by explicit declaration and capability-qualification evidence |
-| `contract.json-schema-releases` | Yes | Yes | No contract owned here | Only by explicit declaration and consumer evidence |
+| `contract.json-schema-releases` | Yes | Yes | Yes, `docs-protocol-profile` v3 only | Only by explicit declaration and consumer evidence |
 | `repository.agent-workflow` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.gate-runner` | Yes | Yes, since 0.17.0 | Yes, after build | Only by explicit declaration |
 
 Installing or upgrading the package changes none of the consumer activation
 cells. Each consumer records its own activation status in its repository.
+
+JSON Schema files exported by Foundation packages remain artifact-protected by
+public-api sidecars. Family support is claimed only for
+`docs-protocol-profile` public contract `3.0.0`. All other exported schema
+families stay `artifact-protected; family support not claimed`.
 
 ## Goals
 

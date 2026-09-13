@@ -4,7 +4,7 @@ import { writeFileSync as requireWrite } from "node:fs";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm, realpath, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32, posix } from "node:path";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { ApiModel } from "@microsoft/api-extractor-model";
@@ -181,6 +181,8 @@ test("config dependencies are captured; suppressed diagnostics and model-count e
     const declarations = { ...input.declarations, files: [...input.declarations.files.filter(item => item.path !== "tsconfig.json"), inputFile("tsconfig.json", config), inputFile("base.json", base)] };
     const observations = await observer.observe({ ...input, declarations });
     assert.deepEqual(observations[0].configurationDependencies.map(item => item.path).toSorted(), ["base.json", "package.json", "tsconfig.json"]);
+    assert.ok(observations[0].sourceFiles.some(item => item.path === "index.d.ts"));
+    assert.ok(!observations[0].compilerEnvironment.includes("foundation-public-api-audit-"));
     assert.deepEqual(publicApiAuditEligibility(observations), { eligible: true, reasons: [] });
     const suppressed = JSON.stringify({ compilerOptions: { skipLibCheck: true }, files: ["index.d.ts"] });
     await writeFile(join(input.consumerRoot, "tsconfig.json"), suppressed);
@@ -278,4 +280,27 @@ test("observer canonicalizes a symlinked root ancestor without admitting symlink
         files: [inputFile("../outside.d.ts", "")] } }), /Invalid audit path/);
     } finally { await rm(aliases, { recursive: true, force: true }); }
   });
+});
+
+
+test("audit stage remapping handles Windows SDK paths without capturing outside evidence", async () => {
+  const { remapAuditStagePath } = await import("../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-audit-inputs.js");
+  const stage = String.raw`C:\temp\audit\evidence`;
+  const root = String.raw`D:\consumer`;
+  for (const path of [String.raw`C:\temp\audit\evidence\sub\index.d.ts`, "C:/temp/audit/evidence/sub/index.d.ts", "c:/temp/audit/evidence/sub/index.d.ts"]) {
+    assert.equal(remapAuditStagePath(path, stage, root, win32), String.raw`D:\consumer\sub\index.d.ts`);
+  }
+  for (const path of ["C:/temp/audit/evidence-other/index.d.ts", "C:/temp/audit/evidence/../outside.d.ts", "C:/temp/audit", "E:/temp/audit/evidence/index.d.ts", "//server/share/index.d.ts", "relative/index.d.ts"]) {
+    assert.equal(remapAuditStagePath(path, stage, root, win32), path);
+  }
+  assert.equal(remapAuditStagePath("//server/share/stage/sub/file", String.raw`\\server\share\stage`, root, win32), String.raw`D:\consumer\sub\file`);
+  assert.equal(remapAuditStagePath("/stage/sub/file", "/stage", "/consumer", posix), "/consumer/sub/file");
+  assert.equal(remapAuditStagePath("/stage-other/file", "/stage", "/consumer", posix), "/stage-other/file");
+});
+
+test("audit portable input paths reject Windows absolutes and drive-relative escapes on every host", async () => {
+  const { auditInputPath } = await import("../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-audit-inputs.js");
+  for (const path of ["C:/temp/input.json", "C:input.json", "sub/C:input.json", String.raw`C:\temp\input.json`, "//server/share/input.json", "../input.json", "sub/../../input.json"]) {
+    await assert.rejects(auditInputPath("/unused", path), /Invalid audit path/);
+  }
 });

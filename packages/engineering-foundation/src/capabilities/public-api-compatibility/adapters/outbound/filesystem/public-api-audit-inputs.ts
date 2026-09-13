@@ -1,7 +1,7 @@
 import type { PublicApiAuditRequest } from "../../../api.js";
 import { createHash } from "node:crypto";
 import { lstat, readFile, realpath } from "node:fs/promises";
-import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
 import type { AuditDeclarationInput, AuditPackageInput } from "../../../contract/public-api-audit.js";
 import type { AuditFileIdentity } from "../../../application/model/public-api-observation.js";
 import type { PublicApiAuditInputs } from "../../../application/ports/public-api-observer.js";
@@ -14,9 +14,22 @@ export const AUDIT_MAX_BYTES = 32 * 1024 * 1024;
 export function auditDigest(bytes: string | Uint8Array): string {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
+/** Native containment also handles the forward slashes emitted by the SDK on Windows. */
+export function auditRelativePath(root: string, path: string, paths = { isAbsolute, relative, sep }): string | undefined {
+  if (!paths.isAbsolute(path)) { return; }
+  const local = paths.relative(root, path);
+  if (paths.isAbsolute(local) || local === ".." || local.startsWith(`..${paths.sep}`)) { return; }
+  return local;
+}
+/** Remap only stage-owned paths; external compiler libraries keep their own identity. */
+export function remapAuditStagePath(path: string, stageRoot: string, inputRoot: string,
+  paths = { isAbsolute, relative, resolve, sep }): string {
+  const local = auditRelativePath(stageRoot, path, paths);
+  return local === undefined ? path : paths.resolve(inputRoot, local);
+}
 /** Reject lexical escapes and symlinks, including symlinked parent directories. */
 export async function auditInputPath(root: string, path: string): Promise<string> {
-  if (!path || isAbsolute(path) || path.includes("\\") || path.split("/").some((part) => !part || part === "." || part === "..")) {throw new Error(`Invalid audit path: ${path}.`);}
+  if (!path || isAbsolute(path) || win32.isAbsolute(path) || path.includes(":") || path.includes("\\") || path.split("/").some((part) => !part || part === "." || part === "..")) {throw new Error(`Invalid audit path: ${path}.`);}
   const canonicalRoot = await realpath(root);
   const target = resolve(canonicalRoot, path);
   let cursor = canonicalRoot;
@@ -25,7 +38,8 @@ export async function auditInputPath(root: string, path: string): Promise<string
     if ((await lstat(cursor)).isSymbolicLink()) {throw new Error(`Audit symlink unsupported: ${path}.`);}
   }
   const canonical = await realpath(target);
-  if (relative(canonicalRoot, canonical).startsWith(`..${sep}`) || canonical === canonicalRoot) {throw new Error(`Audit path escapes root: ${path}.`);}
+  const local = relative(canonicalRoot, canonical);
+  if (isAbsolute(local) || local === ".." || local.startsWith(`..${sep}`) || local === "") {throw new Error(`Audit path escapes root: ${path}.`);}
   if (!(await lstat(canonical)).isFile()) {throw new Error(`Audit input is not a regular file: ${path}.`);}
   return canonical;
 }

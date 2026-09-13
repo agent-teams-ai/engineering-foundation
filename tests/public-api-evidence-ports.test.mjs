@@ -1,7 +1,7 @@
 import { parse as readArchitectureYaml } from "yaml";
 import assert from "node:assert/strict";
 import { readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, sep } from "node:path";
 import test from "node:test";
 
 import { withPublicApiFixture } from "./support/capability-fixtures.mjs";
@@ -180,7 +180,7 @@ test("audit pinned SDK has exact disjoint ownership and opaque loads elsewhere r
   assert.deepEqual(loader[0].roots, [path]);
   assert.deepEqual(loader[0].entrypoints, [path]);
   assert.deepEqual(loader[0].allowedRuntimeReferences, ["commonjs"]);
-  const files = (await readdir(root, { recursive: true })).filter(file => file.endsWith(".ts")).map(file => `${root}/${file}`);
+  const files = (await readdir(root, { recursive: true })).filter(file => file.endsWith(".ts")).map(file => `${root}/${file.split(sep).join("/")}`);
   assert.ok(files.length > 10);
   for (const file of files) {
     assert.equal(owner(file).length, 1, file);

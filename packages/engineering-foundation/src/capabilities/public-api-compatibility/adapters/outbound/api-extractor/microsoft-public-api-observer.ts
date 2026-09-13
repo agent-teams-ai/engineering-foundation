@@ -13,7 +13,7 @@ import type { AuditPackageInput } from "../../../contract/public-api-audit.js";
 import type { PublicApiObserver } from "../../../application/ports/public-api-observer.js";
 import { PUBLIC_API_AUDIT_PROFILE, type AuditDeclaration, type AuditDiagnostic, type AuditObservation, type AuditReference } from "../../../application/model/public-api-observation.js";
 import { assertNotCancelled } from "../../../application/policies/public-api-evidence-errors.js";
-import { auditDigest, auditInputPath, AUDIT_MAX_BYTES, AUDIT_MAX_FILES,auditPackagePolicy } from "../filesystem/public-api-audit-inputs.js";
+import { auditDigest, auditInputPath, auditRelativePath, remapAuditStagePath, AUDIT_MAX_BYTES, AUDIT_MAX_FILES,auditPackagePolicy } from "../filesystem/public-api-audit-inputs.js";
 import { mapReleasedBaseline } from "../filesystem/public-api-baseline-mapper.js";
 import { preparePublicApiExtractor, invokePublicApiExtractor } from "./prepare-public-api-extractor.js";
 
@@ -199,9 +199,11 @@ function compilerEnvironment(options: Readonly<Record<string, unknown>>, context
     if (typeof value === "string") {
       for (const candidate of input.declarations.packages) {
         const packageRoot = resolve(input.consumerRoot, dirname(candidate.manifestPath));
-        if (value === packageRoot || value.startsWith(`${packageRoot}${sep}`)) {return `package:${candidate.packageName}/${relative(packageRoot, value).split(sep).join("/")}`;}
+        const local = auditRelativePath(packageRoot, value);
+        if (local !== undefined) {return `package:${candidate.packageName}/${local.split(sep).join("/")}`;}
       }
-      if (value === subjectRoot || value.startsWith(`${subjectRoot}${sep}`)) {return `<subject-root>/${relative(subjectRoot, value).split(sep).join("/")}`;}
+      const local = auditRelativePath(subjectRoot, value);
+      if (local !== undefined) {return `<subject-root>/${local.split(sep).join("/")}`;}
     }
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {return Object.fromEntries(Object.entries(value).toSorted(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));}
     return value;
@@ -287,7 +289,7 @@ async function observeEntrypoint(context: ObservationContext): Promise<AuditObse
     catch (error) { unsupported.push(`owned-resource-cleanup: removal: ${outputRoot}: ${String(error)}`); }
   }
   assertNotCancelled(input.signal);
-  const fileIdentity = (path: string, digest: string) => ({ path: relative(input.consumerRoot, path.replace(stageRoot, input.consumerRoot)).split(sep).join("/"), digest });
+  const fileIdentity = (path: string, digest: string) => ({ path: relative(input.consumerRoot, remapAuditStagePath(path, stageRoot, input.consumerRoot)).split(sep).join("/"), digest });
   return { subject: input.subject, packageName: pkg.packageName, packageVersion: pkg.packageVersion, exportPath: entry?.exportPath ?? null, modelExpected: entry !== undefined,
     toolchain: toolchainIdentity(), normalizationProfile: PUBLIC_API_AUDIT_PROFILE,
     compilerEnvironment: compilerEnvironment(compilerOptions, effectiveContext), compilerOptions: restoreStagePaths(compilerOptions, stageRoot, input.consumerRoot),
@@ -403,5 +405,5 @@ async function revalidateObservationInputs(context: ObservationContext, metadata
 
 function restoreStagePaths<T>(value: T, stageRoot: string, inputRoot: string): T {
   return JSON.parse(JSON.stringify(value, (_key, entry: unknown) =>
-    typeof entry === "string" ? entry.replaceAll(stageRoot, inputRoot) : entry)) as T;
+    typeof entry === "string" ? remapAuditStagePath(entry, stageRoot, inputRoot) : entry)) as T;
 }

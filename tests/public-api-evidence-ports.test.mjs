@@ -1,3 +1,4 @@
+import { parse as readArchitectureYaml } from "yaml";
 import assert from "node:assert/strict";
 import { readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -161,4 +162,45 @@ test("Public API baseline preserves unknown selected-reader failure identity", a
     const repository = new FilesystemPublicApiRepository(assertSchema, { ...defaults, files });
     await assert.rejects(repository.readReleasedBaseline(root, await policy(root)), (error) => error === failure);
   });
+});
+
+test("audit pinned SDK has exact disjoint ownership and opaque loads elsewhere remain rejected", async () => {
+  const { OxcSourceDependencyParser } = await import("../packages/engineering-foundation/dist/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.js");
+  const { readSourceArchitectureHeader, parseSourceArchitecturePolicy } = await import("../packages/engineering-foundation/dist/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.js");
+  const { evaluateSourceDependencies } = await import("../packages/engineering-foundation/dist/capabilities/source-dependencies/application/policies/evaluate-source-dependencies.js");
+  const { readdir } = await import("node:fs/promises");
+  const root = "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters";
+  const path = `${root}/outbound/api-extractor/load-pinned-audit-sdk.ts`;
+  // The actual parser validates the complete v2 configuration, including overlaps.
+  const architecturePolicy = parseSourceArchitecturePolicy(readSourceArchitectureHeader(readArchitectureYaml(await readFile("architecture/foundation/source-dependencies.yaml", "utf8"))));
+  const owner = file => architecturePolicy.boundaries.filter(boundary => boundary.roots.some(directory => file === directory || file.startsWith(`${directory}/`)));
+  const loader = owner(path);
+  assert.equal(loader.length, 1);
+  assert.equal(loader[0].id, "capability.public-api-compatibility.pinned-sdk-loader");
+  assert.deepEqual(loader[0].roots, [path]);
+  assert.deepEqual(loader[0].entrypoints, [path]);
+  assert.deepEqual(loader[0].allowedRuntimeReferences, ["commonjs"]);
+  const files = (await readdir(root, { recursive: true })).filter(file => file.endsWith(".ts")).map(file => `${root}/${file}`);
+  assert.ok(files.length > 10);
+  for (const file of files) {
+    assert.equal(owner(file).length, 1, file);
+    if (file !== path) { assert.deepEqual(owner(file)[0].allowedRuntimeReferences, [], file); }
+  }
+  const parser = new OxcSourceDependencyParser();
+  const parsed = parser.parse({ path, source: await readFile(path, "utf8") });
+  assert.equal(parsed.parseErrorCount, 0);
+  assert.deepEqual(parsed.unresolved.map(reference => reference.kind), ["commonjs", "commonjs"]);
+  const evaluate = (file, references) => evaluateSourceDependencies({ policy: { ...architecturePolicy, boundaries: architecturePolicy.boundaries.map(boundary => ({ ...boundary, entrypoints: [] })) }, graph: {
+    nodes: [], edges: [], parseFailures: [], unclassifiedSourcePaths: [],
+    unresolvedRuntimeReferences: references.map(reference => ({ ...reference, path: file, boundaryId: owner(file)[0].id }))
+  } });
+  assert.deepEqual(evaluate(path, parsed.unresolved), []);
+  const source = 'import { createRequire } from "node:module"; const load = createRequire("/opaque/sdk.cjs"); load("typescript");';
+  for (const file of files.filter(candidate => candidate !== path)) {
+    const witness = parser.parse({ path: file, source });
+    assert.equal(witness.unresolved.length, 1);
+    const rejected = evaluate(file, witness.unresolved);
+    assert.equal(rejected.length, 1, file);
+    assert.match(rejected[0].message, /Non-literal commonjs reference/);
+  }
 });

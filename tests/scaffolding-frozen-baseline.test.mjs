@@ -267,6 +267,8 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     ...vector.schemaFiles,
     "schemas/architecture-source-dependencies/v3.schema.json",
     "schemas/foundation-command-error/v1.schema.json",
+    "schemas/package-public-api-audit-report/v1.schema.json",
+    "schemas/package-public-api-audit-request/v1.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
     "schemas/quality-gate-runner/v1.schema.json",
   ].toSorted();

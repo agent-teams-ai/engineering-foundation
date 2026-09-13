@@ -1,3 +1,4 @@
+import { runPublicApiAudit, type PublicApiAuditSchemaAssertion } from "../../../capabilities/public-api-compatibility/node.js";
 import type { FoundationCommandServices } from "../api.js";
 import type { qualifyProtobufBreakingEvidence } from "../../../capabilities/contract-protobuf-evolution/qualification/module.js";
 import { renderFoundationReportText } from "../../../features/foundation-check/module.js";
@@ -21,6 +22,7 @@ export interface CommandHostDependencies<SchemaId extends string> {
   readonly assertSchema: Parameters<typeof createNodeQualityGateCommand>[2]
     & Parameters<typeof promoteArchitectureDecisionBaseline>[1]
     & Parameters<typeof promotePublicApiRelease>[2]
+    & PublicApiAuditSchemaAssertion
     & Parameters<typeof createNodeAgentWorkflowCommands>[2]
     & Parameters<typeof qualifyProtobufBreakingEvidence>[2];
   readonly loadFoundationConfig: FoundationCommandServices["readConfig"];
@@ -57,6 +59,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     }, processExecutor, assertSchema),
     rules: RULE_REGISTRY,
     promoteDecisions: (input) => promoteArchitectureDecisionBaseline(input, assertSchema),
+    auditPublicApi: async (input) => runPublicApiAudit({ ...input, foundationVersion: await installedFoundationVersion() }, assertSchema),
     promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema, dependencies.artifactSchemaInspector),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../../../capabilities/contract-protobuf-evolution/qualification/module.js");

@@ -127,3 +127,150 @@ must therefore install an equivalent release-owned mutation check in required PR
 CI before enabling this capability. Until Foundation exposes that check as a
 reusable consumer command, the Foundation repository's own check is the donor
 oracle and other consumers remain unqualified for activation.
+
+## Bounded audit implementation boundary
+
+Status: Implementation in progress; source CLI wiring and focused synthetic
+conformance are present, but the full delivery contract is not yet qualified.
+
+The audit belongs to `public-api-compatibility`. Its declaration graph projection
+uses the existing `classifyPublicApiChange` policy and a distinct domain tag,
+`foundation:public-api-audit:declaration-graph:1`. It must never enter a release
+baseline or production promotion fingerprint. This is a bounded structural
+comparison, without an assignability or semantic-equivalence claim.
+
+Graph resolution identities retain subject, package, export path and opaque
+canonical reference. Only the comparison serialization removes the subject
+coordinate, allowing identical A and C graphs to compare equal. Hidden nodes
+remain dependencies of public declarations. Ordered reference occurrences and
+finite sorted reachable nodes preserve hidden mutations and cycles. Members of
+referenced containers participate in the reachable graph.
+
+The production extractor continues to exclude forgotten exports and rejects
+failed extraction before loading a model. Shared adapter configuration does not
+change that admission rule. Rich observations explicitly disable release-tag
+trimming, so importable `@internal` exports participate in A/C comparisons.
+Historical stored-surface mapping separately excludes internal containers and
+forgotten exports, preserving the production model vocabulary. Missing compiler
+exports in a rich model make that observation unsupported. Failed-extraction audit observations must retain
+every diagnostic and may only support a rich comparison after independent
+compiler, input, visibility and reference-boundary admission. They cannot become
+successful extraction or release eligibility.
+
+Historical B stored surfaces cannot establish discarded hidden nodes, reference
+targets, compiler closure or original export visibility. A/B and B/C comparisons
+must retain those limitations separately from A/C graph findings. The audit
+operation is read-only and always has `releaseEligible:false`.
+
+The current audit command implementation reads a fixed A/B/C request from
+`--consumer <evidence-root> --config <request.json> --format json`. The two new
+audit schemas are exported artifacts, not a JSON Schema family support claim.
+A/C declare exact package manifests, export-path coverage, compiler configs,
+input digests and a subject-local resolution universe. Archive and build custody
+are supplied assertions; the command verifies supplied member/declaration bytes,
+not registry provenance or execution of the claimed build.
+
+Compiler diagnostics are collected from the pinned Extractor compiler Program
+independently of message callbacks. Configuration dependencies and compiler
+source files retain digests. A verified compiler host exposes only declared
+subject files and actual pinned standard libraries. Existing nested and enclosing
+package manifests must be inventoried; their digests and subsequent presence are
+revalidated. An enclosing manifest outside the evidence root is unsupported;
+prepare evidence beneath a root where every influencing manifest can be declared.
+Extractor receives a private staged copy of admitted bytes, with read-only files
+and directories, rather than paths into consumer evidence. Adjacent declaration
+maps and mapped sources must be inventoried; flat v3 maps are supported and
+indexed maps remain an explicit unsupported boundary. Map sources and manifest
+metadata paths must remain inside the subject's admitted inventory. Undeclared
+map or TSDoc metadata presence, escaping paths, and symlinks fail before SDK use.
+Relevant absence observations and both original and staged bytes are revalidated;
+changes cannot produce complete evidence. Staged paths are translated back to
+input coordinates in compiler evidence. The copy is removed after observation.
+The observer supplies the same verified Program to Extractor and the independent
+diagnostic collector, avoiding the unrestricted compiler-state factory.
+Declaration-only inputs, explicit config files,
+unsuppressed compiler diagnostics and bounded inventories are required. Globs,
+plugins, project references and unknown external module bindings fail closed.
+The fixed standard-library boundary is AbortSignal, Error, Extract, NoInfer,
+Promise, Readonly, Record and Uint8Array. Admitted symbol declarations must all
+belong to the actual pinned compiler libraries; merged augmentations prevent
+that admission. Primitive keyword text creates no invented reference edge.
+
+TSDoc configuration comes from the pinned Extractor base. The report preserves
+message severity and text, replacing only the disposable model-output directory
+with `<audit-model-output>` for deterministic serialization. Error diagnostics
+and failed invocation state survive bounded findings. Exit 2 includes failed,
+unsupported or incomplete evidence; a nonempty diff alone does not cause failure.
+
+The hidden-namespace boundary remains explicit:
+
+- The pinned SDK can emit a token `audit-fixture!~Hidden.Box:class` while its
+  hidden namespace member model identity is `audit-fixture!~Hidden~Box:class`.
+  These are distinct opaque identities. Visibility and historical observations
+  remain available, but the rich graph is unavailable with an unresolved
+  reference. The audit never rewrites navigation to manufacture a binding.
+
+Cross-package graph resolution retains the compiler's actual module binding and
+the declared export-path coordinate for each occurrence in its unique compiler
+declaration. Named imports and inline import types establish their own bindings;
+an unused named import cannot authorize another occurrence's inline import path.
+Indeterminate declaration matches or occurrence counts remain unresolved.
+Reusing a canonical reference through two
+export paths does not merge those scopes. A reference with multiple remaining
+bound scopes stays ambiguous; the adapter never selects the first matching name.
+The five executable audit tests use flat `public-api-audit-*.test.mjs` paths with
+exact capability ownership and shard mappings, preserving the manifest gate.
+
+A package with no typed export paths retains an independently checked compiler
+observation with `modelExpected:false` and a null export path. It does not claim
+an Extractor invocation or invent a model. Empty projections retain package
+metadata, so removing the final typed export remains a comparable change.
+
+Admission is scoped to each package and its referenced dependencies. An unrelated
+invalid package or historical baseline does not erase available findings. Input
+inventories are bounded to 4,096 files and 32 MiB; each subject permits 64
+compiler/model observations and 64 MiB of retained observations. Comparison
+serialization is bounded to 16 MiB. Exhaustion makes the affected scope
+unavailable with a reason. Closed report schemas distinguish unavailable
+comparisons from findings and require the corresponding eligibility evidence.
+
+The adapter uses the compiler shipped with the pinned Extractor, including for
+independent diagnostics. Narrow structural compiler views permit the repository
+build toolchain to typecheck this adapter without introducing another compiler.
+Supplied archive digests, archive inventory completeness and build execution
+remain explicitly unverified custody assertions.
+
+The existing packed consumer qualification workflow now exercises the public
+binary selected from the installed manifest, both public schema exports,
+successful internal-export mutation, retained failed-extraction findings, invalid
+input, and byte immutability. Packed and full verification remain controller-owned.
+The private `load-pinned-audit-sdk.ts` adapter owns the fixed Extractor-relative
+TypeScript and TSDoc loading operation. ADR-0002's existing `commonjs` runtime
+reference permission applies only to that exact file. All remaining adapter
+roots stay governed, disjoint and without runtime-reference permission. The
+loader accepts no module names or resolution roots from callers, has no inward
+feature dependency, and exposes only private SDK values and identities to the
+observer. The observer still validates Extractor 7.58.12, model 7.33.10 and the
+actual Extractor-owned TypeScript 5.9.3 before observing inputs. Equivalent opaque
+loads in any other adapter fail the unchanged source-dependency evaluator.
+
+Consumer Module Standard applicability: this file is a private outbound SDK
+adapter within the existing Foundation platform capability and public package,
+not a new consumer module, assembly or public export. The existing Feature Module
+Standard adapter ownership therefore remains authoritative; no Get Modular
+construction/adoption or consumer conformance claim is introduced. The exact
+source boundary partitions dependency permission without creating another feature.
+
+Graph records are sorted before both signature serialization and exposed node
+output; ordered reference occurrences remain ordered. Cleanup independently
+attempts permission restoration and owned temporary-directory removal. Either
+failure retains invocation, model and diagnostic evidence, records an
+`owned-resource-cleanup` reason naming the operation and owned path, and makes
+the report incomplete with exit 2. Such paths identify cleanup debt for the
+operator; failure reports are not claimed byte-deterministic across disposable
+resource names.
+
+Qualified namespace import tokens and forwarded exports remain unsupported when
+compiler/model bindings cannot be established; they fail closed rather than
+borrowing unrelated import authority. Current synthetic tests do not establish
+an actual Get Modular A/B/C audit or consumer release admission.

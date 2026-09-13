@@ -1,3 +1,4 @@
+import { preparePublicApiExtractor, invokePublicApiExtractor } from "./prepare-public-api-extractor.js";
 import type { PublicApiSourceEvidence } from "../../../application/ports/public-api-evidence.js";
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,7 +7,6 @@ import { join } from "node:path";
 import {
   CompilerState,
   Extractor,
-  ExtractorConfig,
   ExtractorLogLevel
 } from "@microsoft/api-extractor";
 import {
@@ -171,53 +171,19 @@ async function extractEntrypoint(input: {
   const outputRoot = await mkdtemp(join(tmpdir(), "agent-teams-api-extractor-"));
   try {
     const apiJsonPath = join(outputRoot, "surface.api.json");
-    const config = ExtractorConfig.prepare({
-      configObject: {
-        projectFolder: input.packageRoot,
-        mainEntryPointFilePath: input.entryPointPath,
-        compiler: { tsconfigFilePath: input.tsconfigPath },
-        apiReport: { enabled: false },
-        docModel: {
-          enabled: true,
-          apiJsonFilePath: apiJsonPath,
-          includeForgottenExports: false
-        },
-        dtsRollup: { enabled: false },
-        tsdocMetadata: { enabled: false },
-        newlineKind: "lf",
-        testMode: true,
-        messages: {
-          compilerMessageReporting: {
-            default: { logLevel: ExtractorLogLevel.Error }
-          },
-          extractorMessageReporting: {
-            default: { logLevel: ExtractorLogLevel.Warning },
-            "ae-forgotten-export": { logLevel: ExtractorLogLevel.Error },
-            "ae-missing-release-tag": { logLevel: ExtractorLogLevel.None },
-            "ae-undocumented": { logLevel: ExtractorLogLevel.None }
-          },
-          tsdocMessageReporting: {
-            default: { logLevel: ExtractorLogLevel.Warning }
-          }
-        }
-      },
-      configObjectFullPath: undefined,
-      packageJsonFullPath: input.manifestPath,
-      projectFolderLookupToken: input.packageRoot
+    const config = preparePublicApiExtractor({
+      ...input,
+      apiJsonPath,
+      includeForgottenExports: false
     });
     const compilerState = CompilerState.create(config);
     assertCompilerInputBudget(compilerState);
     const errors: string[] = [];
-    const result = Extractor.invoke(config, {
-      compilerState,
-      localBuild: true,
-      showVerboseMessages: false,
-      messageCallback(message) {
+    const result = invokePublicApiExtractor(config, compilerState, (message) => {
         if (message.logLevel === ExtractorLogLevel.Error) {
           errors.push(message.messageId);
         }
         message.handled = true;
-      }
     });
     assertNotCancelled(input.signal);
     if (!result.succeeded || errors.length > 0) {

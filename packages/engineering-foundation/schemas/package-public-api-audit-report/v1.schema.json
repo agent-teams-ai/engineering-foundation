@@ -1,0 +1,1397 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-audit-report/v1",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/report"
+    },
+    {
+      "$ref": "#/$defs/invalidInput"
+    }
+  ],
+  "$defs": {
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "releaseEligible",
+        "foundationVersion",
+        "requestDigest",
+        "custody",
+        "observations",
+        "comparisons",
+        "evidenceComplete",
+        "errors",
+        "exitCode"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "operation": {
+          "const": "public-api-audit"
+        },
+        "releaseEligible": {
+          "const": false
+        },
+        "foundationVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requestDigest": {
+          "$ref": "#/$defs/digest"
+        },
+        "custody": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "supplied",
+            "archiveProvenanceVerified",
+            "buildExecutionVerified",
+            "archiveDigestVerified",
+            "archiveInventoryCompletenessVerified"
+          ],
+          "properties": {
+            "supplied": {
+              "$ref": "#/$defs/subjects"
+            },
+            "archiveProvenanceVerified": {
+              "const": false
+            },
+            "buildExecutionVerified": {
+              "const": false
+            },
+            "archiveDigestVerified": {
+              "const": false
+            },
+            "archiveInventoryCompletenessVerified": {
+              "const": false
+            }
+          }
+        },
+        "observations": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "subject",
+              "packageName",
+              "packageVersion",
+              "exportPath",
+              "toolchain",
+              "normalizationProfile",
+              "compilerEnvironment",
+              "compilerOptions",
+              "configurationDependencies",
+              "sourceFiles",
+              "externalDeclarations",
+              "diagnostics",
+              "compilerDiagnosticsCollected",
+              "invocation",
+              "modelPresent",
+              "items",
+              "inputBytesRevalidated",
+              "unsupported",
+              "modelExpected"
+            ],
+            "properties": {
+              "subject": {
+                "enum": [
+                  "A",
+                  "C"
+                ]
+              },
+              "packageName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "packageVersion": {
+                "type": "string",
+                "minLength": 1
+              },
+              "exportPath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "toolchain": {
+                "type": "string",
+                "minLength": 1
+              },
+              "normalizationProfile": {
+                "const": "foundation:public-api-audit:declaration-graph:1"
+              },
+              "compilerEnvironment": {
+                "type": "string",
+                "minLength": 1
+              },
+              "compilerOptions": {
+                "type": "object"
+              },
+              "configurationDependencies": {
+                "type": "array",
+                "maxItems": 4096,
+                "items": {
+                  "$ref": "#/$defs/inputFile"
+                }
+              },
+              "sourceFiles": {
+                "type": "array",
+                "maxItems": 4096,
+                "items": {
+                  "$ref": "#/$defs/inputFile"
+                }
+              },
+              "externalDeclarations": {
+                "type": "array",
+                "maxItems": 4096,
+                "items": {
+                  "$ref": "#/$defs/inputFile"
+                }
+              },
+              "diagnostics": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 4096,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "source",
+                    "id",
+                    "severity",
+                    "text"
+                  ],
+                  "properties": {
+                    "source": {
+                      "enum": [
+                        "compiler",
+                        "extractor",
+                        "input"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "severity": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "file": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "line": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                }
+              },
+              "compilerDiagnosticsCollected": {
+                "type": "boolean"
+              },
+              "invocation": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "outcome",
+                  "succeeded",
+                  "errorCount",
+                  "warningCount"
+                ],
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "completed",
+                      "exception",
+                      "not-invoked"
+                    ]
+                  },
+                  "succeeded": {
+                    "type": "boolean"
+                  },
+                  "errorCount": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "warningCount": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "exception": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "modelPresent": {
+                "type": "boolean"
+              },
+              "modelDigest": {
+                "$ref": "#/$defs/digest"
+              },
+              "items": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 4096,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "identity",
+                    "kind",
+                    "parentReference",
+                    "parentKind",
+                    "excerpt",
+                    "isExported",
+                    "public",
+                    "references",
+                    "displayName"
+                  ],
+                  "properties": {
+                    "identity": {
+                      "$ref": "#/$defs/scopedIdentity"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "parentReference": {
+                      "type": "string"
+                    },
+                    "parentKind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "excerpt": {
+                      "type": "string"
+                    },
+                    "isExported": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "public": {
+                      "type": "boolean"
+                    },
+                    "references": {
+                      "type": "array",
+                      "maxItems": 4096,
+                      "items": {
+                        "$ref": "#/$defs/referenceOccurrence"
+                      }
+                    },
+                    "displayName": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "inputBytesRevalidated": {
+                "type": "boolean"
+              },
+              "unsupported": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 4096,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "storedSurface": {
+                "$ref": "#/$defs/snapshot"
+              },
+              "modelExpected": {
+                "type": "boolean"
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "modelExpected": {
+                      "const": false
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "exportPath": {
+                      "type": "null"
+                    },
+                    "modelPresent": {
+                      "const": false
+                    },
+                    "items": {
+                      "maxItems": 0,
+                      "type": "array"
+                    },
+                    "invocation": {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "not-invoked"
+                        },
+                        "succeeded": {
+                          "const": false
+                        },
+                        "errorCount": {
+                          "type": "null"
+                        },
+                        "warningCount": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  },
+                  "not": {
+                    "required": [
+                      "modelDigest"
+                    ],
+                    "properties": {
+                      "modelDigest": {}
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "comparisons": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4096,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pair",
+              "packageName",
+              "scope",
+              "eligibility",
+              "limitations"
+            ],
+            "properties": {
+              "pair": {
+                "enum": [
+                  "A-B",
+                  "B-C",
+                  "A-C"
+                ]
+              },
+              "packageName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "enum": [
+                  "historical-stored-surface",
+                  "declaration-graph"
+                ]
+              },
+              "eligibility": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "eligible",
+                  "reasons"
+                ],
+                "properties": {
+                  "eligible": {
+                    "type": "boolean"
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 4096,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "eligible": {
+                          "const": true
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "reasons": {
+                          "maxItems": 0,
+                          "type": "array"
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "reasons": {
+                          "minItems": 1,
+                          "type": "array"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "limitations": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 4096,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "findings": {
+                "$ref": "#/$defs/findings"
+              },
+              "beforeProjection": {
+                "$ref": "#/$defs/projection"
+              },
+              "afterProjection": {
+                "$ref": "#/$defs/projection"
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "eligibility": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "eligible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "findings"
+                  ],
+                  "properties": {
+                    "findings": {}
+                  }
+                },
+                "else": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "findings"
+                        ],
+                        "properties": {
+                          "findings": {}
+                        }
+                      },
+                      {
+                        "required": [
+                          "beforeProjection"
+                        ],
+                        "properties": {
+                          "beforeProjection": {}
+                        }
+                      },
+                      {
+                        "required": [
+                          "afterProjection"
+                        ],
+                        "properties": {
+                          "afterProjection": {}
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "scope": {
+                      "const": "declaration-graph"
+                    },
+                    "eligibility": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "eligible"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "beforeProjection",
+                    "afterProjection"
+                  ],
+                  "properties": {
+                    "beforeProjection": {},
+                    "afterProjection": {}
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "scope": {
+                      "const": "historical-stored-surface"
+                    }
+                  }
+                },
+                "then": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "beforeProjection"
+                        ],
+                        "properties": {
+                          "beforeProjection": {}
+                        }
+                      },
+                      {
+                        "required": [
+                          "afterProjection"
+                        ],
+                        "properties": {
+                          "afterProjection": {}
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "evidenceComplete": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "exitCode": {
+          "enum": [
+            0,
+            2
+          ]
+        }
+      }
+    },
+    "invalidInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "operation",
+        "releaseEligible",
+        "evidenceComplete",
+        "exitCode",
+        "errors"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "operation": {
+          "const": "public-api-audit"
+        },
+        "releaseEligible": {
+          "const": false
+        },
+        "evidenceComplete": {
+          "const": false
+        },
+        "exitCode": {
+          "const": 2
+        },
+        "errors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "packageName",
+        "packageVersion",
+        "extractorVersion",
+        "entrypoints"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packageVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extractorVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entrypoints": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "exportPath",
+              "items"
+            ],
+            "properties": {
+              "exportPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "items": {
+                "type": "array",
+                "maxItems": 20000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "canonicalReference",
+                    "kind",
+                    "parentKind",
+                    "signature"
+                  ],
+                  "properties": {
+                    "canonicalReference": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "parentReference": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "parentKind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "signature": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "classification",
+        "addedEntrypoints",
+        "removedEntrypoints",
+        "added",
+        "removed",
+        "changed"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "classification": {
+          "enum": [
+            "none",
+            "additive",
+            "breaking"
+          ]
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "addedEntrypoints": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "removedEntrypoints": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "added": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "exportPath",
+              "canonicalReference"
+            ],
+            "properties": {
+              "exportPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "canonicalReference": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "removed": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "exportPath",
+              "canonicalReference"
+            ],
+            "properties": {
+              "exportPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "canonicalReference": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "changed": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "exportPath",
+              "canonicalReference"
+            ],
+            "properties": {
+              "exportPath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "canonicalReference": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot",
+        "graphs"
+      ],
+      "properties": {
+        "snapshot": {
+          "$ref": "#/$defs/snapshot"
+        },
+        "graphs": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "root",
+              "signature",
+              "nodes"
+            ],
+            "properties": {
+              "root": {
+                "$ref": "#/$defs/scopedIdentity"
+              },
+              "signature": {
+                "type": "string",
+                "minLength": 1
+              },
+              "nodes": {
+                "type": "array",
+                "maxItems": 20000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "identity",
+                    "kind",
+                    "parentReference",
+                    "parentKind",
+                    "excerpt",
+                    "isExported",
+                    "public",
+                    "references"
+                  ],
+                  "properties": {
+                    "identity": {
+                      "$ref": "#/$defs/coordinate"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "parentReference": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "parentKind": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "excerpt": {
+                      "type": "string"
+                    },
+                    "isExported": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "public": {
+                      "type": "boolean"
+                    },
+                    "references": {
+                      "type": "array",
+                      "maxItems": 20000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "text",
+                          "canonicalReference",
+                          "resolution"
+                        ],
+                        "properties": {
+                          "text": {
+                            "type": "string"
+                          },
+                          "canonicalReference": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "resolution": {
+                            "enum": [
+                              "local",
+                              "same-subject-dependency",
+                              "verified-external-library",
+                              "unresolved",
+                              "ambiguous"
+                            ]
+                          },
+                          "target": {
+                            "$ref": "#/$defs/coordinate"
+                          },
+                          "library": {
+                            "$ref": "#/$defs/libraryBinding"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "inputFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "declarationFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\.d\\.(?:ts|mts|cts)$"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportPath",
+        "declarationEntryPoint"
+      ],
+      "properties": {
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declarationEntryPoint": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "nonTypeExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportPath",
+        "kind"
+      ],
+      "properties": {
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "data",
+            "runtime",
+            "wildcard"
+          ]
+        }
+      }
+    },
+    "packageInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "packageVersion",
+        "manifestPath",
+        "tsconfigPath",
+        "entrypoints",
+        "nonTypeExports"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packageVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifestPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tsconfigPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entrypoints": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/entrypoint"
+          }
+        },
+        "nonTypeExports": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/nonTypeExport"
+          }
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "exportPath",
+        "declarationPath"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declarationPath": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "baselineInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "subjectA": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packages",
+        "files",
+        "resolutionUniverse",
+        "archive"
+      ],
+      "properties": {
+        "packages": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/packageInput"
+          },
+          "minItems": 1
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/inputFile"
+          },
+          "minItems": 1
+        },
+        "resolutionUniverse": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/resolution"
+          }
+        },
+        "archive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "digest",
+            "extractedMembers"
+          ],
+          "properties": {
+            "digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "extractedMembers": {
+              "type": "array",
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/inputFile"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "subjectC": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packages",
+        "files",
+        "resolutionUniverse",
+        "build"
+      ],
+      "properties": {
+        "packages": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/packageInput"
+          },
+          "minItems": 1
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/inputFile"
+          },
+          "minItems": 1
+        },
+        "resolutionUniverse": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/resolution"
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceIdentity",
+            "buildIdentity",
+            "declarations"
+          ],
+          "properties": {
+            "sourceIdentity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "buildIdentity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declarations": {
+              "type": "array",
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/declarationFile"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "subjects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "A",
+        "B",
+        "C"
+      ],
+      "properties": {
+        "A": {
+          "$ref": "#/$defs/subjectA"
+        },
+        "B": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baselines"
+          ],
+          "properties": {
+            "baselines": {
+              "type": "array",
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/baselineInput"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "C": {
+          "$ref": "#/$defs/subjectC"
+        }
+      }
+    },
+    "scopedIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject",
+        "packageName",
+        "exportPath",
+        "canonicalReference"
+      ],
+      "properties": {
+        "subject": {
+          "enum": [
+            "A",
+            "C"
+          ]
+        },
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonicalReference": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "libraryBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "declarations"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declarations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "referenceOccurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "canonicalReference",
+        "resolution"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "canonicalReference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "resolution": {
+          "enum": [
+            "local",
+            "same-subject-dependency",
+            "verified-external-library",
+            "unresolved",
+            "ambiguous"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/scopedIdentity"
+        },
+        "library": {
+          "$ref": "#/$defs/libraryBinding"
+        }
+      }
+    },
+    "coordinate": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    }
+  }
+}

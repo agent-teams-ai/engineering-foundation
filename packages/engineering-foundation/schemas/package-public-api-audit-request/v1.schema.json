@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-audit-request/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "subjects"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "subjects": {
+      "$ref": "#/$defs/subjects"
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "inputFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "declarationFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\.d\\.(?:ts|mts|cts)$"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportPath",
+        "declarationEntryPoint"
+      ],
+      "properties": {
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declarationEntryPoint": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "nonTypeExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportPath",
+        "kind"
+      ],
+      "properties": {
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "data",
+            "runtime",
+            "wildcard"
+          ]
+        }
+      }
+    },
+    "packageInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "packageVersion",
+        "manifestPath",
+        "tsconfigPath",
+        "entrypoints",
+        "nonTypeExports"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packageVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifestPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tsconfigPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entrypoints": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/entrypoint"
+          }
+        },
+        "nonTypeExports": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/nonTypeExport"
+          }
+        }
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "exportPath",
+        "declarationPath"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exportPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declarationPath": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "baselineInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "path",
+        "digest"
+      ],
+      "properties": {
+        "packageName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "subjectA": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packages",
+        "files",
+        "resolutionUniverse",
+        "archive"
+      ],
+      "properties": {
+        "packages": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/packageInput"
+          },
+          "minItems": 1
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/inputFile"
+          },
+          "minItems": 1
+        },
+        "resolutionUniverse": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/resolution"
+          }
+        },
+        "archive": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "digest",
+            "extractedMembers"
+          ],
+          "properties": {
+            "digest": {
+              "$ref": "#/$defs/digest"
+            },
+            "extractedMembers": {
+              "type": "array",
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/inputFile"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "subjectC": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packages",
+        "files",
+        "resolutionUniverse",
+        "build"
+      ],
+      "properties": {
+        "packages": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/packageInput"
+          },
+          "minItems": 1
+        },
+        "files": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/inputFile"
+          },
+          "minItems": 1
+        },
+        "resolutionUniverse": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/resolution"
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceIdentity",
+            "buildIdentity",
+            "declarations"
+          ],
+          "properties": {
+            "sourceIdentity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "buildIdentity": {
+              "type": "string",
+              "minLength": 1
+            },
+            "declarations": {
+              "type": "array",
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/declarationFile"
+              },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "subjects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "A",
+        "B",
+        "C"
+      ],
+      "properties": {
+        "A": {
+          "$ref": "#/$defs/subjectA"
+        },
+        "B": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baselines"
+          ],
+          "properties": {
+            "baselines": {
+              "type": "array",
+              "maxItems": 4096,
+              "items": {
+                "$ref": "#/$defs/baselineInput"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "C": {
+          "$ref": "#/$defs/subjectC"
+        }
+      }
+    }
+  }
+}

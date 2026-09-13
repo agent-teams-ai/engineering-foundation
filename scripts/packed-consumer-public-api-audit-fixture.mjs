@@ -83,6 +83,8 @@ export async function assertPublicApiAudit(fixture) {
 function assertObservations(observations, mode) {
         for (const observation of observations) {
           assert.equal(observation.invocation.succeeded, mode === "successful");
+          assert.deepEqual(observation.configurationDependencies.map(file => file.path).toSorted(), [`${observation.subject}/package.json`, `${observation.subject}/tsconfig.json`]);
+          assert.ok(observation.sourceFiles.some(file => file.path === `${observation.subject}/index.d.ts`));
           if (mode === "failed-extraction") {assert.ok(observation.diagnostics.some(diagnostic => diagnostic.id === "ae-forgotten-export" && diagnostic.severity === "error"));}
         }
 }

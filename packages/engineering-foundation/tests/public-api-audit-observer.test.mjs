@@ -304,3 +304,24 @@ test("audit portable input paths reject Windows absolutes and drive-relative esc
     await assert.rejects(auditInputPath("/unused", path), /Invalid audit path/);
   }
 });
+
+
+test("observer serializes native canonical temp inputs relative to the request root", async () => {
+  await fixture("export declare function f(): void;\n", async (observer, input) => {
+    // On Windows tmpdir may contain RUNNER~1 while native realpath expands it.
+    // A separate alias also exercises root canonicalization on POSIX hosts.
+    const aliases = await mkdtemp(join(tmpdir(), "foundation-audit-root-alias-"));
+    try {
+      const alias = join(aliases, "request");
+      await symlink(await realpath(input.consumerRoot), alias, "junction");
+      for (const consumerRoot of [input.consumerRoot, alias]) {
+        const [observation] = await observer.observe({ ...input, consumerRoot });
+        assert.deepEqual(observation.unsupported, []);
+        assert.equal(observation.inputBytesRevalidated, true);
+        assert.deepEqual(observation.configurationDependencies.map(file => file.path).toSorted(), ["package.json", "tsconfig.json"]);
+        assert.ok(observation.sourceFiles.some(file => file.path === "index.d.ts"));
+        assert.equal(publicApiAuditEligibility([observation]).eligible, true);
+      }
+    } finally { await rm(aliases, { recursive: true, force: true }); }
+  });
+});

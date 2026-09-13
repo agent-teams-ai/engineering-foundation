@@ -2,7 +2,7 @@ import { pinnedCompiler, compilerPath, compilerLibraryRoot, tsdocBasePath, pinne
 import { bindAuditCompilerReferences } from "./audit-compiler-bindings.js";
 import { stagePublicApiAudit, type AuditInputStage } from "../filesystem/stage-public-api-audit.js";
 import { createRequire } from "node:module";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
@@ -213,7 +213,7 @@ function compilerEnvironment(options: Readonly<Record<string, unknown>>, context
 async function observeEntrypoint(context: ObservationContext): Promise<AuditObservation> {
   const { input, allowed, pkg, entry } = context;
   assertNotCancelled(input.signal);
-  const outputRoot = realpathSync(await mkdtemp(join(tmpdir(), "foundation-public-api-audit-")));
+  const outputRoot = await realpath(await mkdtemp(join(tmpdir(), "foundation-public-api-audit-")));
   const stageRoot = join(outputRoot, "evidence");
   let effectiveContext = context;
   let stage: AuditInputStage | undefined;
@@ -315,7 +315,8 @@ export class MicrosoftPublicApiObserver implements PublicApiObserver {
   async observe(request: Parameters<PublicApiObserver["observe"]>[0]): Promise<readonly AuditObservation[]> {
     assertNotCancelled(request.signal);
     if (Extractor.version !== "7.58.12" || compiler.version !== "5.9.3" || (JSON.parse(readFileSync(join(dirname(dirname(require.resolve("@microsoft/api-extractor-model"))), "package.json"), "utf8")) as { readonly version: string }).version !== "7.33.10") {throw new Error("Unsupported audit toolchain: require Extractor 7.58.12 and its TypeScript 5.9.3.");}
-    const input = { ...request, consumerRoot: realpathSync(request.consumerRoot) };
+    // Match auditInputPath's native realpath: the JS sync variant can retain Windows 8.3 aliases.
+    const input = { ...request, consumerRoot: await realpath(request.consumerRoot) };
     const expectedModels = input.declarations.packages.reduce((total, pkg) => total + Math.max(1, pkg.entrypoints.length), 0);
     if (expectedModels > 64 || input.declarations.files.length > AUDIT_MAX_FILES) {throw new Error("Audit subject exceeds the 64-model or input-file budget.");}
     const allowed = new Map<string, string>();

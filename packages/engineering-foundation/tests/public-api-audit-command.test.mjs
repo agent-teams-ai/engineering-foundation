@@ -245,7 +245,7 @@ for (const fault of ["permission-restore", "removal", "both"]) {
       t.mock.method(fs, "chmod", async (path, mode) => {
         if (String(path).includes("foundation-public-api-audit-") && mode === 0o700) {
           restoreAttempts++;
-          if (fault !== "removal" && /\/[AC]$/u.test(String(path))) {
+          if (fault !== "removal" && /[\\/][AC]$/u.test(String(path))) {
             await originalChmod(path, mode);
             throw new Error("injected permission restoration failure");
           }

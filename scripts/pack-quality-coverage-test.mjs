@@ -31,6 +31,7 @@ export async function testPackedQualityCoverage({ consumerRoot, artifact }) {
 async function qualifyLayout({ consumerRoot, nested, artifact }) {
   const root = join(dirname(consumerRoot), nested ? "quality coverage nested consumer" : "quality coverage flat consumer");
   await mkdir(root, { recursive: true });
+  const physicalRoot = await realpath(root);
   await cp(join(consumerRoot, "node_modules"), join(root, "node_modules"), { recursive: true, verbatimSymlinks: true });
   await assertInstalledQualityArtifact({ consumerRoot: root, artifact });
   if (!nested) {
@@ -51,7 +52,7 @@ async function qualifyLayout({ consumerRoot, nested, artifact }) {
   const devDependencies = {};
   for (const name of ["@agent-teams/engineering-foundation", "oxlint", "oxlint-tsgolint", "typescript"]) {
     const manifestPath = await realpath(join(root, "node_modules", name, "package.json"));
-    const suffix = relative(root, manifestPath);
+    const suffix = relative(physicalRoot, manifestPath);
     assert.ok(!isAbsolute(suffix) && !suffix.startsWith(".."), `Packed dependency escapes consumer: ${name}`);
     devDependencies[name] = JSON.parse(await readFile(manifestPath, "utf8")).version;
   }

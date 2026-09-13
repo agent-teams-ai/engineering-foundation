@@ -27,7 +27,7 @@
     "foundation:qualification": "pnpm foundation:dogfood && pnpm package:check:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e",
     "foundation:check": "pnpm foundation:dogfood",
     "foundation:check:built": "node packages/engineering-foundation/dist/cli.js check --consumer .",
-    "lint": "pnpm lint:fast && pnpm lint:typed",
+    "lint": "pnpm lint:fast && pnpm build && pnpm lint:typed",
     "lint:fast": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config .",
     "lint:fast:files": "oxlint --config .oxlintrc.json --deny-warnings --disable-nested-config",
     "lint:typed": "node packages/engineering-foundation/dist/cli.js quality check --consumer .",

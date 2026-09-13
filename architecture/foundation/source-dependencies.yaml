@@ -735,6 +735,8 @@ boundaries:
       - packages/engineering-foundation/src/composition/foundation-check.ts
     allow:
       boundaries:
+        - foundation.quality-coverage.application
+        - foundation.quality-coverage.composition
         - capability.architecture-decisions.composition
         - capability.contract-json-schema.composition
         - capability.contract-protobuf.composition
@@ -2435,6 +2437,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/node-source-dependency-resolver.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/pnpm-source-workspace-topology-inspector.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/node/source-census-reader.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/oxc-source-dependency-parser.ts
   - id: capability.source-dependencies.composition
     roots:
@@ -3207,6 +3210,7 @@ boundaries:
       - packages/engineering-foundation/src/composition/command-host.ts
     allow:
       boundaries:
+        - foundation.quality-coverage.composition
         - capability.contract-json-schema.composition
         - foundation.source-inventory.composition
         - foundation.command-host.composition
@@ -3227,6 +3231,7 @@ boundaries:
       - packages/engineering-foundation/src/schema-ids.ts
     allow:
       boundaries:
+        - foundation.schema-contribution.quality-coverage
         - foundation.configuration-input.composition
         - foundation.schema-contribution.source-dependencies
         - foundation.schema-contribution.contract-json-schema-releases
@@ -3750,3 +3755,64 @@ boundaries:
         - node:test
       runtimeReferences: []
     entrypoints: []
+  - id: foundation.quality-coverage.application
+    roots:
+      - packages/engineering-foundation/src/features/quality-coverage/application
+      - packages/engineering-foundation/src/features/quality-coverage/api.ts
+    allow:
+      boundaries:
+        - foundation.validation-reporting.application
+        - foundation.process-execution.application
+        - foundation.source-inventory.application
+        - foundation.workspace-inventory.application
+        - capability.source-dependencies.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/features/quality-coverage/api.ts
+  - id: foundation.quality-coverage.adapters
+    roots:
+      - packages/engineering-foundation/src/features/quality-coverage/adapters
+      - packages/engineering-foundation/src/features/quality-coverage/node.ts
+    allow:
+      boundaries:
+        - foundation.quality-coverage.application
+      packages: []
+      builtins:
+        - node:path
+        - node:fs/promises
+        - node:module
+        - node:url
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/features/quality-coverage/node.ts
+  - id: foundation.schema-contribution.quality-coverage
+    roots:
+      - packages/engineering-foundation/src/features/quality-coverage/schemas.ts
+    entrypoints:
+      - packages/engineering-foundation/src/features/quality-coverage/schemas.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.quality-coverage.composition
+    roots:
+      - packages/engineering-foundation/src/composition/quality-coverage.ts
+    entrypoints:
+      - packages/engineering-foundation/src/composition/quality-coverage.ts
+    allow:
+      boundaries:
+        - capability.source-dependencies.composition
+        - capability.suppression-governance.composition
+        - foundation.configuration-input.composition
+        - foundation.source-inventory.composition
+        - foundation.workspace-inventory.composition
+        - foundation.schema-validation
+        - foundation.quality-coverage.application
+        - foundation.quality-coverage.adapters
+        - foundation.process-execution.application
+      packages: []
+      builtins: []
+      runtimeReferences: []

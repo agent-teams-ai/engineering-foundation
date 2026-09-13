@@ -58,3 +58,4 @@ export function createSuppressionGovernanceCapability(input: { readonly sourceRe
     }
   });
 }
+export { createSuppressionPolicyReader } from "./adapters/inbound/configuration/load-capability-config.js";

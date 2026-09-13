@@ -311,10 +311,11 @@ async function observedPackageRoot(
   path: string,
   entries: readonly Dirent[],
   selectors: ReadonlySet<string>,
-  observe: ((manifestPath: string) => Promise<boolean>) | undefined
+  observe: ((manifestPath: string) => Promise<boolean>) | undefined,
+  recursivePackages: boolean
 ): Promise<boolean> {
   const authority = observe === undefined ? true : await observe(childRepositoryPath(path, "package.json"));
-  return authority && isPackageRootLocation(path, selectors) &&
+  return authority && (recursivePackages || isPackageRootLocation(path, selectors)) &&
     entries.some((entry) => entry.name === "package.json" && entry.isFile());
 }
 
@@ -326,8 +327,10 @@ function recordDiscoveredFile(
     readonly budget: DiscoveryBudget;
     readonly limits: SourceWorkspaceDiscoveryLimits;
     readonly observesManifests: boolean;
+    readonly observeFile: ((repositoryPath: string) => void) | undefined;
   }
 ): void {
+  state.observeFile?.(repositoryPath);
   if (posix.basename(repositoryPath) === "package.json") {
     if (state.observesManifests) {
       state.manifestPaths.add(repositoryPath);
@@ -344,9 +347,11 @@ export async function discoverSourceWorkspacePaths(
   canonicalConsumerRoot: string,
   options: {
     readonly repositoryRoots: readonly string[];
+    readonly recursivePackages?: boolean;
     readonly rootSourceRoots?: readonly string[];
     readonly budget?: DiscoveryBudget;
     readonly observeManifest?: (manifestPath: string) => Promise<boolean>;
+    readonly observeFile?: (repositoryPath: string) => void;
     readonly selectedPackageRoots?: readonly string[];
     readonly governedRoots?: readonly string[];
     readonly boundaryRoots?: readonly string[];
@@ -409,7 +414,7 @@ export async function discoverSourceWorkspacePaths(
     // A package root is the configured path or a manifest-bearing direct child.
     // Nested source/type scopes cannot turn their coverage/dist into build output.
     const cursorIsPackageRoot = await observedPackageRoot(
-      cursor.repositoryPath, entries, repositoryRootIdentities, options.observeManifest
+      cursor.repositoryPath, entries, repositoryRootIdentities, options.observeManifest, options.recursivePackages === true
     );
     const childDirectories: DirectoryCursor[] = [];
     for (const entry of entries) {
@@ -434,7 +439,7 @@ export async function discoverSourceWorkspacePaths(
         childDirectories.push({ absolutePath, repositoryPath });
       } else if (entry.isFile()) {
         recordDiscoveredFile(repositoryPath, {
-          manifestPaths, sourcePaths, budget, limits,
+          manifestPaths, sourcePaths, budget, limits, observeFile: options.observeFile,
           observesManifests: options.observeManifest !== undefined
         });
       }

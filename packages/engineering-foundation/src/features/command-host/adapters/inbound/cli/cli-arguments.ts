@@ -19,6 +19,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "architecture-decisions-promote-baseline": 0,
   attach: 1,
   check: 1,
+  quality: 1,
   detach: 0,
   explain: 1,
   "gate.run": 1,
@@ -45,6 +46,7 @@ interface ArgumentState {
   baseRef?: string;
   bufExecutablePath?: string;
   write: boolean;
+  scopeOnly: boolean;
   optionsEnded: boolean;
 }
 
@@ -99,6 +101,11 @@ function consumeQualificationOption(
   const value = args[index];
   if (value === "--write") {
     state.write = true;
+    return 0;
+  }
+  if (value === "--scope-only") {
+    provideScalarOption(state, "--scope-only", "--scope-only");
+    state.scopeOnly = true;
     return 0;
   }
   if (value !== "--buf-executable") {
@@ -206,6 +213,9 @@ function validateNonDocumentCommandOptions(
   command: string,
   state: ArgumentState
 ): void {
+  if (state.scopeOnly && (command !== "quality" || state.positional[0] !== "check")) {
+    throw invalidCommand("--scope-only is supported only by quality check.");
+  }
   if (
     state.baseRef !== undefined &&
     (command !== "agent-workflow" || state.positional[0] !== "changed")
@@ -245,6 +255,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     format: "text",
     providedOptions: new Set<string>(),
     write: false,
+    scopeOnly: false,
     optionsEnded: false
   };
 
@@ -265,6 +276,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     configPath: state.configPath,
     format: state.format,
     write: state.write,
+    ...(state.scopeOnly ? { scopeOnly: true } : {}),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}

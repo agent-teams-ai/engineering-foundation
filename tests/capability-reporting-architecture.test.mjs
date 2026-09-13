@@ -63,21 +63,23 @@ test("selected modules retain construction order and registry projection identit
   const { CAPABILITY_MODULES } = await load("composition/capability-modules");
   const { createCapabilityRegistry, createRuleRegistries } = await load("features/validation-reporting/api");
   const selections = [
-    ["contract-json-schema-releases", "JSON_SCHEMA_RELEASE_RULES_BY_ID"],
-    ["contract-protobuf-evolution", "PROTOBUF_EVOLUTION_RULES_BY_ID"],
-    ["documentation-local-references", "DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID"],
-    ["executable-specifications", "EXECUTABLE_SPECIFICATION_RULES_BY_ID"],
-    ["governance-architecture-decisions", "ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID"],
-    ["public-api-compatibility", "PUBLIC_API_COMPATIBILITY_RULES_BY_ID"],
-    ["quality-gate-runner", "QUALITY_GATE_RUNNER_RULES_BY_ID"],
-    ["repository-agent-workflow", "REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID"],
-    ["repository-security-baseline", "REPOSITORY_SECURITY_RULES_BY_ID"],
-    ["source-dependencies", "SOURCE_DEPENDENCY_RULES_BY_ID"],
-    ["suppression-governance", "SUPPRESSION_GOVERNANCE_RULES_BY_ID"],
-    ["workspace-dependency-declarations", "RULES_BY_ID"]
+    ["features/quality-coverage/api", "QUALITY_COVERAGE_RULES_BY_ID"],
+    ["capabilities/contract-json-schema-releases/module", "JSON_SCHEMA_RELEASE_RULES_BY_ID"],
+    ["capabilities/contract-protobuf-evolution/module", "PROTOBUF_EVOLUTION_RULES_BY_ID"],
+    ["capabilities/documentation-local-references/module", "DOCUMENTATION_LOCAL_REFERENCE_RULES_BY_ID"],
+    ["capabilities/executable-specifications/module", "EXECUTABLE_SPECIFICATION_RULES_BY_ID"],
+    ["capabilities/governance-architecture-decisions/module", "ARCHITECTURE_DECISION_GOVERNANCE_RULES_BY_ID"],
+    ["capabilities/public-api-compatibility/module", "PUBLIC_API_COMPATIBILITY_RULES_BY_ID"],
+    ["capabilities/quality-gate-runner/module", "QUALITY_GATE_RUNNER_RULES_BY_ID"],
+    ["capabilities/repository-agent-workflow/module", "REPOSITORY_AGENT_WORKFLOW_RULES_BY_ID"],
+    ["capabilities/repository-security-baseline/module", "REPOSITORY_SECURITY_RULES_BY_ID"],
+    ["capabilities/source-dependencies/module", "SOURCE_DEPENDENCY_RULES_BY_ID"],
+    ["capabilities/suppression-governance/module", "SUPPRESSION_GOVERNANCE_RULES_BY_ID"],
+    ["capabilities/workspace-dependency-declarations/module", "RULES_BY_ID"]
   ];
   assert.equal(CAPABILITY_MODULES.length, selections.length);
   assert.deepEqual(CAPABILITY_MODULES.map(({ definition }) => definition.id), [
+    "quality.source-coverage",
     "contract.json-schema-releases", "contract.protobuf-evolution",
     "documentation.local-references", "quality.executable-specifications",
     "governance.architecture-decisions", "package.public-api-compatibility",
@@ -91,7 +93,7 @@ test("selected modules retain construction order and registry projection identit
   for (const [index, [path, exportedRules]] of selections.entries()) {
     const descriptor = CAPABILITY_MODULES[index];
     assert.ok(Object.isFrozen(descriptor));
-    assert.equal(descriptor.rules, (await load(`capabilities/${path}/module`))[exportedRules]);
+    assert.equal(descriptor.rules, (await load(path))[exportedRules]);
     assert.equal(capabilities.get(descriptor.definition.id), descriptor.definition);
     assert.equal(rules[index], descriptor.rules);
   }

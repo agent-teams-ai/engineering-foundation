@@ -2,7 +2,8 @@ import {
   invalidCommand,
   checkCommandExitCode,
   commandInputText,
-  commandFoundationText
+  commandFoundationText,
+  selectedCommandReport
 } from "../../../application/command-reporting.js";
 import { commandTransactionText, commandCancellationText } from "../../../application/command-failure.js";
 import type { CommandModeStatus, CommandDevOnlyStatus } from "../../../application/command-services.js";
@@ -92,6 +93,7 @@ function printHelp(): void {
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
   agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
+  agent-teams-foundation quality check [--scope-only] [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-audit --consumer <path> --config <request.json> --format json
@@ -199,6 +201,27 @@ async function runCheckCommand<SchemaId extends string>(
         ? `${JSON.stringify(report, null, 2)}\n`
         : services.renderCheck(report)
     );
+    process.exitCode = checkCommandExitCode(report.outcome);
+  });
+  return true;
+}
+
+async function runQualityCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>, parsed: ParsedArguments, json: boolean
+): Promise<boolean> {
+  if (parsed.command !== "quality") { return false; }
+  if (parsed.positional.length !== 1 || parsed.positional[0] !== "check") {
+    throw invalidCommand("quality requires the check subcommand.");
+  }
+  await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
+    const settings = await services.readConfig(parsed.consumerRoot, signal);
+    const declaration = settings.declaredCapabilities.find(({ id }) => id === "quality.source-coverage");
+    if (declaration === undefined) { throw invalidCommand("quality.source-coverage must be declared before quality check."); }
+    const report = selectedCommandReport(await services.qualityCoverage({
+      consumerRoot: parsed.consumerRoot, configPath: declaration.configPath,
+      scopeOnly: parsed.scopeOnly === true, signal
+    }), await services.installedVersion());
+    process.stdout.write(json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report));
     process.exitCode = checkCommandExitCode(report.outcome);
   });
   return true;
@@ -394,6 +417,7 @@ async function main<SchemaId extends string>(createServices: () => FoundationCom
   await dispatchFoundationCommand(parsed, [
     (input) => runLocalModeCommand(services, input, services.localMode, json),
     services.qualityGate,
+    (input) => runQualityCommand(services, input, json),
     (input) => runAgentWorkflowCommand(services, input),
     (input) => runProtobufQualificationCommand(services, input, json),
     (input) => runCheckCommand(services, input, json),

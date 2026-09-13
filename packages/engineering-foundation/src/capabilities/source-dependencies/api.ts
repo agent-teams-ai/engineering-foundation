@@ -1,4 +1,5 @@
 export type { SourceWorkspaceFileReader, SourceWorkspaceManifestLoader } from "./application/ports/source-workspace-evidence-reader.js";
+export type { SourceCensusReader } from "./application/ports/source-census-reader.js";
 export {
   assertSourceFileByteLimit,
   assertSourceManifestByteLimit,

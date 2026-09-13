@@ -28,7 +28,7 @@ const sourceDependenciesV2Path =
 const sourceDependenciesV3Path =
   "schemas/architecture-source-dependencies/v3.schema.json";
 const enumeratedNonV1SchemaPathsByRoot = new Map([
-  [packageRoot, [sourceDependenciesV2Path, sourceDependenciesV3Path, transactionEnvelopeV2Path]],
+  [packageRoot, [sourceDependenciesV2Path, sourceDependenciesV3Path, "schemas/foundation-config/v2.schema.json", transactionEnvelopeV2Path]],
   [documentAuthoringPackageRoot, [
     "schemas/document-authoring/document-plan/v2.schema.json",
     documentAuthoringProfileV2Path,

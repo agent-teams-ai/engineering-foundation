@@ -75,6 +75,20 @@ test("built test runner consumes the validated inventory without shell globs", (
   assert.throws(() => builtTestArguments({ tests: [] }), /non-empty validated test inventory/u);
 });
 
+test("feature tests retain closed manifest coverage and a bounded portable path", () => {
+  const input = fixture();
+  const path = "tests/features/quality-coverage/policy.test.mjs";
+  input.testPaths.push(path);
+  input.shardManifest.shards[0].tests.push(path);
+  assert.equal(validateTestManifestData(input).testCount, 5);
+  for (const invalid of ["tests/features/con/policy.test.mjs", "tests/features/quality/deep/policy.test.mjs", "tests/arbitrary/policy.test.mjs"]) {
+    const bad = structuredClone(input);
+    bad.testPaths[4] = invalid;
+    bad.shardManifest.shards[0].tests[1] = invalid;
+    assert.throws(() => validateTestManifestData(bad), /portable top-level test path/u);
+  }
+});
+
 test("test manifests fail closed for missing, duplicate, and nonexistent coverage tests", () => {
   const missing = fixture();
   missing.shardManifest.shards[0].tests = [];

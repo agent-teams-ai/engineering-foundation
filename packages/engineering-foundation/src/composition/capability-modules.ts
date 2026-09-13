@@ -2,6 +2,8 @@ import { readContainedRegularFile } from "../source-inventory/node.js";
 import { assertSchema, readFoundationSchema } from "../schema-catalog.js";
 import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
+import { qualityCoverageCapability } from "./quality-coverage.js";
+import { QUALITY_COVERAGE_RULES_BY_ID } from "../features/quality-coverage/api.js";
 import { createCapabilityModule, createCapabilityModules } from "../features/validation-reporting/api.js";
 import type { CapabilityModuleDescriptor } from "../features/validation-reporting/api.js";
 import {
@@ -64,6 +66,7 @@ const readAcceptedArchitectureDecisionEvidence = (input: Parameters<typeof readA
 
 export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
   createCapabilityModules([
+    createCapabilityModule(qualityCoverageCapability, QUALITY_COVERAGE_RULES_BY_ID),
     createCapabilityModule(
       createJsonSchemaReleaseCapability({ assertSchema }),
       JSON_SCHEMA_RELEASE_RULES_BY_ID

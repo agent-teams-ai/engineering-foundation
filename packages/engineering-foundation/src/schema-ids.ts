@@ -12,6 +12,7 @@ import { GOVERNANCE_ARCHITECTURE_DECISIONS_SCHEMA_IDS } from "./capabilities/gov
 import { PUBLIC_API_COMPATIBILITY_SCHEMA_IDS } from "./capabilities/public-api-compatibility/schemas.js";
 import { EXECUTABLE_SPECIFICATIONS_SCHEMA_IDS } from "./capabilities/executable-specifications/schemas.js";
 import { QUALITY_GATE_RUNNER_SCHEMA_IDS } from "./capabilities/quality-gate-runner/schemas.js";
+import { QUALITY_COVERAGE_SCHEMA_IDS } from "./features/quality-coverage/schemas.js";
 import { SUPPRESSION_GOVERNANCE_SCHEMA_IDS } from "./capabilities/suppression-governance/schemas.js";
 import { REPOSITORY_AGENT_WORKFLOW_SCHEMA_IDS } from "./capabilities/repository-agent-workflow/schemas.js";
 import { REPOSITORY_SECURITY_BASELINE_SCHEMA_IDS } from "./capabilities/repository-security-baseline/schemas.js";
@@ -31,6 +32,7 @@ const { schemaIds: FOUNDATION_SCHEMA_IDS, firstSchemaId } = createSchemaList([
   PUBLIC_API_COMPATIBILITY_SCHEMA_IDS,
   EXECUTABLE_SPECIFICATIONS_SCHEMA_IDS,
   QUALITY_GATE_RUNNER_SCHEMA_IDS,
+  QUALITY_COVERAGE_SCHEMA_IDS,
   SUPPRESSION_GOVERNANCE_SCHEMA_IDS,
   REPOSITORY_AGENT_WORKFLOW_SCHEMA_IDS,
   REPOSITORY_SECURITY_BASELINE_SCHEMA_IDS,

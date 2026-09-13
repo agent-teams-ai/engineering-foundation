@@ -1,5 +1,6 @@
 // Stable internal reporting protocol and metadata integrity; no adapter selection.
 export type {
+  CapabilityReport,
   RuleExplanation,
   DiagnosticEvidence,
   DiagnosticSeverity,

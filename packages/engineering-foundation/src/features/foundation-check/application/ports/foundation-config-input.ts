@@ -7,7 +7,7 @@ export interface FoundationConfigInput {
     signal?: AbortSignal
   ) => Promise<unknown>;
   readonly assertSchema: (
-    schemaId: "foundation-config/v1",
+    schemaId: "foundation-config/v1" | "foundation-config/v2",
     input: unknown,
     phase: string
   ) => Promise<void>;

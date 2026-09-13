@@ -8,5 +8,9 @@
   "ignorePatterns": [
     "packages/*/dist/**",
     "packages/*/node_modules/**"
-  ]
+  ],
+  "options": {
+    "respectEslintDisableDirectives": false,
+    "reportUnusedDisableDirectives": "error"
+  }
 }

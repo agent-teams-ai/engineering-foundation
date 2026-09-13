@@ -17,6 +17,7 @@ import { installedFoundationVersion } from "../../../transaction-coordination/ad
 import { runScaffoldingCliCommand } from "../../../scaffolding/composition/node-scaffolding.js";
 
 export interface CommandHostDependencies<SchemaId extends string> {
+  readonly createQualityCommand: (executor: ReturnType<typeof createManagedProcessExecutor>, nodeExecutable: string, environment: Readonly<NodeJS.ProcessEnv>) => FoundationCommandServices["qualityCoverage"];
   readonly artifactSchemaInspector: Parameters<typeof promotePublicApiRelease>[3];
   readonly scaffoldingApi: Parameters<typeof runScaffoldingCliCommand>[2];
   readonly assertSchema: Parameters<typeof createNodeQualityGateCommand>[2]
@@ -52,6 +53,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     readConfig: loadFoundationConfig,
     localMode: new FoundationLocalModeService({ runner: createNodeProcessRunner(environment), now: systemNow }),
     qualityGate: (input) => qualityGate(input, environment),
+    qualityCoverage: dependencies.createQualityCommand(processExecutor, process.execPath, environment),
     agentWorkflow: createNodeAgentWorkflowCommands({
       ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),

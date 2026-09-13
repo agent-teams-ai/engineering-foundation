@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
+import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
 import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
@@ -528,6 +529,7 @@ try {
     consumerRoot: fixture.consumerRoot,
     runPnpm
   });
+  await testPackedQualityCoverage({ consumerRoot: fixture.consumerRoot, artifact });
   await testPackedQualityGateRunner({
     consumerRoot: fixture.consumerRoot,
     runPnpm

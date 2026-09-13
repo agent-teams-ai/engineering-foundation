@@ -1,5 +1,8 @@
-import { CapabilityInputError, FoundationError, exitCodeForOutcome } from "../../validation-reporting/api.js";
-import type { FoundationOutcome } from "../../validation-reporting/api.js";
+import { CapabilityInputError, FoundationError, exitCodeForOutcome, foundationReport, type CapabilityReport, type FoundationOutcome } from "../../validation-reporting/api.js";
+
+export function selectedCommandReport(report: CapabilityReport, foundationVersion: string) {
+  return foundationReport({ foundationVersion, coverage: "selected", capabilities: [report] });
+}
 
 export interface FoundationCommandErrorEnvelope {
   readonly schemaVersion: 1;

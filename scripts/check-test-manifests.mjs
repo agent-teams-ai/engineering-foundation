@@ -12,6 +12,14 @@ const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
 const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
+function validTestRelativePath(path) {
+  const segments = path.split("/");
+  if (segments.length === 1) { return portableTestFilename.test(path); }
+  return segments.length === 3 && segments[0] === "features" &&
+    /^[a-z0-9][a-z0-9-]*$/u.test(segments[1]) && !windowsReservedTestName.test(segments[1]) &&
+    portableTestFilename.test(segments[2]) && !windowsReservedTestName.test(segments[2]);
+}
+
 function packageRootsForPackages(packages) {
   if (!Array.isArray(packages)) {
     fail("publishable packages must be an array");
@@ -62,7 +70,7 @@ function validatePath(path, label, allowedTestRoots) {
     ? allowedTestRoots.find((candidate) => path.startsWith(`${candidate}/`))
     : undefined;
   const filename = relativeRoot === undefined ? undefined : path.slice(relativeRoot.length + 1);
-  if (filename === undefined || filename.includes("/") || !portableTestFilename.test(filename)) {
+  if (filename === undefined || !validTestRelativePath(filename)) {
     fail(`${label} must be a portable top-level test path: ${String(path)}`);
   }
   if (windowsReservedTestName.test(filename)) {
@@ -299,8 +307,17 @@ export async function validateTestManifests() {
       const parentPath = entry.parentPath ?? entry.path;
       const path = join(parentPath, entry.name);
       const relativePath = path.slice(`${testsRoot}${sep}`.length).split(sep).join("/");
-      if (relativePath.includes("/")) {
+      if (!validTestRelativePath(relativePath)) {
         fail(`nested test files are prohibited: ${relativeRoot}/${relativePath}`);
+      }
+      // Admitted feature nesting must not hide a symlinked directory ancestor.
+      const ancestors = relativePath.split("/").slice(0, -1);
+      let ancestor = testsRoot;
+      for (const segment of ancestors) {
+        ancestor = join(ancestor, segment);
+        if ((await lstat(ancestor)).isSymbolicLink()) {
+          fail(`test directories may not be symlinks: ${relativeRoot}/${relativePath}`);
+        }
       }
       const stats = await lstat(path);
       if (stats.isSymbolicLink()) {

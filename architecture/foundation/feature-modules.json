@@ -766,11 +766,15 @@
           "layers": [
             {
               "role": "application",
-              "roots": ["packages/docs-protocol/src/features/qualification/application"]
+              "roots": [
+                "packages/docs-protocol/src/features/qualification/application"
+              ]
             },
             {
               "role": "adapters",
-              "roots": ["packages/docs-protocol/src/features/qualification/adapters"]
+              "roots": [
+                "packages/docs-protocol/src/features/qualification/adapters"
+              ]
             },
             {
               "role": "composition",
@@ -1890,11 +1894,35 @@
           "testRoots": [
             "tests/capability.test.mjs"
           ]
+        },
+        {
+          "id": "quality-coverage",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/features/quality-coverage/application",
+                "packages/engineering-foundation/src/features/quality-coverage/api.ts",
+                "packages/engineering-foundation/src/features/quality-coverage/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/features/quality-coverage/adapters",
+                "packages/engineering-foundation/src/features/quality-coverage/node.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/quality-coverage"
+          ]
         }
       ],
       "testRoots": [
         "tests",
-        "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs"
+        "packages/engineering-foundation/tests"
       ]
     }
   ],

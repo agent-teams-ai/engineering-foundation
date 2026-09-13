@@ -24,6 +24,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "gate.run": 1,
   help: 0,
   "public-api-promote-release": 0,
+  "public-api-audit": 0,
   "protobuf-qualify-breaking": 0,
   "scaffold-apply": 1,
   "scaffold-plan": 1,
@@ -196,6 +197,9 @@ function consumeArgument(
 
 function validateCommandOptions(command: string, state: ArgumentState): void {
   validateNonDocumentCommandOptions(command, state);
+  if (command === "public-api-audit" && (!state.configPathProvided || state.format !== "json")) {
+    throw invalidCommand("public-api-audit requires --config and --format json.");
+  }
 }
 
 function validateNonDocumentCommandOptions(
@@ -208,8 +212,8 @@ function validateNonDocumentCommandOptions(
   ) {
     throw invalidCommand("--base is supported only by agent-workflow changed.");
   }
-  if (state.configPathProvided && command !== "scaffold-plan") {
-    throw invalidCommand("--config is supported only by scaffold-plan.");
+  if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit") {
+    throw invalidCommand("--config is supported only by scaffold-plan or public-api-audit.");
   }
   if (state.write && command !== "protobuf-qualify-breaking") {
     throw invalidCommand("--write is supported only by protobuf-qualify-breaking.");

@@ -94,6 +94,7 @@ function printHelp(): void {
   agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
+  agent-teams-foundation public-api-audit --consumer <path> --config <request.json> --format json
   agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
   agent-teams-foundation protobuf-qualify-breaking --buf-executable <absolute-path> [--consumer <path>] [--write] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
@@ -304,6 +305,17 @@ async function runPolicyCommand<SchemaId extends string>(
           ? `${JSON.stringify(metadata, null, 2)}\n`
           : `${metadata.id}\n${metadata.rationale}\nFix: ${metadata.remediation}\nDocs: ${metadata.documentation}\n`
       );
+      return true;
+    }
+    case "public-api-audit": {
+      try {
+        const report = await services.cancellation.withSignal(["SIGINT", "SIGTERM"], (signal) => services.auditPublicApi({ consumerRoot: parsed.consumerRoot, configPath: parsed.configPath, signal }));
+        process.stdout.write(`${JSON.stringify(report)}\n`);
+        process.exitCode = report.exitCode;
+      } catch (error) {
+        process.stdout.write(`${JSON.stringify({ schemaVersion: 1, operation: "public-api-audit", releaseEligible: false, evidenceComplete: false, exitCode: 2, errors: [String(error)] })}\n`);
+        process.exitCode = 2;
+      }
       return true;
     }
     case "public-api-promote-release": {

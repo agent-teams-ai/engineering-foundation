@@ -57,6 +57,8 @@
     "schemas/foundation-transaction-envelope/v2.schema.json",
     "schemas/governance-architecture-decision-baseline/v1.schema.json",
     "schemas/governance-architecture-decisions/v1.schema.json",
+    "schemas/package-public-api-audit-request/v1.schema.json",
+    "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",

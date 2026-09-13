@@ -70,7 +70,12 @@
         "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
         "packages/docs-protocol/tests/portable-dx.test.mjs",
         "packages/engineering-foundation/tests/docs-protocol-public-api.test.mjs",
-        "packages/engineering-foundation/tests/managed-public-api.test.mjs"
+        "packages/engineering-foundation/tests/managed-public-api.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-projection.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs"
       ]
     },
     {

@@ -1563,13 +1563,15 @@
               "roots": [
                 "packages/engineering-foundation/src/capabilities/public-api-compatibility/application",
                 "packages/engineering-foundation/src/capabilities/public-api-compatibility/contract",
-                "packages/engineering-foundation/src/capabilities/public-api-compatibility/schemas.ts"
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/schemas.ts",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/api.ts"
               ]
             },
             {
               "role": "adapters",
               "roots": [
-                "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters"
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts"
               ]
             },
             {
@@ -1581,7 +1583,12 @@
           ],
           "testRoots": [
             "tests/capability-public-api.test.mjs",
-            "tests/public-api-evidence-ports.test.mjs"
+            "tests/public-api-evidence-ports.test.mjs",
+            "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
+            "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
+            "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
+            "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs",
+            "packages/engineering-foundation/tests/public-api-audit-projection.test.mjs"
           ]
         },
         {

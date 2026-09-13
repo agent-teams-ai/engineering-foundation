@@ -1,3 +1,4 @@
+import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.mjs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -455,6 +456,7 @@ export async function verifyPackedConsumer(input) {
   await assertExecutableGatePackagesAreWorkspaceScoped(fixture);
   await assertDevelopmentBoundaryMode(fixture);
   await assertPublicApiCompatibility(fixture);
+  await assertPublicApiAudit(fixture);
   await assertSuppressionGovernance(fixture);
   await assertRepositorySecurityBaseline(fixture);
   await assertBasePresets(fixture);

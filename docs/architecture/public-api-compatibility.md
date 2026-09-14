@@ -233,9 +233,12 @@ digest-checked and mapped at the per-package baseline boundary; a failure makes
 that package’s A-B/B-C comparisons unavailable and the report incomplete with
 exit 2, while independently valid A-C findings remain. Duplicate historical
 package names remain structural request errors. A/C input and custody
-inventories share a budget of 4,096 files and 32 MiB; each B file is bounded to
-32 MiB; each subject permits 64
-compiler/model observations and 64 MiB of retained observations. Comparison
+inventories share a budget of 4,096 files and 32 MiB. All declared B entries,
+including packages absent from A/C, share a separate audit-local budget of
+4,096 files and 32 MiB and are validated once inside the isolated package path.
+B-only packages remain unavailable for historical comparisons. B budget failures
+are retained as B errors without invalidating independent A-C evidence. Each
+subject permits 64 compiler/model observations and 64 MiB of retained observations. Comparison
 serialization is bounded to 16 MiB. Exhaustion makes the affected scope
 unavailable with a reason. Closed report schemas distinguish unavailable
 comparisons from findings and require the corresponding eligibility evidence.

@@ -81,7 +81,7 @@ function validateSortedEntrypoints(
 
 function baselineIdentity(
   baseline: Record<string, unknown>,
-  policy: PublicApiPackagePolicy
+  policy: Pick<PublicApiPackagePolicy, "packageName">
 ): { readonly packageName: string; readonly packageVersion: string } {
   const packageName = string(baseline["packageName"], "packageName");
   if (packageName !== policy.packageName) {
@@ -110,7 +110,7 @@ export function promotionBaselineSchemaId(
 
 export function mapReleasedBaseline(
   input: unknown,
-  policy: PublicApiPackagePolicy,
+  policy: Pick<PublicApiPackagePolicy, "packageName">,
   _allowReleaseMigration = false
 ): PublicApiSnapshot {
   const baseline = record(input, "released API baseline");

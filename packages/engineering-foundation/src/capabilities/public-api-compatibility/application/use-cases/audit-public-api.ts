@@ -94,6 +94,7 @@ export async function auditPublicApi(input: {
   const observations: AuditObservation[] = [];
   const comparisons: AuditComparison[] = [];
   const comparisonBudget = { characters: 0 };
+  const baselineBudget = { bytes: 0, files: 0 };
   const errors: string[] = [];
   for (const subject of ["A", "C"] as const) {
     assertNotCancelled(input.signal);
@@ -111,9 +112,8 @@ export async function auditPublicApi(input: {
     const cPackage = request.subjects.C.packages.find((pkg) => pkg.packageName === packageName);
     let baseline: PublicApiSnapshot | undefined;
     const b = request.subjects.B.baselines.find((pkg) => pkg.packageName === packageName);
-    const policy = aPackage ?? cPackage;
-    if (b !== undefined && policy !== undefined) {
-      try { baseline = await dependencies.inputs.baseline(input.consumerRoot, b, policy); }
+    if (b !== undefined) {
+      try { baseline = await dependencies.inputs.baseline(input.consumerRoot, b, baselineBudget); }
       catch (error) { errors.push(`B/${packageName}: ${String(error)}`); }
     }
     retainComparison(comparisons, historicalComparison({ pair: "A-B", packageName, observed: aPackage === undefined ? undefined : stored(a, aPackage), baseline, inputsRevalidated }, dependencies.fingerprint), comparisonBudget);

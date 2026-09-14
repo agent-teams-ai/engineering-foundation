@@ -4,7 +4,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
 import type { AuditDeclarationInput, AuditPackageInput } from "../../../contract/public-api-audit.js";
 import type { AuditFileIdentity } from "../../../application/model/public-api-observation.js";
-import type { PublicApiAuditInputs } from "../../../application/ports/public-api-observer.js";
+import type { AuditInputBudget, PublicApiAuditInputs } from "../../../application/ports/public-api-observer.js";
 import type { PublicApiPackagePolicy } from "../../../application/model/public-api.js";
 import { assertPackageExportCoverage } from "../../../application/policies/validate-package-export-coverage.js";
 import { mapReleasedBaseline } from "./public-api-baseline-mapper.js";
@@ -43,10 +43,20 @@ export async function auditInputPath(root: string, path: string): Promise<string
   if (!(await lstat(canonical)).isFile()) {throw new Error(`Audit input is not a regular file: ${path}.`);}
   return canonical;
 }
-export async function auditRead(root: string, path: string): Promise<Buffer> {
+export async function auditRead(root: string, path: string, budget?: AuditInputBudget): Promise<Buffer> {
+  if (budget !== undefined && ++budget.files > AUDIT_MAX_FILES) {throw new Error("Audit input file budget exhausted.");}
   const target = await auditInputPath(root, path);
-  if ((await lstat(target)).size > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
+  const size = (await lstat(target)).size;
+  if (budget !== undefined) {
+    budget.bytes += size;
+    if (budget.bytes > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
+  }
+  if (size > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
   const bytes = await readFile(target);
+  if (budget !== undefined) {
+    budget.bytes += bytes.length - size;
+    if (budget.bytes > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
+  }
   if (bytes.length > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
   return bytes;
 }
@@ -68,12 +78,12 @@ export class FilesystemPublicApiAuditInputs implements PublicApiAuditInputs {
     await this.revalidate(consumerRoot, request);
     return { request, digest: auditDigest(bytes) };
   }
-  async baseline(root: string, input: PublicApiAuditRequest["subjects"]["B"]["baselines"][number], policy: AuditPackageInput) {
-    const bytes = await auditRead(root, input.path);
+  async baseline(root: string, input: PublicApiAuditRequest["subjects"]["B"]["baselines"][number], budget: AuditInputBudget) {
+    const bytes = await auditRead(root, input.path, budget);
     if (auditDigest(bytes) !== input.digest) {throw new Error(`Baseline digest mismatch: ${input.path}.`);}
     const baseline: unknown = JSON.parse(bytes.toString("utf8"));
     await this.assertBaseline(baseline);
-    return mapReleasedBaseline(baseline, auditPackagePolicy(policy));
+    return mapReleasedBaseline(baseline, input);
   }
   async revalidate(root: string, request: PublicApiAuditRequest): Promise<void> {
     const budget = { bytes: 0, files: 0 };

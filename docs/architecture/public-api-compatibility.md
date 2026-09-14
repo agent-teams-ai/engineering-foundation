@@ -227,8 +227,14 @@ an Extractor invocation or invent a model. Empty projections retain package
 metadata, so removing the final typed export remains a comparable change.
 
 Admission is scoped to each package and its referenced dependencies. An unrelated
-invalid package or historical baseline does not erase available findings. Input
-inventories are bounded to 4,096 files and 32 MiB; each subject permits 64
+invalid package or historical baseline does not erase available findings. A/C
+input and custody validation remains fail-closed. Historical B files are read,
+digest-checked and mapped at the per-package baseline boundary; a failure makes
+that package’s A-B/B-C comparisons unavailable and the report incomplete with
+exit 2, while independently valid A-C findings remain. Duplicate historical
+package names remain structural request errors. A/C input and custody
+inventories share a budget of 4,096 files and 32 MiB; each B file is bounded to
+32 MiB; each subject permits 64
 compiler/model observations and 64 MiB of retained observations. Comparison
 serialization is bounded to 16 MiB. Exhaustion makes the affected scope
 unavailable with a reason. Closed report schemas distinguish unavailable

@@ -138,6 +138,62 @@ async function custodyFixture(root) {
   return { schemaVersion: 1, subjects };
 }
 
+for (const fault of ["missing", "digest-mismatch"]) {
+  test(`filesystem historical B ${fault} retains valid A-C findings`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-audit-baseline-isolation-"));
+    try {
+      const request = await custodyFixture(root);
+      const changed = '/** @internal */\nexport declare function _f(): number;\n';
+      await writeFile(join(root, "C/index.d.ts"), changed);
+      request.subjects.C.files = request.subjects.C.files.map(file => file.path === "C/index.d.ts" ? { ...file, digest: digest(changed) } : file);
+      request.subjects.C.build.declarations = request.subjects.C.files.filter(file => file.path.endsWith(".d.ts"));
+      const assertSchema = await schemas();
+      const run = async () => {
+        await writeFile(join(root, "request.json"), JSON.stringify(request));
+        return runPublicApiAudit({ consumerRoot: root, configPath: "request.json", foundationVersion: "1.2.0" }, assertSchema);
+      };
+      const valid = await run();
+      assert.equal(valid.exitCode, 0);
+      const rich = valid.comparisons.find(comparison => comparison.pair === "A-C");
+      assert.equal(rich.eligibility.eligible, true);
+      assert.equal(rich.findings.classification, "breaking");
+      if (fault === "missing") { await rm(join(root, "baseline.json")); }
+      else { await writeFile(join(root, "baseline.json"), "{}\n"); }
+      const report = await run();
+      await assertSchema("package-public-api-audit-report/v1", report);
+      assert.equal(report.exitCode, 2);
+      assert.equal(report.evidenceComplete, false);
+      assert.equal(report.releaseEligible, false);
+      assert.deepEqual(report.observations, valid.observations);
+      assert.deepEqual(report.comparisons.find(comparison => comparison.pair === "A-C"), rich);
+      assert.equal(report.errors.length, 1);
+      assert.match(report.errors[0], /^B\/audit-custody: /u);
+      assert.match(report.errors[0], fault === "missing" ? /ENOENT/u : /Baseline digest mismatch/u);
+      for (const comparison of report.comparisons.filter(comparison => comparison.pair !== "A-C")) {
+        assert.equal(comparison.eligibility.eligible, false);
+        assert.ok(comparison.eligibility.reasons.includes("stored-surface-unavailable"));
+        assert.equal(comparison.findings, undefined);
+      }
+      // Duplicate identities remain structural errors even when the first B is unreadable.
+      request.subjects.B.baselines.push({ ...request.subjects.B.baselines[0], path: "other.json" });
+      await assert.rejects(run(), /Duplicate historical package/u);
+      request.subjects.B.baselines.pop();
+      // B isolation must not relax the initial validation of either subject's custody.
+      for (const subject of ["A", "C"]) {
+        const custody = subject === "A" ? request.subjects.A.archive.extractedMembers : request.subjects.C.build.declarations;
+        const original = custody[0];
+        // Custody and input inventory entries share objects in the fixture.
+        // Replace the custody entry so only custody fails, while input bytes stay valid.
+        const independentCustody = custody.map((file, index) => index === 0 ? { ...file, digest: digest("invalid custody") } : file);
+        if (subject === "A") { request.subjects.A.archive.extractedMembers = independentCustody; }
+        else { request.subjects.C.build.declarations = independentCustody; }
+        await assert.rejects(run(), /Audit digest mismatch/u);
+        independentCustody[0] = original;
+      }
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}
+
 async function admitCustodyFile(root, request, path, content) {
   await writeFile(join(root, path), content);
   const subject = request.subjects.A;

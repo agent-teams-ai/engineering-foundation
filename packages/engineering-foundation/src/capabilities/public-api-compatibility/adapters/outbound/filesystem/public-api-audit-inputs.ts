@@ -82,11 +82,12 @@ export class FilesystemPublicApiAuditInputs implements PublicApiAuditInputs {
     if (request.subjects.C.files.some((file) => aPaths.has(file.path))) {throw new Error("A and C input universes must be disjoint.");}
     await validateCustody(root, request.subjects.A.archive.extractedMembers, request.subjects.A.files, budget);
     await validateCustody(root, request.subjects.C.build.declarations, request.subjects.C.files, budget);
+    // Historical bytes are validated by baseline(), inside the per-package boundary.
+    // Keep structural duplicate rejection here without coupling B failures to A/C.
     const names = new Set<string>();
     for (const baseline of request.subjects.B.baselines) {
       if (names.has(baseline.packageName)) {throw new Error("Duplicate historical package.");}
       names.add(baseline.packageName);
-      await verifyFile(root, baseline, budget);
     }
   }
 }

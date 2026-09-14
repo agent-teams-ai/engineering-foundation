@@ -15,6 +15,7 @@
       ],
       "project": [
         "scripts/*.mjs",
+        "scripts/feature-modules/commands.mjs",
         "tests/**/*.mjs"
       ]
     },

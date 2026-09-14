@@ -26,6 +26,8 @@ import type { SourceWorkspaceFileReader } from "./api.js";
 const fileReader: SourceWorkspaceFileReader = { read: readContainedRegularFile };
 
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
+export { createSourceCensusReader } from "./adapters/outbound/node/source-census-reader.js";
+export { createSourceArchitecturePolicyReader } from "./adapters/inbound/configuration/load-capability-config.js";
 
 export interface SourceDependenciesCapabilityDependencies {
   readonly assertSchema: SourceArchitectureConfigurationDependencies["assertSchema"];

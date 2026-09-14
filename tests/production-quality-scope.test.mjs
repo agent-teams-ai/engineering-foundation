@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import YAML from "yaml";
-import { checkProductionQuality, runProductionTypedLint } from "../scripts/check-production-quality.mjs";
+import { checkProductionQuality } from "../scripts/check-production-quality.mjs";
 import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 
 const repositoryPath = resolve(import.meta.dirname, "..");
@@ -36,6 +36,16 @@ async function fixture(t) {
   const check = () => checkProductionQuality({ repositoryRoot });
   return { repositoryRoot, write, check };
 }
+async function runProductionTypedLint({ repositoryRoot = repositoryPath, inventory = PUBLISHABLE_PACKAGES, selectionOnly = false, stdio = "pipe" } = {}) {
+  const cli = JSON.parse(await readFile(join(repositoryPath, "node_modules/oxlint/package.json"), "utf8"));
+  const bin = typeof cli.bin === "string" ? cli.bin : cli.bin.oxlint;
+  const result = spawnSync(process.execPath, [join(repositoryPath, "node_modules/oxlint", bin),
+    "--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config", "--no-ignore",
+    ...(selectionOnly ? ["--debug", "files"] : []), ...inventory.map(({ root }) => `${root}/src`)
+  ], { cwd: repositoryRoot, encoding: "utf8", maxBuffer: 8 * 1024 * 1024, stdio });
+  if (result.error) {throw result.error;}
+  return result;
+}
 test("covers all six packages from the existing inventory", async (t) => {
   const f = await fixture(t);
   const result = await f.check();
@@ -45,18 +55,6 @@ test("covers all six packages from the existing inventory", async (t) => {
 for (const [label, mutate, code] of [
   ["seventh uncatalogued production package", (f) => f.write("packages/new/package.json", { name: "@fixture/new", version: "1.0.0" }), "package-inventory"],
   ["uncatalogued private production package", (f) => f.write("packages/private/package.json", { name: "@fixture/private", private: true }), "package-inventory"],
-  ["single-package typed command", async (f) => {
-    const pkg = await readJson("package.json");
-    pkg.scripts["lint:typed"] = "oxlint packages/engineering-foundation/src";
-    await f.write("package.json", pkg);
-  }, "typed-command"],
-  ["typed source exclusion", async (f) => {
-    const config = await readJson(".oxlintrc.type-aware.json");
-    config.extends = config.extends.map((path) => resolve(repositoryPath, path));
-    config.ignorePatterns.push("packages/docs-protocol/src/**");
-    await f.write(".oxlintrc.type-aware.json", config);
-  }, "typed-coverage"],
-  ["missing suppression coverage", (f) => f.write("architecture/foundation/suppression-governance.yaml", "schemaVersion: 1\ngovernedRoots: [packages/engineering-foundation/src]\n"), "suppression-coverage"],
   ["single-package ambient scope", async (f) => {
     const path = "architecture/ast-grep/rules/no-ambient-clock.yml";
     const rule = YAML.parse(await readFile(join(repositoryPath, path), "utf8"));

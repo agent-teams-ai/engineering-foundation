@@ -1,7 +1,9 @@
-schemaVersion: 1
+schemaVersion: 2
 project:
   id: engineering-foundation
 capabilities:
+  quality.source-coverage:
+    configPath: architecture/foundation/quality-source-coverage.yaml
   architecture.source-dependencies:
     configPath: architecture/foundation/source-dependencies.yaml
   documentation.local-references:

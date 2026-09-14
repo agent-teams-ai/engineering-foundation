@@ -57,7 +57,7 @@ async function fixture(t, role = "platform") {
   await write("decision.md", "---\nid: ADR-9999\nstatus: accepted\n---\n# Adoption\n");
   await write("README.md", "[Architecture](architecture.md)\n");
   await write("pnpm-workspace.yaml", "packages:\n  - packages/*\n");
-  await write("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: { "check:fast": "pnpm architecture:features:check", check: "pnpm architecture:features:check && pnpm lint:typed && pnpm architecture:patterns", "lint:typed": "node scripts/check-production-quality.mjs typed", "architecture:patterns": "node scripts/run-ast-grep.mjs scan --config sgconfig.yml --error=unused-suppression", "architecture:features:check": "node scripts/check-feature-modules.mjs" } }));
+  await write("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: { "check:fast": "pnpm architecture:features:check", check: "pnpm architecture:features:check && pnpm lint:typed && pnpm architecture:patterns", "lint:typed": "node packages/engineering-foundation/dist/cli.js quality check --consumer .", "architecture:patterns": "node scripts/run-ast-grep.mjs scan --config sgconfig.yml --error=unused-suppression", "architecture:features:check": "node scripts/check-feature-modules.mjs" } }));
   await write(`${root}/package.json`, JSON.stringify({ name: "@fixture/example", version: "1.0.0", type: "module", exports: { ".": "./src/index.ts" } }));
   sourcePolicy.boundaries[2].allow.boundaries.push("alpha");
   await write(`${sourceRoot}/index.ts`, "export { execute } from './features/alpha/application/index.js';\n");

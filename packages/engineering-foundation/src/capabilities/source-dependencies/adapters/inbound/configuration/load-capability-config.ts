@@ -13,6 +13,11 @@ const SOURCE_ARCHITECTURE_SCHEMA_IDS = Object.freeze({
   3: "architecture-source-dependencies/v3"
 } as const);
 
+export function createSourceArchitecturePolicyReader(dependencies: SourceArchitectureConfigurationDependencies) {
+  return (consumerRoot: string, configPath: string, signal?: AbortSignal) =>
+    loadCapabilityConfig(dependencies, consumerRoot, configPath, signal);
+}
+
 export async function loadCapabilityConfig(
   dependencies: SourceArchitectureConfigurationDependencies,
   consumerRoot: string,

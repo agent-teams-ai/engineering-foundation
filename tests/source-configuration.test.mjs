@@ -164,11 +164,13 @@ test("installed schema reader observes the actual package root while custom read
 test("schema list declarations retain finite tuples and conservative open tails", async () => {
   const { execFile } = await import("node:child_process");
   const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
   const { dirname, join, relative, sep } = await import("node:path");
   const { fileURLToPath } = await import("node:url");
   const { promisify } = await import("node:util");
   const root = dirname(dirname(fileURLToPath(import.meta.url)));
-  const temporary = await mkdtemp(join(root, ".foundation-schema-list-types-"));
+  const temporaryBase = process.env["RUNNER_TEMP"] ?? tmpdir();
+  const temporary = await mkdtemp(join(temporaryBase, ".foundation-schema-list-types-"));
   const declaration = join(root, "packages/engineering-foundation/dist/features/configuration-input/application/schema-list.js");
   const specifier = relative(temporary, declaration).split(sep).join("/");
   try {

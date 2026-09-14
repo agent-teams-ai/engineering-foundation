@@ -1,0 +1,17 @@
+schemaVersion: 1
+sourcePolicyPath: architecture/foundation/source-dependencies.yaml
+suppressionPolicyPath: architecture/foundation/suppression-governance.yaml
+featureProfilePath: architecture/foundation/feature-modules.json
+lintConfigPath: .oxlintrc.type-aware.json
+compilerProjects:
+  - packages/repository-mutation/tsconfig.json
+  - packages/document-authoring/tsconfig.json
+  - packages/engineering-foundation/tsconfig.json
+  - packages/docs-protocol/tsconfig.json
+  - packages/docs-protocol-mcp/tsconfig.json
+  - packages/docs-protocol-agent-teams/tsconfig.json
+scripts:
+  fast: check:fast
+  full: check
+  scope: quality:coverage:scope
+  typed: lint:typed

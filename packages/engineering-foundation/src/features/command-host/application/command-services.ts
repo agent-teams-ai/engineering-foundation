@@ -1,6 +1,6 @@
 import type { PublicApiAuditReport } from "../../../capabilities/public-api-compatibility/api.js";
 import type { FoundationCheck, FoundationConfigReader } from "../../foundation-check/api.js";
-import type { CapabilityInvocation, FoundationCheckReport, RuleExplanation } from "../../validation-reporting/api.js";
+import type { CapabilityInvocation, CapabilityReport, FoundationCheckReport, RuleExplanation } from "../../validation-reporting/api.js";
 import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus, FoundationTransactionAwareStatus } from "../../../local-mode/api.js";
 import type { CommandInvocation } from "./command-invocation.js";
 
@@ -23,6 +23,7 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
     status(consumerRoot: string): Promise<FoundationStatus>;
   };
   readonly qualityGate: (input: CommandInvocation) => Promise<boolean>;
+  readonly qualityCoverage: (input: CapabilityInvocation & { readonly scopeOnly: boolean }) => Promise<CapabilityReport>;
   readonly agentWorkflow: {
     changed(input: CapabilityInvocation & { readonly format: "json" | "text"; readonly baseRef?: string }): Promise<void>;
     instructions(input: { readonly consumerRoot: string; readonly targetPath: string; readonly format: "json" | "text"; readonly signal?: AbortSignal }): Promise<void>;

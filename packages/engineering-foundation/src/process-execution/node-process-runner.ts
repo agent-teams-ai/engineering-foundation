@@ -293,6 +293,18 @@ async function normalExitResult(input: {
   };
 }
 
+function observeProcessOutputErrors(
+  child: ReturnType<typeof spawn>,
+  onError: (stream: "stdout" | "stderr", error: Error) => void
+): void {
+  child.stdout?.once("error", (error) => {
+    onError("stdout", error);
+  });
+  child.stderr?.once("error", (error) => {
+    onError("stderr", error);
+  });
+}
+
 export async function executeManagedProcess(
   request: ManagedProcessRequest
 ): Promise<ManagedProcessResult> {
@@ -423,6 +435,13 @@ export async function executeManagedProcess(
         destination.push(chunk);
       };
 
+      observeProcessOutputErrors(child, (stream, error) => {
+        const failure = processFailure(request, `${stream} stream failed.`, error);
+        completionFailure ??= failure;
+        if (!terminating) {
+          failAfterTermination(failure);
+        }
+      });
       child.stdout?.on("data", (chunk: Buffer) => {
         appendOutput(stdout, chunk, "stdout");
       });

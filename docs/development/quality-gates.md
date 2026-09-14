@@ -175,7 +175,7 @@ inside a normal capability check.
 
 ## Feature ownership and complete production scope
 
-`pnpm quality:scope:check` derives coverage from the existing public package inventory and rejects missing typed-lint, ambient-rule or suppression coverage. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.
+`pnpm quality:scope:check` retains EF-specific inventory, language, ambient-rule coverage and exact ambient exception validation. The [shared quality capability](../reference/quality-source-coverage.md) owns independent source/suppression coverage and actual Oxlint selection: `quality:coverage:scope` runs in the fast gate, and `lint:typed` runs the full CLI once in the full gate. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.
 
 ## Dependency updates
 

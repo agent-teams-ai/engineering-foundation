@@ -7,12 +7,13 @@ import { inspectFoundationPackage } from "./local-package-inspection.js";
 import { assertSchema, isFoundationSchemaId, readFoundationSchema } from "../schema-catalog.js";
 import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js";
 import { RULE_REGISTRY } from "./rule-registry.js";
+import { createQualityCommand } from "./quality-coverage.js";
 
 const host = createFoundationCommandHost({
   artifactSchemaInspector: new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile }),
   scaffoldingApi, FoundationLocalModeService, inspectFoundationPackage,
   assertSchema, isFoundationSchemaId, readFoundationSchema,
-  loadFoundationConfig, runFoundationCheck, RULE_REGISTRY
+  loadFoundationConfig, runFoundationCheck, RULE_REGISTRY, createQualityCommand
 });
 
 export async function runProcessFoundationCli(): Promise<void> {

@@ -31,6 +31,7 @@ const SOURCE_EXTENSIONS = new Set([
   ".ts",
   ".tsx"
 ]);
+const REPOSITORY_METADATA_DIRECTORY_NAMES = new Set([".git", "node_modules"]);
 const MAX_SOURCE_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_SOURCE_FILES = 100_000;
 const MAX_TOTAL_SOURCE_BYTES = 512 * 1024 * 1024;
@@ -119,6 +120,9 @@ function inspectSourceEntry(
   directories: string[],
   paths: string[]
 ): void {
+  if (REPOSITORY_METADATA_DIRECTORY_NAMES.has(entry.name)) {
+    return;
+  }
   if (entry.isSymbolicLink()) {
     sourceEntrySymlink(toPosixPath(relative(canonicalRoot, absoluteEntry)));
   }

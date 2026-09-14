@@ -75,7 +75,10 @@
         "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
         "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
         "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
-        "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs"
+        "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs",
+        "tests/features/quality-coverage/policy.test.mjs",
+        "tests/features/quality-coverage/oxlint-protocol.test.mjs",
+        "tests/features/quality-coverage/source-observations.test.mjs"
       ]
     },
     {

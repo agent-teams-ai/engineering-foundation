@@ -36,6 +36,7 @@ not repeat their rules.
 | Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
 | Deterministic quality gates | [Quality gate runner](reference/quality-gate-runner.md) | Implemented and post-build dogfooded; activation is explicit |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
+| Production quality coverage | [Coverage contract](reference/quality-source-coverage.md) | Implementation in progress; CLI and packed qualification pending |
 | Maintainability budgets | [Budget evaluation](research/maintainability-budget-evaluation.md) | Implemented and dogfooded; consumer adoption remains opt-in |
 | DeepSeek Harness tooling comparison | [Strict comparison](research/deepseek-harness-tooling-comparison.md) | Revalidated; selected adaptations adopted |
 | Agent architecture standard | [Design study](research/agent-architecture-standard-design.md) | Incubation direction accepted by ADR-0036; normative authority moves to the dedicated repository |

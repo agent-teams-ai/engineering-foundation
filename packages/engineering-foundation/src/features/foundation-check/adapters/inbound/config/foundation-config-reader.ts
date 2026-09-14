@@ -15,7 +15,8 @@ export function createFoundationConfigReader(
       "foundation-config",
       signal
     );
-    await assertSchema("foundation-config/v1", input, "foundation-config");
+    const version = typeof input === "object" && input !== null && "schemaVersion" in input ? input.schemaVersion : undefined;
+    await assertSchema(version === 2 ? "foundation-config/v2" : "foundation-config/v1", input, "foundation-config");
     return mapFoundationConfig(input, supportedCapabilityIds);
   };
 }

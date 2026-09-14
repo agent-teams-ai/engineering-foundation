@@ -6,6 +6,11 @@ export interface SuppressionConfigurationDependencies {
   readonly assertSchema: (schemaId: "quality-suppression-governance/v1", input: unknown, phase: string) => Promise<void>;
 }
 
+export function createSuppressionPolicyReader(dependencies: SuppressionConfigurationDependencies) {
+  return (consumerRoot: string, configPath: string, signal?: AbortSignal) =>
+    loadCapabilityConfig(dependencies, consumerRoot, configPath, signal);
+}
+
 export async function loadCapabilityConfig(
   dependencies: SuppressionConfigurationDependencies,
   consumerRoot: string,

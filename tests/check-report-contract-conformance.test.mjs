@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, relative, sep } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -61,10 +62,11 @@ function schemaType(schema, root, referenceStack = []) {
 
 async function assertSchemaConformance({ declarationName, declarationPath, schemaPath }) {
   const schema = JSON.parse(await readFile(schemaPath, "utf8"));
-  const temporaryRoot = await mkdtemp(join(repositoryRoot, ".foundation-report-conformance-"));
+  const temporaryBase = process.env["RUNNER_TEMP"] ?? tmpdir();
+  const temporaryRoot = await mkdtemp(join(temporaryBase, ".foundation-report-conformance-"));
   const sourcePath = join(temporaryRoot, "contract-conformance.ts");
   const relativeDeclarationPath = relative(temporaryRoot, declarationPath).split(sep).join("/");
-  const declarationSpecifier = relativeDeclarationPath.startsWith(".")
+  const declarationSpecifier = isAbsolute(relativeDeclarationPath) || relativeDeclarationPath.startsWith(".")
     ? relativeDeclarationPath
     : `./${relativeDeclarationPath}`;
   const source = [

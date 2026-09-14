@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -279,6 +279,32 @@ test("source and workspace readers retain cancellation, attribution and bytes", 
   await writeFile(join(root, "package.json"), '{"name":"fixture","dependencies":{"bad":42}}\n');
   await assert.rejects(new PnpmPackageManifestSnapshotReader({ read: readContainedRegularFile, pathTraversesSymbolicLink }).read(root, ["package.json"], []), problem({ code: "GOVERNED_INPUT_INVALID", message: "package.json dependencies must contain non-empty string values.", phase: "package-manifest" }));
   assert.throws(() => createWorkspaceInventoryReader().discoverManifestPathsFromManifest(root, { packages: "bad" }), problem({ code: "PNPM_WORKSPACE_INVALID", message: "pnpm-workspace.yaml packages must contain repository-relative POSIX glob patterns.", phase: "workspace-discovery" }));
+});
+
+test("source discovery ignores nested dependency symlinks and rejects source symlinks", async (t) => {
+  if (process.platform === "win32") {
+    return;
+  }
+  const root = await fixture(t);
+  const sourceRoot = join(root, "src");
+  const metadataTarget = join(root, "metadata-target");
+  const dependencyRoot = join(sourceRoot, "nested", "node_modules");
+  await mkdir(dependencyRoot, { recursive: true });
+  await mkdir(metadataTarget);
+  await writeFile(join(sourceRoot, "file.ts"), "export const value = 1;\n");
+  await writeFile(join(metadataTarget, "ignored.ts"), "export const ignored = true;\n");
+  await symlink(metadataTarget, join(dependencyRoot, "pg"), "dir");
+  await symlink(metadataTarget, join(sourceRoot, ".git"), "dir");
+
+  assert.deepEqual(await new FilesystemSourceTreeReader().read(root, ["src"]), [
+    { path: "src/file.ts", source: "export const value = 1;\n" }
+  ]);
+
+  await symlink(join(sourceRoot, "file.ts"), join(sourceRoot, "linked.ts"));
+  await assert.rejects(
+    new FilesystemSourceTreeReader().read(root, ["src"]),
+    problem({ code: "SOURCE_SYMLINK_PROHIBITED", message: "Source trees cannot contain symbolic links: src/linked.ts.", phase: "source-discovery" })
+  );
 });
 
 test("process launch and cleanup reporting preserves causes and diagnostic ordering", async () => {

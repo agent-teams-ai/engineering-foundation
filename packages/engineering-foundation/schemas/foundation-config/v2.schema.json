@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/foundation-config/v2",
+  "title": "Agent Teams Engineering Foundation configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "capabilities"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "contract.json-schema-releases": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "contract.protobuf-evolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "documentation.local-references": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "governance.architecture-decisions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "package.public-api-compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "repository.agent-workflow": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "quality.suppression-governance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "quality.gate-runner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "quality.executable-specifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "repository.security-baseline": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "architecture.source-dependencies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "workspace.dependency-declarations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        },
+        "quality.source-coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "configPath"
+          ],
+          "properties": {
+            "configPath": {
+              "$ref": "#/$defs/repositoryRelativeYamlPath"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repositoryRelativeYamlPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.ya?ml$"
+    }
+  }
+}

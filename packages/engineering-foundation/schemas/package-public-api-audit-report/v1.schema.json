@@ -44,6 +44,7 @@
           "$ref": "#/$defs/digest"
         },
         "custody": {
+          "description": "Content evidence under a caller-frozen namespace; namespace immutability and atomic path containment are not verified.",
           "type": "object",
           "additionalProperties": false,
           "required": [

@@ -18,9 +18,11 @@ export async function assertPublicApiAudit(fixture) {
     validators[kind] = ajv.compile(JSON.parse(await readFile(schemaPath, "utf8")));
   }
   const binary = join(fixture.toolEntrypoints.foundationRoot, fixture.packedManifest.bin["agent-teams-foundation"]);
-  const root = await mkdtemp(join(tmpdir(), "foundation-packed-public-api-audit-"));
-  try {
-    for (const mode of ["successful", "failed-extraction", "invalid-input"]) {
+  for (const mode of ["successful", "failed-extraction", "invalid-input"]) {
+    // Each producer gets a fresh namespace. All exclusive writes finish before
+    // launching a reader; no mode can rewrite an earlier audit's live inputs.
+    const root = await mkdtemp(join(tmpdir(), "foundation-packed-public-api-audit-"));
+    try {
       const expectedBytes = new Map();
       const subjects = {};
       for (const subject of ["A", "C"]) {
@@ -50,7 +52,7 @@ export async function assertPublicApiAudit(fixture) {
       assert.equal(validators.request(request), true, JSON.stringify(validators.request.errors));
       if (mode === "invalid-input") {request.eligible = true;}
       expectedBytes.set("request.json", JSON.stringify(request));
-      for (const [path, bytes] of expectedBytes) {await writeFile(join(root, path), bytes);}
+      for (const [path, bytes] of expectedBytes) {await writeFile(join(root, path), bytes, { flag: "wx" });}
       const args = [binary, "public-api-audit", "--consumer", root, "--config", "request.json", "--format", "json"];
       let stdout;
       if (mode === "successful") {
@@ -75,8 +77,8 @@ export async function assertPublicApiAudit(fixture) {
         assertObservations(report.observations, mode);
       }
       for (const [path, bytes] of expectedBytes) {assert.equal(await readFile(join(root, path), "utf8"), bytes, `Audit mutated ${path}`);}
-    }
-  } finally { await rm(root, { recursive: true, force: true }); }
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }
 }
 
 

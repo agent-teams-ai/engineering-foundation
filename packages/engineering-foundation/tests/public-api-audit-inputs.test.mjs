@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fsPromises from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
-import { mkdtemp, writeFile, mkdir, symlink, rm, open, rename, appendFile } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, symlink, rm, open, rename, appendFile, truncate } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -10,7 +10,7 @@ import { projectPublicApiObservation } from "../dist/capabilities/public-api-com
 import { classifyPublicApiChange } from "../dist/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.js";
 const fingerprint = { sha256: () => "test-only-fingerprint" };
 
-test("input containment rejects escapes, symlinks and oversized regular files", async () => {
+test("frozen-namespace path checks reject escapes, symlinks and oversized regular files", async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-audit-input-test-"));
   try {
     await mkdir(join(root, "inputs"));
@@ -67,8 +67,10 @@ for (const kind of ["files", "bytes"]) {
   });
 }
 
-for (const race of ["parent symlink", "replacement", "growth"]) {
-  test(`audit read rejects ${race} during file access and closes its handle`, async (t) => {
+const races = ["parent symlink", "replacement", "growth", "shrink"].flatMap((race) =>
+  [false, true].map((budgeted) => ({ race, budgeted })));
+for (const { race, budgeted } of races) {
+  test(`audit read rejects ${race} during file access and closes its handle (budgeted=${budgeted})`, async (t) => {
     const root = await mkdtemp(join(tmpdir(), "foundation-audit-race-"));
     const outside = await mkdtemp(join(tmpdir(), "foundation-audit-outside-"));
     const realOpen = fsPromises.open;
@@ -91,6 +93,7 @@ for (const race of ["parent symlink", "replacement", "growth"]) {
             if (!changed) {
               changed = true;
               if (race === "growth") {await appendFile(target, "more bytes");}
+              else if (race === "shrink") {await truncate(target, 0);}
               else {
                 await rename(target, join(root, "saved.d.ts"));
                 await writeFile(target, "replacement bytes");
@@ -102,8 +105,23 @@ for (const race of ["parent symlink", "replacement", "growth"]) {
         return captured;
       });
       syncBuiltinESMExports();
-      await assert.rejects(auditRead(root, "inputs/index.d.ts"), /symlink|changed/u);
+      const size = Buffer.byteLength("export {};\n");
+      const budget = { files: 0, bytes: AUDIT_MAX_BYTES - size };
+      await assert.rejects(auditRead(root, "inputs/index.d.ts", budgeted ? budget : undefined), budgeted ? /symlink|changed|budget/u : /symlink|changed/u);
       assert.equal(captured.fd, -1);
+      if (budgeted) {
+        assert.equal(budget.files, 1);
+        assert.ok(budget.bytes >= AUDIT_MAX_BYTES, "failed races must not refund reservations");
+        if (race === "growth") {assert.equal(budget.bytes, AUDIT_MAX_BYTES + 1);}
+        // Even after the failed read shrank to zero, a later B entry cannot use
+        // its reserved bytes. Restore the path before testing the next attempt.
+        if (race === "shrink") {
+          t.mock.restoreAll();
+          syncBuiltinESMExports();
+          await writeFile(target, "x");
+          await assert.rejects(auditRead(root, "inputs/index.d.ts", budget), /budget/u);
+        }
+      }
     } finally {
       t.mock.restoreAll();
       syncBuiltinESMExports();
@@ -112,3 +130,138 @@ for (const race of ["parent symlink", "replacement", "growth"]) {
     }
   });
 }
+
+// Deliberately violate the external freeze. Every path snapshot can be made
+// consistent with an outside handle: they are not an atomic containment proof.
+for (const matching of [false, true]) {
+  test(`toggled parents establish only content integrity (matching=${matching})`, async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-audit-toggle-"));
+    const outside = await mkdtemp(join(tmpdir(), "foundation-audit-toggle-outside-"));
+    const realOpen = fsPromises.open;
+    const realLstat = fsPromises.lstat;
+    const realRealpath = fsPromises.realpath;
+    let linked = false;
+    let captured;
+    let parsed = 0;
+    const parent = join(root, "inputs");
+    const saved = join(root, "saved");
+    const target = join(parent, "b.json");
+    async function selectOutside(value) {
+      if (value === linked) {return;}
+      if (value) {
+        await rename(parent, saved);
+        await symlink(outside, parent, "dir");
+      } else {
+        await rm(parent);
+        await rename(saved, parent);
+      }
+      linked = value;
+    }
+    try {
+      await mkdir(parent);
+      const json = JSON.stringify({ schemaVersion: 1, packageName: "budget", packageVersion: "1.0.0", extractorVersion: "test", items: [] });
+      await writeFile(target, json);
+      await writeFile(join(outside, "b.json"), matching ? json : json.replace("1.0.0", "2.0.0"));
+      t.mock.method(fsPromises, "realpath", async (...args) => {
+        await selectOutside(false);
+        return realRealpath(...args);
+      });
+      t.mock.method(fsPromises, "lstat", async (...args) => {
+        await selectOutside(args[0] === target);
+        return realLstat(...args);
+      });
+      t.mock.method(fsPromises, "open", async (...args) => {
+        await selectOutside(true);
+        captured = await realOpen(...args);
+        return captured;
+      });
+      syncBuiltinESMExports();
+      const inputs = new FilesystemPublicApiAuditInputs(async () => {}, async () => {parsed++;});
+      const entry = { packageName: "budget", path: "inputs/b.json", digest: auditDigest(json) };
+      const budget = { bytes: 0, files: 0 };
+      if (matching) {
+        assert.equal((await inputs.baseline(root, entry, budget)).packageVersion, "1.0.0");
+        assert.equal(parsed, 1);
+      } else {
+        await assert.rejects(inputs.baseline(root, entry, budget), /Baseline digest mismatch/u);
+        assert.equal(parsed, 0, "outside replacement must fail before baseline admission");
+      }
+      assert.equal(captured.fd, -1);
+      assert.equal(budget.bytes, Buffer.byteLength(json));
+      assert.equal(budget.files, 1);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      await selectOutside(false);
+      await rm(root, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+}
+
+test("stage creator exclusively seals a namespace before exposing readers", async () => {
+  const { stagePublicApiAudit } = await import("../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/stage-public-api-audit.js");
+  const root = await mkdtemp(join(tmpdir(), "foundation-audit-seal-"));
+  let stage;
+  try {
+    const path = join(root, "index.d.ts");
+    await writeFile(path, "export {};\n");
+    const allowed = new Map([[path, auditDigest("export {};\n")]]);
+    const destination = join(root, "stage");
+    // mkdir is the namespace admission barrier, not POSIX write permission.
+    // Two producers cannot both enter, even if both start before publication.
+    const attempts = await Promise.allSettled([
+      stagePublicApiAudit(root, allowed, destination),
+      stagePublicApiAudit(root, allowed, destination)
+    ]);
+    assert.equal(attempts.filter(result => result.status === "fulfilled").length, 1);
+    assert.equal(attempts.find(result => result.status === "rejected").reason.code, "EEXIST");
+    stage = attempts.find(result => result.status === "fulfilled").value;
+    allowed.clear();
+    assert.equal(stage.files.size, 1, "published inventory must not alias producer input");
+    await stage.revalidate();
+    await assert.rejects(stagePublicApiAudit(root, allowed, destination), { code: "EEXIST" });
+    await stage.release();
+    await assert.rejects(stage.revalidate(), /released/u);
+  } finally {
+    await stage?.release();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("package validation binds its second manifest read to the declared digest", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-audit-manifest-"));
+  const realOpen = fsPromises.open;
+  let reads = 0;
+  try {
+    const files = {
+      "package.json": JSON.stringify({ name: "audit", version: "1.0.0", exports: { ".": { types: "./index.d.ts" } } }),
+      "tsconfig.json": "{}",
+      "index.d.ts": "export {};\n"
+    };
+    for (const [path, bytes] of Object.entries(files)) {await writeFile(join(root, path), bytes);}
+    const inventory = Object.entries(files).map(([path, bytes]) => ({ path, digest: auditDigest(bytes) }));
+    const subject = {
+      packages: [{ packageName: "audit", packageVersion: "1.0.0", manifestPath: "package.json", tsconfigPath: "tsconfig.json",
+        entrypoints: [{ exportPath: ".", declarationEntryPoint: "index.d.ts" }], nonTypeExports: [] }],
+      files: inventory, resolutionUniverse: [{ packageName: "audit", exportPath: ".", declarationPath: "index.d.ts" }],
+      archive: { digest: auditDigest("archive"), extractedMembers: inventory }
+    };
+    t.mock.method(fsPromises, "open", async (...args) => {
+      if (args[0] === join(root, "package.json") && ++reads === 2) {
+        // Same identity and exports, different bytes: semantic checks alone
+        // would accept this reread and only a later pass might notice it.
+        await writeFile(args[0], `${files["package.json"]}\n`);
+      }
+      return realOpen(...args);
+    });
+    syncBuiltinESMExports();
+    const inputs = new FilesystemPublicApiAuditInputs(async () => {}, async () => {});
+    await assert.rejects(inputs.revalidate(root, { subjects: { A: subject, B: { baselines: [] }, C: subject } }), /Audit digest mismatch: package.json/u);
+    assert.equal(reads, 2);
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    await rm(root, { recursive: true, force: true });
+  }
+});

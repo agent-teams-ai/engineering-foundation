@@ -28,7 +28,10 @@ export function remapAuditStagePath(path: string, stageRoot: string, inputRoot: 
   const local = auditRelativePath(stageRoot, path, paths);
   return local === undefined ? path : paths.resolve(inputRoot, local);
 }
-/** Reject lexical escapes and symlinks, including symlinked parent directories. */
+/** Check paths in a caller-frozen namespace; these snapshots are not atomic containment.
+ * Node open has no portable directory-handle-relative lookup. O_NOFOLLOW below
+ * protects only the final component on POSIX, not adversarial parent replacement.
+ */
 export async function auditInputPath(root: string, path: string): Promise<string> {
   if (!path || isAbsolute(path) || win32.isAbsolute(path) || path.includes(":") || path.includes("\\") || path.split("/").some((part) => !part || part === "." || part === "..")) {throw new Error(`Invalid audit path: ${path}.`);}
   const canonicalRoot = await realpath(root);
@@ -53,6 +56,10 @@ async function assertAuditHandlePath(root: string, path: string, target: string,
     throw new Error(`Audit input changed: ${path}.`);
   }
 }
+/** Bounded handle read, with best-effort mutation detection. The caller must keep
+ * the root, its ancestors and entries immutable for the entire audit. Inventory
+ * digests establish content integrity, never the provenance of the opened path.
+ */
 export async function auditRead(root: string, path: string, budget?: AuditInputBudget): Promise<Buffer> {
   if (budget !== undefined && ++budget.files > AUDIT_MAX_FILES) {throw new Error("Audit input file budget exhausted.");}
   const canonicalRoot = await realpath(root);
@@ -80,7 +87,9 @@ export async function auditRead(root: string, path: string, budget?: AuditInputB
       if (bytesRead === 0) {break;}
       count += bytesRead;
     }
-    if (budget !== undefined) {budget.bytes += count - size;}
+    // Reservations are never refunded on shrink/failure: later B entries must
+    // not recover a budget spent allocating and attempting an earlier read.
+    if (budget !== undefined) {budget.bytes += Math.max(0, count - size);}
     if (count > AUDIT_MAX_BYTES || (budget !== undefined && budget.bytes > AUDIT_MAX_BYTES)) {
       throw new Error("Audit input byte budget exhausted.");
     }
@@ -151,11 +160,13 @@ async function verifyInventory(root: string, files: readonly AuditFileIdentity[]
   }
   return paths;
 }
-async function validatePackage(root: string, pkg: AuditPackageInput, paths: ReadonlySet<string>): Promise<void> {
+async function validatePackage(root: string, pkg: AuditPackageInput, paths: ReadonlySet<string>, files: readonly AuditFileIdentity[]): Promise<void> {
   for (const path of [pkg.manifestPath, pkg.tsconfigPath, ...pkg.entrypoints.map((entry) => entry.declarationEntryPoint)]) {
     if (!paths.has(path)) {throw new Error(`Missing declared input digest: ${path}.`);}
   }
-  const manifest = JSON.parse((await auditRead(root, pkg.manifestPath)).toString("utf8")) as { name?: unknown; version?: unknown };
+  const bytes = await auditRead(root, pkg.manifestPath);
+  if (auditDigest(bytes) !== files.find((file) => file.path === pkg.manifestPath)?.digest) {throw new Error(`Audit digest mismatch: ${pkg.manifestPath}.`);}
+  const manifest = JSON.parse(bytes.toString("utf8")) as { name?: unknown; version?: unknown };
   if (manifest.name !== pkg.packageName || manifest.version !== pkg.packageVersion) {throw new Error("Audit package identity mismatch.");}
   assertPackageExportCoverage({ manifest, policy: auditPackagePolicy(pkg) });
 }
@@ -165,7 +176,7 @@ async function validateSubject(root: string, subject: AuditDeclarationInput, bud
   for (const pkg of subject.packages) {
     if (names.has(pkg.packageName)) {throw new Error("Duplicate audit package.");}
     names.add(pkg.packageName);
-    await validatePackage(root, pkg, paths);
+    await validatePackage(root, pkg, paths, subject.files);
   }
   const expected = subject.packages.flatMap((pkg) => pkg.entrypoints.map((entry) => JSON.stringify([pkg.packageName, entry.exportPath, entry.declarationEntryPoint]))).toSorted();
   const actual = subject.resolutionUniverse.map((entry) => JSON.stringify([entry.packageName, entry.exportPath, entry.declarationPath])).toSorted();

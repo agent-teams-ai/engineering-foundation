@@ -20,6 +20,7 @@ export interface PublicApiAuditReport {
   readonly releaseEligible: false;
   readonly foundationVersion: string;
   readonly requestDigest: string;
+  /** Content evidence only; caller namespace immutability and atomic path containment are not verified. */
   readonly custody: { readonly supplied: PublicApiAuditRequest["subjects"]; readonly archiveProvenanceVerified: false; readonly archiveDigestVerified: false; readonly archiveInventoryCompletenessVerified: false; readonly buildExecutionVerified: false };
   readonly observations: readonly AuditObservation[];
   readonly comparisons: readonly AuditComparison[];

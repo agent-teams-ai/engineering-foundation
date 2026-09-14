@@ -170,6 +170,31 @@ input digests and a subject-local resolution universe. Archive and build custody
 are supplied assertions; the command verifies supplied member/declaration bytes,
 not registry provenance or execution of the claimed build.
 
+The custody contract is content-addressed integrity under a caller-frozen input
+namespace. The request is trusted configuration; its recorded digest is an
+identity, not an independently authenticated trust anchor. Before invoking the
+command, the evidence producer must finish and close all extraction/build writes,
+then exclude writers to the evidence root, its ancestors, directory entries and
+files until the audit finishes. Use a private, single-producer evidence directory
+or an externally enforced immutable snapshot. A live build/extraction tree is
+unsupported. This external freeze is a precondition, not a verified report fact.
+Same-user adversarial writers and privileged writers are outside this contract.
+
+Node's supported filesystem API has no portable `openat`/`openat2` directory
+handle lookup on Windows, macOS and Linux. `O_NOFOLLOW` protects only the last
+component on POSIX. Path `lstat`/`realpath` checks and handle snapshots detect
+ordinary changes but cannot prove atomic parent containment: a writer can toggle
+parents between every check and open. Consequently the auditor is not a sandbox
+for hostile mutable paths, cannot promise that it never opens outside files, and
+does not establish the physical provenance of matching bytes. Inventory digest
+mismatches fail closed before baseline parsing or package-manifest use; matching
+bytes alone never establish namespace custody. Repeated checks remain useful
+mutation diagnostics, not evidence that the external freeze was enforced.
+The regression deliberately toggles a parent between path checks and open:
+different outside baseline bytes are rejected before admission, while identical
+bytes are accepted without a containment claim. A separate concurrent-producer
+test proves exclusive stage creation; it does not simulate an OS sandbox.
+
 Compiler diagnostics are collected from the pinned Extractor compiler Program
 independently of message callbacks. Configuration dependencies and compiler
 source files retain digests. A verified compiler host exposes only declared
@@ -177,15 +202,20 @@ subject files and actual pinned standard libraries. Existing nested and enclosin
 package manifests must be inventoried; their digests and subsequent presence are
 revalidated. An enclosing manifest outside the evidence root is unsupported;
 prepare evidence beneath a root where every influencing manifest can be declared.
-Extractor receives a private staged copy of admitted bytes, with read-only files
-and directories, rather than paths into consumer evidence. Adjacent declaration
-maps and mapped sources must be inventoried; flat v3 maps are supported and
+Extractor receives a private staged copy of admitted bytes. The stage creator
+exclusively creates a fresh directory, captures its inventory, completes every
+write before publishing the stage, and rejects a second producer at the same
+path. Release ends the stage lifetime and further revalidation fails. This is the
+deterministic single-producer freeze barrier; it is independent of platform chmod
+semantics. Read-only files and directories add defense in depth, but do not stop
+an external same-user writer, nor freeze the original consumer namespace.
+Adjacent declaration maps and mapped sources must be inventoried; flat v3 maps are supported and
 indexed maps remain an explicit unsupported boundary. Map sources and manifest
 metadata paths must remain inside the subject's admitted inventory. Undeclared
 map or TSDoc metadata presence, escaping paths, and symlinks fail before SDK use.
 Relevant absence observations and both original and staged bytes are revalidated;
-changes cannot produce complete evidence. Staged paths are translated back to
-input coordinates in compiler evidence. The copy is removed after observation.
+detected changes prevent complete evidence under the frozen-namespace
+precondition. Staged paths are translated back to input coordinates in compiler evidence. The copy is removed after observation.
 The observer supplies the same verified Program to Extractor and the independent
 diagnostic collector, avoiding the unrestricted compiler-state factory.
 Declaration-only inputs, explicit config files,
@@ -236,7 +266,9 @@ package names remain structural request errors. A/C input and custody
 inventories share a budget of 4,096 files and 32 MiB. All declared B entries,
 including packages absent from A/C, share a separate audit-local budget of
 4,096 files and 32 MiB and are validated once inside the isolated package path.
-B-only packages remain unavailable for historical comparisons. B budget failures
+Byte reservations are monotonic even when a file shrinks or a read fails; a
+growth probe is charged in addition to the original reservation. B-only packages
+remain unavailable for historical comparisons. B budget failures
 are retained as B errors without invalidating independent A-C evidence. Each
 subject permits 64 compiler/model observations and 64 MiB of retained observations. Comparison
 serialization is bounded to 16 MiB. Exhaustion makes the affected scope

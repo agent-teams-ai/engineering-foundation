@@ -17,6 +17,10 @@ export interface AuditDeclarationInput {
   readonly files: readonly AuditFileIdentity[];
   readonly resolutionUniverse: readonly { readonly packageName: string; readonly exportPath: string; readonly declarationPath: string }[];
 }
+/** Content-addressed evidence in an externally frozen namespace. Preparation
+ * must finish and all writers must be excluded before the request is consumed;
+ * the auditor cannot verify that external custody precondition.
+ */
 export interface PublicApiAuditRequest {
   readonly schemaVersion: 1;
   readonly subjects: {

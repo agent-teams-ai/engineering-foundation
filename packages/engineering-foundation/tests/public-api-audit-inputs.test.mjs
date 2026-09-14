@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, mkdir, symlink, rm, open } from "node:fs/promises";
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
+import { mkdtemp, writeFile, mkdir, symlink, rm, open, rename, appendFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -62,5 +64,51 @@ for (const kind of ["files", "bytes"]) {
       // Concurrent audits using the same adapter have independent counters.
       await Promise.all([inputs.baseline(root, entry, { bytes: 0, files: 0 }), inputs.baseline(root, entry, { bytes: 0, files: 0 })]);
     } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}
+
+for (const race of ["parent symlink", "replacement", "growth"]) {
+  test(`audit read rejects ${race} during file access and closes its handle`, async (t) => {
+    const root = await mkdtemp(join(tmpdir(), "foundation-audit-race-"));
+    const outside = await mkdtemp(join(tmpdir(), "foundation-audit-outside-"));
+    const realOpen = fsPromises.open;
+    let captured;
+    try {
+      await mkdir(join(root, "inputs"));
+      const target = join(root, "inputs", "index.d.ts");
+      await writeFile(target, "export {};\n");
+      await writeFile(join(outside, "index.d.ts"), "outside bytes");
+      t.mock.method(fsPromises, "open", async (...args) => {
+        if (race === "parent symlink") {
+          await rename(join(root, "inputs"), join(root, "saved"));
+          await symlink(outside, join(root, "inputs"), "dir");
+        }
+        captured = await realOpen(...args);
+        if (race !== "parent symlink") {
+          const read = captured.read.bind(captured);
+          let changed = false;
+          t.mock.method(captured, "read", async (...readArgs) => {
+            if (!changed) {
+              changed = true;
+              if (race === "growth") {await appendFile(target, "more bytes");}
+              else {
+                await rename(target, join(root, "saved.d.ts"));
+                await writeFile(target, "replacement bytes");
+              }
+            }
+            return read(...readArgs);
+          });
+        }
+        return captured;
+      });
+      syncBuiltinESMExports();
+      await assert.rejects(auditRead(root, "inputs/index.d.ts"), /symlink|changed/u);
+      assert.equal(captured.fd, -1);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+      await rm(root, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 }

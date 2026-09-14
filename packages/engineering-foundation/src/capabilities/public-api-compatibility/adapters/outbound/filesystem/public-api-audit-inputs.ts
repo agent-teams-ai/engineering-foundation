@@ -1,6 +1,7 @@
 import type { PublicApiAuditRequest } from "../../../api.js";
 import { createHash } from "node:crypto";
-import { lstat, readFile, realpath } from "node:fs/promises";
+import { constants, type BigIntStats } from "node:fs";
+import { lstat, open, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep, win32 } from "node:path";
 import type { AuditDeclarationInput, AuditPackageInput } from "../../../contract/public-api-audit.js";
 import type { AuditFileIdentity } from "../../../application/model/public-api-observation.js";
@@ -43,22 +44,54 @@ export async function auditInputPath(root: string, path: string): Promise<string
   if (!(await lstat(canonical)).isFile()) {throw new Error(`Audit input is not a regular file: ${path}.`);}
   return canonical;
 }
+function auditFileSnapshot(stat: BigIntStats): string {
+  return [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
+}
+async function assertAuditHandlePath(root: string, path: string, target: string, opened: BigIntStats): Promise<void> {
+  if (await auditInputPath(root, path) !== target ||
+    auditFileSnapshot(await lstat(target, { bigint: true })) !== auditFileSnapshot(opened)) {
+    throw new Error(`Audit input changed: ${path}.`);
+  }
+}
 export async function auditRead(root: string, path: string, budget?: AuditInputBudget): Promise<Buffer> {
   if (budget !== undefined && ++budget.files > AUDIT_MAX_FILES) {throw new Error("Audit input file budget exhausted.");}
-  const target = await auditInputPath(root, path);
-  const size = (await lstat(target)).size;
-  if (budget !== undefined) {
-    budget.bytes += size;
-    if (budget.bytes > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
+  const canonicalRoot = await realpath(root);
+  const target = await auditInputPath(canonicalRoot, path);
+  // Match the contained-file reader: Windows does not support these POSIX flags.
+  // NONBLOCK prevents a raced-in FIFO from hanging before handle validation.
+  const flags = process.platform === "win32" ? 0 : constants.O_NOFOLLOW | constants.O_NONBLOCK;
+  const handle = await open(target, constants.O_RDONLY | flags);
+  try {
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile()) {throw new Error(`Audit input is not a regular file: ${path}.`);}
+    const size = Number(opened.size);
+    if (budget !== undefined) {
+      budget.bytes += size;
+      if (budget.bytes > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
+    }
+    if (size > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
+    await assertAuditHandlePath(canonicalRoot, path, target, opened);
+    // Bound allocation and reads even if the opened file grows. One extra byte
+    // detects growth without an unbounded readFile allocation.
+    const bytes = Buffer.alloc(size + 1);
+    let count = 0;
+    while (count < bytes.length) {
+      const { bytesRead } = await handle.read(bytes, count, bytes.length - count, null);
+      if (bytesRead === 0) {break;}
+      count += bytesRead;
+    }
+    if (budget !== undefined) {budget.bytes += count - size;}
+    if (count > AUDIT_MAX_BYTES || (budget !== undefined && budget.bytes > AUDIT_MAX_BYTES)) {
+      throw new Error("Audit input byte budget exhausted.");
+    }
+    if (count !== size || auditFileSnapshot(await handle.stat({ bigint: true })) !== auditFileSnapshot(opened)) {
+      throw new Error(`Audit input changed: ${path}.`);
+    }
+    await assertAuditHandlePath(canonicalRoot, path, target, opened);
+    return bytes.subarray(0, count);
+  } finally {
+    await handle.close();
   }
-  if (size > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
-  const bytes = await readFile(target);
-  if (budget !== undefined) {
-    budget.bytes += bytes.length - size;
-    if (budget.bytes > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
-  }
-  if (bytes.length > AUDIT_MAX_BYTES) {throw new Error("Audit input byte budget exhausted.");}
-  return bytes;
 }
 export function auditPackagePolicy(input: AuditPackageInput): PublicApiPackagePolicy {
   return { ...input, packageRoot: dirname(input.manifestPath), releasedBaselinePath: "", approvedBreakingChanges: [] };

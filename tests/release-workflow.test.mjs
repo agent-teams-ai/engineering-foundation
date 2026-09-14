@@ -1214,6 +1214,44 @@ test("release CodeQL evidence binds one dispatch, analysis, check, and PR tuple"
   );
 });
 
+test("release CodeQL accepts only fully preexisting or current GHAS timing pairs", () => {
+  const expected = { ...exactRunExpectation, runId: 123 };
+  const evidence = exactCodeqlEvidence();
+  const check = evidence.checkRuns.check_runs[0];
+  check.started_at = "2026-09-03T12:00:00Z";
+  check.completed_at = "2026-09-03T12:00:02Z";
+  evidence.checkSuite.created_at = "2026-09-03T11:59:59Z";
+  evidence.checkSuite.updated_at = "2026-09-03T12:00:03Z";
+  const receipt = validateReleaseCodeqlEvidence(evidence, expected);
+  assert.deepEqual(validateReleaseCodeqlEvidence(asFinalEvidence(evidence), expected, receipt), receipt);
+  for (const phase of ["check-runs", "check-suite", "analyses"]) {
+    assert.equal(validateReleaseCodeqlObservation(phase, evidence, expected).state, "completed");
+  }
+  for (const [mutate, message] of [
+    [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-04T12:00:00Z"; }, /outside/u],
+    [(value) => { value.checkSuite.updated_at = "2026-09-04T12:00:01Z"; }, /outside/u],
+    [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-04T13:00:00Z"; }, /outside/u],
+    [(value) => { value.checkSuite.updated_at = "2026-09-04T13:00:00Z"; }, /outside/u],
+    [(value) => { value.checkRuns.check_runs[0].completed_at = "2026-09-03T11:59:59Z"; }, /outside/u],
+    [(value) => { value.checkSuite.updated_at = "2026-09-03T11:59:58Z"; }, /outside/u],
+    [(value) => { value.checkSuite = exactCodeqlEvidence().checkSuite; }, /timing shapes differ/u],
+    [(value) => { value.checkRuns = exactCodeqlEvidence().checkRuns; }, /timing shapes differ/u],
+    [(value) => { value.checkRuns.check_runs[0].head_sha = "c".repeat(40); }, /identity differs/u],
+    [(value) => { value.checkSuite.head_sha = "c".repeat(40); }, /identity differs/u],
+    [(value) => { value.checkRuns.check_runs[0].app.id = 15368; }, /exactly one matching/u],
+    [(value) => { value.checkSuite.app.id = 15368; }, /identity differs/u],
+    [(value) => { value.analyses[0].category = "release-attestation-123-2"; }, /exactly one matching/u],
+    [(value) => { value.analyses[0].created_at = check.completed_at; }, /not bound/u],
+    [(value) => { value.analyses = []; }, /exactly one matching/u],
+    [(value) => { value.checkSuite.pull_requests[0].number += 1; }, /provenance differs/u],
+  ]) {
+    const hostile = structuredClone(evidence);
+    mutate(hostile);
+    assert.throws(() => validateReleaseCodeqlEvidence(hostile, expected), message);
+    assert.throws(() => validateReleaseCodeqlEvidence(asFinalEvidence(hostile), expected, receipt), message);
+  }
+});
+
 for (const conclusion of ["success", "neutral"]) {
   test(`release CodeQL accepts verified GHAS ${conclusion} through final rereads`, () => {
     const evidence = exactCodeqlEvidence();

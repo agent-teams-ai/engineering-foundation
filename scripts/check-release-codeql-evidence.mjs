@@ -417,6 +417,20 @@ function validateAnalyzeCheck(analyzeCheck, expected, analyzeWindow, options = {
   };
 }
 
+// GHAS may reuse a completed exact-head receipt when a new category is uploaded.
+// Freshness is independently proved by validateAnalysis for this dispatch.
+function ghasTimingShape(startedAt, completedAt, analyzeWindow, options, label) {
+  const preexisting = completedAt < analyzeWindow.analyzeStartedAt;
+  const current = startedAt >= analyzeWindow.analyzeStartedAt &&
+    completedAt <= analyzeWindow.analyzeCompletedAt + 5 * 60 * 1000 &&
+    (options.analysisCreatedAt === undefined ||
+      Math.abs(startedAt - options.analysisCreatedAt) <= 5 * 60 * 1000);
+  if (startedAt > completedAt || (!preexisting && !current)) {
+    throw new Error(`GitHub Advanced Security ${label} is outside the dispatched analyze job.`);
+  }
+  return preexisting ? "preexisting" : "current";
+}
+
 function validateCheck(
   checkRuns,
   expected,
@@ -471,19 +485,11 @@ function validateCheck(
     codeqlCheck.completed_at,
     "CodeQL check completion time",
   );
-  const processingDeadline = analyzeWindow.analyzeCompletedAt + 5 * 60 * 1000;
-  if (
-    checkStartedAt < analyzeWindow.analyzeStartedAt ||
-    checkCompletedAt > processingDeadline ||
-    (options.analysisCreatedAt !== undefined &&
-      Math.abs(checkStartedAt - options.analysisCreatedAt) > 5 * 60 * 1000) ||
-    checkStartedAt > checkCompletedAt
-  ) {
-    throw new Error(
-      "GitHub Advanced Security check is outside the dispatched analyze job.",
-    );
-  }
+  const timingShape = ghasTimingShape(
+    checkStartedAt, checkCompletedAt, analyzeWindow, options, "check",
+  );
   return {
+    timingShape,
     checkCompletedAt,
     checkId,
     checkStartedAt,
@@ -566,15 +572,11 @@ function validateSuite(
     checkSuite.updated_at,
     "CodeQL suite update time",
   );
-  const processingDeadline = analyzeWindow.analyzeCompletedAt + 5 * 60 * 1000;
-  if (
-    suiteCreatedAt < analyzeWindow.analyzeStartedAt ||
-    suiteUpdatedAt > processingDeadline ||
-    (options.analysisCreatedAt !== undefined &&
-      Math.abs(suiteCreatedAt - options.analysisCreatedAt) > 5 * 60 * 1000) ||
-    suiteCreatedAt > suiteUpdatedAt
-  ) {
-    throw new Error("GitHub Advanced Security suite is outside the dispatched analyze job.");
+  const timingShape = ghasTimingShape(
+    suiteCreatedAt, suiteUpdatedAt, analyzeWindow, options, "suite",
+  );
+  if (timingShape !== check.timingShape) {
+    throw new Error("GitHub Advanced Security check and suite timing shapes differ.");
   }
   return { state };
 }

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import fsPromises from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
-import { mkdtemp, writeFile, mkdir, symlink, rm, open, rename, appendFile, truncate } from "node:fs/promises";
+import fsPromises, { mkdtemp, writeFile, mkdir, symlink, rm, open, rename, appendFile, truncate, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,7 +10,7 @@ import { classifyPublicApiChange } from "../dist/capabilities/public-api-compati
 const fingerprint = { sha256: () => "test-only-fingerprint" };
 
 test("frozen-namespace path checks reject escapes, symlinks and oversized regular files", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-audit-input-test-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-input-test-")));
   try {
     await mkdir(join(root, "inputs"));
     await writeFile(join(root, "inputs", "index.d.ts"), "export {};\n");
@@ -47,7 +46,7 @@ test("empty surfaces retain added/removed export paths and scoped identities can
 
 for (const kind of ["files", "bytes"]) {
   test(`filesystem historical cumulative ${kind} budget is audit-local and retains exhaustion`, async () => {
-    const root = await mkdtemp(join(tmpdir(), "foundation-audit-b-budget-"));
+    const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-b-budget-")));
     try {
       const inputs = new FilesystemPublicApiAuditInputs(async () => {}, async () => {});
       const json = JSON.stringify({ schemaVersion: 1, packageName: "budget", packageVersion: "1.0.0", extractorVersion: "test", items: [] });
@@ -71,8 +70,8 @@ const races = ["parent symlink", "replacement", "growth", "shrink"].flatMap((rac
   [false, true].map((budgeted) => ({ race, budgeted })));
 for (const { race, budgeted } of races) {
   test(`audit read rejects ${race} during file access and closes its handle (budgeted=${budgeted})`, async (t) => {
-    const root = await mkdtemp(join(tmpdir(), "foundation-audit-race-"));
-    const outside = await mkdtemp(join(tmpdir(), "foundation-audit-outside-"));
+    const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-race-")));
+    const outside = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-outside-")));
     const realOpen = fsPromises.open;
     let captured;
     try {
@@ -135,8 +134,8 @@ for (const { race, budgeted } of races) {
 // consistent with an outside handle: they are not an atomic containment proof.
 for (const matching of [false, true]) {
   test(`toggled parents establish only content integrity (matching=${matching})`, async (t) => {
-    const root = await mkdtemp(join(tmpdir(), "foundation-audit-toggle-"));
-    const outside = await mkdtemp(join(tmpdir(), "foundation-audit-toggle-outside-"));
+    const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-toggle-")));
+    const outside = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-toggle-outside-")));
     const realOpen = fsPromises.open;
     const realLstat = fsPromises.lstat;
     const realRealpath = fsPromises.realpath;
@@ -201,7 +200,7 @@ for (const matching of [false, true]) {
 
 test("stage creator exclusively seals a namespace before exposing readers", async () => {
   const { stagePublicApiAudit } = await import("../dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/stage-public-api-audit.js");
-  const root = await mkdtemp(join(tmpdir(), "foundation-audit-seal-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-seal-")));
   let stage;
   try {
     const path = join(root, "index.d.ts");
@@ -230,7 +229,7 @@ test("stage creator exclusively seals a namespace before exposing readers", asyn
 });
 
 test("package validation binds its second manifest read to the declared digest", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-audit-manifest-"));
+  const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-audit-manifest-")));
   const realOpen = fsPromises.open;
   let reads = 0;
   try {
@@ -239,16 +238,30 @@ test("package validation binds its second manifest read to the declared digest",
       "tsconfig.json": "{}",
       "index.d.ts": "export {};\n"
     };
-    for (const [path, bytes] of Object.entries(files)) {await writeFile(join(root, path), bytes);}
-    const inventory = Object.entries(files).map(([path, bytes]) => ({ path, digest: auditDigest(bytes) }));
+    await mkdir(join(root, "A"));
+    for (const [path, bytes] of Object.entries(files)) {await writeFile(join(root, "A", path), bytes);}
+    const inventory = Object.entries(files).map(([path, bytes]) => ({ path: `A/${path}`, digest: auditDigest(bytes) }));
     const subject = {
-      packages: [{ packageName: "audit", packageVersion: "1.0.0", manifestPath: "package.json", tsconfigPath: "tsconfig.json",
-        entrypoints: [{ exportPath: ".", declarationEntryPoint: "index.d.ts" }], nonTypeExports: [] }],
-      files: inventory, resolutionUniverse: [{ packageName: "audit", exportPath: ".", declarationPath: "index.d.ts" }],
+      packages: [{ packageName: "audit", packageVersion: "1.0.0", manifestPath: "A/package.json", tsconfigPath: "A/tsconfig.json",
+        entrypoints: [{ exportPath: ".", declarationEntryPoint: "A/index.d.ts" }], nonTypeExports: [] }],
+      files: inventory, resolutionUniverse: [{ packageName: "audit", exportPath: ".", declarationPath: "A/index.d.ts" }],
       archive: { digest: auditDigest("archive"), extractedMembers: inventory }
     };
+    await mkdir(join(root, "C"));
+    for (const [path, bytes] of Object.entries(files)) {await writeFile(join(root, "C", path), bytes);}
+    const candidateFiles = inventory.map(file => ({ ...file, path: file.path.replace(/^A\//u, "C/") }));
+    const candidate = {
+      packages: subject.packages.map(pkg => ({ ...pkg, manifestPath: "C/package.json", tsconfigPath: "C/tsconfig.json",
+        entrypoints: [{ exportPath: ".", declarationEntryPoint: "C/index.d.ts" }] })),
+      files: candidateFiles,
+      resolutionUniverse: [{ packageName: "audit", exportPath: ".", declarationPath: "C/index.d.ts" }],
+      build: { sourceIdentity: "test", buildIdentity: "test", declarations: candidateFiles.filter(file => file.path.endsWith(".d.ts")) }
+    };
+    const request = { subjects: { A: subject, B: { baselines: [] }, C: candidate } };
+    const inputs = new FilesystemPublicApiAuditInputs(async () => {}, async () => {});
+    await inputs.revalidate(root, request);
     t.mock.method(fsPromises, "open", async (...args) => {
-      if (args[0] === join(root, "package.json") && ++reads === 2) {
+      if (args[0] === join(root, "A", "package.json") && ++reads === 2) {
         // Same identity and exports, different bytes: semantic checks alone
         // would accept this reread and only a later pass might notice it.
         await writeFile(args[0], `${files["package.json"]}\n`);
@@ -256,8 +269,7 @@ test("package validation binds its second manifest read to the declared digest",
       return realOpen(...args);
     });
     syncBuiltinESMExports();
-    const inputs = new FilesystemPublicApiAuditInputs(async () => {}, async () => {});
-    await assert.rejects(inputs.revalidate(root, { subjects: { A: subject, B: { baselines: [] }, C: subject } }), /Audit digest mismatch: package.json/u);
+    await assert.rejects(inputs.revalidate(root, request), /Audit digest mismatch: A\/package.json/u);
     assert.equal(reads, 2);
   } finally {
     t.mock.restoreAll();

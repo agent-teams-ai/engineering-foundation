@@ -378,9 +378,10 @@
           }
         },
         "comparisons": {
+          "$comment": "Three comparisons per distinct package across A, B and C, each bounded to 4096 inventory entries by the request schema.",
           "type": "array",
           "minItems": 0,
-          "maxItems": 4096,
+          "maxItems": 36864,
           "items": {
             "type": "object",
             "additionalProperties": false,

@@ -21,6 +21,18 @@ async function schemas() {
   return async (id, input) => { const validate = validators[id]; assert.ok(validate(input), JSON.stringify(validate.errors)); };
 }
 
+test("report comparison bound covers the entire bounded package union without truncation", async () => {
+  const request = JSON.parse(await readFile(new URL("../schemas/package-public-api-audit-request/v1.schema.json", import.meta.url), "utf8"));
+  const report = JSON.parse(await readFile(new URL("../schemas/package-public-api-audit-report/v1.schema.json", import.meta.url), "utf8"));
+  const subjects = request.$defs.subjects.properties;
+  const maximum = 3 * (request.$defs.subjectA.properties.packages.maxItems + subjects.B.properties.baselines.maxItems + request.$defs.subjectC.properties.packages.maxItems);
+  const comparisons = report.$defs.report.properties.comparisons;
+  assert.equal(comparisons.maxItems, maximum);
+  const validate = new Ajv({ strict: true }).compile({ type: "array", maxItems: comparisons.maxItems });
+  assert.equal(validate(Array(maximum).fill(null)), true);
+  assert.equal(validate(Array(maximum + 1).fill(null)), false);
+});
+
 for (const mode of ["hidden", "internal"]) {test(`A/B/C ${mode} mutation retains rich findings and historical semantics`, async () => {
   const root = await mkdtemp(join(tmpdir(), "foundation-audit-command-test-"));
   try {
@@ -401,7 +413,12 @@ test("all B-only entries validate in isolation, including aggregate exhaustion",
     // stays within the schema's 4,096-entry limit and each file is only 16 KiB.
     request.subjects.B.baselines = [baseline, ...Array.from({ length: AUDIT_MAX_BYTES / Buffer.byteLength(padded) }, (_, index) => ({ packageName: `z-${String(index).padStart(4, "0")}`, path: "only.json", digest: digest(padded) }))];
     await writeFile(join(root, "request.json"), JSON.stringify(request));
-    const exhausted = await auditPublicApi(input, dependencies);
+    const exhausted = await runPublicApiAudit(input, assertSchema);
+    await assertSchema("package-public-api-audit-report/v1", exhausted);
+    assert.equal(exhausted.comparisons.length, 3 * request.subjects.B.baselines.length);
+    for (const entry of request.subjects.B.baselines) {
+      assert.deepEqual(exhausted.comparisons.filter(value => value.packageName === entry.packageName).map(value => value.pair), ["A-B", "B-C", "A-C"]);
+    }
     assert.equal(exhausted.exitCode, 2);
     assert.equal(exhausted.evidenceComplete, false);
     assert.equal(exhausted.releaseEligible, false);

@@ -169,10 +169,10 @@ for (const fault of ["missing", "digest-mismatch"]) {
       assert.equal(report.errors.length, 1);
       assert.match(report.errors[0], /^B\/audit-custody: /u);
       assert.match(report.errors[0], fault === "missing" ? /ENOENT/u : /Baseline digest mismatch/u);
-      for (const comparison of report.comparisons.filter(comparison => comparison.pair !== "A-C")) {
-        assert.equal(comparison.eligibility.eligible, false);
-        assert.ok(comparison.eligibility.reasons.includes("stored-surface-unavailable"));
-        assert.equal(comparison.findings, undefined);
+      for (const historicalComparison of report.comparisons.filter(comparison => comparison.pair !== "A-C")) {
+        assert.equal(historicalComparison.eligibility.eligible, false);
+        assert.ok(historicalComparison.eligibility.reasons.includes("stored-surface-unavailable"));
+        assert.equal(historicalComparison.findings, undefined);
       }
       // Duplicate identities remain structural errors even when the first B is unreadable.
       request.subjects.B.baselines.push({ ...request.subjects.B.baselines[0], path: "other.json" });

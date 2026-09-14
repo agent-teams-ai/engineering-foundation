@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.3.1
+
+### Patch Changes
+
+- [#302](https://github.com/agent-teams-ai/engineering-foundation/pull/302) [`3a2aac7`](https://github.com/agent-teams-ai/engineering-foundation/commit/3a2aac7646ec4842d62c22db1bbdb7bba4c6928d) Thanks [@777genius](https://github.com/777genius)! - Parse Oxlint and ESLint suppression explanations separately from rule IDs so exact waivers match comments with human reasons. Preserve rejection of unregistered, global, unscoped, protected-rule, and legacy suppressions.
+
 ## 1.3.0
 
 ### Minor Changes

@@ -12,13 +12,15 @@ import { CANONICAL_TRANSITION_CATALOG } from "../dist/consumer-integration/appli
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 
-test("stable18 and stable19 history bind exact generation2 authority and immutable assets", async () => {
+test("stable18, stable19 and stable20 history bind exact generation2 authority and immutable assets", async () => {
   const catalog = JSON.parse(CANONICAL_TRANSITION_CATALOG);
   for (const [cohortId, recordDigest, eventDigest, version] of [
     ["docs-2026-09-10-stable18", "a156140015084e74459f1bc8dc6c61dfad9bf5d8f85cfbcba8cfdd7700f1867a",
       "5dfc82cfcb9f6be5484369ce4a39ff23dd6f4b74836f9fc5a164a4bf6dd56e18", "0.2.3"],
     ["docs-2026-09-10-stable19", "4dab45bfb69bc75ab63180f22e18ad036ed87107f11d2edd843c5f1f82b5f5bf",
-      "30385945e581851788e955d406f4e7264c731f3a29a8b9cff4c3ecce1c3bd05a", "0.2.5"]
+      "30385945e581851788e955d406f4e7264c731f3a29a8b9cff4c3ecce1c3bd05a", "0.2.5"],
+    ["docs-2026-09-11-stable20", "a2c8ac85c2f0afdaea498d5c994cb897ecabcbe6e97690dc3c5d416cd827b810",
+      "94ef24e30cc5441fc99a7d8bbbd1952b07438a60642818d429062633a7277d95", "0.2.7"]
   ]) {
     const bundle = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === cohortId);
     assert.ok(bundle, `Missing qualified upgrade origin ${cohortId}`);

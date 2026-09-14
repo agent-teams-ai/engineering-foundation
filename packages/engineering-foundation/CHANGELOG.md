@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.3.3
+
+### Patch Changes
+
+- [#307](https://github.com/agent-teams-ai/engineering-foundation/pull/307) [`ae17a36`](https://github.com/agent-teams-ai/engineering-foundation/commit/ae17a36d51e26b6c1012ab9e5ffdc433e322742e) Thanks [@777genius](https://github.com/777genius)! - Deduplicate nested production source roots when a host application is also a production module.
+
 ## 1.3.2
 
 ### Patch Changes

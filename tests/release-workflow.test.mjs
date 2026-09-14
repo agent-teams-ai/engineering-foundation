@@ -1882,7 +1882,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   const attestation = attestationSteps.find(
     ({ name }) => name === "Dispatch and attest release pull request checks",
   );
-  assert.equal(releaseJob["timeout-minutes"], 30);
+  assert.equal(releaseJob["timeout-minutes"], 60);
   const attestationIndex = attestationSteps.indexOf(attestation);
   const attestationPnpmSetupIndex = attestationSteps.findIndex(
     ({ uses }) => uses?.startsWith("pnpm/setup@"),

@@ -120,14 +120,17 @@ test("nested application packages use exact production sources without promoting
   const profile = {
     schemaVersion: 1, authority: { id: "agent-teams.feature-module-standard", version: "v1" },
     scope: { workspaceContainers: ["packages"], productionRoots: [sourceRoot, appSource],
-      productionModules: [{ moduleRoot, sourceRoot, adoption: "pending" }] },
+      productionModules: [
+        { moduleRoot, sourceRoot, adoption: "pending" },
+        { moduleRoot: appRoot, sourceRoot: appSource, adoption: "active" }
+      ] },
     adoption: { applicationRoots: [appRoot], excludedRoots: [`${appRoot}/tests`],
       abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] } }
   };
   const mapped = mapQualityTopology(profile, "source.yaml");
   assert.deepEqual(mapped.applicationRoots, [appRoot], "discovery retains application packages outside workspace containers");
   assert.deepEqual(mapped.productionSourceRoots, [sourceRoot, appSource], "typed execution receives only production sources");
-  assert.deepEqual(mapped.modules.map(({ sourceRoot: path }) => path), [sourceRoot], "pending module sources remain covered");
+  assert.deepEqual(mapped.modules.map(({ sourceRoot: path }) => path), [sourceRoot, appSource], "pending module sources remain covered");
   assert.deepEqual(mapQualityTopology({ ...topology, schemaVersion: 1,
     standard: profile.authority, topology: { sourcePolicy: "source.yaml" } }, "source.yaml"),
   { ...topology, toolingFiles: [] }, "flat source mappings remain unchanged");

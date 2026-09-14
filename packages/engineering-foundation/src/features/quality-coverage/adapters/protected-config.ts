@@ -51,12 +51,12 @@ async function protectedRules(read: DataReader): Promise<ReadonlyMap<string, unk
     .filter(([, value]) => severity(value) === "error"));
 }
 
-async function configPath(root: string, from: string, reference: string): Promise<string> {
+async function configPath(root: string, physicalRoot: string, from: string, reference: string): Promise<string> {
   if (!reference.endsWith(".json") || isAbsolute(reference)) { invalidQualityInput("V1 quality coverage accepts contained JSON Oxlint configuration only."); }
   let path: string;
   try { path = await realpath(createRequire(join(root, dirname(from), "package.json")).resolve(reference)); }
   catch { invalidQualityInput("An Oxlint extends configuration is missing or unsupported."); }
-  const suffix = relative(root, path);
+  const suffix = relative(physicalRoot, path);
   if (suffix === ".." || suffix.startsWith(`..${sep}`) || isAbsolute(suffix)) { invalidQualityInput("Oxlint configuration escapes the consumer root."); }
   return suffix.split(sep).join("/");
 }
@@ -109,6 +109,7 @@ export async function inspectProtectedConfig(root: string, lintPath: string, rea
   readonly requiredSettingObservations: readonly RequiredProtectedSetting[];
   readonly settings: readonly ProtectedSetting[];
 }> {
+  const physicalRoot = await realpath(root);
   const required = new Map(await protectedRules(read));
   const requiredSettings = ["typeAware", "respectEslintDisableDirectives", "reportUnusedDisableDirectives", ...[...required].flatMap(([name, value]) =>
     ceiling(value) === undefined ? [name] : [name, `${name}:ceiling`])];
@@ -137,7 +138,7 @@ export async function inspectProtectedConfig(root: string, lintPath: string, rea
     const value = qualityRecord(await read(root, path));
     if (value["jsPlugins"] !== undefined) { invalidQualityInput("Executable Oxlint plugins are outside this qualified configuration form."); }
     for (const reference of value["extends"] === undefined ? [] : qualityStrings(value["extends"])) {
-      await visit(await configPath(root, path, reference));
+      await visit(await configPath(root, physicalRoot, path, reference));
     }
     const rules = value["rules"] === undefined ? {} : qualityRecord(value["rules"]);
     for (const name of Object.keys(rules)) { assigned.add(name); }

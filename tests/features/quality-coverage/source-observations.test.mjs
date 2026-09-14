@@ -24,6 +24,17 @@ const topology = {
 const authority = { workspaceManifestPath: "pnpm-workspace.yaml", boundaries: [{ id: "worker", roots: [sourceRoot] }] };
 const censusReader = createSourceCensusReader({ read: readContainedRegularFile });
 
+async function assertCanonicalRootAlias(t, root, reader) {
+  const aliasRoot = `${root}-alias`;
+  await symlink(root, aliasRoot, process.platform === "win32" ? "junction" : "dir");
+  t.after(() => rm(aliasRoot, { force: true }));
+  const report = await checkStaticQualityCoverage(
+    { consumerRoot: aliasRoot, configPath: "quality.yaml" },
+    reader
+  );
+  assert.equal(report.outcome, "passed", "canonical consumer aliases retain contained Oxlint config");
+}
+
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "quality coverage nested "));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -229,6 +240,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   const run = () => checkStaticQualityCoverage({ consumerRoot: root, configPath: "quality.yaml" }, reader);
   await put("package.json", JSON.stringify({ scripts }));
   assert.equal((await run()).outcome, "passed");
+  await assertCanonicalRootAlias(t, root, reader);
   const lintBytes = await readFile(join(root, "lint.json"), "utf8");
   await put("suppression-base.json", lintBytes);
   await put("lint.json", JSON.stringify({ extends: ["./suppression-base.json"] }));

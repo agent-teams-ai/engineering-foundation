@@ -362,8 +362,8 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   } };
   await put("foundation.config.yaml", JSON.stringify(rootConfig));
   const cli = fileURLToPath(new URL("../../../packages/engineering-foundation/dist/cli.js", import.meta.url));
-  const invoke = async (args) => {
-    try { return { code: 0, ...await promisify(execFile)(process.execPath, [cli, ...args, "--consumer", root, "--format", "json"], { timeout: 30_000, maxBuffer: 1024 * 1024 }) }; }
+  const invoke = async (args, consumerRoot = root) => {
+    try { return { code: 0, ...await promisify(execFile)(process.execPath, [cli, ...args, "--consumer", consumerRoot, "--format", "json"], { timeout: 30_000, maxBuffer: 1024 * 1024 }) }; }
     catch (error) { return error; }
   };
   const staticResult = await invoke(["check", "quality.source-coverage"]);
@@ -407,6 +407,11 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: nativeScripts, devDependencies }));
   const scoped = await invoke(["quality", "check", "--scope-only"]);
   assert.equal(scoped.code, 0, scoped.stdout || scoped.stderr);
+  for (const args of [["quality", "check", "--scope-only"], ["quality", "check"]]) {
+    const aliased = await invoke(args, `${root}-alias`);
+    assert.equal(aliased.code, 0, aliased.stdout || aliased.stderr);
+    assert.equal(JSON.parse(aliased.stdout).outcome, "passed");
+  }
   const projectBytes = await readFile(join(root, compilerProject), "utf8");
   await put(compilerProject, JSON.stringify({ ...JSON.parse(projectBytes), include: ["../missing/**/*.ts"] }));
   const absentContext = await invoke(["quality", "check", "--scope-only"]);

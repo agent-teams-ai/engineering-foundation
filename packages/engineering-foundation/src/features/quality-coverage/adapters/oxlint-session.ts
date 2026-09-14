@@ -1,4 +1,5 @@
 import { isAbsolute, relative, sep } from "node:path";
+import { realpath } from "node:fs/promises";
 import type { QualityToolSession, ManagedProcessExecutor, ManagedProcessResult } from "../api.js";
 import { parseOxlintDiagnostics, parseOxlintSelection } from "./oxlint-output.js";
 
@@ -35,6 +36,7 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
       return parseOxlintSelection(result.stdout);
     },
     async typeContext(signal) {
+      const root = await realpath(input.consumerRoot);
       const paths = new Set<string>();
       for (const project of input.projects) {
         const result = await run([input.compilerEntrypoint, "--project", project,
@@ -42,7 +44,8 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
         assertToolSuccess(result);
         for (const line of result.stdout.trim().split(/\r?\n/u)) {
           if (!isAbsolute(line)) { throw new Error("Compiler returned malformed project evidence."); }
-          const path = relative(input.consumerRoot, line).split(sep).join("/");
+          // Compiler output and consumer cwd can name different aliases of the same root.
+          const path = relative(root, await realpath(line)).split(sep).join("/");
           if (path !== ".." && !path.startsWith("../") && !isAbsolute(path) && !path.startsWith("node_modules/")) {
             paths.add(path);
           }

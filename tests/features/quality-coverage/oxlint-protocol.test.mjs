@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { promisify } from "node:util";
 import { createOxlintSession } from "../../../packages/engineering-foundation/dist/features/quality-coverage/node.js";
 
 const source = "packages/contexts/private/src/main.ts";
@@ -12,6 +18,49 @@ const input = {
 const envelope = (diagnostics = []) => JSON.stringify({ diagnostics, number_of_files: 1 });
 const finding = { code: "typescript(no-floating-promises)", filename: source, severity: "error" };
 const result = (stdout, exitCode = 0, stderr = "") => ({ stdout, exitCode, stderr, signal: null });
+
+async function compilerFixture(t) {
+  const temporary = await mkdtemp(join(tmpdir(), "quality compiler alias "));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const root = join(await realpath(temporary), "consumer");
+  await mkdir(join(root, dirname(source)), { recursive: true });
+  await writeFile(join(root, source), "export const value = 1;\n");
+  const declaration = `${dirname(source)}/owned.d.ts`;
+  await writeFile(join(root, declaration), "export declare const owned: number;\n");
+  const alias = join(temporary, "alias");
+  await symlink(root, alias, process.platform === "win32" ? "junction" : "dir");
+  return { root, alias, declaration };
+}
+
+test("real compiler evidence matches selected sources across consumer root aliases", async (t) => {
+  const { root, alias, declaration } = await compilerFixture(t);
+  const require = createRequire(import.meta.url);
+  const compilerEntrypoint = join(dirname(require.resolve("typescript/package.json")), "bin/tsc");
+  const oxlintEntrypoint = join(dirname(require.resolve("oxlint/package.json")), "bin/oxlint");
+  await writeFile(join(root, "lint.json"), "{}\n");
+  for (const [consumerRoot, evidenceRoot] of [[alias, root], [root, alias]]) {
+    await t.test(consumerRoot === alias ? "aliased consumer root" : "aliased compiler paths", async () => {
+      await writeFile(join(root, "tsconfig.json"), JSON.stringify({
+        compilerOptions: { strict: true, types: [], noEmit: true },
+        files: [join(evidenceRoot, source), join(evidenceRoot, declaration)]
+      }));
+      const executor = { run: async ({ command, args, cwd }) => {
+        const output = await promisify(execFile)(command, args, { cwd, timeout: 30_000, maxBuffer: 1024 * 1024 });
+        if (args.includes("--listFiles")) {
+          assert.ok(output.stdout.replaceAll("\\", "/").includes(join(evidenceRoot, source).replaceAll("\\", "/")),
+            "real compiler preserves the configured root spelling");
+        }
+        return result(output.stdout, 0, output.stderr);
+      } };
+      const session = createOxlintSession({ ...input, consumerRoot, nodeExecutable: process.execPath,
+        compilerEntrypoint, oxlintEntrypoint }, executor);
+      const selected = await session.select();
+      assert.deepEqual(selected, [source, declaration].toSorted());
+      const context = await session.typeContext();
+      assert.deepEqual(context, selected);
+    });
+  }
+});
 
 test("selection and typed execution share consumer cwd, config, roots and protective flags", async () => {
   const requests = [];
@@ -58,11 +107,26 @@ test("selection accepts Windows separators but rejects malformed, duplicate and 
   }
 });
 
-test("compiler errors and malformed project output cannot become valid type context", async () => {
-  assert.deepEqual(await createOxlintSession(input, { run: async () => result(`${input.consumerRoot}/${source}\n${input.consumerRoot}/node_modules/typescript/lib/lib.d.ts\n`) }).typeContext(), [source]);
+test("compiler errors and malformed project output cannot become valid type context", async (t) => {
+  const { root } = await compilerFixture(t);
+  const sessionInput = { ...input, consumerRoot: root };
+  const dependency = join(root, "node_modules/typescript/lib/lib.d.ts");
+  await mkdir(dirname(dependency), { recursive: true });
+  await writeFile(dependency, "export {};\n");
+  assert.deepEqual(await createOxlintSession(sessionInput, { run: async () => result(`${join(root, source)}\n${dependency}\n`) }).typeContext(), [source]);
   for (const output of [result("error TS2307: missing dependency", 2), result("relative/file.ts\n"), result("")]) {
-    await assert.rejects(createOxlintSession(input, { run: async () => output }).typeContext(), /evidence/u);
+    await assert.rejects(createOxlintSession(sessionInput, { run: async () => output }).typeContext(), /evidence/u);
   }
+  await assert.rejects(createOxlintSession(sessionInput, {
+    run: async () => result(`${join(root, "missing.ts")}\n`)
+  }).typeContext(), { code: "ENOENT" });
+  const outside = join(dirname(root), "outside.d.ts");
+  await writeFile(outside, "export {};\n");
+  const escaped = join(root, "escaped.d.ts");
+  await symlink(outside, escaped);
+  assert.deepEqual(await createOxlintSession(sessionInput, {
+    run: async () => result(`${join(root, source)}\n${outside}\n${escaped}\n`)
+  }).typeContext(), [source]);
 });
 
 test("executor failures and cancellation retain their identity and signal", async () => {

@@ -20,6 +20,12 @@ directives without exact rules fail. Rules beginning with `security.`,
 `tenancy.`, or `tenant-isolation.` are never waiverable. Consumers may add
 protected prefixes but cannot remove the built-in set.
 
+Lint comment explanations are not rule IDs: `-- human reason` follows the
+rule list, including in multiline comments. Oxlint also accepts adjacent `--`
+and a single `-` surrounded by whitespace; ESLint requires whitespace around
+two or more hyphens. Explanations do not register a waiver or make an unscoped,
+broad, protected-rule, or legacy suppression acceptable.
+
 ## Waiver contract
 
 One waiver matches exactly one source location, directive kind, and sorted rule

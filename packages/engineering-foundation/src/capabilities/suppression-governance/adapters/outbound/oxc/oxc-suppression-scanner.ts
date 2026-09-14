@@ -77,8 +77,12 @@ function parseComment(
   sourceLines: readonly string[]
 ): SuppressionDirective | undefined {
   const value = location.comment.value.trim();
+  // Oxlint accepts adjacent double hyphens or a whitespace-delimited single
+  // hyphen; ESLint requires whitespace around two or more hyphens.
+  const reasonSeparator = value.startsWith("oxlint-") ? /--|\s-\s/u : /\s-{2,}\s/u;
+  const lintValue = (value.split(reasonSeparator, 1)[0] ?? "").trim();
   const lint = /^(oxlint|eslint)-(disable-next-line|disable-line|disable)(?:\s+(.+))?$/u.exec(
-    value
+    lintValue
   );
   if (lint !== null) {
     const tool = lint[1];

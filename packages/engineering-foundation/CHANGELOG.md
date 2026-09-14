@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.3.2
+
+### Patch Changes
+
+- [#305](https://github.com/agent-teams-ai/engineering-foundation/pull/305) [`e6a9219`](https://github.com/agent-teams-ai/engineering-foundation/commit/e6a9219ef3be8cf9e733223e2dda21df37288ab8) Thanks [@777genius](https://github.com/777genius)! - Keep application package discovery separate from production source selection in nested Feature Module Standard profiles. Quality census and typed lint now cover exact application source roots without promoting application tests or scripts to production.
+
 ## 1.3.1
 
 ### Patch Changes

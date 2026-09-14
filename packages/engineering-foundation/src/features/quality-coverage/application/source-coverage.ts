@@ -14,7 +14,7 @@ export function classifyQualityCensus(input: {
   readonly authority: QualitySourceAuthority;
   readonly suppressionRoots: readonly string[];
 }): { readonly sources: readonly QualitySource[]; readonly compilerConfigPaths: readonly string[]; readonly testPaths: readonly string[]; readonly unclassifiedPackages: readonly string[] } {
-  const productionRoots = [...input.topology.modules.map(({ sourceRoot }) => sourceRoot), ...input.topology.applicationRoots];
+  const productionRoots = input.topology.productionSourceRoots ?? [...input.topology.modules.map(({ sourceRoot }) => sourceRoot), ...input.topology.applicationRoots];
   const testRoots = input.topology.modules.flatMap((module) => module.testRoots);
   const nonProductionRoots = [...testRoots, ...input.topology.excludedRoots];
   const unclassifiedPackages = input.manifestPaths.filter((path) =>

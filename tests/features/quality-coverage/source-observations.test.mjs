@@ -11,6 +11,7 @@ import { readContainedRegularFile } from "../../../packages/engineering-foundati
 import { loadStrictYamlFile } from "../../../packages/engineering-foundation/dist/features/configuration-input/node.js";
 import { createQualityCoverageReader } from "../../../packages/engineering-foundation/dist/features/quality-coverage/node.js";
 import { classifyQualityCensus, checkStaticQualityCoverage } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
+import { mapQualityTopology } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
 import { copyPinnedToolchain } from "./copied-toolchain.mjs";
 
 const moduleRoot = "packages/contexts/private-worker";
@@ -106,6 +107,43 @@ test("development ownership classifies external build tooling without hiding pro
     read: async () => ({ ...withNative, routes: [], requiredRoutes: [], requiredSettings: [], requiredSettingObservations: [], settings: [] })
   });
   assert.ok(report.diagnostics.some(({ ruleId, location }) => ruleId === "quality.source-coverage.native-route" && location.path === native));
+});
+
+test("nested application packages use exact production sources without promoting tests or scripts", async (t) => {
+  const { root, put } = await fixture(t);
+  const appRoot = "apps/app";
+  const appSource = `${appRoot}/src`;
+  const appMain = `${appSource}/main.ts`;
+  const appTest = `${appRoot}/tests/main.test.ts`;
+  const appScript = `${appRoot}/scripts/build.mjs`;
+  for (const path of [appMain, appTest, appScript]) { await put(path, "export const value = 1;\n"); }
+  const profile = {
+    schemaVersion: 1, authority: { id: "agent-teams.feature-module-standard", version: "v1" },
+    scope: { workspaceContainers: ["packages"], productionRoots: [sourceRoot, appSource],
+      productionModules: [{ moduleRoot, sourceRoot, adoption: "pending" }] },
+    adoption: { applicationRoots: [appRoot], excludedRoots: [`${appRoot}/tests`],
+      abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] } }
+  };
+  const mapped = mapQualityTopology(profile, "source.yaml");
+  assert.deepEqual(mapped.applicationRoots, [appRoot], "discovery retains application packages outside workspace containers");
+  assert.deepEqual(mapped.productionSourceRoots, [sourceRoot, appSource], "typed execution receives only production sources");
+  assert.deepEqual(mapped.modules.map(({ sourceRoot: path }) => path), [sourceRoot], "pending module sources remain covered");
+  assert.deepEqual(mapQualityTopology({ ...topology, schemaVersion: 1,
+    standard: profile.authority, topology: { sourcePolicy: "source.yaml" } }, "source.yaml"),
+  { ...topology, toolingFiles: [] }, "flat source mappings remain unchanged");
+  const observed = await censusReader.read({ consumerRoot: root, roots: [...mapped.productionRoots, ...mapped.applicationRoots] });
+  assert.ok(observed.sourcePaths.includes(appTest), "independent discovery still sees application tests");
+  assert.ok(observed.sourcePaths.includes(appScript), "independent discovery still sees application scripts");
+  const classified = classifyQualityCensus({ ...observed, topology: mapped,
+    authority: { ...authority, boundaries: [...authority.boundaries,
+      { id: "app", roots: [appSource] },
+      { id: "tooling", roots: [`${appRoot}/scripts`], dependencyMode: "development" }] },
+    suppressionRoots: [sourceRoot, appSource] });
+  assert.deepEqual(classified.sources.map(({ path }) => path), [appMain, main]);
+  assert.deepEqual(classified.sources.map(({ owners }) => owners), [["app"], ["worker"]]);
+  assert.throws(() => mapQualityTopology({ ...profile,
+    scope: { ...profile.scope, productionRoots: [sourceRoot] } }, "source.yaml"),
+  /application must map an existing production source root/u);
 });
 
 test("native and unknown files inside owned source cannot disappear at discovery", async (t) => {

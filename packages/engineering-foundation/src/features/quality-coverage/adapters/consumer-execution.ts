@@ -40,7 +40,7 @@ export function createQualityToolProvider(input: {
         consumerRoot, ...tools, nodeExecutable: input.nodeExecutable,
         environment: { ...input.environment, OXLINT_TSGOLINT_PATH: tools.typedEntrypoint },
         configPath: profile.lintConfigPath,
-        sourceRoots: [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots],
+        sourceRoots: topology.productionSourceRoots ?? [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots],
         projects: profile.compilerProjects
       }, input.executor);
     }

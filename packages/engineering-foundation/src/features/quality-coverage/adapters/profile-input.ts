@@ -55,9 +55,19 @@ function nestedTopology(input: Record<string, unknown>): QualityTopology {
       invalidQualityInput("An abstract layout must map an existing production module and its source root.");
     }
   }
+  const applications = qualityStrings(adoption["applicationRoots"]);
+  // Adoption names application packages; scope owns their exact production sources.
+  const applicationRoots = applications.length === 0 ? [] : qualityStrings(scope["productionRoots"])
+    .filter((sourceRoot) => applications.some((root) => sourceRoot === root || sourceRoot.startsWith(`${root}/`)));
+  for (const root of applications) {
+    if (!applicationRoots.some((sourceRoot) => sourceRoot === root || sourceRoot.startsWith(`${root}/`))) {
+      invalidQualityInput("An application must map an existing production source root.");
+    }
+  }
   return {
     productionRoots: qualityStrings(scope["workspaceContainers"]),
-    applicationRoots: qualityStrings(adoption["applicationRoots"]),
+    applicationRoots: applications,
+    productionSourceRoots: [...modules.map((module) => qualityString(module["sourceRoot"])), ...applicationRoots],
     excludedRoots: qualityStrings(adoption["excludedRoots"]),
     modules: modules.map((module) => ({
       root: qualityString(module["moduleRoot"]), sourceRoot: qualityString(module["sourceRoot"]),

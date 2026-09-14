@@ -240,7 +240,6 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   const run = () => checkStaticQualityCoverage({ consumerRoot: root, configPath: "quality.yaml" }, reader);
   await put("package.json", JSON.stringify({ scripts }));
   assert.equal((await run()).outcome, "passed");
-  await assertCanonicalRootAlias(t, root, reader);
   const lintBytes = await readFile(join(root, "lint.json"), "utf8");
   await put("suppression-base.json", lintBytes);
   await put("lint.json", JSON.stringify({ extends: ["./suppression-base.json"] }));
@@ -254,6 +253,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   await put("untyped-base.json", JSON.stringify({ options: { typeAware: false } }));
   await put("lint.json", JSON.stringify({ ...JSON.parse(lintBytes), extends: ["./untyped-base.json"] }));
   assert.equal((await run()).outcome, "passed", "typed activation may extend an untyped base");
+  await assertCanonicalRootAlias(t, root, reader);
   await put("typed-base.json", lintBytes);
   await put("lint.json", JSON.stringify({ extends: ["./typed-base.json"], options: { typeAware: false } }));
   assert.equal((await run()).outcome, "violations", "a consumer cannot disable inherited typed activation");

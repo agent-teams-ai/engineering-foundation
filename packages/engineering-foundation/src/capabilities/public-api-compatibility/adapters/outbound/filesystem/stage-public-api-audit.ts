@@ -2,7 +2,10 @@ import { chmod, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { auditDigest, auditInputPath, AUDIT_MAX_BYTES } from "./public-api-audit-inputs.js";
 
-/** Private immutable copy: SDK readers never receive the consumer filesystem. */
+/** Single-producer frozen namespace, published only after all writes finish.
+ * The caller owns its private parent and excludes external writers throughout
+ * observation. chmod is defense in depth, not a cross-platform security boundary.
+ */
 export interface AuditInputStage {
   readonly root: string;
   readonly files: ReadonlyMap<string, string>;
@@ -79,6 +82,10 @@ async function present(root: string, path: string): Promise<boolean> {
 }
 
 export async function stagePublicApiAudit(root: string, allowed: ReadonlyMap<string, string>, stageRoot: string): Promise<AuditInputStage> {
+  // Claim a fresh namespace before doing any I/O on its behalf. In particular,
+  // a second producer cannot reuse a published stage (also enforced on Windows).
+  allowed = new Map(allowed);
+  await mkdir(stageRoot, { mode: 0o700 });
   const bytes = new Map<string, Buffer>();
   const observed = new Map<string, boolean>();
   let byteCount = 0;
@@ -119,9 +126,14 @@ export async function stagePublicApiAudit(root: string, allowed: ReadonlyMap<str
     files.set(destination, auditDigest(content));
   }
   for (const directory of directories) { await chmod(directory, 0o500); }
+  let released = false;
   return { root: stageRoot, files,
-    release: async () => { for (const directory of directories) { await chmod(directory, 0o700); } },
+    release: async () => {
+      released = true;
+      for (const directory of directories) { await chmod(directory, 0o700); }
+    },
     revalidate: async () => {
+    if (released) { throw new Error("Audit stage has been released."); }
     for (const [path, expected] of observed) {
       if (await present(root, path) !== expected || await present(stageRoot, join(stageRoot, relative(root, path))) !== expected) {
         throw new Error("SDK input presence changed during observation.");

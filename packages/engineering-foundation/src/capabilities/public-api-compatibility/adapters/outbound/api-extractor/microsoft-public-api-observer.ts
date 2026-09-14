@@ -353,7 +353,7 @@ export class MicrosoftPublicApiObserver implements PublicApiObserver {
 function collectMetadataPresence(allowed: ReadonlyMap<string, string>, configFiles: Map<string, string>): Map<string, boolean> {
     // Extractor also reads enclosing package metadata. Declare and digest every
     // existing ancestor manifest, including nested and outside-root manifests;
-    // record absent paths so a concurrent creation cannot go unnoticed.
+    // record absence for best-effort mutation detection, not an atomic freeze.
     const metadataPresence = new Map<string, boolean>();
     for (const path of allowed.keys()) {
       let directory = dirname(path);

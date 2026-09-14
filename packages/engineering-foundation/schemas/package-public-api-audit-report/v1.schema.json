@@ -602,9 +602,10 @@
           "type": "boolean"
         },
         "errors": {
+          "$comment": "4096 B baseline failures (request baseline maxItems), plus one A subject failure, one C subject failure and one input revalidation failure.",
           "type": "array",
           "minItems": 0,
-          "maxItems": 4096,
+          "maxItems": 4099,
           "items": {
             "type": "string",
             "minLength": 1

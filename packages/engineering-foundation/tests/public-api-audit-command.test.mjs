@@ -7,6 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import Ajv from "ajv/dist/2020.js";
+import { MicrosoftPublicApiObserver } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-observer.js";
 import { runPublicApiAudit } from "../dist/capabilities/public-api-compatibility/node.js";
 import { runFoundationCli } from "../dist/features/command-host/adapters/inbound/cli/foundation-cli.js";
 import { parseArguments } from "../dist/features/command-host/adapters/inbound/cli/cli-arguments.js";
@@ -425,4 +426,49 @@ test("all B-only entries validate in isolation, including aggregate exhaustion",
     assert.match(exhausted.errors.at(-1), /byte budget exhausted/u);
     assert.deepEqual(exhausted.comparisons.find(value => value.pair === "A-C" && value.packageName === "audit-custody"), valid.comparisons[2]);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("public audit retains the combined maximum errors and rejects one beyond the schema bound", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-audit-error-bound-"));
+  try {
+    const requestSchema = JSON.parse(await readFile(new URL("../schemas/package-public-api-audit-request/v1.schema.json", import.meta.url), "utf8"));
+    const reportSchema = JSON.parse(await readFile(new URL("../schemas/package-public-api-audit-report/v1.schema.json", import.meta.url), "utf8"));
+    const baselineMaximum = requestSchema.$defs.subjects.properties.B.properties.baselines.maxItems;
+    const maximum = baselineMaximum + 2 + 1;
+    assert.equal(maximum, 4099);
+    assert.equal(reportSchema.$defs.report.properties.errors.maxItems, maximum);
+    const request = await custodyFixture(root);
+    request.subjects.B.baselines = Array.from({ length: baselineMaximum }, (_, index) => ({
+      packageName: `b-${String(index).padStart(4, "0")}`, path: "missing.json", digest: digest("missing")
+    }));
+    await writeFile(join(root, "request.json"), JSON.stringify(request));
+    const observe = MicrosoftPublicApiObserver.prototype.observe;
+    const subjects = [];
+    t.mock.method(MicrosoftPublicApiObserver.prototype, "observe", async function (input) {
+      subjects.push(input.subject);
+      // Initial request/custody validation succeeds. Subsequent observation and
+      // revalidation see a real missing input, without invoking the SDK.
+      await rm(join(root, input.subject, "package.json"));
+      return observe.call(this, input);
+    });
+    const assertSchema = await schemas();
+    const report = await runPublicApiAudit({ consumerRoot: root, configPath: "request.json", foundationVersion: "1.2.0" }, assertSchema);
+    assert.deepEqual(subjects, ["A", "C"]);
+    assert.equal(report.errors.length, maximum);
+    assert.match(report.errors[0], /^A:.*ENOENT/u);
+    assert.match(report.errors[1], /^C:.*ENOENT/u);
+    assert.match(report.errors[2], /^Input revalidation failed:.*ENOENT/u);
+    assert.deepEqual(report.errors.slice(3).map(error => error.split(":")[0]), request.subjects.B.baselines.map(entry => `B/${entry.packageName}`));
+    assert.equal(report.comparisons.length, 3 * (baselineMaximum + 1));
+    assert.deepEqual([...new Set(report.comparisons.map(value => value.packageName))], ["audit-custody", ...request.subjects.B.baselines.map(entry => entry.packageName)]);
+    assert.ok(report.comparisons.every(value => !value.eligibility.eligible));
+    assert.deepEqual(report.observations, []);
+    assert.deepEqual(report.custody.supplied, request.subjects);
+    assert.equal(report.requestDigest, digest(JSON.stringify(request)));
+    assert.equal(report.exitCode, 2);
+    assert.equal(report.evidenceComplete, false);
+    assert.equal(report.releaseEligible, false);
+    await assertSchema("package-public-api-audit-report/v1", report);
+    await assert.rejects(assertSchema("package-public-api-audit-report/v1", { ...report, errors: [...report.errors, "overflow"] }), /maxItems/u);
+  } finally { t.mock.restoreAll(); await rm(root, { recursive: true, force: true }); }
 });

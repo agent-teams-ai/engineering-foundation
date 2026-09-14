@@ -627,7 +627,7 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   );
   assert.match(
     managedLauncherSource,
-    /hostWorkingDirectory: win32\.dirname\(PROCESS_HOST_PATH\)/u
+    /cwd: control\.root,\s*env: launcherEnvironment[\s\S]*hostWorkingDirectory: control\.root/u
   );
   assert.doesNotMatch(managedLauncherSource, /encodedRequest/u);
   assert.match(processHostSource, /JSON\.parse\(readFileSync\(requestPath, "utf8"\)\)/u);

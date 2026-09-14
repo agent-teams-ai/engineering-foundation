@@ -204,7 +204,7 @@ export function spawnWindowsManagedProcess(
         WINDOWS_BOOTSTRAP_PATH
       ],
       {
-        cwd: win32.dirname(WINDOWS_BOOTSTRAP_PATH),
+        cwd: control.root,
         env: launcherEnvironment,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true
@@ -235,7 +235,7 @@ export function spawnWindowsManagedProcess(
     nodeExecutable: process.execPath,
     processHostPath: PROCESS_HOST_PATH,
     requestPath: control.requestPath,
-    hostWorkingDirectory: win32.dirname(PROCESS_HOST_PATH),
+    hostWorkingDirectory: control.root,
     environmentEntries: Object.entries(commandEnvironment)
       .filter((entry): entry is [string, string] => entry[1] !== undefined)
       .map(([key, value]) => `${key}=${value}`),

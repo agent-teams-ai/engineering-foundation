@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { copyFile, mkdir, mkdtemp, open, readFile, readdir, rm } from "node:fs/promises";
+import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/adapters/inbound/cli/command-error.js";
@@ -287,6 +288,69 @@ windowsTest(
       assert.equal(captured.cwd, cwd);
       assert.deepEqual(captured.args, expectedArguments);
     } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  }
+);
+
+windowsTest(
+  "launches from an installed adapter path beyond MAX_PATH",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "foundation Windows deep install "));
+    let installedRoot = join(root, "installed");
+    while (join(installedRoot, "assets", "windows-managed-process").length <= 280) {
+      installedRoot = join(installedRoot, "deep-installed-package");
+    }
+    const sourcePackage = join(process.cwd(), "packages", "engineering-foundation");
+    const installedAdapter = join(
+      installedRoot,
+      "dist",
+      "process-execution",
+      "windows-managed-process.js"
+    );
+    let child;
+    try {
+      await mkdir(installedRoot, { recursive: true });
+      await writeFile(join(installedRoot, "package.json"), '{"type":"module"}\n');
+      await cp(
+        join(sourcePackage, "dist"),
+        join(installedRoot, "dist"),
+        { recursive: true }
+      );
+      await cp(
+        join(sourcePackage, "assets", "windows-managed-process"),
+        join(installedRoot, "assets", "windows-managed-process"),
+        { recursive: true }
+      );
+      assert.ok(installedAdapter.length > 260);
+      const installed = await import(
+        `${pathToFileURL(installedAdapter).href}?deep-install=${String(Date.now())}`
+      );
+      child = installed.spawnWindowsManagedProcess({
+        command: process.execPath,
+        args: ["-e", "process.stdout.write('deep-ok')"],
+        cwd: root,
+        environment: process.env
+      });
+      let stderr = "";
+      let stdout = "";
+      child.stderr?.setEncoding("utf8");
+      child.stdout?.setEncoding("utf8");
+      child.stderr?.on("data", (chunk) => { stderr += chunk; });
+      child.stdout?.on("data", (chunk) => { stdout += chunk; });
+      const closed = once(child, "close");
+      const [exitCode] = await once(child, "exit");
+      await installed.waitForWindowsManagedProcessContainment(child);
+      await closed;
+      assert.equal(exitCode, 0, stderr);
+      assert.equal(stdout, "deep-ok");
+    } finally {
+      if (child?.exitCode === null && child.signalCode === null) {
+        const exited = once(child, "exit");
+        child.kill("SIGKILL");
+        await exited;
+      }
       await rm(root, { force: true, recursive: true });
     }
   }

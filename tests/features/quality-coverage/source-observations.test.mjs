@@ -127,7 +127,7 @@ test("nested application packages use exact production sources without promoting
   const mapped = mapQualityTopology(profile, "source.yaml");
   assert.deepEqual(mapped.applicationRoots, [appRoot], "discovery retains application packages outside workspace containers");
   assert.deepEqual(mapped.productionSourceRoots, [sourceRoot, appSource], "typed execution receives only production sources");
-  assert.deepEqual(mapped.modules.map(({ sourceRoot }) => sourceRoot), [sourceRoot], "pending module sources remain covered");
+  assert.deepEqual(mapped.modules.map(({ sourceRoot: path }) => path), [sourceRoot], "pending module sources remain covered");
   assert.deepEqual(mapQualityTopology({ ...topology, schemaVersion: 1,
     standard: profile.authority, topology: { sourcePolicy: "source.yaml" } }, "source.yaml"),
   { ...topology, toolingFiles: [] }, "flat source mappings remain unchanged");

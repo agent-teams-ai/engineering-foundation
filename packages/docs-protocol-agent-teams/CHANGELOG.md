@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8
+
+### Patch Changes
+
+- [#301](https://github.com/agent-teams-ai/engineering-foundation/pull/301) [`d4a734c`](https://github.com/agent-teams-ai/engineering-foundation/commit/d4a734c0c7f1cbae14935f5cb611fc458cff70b1) Thanks [@777genius](https://github.com/777genius)! - Retain the exact qualified stable20 transition origin so successor Cohorts can prove upgrades from stable20 without weakening historical asset or generation checks.
+
 ## 0.2.7
 
 ### Patch Changes

@@ -1,8 +1,44 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
 import { inspectCompressedTarArchive, readRegularArchive, sha256 } from "./pack-artifact-archive.mjs";
+
+async function installedLinks(directory) {
+  const links = [];
+  for await (const entry of await opendir(directory)) {
+    const path = join(directory, entry.name);
+    if (entry.isSymbolicLink()) {
+      links.push(path);
+    } else if (entry.isDirectory()) {
+      links.push(...await installedLinks(path));
+    }
+  }
+  return links;
+}
+
+async function copyInstalledClosure(source, destination) {
+  const physicalSource = await realpath(source);
+  const links = await installedLinks(source);
+  await cp(source, destination, { recursive: true, verbatimSymlinks: true });
+
+  for (const sourceLink of links.toSorted()) {
+    const physicalTarget = await realpath(sourceLink);
+    const targetSuffix = relative(physicalSource, physicalTarget);
+    assert.ok(
+      !isAbsolute(targetSuffix) && targetSuffix.split(/[\\/]/u)[0] !== "..",
+      "Installed dependency link escapes its node_modules closure"
+    );
+
+    const destinationLink = join(destination, relative(source, sourceLink));
+    const destinationTarget = join(destination, targetSuffix);
+    await rm(destinationLink, { recursive: true, force: true });
+    const targetType = (await stat(physicalTarget)).isDirectory()
+      ? process.platform === "win32" ? "junction" : "dir"
+      : "file";
+    await symlink(destinationTarget, destinationLink, targetType);
+  }
+}
 
 /** Reuse the installed archive closure in an isolated consumer, never the source installation. */
 export async function assertInstalledQualityArtifact({ consumerRoot, artifact }) {
@@ -32,7 +68,7 @@ async function qualifyLayout({ consumerRoot, nested, artifact }) {
   const root = join(dirname(consumerRoot), nested ? "quality coverage nested consumer" : "quality coverage flat consumer");
   await mkdir(root, { recursive: true });
   const physicalRoot = await realpath(root);
-  await cp(join(consumerRoot, "node_modules"), join(root, "node_modules"), { recursive: true, verbatimSymlinks: true });
+  await copyInstalledClosure(join(consumerRoot, "node_modules"), join(root, "node_modules"));
   await assertInstalledQualityArtifact({ consumerRoot: root, artifact });
   if (!nested) {
     const schema = join(root, "node_modules/@agent-teams/engineering-foundation/schemas/foundation-config/v2.schema.json");

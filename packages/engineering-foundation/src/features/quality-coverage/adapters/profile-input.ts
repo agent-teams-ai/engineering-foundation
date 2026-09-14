@@ -66,7 +66,8 @@ function nestedTopology(input: Record<string, unknown>): QualityTopology {
   }
   return {
     productionRoots: qualityStrings(scope["workspaceContainers"]),
-    applicationRoots,
+    applicationRoots: applications,
+    productionSourceRoots: [...modules.map((module) => qualityString(module["sourceRoot"])), ...applicationRoots],
     excludedRoots: qualityStrings(adoption["excludedRoots"]),
     modules: modules.map((module) => ({
       root: qualityString(module["moduleRoot"]), sourceRoot: qualityString(module["sourceRoot"]),

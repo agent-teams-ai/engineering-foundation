@@ -110,8 +110,8 @@ test("development ownership classifies external build tooling without hiding pro
 });
 
 test("nested application packages use exact production sources without promoting tests or scripts", async (t) => {
-  const { put, census } = await fixture(t);
-  const appRoot = "packages/app";
+  const { root, put } = await fixture(t);
+  const appRoot = "apps/app";
   const appSource = `${appRoot}/src`;
   const appMain = `${appSource}/main.ts`;
   const appTest = `${appRoot}/tests/main.test.ts`;
@@ -125,12 +125,15 @@ test("nested application packages use exact production sources without promoting
       abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] } }
   };
   const mapped = mapQualityTopology(profile, "source.yaml");
-  assert.deepEqual(mapped.applicationRoots, [appSource], "typed execution receives only application production sources");
+  assert.deepEqual(mapped.applicationRoots, [appRoot], "discovery retains application packages outside workspace containers");
+  assert.deepEqual(mapped.productionSourceRoots, [sourceRoot, appSource], "typed execution receives only production sources");
   assert.deepEqual(mapped.modules.map(({ sourceRoot }) => sourceRoot), [sourceRoot], "pending module sources remain covered");
   assert.deepEqual(mapQualityTopology({ ...topology, schemaVersion: 1,
     standard: profile.authority, topology: { sourcePolicy: "source.yaml" } }, "source.yaml"),
   { ...topology, toolingFiles: [] }, "flat source mappings remain unchanged");
-  const observed = await census();
+  const observed = await censusReader.read({ consumerRoot: root, roots: [...mapped.productionRoots, ...mapped.applicationRoots] });
+  assert.ok(observed.sourcePaths.includes(appTest), "independent discovery still sees application tests");
+  assert.ok(observed.sourcePaths.includes(appScript), "independent discovery still sees application scripts");
   const classified = classifyQualityCensus({ ...observed, topology: mapped,
     authority: { ...authority, boundaries: [...authority.boundaries,
       { id: "app", roots: [appSource] },

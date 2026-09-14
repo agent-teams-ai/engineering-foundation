@@ -17,6 +17,8 @@ export interface QualityCoverageProfile {
 export interface QualityTopology {
   readonly productionRoots: readonly string[];
   readonly applicationRoots: readonly string[];
+  /** Exact production sources; absent for legacy flat mappings. */
+  readonly productionSourceRoots?: readonly string[];
   readonly excludedRoots: readonly string[];
   readonly toolingFiles?: readonly string[];
   readonly modules: readonly {

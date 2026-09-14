@@ -1,5 +1,25 @@
 # @agent-teams/engineering-foundation
 
+## 1.3.0
+
+### Minor Changes
+
+- [#296](https://github.com/agent-teams-ai/engineering-foundation/pull/296) [`6828c5b`](https://github.com/agent-teams-ai/engineering-foundation/commit/6828c5bae2a38e4c286621b560ab117e0e49ab0c) Thanks [@777genius](https://github.com/777genius)! - Add the bounded `public-api-audit` CLI, public audit API, and request/report schema exports for read-only A/B/C evidence comparisons using the existing public API classification policy. Reports retain extraction and independent compiler diagnostics, explicit per-pair eligibility, and unsupported reference boundaries.
+
+  Audits always report `releaseEligible:false` and never mutate release baselines. Historical B stored surfaces cannot recover discarded hidden nodes, reference targets, compiler closure, or original export visibility. Archive/build custody remains supplied, unverified evidence; the exported audit schemas do not claim JSON Schema family support. Synthetic qualification does not establish an actual Get Modular A/B/C audit or consumer release admission.
+
+- [#297](https://github.com/agent-teams-ai/engineering-foundation/pull/297) [`506261d`](https://github.com/agent-teams-ai/engineering-foundation/commit/506261d68b6d6211011e73050e8fc16f1d48cbfb) Thanks [@777genius](https://github.com/777genius)! - Add explicit production quality coverage through the quality check CLI and
+  quality.source-coverage profile. Foundation configuration v2 adds the declaration
+  while retaining immutable v1 loading. No new JavaScript SDK is exported.
+
+### Patch Changes
+
+- [#299](https://github.com/agent-teams-ai/engineering-foundation/pull/299) [`ccd0454`](https://github.com/agent-teams-ai/engineering-foundation/commit/ccd0454df03e8313038b49943f125ba017905adc) Thanks [@777genius](https://github.com/777genius)! - Keep valid A-to-C public API findings when an individual historical baseline is missing or invalid. The audit still exits with incomplete evidence, and the affected historical comparisons remain unavailable.
+
+  Bound report comparisons for the full A/B/C package inventory so aggregate historical exhaustion preserves every per-package comparison and valid A-to-C findings.
+
+  Bound report errors at 4,099: all 4,096 historical B failures plus one failure each for A, C, and input revalidation, preserving comparisons and observations at the combined maximum.
+
 ## 1.2.0
 
 ### Minor Changes

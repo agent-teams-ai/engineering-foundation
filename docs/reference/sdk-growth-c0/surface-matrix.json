@@ -1,0 +1,676 @@
+{
+  "contractRevision": "foundation:sdk-growth:c0:4",
+  "status": "incomplete",
+  "claim": "Frozen manifest/observer evidence only. Consumer policies remain consumer-owned; private-only is bounded to the reviewed checkpoint, never inferred for future packages. No complete growth, runtime census or packed qualification claim.",
+  "observerBase": "576ca17ea28c3df7109e99abdd4bd7cc7e89854a",
+  "reasons": {
+    "typed-path": "One declaration target is accepted; resolution branch order/availability is lost.",
+    "declarations": "Existing release declaration projection; no full runtime or hidden graph guarantee.",
+    "graph": "Bounded audit requires complete input/SDK bindings and remains release-ineligible; no exact package qualification captured here.",
+    "packed": "No exact packed artifact/provenance qualification supplied.",
+    "non-type-kind": "Export path/kind is covered, not all resolution or growth semantics.",
+    "non-type": "Declaration observers do not establish data/wildcard contracts.",
+    "artifact": "Existing artifact observer covers concrete wildcard membership and schema bytes/IDs under its accepted profile; exact archive not qualified here.",
+    "runtime-census": "Current declaration observer does not prove runtime-only symbol census.",
+    "bin": "Current exports coverage does not admit named bins.",
+    "no-exports": "Existing package coverage requires an exports map; this is not implicit full SDK coverage.",
+    "entrypoint": "No declared export entrypoint in this checkpoint.",
+    "non-wildcard-artifact": "Existing artifact inventory does not compare standalone data or runtime export contents; it inspects wildcard members and their JSON Schemas."
+  },
+  "shapes": {
+    "typed-types-import": {
+      "description": "Concrete subpath with ordered types then import targets.",
+      "observers": {
+        "export-coverage": "limited:typed-path",
+        "api-extractor": "limited:declarations",
+        "bounded-audit": "limited:graph",
+        "artifact-inventory": "unavailable:packed"
+      }
+    },
+    "typed-import-default": {
+      "description": "Root import condition contains ordered types/default, followed by root default.",
+      "observers": {
+        "export-coverage": "limited:typed-path",
+        "api-extractor": "limited:declarations",
+        "bounded-audit": "limited:graph",
+        "artifact-inventory": "unavailable:packed"
+      }
+    },
+    "data": {
+      "description": "Concrete JSON string target.",
+      "observers": {
+        "export-coverage": "limited:non-type-kind",
+        "api-extractor": "unsupported:non-type",
+        "bounded-audit": "unsupported:non-type",
+        "artifact-inventory": "unsupported:non-wildcard-artifact"
+      }
+    },
+    "wildcard": {
+      "description": "Unconditional package-relative untyped wildcard string.",
+      "observers": {
+        "export-coverage": "limited:non-type-kind",
+        "api-extractor": "unsupported:non-type",
+        "bounded-audit": "unsupported:non-type",
+        "artifact-inventory": "limited:artifact"
+      }
+    },
+    "runtime": {
+      "description": "Concrete runtime-only ESM string export.",
+      "observers": {
+        "export-coverage": "limited:non-type-kind",
+        "api-extractor": "unsupported:runtime-census",
+        "bounded-audit": "unsupported:runtime-census",
+        "artifact-inventory": "unsupported:non-wildcard-artifact"
+      }
+    },
+    "bin": {
+      "description": "Named CLI manifest target; no bin admission in current export observer.",
+      "observers": {
+        "export-coverage": "unsupported:bin",
+        "api-extractor": "unsupported:bin",
+        "bounded-audit": "unsupported:bin",
+        "artifact-inventory": "unavailable:packed"
+      }
+    },
+    "no-exports": {
+      "description": "No declared exports or bins; consumer must confirm no other public exposure.",
+      "observers": {
+        "export-coverage": "unsupported:no-exports",
+        "api-extractor": "unavailable:entrypoint",
+        "bounded-audit": "unavailable:entrypoint",
+        "artifact-inventory": "unavailable:packed"
+      }
+    }
+  },
+  "repositories": [
+    {
+      "repository": "ef",
+      "integrationBase": "576ca17ea28c3df7109e99abdd4bd7cc7e89854a",
+      "workspacePatterns": [
+        "packages/*",
+        "spikes/*"
+      ],
+      "workspaceDigest": "sha256:fcb3b8acede70a5b5154d09a7d961799b26d4c6b8841478ff539a38600d133ec",
+      "lockDigest": "sha256:5fd90979d3a57246e70d039ae85be2d6943ba104d610c75649a5250c7bf670ad",
+      "packages": [
+        {
+          "packageName": "@agent-teams/engineering-foundation-repository",
+          "version": "0.0.0",
+          "manifestPath": "package.json",
+          "manifestDigest": "sha256:13ffe856e319fabe10b868d75c490debac2f0db6409b03882b607798fd4a406e",
+          "private": true,
+          "classification": "private-only",
+          "surface": [
+            {
+              "shape": "no-exports"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/docs-protocol-agent-teams",
+          "version": "0.2.8",
+          "manifestPath": "packages/docs-protocol-agent-teams/package.json",
+          "manifestDigest": "sha256:40c0e3811dcb3c854cff4520a1e9131903a8950ace43ca2a6a1db576490fb931",
+          "private": false,
+          "classification": "public-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./qualification",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/qualification/index.d.ts",
+                "import": "./dist/qualification/index.js"
+              }
+            },
+            {
+              "exportPath": "./schemas/*",
+              "shape": "wildcard",
+              "target": "./schemas/*"
+            },
+            {
+              "exportPath": "./package.json",
+              "shape": "data",
+              "target": "./package.json"
+            },
+            {
+              "binName": "agent-teams-docs-managed",
+              "shape": "bin",
+              "target": "./dist/cli.js"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/docs-protocol-mcp",
+          "version": "0.2.3",
+          "manifestPath": "packages/docs-protocol-mcp/package.json",
+          "manifestDigest": "sha256:bc17eb63d3d60d3cfd7318efabf42ff78b662e212676764fb69ed74e32c742e5",
+          "private": false,
+          "classification": "public-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./package.json",
+              "shape": "data",
+              "target": "./package.json"
+            },
+            {
+              "binName": "docs-protocol-mcp",
+              "shape": "bin",
+              "target": "./dist/cli.js"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/docs-protocol",
+          "version": "0.6.0",
+          "manifestPath": "packages/docs-protocol/package.json",
+          "manifestDigest": "sha256:afbf4adc31e1dfde450ea338d36770fb7cf4f2f5f4c5293af9c9fd98af840f81",
+          "private": false,
+          "classification": "public-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./qualification",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/qualification/index.d.ts",
+                "import": "./dist/qualification/index.js"
+              }
+            },
+            {
+              "exportPath": "./schemas/*",
+              "shape": "wildcard",
+              "target": "./schemas/*"
+            },
+            {
+              "exportPath": "./package.json",
+              "shape": "data",
+              "target": "./package.json"
+            },
+            {
+              "binName": "agent-teams-docs",
+              "shape": "bin",
+              "target": "./dist/cli.js"
+            },
+            {
+              "binName": "docs-protocol",
+              "shape": "bin",
+              "target": "./dist/cli.js"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/document-authoring",
+          "version": "0.3.0",
+          "manifestPath": "packages/document-authoring/package.json",
+          "manifestDigest": "sha256:6ff37ae6a91c26b9f2f5054ee1ff24f2f8c53da16970e995966475c44f2957b0",
+          "private": false,
+          "classification": "public-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./observation",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/observation.d.ts",
+                "import": "./dist/observation.js"
+              }
+            },
+            {
+              "exportPath": "./qualification",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/qualification/index.d.ts",
+                "import": "./dist/qualification/index.js"
+              }
+            },
+            {
+              "exportPath": "./schemas/*",
+              "shape": "wildcard",
+              "target": "./schemas/*"
+            },
+            {
+              "exportPath": "./package.json",
+              "shape": "data",
+              "target": "./package.json"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/engineering-foundation",
+          "version": "1.3.3",
+          "manifestPath": "packages/engineering-foundation/package.json",
+          "manifestDigest": "sha256:e2e240222c13b1620c00edc4d4a2621bf1a98ca4bb74404df3b7518eaaa97ddf",
+          "private": false,
+          "classification": "public-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./local-mode",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/local-mode/index.d.ts",
+                "import": "./dist/local-mode/index.js"
+              }
+            },
+            {
+              "exportPath": "./scaffolding/qualification",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/scaffolding/qualification.d.ts",
+                "import": "./dist/scaffolding/qualification.js"
+              }
+            },
+            {
+              "exportPath": "./scaffolding",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/scaffolding/index.d.ts",
+                "import": "./dist/scaffolding/index.js"
+              }
+            },
+            {
+              "exportPath": "./schemas/*",
+              "shape": "wildcard",
+              "target": "./schemas/*"
+            },
+            {
+              "exportPath": "./presets/*",
+              "shape": "wildcard",
+              "target": "./presets/*"
+            },
+            {
+              "exportPath": "./package.json",
+              "shape": "data",
+              "target": "./package.json"
+            },
+            {
+              "binName": "agent-teams-foundation",
+              "shape": "bin",
+              "target": "./dist/cli.js"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/repository-mutation",
+          "version": "0.2.0",
+          "manifestPath": "packages/repository-mutation/package.json",
+          "manifestDigest": "sha256:0c4d953192f1a36a3fe97c02e4f9dd2292e19505f663969acea7e7ba1a7c486f",
+          "private": false,
+          "classification": "public-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./serialization",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/serialization.d.ts",
+                "import": "./dist/serialization.js"
+              }
+            },
+            {
+              "exportPath": "./paths",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/paths.d.ts",
+                "import": "./dist/paths.js"
+              }
+            },
+            {
+              "exportPath": "./coordination",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/coordination.d.ts",
+                "import": "./dist/coordination.js"
+              }
+            },
+            {
+              "exportPath": "./known-file",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/known-file.d.ts",
+                "import": "./dist/known-file.js"
+              }
+            },
+            {
+              "exportPath": "./node",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/node.d.ts",
+                "import": "./dist/node.js"
+              }
+            },
+            {
+              "exportPath": "./qualification",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/qualification/index.d.ts",
+                "import": "./dist/qualification/index.js"
+              }
+            },
+            {
+              "exportPath": "./schemas/*",
+              "shape": "wildcard",
+              "target": "./schemas/*"
+            },
+            {
+              "exportPath": "./package.json",
+              "shape": "data",
+              "target": "./package.json"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/source-dependency-parser-spike",
+          "version": "0.0.0",
+          "manifestPath": "spikes/source-dependency-parser/package.json",
+          "manifestDigest": "sha256:911276170953d7098b6b0fd672d35d05e21da13046148850fdd54cc9f75a28d0",
+          "private": true,
+          "classification": "private-only",
+          "surface": [
+            {
+              "shape": "no-exports"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "gm",
+      "integrationBase": "ac49bb3374946330ec820591f8195a22d2c90900",
+      "workspacePatterns": [
+        "packages/*"
+      ],
+      "workspaceDigest": "sha256:493a9c91204d5ad7b877db358411e4cf09620993773bbcffdf114c41e273a037",
+      "lockDigest": "sha256:126fb4b67fdc6ed0bf4c927e5f27cc3e698699cab2d3b9d1f984b80c60884276",
+      "packages": [
+        {
+          "packageName": "@get-modular/repository",
+          "version": "0.0.0",
+          "manifestPath": "package.json",
+          "manifestDigest": "sha256:ce2b91da467c8bfb17167754d12c08584cabad0d6cd78646a20813065d06b689",
+          "private": true,
+          "classification": "private-only",
+          "surface": [
+            {
+              "shape": "no-exports"
+            }
+          ]
+        },
+        {
+          "packageName": "@get-modular/assembly",
+          "version": "0.2.0",
+          "manifestPath": "packages/assembly/package.json",
+          "manifestDigest": "sha256:827315795fb915928b23898d028cd5a187e99d8f072cdedb4c2796d10b456111",
+          "private": false,
+          "classification": "public-runtime",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-import-default",
+              "target": {
+                "import": {
+                  "types": "./dist/index.d.ts",
+                  "default": "./dist/index.js"
+                },
+                "default": "./dist/index.js"
+              }
+            }
+          ]
+        },
+        {
+          "packageName": "@get-modular/core",
+          "version": "0.2.0",
+          "manifestPath": "packages/core/package.json",
+          "manifestDigest": "sha256:ce3e82013867f8cebb49f1d95ba4951fb4e115fc5f4476f2c3132b556a70a3df",
+          "private": false,
+          "classification": "public-runtime",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-import-default",
+              "target": {
+                "import": {
+                  "types": "./dist/index.d.ts",
+                  "default": "./dist/index.js"
+                },
+                "default": "./dist/index.js"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "ar",
+      "integrationBase": "be96f01ea54ec7d2ec0156774e3dfb75fac46803",
+      "workspacePatterns": [
+        "experiments/*",
+        "packages/apps/*",
+        "packages/contexts/*",
+        "packages/platform/*"
+      ],
+      "workspaceDigest": "sha256:c8ad241ff1190df95f3f9c1604252d9935c430b49b1e583370be54a1c56b4b71",
+      "lockDigest": "sha256:cd819da54703d785a9950a3369a4479aca774ba4b2b6396d699884dd1855c961",
+      "packages": [
+        {
+          "packageName": "@vioxen/agent-runtime",
+          "version": "0.0.0",
+          "manifestPath": "package.json",
+          "manifestDigest": "sha256:42fe3cc72a9e09ca77528ed57dbb3d0a8c61d99e2b26528057bb4b6f0f709615",
+          "private": true,
+          "classification": "private-only",
+          "surface": [
+            {
+              "shape": "no-exports"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/embedded-runtime",
+          "version": "0.0.0",
+          "manifestPath": "packages/apps/embedded-runtime/package.json",
+          "manifestDigest": "sha256:d654e30e7d002af040e880ad3a7d1430e07f055318ff594023049bb65d2cf7af",
+          "private": true,
+          "classification": "private-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./composition",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/composition.d.ts",
+                "import": "./dist/composition.js"
+              }
+            },
+            {
+              "exportPath": "./scripts/run-package-tests.mjs",
+              "shape": "runtime",
+              "target": "./scripts/run-package-tests.mjs"
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/agent-execution",
+          "version": "0.0.0",
+          "manifestPath": "packages/contexts/agent-execution/package.json",
+          "manifestDigest": "sha256:c4b74da6c503d5f35b68cb03308c241accb00f05a38e2485571a8a4ee29c6143",
+          "private": true,
+          "classification": "private-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./composition",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/composition.d.ts",
+                "import": "./dist/composition.js"
+              }
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/provider-access",
+          "version": "0.0.0",
+          "manifestPath": "packages/contexts/provider-access/package.json",
+          "manifestDigest": "sha256:16f99b9c4468594593d55c2554660b298923f4344312895fe30cc9d0c3969c59",
+          "private": true,
+          "classification": "private-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./composition",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/composition.d.ts",
+                "import": "./dist/composition.js"
+              }
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/runtime-configuration",
+          "version": "0.0.0",
+          "manifestPath": "packages/contexts/runtime-configuration/package.json",
+          "manifestDigest": "sha256:5c5d561eecb4ad9323a310ebcb454b62af31e2e5d1929cd365940b4d1ae059c3",
+          "private": true,
+          "classification": "private-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./composition",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/composition.d.ts",
+                "import": "./dist/composition.js"
+              }
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/runtime-security",
+          "version": "0.0.0",
+          "manifestPath": "packages/contexts/runtime-security/package.json",
+          "manifestDigest": "sha256:a8c96cafbef73e589796ae79d00258029890d59e497c51377b79405a6c89e001",
+          "private": true,
+          "classification": "private-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./composition",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/composition.d.ts",
+                "import": "./dist/composition.js"
+              }
+            }
+          ]
+        },
+        {
+          "packageName": "@agent-teams/filesystem-custody",
+          "version": "0.0.0",
+          "manifestPath": "packages/platform/filesystem-custody/package.json",
+          "manifestDigest": "sha256:0575039c9e373e95b470d69ecdbf7f9d234420c3817a784c701c74c13f121ce5",
+          "private": true,
+          "classification": "private-development",
+          "surface": [
+            {
+              "exportPath": ".",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js"
+              }
+            },
+            {
+              "exportPath": "./composition",
+              "shape": "typed-types-import",
+              "target": {
+                "types": "./dist/composition.d.ts",
+                "import": "./dist/composition.js"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

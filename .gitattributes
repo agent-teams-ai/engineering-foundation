@@ -1,4 +1,6 @@
 architecture/public-api/*.json text eol=lf
+docs/reference/sdk-growth-c0.md text eol=lf
+docs/reference/sdk-growth-c0/*.json text eol=lf
 standards/feature-module-standard-v1.md text eol=lf
 tests/support/historical-schemas/**/*.json text eol=lf
 packages/docs-protocol-agent-teams/tests/fixtures/historical-execution-schemas/*.json text eol=lf

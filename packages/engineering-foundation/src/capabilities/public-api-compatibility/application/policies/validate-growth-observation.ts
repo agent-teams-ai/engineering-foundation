@@ -17,7 +17,7 @@ function array(value: unknown): readonly unknown[] {
 function oneOf(value: unknown, values: readonly string[]): void {
   if (typeof value !== "string" || !values.includes(value)) { invalid(); }
 }
-export const growthIdentityFields = ["repository", "sourceCommit", "sourceTree", "topologyDigest", "lockDigest", "toolchainDigest", "artifactDigests", "tool"] as const;
+const growthIdentityFields = ["repository", "sourceCommit", "sourceTree", "topologyDigest", "lockDigest", "toolchainDigest", "artifactDigests", "tool"] as const;
 
 function identity(value: Record<string, unknown>): void {
   for (const field of growthIdentityFields) {

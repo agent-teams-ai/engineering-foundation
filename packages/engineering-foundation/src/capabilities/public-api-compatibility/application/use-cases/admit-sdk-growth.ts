@@ -44,14 +44,17 @@ function releaseScopeReasons(context: GrowthInputContext, execution: GrowthObser
 }
 
 export interface SdkGrowthAdmissionExecution {
+  readonly observation: GrowthObservationExecution;
+  readonly baseReference: GrowthInputContext["trustedBaseReference"];
+  readonly authority: GrowthInputContext["authority"];
   readonly admission: GrowthAdmissionResult;
   readonly comparison: GrowthComparison;
   readonly compatibility: GrowthReleaseCompatibilityResult;
   readonly released: GrowthInputContext["released"];
 }
 
-/** Internal, inactive S2 use case. One S1 observation is authoritative for both
- * comparisons. No CLI/config/report activation, persistence or release promotion.
+/** Internal S2 use case. One S1 observation is authoritative for both
+ * comparisons. Persistence and command mapping remain outside this policy.
  * The context boundary owns external verification; unavailable retained history
  * is never reconstructed from a candidate or an empty v1 baseline. */
 export async function admitSdkGrowth(input: {
@@ -86,7 +89,8 @@ export async function admitSdkGrowth(input: {
     const authority = context.authority.status === "verified" && ownerEvidence?.status === "available" ? ownerEvidence.value : [];
     const admission = evaluateGrowthAdmission({ comparison, decisions: context.decisions, authority, compatibility: compatibility.status }, dependencies.fingerprint);
     cancellation.throwIfCancelled();
-    return { admission, comparison, compatibility, released: context.released };
+    return { observation: execution, baseReference: context.trustedBaseReference, authority: context.authority,
+      admission, comparison, compatibility, released: context.released };
   } catch (error) {
     cancellation.throwIfCancelled();
     throw error;

@@ -1,0 +1,38 @@
+{
+  "contractRevision": "foundation:sdk-growth:c0:5",
+  "decisionId": "SDK-GROWTH-V2-FIRST-SURFACE",
+  "ownerRef": "engineering-foundation/public-api-compatibility",
+  "stability": "development",
+  "transitions": [
+    "sha256:8e390617e63754ddb986bc28bb23dfbfed8b7a79fce9d77f57c764a96f1c1b2a"
+  ],
+  "coordinates": [
+    {
+      "packageName": "@agent-teams/engineering-foundation",
+      "exportPath": "./schemas/package-public-api-compatibility/v2.schema.json",
+      "resolutionBranch": [],
+      "subject": {
+        "kind": "wildcard-member",
+        "member": "./schemas/package-public-api-compatibility/v2.schema.json"
+      }
+    }
+  ],
+  "changeFingerprint": "sha256:438eb597c8856b0ceaf2153018e3af8a6b0b1490c4d3c4337577b0abfea608ae",
+  "consumerEvidenceRefs": [
+    {
+      "useCase": "Disposable packed SDK configuration and incomplete admission qualification",
+      "repository": "agent-teams-ai/engineering-foundation",
+      "source": {
+        "tree": "63b2f4fc8c8e0122e03d9b8ce9660b778943f0ac",
+        "contentDigest": "sha256:eeae1395869906655c9801902a92928c37dd463524523cf91c8f5db7fd77ec9e",
+        "commit": null
+      },
+      "artifactDigest": null
+    }
+  ],
+  "exposureRationale": "Expose one versioned data-only opt-in configuration through the existing schemas wildcard. No new public runtime entrypoint.",
+  "compatibilityRationale": "V1 schema and mapper bytes stay unchanged. Pre-S3 context is unverified and matched decisions remain incomplete.",
+  "lifecycle": {
+    "kind": "ordinary"
+  }
+}

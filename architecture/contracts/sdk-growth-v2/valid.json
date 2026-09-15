@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "acceptedDecisionBaselinePath": "architecture/decisions/accepted-decisions.json",
+  "changesetDirectory": ".changeset",
+  "packages": [
+    {
+      "packageName": "sdk-packed-fixture",
+      "packageRoot": "pkg",
+      "manifestPath": "pkg/package.json",
+      "tsconfigPath": "pkg/tsconfig.json",
+      "releasedBaselinePath": "architecture/public-api/sdk-packed-fixture.json",
+      "approvedBreakingChanges": [],
+      "nonTypeExports": [],
+      "entrypoints": [
+        {
+          "exportPath": ".",
+          "declarationEntryPoint": "pkg/dist/index.d.ts"
+        }
+      ]
+    }
+  ],
+  "sdkGrowth": {
+    "workspaceManifestPath": "pnpm-workspace.yaml",
+    "invocation": {
+      "repository": "synthetic/packed-sdk",
+      "sourceCommit": "1111111111111111111111111111111111111111",
+      "sourceTree": "2222222222222222222222222222222222222222",
+      "topologyDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "lockDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "toolchainDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "artifactDigests": [
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      ],
+      "tool": {
+        "version": "1.3.3",
+        "artifactDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "extractorVersion": "7.58.12"
+      }
+    },
+    "context": {
+      "trustedBasePath": "evidence/base.json",
+      "decisionsPath": "evidence/decisions.json",
+      "released": [
+        {
+          "packageName": "sdk-packed-fixture",
+          "kind": "released",
+          "observationPath": "evidence/released.json"
+        }
+      ]
+    },
+    "report": {
+      "path": "reports/sdk.json",
+      "expectedPreimage": null
+    }
+  }
+}

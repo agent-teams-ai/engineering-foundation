@@ -1,0 +1,21 @@
+{
+  "contractId": "package-public-api-compatibility",
+  "publicContractVersion": "2.0.0",
+  "status": "artifact-protected-unreleased",
+  "schemaPath": "packages/engineering-foundation/schemas/package-public-api-compatibility/v2.schema.json",
+  "schemaDigest": "sha256:113132fec5474ddfc14716f55ad0f7544da5de892a4c0a44c5cf98cb7d999b55",
+  "fixtures": [
+    {
+      "path": "architecture/contracts/sdk-growth-v2/valid.json",
+      "expectation": "valid",
+      "digest": "sha256:a315cd29c3088bfd02c1ef995e4c24a80a005e066419e6d3aedfdccdf89a95f2"
+    },
+    {
+      "path": "architecture/contracts/sdk-growth-v2/invalid.json",
+      "expectation": "invalid",
+      "digest": "sha256:c24ea7d768003342311faff776dd830278e20cdbd732ca8f1f7336b32d8687c0"
+    }
+  ],
+  "qualification": "scripts/pack-sdk-growth-test.mjs",
+  "supportClaim": "No JSON Schema family support or consumer activation; contract.json-schema-releases adoption remains separate."
+}

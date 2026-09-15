@@ -1,6 +1,7 @@
-import type { PublicApiCompatibilityPolicy } from "../../../application/model/public-api.js";
+import type { PublicApiCapabilityPolicy } from "../../../application/model/growth-configuration.js";
 import type { PublicApiSchemaAssertion } from "../../schema-validation.js";
-import { readConfigurationHeader, parseCapabilityConfig } from "./parse-capability-config.js";
+import { readPublicApiConfigurationHeader, mapPublicApiConfiguration } from "./parse-growth-config.js";
+import { configurationInputError } from "../../../application/configuration-input.js";
 
 export interface PublicApiConfigurationDependencies {
   readonly readYaml: (consumerRoot: string, configPath: string, phase: string, signal?: AbortSignal) => Promise<unknown>;
@@ -12,9 +13,14 @@ export async function loadCapabilityConfig(
   consumerRoot: string,
   configPath: string,
   signal?: AbortSignal
-): Promise<PublicApiCompatibilityPolicy> {
+): Promise<PublicApiCapabilityPolicy> {
   const input = await dependencies.readYaml(consumerRoot, configPath, "public-api-compatibility-config", signal);
-  const root = readConfigurationHeader(input);
-  await dependencies.assertSchema("package-public-api-compatibility/v1", input, "public-api-compatibility-config");
-  return parseCapabilityConfig(root);
+  const root = readPublicApiConfigurationHeader(input);
+  const schema = root["schemaVersion"] === 1 ? "package-public-api-compatibility/v1" : "package-public-api-compatibility/v2";
+  await dependencies.assertSchema(schema, input, "public-api-compatibility-config");
+  const policy = mapPublicApiConfiguration(root);
+  if (policy.schemaVersion === 2 && policy.sdkGrowth.report.path === configPath) {
+    configurationInputError("SDK report path must not replace the capability configuration.");
+  }
+  return policy;
 }

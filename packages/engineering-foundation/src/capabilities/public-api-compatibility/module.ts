@@ -27,6 +27,12 @@ import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../sourc
 import { parseStrictYamlSource } from "../../features/configuration-input/yaml.js";
 import type { PublicApiExtractor } from "./application/ports/public-api-extractor.js";
 import type { PublicApiRepositoryEvidence } from "./application/ports/public-api-evidence.js";
+import { configurationInputError } from "./application/configuration-input.js";
+import { createWorkspaceInventoryReader } from "../../workspace-inventory/module.js";
+import { createWorkspaceGrowthReader } from "./adapters/outbound/filesystem/workspace-growth-reader.js";
+import { createFilesystemGrowthInputContext } from "./adapters/outbound/filesystem/growth-input-context.js";
+import { createFilesystemGrowthReportWriter } from "./adapters/outbound/filesystem/growth-report-writer.js";
+import { checkSdkGrowth } from "./application/use-cases/check-sdk-growth.js";
 
 const evidence: PublicApiRepositoryEvidence = {
   files: { read: readContainedRegularFile },
@@ -60,6 +66,9 @@ export async function promotePublicApiRelease(input: {
     input.configPath,
     input.signal
   );
+  if (policy.schemaVersion === 2) {
+    configurationInputError("SDK growth release promotion requires the separately qualified S3 authority route.");
+  }
   const dependencies = createDependencies(readAcceptedDecisions, assertSchema);
   const artifacts = await artifactDependencies(input.consumerRoot, policy.packages, dependencies, inspector, input.signal);
   return preflightPublicApiPromotions(
@@ -78,6 +87,7 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
     id: CAPABILITY_ID,
     configSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
     async run(invocation: CapabilityInvocation) {
+      let configVersion: number = CAPABILITY_CONFIG_SCHEMA_VERSION;
       try {
         const policy = await loadCapabilityConfig(
           { readYaml: loadStrictYamlFile, assertSchema },
@@ -85,6 +95,17 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
           invocation.configPath,
           invocation.signal
         );
+        configVersion = policy.schemaVersion;
+        if (policy.schemaVersion === 2) {
+          return await checkSdkGrowth({ consumerRoot: invocation.consumerRoot, policy,
+            ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) }, {
+            repository: dependencies.repository, fingerprint: dependencies.fingerprint, typed: dependencies.extractor,
+            artifact: new FilesystemPackageArtifactInventory(inspector, evidence),
+            workspace: createWorkspaceGrowthReader(createWorkspaceInventoryReader()),
+            context: createFilesystemGrowthInputContext({ consumerRoot: invocation.consumerRoot, policy: policy.compatibility }, { ...dependencies, assertSchema }),
+            writer: createFilesystemGrowthReportWriter(invocation.consumerRoot)
+          });
+        }
         const artifacts = await artifactDependencies(invocation.consumerRoot, policy.packages, dependencies, inspector, invocation.signal);
         const input = { consumerRoot: invocation.consumerRoot, policy, ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) };
         return capabilityReport({
@@ -98,7 +119,7 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
       } catch (error) {
         return capabilityFailureReport({
           capabilityId: CAPABILITY_ID,
-          capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
+          capabilityConfigSchemaVersion: configVersion,
           error,
           phase: "public-api-compatibility-execution"
         });

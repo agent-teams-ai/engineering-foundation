@@ -1588,6 +1588,10 @@
           "testRoots": [
             "tests/capability-public-api.test.mjs",
             "tests/public-api-evidence-ports.test.mjs",
+            "tests/public-api-growth-report-writer.test.mjs",
+            "tests/public-api-growth-context.test.mjs",
+            "tests/public-api-growth-execution.test.mjs",
+            "tests/public-api-growth-schema-corpus.test.mjs",
             "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
             "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
             "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",

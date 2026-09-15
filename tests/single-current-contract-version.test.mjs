@@ -28,7 +28,7 @@ const sourceDependenciesV2Path =
 const sourceDependenciesV3Path =
   "schemas/architecture-source-dependencies/v3.schema.json";
 const enumeratedNonV1SchemaPathsByRoot = new Map([
-  [packageRoot, [sourceDependenciesV2Path, sourceDependenciesV3Path, "schemas/foundation-config/v2.schema.json", transactionEnvelopeV2Path]],
+  [packageRoot, [sourceDependenciesV2Path, sourceDependenciesV3Path, "schemas/foundation-config/v2.schema.json", transactionEnvelopeV2Path, "schemas/package-public-api-compatibility/v2.schema.json"]],
   [documentAuthoringPackageRoot, [
     "schemas/document-authoring/document-plan/v2.schema.json",
     documentAuthoringProfileV2Path,
@@ -155,6 +155,8 @@ test("ships only enumerated schema and persisted envelope generations", async ()
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
   const enumeratedVersionedSourceLiteralsByRoot = new Map([
     [packageRoot, {
+      "src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts": [2],
+      "src/capabilities/public-api-compatibility/application/model/growth-configuration.ts": [2],
       "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2, 3],
       "src/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.ts": [3, 2],
       "src/transaction-coordination/adapters/node/schema6-transaction-status.ts": [6],

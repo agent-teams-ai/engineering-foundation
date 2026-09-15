@@ -16,6 +16,7 @@ not repeat their rules.
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
 | Executable specifications | [Executable specifications](reference/executable-specifications.md) | Accepted and implemented; activation is explicit |
 | Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
+| SDK growth S2 remediation | [Configuration, projection and evidence](reference/sdk-growth-s2-remediation.md) | Local remediation evidence; packed qualification and S3 authority remain separate |
 | SDK growth checkpoint | [EF C0 contract](reference/sdk-growth-c0.md) | Documentation freeze; implementation and trusted activation pending S1–S3 |
 | Repository security | [Repository security baseline](security/repository-security-baseline.md) | Accepted and implemented for publishing repositories |
 | Consistency evidence gate | [Consistency evidence gate](architecture/consistency-evidence-gate.md) | Accepted target; implementation pending |

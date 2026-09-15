@@ -1,4 +1,5 @@
 import type { GrowthWorkspaceReader } from "../ports/growth-workspace.js";
+import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type { GrowthCancellation, GrowthCompatibilityPackage, GrowthInvocation, GrowthObservationExecution } from "../model/growth-observation.js";
 import { GrowthObservationInvariantError, GrowthObservationUnavailableError } from "../model/growth-observation.js";
 import type { GrowthObservationPort } from "../ports/growth-observation.js";
@@ -50,8 +51,10 @@ export function createGrowthObservation(input: {
       const subjects = growthUniqueSorted(selected.subjects, (subject) => subject.policy.packageName);
       let inventory;
       try { inventory = immutable(await dependencies.workspace.read(selected.consumerRoot, selected.workspaceManifestPath, cancellation.signal)); }
-      catch {
+      catch (error) {
         cancellation.throwIfCancelled();
+        if (!(error instanceof GrowthObservationUnavailableError)
+          && !(error instanceof CapabilityInputError && error.problem.code !== "EXECUTION_CANCELLED")) { throw error; }
         return immutable({ identity, surface: { status: "unavailable", reasons: ["workspace-observation-unavailable"] }, compatibilitySnapshots: [] });
       }
       cancellation.throwIfCancelled();

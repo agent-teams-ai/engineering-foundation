@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "acceptedDecisionBaselinePath": "architecture/decisions/accepted-decisions.json",
+  "changesetDirectory": ".changeset",
+  "packages": [
+    {
+      "packageName": "sdk-packed-fixture",
+      "packageRoot": "pkg",
+      "manifestPath": "pkg/package.json",
+      "tsconfigPath": "pkg/tsconfig.json",
+      "releasedBaselinePath": "architecture/public-api/sdk-packed-fixture.json",
+      "approvedBreakingChanges": [],
+      "nonTypeExports": [],
+      "entrypoints": [
+        {
+          "exportPath": ".",
+          "declarationEntryPoint": "pkg/dist/index.d.ts"
+        }
+      ]
+    }
+  ],
+  "sdkGrowth": {
+    "contractRevision": "foundation:sdk-growth:c0:5",
+    "policyVersion": "foundation:sdk-growth:policy:1",
+    "comparison": {
+      "trustedBasePath": "evidence/base.json",
+      "released": [
+        {
+          "packageName": "sdk-packed-fixture",
+          "kind": "released",
+          "observationPath": "evidence/released.json"
+        }
+      ]
+    },
+    "decisionsPath": "evidence/decisions.json",
+    "reportPath": "C:/report.json"
+  },
+  "governanceConfigPath": "architecture/foundation/governance-architecture-decisions.yaml"
+}

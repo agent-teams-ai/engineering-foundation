@@ -27,6 +27,9 @@ function rule(
 }
 
 export const PUBLIC_API_COMPATIBILITY_RULES = Object.freeze({
+  sdkGrowthReport: Object.freeze({ ...rule("sdk-growth-report",
+    "SDK growth reports preserve exact transitions and incomplete evidence without granting release authority.",
+    "Inspect the exact SDK report; supply qualified evidence through the separately trusted integration."), severity: "info" as const }),
   baselineToolMismatch: rule(
     "baseline-tool-mismatch",
     "API surfaces produced by different extractor versions are not directly comparable evidence.",

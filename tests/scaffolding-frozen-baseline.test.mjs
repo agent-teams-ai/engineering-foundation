@@ -270,6 +270,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-audit-request/v1.schema.json",
     "schemas/foundation-config/v2.schema.json",
+    "schemas/package-public-api-compatibility/v2.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
     "schemas/quality-gate-runner/v1.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",

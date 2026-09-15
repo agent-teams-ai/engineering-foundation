@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "contractId": "package-public-api-compatibility",
+  "publicContractVersion": "2.0.0",
+  "schemaPaths": [
+    "packages/engineering-foundation/schemas/package-public-api-compatibility/v2.schema.json"
+  ],
+  "fixtures": [
+    {
+      "id": "released-valid",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/released-valid.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "valid"
+    },
+    {
+      "id": "initial-unreleased-valid",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/initial-unreleased-valid.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "valid"
+    },
+    {
+      "id": "missing-contractrevision",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/missing-contractrevision.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "missing-policyversion",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/missing-policyversion.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "missing-comparison",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/missing-comparison.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "missing-decisionspath",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/missing-decisionspath.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "missing-reportpath",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/missing-reportpath.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "candidate-invocation",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/candidate-invocation.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "candidate-authority",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/candidate-authority.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "candidate-workspacemanifestpath",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/candidate-workspacemanifestpath.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "candidate-report",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/candidate-report.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "candidate-context",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/candidate-context.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "missing-governance",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/missing-governance.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "empty-released",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/empty-released.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "mixed-release-branch",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/mixed-release-branch.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "path-whitespace",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/path-whitespace.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "path-drive",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/path-drive.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "path-dot",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/path-dot.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "path-empty-segment",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/path-empty-segment.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    },
+    {
+      "id": "path-nul",
+      "path": "architecture/contracts/sdk-growth-v2/fixtures/path-nul.json",
+      "schemaId": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+      "expectation": "invalid"
+    }
+  ],
+  "releasedBaselinePath": "architecture/contracts/json-schema/package-public-api-compatibility-v2.json",
+  "currentConsumerEvidence": [
+    {
+      "consumerId": "sdk-growth-config-loader-fixture",
+      "consumerVersion": "1.0.0",
+      "contractId": "package-public-api-compatibility",
+      "contractVersion": "2.0.0",
+      "schemaSetDigest": "sha256:724350515283296bbdd1ec95ce8a994046ccac0da61b7e93037e83d4ac183210",
+      "fixtureCorpusDigest": "sha256:b2e68eb9189121b81963ae188320a56414e2acdea590a1528e613ee448ddc40c",
+      "evidenceDigest": "sha256:a1301a5d998dd94230da494b474dcf0643e65023fb5912f30613e84d5b3f75ef",
+      "outcome": "passed"
+    }
+  ]
+}

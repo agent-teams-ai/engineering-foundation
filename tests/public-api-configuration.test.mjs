@@ -29,6 +29,81 @@ function packagePolicy() {
   return parseCapabilityConfig(readConfigurationHeader(configuration())).packages[0];
 }
 
+function growthConfiguration() {
+  return { ...configuration(), schemaVersion: 2, governanceConfigPath: "governance.yaml", sdkGrowth: {
+    contractRevision: "foundation:sdk-growth:c0:5", policyVersion: "foundation:sdk-growth:policy:1",
+    comparison: { trustedBasePath: "evidence/base.json",
+      released: [{ packageName: "@fixture/public-api", kind: "released", observationPath: "evidence/released.json" }] },
+    decisionsPath: "evidence/decisions.json", reportPath: "reports/sdk.json"
+  } };
+}
+
+async function readGrowthFixture(input, path) {
+  if (path !== "governance.yaml") { return input; }
+  const { parse } = await import("yaml");
+  return parse(await readFile("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", "utf8"));
+}
+
+function loadGrowthFixture(input) {
+  return loadCapabilityConfig({ readYaml: async (_root, path) => readGrowthFixture(input, path), assertSchema }, "memory-fixture", "policy.yaml");
+}
+
+test("SDK v2 discriminates schema before mapping and reuses the exact unchanged v1 compatibility policy", async () => {
+  const input = growthConfiguration(), before = structuredClone(input), calls = [];
+  const result = await loadCapabilityConfig({ readYaml: async (_root, path) => readGrowthFixture(input, path), async assertSchema(...args) {
+    calls.push(args[0]); await assertSchema(...args);
+  } }, "memory-fixture", "policy.yaml");
+  assert.deepEqual(calls, ["package-public-api-compatibility/v2", "governance-architecture-decisions/v1"]);
+  assert.equal(result.schemaVersion, 2);
+  assert.deepEqual(result.compatibility, parseCapabilityConfig({ ...configuration(), governanceConfigPath: "governance.yaml" }));
+  assert.deepEqual(result.sdkGrowth, input.sdkGrowth);
+  assert.deepEqual(input, before);
+  input.sdkGrowth.comparison.released[0].packageName = "mutated";
+  assert.equal(result.sdkGrowth.comparison.released[0].packageName, "@fixture/public-api");
+});
+
+test("SDK v2 schema is closed at every new object and does not extend v1 implicitly", async () => {
+  for (const select of [input => input, input => input.sdkGrowth, input => input.sdkGrowth.comparison,
+    input => input.sdkGrowth.comparison.released[0]]) {
+    const input = growthConfiguration(); select(input).authority = { status: "verified" };
+    await assert.rejects(assertSchema("package-public-api-compatibility/v2", input, "fixture"));
+  }
+  await assert.rejects(assertSchema("package-public-api-compatibility/v1", growthConfiguration(), "fixture"));
+  await assert.rejects(assertSchema("package-public-api-compatibility/v2", configuration(), "fixture"));
+  const mixed = growthConfiguration(); mixed.sdkGrowth.comparison.released[0].trustedHistoryPath = "initial.json";
+  await assert.rejects(assertSchema("package-public-api-compatibility/v2", mixed, "fixture"));
+});
+
+test("SDK v2 rejects duplicate release identities and report overlap before filesystem effects", async () => {
+  const duplicate = growthConfiguration(); duplicate.sdkGrowth.comparison.released.push({ ...duplicate.sdkGrowth.comparison.released[0] });
+  await assert.rejects(loadGrowthFixture(duplicate), /identities must be unique/u);
+  for (const path of ["policy.yaml", "evidence/base.json", "packages/library/package.json", "architecture/public-api/public-api.json"]) {
+    const input = growthConfiguration(); input.sdkGrowth.reportPath = path;
+    await assert.rejects(loadGrowthFixture(input), /report path overlaps a protected/u);
+  }
+});
+
+test("SDK v2 classifies schema-permitted malformed paths as configuration errors and preserves defects", async () => {
+  const { capabilityFailureReport } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  for (const value of [" ", " packages/library", "packages/library "]) {
+    const input = growthConfiguration();
+    input.packages[0].packageRoot = value;
+    // Retained v1 path schema permits these bytes; the mapper must reject them.
+    await assertSchema("package-public-api-compatibility/v2", input, "fixture");
+    await assert.rejects(loadGrowthFixture(input), error => {
+      const report = capabilityFailureReport({ capabilityId: "package.public-api-compatibility", capabilityConfigSchemaVersion: 2, error, phase: "fixture" });
+      assert.equal(report.outcome, "invalid-input");
+      return error.name === "CapabilityInputError";
+    });
+  }
+  const defect = new TypeError("unexpected loader defect");
+  await assert.rejects(loadCapabilityConfig({ readYaml: async () => { throw defect; }, assertSchema }, "fixture", "config.yaml"), error => {
+    assert.equal(error, defect);
+    assert.equal(capabilityFailureReport({ capabilityId: "package.public-api-compatibility", capabilityConfigSchemaVersion: 2, error, phase: "fixture" }).outcome, "failed");
+    return true;
+  });
+});
+
 test("Public API configuration and baseline storage no longer join the module schema assembly cycle", async () => {
   await assertFeatureOutsideSchemaCycles("public-api-compatibility");
 });
@@ -60,9 +135,9 @@ test("Public API configuration retains the exact schema, signal forwarding and c
 test("Public API configuration retains header-before-schema and schema-before-policy error precedence", async () => {
   const failure = new Error("schema rejected before policy mapping");
   let validations = 0;
-  const dependencies = { async readYaml() { return { schemaVersion: 2 }; },
+  const dependencies = { async readYaml() { return { schemaVersion: 3 }; },
     async assertSchema() { validations += 1; throw failure; } };
-  await assert.rejects(loadCapabilityConfig(dependencies, "explicit-memory-consumer", "public-api.yaml"), /schemaVersion must be 1/u);
+  await assert.rejects(loadCapabilityConfig(dependencies, "explicit-memory-consumer", "public-api.yaml"), /schemaVersion must be 1 or 2/u);
   assert.equal(validations, 0);
   await assert.rejects(loadCapabilityConfig({ ...dependencies,
     async readYaml() { return { schemaVersion: 1, packages: null }; }

@@ -1,5 +1,13 @@
 # @agent-teams/engineering-foundation
 
+## 1.4.0
+
+### Minor Changes
+
+- [#312](https://github.com/agent-teams-ai/engineering-foundation/pull/312) [`e4bce60`](https://github.com/agent-teams-ai/engineering-foundation/commit/e4bce607c8d8a75bcfe7aaaa754cc653618bb0e5) Thanks [@777genius](https://github.com/777genius)! - Add internal SDK growth admission with exact transition and owner evidence binding, preserving independent released compatibility checks.
+
+- [#310](https://github.com/agent-teams-ai/engineering-foundation/pull/310) [`be9d49b`](https://github.com/agent-teams-ai/engineering-foundation/commit/be9d49bbad435b0fea9d69c018fce6c43609cf1c) Thanks [@777genius](https://github.com/777genius)! - Add the SDK growth observation contract with deterministic surface evidence and retained typed and artifact compatibility snapshots. Preserve existing public API compatibility and optional AbortSignal cancellation.
+
 ## 1.3.3
 
 ### Patch Changes

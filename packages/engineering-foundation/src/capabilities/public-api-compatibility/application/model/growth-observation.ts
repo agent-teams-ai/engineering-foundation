@@ -14,7 +14,10 @@ export interface GrowthInvocation {
   readonly artifactDigests: readonly GrowthDigest[];
   readonly tool: { readonly version: string; readonly artifactDigest: GrowthDigest; readonly extractorVersion: string };
 }
-export interface GrowthCancellation { throwIfCancelled(): void }
+export interface GrowthCancellation {
+  readonly signal?: AbortSignal;
+  throwIfCancelled(): void;
+}
 export type GrowthResolutionStep =
   | { readonly condition: string }
   | { readonly index: number };

@@ -49,7 +49,7 @@ export function createGrowthObservation(input: {
       const identity = immutable(normalizeGrowthInvocation(invocation));
       const subjects = growthUniqueSorted(selected.subjects, (subject) => subject.policy.packageName);
       let inventory;
-      try { inventory = immutable(await dependencies.workspace.read(selected.consumerRoot, selected.workspaceManifestPath)); }
+      try { inventory = immutable(await dependencies.workspace.read(selected.consumerRoot, selected.workspaceManifestPath, cancellation.signal)); }
       catch {
         cancellation.throwIfCancelled();
         return immutable({ identity, surface: { status: "unavailable", reasons: ["workspace-observation-unavailable"] }, compatibilitySnapshots: [] });

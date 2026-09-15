@@ -48,7 +48,7 @@ export async function retainGrowthCompatibility(input: {
     const { policy, packageVersion } = subject;
     let typed: GrowthEvidence<PublicApiSnapshot>;
     try {
-      typed = { status: "available", value: structuredClone(await dependencies.typed.extract(input.consumerRoot, policy, packageVersion)) };
+      typed = { status: "available", value: structuredClone(await dependencies.typed.extract(input.consumerRoot, policy, packageVersion, input.cancellation.signal)) };
     } catch {
       input.cancellation.throwIfCancelled();
       typed = unavailable("typed-observation-unavailable");
@@ -61,7 +61,7 @@ export async function retainGrowthCompatibility(input: {
     let snapshots: readonly PublicApiArtifactSnapshot[] | undefined;
     let artifactObservation: GrowthEvidence<PublicApiArtifactSnapshot>;
     try {
-      snapshots = structuredClone(await dependencies.artifact.inspect(input.consumerRoot, [policy]));
+      snapshots = structuredClone(await dependencies.artifact.inspect(input.consumerRoot, [policy], input.cancellation.signal));
     } catch {
       input.cancellation.throwIfCancelled();
     }

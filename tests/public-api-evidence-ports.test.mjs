@@ -368,6 +368,53 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
     };
     return { packages, subjects, calls, dependencies, port() { return createGrowthObservation({ consumerRoot: "/unused", workspaceManifestPath: "pnpm-workspace.yaml", subjects }, dependencies); } };
   }
+  for (const [stage, method, signalIndex] of [["workspace", "read", 2], ["typed", "extract", 3], ["artifact", "inspect", 2]]) {
+    test(`S1: cancellation rejects running ${stage} observation without manual release`, async () => {
+      const setup = fixture(matrix.repositories[1]);
+      const controller = new AbortController();
+      const cancelled = new Error("invocation cancelled");
+      const started = Promise.withResolvers();
+      const calls = [];
+      let dependencyRejected = false;
+      for (const [name, operation] of [["workspace", "read"], ["typed", "extract"], ["artifact", "inspect"]]) {
+        const original = setup.dependencies[name][operation];
+        setup.dependencies[name][operation] = async (...args) => {
+          calls.push(name);
+          return original(...args);
+        };
+      }
+      setup.dependencies[stage][method] = (...args) => {
+        calls.push(stage);
+        const signal = args[signalIndex];
+        return new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => {
+            dependencyRejected = true;
+            reject(new Error("observer aborted"));
+          }, { once: true });
+          started.resolve(signal);
+        });
+      };
+      let timer;
+      const deadline = new Promise((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("running observer did not cancel")), 1000);
+      });
+      try {
+        const execution = setup.port().observe(invocation, {
+          signal: controller.signal,
+          throwIfCancelled() { controller.signal.throwIfAborted(); }
+        });
+        const rejected = assert.rejects(Promise.race([execution, deadline]), error => error === cancelled);
+        const received = await started.promise;
+        controller.abort(cancelled);
+        await rejected;
+        assert.equal(received, controller.signal);
+        assert.equal(dependencyRejected, true);
+        assert.deepEqual(calls, ["workspace", "typed", "artifact"].slice(0, ["workspace", "typed", "artifact"].indexOf(stage) + 1));
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+  }
   for (const repository of matrix.repositories) {
     test(`S1: C0 ${repository.repository}: every frozen surface row has an existing route or explicit unsupported outcome`, async () => {
       const setup = fixture(repository);

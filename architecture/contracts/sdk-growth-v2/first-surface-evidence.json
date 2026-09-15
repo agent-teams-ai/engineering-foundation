@@ -27,9 +27,9 @@
   "sourceSnapshot": {
     "scope": "Only the exact packed qualification script, at its repository-relative path; not a repository commit or full source tree.",
     "path": "scripts/pack-sdk-growth-test.mjs",
-    "blob": "7a20f9b18b256d475e4da325af5ca92d8f0204af",
-    "tree": "63b2f4fc8c8e0122e03d9b8ce9660b778943f0ac",
-    "contentDigest": "sha256:eeae1395869906655c9801902a92928c37dd463524523cf91c8f5db7fd77ec9e"
+    "blob": "4ddf1d89e6d672588eed0d458f751b3a837dc443",
+    "tree": "3871dc9de3a0ec8cd470e5a502b687682a99e287",
+    "contentDigest": "sha256:e14f7798c5fe1847229e58394785984a937b8275a66a96211c5ff2a943949ba3"
   },
   "qualificationStatus": "pending-execution",
   "authority": "No owner verification, trusted initial history, family support or release approval is asserted.",

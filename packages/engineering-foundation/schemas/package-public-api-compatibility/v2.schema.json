@@ -8,6 +8,7 @@
     "schemaVersion",
     "acceptedDecisionBaselinePath",
     "changesetDirectory",
+    "governanceConfigPath",
     "packages",
     "sdkGrowth"
   ],
@@ -36,64 +37,45 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "workspaceManifestPath",
-        "invocation",
-        "context",
-        "report"
+        "contractRevision",
+        "policyVersion",
+        "comparison",
+        "decisionsPath",
+        "reportPath"
       ],
       "properties": {
-        "workspaceManifestPath": {
-          "$ref": "#/$defs/repositoryPath"
+        "contractRevision": {
+          "const": "foundation:sdk-growth:c0:5"
         },
-        "invocation": {
-          "$ref": "#/$defs/growthInvocation"
+        "policyVersion": {
+          "const": "foundation:sdk-growth:policy:1"
         },
-        "context": {
+        "comparison": {
           "type": "object",
           "additionalProperties": false,
           "required": [
             "trustedBasePath",
-            "decisionsPath",
             "released"
           ],
           "properties": {
             "trustedBasePath": {
-              "$ref": "#/$defs/repositoryPath"
-            },
-            "decisionsPath": {
-              "$ref": "#/$defs/repositoryPath"
+              "$ref": "#/$defs/growthPath"
             },
             "released": {
               "type": "array",
               "maxItems": 100,
               "items": {
                 "$ref": "#/$defs/growthRelease"
-              }
+              },
+              "minItems": 1
             }
           }
         },
-        "report": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "path",
-            "expectedPreimage"
-          ],
-          "properties": {
-            "path": {
-              "$ref": "#/$defs/repositoryPath"
-            },
-            "expectedPreimage": {
-              "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "$ref": "#/$defs/fingerprint"
-                }
-              ]
-            }
-          }
+        "decisionsPath": {
+          "$ref": "#/$defs/growthPath"
+        },
+        "reportPath": {
+          "$ref": "#/$defs/growthPath"
         }
       }
     }
@@ -227,76 +209,6 @@
         }
       }
     },
-    "growthInvocation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "repository",
-        "sourceCommit",
-        "sourceTree",
-        "topologyDigest",
-        "lockDigest",
-        "toolchainDigest",
-        "artifactDigests",
-        "tool"
-      ],
-      "properties": {
-        "repository": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 300
-        },
-        "sourceCommit": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{40}$"
-        },
-        "sourceTree": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{40}$"
-        },
-        "topologyDigest": {
-          "$ref": "#/$defs/fingerprint"
-        },
-        "lockDigest": {
-          "$ref": "#/$defs/fingerprint"
-        },
-        "toolchainDigest": {
-          "$ref": "#/$defs/fingerprint"
-        },
-        "artifactDigests": {
-          "type": "array",
-          "maxItems": 4096,
-          "items": {
-            "$ref": "#/$defs/fingerprint"
-          },
-          "uniqueItems": true
-        },
-        "tool": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "version",
-            "artifactDigest",
-            "extractorVersion"
-          ],
-          "properties": {
-            "version": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100
-            },
-            "artifactDigest": {
-              "$ref": "#/$defs/fingerprint"
-            },
-            "extractorVersion": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100
-            }
-          }
-        }
-      }
-    },
     "growthRelease": {
       "oneOf": [
         {
@@ -315,7 +227,7 @@
               "const": "released"
             },
             "observationPath": {
-              "$ref": "#/$defs/repositoryPath"
+              "$ref": "#/$defs/growthPath"
             }
           }
         },
@@ -335,11 +247,17 @@
               "const": "initial-unreleased"
             },
             "trustedHistoryPath": {
-              "$ref": "#/$defs/repositoryPath"
+              "$ref": "#/$defs/growthPath"
             }
           }
         }
       ]
+    },
+    "growthPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*[\\\\\\u0000*?{}\\[\\]])(?!.*(?:^|/)(?:\\.|\\.\\.|)(?:/|$))(?!\\s)(?!.*\\s$).+$"
     }
   }
 }

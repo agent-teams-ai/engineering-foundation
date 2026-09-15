@@ -9,6 +9,18 @@ import { growthDimensions } from "../packages/engineering-foundation/dist/capabi
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { currentBaseline } from "./support/public-api-fixtures.mjs";
 
+import { admitSdkGrowth } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/use-cases/admit-sdk-growth.js";
+import { growthCanonicalJson } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/normalize-growth-observation.js";
+
+async function admission(adapter, selected = request) {
+  const { repository, sourceCommit, sourceTree, topologyDigest, lockDigest, toolchainDigest, artifactDigests, tool } = baseObservation();
+  const invocation = { repository, sourceCommit, sourceTree, topologyDigest, lockDigest, toolchainDigest, artifactDigests, tool };
+  return admitSdkGrowth({ invocation, context: selected, cancellation }, {
+    context: adapter, fingerprint: dependencies.fingerprint,
+    observation: { async observe() { return { identity: invocation, surface: { status: "unavailable", reasons: ["fixture-unavailable"] }, compatibilitySnapshots: [] }; } }
+  });
+}
+
 const digest = `sha256:${"a".repeat(64)}`;
 const cancellation = { throwIfCancelled() {} };
 const policy = { schemaVersion: 1, acceptedDecisionBaselinePath: "accepted.json", changesetDirectory: ".changeset",
@@ -92,4 +104,81 @@ test("filesystem growth context propagates cancellation and unexpected dependenc
   const broken = createFilesystemGrowthInputContext({ consumerRoot: root, policy }, { ...dependencies,
     repository: { async readReleaseEvidence() { throw failure; } } });
   await assert.rejects(broken.read(request, cancellation), error => error === failure);
+}));
+
+test("duplicate JSON keys reject before semantics, including escaped hidden verified status", async () => fixture(async (root, adapter) => {
+  for (const path of ["base.json", "decisions.json", "released.json", "history.json"]) {
+    const selected = path === "history.json" ? { ...request, released: [{ packageName: "@fixture/public-api", kind: "initial-unreleased", trustedHistoryPath: path }] } : request;
+    const before = path === "history.json" ? undefined : await readFile(join(root, path));
+    for (const bytes of ['{"x":1,"x":2}', '[{"nested":{"status":"verified","sta\\u0074us":"unverified"}}]', '{"__proto__":{},"__proto__":{}}']) {
+      await writeFile(join(root, path), bytes);
+      await assert.rejects(adapter.read(selected, cancellation), /duplicate JSON object keys/u);
+    }
+    if (before !== undefined) { await writeFile(join(root, path), before); }
+  }
+  await writeFile(join(root, "decisions.json"), '[{"key":"escaped \\\" { : ","nested":{"key":1}},{"key":2}]');
+  assert.equal((await adapter.read(request, cancellation)).authority.status, "unverified");
+}));
+
+test("released package permutations yield byte-identical context identity", async () => fixture(async root => {
+  const names = ["@fixture/z", "@fixture/a"];
+  const adapter = createFilesystemGrowthInputContext({ consumerRoot: root, policy: { ...policy,
+    packages: names.map(packageName => ({ ...policy.packages[0], packageName })) } }, dependencies);
+  const rows = names.map(packageName => ({ packageName, kind: "initial-unreleased", trustedHistoryPath: "history.json" }));
+  const first = await adapter.read({ ...request, released: rows }, cancellation);
+  const second = await adapter.read({ ...request, released: rows.toReversed() }, cancellation);
+  assert.deepEqual(first.released.map(row => row.packageName), names.toSorted());
+  assert.equal(JSON.stringify(first), JSON.stringify(second));
+  assert.equal(dependencies.fingerprint.sha256(JSON.stringify(first)), dependencies.fingerprint.sha256(JSON.stringify(second)));
+  const forward = growthCanonicalJson(await admission(adapter, { ...request, released: rows }));
+  const reversed = growthCanonicalJson(await admission(adapter, { ...request, released: rows.toReversed() }));
+  assert.equal(forward, reversed);
+  assert.equal(dependencies.fingerprint.sha256(forward), dependencies.fingerprint.sha256(reversed));
+}));
+
+test("historical audit file budget exhaustion becomes unavailable evidence", async () => fixture(async root => {
+  const names = Array.from({ length: 4096 }, (_, index) => `@fixture/p${String(index).padStart(4, "0")}`);
+  const adapter = createFilesystemGrowthInputContext({ consumerRoot: root, policy: { ...policy,
+    packages: names.map(packageName => ({ ...policy.packages[0], packageName })) } }, dependencies);
+  const context = await adapter.read({ ...request, released: names.map(packageName => ({ packageName, kind: "released", observationPath: "missing.json" })) }, cancellation);
+  assert.deepEqual(context.released.at(-1).evidence.typed, { status: "unavailable", reasons: ["growth-input-budget-exhausted"] });
+  assert.equal(context.authority.status, "unverified");
+}));
+
+test("oversized expected input becomes unavailable without parsing or granting authority", async () => fixture(async (root, adapter) => {
+  for (const path of ["base.json", "released.json", "decisions.json"]) {
+    const before = await readFile(join(root, path));
+    await writeFile(join(root, path), Buffer.alloc(32 * 1024 * 1024 + 1, 32));
+    const context = await adapter.read(request, cancellation);
+    if (path === "base.json") { assert.deepEqual(context.trustedBase, { status: "unavailable", reasons: ["growth-input-budget-exhausted"] }); }
+    if (path === "released.json") { assert.deepEqual(context.released[0].evidence.artifact, { status: "unavailable", reasons: ["growth-input-budget-exhausted"] }); }
+    if (path === "decisions.json") { assert.ok(context.authority.reasons.includes("growth-input-budget-exhausted")); }
+    assert.equal(context.authority.status, "unverified");
+    assert.equal((await admission(adapter)).admission.status, "incomplete");
+    await writeFile(join(root, path), before);
+  }
+}));
+
+
+test("unavailable non-file evidence is incomplete while read dependency defects propagate", async () => fixture(async (root, adapter) => {
+  await rm(join(root, "base.json"));
+  const { mkdir } = await import("node:fs/promises");
+  await mkdir(join(root, "base.json"));
+  assert.deepEqual((await adapter.read(request, cancellation)).trustedBase, { status: "unavailable", reasons: ["growth-input-unavailable"] });
+  assert.equal((await admission(adapter)).admission.status, "incomplete");
+  const defect = new Error("Audit input byte budget exhausted.");
+  const broken = createFilesystemGrowthInputContext({ consumerRoot: root, policy }, { ...dependencies,
+    repository: { async readReleaseEvidence() { throw defect; } } });
+  await assert.rejects(admission(broken), error => error === defect);
+}));
+
+test("aggregate historical byte budget exhaustion retains incomplete evidence", async () => fixture(async (root, adapter) => {
+  const padding = " ".repeat(16 * 1024 * 1024);
+  await writeFile(join(root, "base.json"), JSON.stringify(baseObservation()) + padding);
+  const released = await readFile(join(root, "released.json"), "utf8");
+  await writeFile(join(root, "released.json"), released + padding);
+  const context = await adapter.read(request, cancellation);
+  assert.equal(context.trustedBase.status, "available");
+  assert.deepEqual(context.released[0].evidence.typed, { status: "unavailable", reasons: ["growth-input-budget-exhausted"] });
+  assert.equal((await admission(adapter)).admission.status, "incomplete");
 }));

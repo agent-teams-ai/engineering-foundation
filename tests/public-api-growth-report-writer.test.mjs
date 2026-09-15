@@ -46,6 +46,56 @@ test("growth report rejects traversal, symlinks, nonregular and multiply linked 
   assert.equal(await fs.readFile(join(root, "original"), "utf8"), "untouched");
 }));
 
+test("growth report rejects unsafe replacements at open before replaying matching bytes", async () => {
+  for (const replacement of ["hardlink", "symlink", "directory", "oversized"]) {
+    await fixture(async (root) => {
+      const target = join(root, "report.json"), other = join(root, "other");
+      await fs.writeFile(target, "old");
+      await fs.writeFile(other, "new\n");
+      let replaced = false;
+      const writer = createFilesystemGrowthReportWriter(root, { ...fs, async open(path, ...args) {
+        if (path === target && !replaced) {
+          replaced = true;
+          await fs.unlink(target);
+          if (replacement === "hardlink") { await fs.link(other, target); }
+          else if (replacement === "symlink") { await fs.symlink(other, target); }
+          else if (replacement === "directory") { await fs.mkdir(target); }
+          else { await fs.copyFile(other, target); await fs.truncate(target, 32 * 1024 * 1024 + 1); }
+        }
+        return fs.open(path, ...args);
+      } });
+      await assert.rejects(writer.write(request(), cancellation()), failure("conflict"), replacement);
+      assert.equal(replaced, true);
+      assert.equal(await fs.readFile(other, "utf8"), "new\n");
+      assert.deepEqual((await fs.readdir(root)).toSorted(), ["other", "report.json"]);
+    });
+  }
+});
+
+test("growth report rejects named-path replacement or disappearance after open", async () => {
+  for (const replacement of ["file", "symlink", "missing"]) {
+    await fixture(async (root) => {
+      const target = join(root, "report.json"), held = join(root, "held");
+      await fs.writeFile(target, "new\n");
+      let replaced = false;
+      const writer = createFilesystemGrowthReportWriter(root, { ...fs, async open(path, ...args) {
+        const handle = await fs.open(path, ...args);
+        if (path === target && !replaced) {
+          replaced = true;
+          await fs.rename(target, held);
+          if (replacement === "file") { await fs.writeFile(target, "new\n"); }
+          else if (replacement === "symlink") { await fs.symlink(held, target); }
+        }
+        return handle;
+      } });
+      await assert.rejects(writer.write(request(), cancellation()), failure(replacement === "missing" ? "io" : "conflict"), replacement);
+      assert.equal(replaced, true);
+      assert.equal(await fs.readFile(held, "utf8"), "new\n");
+      assert.deepEqual((await fs.readdir(root)).toSorted(), replacement === "missing" ? ["held"] : ["held", "report.json"]);
+    });
+  }
+});
+
 test("growth report exclusive fence rejects overlapping publishers without takeover", async () => fixture(async (root) => {
   const entered = Promise.withResolvers(), release = Promise.withResolvers();
   const first = createFilesystemGrowthReportWriter(root, { ...fs, async rename(...args) {
@@ -122,7 +172,72 @@ test("growth report never removes another writer's replaced fence", async () => 
     }
     return handle;
   } });
-  await assert.rejects(writer.write(request(), cancellation()), failure("io", "growth-report-cleanup-failed"));
+  await assert.rejects(writer.write(request(), cancellation()), (error) => {
+    assert.ok(failure("conflict", "growth-report-publication-conflict")(error));
+    assert.ok(error.cause instanceof AggregateError);
+    assert.ok(error.cause.errors.some(failure("conflict", "growth-report-owned-file-changed")));
+    return true;
+  });
   assert.equal(await fs.readFile(join(root, "report.json.growth-report.lock"), "utf8"), "other-owner");
   await assert.rejects(fs.stat(join(root, "report.json")), { code: "ENOENT" });
+}));
+
+test("growth report preserves cancellation with stage and fence cleanup failures", async () => fixture(async (root) => {
+  const controller = new AbortController(), prior = new Error("original cause");
+  const reason = new Error("cancelled before commit", { cause: prior });
+  const cleanupError = Object.assign(new Error("cleanup denied"), { code: "EACCES" });
+  const attempted = [];
+  const writer = createFilesystemGrowthReportWriter(root, { ...fs, async open(path, ...args) {
+    const handle = await fs.open(path, ...args);
+    if (String(path).endsWith(".tmp")) { controller.abort(reason); }
+    return handle;
+  }, async unlink(path) { attempted.push(path); throw cleanupError; } });
+  await assert.rejects(writer.write(request(), cancellation(controller)), (error) => {
+    assert.equal(error, reason);
+    assert.ok(error.cause instanceof AggregateError);
+    assert.deepEqual(error.cause.errors, [prior, cleanupError, cleanupError]);
+    return true;
+  });
+  assert.equal(attempted.length, 2);
+  assert.ok(attempted[0].endsWith(".tmp"));
+  assert.equal(attempted[1], join(root, "report.json.growth-report.lock"));
+  await assert.rejects(fs.stat(join(root, "report.json")), { code: "ENOENT" });
+}));
+
+test("growth report classifies cleanup-only failures before and after publication", async () => {
+  for (const replay of [true, false]) {
+    await fixture(async (root) => {
+      if (replay) { await fs.writeFile(join(root, "report.json"), "new\n"); }
+      const cleanupError = Object.assign(new Error("cleanup denied"), { code: "EACCES" });
+      const writer = createFilesystemGrowthReportWriter(root, { ...fs, async unlink() { throw cleanupError; } });
+      await assert.rejects(writer.write(request(), cancellation()), (error) => {
+        assert.ok(failure(replay ? "io" : "uncertain", "growth-report-cleanup-failed")(error));
+        assert.deepEqual(error.cause.errors, [cleanupError]);
+        return true;
+      });
+      assert.equal(await fs.readFile(join(root, "report.json"), "utf8"), "new\n");
+    });
+  }
+});
+
+test("growth report preserves unsafe-slot conflict when closing the preimage fails", async () => fixture(async (root) => {
+  const target = join(root, "report.json"), other = join(root, "other");
+  await fs.writeFile(other, "new\n");
+  await fs.link(other, target);
+  const closeError = Object.assign(new Error("close failed"), { code: "EIO" });
+  const writer = createFilesystemGrowthReportWriter(root, { ...fs, async open(path, ...args) {
+    const handle = await fs.open(path, ...args);
+    if (path === target) {
+      const close = handle.close.bind(handle);
+      handle.close = async () => { await close(); throw closeError; };
+    }
+    return handle;
+  } });
+  await assert.rejects(writer.write(request(), cancellation()), (error) => {
+    assert.ok(failure("conflict", "growth-report-slot-unsafe")(error));
+    assert.deepEqual(error.cause.errors, [closeError]);
+    return true;
+  });
+  assert.equal(await fs.readFile(other, "utf8"), "new\n");
+  assert.deepEqual((await fs.readdir(root)).toSorted(), ["other", "report.json"]);
 }));

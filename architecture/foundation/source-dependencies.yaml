@@ -2373,6 +2373,8 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-invocation.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.ts
@@ -2406,6 +2408,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
     allow:
       boundaries:
+        - foundation.process-execution.composition
         - foundation.workspace-inventory.composition
         - foundation.configuration-input.composition
         - foundation.configuration-input.adapters

@@ -46,8 +46,10 @@ function releaseScopeReasons(context: GrowthInputContext, execution: GrowthObser
 export interface SdkGrowthAdmissionExecution {
   readonly observation: GrowthObservationExecution;
   readonly baseReference: GrowthInputContext["trustedBaseReference"];
+  readonly baseSurface: GrowthInputContext["trustedBase"];
   readonly authority: GrowthInputContext["authority"];
   readonly admission: GrowthAdmissionResult;
+  readonly decisionDigests: readonly import("../model/growth-observation.js").GrowthDigest[];
   readonly comparison: GrowthComparison;
   readonly compatibility: GrowthReleaseCompatibilityResult;
   readonly released: GrowthInputContext["released"];
@@ -89,8 +91,8 @@ export async function admitSdkGrowth(input: {
     const authority = context.authority.status === "verified" && ownerEvidence?.status === "available" ? ownerEvidence.value : [];
     const admission = evaluateGrowthAdmission({ comparison, decisions: context.decisions, authority, compatibility: compatibility.status }, dependencies.fingerprint);
     cancellation.throwIfCancelled();
-    return { observation: execution, baseReference: context.trustedBaseReference, authority: context.authority,
-      admission, comparison, compatibility, released: context.released };
+    return { observation: execution, baseReference: context.trustedBaseReference, baseSurface: context.trustedBase, authority: context.authority,
+      admission, decisionDigests: growthUniqueSorted(authority.map((entry) => entry.decisionDigest), (entry) => entry), comparison, compatibility, released: context.released };
   } catch (error) {
     cancellation.throwIfCancelled();
     throw error;

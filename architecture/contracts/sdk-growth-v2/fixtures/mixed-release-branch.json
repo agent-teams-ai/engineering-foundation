@@ -28,7 +28,8 @@
         {
           "packageName": "sdk-packed-fixture",
           "kind": "released",
-          "observationPath": "evidence/released.json"
+          "observationPath": "evidence/released.json",
+          "trustedHistoryPath": "evidence/history.json"
         }
       ]
     },

@@ -21,7 +21,6 @@
   ],
   "sdkGrowth": {
     "contractRevision": "foundation:sdk-growth:c0:5",
-    "policyVersion": "foundation:sdk-growth:policy:1",
     "comparison": {
       "trustedBasePath": "evidence/base.json",
       "released": [

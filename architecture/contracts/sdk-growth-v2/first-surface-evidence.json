@@ -3,7 +3,7 @@
   "baseCommit": "e4bce607c8d8a75bcfe7aaaa754cc653618bb0e5",
   "beforeEvidence": "architecture/public-api/engineering-foundation.artifacts.json",
   "afterSchemaPath": "packages/engineering-foundation/schemas/package-public-api-compatibility/v2.schema.json",
-  "afterSchemaDigest": "sha256:113132fec5474ddfc14716f55ad0f7544da5de892a4c0a44c5cf98cb7d999b55",
+  "afterSchemaDigest": "sha256:34c2ee459b6668e6a6589b0303619436e0d70b3003089fbf8fecbae667689864",
   "transition": {
     "coordinate": {
       "packageName": "@agent-teams/engineering-foundation",
@@ -19,10 +19,10 @@
     },
     "after": {
       "state": "present",
-      "digest": "sha256:6d59384c2e35b45cadac88f583555a84bdc1c69aa886c8674bde23a209ff4741"
+      "digest": "sha256:9987a44fb74f0c87a9a742310aec9c0bf245ca26e4be08dbff0b329e8fc92f02"
     },
     "policyVersion": "foundation:sdk-growth:policy:1",
-    "fingerprint": "sha256:8e390617e63754ddb986bc28bb23dfbfed8b7a79fce9d77f57c764a96f1c1b2a"
+    "fingerprint": "sha256:3e8c6fedab5624b726a5b1f58e580f499ef19104a3a42d1d2c667b9996aa554d"
   },
   "sourceSnapshot": {
     "scope": "Only the exact packed qualification script, at its repository-relative path; not a repository commit or full source tree.",

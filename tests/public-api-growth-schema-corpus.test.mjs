@@ -28,9 +28,9 @@ test("release-owned SDK v2 corpus binds exact schema bytes and discriminating fi
     else { await assert.rejects(validate()); }
   }
   const valid = JSON.parse(await readFile(corpus.fixtures.find(row => row.expectation === "valid").path));
-  valid.sdkGrowth.context.released = [{ packageName: "sdk-packed-fixture", kind: "initial-unreleased", trustedHistoryPath: "history.json" }];
+  valid.sdkGrowth.comparison.released = [{ packageName: "sdk-packed-fixture", kind: "initial-unreleased", trustedHistoryPath: "history.json" }];
   await assertSchema("package-public-api-compatibility/v2", valid, "sdk-v2-initial");
-  valid.sdkGrowth.context.released[0].observationPath = "release.json";
+  valid.sdkGrowth.comparison.released[0].observationPath = "release.json";
   await assert.rejects(assertSchema("package-public-api-compatibility/v2", valid, "sdk-v2-mixed"));
 });
 
@@ -67,4 +67,30 @@ test("v2 first-surface decision matches the real schema wildcard projection and 
   assert.equal(tree, decision.consumerEvidenceRefs[0].source.tree);
   assert.equal(retained.sourceSnapshot.tree, tree);
   assert.equal(decision.consumerEvidenceRefs[0].source.commit, null);
+});
+
+test("v2 release-owned family baseline and real loader consumer evidence pass the schema-release capability", async () => {
+  const configPath = "architecture/foundation/sdk-growth-json-schema-releases.json";
+  const policy = JSON.parse(await readFile(configPath));
+  const baseline = JSON.parse(await readFile(policy.releasedBaselinePath));
+  const receiptBytes = await readFile("architecture/contracts/sdk-growth-v2/consumer-evidence.json");
+  const receipt = JSON.parse(receiptBytes);
+  assert.equal(hash(receiptBytes), policy.currentConsumerEvidence[0].evidenceDigest);
+  assert.equal(hash(await readFile(receipt.sourcePath)), receipt.sourceDigest);
+  assert.deepEqual(baseline.supportedConsumers, policy.currentConsumerEvidence);
+  const { createJsonSchemaReleaseCapability } = await import("../packages/engineering-foundation/dist/capabilities/contract-json-schema-releases/module.js");
+  const capability = createJsonSchemaReleaseCapability({ assertSchema });
+  const report = await capability.run({ consumerRoot: process.cwd(), configPath });
+  assert.equal(report.outcome, "passed", JSON.stringify(report));
+  const { loadCapabilityConfig } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js");
+  for (const fixture of policy.fixtures) {
+    const config = JSON.parse(await readFile(fixture.path));
+    const load = () => loadCapabilityConfig({ readYaml: async (_root, path) => path === config.governanceConfigPath
+      ? parse(await readFile("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", "utf8")) : config, assertSchema }, process.cwd(), "config.yaml");
+    if (fixture.expectation === "valid") {
+      const parsed = await load();
+      assert.equal(parsed.schemaVersion, 2);
+      assert.deepEqual(Object.keys(parsed.sdkGrowth).toSorted(), ["comparison", "contractRevision", "decisionsPath", "policyVersion", "reportPath"]);
+    } else { await assert.rejects(load(), error => error.name === "CapabilityInputError", fixture.id); }
+  }
 });

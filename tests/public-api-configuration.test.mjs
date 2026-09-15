@@ -30,56 +30,78 @@ function packagePolicy() {
 }
 
 function growthConfiguration() {
-  const digest = `sha256:${"1".repeat(64)}`;
-  return { ...configuration(), schemaVersion: 2, sdkGrowth: {
-    workspaceManifestPath: "pnpm-workspace.yaml",
-    invocation: { repository: "fixture/sdk", sourceCommit: "1".repeat(40), sourceTree: "2".repeat(40),
-      topologyDigest: digest, lockDigest: digest, toolchainDigest: digest, artifactDigests: [digest],
-      tool: { version: "0.0.0-test", artifactDigest: digest, extractorVersion: "7.58.12" } },
-    context: { trustedBasePath: "evidence/base.json", decisionsPath: "evidence/decisions.json",
+  return { ...configuration(), schemaVersion: 2, governanceConfigPath: "governance.yaml", sdkGrowth: {
+    contractRevision: "foundation:sdk-growth:c0:5", policyVersion: "foundation:sdk-growth:policy:1",
+    comparison: { trustedBasePath: "evidence/base.json",
       released: [{ packageName: "@fixture/public-api", kind: "released", observationPath: "evidence/released.json" }] },
-    report: { path: "reports/sdk.json", expectedPreimage: null }
+    decisionsPath: "evidence/decisions.json", reportPath: "reports/sdk.json"
   } };
 }
 
+async function readGrowthFixture(input, path) {
+  if (path !== "governance.yaml") { return input; }
+  const { parse } = await import("yaml");
+  return parse(await readFile("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", "utf8"));
+}
+
 function loadGrowthFixture(input) {
-  return loadCapabilityConfig({ async readYaml() { return input; }, assertSchema }, "memory-fixture", "policy.yaml");
+  return loadCapabilityConfig({ readYaml: async (_root, path) => readGrowthFixture(input, path), assertSchema }, "memory-fixture", "policy.yaml");
 }
 
 test("SDK v2 discriminates schema before mapping and reuses the exact unchanged v1 compatibility policy", async () => {
   const input = growthConfiguration(), before = structuredClone(input), calls = [];
-  const result = await loadCapabilityConfig({ async readYaml() { return input; }, async assertSchema(...args) {
+  const result = await loadCapabilityConfig({ readYaml: async (_root, path) => readGrowthFixture(input, path), async assertSchema(...args) {
     calls.push(args[0]); await assertSchema(...args);
   } }, "memory-fixture", "policy.yaml");
-  assert.deepEqual(calls, ["package-public-api-compatibility/v2"]);
+  assert.deepEqual(calls, ["package-public-api-compatibility/v2", "governance-architecture-decisions/v1"]);
   assert.equal(result.schemaVersion, 2);
-  assert.deepEqual(result.compatibility, parseCapabilityConfig(configuration()));
+  assert.deepEqual(result.compatibility, parseCapabilityConfig({ ...configuration(), governanceConfigPath: "governance.yaml" }));
   assert.deepEqual(result.sdkGrowth, input.sdkGrowth);
   assert.deepEqual(input, before);
-  input.sdkGrowth.context.released[0].packageName = "mutated";
-  assert.equal(result.sdkGrowth.context.released[0].packageName, "@fixture/public-api");
+  input.sdkGrowth.comparison.released[0].packageName = "mutated";
+  assert.equal(result.sdkGrowth.comparison.released[0].packageName, "@fixture/public-api");
 });
 
 test("SDK v2 schema is closed at every new object and does not extend v1 implicitly", async () => {
-  for (const select of [input => input, input => input.sdkGrowth, input => input.sdkGrowth.invocation,
-    input => input.sdkGrowth.invocation.tool, input => input.sdkGrowth.context,
-    input => input.sdkGrowth.context.released[0], input => input.sdkGrowth.report]) {
+  for (const select of [input => input, input => input.sdkGrowth, input => input.sdkGrowth.comparison,
+    input => input.sdkGrowth.comparison.released[0]]) {
     const input = growthConfiguration(); select(input).authority = { status: "verified" };
     await assert.rejects(assertSchema("package-public-api-compatibility/v2", input, "fixture"));
   }
   await assert.rejects(assertSchema("package-public-api-compatibility/v1", growthConfiguration(), "fixture"));
   await assert.rejects(assertSchema("package-public-api-compatibility/v2", configuration(), "fixture"));
-  const mixed = growthConfiguration(); mixed.sdkGrowth.context.released[0].trustedHistoryPath = "initial.json";
+  const mixed = growthConfiguration(); mixed.sdkGrowth.comparison.released[0].trustedHistoryPath = "initial.json";
   await assert.rejects(assertSchema("package-public-api-compatibility/v2", mixed, "fixture"));
 });
 
 test("SDK v2 rejects duplicate release identities and report overlap before filesystem effects", async () => {
-  const duplicate = growthConfiguration(); duplicate.sdkGrowth.context.released.push({ ...duplicate.sdkGrowth.context.released[0] });
+  const duplicate = growthConfiguration(); duplicate.sdkGrowth.comparison.released.push({ ...duplicate.sdkGrowth.comparison.released[0] });
   await assert.rejects(loadGrowthFixture(duplicate), /identities must be unique/u);
   for (const path of ["policy.yaml", "evidence/base.json", "packages/library/package.json", "architecture/public-api/public-api.json"]) {
-    const input = growthConfiguration(); input.sdkGrowth.report.path = path;
-    await assert.rejects(loadGrowthFixture(input), /report path must not replace/u);
+    const input = growthConfiguration(); input.sdkGrowth.reportPath = path;
+    await assert.rejects(loadGrowthFixture(input), /report path overlaps a protected/u);
   }
+});
+
+test("SDK v2 classifies schema-permitted malformed paths as configuration errors and preserves defects", async () => {
+  const { capabilityFailureReport } = await import("../packages/engineering-foundation/dist/features/validation-reporting/api.js");
+  for (const value of [" ", " packages/library", "packages/library "]) {
+    const input = growthConfiguration();
+    input.packages[0].packageRoot = value;
+    // Retained v1 path schema permits these bytes; the mapper must reject them.
+    await assertSchema("package-public-api-compatibility/v2", input, "fixture");
+    await assert.rejects(loadGrowthFixture(input), error => {
+      const report = capabilityFailureReport({ capabilityId: "package.public-api-compatibility", capabilityConfigSchemaVersion: 2, error, phase: "fixture" });
+      assert.equal(report.outcome, "invalid-input");
+      return error.name === "CapabilityInputError";
+    });
+  }
+  const defect = new TypeError("unexpected loader defect");
+  await assert.rejects(loadCapabilityConfig({ readYaml: async () => { throw defect; }, assertSchema }, "fixture", "config.yaml"), error => {
+    assert.equal(error, defect);
+    assert.equal(capabilityFailureReport({ capabilityId: "package.public-api-compatibility", capabilityConfigSchemaVersion: 2, error, phase: "fixture" }).outcome, "failed");
+    return true;
+  });
 });
 
 test("Public API configuration and baseline storage no longer join the module schema assembly cycle", async () => {

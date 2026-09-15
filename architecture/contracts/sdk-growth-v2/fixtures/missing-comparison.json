@@ -22,16 +22,6 @@
   "sdkGrowth": {
     "contractRevision": "foundation:sdk-growth:c0:5",
     "policyVersion": "foundation:sdk-growth:policy:1",
-    "comparison": {
-      "trustedBasePath": "evidence/base.json",
-      "released": [
-        {
-          "packageName": "sdk-packed-fixture",
-          "kind": "released",
-          "observationPath": "evidence/released.json"
-        }
-      ]
-    },
     "decisionsPath": "evidence/decisions.json",
     "reportPath": "reports/sdk.json"
   },

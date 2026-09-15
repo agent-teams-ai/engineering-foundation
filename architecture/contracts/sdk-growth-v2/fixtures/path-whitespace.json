@@ -33,7 +33,7 @@
       ]
     },
     "decisionsPath": "evidence/decisions.json",
-    "reportPath": "reports/sdk.json"
+    "reportPath": " "
   },
   "governanceConfigPath": "architecture/foundation/governance-architecture-decisions.yaml"
 }

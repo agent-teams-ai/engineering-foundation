@@ -4,7 +4,7 @@
   "ownerRef": "engineering-foundation/public-api-compatibility",
   "stability": "development",
   "transitions": [
-    "sha256:8e390617e63754ddb986bc28bb23dfbfed8b7a79fce9d77f57c764a96f1c1b2a"
+    "sha256:3e8c6fedab5624b726a5b1f58e580f499ef19104a3a42d1d2c667b9996aa554d"
   ],
   "coordinates": [
     {
@@ -17,7 +17,7 @@
       }
     }
   ],
-  "changeFingerprint": "sha256:438eb597c8856b0ceaf2153018e3af8a6b0b1490c4d3c4337577b0abfea608ae",
+  "changeFingerprint": "sha256:13497a8fa78a9d51b28fffe1a318919e31272f01d88bda79892b62f0d90a69b3",
   "consumerEvidenceRefs": [
     {
       "useCase": "Disposable packed SDK configuration and incomplete admission qualification",

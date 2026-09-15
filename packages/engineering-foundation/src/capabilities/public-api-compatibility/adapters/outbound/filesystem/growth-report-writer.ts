@@ -16,6 +16,23 @@ function code(error: unknown): string | undefined {
   return error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : undefined;
 }
 function conflict(reason: string): never { throw new GrowthReportWriteError("conflict", reason); }
+function attachCleanupFailures(primary: unknown, failures: unknown[]): void {
+  // Preserve cancellation identity, even for immutable or non-Error reasons.
+  if (primary instanceof Error && Object.isExtensible(primary) &&
+    Object.getOwnPropertyDescriptor(primary, "cause")?.configurable !== false) {
+    Object.defineProperty(primary, "cause", {
+      value: new AggregateError([...(primary.cause === undefined ? [] : [primary.cause]), ...failures], "Primary failure with cleanup failures"),
+      configurable: true, writable: true
+    });
+  }
+}
+
+async function closeHandle(handle: FileHandle | undefined, failure: unknown): Promise<void> {
+  try { await handle?.close(); } catch (error) {
+    if (failure === undefined) { throw error; }
+    attachCleanupFailures(failure, [error]);
+  }
+}
 
 /** Cooperative writers share an exclusive fence. No stale-lock takeover, durable
  * journal or trust claim. Parent directories must already exist. Node cannot
@@ -44,14 +61,19 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
   }
   async function preimage(path: string): Promise<GrowthDigest | null> {
     let handle: FileHandle | undefined;
+    let failure: unknown;
     try {
-      const stat = await fs.lstat(path);
-      if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > maximumBytes) {
+      try { handle = await fs.open(path, constants.O_RDONLY | noFollow); }
+      catch (error) {
+        if (code(error) === "ENOENT") { return null; }
+        if (code(error) === "ELOOP" || code(error) === "EISDIR") { conflict("growth-report-slot-unsafe"); }
+        throw error;
+      }
+      const before = await handle.stat();
+      if (!before.isFile() || before.nlink !== 1 || before.size > maximumBytes) {
         conflict("growth-report-slot-unsafe");
       }
-      handle = await fs.open(path, constants.O_RDONLY | noFollow);
       if (!await sameFile(path, handle)) { conflict("growth-report-slot-changed"); }
-      const before = await handle.stat();
       // Read at most the budget plus one even if a non-cooperating writer grows it.
       const bytes = Buffer.alloc(maximumBytes + 1);
       let size = 0;
@@ -65,16 +87,16 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
         conflict("growth-report-slot-changed");
       }
       return digest(bytes.subarray(0, size));
-    } catch (error) {
-      if (handle === undefined && code(error) === "ENOENT") { return null; }
-      throw error;
-    } finally { await handle?.close(); }
+    } catch (error) { failure = error; throw error; }
+    finally { await closeHandle(handle, failure); }
   }
   async function removeOwned(path: string, handle: FileHandle): Promise<void> {
+    let failure: unknown;
     try {
       if (!await sameFile(path, handle)) { conflict("growth-report-owned-file-changed"); }
       await fs.unlink(path);
-    } finally { await handle.close(); }
+    } catch (error) { failure = error; throw error; }
+    finally { await closeHandle(handle, failure); }
   }
   async function cleanup(state: {
     stage: FileHandle | undefined; stagePath: string; renamed: boolean;
@@ -91,8 +113,12 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
       try { await removeOwned(state.fencePath, state.fence); } catch (error) { failures.push(error); }
     }
     if (failures.length > 0) {
+      if (state.failure !== undefined) {
+        attachCleanupFailures(state.failure, failures);
+        return;
+      }
       throw new GrowthReportWriteError(state.commitAttempted ? "uncertain" : "io", "growth-report-cleanup-failed", {
-        cause: new AggregateError([...(state.failure === undefined ? [] : [state.failure]), ...failures], "Report publication or owned-file cleanup failed")
+        cause: new AggregateError(failures, "Owned-file cleanup failed")
       });
     }
   }
@@ -138,11 +164,12 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
         if (await preimage(target) !== outputDigest) { throw new GrowthReportWriteError("uncertain", "growth-report-readback-mismatch"); }
         return { status: "published", digest: outputDigest };
       } catch (error) {
-        failure = error;
-        if (commitAttempted) { throw new GrowthReportWriteError("uncertain", "growth-report-publication-uncertain", { cause: error }); }
-        cancellation.throwIfCancelled();
-        if (error instanceof GrowthReportWriteError) { throw error; }
-        throw new GrowthReportWriteError("io", "growth-report-io-failed", { cause: error });
+        try {
+          if (commitAttempted) { throw new GrowthReportWriteError("uncertain", "growth-report-publication-uncertain", { cause: error }); }
+          cancellation.throwIfCancelled();
+          if (error instanceof GrowthReportWriteError) { throw error; }
+          throw new GrowthReportWriteError("io", "growth-report-io-failed", { cause: error });
+        } catch (primary) { failure = primary; throw primary; }
       } finally {
         await cleanup({ stage, stagePath, renamed, fence, fencePath, commitAttempted, failure });
       }

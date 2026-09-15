@@ -34,6 +34,5 @@
     },
     "decisionsPath": "evidence/decisions.json",
     "reportPath": "reports/sdk.json"
-  },
-  "governanceConfigPath": "architecture/foundation/governance-architecture-decisions.yaml"
+  }
 }

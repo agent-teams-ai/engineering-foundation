@@ -4,6 +4,7 @@ import type { AcceptedDecisionEvidence } from "../ports/accepted-decision-eviden
 
 export interface GrowthReleasedPackage {
   readonly packageName: string;
+  readonly observation?: GrowthEvidence<GrowthSurfaceObservation>;
   readonly policy: PublicApiPackagePolicy;
   readonly releaseEvidence: GrowthEvidence<PackageReleaseEvidence>;
   readonly evidence:
@@ -25,7 +26,7 @@ export interface GrowthInputContext {
   readonly decisions: readonly unknown[];
   readonly acceptedBreakingDecisions: AcceptedDecisionEvidence;
   readonly authority:
-    | { readonly status: "verified"; readonly receiptDigest: GrowthDigest }
+    | { readonly status: "verified"; readonly receiptDigest: GrowthDigest; readonly workflowRef?: string; readonly runRef?: string }
     | { readonly status: "unverified"; readonly reasons: readonly string[] };
 }
 

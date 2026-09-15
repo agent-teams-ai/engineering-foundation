@@ -153,7 +153,8 @@
     "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
     "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
     "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
-    "packages/docs-protocol/tests/portable-dx.test.mjs"
+    "packages/docs-protocol/tests/portable-dx.test.mjs",
+    "tests/sdk-growth-c0-contract.test.mjs"
   ],
   "thresholds": {
     "lines": 36,

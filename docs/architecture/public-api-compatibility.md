@@ -41,6 +41,13 @@ must match the package's `types` target. `data`, `wildcard`, and untyped
 typed wildcard is rejected until its concrete subpaths can be baselined. This
 prevents a newly exported path from bypassing compatibility evidence.
 
+## SDK growth checkpoint
+
+The [C0 contract](../reference/sdk-growth-c0.md) freezes the separate future
+growth report, decision vocabulary, EF surface inventory and pending trust
+prerequisites. S1–S3 are not implemented or activated by this checkpoint. Existing
+v1 schemas, baseline bytes and promotion semantics remain authoritative.
+
 ## Compatibility policy
 
 - a new top-level export is additive and requires a minor Changeset;

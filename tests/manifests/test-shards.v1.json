@@ -78,7 +78,8 @@
         "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs",
         "tests/features/quality-coverage/policy.test.mjs",
         "tests/features/quality-coverage/oxlint-protocol.test.mjs",
-        "tests/features/quality-coverage/source-observations.test.mjs"
+        "tests/features/quality-coverage/source-observations.test.mjs",
+        "tests/sdk-growth-c0-contract.test.mjs"
       ]
     },
     {

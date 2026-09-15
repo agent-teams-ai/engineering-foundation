@@ -30,7 +30,7 @@ function identity(value: Record<string, unknown>): void {
 export function assertGrowthInvocationShape(value: unknown): void {
   identity(record(value, growthIdentityFields));
 }
-function coordinate(value: unknown): void {
+export function assertGrowthCoordinateShape(value: unknown): void {
   const entry = record(value, ["packageName", "exportPath", "resolutionBranch", "subject"]);
   text(entry["packageName"]); text(entry["exportPath"]);
   for (const step of array(entry["resolutionBranch"])) {
@@ -70,7 +70,7 @@ export function assertGrowthObservationShape(value: unknown): void {
   if (entries.length > 100_000) { throw new GrowthObservationUnavailableError("growth-entry-budget-exhausted"); }
   for (const raw of entries) {
     const entry = record(raw, ["coordinate", "value"]);
-    coordinate(entry["coordinate"]);
+    assertGrowthCoordinateShape(entry["coordinate"]);
     const valueRef = entry["value"];
     if (valueRef === null || typeof valueRef !== "object" || !("state" in valueRef)) { invalid(); }
     switch (valueRef.state) {

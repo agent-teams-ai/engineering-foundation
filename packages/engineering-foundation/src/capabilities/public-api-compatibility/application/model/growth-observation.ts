@@ -85,3 +85,5 @@ export class GrowthObservationUnavailableError extends Error {
     this.name = "GrowthObservationUnavailableError";
   }
 }
+
+export type GrowthObservationReference = Pick<GrowthInvocation, "sourceCommit" | "sourceTree" | "topologyDigest" | "lockDigest" | "toolchainDigest" | "artifactDigests"> & { readonly surfaceDigest: GrowthDigest };

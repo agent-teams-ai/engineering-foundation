@@ -1,4 +1,4 @@
-import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
+import type { GrowthWorkspacePackage } from "../model/growth-workspace.js";
 import type { GrowthCoverage, GrowthCoordinate, GrowthSurfaceObservation, GrowthResolutionTree } from "../model/growth-observation.js";
 import { GrowthObservationInvariantError, GrowthObservationUnavailableError, growthDimensions } from "../model/growth-observation.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
@@ -19,7 +19,7 @@ export interface GrowthPackageProjection {
  * explicit; declaration evidence never establishes runtime, bin or packed facts.
  */
 export function projectGrowthPackage(input: {
-  readonly pkg: WorkspacePackage;
+  readonly pkg: GrowthWorkspacePackage;
   readonly subject: GrowthCompatibilitySubject | undefined;
   readonly retained: RetainedGrowthCompatibility | undefined;
 }, fingerprint: ChangeFingerprint): GrowthPackageProjection {
@@ -90,7 +90,7 @@ export function projectGrowthPackage(input: {
 type Present = (coordinate: Omit<GrowthCoordinate, "packageName">, value: unknown) => void;
 
 function projectTyped(input: {
-  readonly snapshot: PublicApiSnapshot; readonly pkg: WorkspacePackage;
+  readonly snapshot: PublicApiSnapshot; readonly pkg: GrowthWorkspacePackage;
   readonly trees: ReadonlyMap<string, GrowthResolutionTree>; readonly observed: readonly ObservedPackageExport[];
 }, present: Present): void {
   const { snapshot, pkg, trees, observed } = input;
@@ -129,7 +129,7 @@ function projectWildcard(input: {
       const capture = expression.exec(member)?.[1];
       if (capture === undefined) { throw new GrowthObservationInvariantError("artifact-member-outside-pattern"); }
       const schema = schemas.get(member);
-      const exportPath = wildcard.exportPath.replace("*", capture);
+      const exportPath = wildcard.exportPath.replaceAll("*", () => capture);
       present({ exportPath, resolutionBranch: [], subject: { kind: "wildcard-member", member: exportPath } },
         schema === undefined ? { member } : { member, id: schema.id, digest: schema.digest });
     }

@@ -12,6 +12,8 @@ import { MicrosoftPublicApiExtractor } from "../packages/engineering-foundation/
 import { stagePackageSnapshot } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/staged-public-api-input.js";
 import { ContainedFileReadError } from "../packages/engineering-foundation/dist/source-inventory/api.js";
 
+import { createWorkspaceGrowthReader } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/workspace-growth-reader.js";
+
 const defaults = publicApiEvidenceAdapters();
 const { assertSchema } = schemaConfigurationDependencies();
 async function existingPolicy(root) {
@@ -362,7 +364,7 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
       artifact: { async inspect(_root, policies) { return policies.map(policy => {
         calls.artifact.push(policy.packageName);
         const pkg = packages.find(row => row.name === policy.packageName);
-        const wildcardExports = policy.nonTypeExports.filter(row => row.kind === "wildcard").map(row => ({ exportPath: row.exportPath, targetPattern: pkg.exportSurface.entries.find(entry => entry.subpath === row.exportPath).target.slice(2), members: [pkg.exportSurface.entries.find(entry => entry.subpath === row.exportPath).target.slice(2).replace("*", "fixture.schema.json")] }));
+        const wildcardExports = policy.nonTypeExports.filter(row => row.kind === "wildcard").map(row => ({ exportPath: row.exportPath, targetPattern: pkg.exportSurface.entries.find(entry => entry.subpath === row.exportPath).target.slice(2), members: [pkg.exportSurface.entries.find(entry => entry.subpath === row.exportPath).target.slice(2).replaceAll("*", "fixture.schema.json")] }));
         return { schemaVersion: 1, packageName: policy.packageName, packageVersion: subjects.find(row => row.policy.packageName === policy.packageName).packageVersion, status: "release-candidate", wildcardExports, jsonSchemas: wildcardExports.flatMap(row => row.members.map(path => ({ path, id: `https://fixture/${path}`, digest, discriminators: {} }))) };
       }); } }
     };
@@ -435,7 +437,7 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
             assert.equal(entries.filter(entry => entry.coordinate.exportPath === row.exportPath && entry.coordinate.subject.kind === "typed").length, 1);
             assert.equal(entries.filter(entry => entry.coordinate.exportPath === row.exportPath && entry.coordinate.subject.kind === "export-branch").length, 1);
           } else if (row.shape === "wildcard") {
-            assert.equal(entries.filter(entry => entry.coordinate.exportPath === row.exportPath.replace("*", "fixture.schema.json") && entry.coordinate.subject.kind === "wildcard-member").length, 1);
+            assert.equal(entries.filter(entry => entry.coordinate.exportPath === row.exportPath.replaceAll("*", "fixture.schema.json") && entry.coordinate.subject.kind === "wildcard-member").length, 1);
           } else {
             const dimension = row.shape === "no-exports" ? "resolution" : row.shape;
             assert.equal(coverage.dimensions.find(entry => entry.dimension === dimension).status, "unsupported");
@@ -600,7 +602,7 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
     const files = { read: readContainedRegularFile };
     const evidence = { files, paths: { traversesSymbolicLink: pathTraversesSymbolicLink } };
     const workspace = new PnpmWorkspaceInventoryReader({ async readYaml() { return { packages: ["package"] }; } }, new PnpmPackageManifestSnapshotReader({ read: readContainedRegularFile, pathTraversesSymbolicLink }));
-    const port = createGrowthObservation({ consumerRoot: root, workspaceManifestPath: "pnpm-workspace.yaml", subjects: [{ packageVersion: "1.0.0", policy: { packageName: "growth-fixture", packageRoot: "package", manifestPath: "package/package.json", tsconfigPath: "package/tsconfig.json", releasedBaselinePath: "architecture/public-api/growth-fixture.json", approvedBreakingChanges: [], entrypoints: [{ exportPath: ".", declarationEntryPoint: "package/dist/index.d.ts" }], nonTypeExports: [{ exportPath: "./schemas/*", kind: "wildcard" }] } }] }, { workspace, typed: new MicrosoftPublicApiExtractor(evidence), artifact: new FilesystemPackageArtifactInventory(new AjvJsonSchemaReleaseInspector(files), evidence), fingerprint: { sha256(value) { return createHash("sha256").update(value).digest("hex"); } } });
+    const port = createGrowthObservation({ consumerRoot: root, workspaceManifestPath: "pnpm-workspace.yaml", subjects: [{ packageVersion: "1.0.0", policy: { packageName: "growth-fixture", packageRoot: "package", manifestPath: "package/package.json", tsconfigPath: "package/tsconfig.json", releasedBaselinePath: "architecture/public-api/growth-fixture.json", approvedBreakingChanges: [], entrypoints: [{ exportPath: ".", declarationEntryPoint: "package/dist/index.d.ts" }], nonTypeExports: [{ exportPath: "./schemas/*", kind: "wildcard" }] } }] }, { workspace: createWorkspaceGrowthReader(workspace), typed: new MicrosoftPublicApiExtractor(evidence), artifact: new FilesystemPackageArtifactInventory(new AjvJsonSchemaReleaseInspector(files), evidence), fingerprint: { sha256(value) { return createHash("sha256").update(value).digest("hex"); } } });
     const before = await port.observe(invocation, cancellation);
     const retained = before.compatibilitySnapshots.find(row => row.packageName === "growth-fixture");
     assert.equal(retained.typed.snapshot.status, "available");
@@ -621,3 +623,55 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
     }
   });
 }
+
+test("S1: growth policy and adapter reject direct workspace inventory dependencies", async () => {
+  const { readSourceArchitectureHeader, parseSourceArchitecturePolicy } = await import("../packages/engineering-foundation/dist/capabilities/source-dependencies/adapters/inbound/configuration/parse-capability-config.js");
+  const { evaluateResolvedSourceDependency } = await import("../packages/engineering-foundation/dist/capabilities/source-dependencies/application/policies/evaluate-resolved-source-dependency.js");
+  const policy = parseSourceArchitecturePolicy(readSourceArchitectureHeader(readArchitectureYaml(await readFile("architecture/foundation/source-dependencies.yaml", "utf8"))));
+  const boundariesById = new Map(policy.boundaries.map(row => [row.id, row]));
+  const root = "packages/engineering-foundation/src/capabilities/public-api-compatibility";
+  const adapter = `${root}/adapters/outbound/filesystem/workspace-growth-reader.ts`;
+  for (const path of [adapter, `${root}/application/policies/project-growth-package.ts`, `${root}/application/policies/project-growth-resolution.ts`, `${root}/application/use-cases/observe-sdk-growth.ts`]) {
+    const owners = policy.boundaries.filter(row => row.roots.some(dir => path === dir || path.startsWith(`${dir}/`)));
+    assert.equal(owners.length, 1);
+    const diagnostics = evaluateResolvedSourceDependency({ policy, boundariesById, developmentBoundariesByPackage: new Map(), edge: {
+      fromPath: path, fromBoundaryId: owners[0].id, fromWorkspacePackageName: "foundation", mode: "type-only", specifier: "workspace-inventory/api.js",
+      resolution: { kind: "local-file", workspacePackageName: "foundation", path: "packages/engineering-foundation/src/workspace-inventory/api.ts", targetBoundaryId: "foundation.workspace-inventory.application" }
+    } });
+    assert.deepEqual(diagnostics.map(row => row.ruleId), ["architecture.source-dependencies.forbidden-boundary-dependency"]);
+  }
+});
+
+test("S1: growth workspace mapping preserves signal, ordered targets and failure identity", async () => {
+  const signal = new AbortController().signal;
+  const target = { import: [null, "./index.js"], default: "./fallback.js" };
+  const reader = createWorkspaceGrowthReader({ async read(root, manifest, received) {
+    assert.deepEqual([root, manifest, received], ["root", "workspace", signal]);
+    return { packages: [{ name: "fixture", rootPath: "package", manifestPath: "package/package.json", moduleType: "module", exportSurface: { explicit: true, entries: [{ subpath: ".", target }] } }] };
+  } });
+  const result = await reader.read("root", "workspace", signal);
+  const mapped = result.packages[0].exportSurface.entries[0].target;
+  assert.deepEqual(mapped, target);
+  assert.notEqual(mapped, target);
+  assert.deepEqual(Object.keys(mapped), ["import", "default"]);
+  const failure = new Error("cancelled");
+  await assert.rejects(createWorkspaceGrowthReader({ async read() { throw failure; } }).read("root", "workspace", signal), error => error === failure);
+});
+
+test("S1: wildcard contract rejects multiple occurrences in export and target patterns", async () => {
+  const { observedPackageExports } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/validate-package-export-coverage.js");
+  for (const [subpath, target] of [["./*/*", "./schemas/*"], ["./schemas/*", "./*/*"]]) {
+    assert.throws(() => observedPackageExports({ manifest: { exports: { [subpath]: target } }, policy: { packageName: "fixture", packageRoot: "package" } }), /one \*/u);
+  }
+});
+
+test("S1: local canonical serialization rejects non-data containers without invoking getters", async () => {
+  const { growthCanonicalJson } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/normalize-growth-observation.js");
+  const cycle = {}; cycle.self = cycle;
+  const sparse = []; sparse.length = 2;
+  const getter = Object.defineProperty({}, "value", { enumerable: true, get() { throw new Error("getter executed"); } });
+  for (const value of [cycle, getter, sparse, Object.assign([1], { extra: 2 }), { [Symbol("key")]: 1 }, new Date(), { value: undefined }, 1.5, Infinity]) {
+    assert.throws(() => growthCanonicalJson(value), /growth-canonical-value-unsupported/u);
+  }
+  assert.equal(growthCanonicalJson({ z: [null, true, -2], a: "$&" }), '{"a":"$&","z":[null,true,-2]}');
+});

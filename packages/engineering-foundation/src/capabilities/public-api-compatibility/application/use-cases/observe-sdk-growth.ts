@@ -1,4 +1,4 @@
-import type { WorkspaceInventoryReader } from "../../../../workspace-inventory/api.js";
+import type { GrowthWorkspaceReader } from "../ports/growth-workspace.js";
 import type { GrowthCancellation, GrowthCompatibilityPackage, GrowthInvocation, GrowthObservationExecution } from "../model/growth-observation.js";
 import { GrowthObservationInvariantError, GrowthObservationUnavailableError } from "../model/growth-observation.js";
 import type { GrowthObservationPort } from "../ports/growth-observation.js";
@@ -36,7 +36,7 @@ export function createGrowthObservation(input: {
   readonly workspaceManifestPath: string;
   readonly subjects: readonly GrowthCompatibilitySubject[];
 }, dependencies: {
-  readonly workspace: WorkspaceInventoryReader;
+  readonly workspace: GrowthWorkspaceReader;
   readonly typed: PublicApiExtractor;
   readonly artifact: PackageArtifactInventory;
   readonly fingerprint: ChangeFingerprint;

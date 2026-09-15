@@ -1,18 +1,10 @@
-import { canonicalJson, CanonicalJsonError } from "@agent-teams/repository-mutation/serialization";
-import type { CanonicalJsonValue } from "@agent-teams/repository-mutation/serialization";
-import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { GrowthObservationInvariantError, GrowthObservationUnavailableError, growthDimensions } from "../model/growth-observation.js";
 import type { GrowthDigest, GrowthInvocation, GrowthSurfaceObservation, GrowthObservationReference } from "../model/growth-observation.js";
 import { assertGrowthInvocationShape, assertGrowthObservationShape } from "./validate-growth-observation.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 
 export function growthCanonicalJson(value: unknown): string {
-  let serialized: string;
-  try { serialized = canonicalJson(value as CanonicalJsonValue); }
-  catch (error) {
-    if (!(error instanceof CanonicalJsonError)) { throw error; }
-    throw new GrowthObservationUnavailableError("growth-canonical-value-unsupported");
-  }
+  const serialized = serializeGrowthValue(value, new Set<object>());
   if (new TextEncoder().encode(serialized).byteLength > 32 * 1024 * 1024) {
     throw new GrowthObservationUnavailableError("growth-serialization-budget-exhausted");
   }
@@ -20,7 +12,7 @@ export function growthCanonicalJson(value: unknown): string {
 }
 
 export function growthUniqueSorted<T>(values: readonly T[], key: (value: T) => string): readonly T[] {
-  const ordered = values.map((value) => ({ value, key: key(value) })).toSorted((a, b) => compareBinaryStrings(a.key, b.key));
+  const ordered = values.map((value) => ({ value, key: key(value) })).toSorted((a, b) => compareGrowthStrings(a.key, b.key));
   for (let index = 1; index < ordered.length; index += 1) {
     if (ordered[index]?.key === ordered[index - 1]?.key) {
       throw new GrowthObservationInvariantError("duplicate-growth-collection-key");
@@ -93,4 +85,39 @@ export function growthObservationDigest(value: GrowthSurfaceObservation, fingerp
 /** S2 may consume this reference only with the retained complete aggregate. */
 export function growthObservationReference(value: GrowthSurfaceObservation, fingerprint: ChangeFingerprint): GrowthObservationReference {
   return { sourceCommit: value.sourceCommit, sourceTree: value.sourceTree, surfaceDigest: growthObservationDigest(value, fingerprint), topologyDigest: value.topologyDigest, lockDigest: value.lockDigest, toolchainDigest: value.toolchainDigest, artifactDigests: growthUniqueSorted(value.artifactDigests, (entry) => entry) };
+}
+
+/** Raw UTF-16 ordering, with no locale or Unicode normalization (C0). */
+export function compareGrowthStrings(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/** Growth accepts canonical text without rewriting retained v1 strings. */
+function serializeGrowthValue(value: unknown, ancestors: Set<object>): string {
+  if (typeof value === "string" && value.normalize("NFC") !== value) { throw new GrowthObservationUnavailableError("growth-canonical-value-unsupported"); }
+  if (value === null || typeof value === "boolean" || typeof value === "string") { return JSON.stringify(value); }
+  if (typeof value === "number" && Number.isSafeInteger(value)) { return JSON.stringify(value); }
+  if (typeof value !== "object" || ancestors.has(value)) {
+    throw new GrowthObservationUnavailableError("growth-canonical-value-unsupported");
+  }
+  const array = Array.isArray(value);
+  const prototype: unknown = Object.getPrototypeOf(value);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    throw new GrowthObservationUnavailableError("growth-canonical-value-unsupported");
+  }
+  ancestors.add(value);
+  try {
+    const keys = Reflect.ownKeys(value).filter((key) => !array || key !== "length");
+    if (array && keys.length !== value.length) { throw new GrowthObservationUnavailableError("growth-canonical-value-unsupported"); }
+    const ordered = array ? Array.from({ length: value.length }, (_, index) => String(index)) : keys.toSorted((a, b) => compareGrowthStrings(String(a), String(b)));
+    const entries = ordered.map((key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (typeof key !== "string" || key.normalize("NFC") !== key || descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
+        throw new GrowthObservationUnavailableError("growth-canonical-value-unsupported");
+      }
+      const item = serializeGrowthValue(descriptor.value, ancestors);
+      return array ? item : `${JSON.stringify(key)}:${item}`;
+    });
+    return array ? `[${entries.join(",")}]` : `{${entries.join(",")}}`;
+  } finally { ancestors.delete(value); }
 }

@@ -2236,6 +2236,7 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-workspace.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/public-api-evidence-errors.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-evidence.ts

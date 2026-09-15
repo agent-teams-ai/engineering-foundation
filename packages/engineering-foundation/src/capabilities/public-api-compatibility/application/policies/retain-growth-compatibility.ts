@@ -1,4 +1,4 @@
-import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
+import { compareGrowthStrings } from "./normalize-growth-observation.js";
 import { GrowthObservationInvariantError } from "../model/growth-observation.js";
 import type { GrowthCancellation, GrowthCompatibilityPackage, GrowthEvidence } from "../model/growth-observation.js";
 import type { PublicApiArtifactSnapshot, PublicApiPackagePolicy, PublicApiSnapshot } from "../model/public-api.js";
@@ -36,7 +36,7 @@ export async function retainGrowthCompatibility(input: {
   if (input.extractorVersion === "package-artifact-inventory/1") {
     throw new GrowthObservationInvariantError("typed-observer-provenance-mismatch");
   }
-  const subjects = input.subjects.toSorted((a, b) => compareBinaryStrings(a.policy.packageName, b.policy.packageName));
+  const subjects = input.subjects.toSorted((a, b) => compareGrowthStrings(a.policy.packageName, b.policy.packageName));
   for (let index = 1; index < subjects.length; index += 1) {
     if (subjects[index]?.policy.packageName === subjects[index - 1]?.policy.packageName) {
       throw new GrowthObservationInvariantError("duplicate-compatibility-package");

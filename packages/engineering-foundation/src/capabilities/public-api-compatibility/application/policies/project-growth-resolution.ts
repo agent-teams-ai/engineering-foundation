@@ -1,22 +1,21 @@
-import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
-type PackageExportTarget = Exclude<WorkspacePackage["exportSurface"]["entries"][number]["target"], undefined>;
+import type { GrowthExportTarget } from "../model/growth-workspace.js";
 import type { GrowthResolutionStep, GrowthResolutionTree } from "../model/growth-observation.js";
 import { GrowthObservationInvariantError, GrowthObservationUnavailableError } from "../model/growth-observation.js";
 
 /** Translate the existing workspace observer's retained tree, without parsing a
  * manifest or resolving Node conditions again. Arrays and conditions are ordered.
  */
-export function projectGrowthResolution(target: PackageExportTarget): GrowthResolutionTree {
+export function projectGrowthResolution(target: GrowthExportTarget): GrowthResolutionTree {
   const budget = { nodes: 0 };
-  function visit(value: PackageExportTarget, depth: number): GrowthResolutionTree {
+  function visit(value: GrowthExportTarget, depth: number): GrowthResolutionTree {
     if (++budget.nodes > 10_000 || depth > 64) {
       throw new GrowthObservationUnavailableError("growth-resolution-budget-exhausted");
     }
     if (value === null) { return { kind: "null" }; }
     if (typeof value === "string") { return { kind: "target", target: value }; }
-    if (Array.isArray(value)) { return { kind: "fallbacks", entries: value.map((entry) => visit(entry, depth + 1)) }; }
+    if (Array.isArray(value)) { return { kind: "fallbacks", entries: (value as readonly GrowthExportTarget[]).map((entry) => visit(entry, depth + 1)) }; }
     if (typeof value !== "object") { throw new GrowthObservationInvariantError("invalid-observed-export-target"); }
-    return { kind: "conditions", entries: Object.entries(value).map(([condition, entry]) => ({ condition, value: visit(entry as PackageExportTarget, depth + 1) })) };
+    return { kind: "conditions", entries: Object.entries(value).map(([condition, entry]) => ({ condition, value: visit(entry, depth + 1) })) };
   }
   return visit(target, 0);
 }

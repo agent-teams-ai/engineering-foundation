@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.3.3",
+  "packageVersion": "1.4.0",
   "status": "release-candidate",
   "wildcardExports": [
     {

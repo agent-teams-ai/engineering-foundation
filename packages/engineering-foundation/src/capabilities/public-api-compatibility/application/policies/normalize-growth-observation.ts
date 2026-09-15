@@ -42,7 +42,7 @@ export function normalizeGrowthInvocation(value: GrowthInvocation): GrowthInvoca
  */
 export function normalizeGrowthObservation(value: GrowthSurfaceObservation): GrowthSurfaceObservation {
   assertGrowthObservationShape(value);
-  if (value.contractRevision !== "foundation:sdk-growth:c0:5" || value.observationVersion !== "foundation:sdk-growth:observation:1") {
+  if ((value.contractRevision as unknown) !== "foundation:sdk-growth:c0:5" || (value.observationVersion as unknown) !== "foundation:sdk-growth:observation:1") {
     throw new GrowthObservationInvariantError("invalid-growth-observation-version");
   }
   const coverage = growthUniqueSorted(value.coverage, (row) => row.packageName).map((row) => {

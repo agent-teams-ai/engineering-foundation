@@ -54,7 +54,7 @@ export async function retainGrowthCompatibility(input: {
       typed = unavailable("typed-observation-unavailable");
     }
     input.cancellation.throwIfCancelled();
-    if (typed.status === "available" && (typed.value.packageName !== policy.packageName || typed.value.packageVersion !== packageVersion || typed.value.extractorVersion !== input.extractorVersion || typed.value.schemaVersion !== 1)) {
+    if (typed.status === "available" && (typed.value.packageName !== policy.packageName || typed.value.packageVersion !== packageVersion || typed.value.extractorVersion !== input.extractorVersion || (typed.value.schemaVersion as unknown) !== 1)) {
       throw new GrowthObservationInvariantError("typed-observer-provenance-mismatch");
     }
     let artifact: GrowthEvidence<PublicApiSnapshot>;
@@ -71,7 +71,7 @@ export async function retainGrowthCompatibility(input: {
       artifactObservation = { status: "unavailable", reasons: ["artifact-observation-unavailable"] };
     } else {
       const snapshot = snapshots[0];
-      if (snapshots.length !== 1 || snapshot === undefined || snapshot.packageName !== policy.packageName || snapshot.packageVersion !== packageVersion || snapshot.schemaVersion !== 1) {
+      if (snapshots.length !== 1 || snapshot === undefined || snapshot.packageName !== policy.packageName || snapshot.packageVersion !== packageVersion || (snapshot.schemaVersion as unknown) !== 1) {
         throw new GrowthObservationInvariantError("artifact-observer-provenance-mismatch");
       }
       artifact = { status: "available", value: artifactApiProjection(snapshot) };

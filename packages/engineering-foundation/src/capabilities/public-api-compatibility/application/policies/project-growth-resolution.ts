@@ -30,7 +30,7 @@ export function growthDeclarationBranches(tree: GrowthResolutionTree, target: st
       case "target": if (value.target === target) { branches.push(path); } break;
       case "null": break;
       case "conditions": for (const entry of value.entries) { visit(entry.value, [...path, { condition: entry.condition }]); } break;
-      case "fallbacks": value.entries.forEach((entry, index) => visit(entry, [...path, { index }])); break;
+      case "fallbacks": value.entries.forEach((entry, index) => { visit(entry, [...path, { index }]); }); break;
     }
   }
   visit(tree, []);

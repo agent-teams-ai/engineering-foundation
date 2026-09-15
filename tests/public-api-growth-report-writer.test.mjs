@@ -101,9 +101,9 @@ test("growth report exclusive fence rejects overlapping publishers without takeo
   const first = createFilesystemGrowthReportWriter(root, { ...fs, async rename(...args) {
     entered.resolve(); await release.promise; return fs.rename(...args);
   } });
-  const running = first.write(request("first"), cancellation());
+  const running = first.write({ path: "report.json", contents: "first" }, cancellation());
   await entered.promise;
-  await assert.rejects(createFilesystemGrowthReportWriter(root).write(request("second"), cancellation()), failure("conflict", "growth-report-fence-busy"));
+  await assert.rejects(createFilesystemGrowthReportWriter(root).write({ path: "report.json", contents: "second" }, cancellation()), failure("conflict", "growth-report-fence-busy"));
   release.resolve();
   await running;
   assert.equal(await fs.readFile(join(root, "report.json"), "utf8"), "first");
@@ -241,3 +241,46 @@ test("growth report preserves unsafe-slot conflict when closing the preimage fai
   assert.equal(await fs.readFile(other, "utf8"), "new\n");
   assert.deepEqual((await fs.readdir(root)).toSorted(), ["other", "report.json"]);
 }));
+
+
+test("growth report observes first publish, replay and sequential updates inside the fence without caller CAS", async () => fixture(async root => {
+  let observations = 0;
+  const writer = createFilesystemGrowthReportWriter(root, { ...fs, async open(path, ...args) {
+    if (path === join(root, "report.json")) {
+      await fs.stat(join(root, "report.json.growth-report.lock"));
+      observations += 1;
+    }
+    return fs.open(path, ...args);
+  } });
+  for (const [contents, status] of [["first", "published"], ["first", "replayed"], ["later", "published"]]) {
+    assert.deepEqual(await writer.write({ path: "report.json", contents }, cancellation()), { status, digest: hash(contents) });
+    assert.equal(await fs.readFile(join(root, "report.json"), "utf8"), contents);
+  }
+  assert.ok(observations >= 7);
+  assert.deepEqual(await fs.readdir(root), ["report.json"]);
+}));
+
+test("automatic preimage rejects non-cooperating changes, including replacement with identical bytes", async () => {
+  for (const mutation of ["bytes", "identity", "missing"]) {
+    await fixture(async root => {
+      const target = join(root, "report.json");
+      await fs.writeFile(target, "before");
+      let renamed = false;
+      const writer = createFilesystemGrowthReportWriter(root, { ...fs, async open(path, ...args) {
+        const handle = await fs.open(path, ...args);
+        if (String(path).endsWith(".tmp")) {
+          if (mutation === "bytes") { await fs.writeFile(target, "racing"); }
+          else {
+            await fs.rename(target, join(root, "held"));
+            if (mutation === "identity") { await fs.writeFile(target, "before"); }
+          }
+        }
+        return handle;
+      }, async rename(...args) { renamed = true; return fs.rename(...args); } });
+      await assert.rejects(writer.write({ path: "report.json", contents: "later" }, cancellation()), failure("conflict", "growth-report-publication-conflict"));
+      assert.equal(renamed, false);
+      if (mutation === "missing") { await assert.rejects(fs.stat(target), { code: "ENOENT" }); }
+      else { assert.equal(await fs.readFile(target, "utf8"), mutation === "bytes" ? "racing" : "before"); }
+    });
+  }
+});

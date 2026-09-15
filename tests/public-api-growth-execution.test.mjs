@@ -48,11 +48,26 @@ test("existing public check route preserves v1 and publishes deterministic incom
     assert.ok(report.trustedBaseComparison.reasons.includes("growth-authority-unverified"));
     assert.deepEqual(check(root).report, first.report);
     assert.deepEqual(await readFile(join(root, "reports/sdk.json")), bytes);
-    await writeFile(join(root, "reports/sdk.json"), "another writer");
-    const conflicted = check(root);
-    assert.equal(conflicted.result.status, 3);
-    assert.equal(conflicted.report.capabilities[0].problem.code, "SDK_GROWTH_REPORT_CONFLICT");
-    assert.equal(await readFile(join(root, "reports/sdk.json"), "utf8"), "another writer");
+    const { sourceCommit, sourceTree, topologyDigest, lockDigest, toolchainDigest, artifactDigests } = report.candidate.value;
+    const base = { contractRevision: report.contractRevision, observationVersion: "foundation:sdk-growth:observation:1",
+      repository: report.repository, sourceCommit, sourceTree, topologyDigest, lockDigest, toolchainDigest, artifactDigests,
+      tool: report.tool, coverage: report.coverage, entries: Array.from({ length: 100001 }, () => ({})) };
+    await writeFile(join(root, "evidence/base.json"), JSON.stringify(base));
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n# Later observed inputs\n");
+    const later = check(root);
+    assert.equal(later.result.status, 2, JSON.stringify(later.report));
+    assert.equal(later.report.capabilities[0].problem.code, "SDK_GROWTH_EVIDENCE_INCOMPLETE");
+    const updated = await readFile(join(root, "reports/sdk.json"));
+    assert.notDeepEqual(updated, bytes);
+    assert.equal(JSON.parse(updated).trustedBase.status, "unavailable");
+    assert.notEqual(JSON.parse(updated).candidate.value.lockDigest, report.candidate.value.lockDigest);
+    assert.deepEqual(check(root).report, later.report);
+    assert.deepEqual(await readFile(join(root, "reports/sdk.json")), updated);
+    base.entries = [];
+    base.sourceCommit = "invalid";
+    await writeFile(join(root, "evidence/base.json"), JSON.stringify(base));
+    assert.equal(check(root).result.status, 3);
+    assert.deepEqual(await readFile(join(root, "reports/sdk.json")), updated);
   });
 });
 
@@ -136,6 +151,9 @@ test("report projection validates complete receipts and truthful unavailable and
   assert.deepEqual(initialReport.releasedComparison.transitions[0].after, { state: "present", digest });
   assert.deepEqual(initialReport.released[0].evidence, initial.released[0].evidence);
   initial.released[0].evidence.history = { status: "unavailable", reasons: ["no-trusted-initial-history"] };
+  const invalidPolicy = structuredClone(initialReport);
+  invalidPolicy.releasedComparison.transitions[0].policyVersion = "unknown";
+  assert.throws(() => validateGrowthReport(invalidPolicy, fingerprint), { reason: "invalid-growth-report" });
   const missingInitial = validateGrowthReport(projectGrowthReport(initial, fingerprint), fingerprint);
   assert.equal(missingInitial.verdict, "incomplete");
   assert.deepEqual(missingInitial.transitionReceipts, []);
@@ -147,6 +165,22 @@ test("report projection validates complete receipts and truthful unavailable and
   assert.deepEqual(incomplete.transitionReceipts, []);
   assert.deepEqual(incomplete.authority.reasons, ["a", "z"]);
   assert.equal(incomplete.phases.find(row => row.name === "authority").status, "unavailable");
+  for (const field of ["workflowRef", "runRef"]) {
+    for (const value of [undefined, null, "", " \t\n"]) {
+      const missingAuthority = structuredClone(execution);
+      missingAuthority.authority[field] = value;
+      const report = validateGrowthReport(projectGrowthReport(missingAuthority, fingerprint), fingerprint);
+      assert.deepEqual(report.authority, { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] });
+      assert.equal(report.verdict, "incomplete");
+      assert.equal(report.releaseEligible, false);
+      assert.deepEqual(report.transitionReceipts, []);
+    }
+  }
+  for (const reasons of [[], "reason", [1], [null], [" "]]) {
+    const malformed = structuredClone(incomplete);
+    malformed.authority.reasons = reasons;
+    assert.throws(() => validateGrowthReport(malformed, fingerprint), { reason: "invalid-growth-report" });
+  }
   const broken = structuredClone(execution);
   broken.compatibility.status = "rejected";
   const rejected = validateGrowthReport(projectGrowthReport(broken, fingerprint), fingerprint);
@@ -155,6 +189,11 @@ test("report projection validates complete receipts and truthful unavailable and
   assert.deepEqual(rejected.transitionReceipts, []);
   for (const mutate of [
     report => { report.extra = true; },
+    report => { report.tool = null; },
+    report => { report.contractRevision = "unknown"; },
+    report => { report.policyVersion = "unknown"; },
+    report => { report.candidate = { status: "unknown", reasons: ["reason"] }; },
+    report => { report.released[0].evidence = { kind: "unknown", history: { status: "available", value: digest } }; },
     report => { report.phases.reverse(); },
     report => { report.tool.artifactDigest = "not-a-digest"; },
     report => { report.transitionReceipts[0].transitions = [digest]; },

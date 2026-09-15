@@ -48,7 +48,7 @@ export async function checkSdkGrowth(input: {
   let publication;
   try {
     publication = await dependencies.writer.write({ path: config.sdkGrowth.reportPath,
-      expectedPreimage: null, contents: `${growthCanonicalJson(payload)}\n` }, cancellation);
+      contents: `${growthCanonicalJson(payload)}\n` }, cancellation);
   } catch (error) {
     if (!(error instanceof GrowthReportWriteError)) { throw error; }
     return capabilityReport({ capabilityId: "package.public-api-compatibility", capabilityConfigSchemaVersion: 2, outcome: "failed",

@@ -182,3 +182,18 @@ test("aggregate historical byte budget exhaustion retains incomplete evidence", 
   assert.deepEqual(context.released[0].evidence.typed, { status: "unavailable", reasons: ["growth-input-budget-exhausted"] });
   assert.equal((await admission(adapter)).admission.status, "incomplete");
 }));
+
+
+test("historical normalization limits become unavailable while invariant failures propagate", async () => fixture(async (root, adapter) => {
+  const base = baseObservation();
+  base.entries = Array.from({ length: 100001 }, () => ({}));
+  await writeFile(join(root, "base.json"), JSON.stringify(base));
+  assert.deepEqual((await adapter.read(request, cancellation)).trustedBase, {
+    status: "unavailable", reasons: ["growth-entry-budget-exhausted"]
+  });
+  assert.equal((await admission(adapter)).admission.status, "incomplete");
+  base.entries = [];
+  base.sourceCommit = "invalid";
+  await writeFile(join(root, "base.json"), JSON.stringify(base));
+  await assert.rejects(adapter.read(request, cancellation), error => error.name === "GrowthObservationInvariantError");
+}));

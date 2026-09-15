@@ -8,19 +8,20 @@ import { growthTransitionFingerprint } from "./compare-growth-surfaces.js";
 import { growthCanonicalJson, growthUniqueSorted } from "./normalize-growth-observation.js";
 
 function invalid(): never { throw new GrowthObservationInvariantError("invalid-growth-report"); }
-function closed(value: object, keys: readonly string[]): void {
+function closed(value: unknown, keys: readonly string[]): void {
   if (value === null || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== keys.length || keys.some((key) => !Object.hasOwn(value, key))) { invalid(); }
 }
-function text(value: string): void { if (typeof value !== "string" || !value.trim() || value.length > 4096) { invalid(); } }
+function text(value: unknown): asserts value is string { if (typeof value !== "string" || !value.trim() || value.length > 4096) { invalid(); } }
 function digest(value: string): void { if (typeof value !== "string" || !/^sha256:[a-f0-9]{64}$/u.test(value)) { invalid(); } }
-function oneOf(value: string, choices: readonly string[]): void { if (!choices.includes(value)) { invalid(); } }
-function reasons(values: readonly string[]): readonly string[] {
+function oneOf(value: unknown, choices: readonly string[]): void { if (typeof value !== "string" || !choices.includes(value)) { invalid(); } }
+function reasons(values: unknown): readonly string[] {
   if (!Array.isArray(values) || values.length === 0) { invalid(); }
-  values.forEach(text); return growthUniqueSorted(values, (value) => value);
+  const normalized = values.map((value: unknown) => { text(value); return value; });
+  return growthUniqueSorted(normalized, (value) => value);
 }
 function evidence<T>(input: GrowthEvidence<T>, normalize: (value: T) => T): GrowthEvidence<T> {
+  oneOf(input.status, ["available", "unavailable"]);
   if (input.status === "available") { closed(input, ["status", "value"]); return { status: "available", value: normalize(input.value) }; }
-  if (input.status !== "unavailable") { invalid(); }
   closed(input, ["status", "reasons"]); return { status: "unavailable", reasons: reasons(input.reasons) };
 }
 function reference(value: GrowthObservationReference): GrowthObservationReference {
@@ -35,7 +36,8 @@ function comparison(value: GrowthComparison, fingerprint: ChangeFingerprint): Gr
   const rows = value.status === "complete" ? value.transitions : value.findings;
   for (const row of rows) {
     closed(row, ["coordinate", "before", "after", "policyVersion", "fingerprint"]);
-    if (row.policyVersion !== "foundation:sdk-growth:policy:1" || growthTransitionFingerprint(row, fingerprint) !== row.fingerprint) { invalid(); }
+    oneOf(row.policyVersion, ["foundation:sdk-growth:policy:1"]);
+    if (growthTransitionFingerprint(row, fingerprint) !== row.fingerprint) { invalid(); }
   }
   growthUniqueSorted(rows, (row) => row.fingerprint);
   const ordered = growthUniqueSorted(rows, (row) => growthCanonicalJson(row.coordinate));
@@ -46,17 +48,17 @@ function comparison(value: GrowthComparison, fingerprint: ChangeFingerprint): Gr
 /** Validate the complete closed artifact before serialization/publication. */
 export function validateGrowthReport(report: GrowthReport, fingerprint: ChangeFingerprint): GrowthReport {
   closed(report, ["contractRevision", "policyVersion", "repository", "trustedBase", "candidate", "released", "tool", "authority", "coverage", "trustedBaseComparison", "releasedComparison", "transitionReceipts", "phases", "verdict", "releaseEligible"]);
-  if (report.contractRevision !== "foundation:sdk-growth:c0:5" || report.policyVersion !== "foundation:sdk-growth:policy:1") { invalid(); }
+  oneOf(report.contractRevision, ["foundation:sdk-growth:c0:5"]); oneOf(report.policyVersion, ["foundation:sdk-growth:policy:1"]);
   text(report.repository); closed(report.tool, ["version", "artifactDigest", "extractorVersion"]);
   text(report.tool.version); text(report.tool.extractorVersion); digest(report.tool.artifactDigest);
   const trustedBase = evidence(report.trustedBase, reference), candidate = evidence(report.candidate, reference);
   const released = growthUniqueSorted(report.released, (row) => row.packageName).map((row) => {
     closed(row, ["packageName", "evidence"]); text(row.packageName);
+    oneOf(row.evidence.kind, ["released", "initial-unreleased"]);
     if (row.evidence.kind === "released") {
       closed(row.evidence, ["kind", "observation"]);
       return { ...row, evidence: { kind: "released" as const, observation: evidence(row.evidence.observation, reference) } };
     }
-    if (row.evidence.kind !== "initial-unreleased") { invalid(); }
     closed(row.evidence, ["kind", "history"]);
     return { ...row, evidence: { kind: "initial-unreleased" as const, history: evidence(row.evidence.history, (value) => { digest(value); return value; }) } };
   });

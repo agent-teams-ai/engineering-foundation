@@ -87,7 +87,8 @@ function compareReleased(execution: SdkGrowthAdmissionExecution, fingerprint: Ch
 
 function projectAuthority(authority: SdkGrowthAdmissionExecution["authority"]): GrowthReport["authority"] {
   return authority.status === "unverified" ? authority
-    : authority.workflowRef?.trim() && authority.runRef?.trim()
+    : authority.workflowRef?.trim() !== undefined && authority.workflowRef.trim() !== ""
+      && authority.runRef?.trim() !== undefined && authority.runRef.trim() !== ""
       ? { status: "verified", workflowRef: authority.workflowRef, runRef: authority.runRef, receiptDigest: authority.receiptDigest }
       : { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] };
 }

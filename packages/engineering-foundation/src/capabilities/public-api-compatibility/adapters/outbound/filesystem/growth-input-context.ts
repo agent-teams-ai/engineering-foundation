@@ -1,5 +1,6 @@
 import type { GrowthInputContextPort } from "../../../application/ports/growth-input-context.js";
 import type { GrowthInputContext, GrowthReleasedPackage } from "../../../application/model/growth-admission-context.js";
+import { GrowthObservationUnavailableError } from "../../../application/model/growth-observation.js";
 import type { GrowthEvidence, GrowthSurfaceObservation } from "../../../application/model/growth-observation.js";
 import type { PublicApiCompatibilityPolicy, PublicApiSnapshot } from "../../../application/model/public-api.js";
 import type { PublicApiRepository } from "../../../application/ports/public-api-repository.js";
@@ -13,6 +14,14 @@ import { auditRead } from "./public-api-audit-inputs.js";
 
 function unavailable<T>(reason: string): GrowthEvidence<T> { return { status: "unavailable", reasons: [reason] }; }
 function available<T>(value: T): GrowthEvidence<T> { return { status: "available", value }; }
+function historicalObservation(value: unknown, missingReason: string): GrowthEvidence<GrowthSurfaceObservation> {
+  if (value === undefined) { return unavailable(missingReason); }
+  try { return available(normalizeGrowthObservation(value as GrowthSurfaceObservation)); }
+  catch (error) {
+    if (!(error instanceof GrowthObservationUnavailableError)) { throw error; }
+    return unavailable(error.reason);
+  }
+}
 /** Native JSON parsing owns syntax; this iterative token walk preserves object-key
  * occurrences (including escaped spellings) before any semantic validation. */
 function parseContextJson(text: string): unknown {
@@ -34,7 +43,7 @@ function parseContextJson(text: string): unknown {
       if (text[next] === ":") {
         const key = JSON.parse(text.slice(start, index + 1)) as string;
         const keys = objects.at(-1);
-        if (keys?.has(key)) { configurationInputError("SDK context input contains duplicate JSON object keys."); }
+        if (keys?.has(key) === true) { configurationInputError("SDK context input contains duplicate JSON object keys."); }
         keys?.add(key);
       }
     }
@@ -116,8 +125,7 @@ export function createFilesystemGrowthInputContext(input: {
         return value;
       }
       const base = await json(request.trustedBasePath, historicalBudget);
-      const trustedBase = base === undefined ? unavailable<GrowthSurfaceObservation>(unavailableReasons.get(request.trustedBasePath) ?? "growth-base-file-missing")
-        : available(normalizeGrowthObservation(base as GrowthSurfaceObservation));
+      const trustedBase = historicalObservation(base, unavailableReasons.get(request.trustedBasePath) ?? "growth-base-file-missing");
       const decisions = await json(request.decisionsPath, candidateBudget);
       if (decisions !== undefined && !Array.isArray(decisions)) { configurationInputError("SDK decisions must be a JSON array."); }
       const released: GrowthReleasedPackage[] = [];

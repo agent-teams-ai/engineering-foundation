@@ -16,6 +16,11 @@ function code(error: unknown): string | undefined {
   return error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : undefined;
 }
 function conflict(reason: string): never { throw new GrowthReportWriteError("conflict", reason); }
+function validateRequest(bytes: Uint8Array, expectedPreimage: GrowthDigest | null | undefined): void {
+  if (bytes.length > maximumBytes || (expectedPreimage !== undefined && expectedPreimage !== null && !/^sha256:[a-f0-9]{64}$/u.test(expectedPreimage))) {
+    conflict("growth-report-request-invalid");
+  }
+}
 function attachCleanupFailures(primary: unknown, failures: unknown[]): void {
   // Preserve cancellation identity, even for immutable or non-Error reasons.
   if (primary instanceof Error && Object.isExtensible(primary) &&
@@ -59,7 +64,7 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
     const [named, opened] = await Promise.all([fs.lstat(path), handle.stat()]);
     return named.isFile() && !named.isSymbolicLink() && named.dev === opened.dev && named.ino === opened.ino;
   }
-  async function preimage(path: string): Promise<GrowthDigest | null> {
+  async function preimage(path: string): Promise<{ digest: GrowthDigest; identity: string } | null> {
     let handle: FileHandle | undefined;
     let failure: unknown;
     try {
@@ -86,7 +91,7 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
       if (size > maximumBytes || before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || !await sameFile(path, handle)) {
         conflict("growth-report-slot-changed");
       }
-      return digest(bytes.subarray(0, size));
+      return { digest: digest(bytes.subarray(0, size)), identity: JSON.stringify([after.dev, after.ino, after.size, after.mtimeMs, after.ctimeMs]) };
     } catch (error) { failure = error; throw error; }
     finally { await closeHandle(handle, failure); }
   }
@@ -127,9 +132,7 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
       const request = { ...input };
       cancellation.throwIfCancelled();
       const bytes = Buffer.from(request.contents, "utf8"), outputDigest = digest(bytes);
-      if (bytes.length > maximumBytes || (request.expectedPreimage !== null && !/^sha256:[a-f0-9]{64}$/u.test(request.expectedPreimage))) {
-        conflict("growth-report-request-invalid");
-      }
+      validateRequest(bytes, request.expectedPreimage);
       let fence: FileHandle | undefined, stage: FileHandle | undefined;
       let fencePath = "", stagePath = "", commitAttempted = false, renamed = false;
       let failure: unknown;
@@ -145,14 +148,14 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
         cancellation.throwIfCancelled();
         const before = await preimage(target);
         cancellation.throwIfCancelled();
-        if (before === outputDigest) { return { status: "replayed", digest: outputDigest }; }
-        if (before !== request.expectedPreimage) { conflict("growth-report-preimage-mismatch"); }
+        if (before?.digest === outputDigest) { return { status: "replayed", digest: outputDigest }; }
+        if (request.expectedPreimage !== undefined && (before?.digest ?? null) !== request.expectedPreimage) { conflict("growth-report-preimage-mismatch"); }
         stagePath = join(dirname(target), `.growth-report-${randomUUID()}.tmp`);
         stage = await fs.open(stagePath, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | noFollow, 0o600);
         await stage.writeFile(bytes);
         await stage.sync();
         await parents(request.path);
-        if (!await sameFile(fencePath, fence) || !await sameFile(stagePath, stage) || await preimage(target) !== before) {
+        if (!await sameFile(fencePath, fence) || !await sameFile(stagePath, stage) || JSON.stringify(await preimage(target)) !== JSON.stringify(before)) {
           conflict("growth-report-publication-conflict");
         }
         // Final cancellation boundary. Once rename starts, complete publication
@@ -161,7 +164,7 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
         commitAttempted = true;
         await fs.rename(stagePath, target);
         renamed = true;
-        if (await preimage(target) !== outputDigest) { throw new GrowthReportWriteError("uncertain", "growth-report-readback-mismatch"); }
+        if ((await preimage(target))?.digest !== outputDigest) { throw new GrowthReportWriteError("uncertain", "growth-report-readback-mismatch"); }
         return { status: "published", digest: outputDigest };
       } catch (error) {
         try {

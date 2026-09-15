@@ -1,0 +1,21 @@
+{
+  "contractId": "package-public-api-compatibility",
+  "publicContractVersion": "2.0.0",
+  "status": "artifact-protected-unreleased",
+  "schemaPath": "packages/engineering-foundation/schemas/package-public-api-compatibility/v2.schema.json",
+  "schemaDigest": "sha256:34c2ee459b6668e6a6589b0303619436e0d70b3003089fbf8fecbae667689864",
+  "fixtures": [
+    {
+      "path": "architecture/contracts/sdk-growth-v2/valid.json",
+      "expectation": "valid",
+      "digest": "sha256:02c05e7da840a0af4e844022ec9e8ce17c4d57a3ca1e1a857829a63d25406090"
+    },
+    {
+      "path": "architecture/contracts/sdk-growth-v2/invalid.json",
+      "expectation": "invalid",
+      "digest": "sha256:c24ea7d768003342311faff776dd830278e20cdbd732ca8f1f7336b32d8687c0"
+    }
+  ],
+  "qualification": "scripts/pack-sdk-growth-test.mjs",
+  "supportClaim": "Initial release-owned v2 schema family preparation is checked through contract.json-schema-releases and a local disposable built-command consumer. No registry release, packed qualification, external activation or S3 authority is claimed."
+}

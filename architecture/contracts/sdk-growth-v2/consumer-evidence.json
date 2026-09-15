@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "consumerId": "sdk-growth-config-loader-fixture",
+  "consumerVersion": "1.0.0",
+  "scope": "Local consumer of the built v2 configuration loader; no public-command execution, packed artifact, external consumer activation or S3 trust claim.",
+  "baseCommit": "de77f14070cfff071fc69706cd725fb90a8d91f3",
+  "schemaSetDigest": "sha256:724350515283296bbdd1ec95ce8a994046ccac0da61b7e93037e83d4ac183210",
+  "fixtureCorpusDigest": "sha256:b2e68eb9189121b81963ae188320a56414e2acdea590a1528e613ee448ddc40c",
+  "sourcePath": "tests/public-api-configuration.test.mjs",
+  "sourceDigest": "sha256:49ff1e062c24f61319febffd10520c2ee41f09adbfe3865f8a7873aa0f24330c",
+  "command": "node --test --test-isolation=none --test-name-pattern='SDK v2' tests/public-api-configuration.test.mjs",
+  "tests": 4,
+  "passed": 4,
+  "failed": 0,
+  "outcome": "passed"
+}

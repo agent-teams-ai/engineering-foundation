@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "contractId": "package-public-api-compatibility",
+  "publicContractVersion": "2.0.0",
+  "schemaSetDigest": "sha256:724350515283296bbdd1ec95ce8a994046ccac0da61b7e93037e83d4ac183210",
+  "fixtureCorpusDigest": "sha256:b2e68eb9189121b81963ae188320a56414e2acdea590a1528e613ee448ddc40c",
+  "supportedConsumers": [
+    {
+      "consumerId": "sdk-growth-config-loader-fixture",
+      "consumerVersion": "1.0.0",
+      "contractId": "package-public-api-compatibility",
+      "contractVersion": "2.0.0",
+      "schemaSetDigest": "sha256:724350515283296bbdd1ec95ce8a994046ccac0da61b7e93037e83d4ac183210",
+      "fixtureCorpusDigest": "sha256:b2e68eb9189121b81963ae188320a56414e2acdea590a1528e613ee448ddc40c",
+      "evidenceDigest": "sha256:a1301a5d998dd94230da494b474dcf0643e65023fb5912f30613e84d5b3f75ef",
+      "outcome": "passed"
+    }
+  ]
+}

@@ -2237,6 +2237,13 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-workspace.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-report-writer.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/growth-configuration.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/growth-admission-context.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/growth-observation.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/growth-input-context.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/check-sdk-growth.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/normalize-growth-observation.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/configuration-input.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/public-api-evidence-errors.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-evidence.ts
@@ -2366,12 +2373,17 @@ boundaries:
         - node:path
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-invocation.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/crypto/node-change-fingerprint.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/artifact-public-api-evidence.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/workspace-growth-reader.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-input-context.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-report-writer.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts
@@ -2396,6 +2408,8 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
     allow:
       boundaries:
+        - foundation.process-execution.composition
+        - foundation.workspace-inventory.composition
         - foundation.configuration-input.composition
         - foundation.configuration-input.adapters
         - foundation.source-inventory.composition

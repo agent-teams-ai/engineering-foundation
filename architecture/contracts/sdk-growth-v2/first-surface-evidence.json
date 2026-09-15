@@ -1,0 +1,38 @@
+{
+  "status": "unverified-first-surface-proposal",
+  "baseCommit": "e4bce607c8d8a75bcfe7aaaa754cc653618bb0e5",
+  "beforeEvidence": "architecture/public-api/engineering-foundation.artifacts.json",
+  "afterSchemaPath": "packages/engineering-foundation/schemas/package-public-api-compatibility/v2.schema.json",
+  "afterSchemaDigest": "sha256:34c2ee459b6668e6a6589b0303619436e0d70b3003089fbf8fecbae667689864",
+  "transition": {
+    "coordinate": {
+      "packageName": "@agent-teams/engineering-foundation",
+      "exportPath": "./schemas/package-public-api-compatibility/v2.schema.json",
+      "resolutionBranch": [],
+      "subject": {
+        "kind": "wildcard-member",
+        "member": "./schemas/package-public-api-compatibility/v2.schema.json"
+      }
+    },
+    "before": {
+      "state": "absent"
+    },
+    "after": {
+      "state": "present",
+      "digest": "sha256:9987a44fb74f0c87a9a742310aec9c0bf245ca26e4be08dbff0b329e8fc92f02"
+    },
+    "policyVersion": "foundation:sdk-growth:policy:1",
+    "fingerprint": "sha256:3e8c6fedab5624b726a5b1f58e580f499ef19104a3a42d1d2c667b9996aa554d"
+  },
+  "sourceSnapshot": {
+    "scope": "Only the exact packed qualification script, at its repository-relative path; not a repository commit or full source tree.",
+    "path": "scripts/pack-sdk-growth-test.mjs",
+    "blob": "4ddf1d89e6d672588eed0d458f751b3a837dc443",
+    "tree": "3871dc9de3a0ec8cd470e5a502b687682a99e287",
+    "contentDigest": "sha256:e14f7798c5fe1847229e58394785984a937b8275a66a96211c5ff2a943949ba3"
+  },
+  "qualificationStatus": "pending-execution",
+  "authority": "No owner verification, trusted initial history, family support or release approval is asserted.",
+  "beforeArtifactDigest": "sha256:4a771f5d4f4e6ff28f2341ffd65739a6da62d605d9f67b1bbd0725f645810713",
+  "beforeArtifactStatus": "release-candidate"
+}

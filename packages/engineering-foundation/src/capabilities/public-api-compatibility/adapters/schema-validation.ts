@@ -1,5 +1,7 @@
 type PublicApiSchemaId =
+  | "governance-architecture-decisions/v1"
   | "package-public-api-compatibility/v1"
+  | "package-public-api-compatibility/v2"
   | "package-public-api-baseline/v1";
 
 export type PublicApiSchemaAssertion =

@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
+import { testPackedSdkGrowth } from "./pack-sdk-growth-test.mjs";
 import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
@@ -514,6 +515,7 @@ try {
     toolingVersions: await toolingVersions()
   });
   await verifyPackedConsumer({ fixture });
+  await testPackedSdkGrowth({ consumerRoot: fixture.consumerRoot, artifact });
   await verifyPackedAuthorityScaffolding({ fixture, repositoryRoot });
   await verifyPackedLocalMode({
     ...artifact,

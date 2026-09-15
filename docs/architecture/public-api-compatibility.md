@@ -322,3 +322,70 @@ Qualified namespace import tokens and forwarded exports remain unsupported when
 compiler/model bindings cannot be established; they fail closed rather than
 borrowing unrelated import authority. Current synthetic tests do not establish
 an actual Get Modular A/B/C audit or consumer release admission.
+
+### SDK growth execution (v2, pre-S3)
+
+Configuration `schemaVersion: 2` explicitly selects SDK growth in the existing
+`package.public-api-compatibility` check. Its closed `sdkGrowth` object supplies
+workspace selection, invocation identities, context paths and one report slot
+with an expected preimage digest (or `null` for creation). The remaining fields
+use the unchanged v1 mapper. Schema v1 and existing baseline bytes retain their
+semantics; installing this implementation does not migrate a consumer profile.
+
+`trustedBasePath` names a complete S1 observation, and `decisionsPath` names an
+array of exact decision records. Each released `observationPath` names a closed
+`{typed, artifact}` pair of original v1 compatibility snapshots. An initial
+history input contains only `historyDigest`. All inputs are bounded, contained
+regular files. A missing file retains unavailable evidence; malformed inputs
+and embedded `status: verified` claims are rejected. These files establish
+content identity only: retained history, initial-release status and owner
+authority remain unverified before S3, even when every decision matches.
+
+The report retains invocation identities, candidate observation and coverage,
+base reference, authority status, exact transitions, decision diagnostics and
+independent release compatibility findings. It grants no release authority.
+The aggregate diagnostic `package.public-api-compatibility.sdk-growth-report`
+binds the report path and SHA-256. Existing outcome codes apply: passed `0`,
+violations `1`, incomplete/invalid input `2`, execution/publication failure `3`,
+and cancellation `130`. Pre-S3 filesystem execution cannot produce a trusted
+pass; matched decisions still produce `SDK_GROWTH_INCOMPLETE` and exit `2`.
+Publication conflict, IO and uncertainty have separate stable problem codes.
+V2 release promotion remains gated on the separately qualified S3 route.
+
+The [release-owned v2 corpus](../../architecture/contracts/sdk-growth-v2/identity.json)
+pins the new schema bytes and positive/negative fixtures at contract version
+`2.0.0`. The existing packed package gate invokes
+`scripts/pack-sdk-growth-test.mjs` against separately built and packed synthetic
+packages through the installed binary and exported schema. This is development
+qualification, not GM/AR activation or registry release evidence. V2 remains
+artifact-protected: no new JSON Schema family support claim is made, and the
+existing `contract.json-schema-releases` scope is unchanged.
+The [first-surface record](../../architecture/contracts/sdk-growth-v2/first-surface.json)
+and [evidence](../../architecture/contracts/sdk-growth-v2/first-surface-evidence.json)
+bind the one added concrete schema export to its exact S1 value and transition.
+They are unverified admission proposals. Their content-addressed source tree
+contains only the named qualification script, not a repository commit; packed
+qualification and trusted approval remain distinct claims.
+
+The capability owns a private `GrowthReportWriter` port and filesystem adapter
+for one replaceable report slot. Parent directories must exist, all path
+components must be contained and nonsymlinked, and an existing slot must be a
+regular file with one link. A same-directory exclusive fence serializes
+cooperating writers; exact preimage checks prevent lost updates, and identical
+bytes replay without requiring the original preimage to remain current.
+Temporary bytes are synced before rename. Cancellation before rename removes
+owned staging and fence files; cancellation after rename begins does not undo
+publication. Conflict, IO failure and uncertain publication are distinct errors.
+Uncertain writes may be retried with identical bytes and the original preimage.
+
+This is atomic single-slot publication, without stale-fence takeover or a new
+durable journal. Process death can leave a fence requiring operator inspection;
+power-loss durability and protection from hostile ancestor replacement are not
+claimed. Trusted isolation remains S3 work. The report confers no authority.
+Trusted integration and consumer activation remain S3/G1/A3 obligations.
+
+CMS review: the current complete GM document at `610e595fe1f2e893d01ee44ceecd6349b5a3c8ce`
+has SHA-256 `d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`.
+Its fixed private-helper rule applies: this adapter stays within the existing
+capability and Pure DI composition. No Assembly adoption or CMS pin migration
+is introduced. The existing FMS pin and governed roots remain in force.

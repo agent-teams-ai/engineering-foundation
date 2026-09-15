@@ -14,6 +14,7 @@ import { stagePackageSnapshot } from "../packages/engineering-foundation/dist/ca
 import { ContainedFileReadError } from "../packages/engineering-foundation/dist/source-inventory/api.js";
 
 import { createWorkspaceGrowthReader } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/workspace-growth-reader.js";
+import { GrowthObservationUnavailableError } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/growth-observation.js";
 
 const defaults = publicApiEvidenceAdapters();
 const { assertSchema } = schemaConfigurationDependencies();
@@ -473,7 +474,7 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
   });
   test("S1: missing topology and failed observers never fabricate empty successful evidence", async () => {
     const setup = fixture(matrix.repositories[1]);
-    setup.dependencies.workspace.read = async () => { throw new Error("ephemeral path"); };
+    setup.dependencies.workspace.read = async () => { throw new GrowthObservationUnavailableError("workspace unavailable"); };
     const missing = await setup.port().observe(invocation, cancellation);
     assert.deepEqual(missing.surface, { status: "unavailable", reasons: ["workspace-observation-unavailable"] });
     assert.equal(setup.calls.typed.length, 0);
@@ -482,6 +483,13 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
     const failed = await setup.port().observe(invocation, cancellation);
     assert.equal(failed.compatibilitySnapshots.find(row => row.packageName === setup.subjects[0].policy.packageName).typed.snapshot.status, "unavailable");
     assert.equal(failed.surface.value.entries.some(row => row.coordinate.subject.kind === "typed"), false);
+  });
+  test("S1: unexpected workspace failures preserve identity instead of becoming unavailable evidence", async () => {
+    const setup = fixture(matrix.repositories[1]);
+    const failure = new TypeError("unexpected workspace implementation defect");
+    setup.dependencies.workspace.read = async () => { throw failure; };
+    await assert.rejects(setup.port().observe(invocation, cancellation), error => error === failure);
+    assert.equal(setup.calls.typed.length, 0);
   });
   test("S1: duplicate topology, out-of-scope policy and forged observer package fail closed", async () => {
     const setup = fixture(matrix.repositories[1]);

@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-compatibility/v2",
+  "title": "Public API compatibility with SDK growth execution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "acceptedDecisionBaselinePath",
+    "changesetDirectory",
+    "governanceConfigPath",
+    "packages",
+    "sdkGrowth"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "changesetDirectory": {
+      "$ref": "#/$defs/repositoryPath"
+    },
+    "acceptedDecisionBaselinePath": {
+      "$ref": "#/$defs/repositoryPath"
+    },
+    "governanceConfigPath": {
+      "$ref": "#/$defs/repositoryPath"
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/package"
+      }
+    },
+    "sdkGrowth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractRevision",
+        "policyVersion",
+        "comparison",
+        "decisionsPath",
+        "reportPath"
+      ],
+      "properties": {
+        "contractRevision": {
+          "const": "foundation:sdk-growth:c0:5"
+        },
+        "policyVersion": {
+          "const": "foundation:sdk-growth:policy:1"
+        },
+        "comparison": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "trustedBasePath",
+            "released"
+          ],
+          "properties": {
+            "trustedBasePath": {
+              "$ref": "#/$defs/growthPath"
+            },
+            "released": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/$defs/growthRelease"
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "decisionsPath": {
+          "$ref": "#/$defs/growthPath"
+        },
+        "reportPath": {
+          "$ref": "#/$defs/growthPath"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[*?{}[\\]]).+$"
+    },
+    "packageName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 214,
+      "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+    },
+    "exportPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?:\\.|\\./[^\\\\/].*)$"
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "entrypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportPath",
+        "declarationEntryPoint"
+      ],
+      "properties": {
+        "exportPath": {
+          "$ref": "#/$defs/exportPath"
+        },
+        "declarationEntryPoint": {
+          "$ref": "#/$defs/repositoryPath"
+        }
+      }
+    },
+    "nonTypeExportKind": {
+      "enum": [
+        "data",
+        "runtime",
+        "wildcard"
+      ]
+    },
+    "nonTypeExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exportPath",
+        "kind"
+      ],
+      "properties": {
+        "exportPath": {
+          "$ref": "#/$defs/exportPath"
+        },
+        "kind": {
+          "$ref": "#/$defs/nonTypeExportKind"
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "packageRoot",
+        "manifestPath",
+        "entrypoints",
+        "nonTypeExports",
+        "tsconfigPath",
+        "releasedBaselinePath",
+        "approvedBreakingChanges"
+      ],
+      "properties": {
+        "packageName": {
+          "$ref": "#/$defs/packageName"
+        },
+        "packageRoot": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "manifestPath": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "entrypoints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/entrypoint"
+          }
+        },
+        "nonTypeExports": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/nonTypeExport"
+          }
+        },
+        "tsconfigPath": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "releasedBaselinePath": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "approvedBreakingChanges": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fingerprint",
+              "decisionId"
+            ],
+            "properties": {
+              "fingerprint": {
+                "$ref": "#/$defs/fingerprint"
+              },
+              "decisionId": {
+                "type": "string",
+                "pattern": "^ADR-[0-9]{4}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "growthRelease": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "packageName",
+            "kind",
+            "observationPath"
+          ],
+          "properties": {
+            "packageName": {
+              "$ref": "#/$defs/packageName"
+            },
+            "kind": {
+              "const": "released"
+            },
+            "observationPath": {
+              "$ref": "#/$defs/growthPath"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "packageName",
+            "kind",
+            "trustedHistoryPath"
+          ],
+          "properties": {
+            "packageName": {
+              "$ref": "#/$defs/packageName"
+            },
+            "kind": {
+              "const": "initial-unreleased"
+            },
+            "trustedHistoryPath": {
+              "$ref": "#/$defs/growthPath"
+            }
+          }
+        }
+      ]
+    },
+    "growthPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "pattern": "^(?![A-Za-z]:)(?!/)(?!.*[\\\\\\u0000*?{}\\[\\]])(?!.*(?:^|/)(?:\\.|\\.\\.|)(?:/|$))(?!\\s)(?!.*\\s$).+$"
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { configurationInputError } from "../../../application/configuration-inpu
 import type { GrowthWorkspaceReader } from "../../../application/ports/growth-workspace.js";
 import { createHash } from "node:crypto";
 import { readFile, readdir, lstat, realpath } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { resolve, join, normalize, sep } from "node:path";
 import { Extractor } from "@microsoft/api-extractor";
 import { assertNotCancelled, publicApiInputError, publicApiFileFailure } from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
@@ -116,6 +116,21 @@ export async function assertGrowthDestination(root: string, path: string): Promi
   let current = resolve(root);
   const directories = [current];
   for (const segment of segments.slice(0, -1)) { current = join(current, segment); directories.push(current); }
+  const sameFilesystemPath = (left: string, right: string): boolean => {
+    // Windows native realpath may add an extended-length prefix and preserves
+    // filesystem case differently from resolve(). Compare identities using the
+    // platform's actual path semantics while retaining lstat symlink checks.
+    const canonical = (value: string): string => {
+      let normalized = normalize(value).replace(/^\\\\\?\\/u, "");
+      // macOS temp paths can resolve through the /private alias; Windows can
+      // return extended-length paths. Both spellings identify the same inode.
+      if (process.platform === "darwin" && normalized.startsWith("/private/")) {
+        normalized = normalized.slice("/private".length);
+      }
+      return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+    };
+    return canonical(left) === canonical(right);
+  };
   for (const directory of directories) {
     let entry;
     try { entry = await lstat(directory); }
@@ -125,7 +140,7 @@ export async function assertGrowthDestination(root: string, path: string): Promi
       }
       throw error;
     }
-    if (!entry.isDirectory() || entry.isSymbolicLink() || await realpath(directory) !== directory) {
+    if (!entry.isDirectory() || entry.isSymbolicLink() || !sameFilesystemPath(await realpath(directory), directory)) {
       configurationInputError("SDK report parents must be real contained directories.");
     }
   }

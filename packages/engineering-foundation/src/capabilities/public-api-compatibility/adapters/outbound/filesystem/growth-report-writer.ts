@@ -6,7 +6,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { GrowthReportWriteError } from "../../../application/ports/growth-report-writer.js";
 import type { GrowthDigest, GrowthReportWriter } from "../../../application/ports/growth-report-writer.js";
 
-type ReportFilesystem = Pick<typeof filesystem, "lstat" | "realpath" | "open" | "rename" | "unlink">;
+type ReportFilesystem = Pick<typeof filesystem, "lstat" | "open" | "rename" | "unlink">;
 const maximumBytes = 32 * 1024 * 1024;
 const noFollow = process.platform === "win32" ? 0 : constants.O_NOFOLLOW | constants.O_NONBLOCK;
 function digest(bytes: Uint8Array): GrowthDigest {
@@ -54,7 +54,9 @@ export function createFilesystemGrowthReportWriter(consumerRoot: string, fs: Rep
     for (const part of ["", ...path.split("/").slice(0, -1)]) {
       current = join(current, part);
       const stat = await fs.lstat(current);
-      if (!stat.isDirectory() || stat.isSymbolicLink() || await fs.realpath(current) !== current) {
+      // lstat rejects symlink/reparse parents without relying on platform
+      // specific realpath spellings (`/private`, `\\?\\`, or case changes).
+      if (!stat.isDirectory() || stat.isSymbolicLink()) {
         conflict("growth-report-parent-unsafe");
       }
     }

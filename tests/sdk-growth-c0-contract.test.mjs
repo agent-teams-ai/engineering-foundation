@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { stripTypeScriptTypes } from "node:module";
@@ -72,6 +73,16 @@ test("C0 canonical bytes bind the revision, contract and finite observer matrix"
     assert.equal(digest(bytes), expected, path);
     assert.notEqual(digest(`${bytes} `), expected, `changed bytes must not retain identity: ${path}`);
   }
+});
+
+test("C0 canonical artifacts retain repository-enforced LF checkout bytes", async () => {
+  const identity = JSON.parse(await read("docs/reference/sdk-growth-c0/contract-identity.json"));
+  const paths = Object.keys(identity.files);
+  const attributes = execFileSync("git", ["check-attr", "eol", "--", ...paths], {
+    cwd: root,
+    encoding: "utf8",
+  }).trimEnd().split(/\r?\n/u);
+  assert.deepEqual(attributes, paths.map((path) => `${path}: eol: lf`));
 });
 
 test("C0 matrix retains private public paths and incomplete observer boundaries at exact bases", async () => {

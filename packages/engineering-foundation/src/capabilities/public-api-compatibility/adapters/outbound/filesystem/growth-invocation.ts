@@ -114,6 +114,9 @@ async function distributionDigest(root: string, reader: PublicApiFileReader, sig
 /** Early destination validation; publication revalidates under its own fence. */
 export async function assertGrowthDestination(root: string, path: string): Promise<void> {
   const segments = path.split("/");
+  if (path.length === 0 || path.startsWith("/") || segments.some(segment => segment === "." || segment === "..")) {
+    configurationInputError("SDK report destination must be repository-relative and normalized.");
+  }
   let current = resolve(root);
   const directories = [current];
   for (const segment of segments.slice(0, -1)) { current = join(current, segment); directories.push(current); }

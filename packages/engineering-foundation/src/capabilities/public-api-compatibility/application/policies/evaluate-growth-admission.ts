@@ -9,7 +9,7 @@ import { growthGroupFingerprint, growthTransitionFingerprint, hashGrowthPayload 
 import { isGrowthDecision } from "./validate-growth-decision.js";
 
 /** One decision normalization for both exact matching and evidence binding. */
-export function normalizeGrowthDecision(value: unknown): GrowthDecision {
+function normalizeGrowthDecision(value: unknown): GrowthDecision {
   if (!isGrowthDecision(value)) { throw new GrowthObservationInvariantError("growth-decision-malformed"); }
   return { ...value,
     transitions: growthUniqueSorted(value.transitions, (entry) => entry),

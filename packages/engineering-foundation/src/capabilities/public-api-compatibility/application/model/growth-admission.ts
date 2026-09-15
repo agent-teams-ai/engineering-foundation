@@ -12,7 +12,7 @@ export interface GrowthTransition {
   readonly policyVersion: typeof growthPolicyVersion;
   readonly fingerprint: GrowthDigest;
 }
-export interface GrowthConsumerEvidenceRef {
+interface GrowthConsumerEvidenceRef {
   readonly useCase: string;
   readonly repository: string;
   readonly source: {

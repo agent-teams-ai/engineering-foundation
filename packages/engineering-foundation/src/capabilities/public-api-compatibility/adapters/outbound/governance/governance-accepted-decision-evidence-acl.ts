@@ -15,17 +15,16 @@ export class GovernanceAcceptedDecisionEvidenceAcl
 {
   constructor(private readonly readAcceptedArchitectureDecisionEvidence: AcceptedArchitectureDecisionReader) {}
 
-  async readAcceptedDecisionEvidence(input: {
-    readonly consumerRoot: string;
-    readonly baselinePath: string;
-    readonly governanceConfigPath: string;
-    readonly signal?: AbortSignal;
-  }): Promise<AcceptedDecisionEvidence> {
-    return this.readAcceptedArchitectureDecisionEvidence({
+  async readAcceptedDecisionEvidence(input: Parameters<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>[0]): Promise<AcceptedDecisionEvidence> {
+    const evidence = await this.readAcceptedArchitectureDecisionEvidence({
       consumerRoot: input.consumerRoot,
       baselinePath: input.baselinePath,
       configPath: input.governanceConfigPath,
       ...(input.signal === undefined ? {} : { signal: input.signal })
     });
+    if (input.growthDecisions === undefined) { return evidence; }
+    // Retained governance proves IDs/paths, not an owner-approved exact SDK
+    // transition. Never manufacture source/diff approval from those records.
+    return { ...evidence, growthDecisionAuthority: { status: "unavailable", reasons: ["governance-exact-growth-owner-binding-unavailable"] } };
   }
 }

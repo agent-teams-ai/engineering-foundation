@@ -1,3 +1,4 @@
+import { registerGrowthAdmissionCases } from "./support/public-api-growth-admission-cases.mjs";
 import { parse as readArchitectureYaml } from "yaml";
 import assert from "node:assert/strict";
 import { readFile, realpath, rm, writeFile } from "node:fs/promises";
@@ -675,3 +676,5 @@ test("S1: local canonical serialization rejects non-data containers without invo
   }
   assert.equal(growthCanonicalJson({ z: [null, true, -2], a: "$&" }), '{"a":"$&","z":[null,true,-2]}');
 });
+
+registerGrowthAdmissionCases();

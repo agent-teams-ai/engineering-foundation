@@ -1,5 +1,5 @@
 import { GrowthObservationInvariantError, GrowthObservationUnavailableError, growthDimensions } from "../model/growth-observation.js";
-import type { GrowthDigest, GrowthInvocation, GrowthSurfaceObservation } from "../model/growth-observation.js";
+import type { GrowthDigest, GrowthInvocation, GrowthSurfaceObservation, GrowthObservationReference } from "../model/growth-observation.js";
 import { assertGrowthInvocationShape, assertGrowthObservationShape } from "./validate-growth-observation.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 
@@ -80,6 +80,11 @@ export function growthObservationDigest(value: GrowthSurfaceObservation, fingerp
   const result = `sha256:${fingerprint.sha256(growthCanonicalJson({ domain: "foundation:sdk-growth:observation:1", payload }))}` as const;
   digest(result);
   return result;
+}
+
+/** S2 may consume this reference only with the retained complete aggregate. */
+export function growthObservationReference(value: GrowthSurfaceObservation, fingerprint: ChangeFingerprint): GrowthObservationReference {
+  return { sourceCommit: value.sourceCommit, sourceTree: value.sourceTree, surfaceDigest: growthObservationDigest(value, fingerprint), topologyDigest: value.topologyDigest, lockDigest: value.lockDigest, toolchainDigest: value.toolchainDigest, artifactDigests: growthUniqueSorted(value.artifactDigests, (entry) => entry) };
 }
 
 /** Raw UTF-16 ordering, with no locale or Unicode normalization (C0). */

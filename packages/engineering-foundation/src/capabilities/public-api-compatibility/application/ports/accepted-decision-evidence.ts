@@ -1,7 +1,12 @@
+import type { GrowthDecision, GrowthDecisionAuthority } from "../model/growth-admission.js";
+import type { GrowthEvidence } from "../model/growth-observation.js";
+
 export interface AcceptedDecisionEvidence {
   readonly acceptedDecisionIds: readonly `ADR-${string}`[];
   /** Immutable repository paths from the same validated governance baseline. */
   readonly acceptedDecisionPaths: readonly string[];
+  /** Additive S2 evidence; omission is unavailable, never acceptance by ID. */
+  readonly growthDecisionAuthority?: GrowthEvidence<readonly GrowthDecisionAuthority[]>;
 }
 
 /**
@@ -15,6 +20,7 @@ export interface AcceptedDecisionEvidencePort {
     readonly baselinePath: string;
     readonly governanceConfigPath: string;
     readonly signal?: AbortSignal;
+    readonly growthDecisions?: readonly GrowthDecision[];
   }): Promise<AcceptedDecisionEvidence>;
 }
 

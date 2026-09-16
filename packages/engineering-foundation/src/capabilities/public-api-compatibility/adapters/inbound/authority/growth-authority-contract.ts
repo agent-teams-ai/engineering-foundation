@@ -11,6 +11,6 @@ export type {
 /** ReviewRouter supplies this executable transport from trusted composition.
  * Candidate configuration cannot select, import or replace it. */
 export interface SdkGrowthAuthorityTransport {
-  resolve(request: unknown, signal?: AbortSignal): Promise<unknown>;
-  complete(completion: unknown, signal?: AbortSignal): Promise<unknown>;
+  resolve(request: unknown, signal?: AbortSignal): Promise<string | Uint8Array>;
+  complete(completion: unknown, signal?: AbortSignal): Promise<string | Uint8Array>;
 }

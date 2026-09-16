@@ -13,9 +13,8 @@ import { GrowthObservationInvariantError } from "../../../application/model/grow
 import type { GrowthAuthorityPort } from "../../../application/ports/growth-authority.js";
 import type { GrowthInputContextPort } from "../../../application/ports/growth-input-context.js";
 import type { ChangeFingerprint } from "../../../application/ports/change-fingerprint.js";
-import { hashGrowthPayload } from "../../../application/policies/compare-growth-surfaces.js";
 import { growthCanonicalJson, growthObservationReference, growthUniqueSorted } from "../../../application/policies/normalize-growth-observation.js";
-import { growthAuthorityGrantDigest, growthAuthorityRequestDigest, validateGrowthAuthorityBinding } from "../../../application/policies/validate-growth-authority.js";
+import { growthAuthorityGrantDigest, growthAuthorityRequestDigest, growthDecisionDigest, validateGrowthAuthorityBinding } from "../../../application/policies/validate-growth-authority.js";
 
 function invalid(reason: string): never { throw new GrowthObservationInvariantError(reason); }
 function closed(value: unknown, keys: readonly string[]): Record<string, unknown> {
@@ -32,16 +31,21 @@ async function mapReleasedPackage(input: {
   readonly row: GrowthAuthorityReleasedEvidence;
   readonly candidate: GrowthInputContext;
   readonly grant: GrowthAuthorityGrant;
+  readonly grantDigest: GrowthDigest;
   readonly assertSchema: PublicApiSchemaAssertion;
 }): Promise<GrowthReleasedPackage> {
   const { row, candidate, grant } = input;
   closed(row, ["packageName", "releaseEvidence", ...(row.observation === undefined ? [] : ["observation"]), "evidence"]);
   const local = candidate.released.find((entry) => entry.packageName === row.packageName) ?? invalid("growth-authority-release-policy-missing");
+  if (local.releaseEvidence.status !== "available"
+    || growthCanonicalJson(local.releaseEvidence.value) !== growthCanonicalJson(row.releaseEvidence)) {
+    invalid("growth-authority-release-evidence-mismatch");
+  }
   if (!grant.archives.some((entry) => entry.packageName === row.packageName && entry.packageVersion === row.releaseEvidence.packageVersion)) {
     invalid("growth-authority-archive-missing");
   }
   const common = { packageName: row.packageName, policy: local.policy,
-    releaseEvidence: { status: "available" as const, value: structuredClone(row.releaseEvidence) },
+    releaseEvidence: { status: "available" as const, value: structuredClone(local.releaseEvidence.value) },
     ...(row.observation === undefined ? {} : { observation: { status: "available" as const, value: structuredClone(row.observation) } }) };
   if (row.evidence.kind === "released") {
     closed(row.evidence, ["kind", "typed", "artifact"]);
@@ -53,7 +57,8 @@ async function mapReleasedPackage(input: {
   closed(row.evidence, ["kind", "historyDigest"]);
   const historyDigest = digest(row.evidence.historyDigest);
   if (historyDigest !== grant.binding.historyDigest) { invalid("growth-authority-initial-history-mismatch"); }
-  return { ...common, evidence: { kind: "initial-unreleased", history: { status: "available", value: historyDigest } } };
+  return { ...common, evidence: { kind: "initial-unreleased", history: { status: "available", value: historyDigest },
+    qualification: { receiptDigest: input.grantDigest } } };
 }
 
 /** Trusted context injection keeps candidate parsing/rejection in the original
@@ -81,9 +86,10 @@ export class VerifiedGrowthInputContext implements GrowthInputContextPort {
     const candidate = await this.dependencies.candidate.read(selectors, cancellation);
     cancellation.throwIfCancelled();
     const binding = validateGrowthAuthorityBinding(this.dependencies.binding);
-    const decisionDigests = growthUniqueSorted(candidate.decisions.map((decision) => hashGrowthPayload({
-      domain: "reviewrouter:sdk-growth-authority:decision-proposal:1", decision
-    }, this.dependencies.fingerprint)), (entry) => entry);
+    const decisionDigests = growthUniqueSorted(
+      candidate.decisions.map((decision) => growthDecisionDigest(decision, this.dependencies.fingerprint)),
+      (entry) => entry
+    );
     const request: GrowthAuthorityRequest = { schemaVersion: growthAuthoritySchemaVersion, kind: "request",
       operation: this.dependencies.operation,
       admissionReceiptId: this.dependencies.operation === "check" ? null : this.dependencies.admissionReceiptId ?? invalid("growth-authority-admission-receipt-required"),
@@ -91,6 +97,8 @@ export class VerifiedGrowthInputContext implements GrowthInputContextPort {
       requiredPhases: growthAuthorityRequiredPhases };
     const grant = await this.dependencies.authority.resolve(request, cancellation);
     cancellation.throwIfCancelled();
+    const requestDigest = growthAuthorityRequestDigest(request, this.dependencies.fingerprint);
+    const grantDigest = growthAuthorityGrantDigest(grant, this.dependencies.fingerprint);
     if (growthCanonicalJson(grant.binding.invocation) !== growthCanonicalJson(binding.invocation)) { invalid("growth-authority-invocation-mismatch"); }
     if (grant.binding.target.evaluation.commit !== binding.invocation.sourceCommit || grant.binding.target.evaluation.tree !== binding.invocation.sourceTree) {
       invalid("growth-authority-evaluation-mismatch");
@@ -106,10 +114,8 @@ export class VerifiedGrowthInputContext implements GrowthInputContextPort {
     }
     const released: GrowthReleasedPackage[] = [];
     for (const row of releasedRows) {
-      released.push(await mapReleasedPackage({ row, candidate, grant, assertSchema: this.dependencies.assertSchema }));
+      released.push(await mapReleasedPackage({ row, candidate, grant, grantDigest, assertSchema: this.dependencies.assertSchema }));
     }
-    const requestDigest = growthAuthorityRequestDigest(request, this.dependencies.fingerprint);
-    const grantDigest = growthAuthorityGrantDigest(grant, this.dependencies.fingerprint);
     const context: GrowthInputContext = {
       trustedBase: { status: "available", value: grant.trustedBase }, trustedBaseReference: { status: "available", value: grant.trustedBaseReference },
       retainedHistory: { status: "available", value: { targetSurfaceDigest: grant.retainedHistory.targetSurfaceDigest,

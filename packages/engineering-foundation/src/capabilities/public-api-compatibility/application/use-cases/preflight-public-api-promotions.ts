@@ -11,13 +11,23 @@ export async function preflightPublicApiPromotions(
   const plan: Array<Awaited<ReturnType<PublicApiRepository["describeReleasedBaselineWrite"]>>> = [];
   const results = [];
   for (const dependencies of surfaces) {
+    const describe = dependencies.repository.describeReleasedBaselineWrite;
     const repository: PublicApiRepository = {
       readReleasedBaseline: dependencies.repository.readReleasedBaseline.bind(dependencies.repository),
       readReleaseEvidence: dependencies.repository.readReleaseEvidence.bind(dependencies.repository),
-      describeReleasedBaselineWrite: dependencies.repository.describeReleasedBaselineWrite.bind(dependencies.repository),
+      describeReleasedBaselineWrite: async (...args) => {
+        if (typeof describe !== "function") {
+          throw new TypeError("Public API baseline authorization requires a write-plan adapter.");
+        }
+        return describe.call(dependencies.repository, ...args);
+      },
       writeReleasedBaseline: async (...args) => {
-        plan.push(await dependencies.repository.describeReleasedBaselineWrite(args[0], args[1], args[2], args[4] ?? "replace"));
-        writes.push(() => dependencies.repository.writeReleasedBaseline(...args));
+        if (authorize !== undefined) {
+          plan.push(await repository.describeReleasedBaselineWrite(args[0], args[1], args[2], args[4] ?? "replace"));
+        }
+        writes.push(() => authorize === undefined
+          ? dependencies.repository.writeReleasedBaseline(...args)
+          : dependencies.repository.writeReleasedBaseline(args[0], args[1], args[2], undefined, args[4]));
       }
     };
     results.push(await promotePublicApiBaselines(input, { ...dependencies, repository }));

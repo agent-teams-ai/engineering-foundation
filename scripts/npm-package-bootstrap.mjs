@@ -158,6 +158,7 @@ export function validatePackEvidence({
       ],
       archiveBytes,
       listing: `${tarEntries.join("\n")}\n`,
+      packageName: profile.name,
       requiredArtifactPaths: profile.contentPolicy.required,
       verboseListing: tarVerboseListing,
     });

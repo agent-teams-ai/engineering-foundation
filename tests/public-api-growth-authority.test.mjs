@@ -4,15 +4,21 @@ import test from "node:test";
 
 import {
   growthAuthorityCompletionDigest,
+  growthAuthorityArtifactEvidence,
   growthAuthorityGrantDigest,
   growthAuthorityRequestDigest,
   validateGrowthAuthorityGrant,
   validateGrowthAuthorityReceipt
 } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/validate-growth-authority.js";
+import { ReviewRouterGrowthAuthorityAcl } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/reviewrouter-growth-authority-acl.js";
+import { VerifiedGrowthInputContext } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/verified-growth-input-context.js";
 import { growthObservationReference } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/normalize-growth-observation.js";
 import { growthDimensions } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/growth-observation.js";
 
-const fingerprint = { sha256: value => createHash("sha256").update(value).digest("hex") };
+const fingerprint = {
+  sha256: value => createHash("sha256").update(value).digest("hex"),
+  sha512Integrity: value => `sha512-${createHash("sha512").update(value).digest("base64")}`
+};
 const d = character => `sha256:${character.repeat(64)}`;
 const phases = ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"];
 const invocation = {
@@ -113,6 +119,73 @@ test("grant rejects unauthenticated owners, shallow history, and archive scope e
   assert.throws(() => validateGrowthAuthorityGrant(archives, req, fingerprint, now), /growth-authority-archive-scope-mismatch/);
 });
 
+test("grant evidence kind is bound exactly to its request selector", () => {
+  const req = request();
+  req.contextSelectors.released = [{ packageName: "fixture", kind: "released", observationPath: "evidence/released.json" }];
+  const value = grant(req);
+  value.released = [{ packageName: "fixture", releaseEvidence: { packageName: "fixture", packageVersion: "0.0.0" },
+    evidence: { kind: "initial-unreleased", historyDigest: req.binding.historyDigest } }];
+  value.archives = [{ packageName: "fixture", packageVersion: "0.0.0", source: structuredClone(req.binding.target.evaluation),
+    archiveDigest: d("1"), archiveIntegrity: `sha512-${"A".repeat(86)}==`, custodyEvidenceDigest: d("2") }];
+  assert.throws(() => validateGrowthAuthorityGrant(value, req, fingerprint, now), /growth-authority-release-selector-mismatch/);
+});
+
+test("owner evidence binds the exact request and decision proposal", () => {
+  const req = request(), decisionDigest = d("1");
+  req.decisionDigests = [decisionDigest];
+  const value = grant(req);
+  value.ownerEvidence = [{ decisionId: "ADR-1", ownerRef: "architecture/team", decisionDigest,
+    authenticatedSubjectId: "subject-1", authorizationEvidenceDigest: d("2"), approvalEvidenceDigest: d("3"),
+    sourceBindingDigest: growthAuthorityRequestDigest(req, fingerprint) }];
+  assert.doesNotThrow(() => validateGrowthAuthorityGrant(value, req, fingerprint, now));
+  value.ownerEvidence[0].sourceBindingDigest = d("f");
+  assert.throws(() => validateGrowthAuthorityGrant(value, req, fingerprint, now), /growth-authority-owner-source-mismatch/);
+});
+
+test("archive digest and integrity bind the supplied artifact snapshot", () => {
+  const req = request();
+  req.contextSelectors.released = [{ packageName: "fixture", kind: "released", observationPath: "evidence/released.json" }];
+  const artifact = { schemaVersion: 1, packageName: "fixture", packageVersion: "1.0.0",
+    extractorVersion: "package-artifact-inventory/1", entrypoints: [] };
+  const value = grant(req), archive = growthAuthorityArtifactEvidence(artifact, fingerprint);
+  value.released = [{ packageName: "fixture", releaseEvidence: { packageName: "fixture", packageVersion: "1.0.0" },
+    evidence: { kind: "released", typed: { ...artifact, extractorVersion: "7.58.12" }, artifact } }];
+  value.archives = [{ packageName: "fixture", packageVersion: "1.0.0", source: structuredClone(req.binding.target.evaluation),
+    ...archive, custodyEvidenceDigest: d("2") }];
+  assert.doesNotThrow(() => validateGrowthAuthorityGrant(value, req, fingerprint, now));
+  for (const field of ["archiveDigest", "archiveIntegrity"]) {
+    const forged = structuredClone(value);
+    forged.archives[0][field] = field === "archiveDigest" ? d("f") : `sha512-${"B".repeat(86)}==`;
+    assert.throws(() => validateGrowthAuthorityGrant(forged, req, fingerprint, now), /growth-authority-archive-artifact-mismatch/);
+  }
+});
+
+test("verified context rejects grant release evidence that differs from the normalized local checkout", async () => {
+  const selectors = { trustedBasePath: "evidence/base.json", decisionsPath: "evidence/decisions.json",
+    released: [{ packageName: "fixture", kind: "released", observationPath: "evidence/released.json" }] };
+  const artifact = { schemaVersion: 1, packageName: "fixture", packageVersion: "1.0.0",
+    extractorVersion: "package-artifact-inventory/1", entrypoints: [] };
+  const typed = { ...artifact, extractorVersion: "7.58.12" };
+  const candidate = { trustedBase: { status: "unavailable", reasons: ["candidate"] },
+    trustedBaseReference: { status: "unavailable", reasons: ["candidate"] }, retainedHistory: { status: "unavailable", reasons: ["candidate"] },
+    released: [{ packageName: "fixture", policy: { packageName: "fixture" },
+      releaseEvidence: { status: "available", value: { packageName: "fixture", packageVersion: "1.0.1" } },
+      evidence: { kind: "released", typed: { status: "available", value: typed }, artifact: { status: "available", value: artifact } } }],
+    decisions: [], acceptedBreakingDecisions: { acceptedDecisionIds: [], acceptedDecisionPaths: [],
+      growthDecisionAuthority: { status: "unavailable", reasons: ["candidate"] } }, authority: { status: "unverified", reasons: ["candidate"] } };
+  const context = new VerifiedGrowthInputContext({ candidate: { async read() { return structuredClone(candidate); } },
+    authority: { async resolve(actual) {
+      const value = grant(actual), archive = growthAuthorityArtifactEvidence(artifact, fingerprint);
+      value.released = [{ packageName: "fixture", releaseEvidence: { packageName: "fixture", packageVersion: "1.0.0" },
+        evidence: { kind: "released", typed, artifact } }];
+      value.archives = [{ packageName: "fixture", packageVersion: "1.0.0", source: structuredClone(actual.binding.target.evaluation),
+        ...archive, custodyEvidenceDigest: d("2") }];
+      return validateGrowthAuthorityGrant(value, actual, fingerprint, now);
+    }, async complete() { throw new Error("unexpected completion"); } }, binding: binding(), operation: "check", fingerprint,
+    async assertSchema() {} });
+  await assert.rejects(context.read(selectors, { throwIfCancelled() {} }), /growth-authority-release-evidence-mismatch/);
+});
+
 function completion(req, trustedGrant) {
   return { schemaVersion: "reviewrouter:sdk-growth-authority:1", kind: "completion", grantId: trustedGrant.grantId,
     grantDigest: growthAuthorityGrantDigest(trustedGrant, fingerprint), requestDigest: trustedGrant.requestDigest, binding: req.binding,
@@ -139,4 +212,34 @@ test("final receipt must bind exact finalized report and completion", () => {
     const forged = structuredClone(exact); mutate(forged);
     assert.throws(() => validateGrowthAuthorityReceipt(forged, done, "check", fingerprint));
   }
+});
+
+test("authority ACL accepts only serialized JSON and preserves a valid committed receipt after late cancellation", async () => {
+  const req = request(), trustedGrant = validateGrowthAuthorityGrant(grant(req), req, fingerprint, now);
+  const done = completion(req, trustedGrant), exact = receipt(done), controller = new AbortController();
+  const acl = new ReviewRouterGrowthAuthorityAcl({
+    async resolve() { return new TextEncoder().encode(JSON.stringify(trustedGrant)); },
+    async complete() { controller.abort(new Error("late cancellation")); return JSON.stringify(exact); }
+  }, fingerprint, () => now);
+  const cancellation = { signal: controller.signal, throwIfCancelled() { controller.signal.throwIfAborted(); } };
+  assert.deepEqual(await acl.resolve(req, cancellation), trustedGrant);
+  assert.deepEqual(await acl.complete(done, cancellation), exact);
+
+  const trapCalls = [];
+  const hostile = new Proxy({}, { get(_target, property) {
+    trapCalls.push(property);
+    // Promise resolution necessarily probes an object response for `then`
+    // before the ACL receives it. Any other property access would be the
+    // validator inspecting attacker-controlled object shape.
+    if (property === "then") { return; }
+    throw new Error("proxy trap executed");
+  }, getPrototypeOf() { trapCalls.push("getPrototypeOf"); throw new Error("proxy trap executed"); } });
+  const rejecting = new ReviewRouterGrowthAuthorityAcl({ async resolve() { return hostile; }, async complete() { return hostile; } }, fingerprint, () => now);
+  await assert.rejects(rejecting.resolve(req, { throwIfCancelled() {} }), TypeError);
+  assert.ok(trapCalls.length > 0);
+  assert.ok(trapCalls.every(property => property === "then"));
+
+  const duplicateKey = JSON.stringify(trustedGrant).replace('{"schemaVersion":', '{"schemaVersion":"forged","schemaVersion":');
+  const duplicate = new ReviewRouterGrowthAuthorityAcl({ async resolve() { return duplicateKey; }, async complete() { return duplicateKey; } }, fingerprint, () => now);
+  await assert.rejects(duplicate.resolve(req, { throwIfCancelled() {} }), /invalid strict JSON: duplicate-key/u);
 });

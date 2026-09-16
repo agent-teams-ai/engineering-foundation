@@ -165,11 +165,50 @@ test("preflight validates all surfaces before writing and permits interrupted pr
   const before = await readFile(join(root, "architecture/public-api/library.artifacts.json"));
   await json(root, "package/package.json", { name: packagePolicy.packageName, version: "1.3.0", exports: { "./schemas/*": "./schemas/*" } });
   const valid = dependencies(await inspect(root));
+  const legacyRepository = {
+    readReleasedBaseline: (...args) => valid.repository.readReleasedBaseline(...args),
+    readReleaseEvidence: (...args) => valid.repository.readReleaseEvidence(...args),
+    writeReleasedBaseline: (...args) => valid.repository.writeReleasedBaseline(...args)
+  };
+  await assert.rejects(preflightPublicApiPromotions({ consumerRoot: root, policy },
+    [{ ...valid, repository: legacyRepository }], async () => {}), /write-plan adapter/u);
+  assert.deepEqual(await readFile(join(root, "architecture/public-api/library.artifacts.json")), before);
   const invalid = { ...valid, extractor: { extract() { throw new Error("unreviewed second surface"); } } };
   await assert.rejects(preflightPublicApiPromotions({ consumerRoot: root, policy }, [valid, invalid]), /unreviewed second/u);
   assert.deepEqual(await readFile(join(root, "architecture/public-api/library.artifacts.json")), before);
   await preflightPublicApiPromotions({ consumerRoot: root, policy }, [valid]);
   assert.deepEqual(await preflightPublicApiPromotions({ consumerRoot: root, policy }, [valid]), []);
+});
+
+test("valid authorization receipt crosses the final cancellation boundary", async (t) => {
+  const root = await fixture(t);
+  await fixate(root, await inspect(root));
+  await json(root, "package/package.json", { name: packagePolicy.packageName, version: "1.3.0", exports: { "./schemas/*": "./schemas/*" } });
+  const selected = dependencies(await inspect(root)), controller = new AbortController();
+  const writeSignals = [];
+  const repository = { ...selected.repository,
+    readReleasedBaseline: (...args) => selected.repository.readReleasedBaseline(...args),
+    readReleaseEvidence: (...args) => selected.repository.readReleaseEvidence(...args),
+    describeReleasedBaselineWrite: (...args) => selected.repository.describeReleasedBaselineWrite(...args),
+    writeReleasedBaseline: (...args) => { writeSignals.push(args[3]); return selected.repository.writeReleasedBaseline(...args); } };
+  await preflightPublicApiPromotions({ consumerRoot: root, policy, signal: controller.signal },
+    [{ ...selected, repository }], async () => { controller.abort(new Error("late cancellation")); });
+  assert.deepEqual(writeSignals, [undefined]);
+  assert.equal((await readArtifactBaseline(root, packagePolicy, evidence)).packageVersion, "1.3.0");
+});
+
+test("legacy promotion without authority does not require a write-plan adapter", async (t) => {
+  const root = await fixture(t);
+  await fixate(root, await inspect(root));
+  await json(root, "package/package.json", { name: packagePolicy.packageName, version: "1.3.0", exports: { "./schemas/*": "./schemas/*" } });
+  const selected = dependencies(await inspect(root));
+  const legacyRepository = {
+    readReleasedBaseline: (...args) => selected.repository.readReleasedBaseline(...args),
+    readReleaseEvidence: (...args) => selected.repository.readReleaseEvidence(...args),
+    writeReleasedBaseline: (...args) => selected.repository.writeReleasedBaseline(...args)
+  };
+  await preflightPublicApiPromotions({ consumerRoot: root, policy }, [{ ...selected, repository: legacyRepository }]);
+  assert.equal((await readArtifactBaseline(root, packagePolicy, evidence)).packageVersion, "1.3.0");
 });
 
 test("packages without wildcard exports keep their existing behavior and need no sidecar", async (t) => {
@@ -299,6 +338,7 @@ test("independent surface versions finish an interrupted two-surface promotion",
   const first = dependencies(await inspect(firstRoot));
   const second = dependencies(await inspect(secondRoot));
   const secondRepository = {
+    describeReleasedBaselineWrite: (_root, ...args) => second.repository.describeReleasedBaselineWrite(secondRoot, ...args),
     readReleasedBaseline: (_root, ...args) => second.repository.readReleasedBaseline(secondRoot, ...args),
     readReleaseEvidence: (_root, ...args) => second.repository.readReleaseEvidence(secondRoot, ...args),
     writeReleasedBaseline: (_root, ...args) => second.repository.writeReleasedBaseline(secondRoot, ...args),

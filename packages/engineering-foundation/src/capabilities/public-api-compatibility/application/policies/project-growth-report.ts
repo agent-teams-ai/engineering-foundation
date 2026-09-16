@@ -54,7 +54,9 @@ function compareReleased(execution: SdkGrowthAdmissionExecution, fingerprint: Ch
   const rows = growthUniqueSorted(execution.released, (row) => row.packageName);
   if (surface.status !== "available" || rows.length === 0 || rows.some((row) => row.evidence.kind === "released"
     ? row.observation?.status !== "available"
-    : row.evidence.history.status !== "available" || projectAuthority(execution.authority).status !== "verified")) {
+    : row.evidence.history.status !== "available" || row.evidence.qualification === undefined
+      || execution.authority.status !== "verified"
+      || row.evidence.qualification.receiptDigest !== execution.authority.receiptDigest)) {
     return { status: "incomplete", reasons: ["growth-released-aggregate-comparison-unavailable"], findings: [] };
   }
   const before = rows.map((row) => {

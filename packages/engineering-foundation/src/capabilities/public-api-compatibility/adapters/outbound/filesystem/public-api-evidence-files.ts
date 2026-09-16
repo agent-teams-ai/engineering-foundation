@@ -1,5 +1,10 @@
 import { link, mkdtemp, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import {
+  acquireMutationLease,
+  releaseMutationLease,
+  type MutationLease
+} from "@agent-teams/repository-mutation/node";
 import { assertNotCancelled, publicApiFileFailure, publicApiInputError as inputError } from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader, PublicApiPathInspection, PublicApiRepositoryEvidence } from "../../../application/ports/public-api-evidence.js";
 const MAX_INPUT_BYTES = 32 * 1024 * 1024;
@@ -82,6 +87,75 @@ function publicApiEvidenceReadError(
   throw error;
 }
 
+async function acquireBaselineWriteLock(
+  root: string,
+  signal?: AbortSignal
+): Promise<() => Promise<void>> {
+  let lease: MutationLease;
+  try {
+    lease = await acquireMutationLease(root);
+  } catch {
+    assertNotCancelled(signal);
+    inputError(
+      "PUBLIC_API_BASELINE_PROMOTION_LOCK_UNAVAILABLE",
+      "Public API baseline is currently being promoted by another writer. Re-run promotion from the current repository state.",
+      "public-api-baseline-promotion"
+    );
+  }
+  return async () => releaseMutationLease(lease);
+}
+
+async function assertAuthorizedBaselinePreimage(input: {
+  readonly expectedBytes?: Buffer;
+  readonly repositoryPath: string;
+  readonly root: string;
+}, evidence: PublicApiRepositoryEvidence): Promise<void> {
+  await safePath(input.root, input.repositoryPath, "file", evidence.paths);
+  if (input.expectedBytes === undefined) {return;}
+  const current = await readPublicApiEvidenceFile({
+    root: input.root,
+    repositoryPath: input.repositoryPath,
+    maxBytes: MAX_INPUT_BYTES,
+    phase: "public-api-baseline-promotion"
+  }, evidence.files);
+  if (!current.equals(input.expectedBytes)) {
+    inputError(
+      "PUBLIC_API_BASELINE_PROMOTION_STALE",
+      `Public API baseline changed before promotion: ${input.repositoryPath}.`,
+      "public-api-baseline-promotion"
+    );
+  }
+}
+
+async function publishPublicApiBaseline(input: {
+  readonly baselinePath: string;
+  readonly mode: "create" | "replace" | { readonly expectedBytes: Buffer };
+  readonly repositoryPath: string;
+  readonly temporaryPath: string;
+}): Promise<void> {
+  if (input.mode !== "create") {
+    await rename(input.temporaryPath, input.baselinePath);
+    return;
+  }
+  try {
+    await link(input.temporaryPath, input.baselinePath);
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      String(error.code) === "EEXIST"
+    ) {
+      inputError(
+        "PUBLIC_API_BASELINE_BOOTSTRAP_CONFLICT",
+        `Initial public API baseline appeared concurrently: ${input.repositoryPath}.`,
+        "public-api-baseline-promotion"
+      );
+    }
+    throw error;
+  }
+}
+
 export async function readPublicApiEvidenceFile(input: {
   readonly allowMissing: true;
   readonly maxBytes: number;
@@ -162,38 +236,26 @@ export async function writePublicApiEvidenceFile(
         mode: 0o644
       });
       assertNotCancelled(signal);
-      // Revalidate the named ancestry after staging and before publishing.
-      await safePath(root, dirname(repositoryPath), "directory", evidence.paths);
-      if (mode !== "create") {
-        await safePath(root, repositoryPath, "file", evidence.paths);
-        if (expectedBytes !== undefined) {
-          const current = await readPublicApiEvidenceFile({ root, repositoryPath, maxBytes: MAX_INPUT_BYTES,
-            phase: "public-api-baseline-promotion" }, evidence.files);
-          if (!current.equals(expectedBytes)) {
-            inputError("PUBLIC_API_BASELINE_PROMOTION_STALE", `Public API baseline changed before promotion: ${repositoryPath}.`, "public-api-baseline-promotion");
-          }
+      const release = mode === "create"
+        ? undefined
+        : await acquireBaselineWriteLock(root, signal);
+      try {
+        assertNotCancelled(signal);
+        // The exclusive write fence covers both the authorized-preimage
+        // comparison and the atomic replacement. Without it, two promotions
+        // can both accept the same preimage and the later rename can silently
+        // overwrite the first promotion.
+        await safePath(root, dirname(repositoryPath), "directory", evidence.paths);
+        if (mode !== "create") {
+          await assertAuthorizedBaselinePreimage({
+            ...(expectedBytes === undefined ? {} : { expectedBytes }),
+            repositoryPath,
+            root
+          }, evidence);
         }
-      }
-      if (mode === "create") {
-        try {
-          await link(temporaryPath, baselinePath);
-        } catch (error) {
-          if (
-            typeof error === "object" &&
-            error !== null &&
-            "code" in error &&
-            String(error.code) === "EEXIST"
-          ) {
-            inputError(
-              "PUBLIC_API_BASELINE_BOOTSTRAP_CONFLICT",
-              `Initial public API baseline appeared concurrently: ${repositoryPath}.`,
-              "public-api-baseline-promotion"
-            );
-          }
-          throw error;
-        }
-      } else {
-        await rename(temporaryPath, baselinePath);
+        await publishPublicApiBaseline({ baselinePath, mode, repositoryPath, temporaryPath });
+      } finally {
+        await release?.();
       }
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });

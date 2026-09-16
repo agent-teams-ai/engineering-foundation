@@ -26,12 +26,12 @@ export function sameAuthoritativeFileIdentity(first, second) {
     first.dev === second.dev && first.ino === second.ino;
 }
 
-function describeArchiveDifference(firstBytes, secondBytes) {
+function describeArchiveDifference(firstBytes, secondBytes, packageName) {
   let firstEntries;
   let secondEntries;
   try {
-    firstEntries = inspectCompressedTarArchive(firstBytes).entries;
-    secondEntries = inspectCompressedTarArchive(secondBytes).entries;
+    firstEntries = inspectCompressedTarArchive(firstBytes, packageName).entries;
+    secondEntries = inspectCompressedTarArchive(secondBytes, packageName).entries;
   } catch (error) {
     return `archive structure inspection failed: ${error instanceof Error ? error.message : "unknown error"}`;
   }
@@ -353,16 +353,17 @@ export async function packAndInspectArtifact(input) {
   if (sha256(firstBytes) !== sha256(secondBytes)) {
     throw new Error(
       `Two clean package builds did not produce byte-identical tarballs for ${input.packageName}: ` +
-      `${sha256(firstBytes)} != ${sha256(secondBytes)}; ${describeArchiveDifference(firstBytes, secondBytes)}.`,
+      `${sha256(firstBytes)} != ${sha256(secondBytes)}; ${describeArchiveDifference(firstBytes, secondBytes, input.packageName)}.`,
     );
   }
-  const inspection = inspectCompressedTarArchive(firstBytes);
+  const inspection = inspectCompressedTarArchive(firstBytes, input.packageName);
   assertExactArchiveManifest(inspection, firstStage.publishManifest);
   const { listing, verboseListing } = parsedArchiveListings(inspection);
   assertArchiveSafety({
     allowedArtifactPaths: input.allowedArtifactPaths,
     archiveBytes: firstBytes,
     listing,
+    packageName: input.packageName,
     requiredArtifactPaths: input.requiredArtifactPaths,
     verboseListing,
   });

@@ -5,6 +5,7 @@ import { cp, mkdir, mkdtemp, readFile, realpath, writeFile } from "node:fs/promi
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { canonicalDigest, runCommand, runNpmCommand, writeJson } from "./pack-test-support.mjs";
+import { assertPackedSdkGrowthAuthorityExecution } from "./packed-sdk-growth-authority-fixture.mjs";
 
 const sha256 = bytes => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const packageName = "sdk-packed-fixture";
@@ -138,6 +139,9 @@ export async function testPackedSdkGrowth({ consumerRoot, artifact }) {
   assert.ok(!matched.aggregate.capabilities[0].diagnostics.some(row => row.ruleId.includes("breaking")));
   assert.ok(matched.aggregate.capabilities[0].diagnostics.some(row => row.ruleId.endsWith("growth-owner-evidence-unavailable")));
   assert.ok(!matched.aggregate.capabilities[0].diagnostics.some(row => ["growth-transition-unadmitted", "growth-decision-malformed", "growth-decision-fingerprint-mismatch"].some(code => row.ruleId.endsWith(code))));
+  await assertPackedSdkGrowthAuthorityExecution({ installedConsumerRoot: consumerRoot, repositoryRoot: candidate,
+    config, matchedReport: matched.report, trustedBase: base.surface.value, baseReference: baseReport.candidate.value,
+    releasedTyped: snapshots.typed.snapshot.value, releasedArtifact, decision, packageName });
   assert.deepEqual((await execute([decision])).bytes, matched.bytes);
   const malformed = await execute([{ ...decision, ownerRef: "" }]);
   assert.ok(malformed.aggregate.capabilities[0].diagnostics.some(row => row.ruleId.endsWith("growth-decision-malformed")));
@@ -169,7 +173,9 @@ export async function testPackedSdkGrowth({ consumerRoot, artifact }) {
   await runCommand(process.execPath, ["--test", packedWriterTest], parent);
   const receipt = { outcome: "passed", artifactDigest: artifact.sha256, sourceIdentity: "synthetic-unverified",
     fixtureArtifacts: { base: baseArtifactDigest, candidate: candidateArtifactDigest },
-    cases: ["public-schema", "publication-digest", "changed-sequential-update", "private-historical-observation", "missing", "matched-incomplete-2", "malformed", "overlap", "determinism", "compatibility", "forged-authority", "packed-private-writer-races-and-cancellation"],
+    cases: ["public-schema", "publication-digest", "changed-sequential-update", "private-historical-observation", "missing", "matched-incomplete-2",
+      "authority-completed-incomplete-check", "authority-rejected-promotion", "serialized-authority-transport", "malformed", "overlap", "determinism",
+      "compatibility", "forged-authority", "packed-private-writer-races-and-cancellation"],
     writerTestDigest: sha256(writerTests), matchedReportDigest: sha256(matched.bytes), compatibilityReportDigest: sha256(broken.bytes) };
   await writeJson(join(parent, "qualification.json"), receipt);
   return receipt;

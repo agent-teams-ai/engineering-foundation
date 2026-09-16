@@ -1,8 +1,8 @@
 import { registerGrowthAdmissionCases } from "./support/public-api-growth-admission-cases.mjs";
 import { parse as readArchitectureYaml } from "yaml";
 import assert from "node:assert/strict";
-import { readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { basename, join, sep } from "node:path";
+import { readFile, readdir as readDirectory, realpath, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, join, sep } from "node:path";
 import test from "node:test";
 
 import { withPublicApiFixture } from "./support/capability-fixtures.mjs";
@@ -114,12 +114,81 @@ test("Public API write path uses the selected symlink observation before effects
     const before = await readFile(baselinePath), calls = [];
     const paths = { async traversesSymbolicLink(...args) { calls.push(args); return true; } };
     const repository = new FilesystemPublicApiRepository(assertSchema, { ...defaults, paths });
+    await repository.readReleasedBaseline(root, selected);
     await assert.rejects(repository.writeReleasedBaseline(root, selected, {}),
       ({ problem }) => problem?.code === "PUBLIC_API_EVIDENCE_SYMLINK_PROHIBITED");
     assert.deepEqual(calls, [[await realpath(root), await realpath(baselinePath)]]);
     assert.deepEqual(await readFile(baselinePath), before);
   });
 });
+
+for (const [winner, rejected] of [["first", "second"], ["second", "first"]]) {
+  test(`Public API baseline promotion preserves the ${winner} concurrent winner and rejects the ${rejected} stale plan`, async () => {
+    await withPublicApiFixture(async (root) => {
+      const selected = await existingPolicy(root);
+      const baselinePath = join(root, selected.releasedBaselinePath);
+      let releaseComparison;
+      let reportComparison;
+      const comparisonGate = new Promise((resolve) => { releaseComparison = resolve; });
+      const comparisonObserved = new Promise((resolve) => { reportComparison = resolve; });
+      let reads = 0;
+      const pausingFiles = {
+        async read(input) {
+          const bytes = await defaults.files.read(input);
+          reads += 1;
+          if (reads === 2) {
+            reportComparison();
+            await comparisonGate;
+          }
+          return bytes;
+        }
+      };
+      const leading = new FilesystemPublicApiRepository(assertSchema, {
+        ...defaults,
+        files: pausingFiles
+      });
+      const trailing = new FilesystemPublicApiRepository(assertSchema, defaults);
+      const [observed] = await Promise.all([
+        leading.readReleasedBaseline(root, selected),
+        trailing.readReleasedBaseline(root, selected)
+      ]);
+      const winningSnapshot = { ...observed, extractorVersion: `writer-${winner}` };
+      const rejectedSnapshot = { ...observed, extractorVersion: `writer-${rejected}` };
+      const winningWrite = leading.writeReleasedBaseline(root, selected, winningSnapshot);
+      await comparisonObserved;
+      const rejectedWrite = trailing.writeReleasedBaseline(root, selected, rejectedSnapshot);
+      let concurrentFailure;
+      try {
+        concurrentFailure = await rejectedWrite.then(() => null, (error) => error);
+      } finally {
+        releaseComparison();
+      }
+      await winningWrite;
+      assert.equal(
+        concurrentFailure?.problem?.code,
+        "PUBLIC_API_BASELINE_PROMOTION_LOCK_UNAVAILABLE"
+      );
+      await assert.rejects(
+        trailing.writeReleasedBaseline(root, selected, rejectedSnapshot),
+        ({ problem }) => problem?.code === "PUBLIC_API_BASELINE_PROMOTION_STALE");
+      assert.equal(
+        await readFile(baselinePath, "utf8"),
+        `${JSON.stringify(winningSnapshot, null, 2)}\n`
+      );
+      assert.notEqual(
+        await readFile(baselinePath, "utf8"),
+        `${JSON.stringify(rejectedSnapshot, null, 2)}\n`
+      );
+      assert.equal(
+        (await readDirectory(dirname(baselinePath))).some((entry) =>
+          entry.startsWith(".public-api-baseline-") ||
+          entry === `${basename(baselinePath)}.lock`
+        ),
+        false
+      );
+    });
+  });
+}
 
 test("Public API cancellation precedes selected evidence ports", async () => {
   await withPublicApiFixture(async (root) => {

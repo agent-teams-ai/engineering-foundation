@@ -10,6 +10,7 @@ import type { GrowthReport } from "../model/growth-report.js";
 import type { PublicApiSnapshot } from "../model/public-api.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import { hashGrowthPayload } from "./compare-growth-surfaces.js";
+export { growthDecisionDigest } from "./evaluate-growth-admission.js";
 import { growthCanonicalJson, growthObservationReference, growthUniqueSorted, normalizeGrowthInvocation, normalizeGrowthObservation } from "./normalize-growth-observation.js";
 
 function invalid(reason: string): never { throw new GrowthObservationInvariantError(reason); }
@@ -137,6 +138,14 @@ export function validateGrowthAuthorityRequest(value: unknown): GrowthAuthorityR
 export function growthAuthorityRequestDigest(request: GrowthAuthorityRequest, fingerprint: ChangeFingerprint): GrowthDigest {
   return hashGrowthPayload({ domain: "reviewrouter:sdk-growth-authority:request:1", request: validateGrowthAuthorityRequest(request) }, fingerprint);
 }
+export function growthAuthorityArtifactEvidence(snapshot: PublicApiSnapshot, fingerprint: ChangeFingerprint): {
+  readonly archiveDigest: GrowthDigest;
+  readonly archiveIntegrity: string;
+} {
+  if (fingerprint.sha512Integrity === undefined) { invalid("growth-authority-sha512-unavailable"); }
+  const bytes = growthCanonicalJson({ domain: "reviewrouter:sdk-growth-authority:artifact-snapshot:1", snapshot });
+  return { archiveDigest: `sha256:${fingerprint.sha256(bytes)}`, archiveIntegrity: fingerprint.sha512Integrity(bytes) };
+}
 export function growthAuthorityGrantDigest(grant: GrowthAuthorityGrant, fingerprint: ChangeFingerprint): GrowthDigest {
   return hashGrowthPayload({ domain: "reviewrouter:sdk-growth-authority:grant:1", grant }, fingerprint);
 }
@@ -259,10 +268,23 @@ export function validateGrowthAuthorityGrant(value: unknown, request: GrowthAuth
   const released = growthUniqueSorted(releasedInput.map((entry) => validateReleased(entry, binding.invocation.repository)), (entry) => entry.packageName);
   const ownerEvidence = growthUniqueSorted(ownerInput.map(validateOwnerEvidence), (entry) => entry.decisionId);
   const archives = growthUniqueSorted(archiveInput.map((entry) => validateArchive(entry, binding.target.evaluation)), (entry) => entry.packageName);
+  exact(released.map((entry) => ({ packageName: entry.packageName, kind: entry.evidence.kind })),
+    request.contextSelectors.released.map((entry) => ({ packageName: entry.packageName, kind: entry.kind })),
+  "growth-authority-release-selector-mismatch");
+  for (const owner of ownerEvidence) {
+    if (owner.sourceBindingDigest !== requestDigest || !request.decisionDigests.includes(owner.decisionDigest)) {
+      invalid("growth-authority-owner-source-mismatch");
+    }
+  }
   exact(archives.map((entry) => entry.packageName), released.map((entry) => entry.packageName), "growth-authority-archive-scope-mismatch");
   for (const releasedRow of released) {
     const archive = archives.find((entry) => entry.packageName === releasedRow.packageName)!;
     if (archive.packageVersion !== releasedRow.releaseEvidence.packageVersion) { invalid("growth-authority-archive-version-mismatch"); }
+    if (releasedRow.evidence.kind !== "released") { continue; }
+    const expected = growthAuthorityArtifactEvidence(releasedRow.evidence.artifact, fingerprint);
+    if (archive.archiveDigest !== expected.archiveDigest || archive.archiveIntegrity !== expected.archiveIntegrity) {
+      invalid("growth-authority-archive-artifact-mismatch");
+    }
   }
   return { schemaVersion: growthAuthoritySchemaVersion, kind: "grant", grantId: text(row["grantId"]), requestDigest,
     admissionReceipt: validateAdmissionReceipt(row["admissionReceipt"], request, binding), binding,

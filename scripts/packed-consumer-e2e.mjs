@@ -1,6 +1,7 @@
-import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.mjs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+
+import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.mjs";
 
 import {
   captureFailure,

@@ -125,10 +125,10 @@ export function createSdkGrowthAuthorityModule(dependencies: SdkGrowthAuthorityM
             reportDigest, reportByteLength: reportBytes.byteLength, coverageDigest: reportDigests.coverageDigest, phasesDigest: reportDigests.phasesDigest,
             verdict: report.verdict, releaseEligible: report.releaseEligible, publication: "finalized" as const,
             promotion: { kind: "plan" as const, planDigest } };
+          invariant(growthCanonicalJson(await state.readInvocation(cancellation)) === growthCanonicalJson(state.invocation), "growth-execution-inputs-changed");
           receipt = await state.authority.complete(completion, cancellation);
           invariant(receipt.qualification === "qualified" && receipt.operation === "promote-release"
             && receipt.promotion.kind === "plan" && receipt.promotion.planDigest === planDigest, "growth-authority-promotion-receipt-invalid");
-          invariant(growthCanonicalJson(await state.readInvocation(cancellation)) === growthCanonicalJson(state.invocation), "growth-execution-inputs-changed");
         });
       invariant(receipt !== undefined, "growth-authority-promotion-not-authorized");
       return { snapshots, receipt };

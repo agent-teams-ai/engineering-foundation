@@ -25,15 +25,17 @@ async function compilerFixture(t) {
   const root = join(await realpath(temporary), "consumer");
   await mkdir(join(root, dirname(source)), { recursive: true });
   await writeFile(join(root, source), "export const value = 1;\n");
-  const declaration = `${dirname(source)}/owned.d.ts`;
-  await writeFile(join(root, declaration), "export declare const owned: number;\n");
+  const declarations = [`${dirname(source)}/owned.d.ts`, `${dirname(source)}/owned.d.mts`];
+  for (const declaration of declarations) {
+    await writeFile(join(root, declaration), "export declare const owned: number;\n");
+  }
   const alias = join(temporary, "alias");
   await symlink(root, alias, process.platform === "win32" ? "junction" : "dir");
-  return { root, alias, declaration };
+  return { root, alias, declarations };
 }
 
 test("real compiler evidence matches selected sources across consumer root aliases", async (t) => {
-  const { root, alias, declaration } = await compilerFixture(t);
+  const { root, alias, declarations } = await compilerFixture(t);
   const require = createRequire(import.meta.url);
   const compilerEntrypoint = join(dirname(require.resolve("typescript/package.json")), "bin/tsc");
   const oxlintEntrypoint = join(dirname(require.resolve("oxlint/package.json")), "bin/oxlint");
@@ -42,7 +44,7 @@ test("real compiler evidence matches selected sources across consumer root alias
     await t.test(consumerRoot === alias ? "aliased consumer root" : "aliased compiler paths", async () => {
       await writeFile(join(root, "tsconfig.json"), JSON.stringify({
         compilerOptions: { strict: true, types: [], noEmit: true },
-        files: [join(evidenceRoot, source), join(evidenceRoot, declaration)]
+        files: [join(evidenceRoot, source), ...declarations.map((declaration) => join(evidenceRoot, declaration))]
       }));
       const executor = { run: async ({ command, args, cwd }) => {
         const output = await promisify(execFile)(command, args, { cwd, timeout: 30_000, maxBuffer: 1024 * 1024 });
@@ -55,7 +57,7 @@ test("real compiler evidence matches selected sources across consumer root alias
       const session = createOxlintSession({ ...input, consumerRoot, nodeExecutable: process.execPath,
         compilerEntrypoint, oxlintEntrypoint }, executor);
       const selected = await session.select();
-      assert.deepEqual(selected, [source, declaration].toSorted());
+      assert.deepEqual(selected, [source, ...declarations].toSorted());
       const context = await session.typeContext();
       assert.deepEqual(context, selected);
     });

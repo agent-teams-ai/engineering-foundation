@@ -49,7 +49,7 @@ export function classifyQualityCensus(input: {
 
 /** Technical tool applicability is independent of consumer semantic ownership. */
 export function qualitySourceLanguage(path: string): "typescript" | "javascript" | "native" | "unsupported" {
-  if (path.endsWith(".ts")) { return "typescript"; }
+  if (path.endsWith(".ts") || path.endsWith(".d.mts")) { return "typescript"; }
   if (path.endsWith(".mjs")) { return "javascript"; }
   if (/\.(?:c|h)$/u.test(path)) { return "native"; }
   return "unsupported";

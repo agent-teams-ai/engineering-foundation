@@ -189,17 +189,26 @@ test("duplicate assignment observations cannot serve as valid protection evidenc
 
 
 test("owned declarations require actual selection and compiler context", async () => {
-  const declaration = "packages/contexts/private-worker/src/public.d.ts";
-  const observation = { ...good, sources: [...good.sources, { path: declaration, owners: ["private-worker.application"], suppressionCovered: true }] };
-  const complete = tool({ select: async () => [path, declaration], typeContext: async () => [path, declaration], lint: async () => ({ files: 2, diagnostics: [] }) });
+  const declarations = [
+    "packages/contexts/private-worker/src/public.d.ts",
+    "packages/contexts/private-worker/src/public.d.mts"
+  ];
+  const production = [path, ...declarations];
+  const observation = { ...good, sources: [...good.sources, ...declarations.map((declaration) => ({
+    path: declaration, owners: ["private-worker.application"], suppressionCovered: true
+  }))] };
+  const complete = tool({ select: async () => production, typeContext: async () => production,
+    lint: async () => ({ files: production.length, diagnostics: [] }) });
   assert.equal((await checkQualityCoverage(invocation, reader(observation), complete.provider)).outcome, "passed");
-  for (const [overrides, rule] of [
-    [{ select: async () => [path], typeContext: async () => [path, declaration] }, "selection-mismatch"],
-    [{ select: async () => [path, declaration], typeContext: async () => [path] }, "type-context"]
-  ]) {
-    const result = await checkQualityCoverage(invocation, reader(observation), tool(overrides).provider);
-    assert.equal(result.outcome, "violations");
-    assert.ok(result.diagnostics.some(({ ruleId, location }) => ruleId === `quality.source-coverage.${rule}` && location.path === declaration));
+  for (const declaration of declarations) {
+    for (const [overrides, rule] of [
+      [{ select: async () => production.filter((candidate) => candidate !== declaration), typeContext: async () => production }, "selection-mismatch"],
+      [{ select: async () => production, typeContext: async () => production.filter((candidate) => candidate !== declaration) }, "type-context"]
+    ]) {
+      const result = await checkQualityCoverage(invocation, reader(observation), tool(overrides).provider);
+      assert.equal(result.outcome, "violations");
+      assert.ok(result.diagnostics.some(({ ruleId, location }) => ruleId === `quality.source-coverage.${rule}` && location.path === declaration));
+    }
   }
 });
 

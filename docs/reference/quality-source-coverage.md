@@ -28,12 +28,12 @@ Markdown documentation remains visible in the file census but is not a lint
 source. Native C files and headers require consumer-owned gate mappings;
 unknown source languages receive an explicit unsupported-language diagnostic.
 
-The current language contract supports `.ts` (including owned `.d.ts`) and
-`.mjs` lint sources, plus classification and gate wiring for `.c` and `.h`.
-It does not qualify `.tsx`, `.mts`, `.cts` or other source extensions. Preserve
-existing consumer checks for these files until their coverage is explicitly
-qualified; do not remove fixtures or classify production as tooling to make
-adoption pass.
+The current language contract supports `.ts` (including owned `.d.ts`), owned
+`.d.mts` declarations and `.mjs` lint sources, plus classification and gate
+wiring for `.c` and `.h`. It does not qualify `.tsx`, general `.mts`, `.cts` or
+other source extensions. Preserve existing consumer checks for these files
+until their coverage is explicitly qualified; do not remove fixtures or
+classify production as tooling to make adoption pass.
 
 The protected configuration reader accepts a bounded JSON `extends` closure
 and rejects `jsPlugins` in every visited configuration, including inherited
@@ -101,7 +101,8 @@ checks use the pinned compiler to validate configuration, including JSONC.
 
 Owned `.mjs` build adapters remain in lint selection and suppression coverage.
 Their inclusion does not claim TypeScript compiler coverage: production project
-membership applies to TypeScript files, including owned `.d.ts` declarations.
+membership applies to TypeScript files, including owned `.d.ts` and `.d.mts`
+declarations.
 The JavaScript adapter must still have one semantic owner and cannot disappear
 from the observed Oxlint selection. Native execution qualification remains
 consumer-owned.

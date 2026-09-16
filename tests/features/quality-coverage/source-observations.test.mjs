@@ -10,7 +10,7 @@ import { createSourceCensusReader } from "../../../packages/engineering-foundati
 import { readContainedRegularFile } from "../../../packages/engineering-foundation/dist/source-inventory/node.js";
 import { loadStrictYamlFile } from "../../../packages/engineering-foundation/dist/features/configuration-input/node.js";
 import { createQualityCoverageReader } from "../../../packages/engineering-foundation/dist/features/quality-coverage/node.js";
-import { classifyQualityCensus, checkStaticQualityCoverage } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
+import { classifyQualityCensus, checkStaticQualityCoverage, qualitySourceLanguage } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
 import { mapQualityTopology } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
 import { copyPinnedToolchain } from "./copied-toolchain.mjs";
 
@@ -70,6 +70,7 @@ test("independent nested/private census includes untracked and unclassified sour
   });
   assert.equal(report.outcome, "violations");
   assert.ok(report.diagnostics.some(({ ruleId, location }) => ruleId === "quality.source-coverage.source-language" && location.path === "packages/new-private/src/new.mts"));
+  assert.equal(qualitySourceLanguage("packages/new-private/src/new.mts"), "unsupported");
 });
 
 test("development ownership classifies external build tooling without hiding production or native source", async (t) => {
@@ -218,14 +219,20 @@ test("native package roots outside src require consumer classification", async (
   assert.ok(!classified.sources.some(({ path }) => path === harness));
 });
 
-test("owned declarations remain in the independent production census", async (t) => {
+test("owned TypeScript declarations remain in the independent production census", async (t) => {
   const { put, census } = await fixture(t);
-  const declaration = `${sourceRoot}/public.d.ts`;
-  await put(declaration, "export declare const value: number;\n");
+  const declarations = [`${sourceRoot}/public.d.ts`, `${sourceRoot}/public.d.mts`];
+  for (const declaration of declarations) {
+    await put(declaration, "export declare const value: number;\n");
+  }
   const classified = classifyQualityCensus({ ...await census(), topology, authority, suppressionRoots: [sourceRoot] });
-  assert.deepEqual(classified.sources.map(({ path }) => path), [main, declaration]);
-  assert.deepEqual(classified.sources[1].owners, ["worker"]);
-  assert.equal(classified.sources[1].suppressionCovered, true);
+  assert.deepEqual(classified.sources.map(({ path }) => path), [main, ...declarations].toSorted());
+  for (const declaration of declarations) {
+    const source = classified.sources.find(({ path }) => path === declaration);
+    assert.deepEqual(source?.owners, ["worker"]);
+    assert.equal(source?.suppressionCovered, true);
+    assert.equal(qualitySourceLanguage(declaration), "typescript");
+  }
 });
 
 test("pure module markers cannot hide nested dist source and source symlinks reject", async (t) => {

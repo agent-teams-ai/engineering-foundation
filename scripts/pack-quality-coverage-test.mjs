@@ -114,10 +114,11 @@ async function qualifyLayout({ consumerRoot, nested, artifact }) {
     await put("scripts/check-native.mjs", "throw new Error('native execution is consumer-owned');\n");
   }
   await put(`${sourceRoot}/owned.d.ts`, "export declare const declared: number;\n");
+  await put(`${sourceRoot}/owned.d.mts`, "export declare const moduleDeclared: number;\n");
   await put(`${sourceRoot}/build.mjs`, "export const build = () => 1;\n");
   await put("config/production.json", {
     compilerOptions: { strict: true, target: "ES2022", module: "NodeNext", types: [], noEmit: true },
-    include: [`../${sourceRoot}/**/*.ts`]
+    include: [`../${sourceRoot}/**/*.ts`, `../${sourceRoot}/**/*.d.mts`]
   });
   await put("features.json", nested ? {
     schemaVersion: 1, authority: { id: "agent-teams.feature-module-standard", version: "v1" },

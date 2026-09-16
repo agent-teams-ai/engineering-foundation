@@ -1,5 +1,28 @@
 # @agent-teams/engineering-foundation
 
+## 1.4.0
+
+### Minor Changes
+
+- [#313](https://github.com/agent-teams-ai/engineering-foundation/pull/313) [`8fd2dd6`](https://github.com/agent-teams-ai/engineering-foundation/commit/8fd2dd69494e1307a71842514f46cee13cf6e0f6) Thanks [@777genius](https://github.com/777genius)! - Add explicit public API compatibility v2 SDK growth execution while preserving
+  the v1 parser and comparison semantics. Filesystem context remains unverified;
+  the existing check route publishes incomplete evidence rather than trusted
+  admission. Report publication uses preimage checks, exclusive writer fencing,
+  exact replay and explicit uncertainty after publication.
+
+- [#312](https://github.com/agent-teams-ai/engineering-foundation/pull/312) [`e4bce60`](https://github.com/agent-teams-ai/engineering-foundation/commit/e4bce607c8d8a75bcfe7aaaa754cc653618bb0e5) Thanks [@777genius](https://github.com/777genius)! - Add internal SDK growth admission with exact transition and owner evidence binding, preserving independent released compatibility checks.
+
+- [#310](https://github.com/agent-teams-ai/engineering-foundation/pull/310) [`be9d49b`](https://github.com/agent-teams-ai/engineering-foundation/commit/be9d49bbad435b0fea9d69c018fce6c43609cf1c) Thanks [@777genius](https://github.com/777genius)! - Add the SDK growth observation contract with deterministic surface evidence and retained typed and artifact compatibility snapshots. Preserve existing public API compatibility and optional AbortSignal cancellation.
+
+### Patch Changes
+
+- [#314](https://github.com/agent-teams-ai/engineering-foundation/pull/314) [`36407bf`](https://github.com/agent-teams-ai/engineering-foundation/commit/36407bf1ffd1ced1ae9329f67895e4b128088626) Thanks [@777genius](https://github.com/777genius)! - Include owned `.d.mts` declarations in TypeScript quality coverage and require
+  their exact Oxlint selection and compiler context.
+
+- [#316](https://github.com/agent-teams-ai/engineering-foundation/pull/316) [`539ec09`](https://github.com/agent-teams-ai/engineering-foundation/commit/539ec097ecfcb5ab0076c7a44e9212c252d5d702) Thanks [@777genius](https://github.com/777genius)! - Requalify `quality.source-coverage` with Oxlint 1.83.0. Caught errors passed as
+  an `AggregateError` cause remain preserved, while discarded caught errors still
+  fail the protected `preserve-caught-error` rule.
+
 ## 1.3.3
 
 ### Patch Changes

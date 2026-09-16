@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.9
+
+### Patch Changes
+
+- [#315](https://github.com/agent-teams-ai/engineering-foundation/pull/315) [`3771896`](https://github.com/agent-teams-ai/engineering-foundation/commit/37718962c391d276f474f040874ed6701291ab76) Thanks [@777genius](https://github.com/777genius)! - Retain the exact qualified stable21 transition origin so a future successor Cohort can authorize Token's upgrade without changing historical Cohort records or asset bytes.
+
 ## 0.2.8
 
 ### Patch Changes

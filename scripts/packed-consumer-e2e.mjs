@@ -444,9 +444,31 @@ async function assertSelfCheck(fixture) {
   }
 }
 
+async function assertSdkGrowthAuthorityPublicApi(fixture) {
+  const { stdout } = await runCommand(
+    process.execPath,
+    ["--input-type=module", "--eval", `
+      const api = await import("@agent-teams/engineering-foundation/sdk-growth-authority");
+      const verifier = api.createSdkGrowthAuthorityVerifier({
+        async resolve() { throw new Error("packed authority transport was invoked during assembly"); },
+        async complete() { throw new Error("packed authority transport was invoked during assembly"); }
+      });
+      if (!Object.isFrozen(verifier) || typeof verifier.qualifyCheck !== "function" || typeof verifier.promoteRelease !== "function") {
+        throw new Error("Packed SDK growth authority entrypoint is incomplete.");
+      }
+      process.stdout.write("verified");
+    `],
+    fixture.consumerRoot
+  );
+  if (stdout !== "verified") {
+    throw new Error("Packed SDK growth authority entrypoint was not verified.");
+  }
+}
+
 export async function verifyPackedConsumer(input) {
   const fixture = input.fixture;
   await assertRemovedFoundationPackagePathsRejected(fixture);
+  await assertSdkGrowthAuthorityPublicApi(fixture);
   await assertAdrPromotion(fixture);
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);

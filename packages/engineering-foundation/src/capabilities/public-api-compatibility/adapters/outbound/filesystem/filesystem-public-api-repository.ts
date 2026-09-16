@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { opendir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { canonicalRoot, readPublicApiEvidenceFile, writePublicApiEvidenceFile } from "./public-api-evidence-files.js";
@@ -24,6 +25,8 @@ import {
   releasedBaselineSchemaId
 } from "./public-api-baseline-mapper.js";
 import { readChangesetsPrereleaseState } from "./changesets-prerelease-state.js";
+
+const sha256 = (bytes: Uint8Array) => `sha256:${createHash("sha256").update(bytes).digest("hex")}` as const;
 
 const MAX_INPUT_BYTES = 32 * 1024 * 1024;
 const BUMP_RANK: Readonly<Record<ReleaseBump, number>> = {
@@ -147,6 +150,7 @@ async function declaredBump(input: {
 export class FilesystemPublicApiRepository implements PublicApiRepository {
   readonly #assertSchema: PublicApiSchemaAssertion;
   readonly #evidence: PublicApiRepositoryEvidence;
+  readonly #baselineBytes = new Map<string, Buffer | null>();
 
   constructor(assertSchema: PublicApiSchemaAssertion, evidence: PublicApiRepositoryEvidence) {
     this.#assertSchema = assertSchema;
@@ -185,8 +189,10 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
         ? await readPublicApiEvidenceFile({ ...baselineRead, allowMissing: true }, this.#evidence.files)
         : await readPublicApiEvidenceFile(baselineRead, this.#evidence.files);
     if (baselineSource === undefined) {
+      this.#baselineBytes.set(`${root}/${policy.packageName}`, null);
       return undefined;
     }
+    this.#baselineBytes.set(`${root}/${policy.packageName}`, baselineSource);
     let input: unknown;
     try {
       input = JSON.parse(baselineSource.toString("utf8")) as unknown;
@@ -286,8 +292,12 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
   ): Promise<void> {
     assertNotCancelled(signal);
     assertBaselineAnchor(policy);
-    await writePublicApiEvidenceFile(consumerRoot, policy.releasedBaselinePath, snapshot, {
-      mode, ...(signal === undefined ? {} : { signal }),
+    const root = await canonicalRoot(consumerRoot);
+    const expected = this.#baselineBytes.get(`${root}/${policy.packageName}`);
+    if (expected === undefined) { throw new Error("Public API baseline must be observed before promotion."); }
+    await writePublicApiEvidenceFile(root, policy.releasedBaselinePath, snapshot, {
+      mode: mode === "replace" && expected !== null ? { expectedBytes: expected } : mode,
+      ...(signal === undefined ? {} : { signal }),
       validate: async () => {
     if (!baselineMatchesPolicy(snapshot, policy)) {
       inputError(
@@ -303,5 +313,15 @@ export class FilesystemPublicApiRepository implements PublicApiRepository {
     );
       }
     }, this.#evidence);
+  }
+
+  async describeReleasedBaselineWrite(consumerRoot: string, policy: PublicApiPackagePolicy, snapshot: PublicApiSnapshot, mode: "create" | "replace") {
+    const root = await canonicalRoot(consumerRoot);
+    const before = this.#baselineBytes.get(`${root}/${policy.packageName}`);
+    if (before === undefined || (mode === "replace" && before === null) || (mode === "create" && before !== null)) {
+      throw new Error("Public API promotion preimage is unavailable or contradicts the operation.");
+    }
+    return { destination: policy.releasedBaselinePath, operation: mode, preimageDigest: before === null ? null : sha256(before),
+      proposedDigest: sha256(Buffer.from(`${JSON.stringify(snapshot, null, 2)}\n`, "utf8")) };
   }
 }

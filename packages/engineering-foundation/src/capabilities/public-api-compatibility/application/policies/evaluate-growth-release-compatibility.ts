@@ -30,10 +30,32 @@ function assertBranch(snapshot: GrowthEvidence<PublicApiSnapshot>, packageName: 
     throw new GrowthObservationInvariantError("growth-compatibility-provenance-mismatch");
   }
 }
+function evaluateInitialUnreleased(input: {
+  readonly row: GrowthReleasedPackage;
+  readonly candidate: GrowthCompatibilityPackage;
+  readonly extractorVersion: string;
+  readonly reasons: string[];
+}): void {
+  if (input.row.evidence.kind !== "initial-unreleased") { throw new GrowthObservationInvariantError("growth-release-kind-mismatch"); }
+  if (input.row.evidence.history.status !== "available") {
+    input.reasons.push(`${input.row.packageName}:initial-unreleased-proof-not-qualified`); return;
+  }
+  if (input.row.releaseEvidence.status !== "available") { input.reasons.push(`${input.row.packageName}:release-evidence-unavailable`); return; }
+  for (const branch of ["typed", "artifact"] as const) {
+    const next = input.candidate[branch].snapshot;
+    const extractor = branch === "typed" ? input.extractorVersion : "package-artifact-inventory/1";
+    assertBranch(next, input.row.packageName, extractor);
+    if (next.status !== "available") { input.reasons.push(`${input.row.packageName}:${branch}:compatibility-evidence-unavailable`); }
+    else if (next.value.packageVersion !== input.row.releaseEvidence.value.packageVersion) {
+      throw new GrowthObservationInvariantError("growth-release-version-mismatch");
+    }
+  }
+}
 
 /** Existing v1 comparator and SemVer policy on each original snapshot branch.
- * Initial-unreleased history is retained, but current S1 has no admitted proof
- * permitting a synthesized empty v1 baseline; that branch stays incomplete. */
+ * An available initial history value is emitted only by the trusted S3 context
+ * adapter. It proves absence of published compatibility obligations; it does
+ * not synthesize a v1 baseline or waive first-surface admission. */
 export function evaluateGrowthReleaseCompatibility(input: {
   readonly current: readonly GrowthCompatibilityPackage[];
   readonly released: readonly GrowthReleasedPackage[];
@@ -49,7 +71,8 @@ export function evaluateGrowthReleaseCompatibility(input: {
     const candidate = current.find((entry) => entry.packageName === row.packageName);
     if (candidate === undefined) { reasons.push(`${row.packageName}:removed-package-compatibility-unavailable`); continue; }
     if (row.evidence.kind === "initial-unreleased") {
-      reasons.push(`${row.packageName}:initial-unreleased-proof-not-qualified`); continue;
+      evaluateInitialUnreleased({ row, candidate, extractorVersion: input.extractorVersion, reasons });
+      continue;
     }
     if (row.releaseEvidence.status !== "available") { reasons.push(`${row.packageName}:release-evidence-unavailable`); continue; }
     if (row.releaseEvidence.value.packageName !== row.packageName) { throw new GrowthObservationInvariantError("growth-release-evidence-package-mismatch"); }

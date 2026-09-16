@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { CapabilityInputError, assertNotCancelled, type QualityDependencyDeclaration, type QualityFileReader } from "../api.js";
 
 // This is the qualified adapter version set, not a dependency installer or a range resolver.
-const SUPPORTED = { oxlint: "1.77.0", "oxlint-tsgolint": "7.0.2001", typescript: "7.0.2" } as const;
+const SUPPORTED = { oxlint: "1.83.0", "oxlint-tsgolint": "7.0.2001", typescript: "7.0.2" } as const;
 
 function reject(name: string, reason: string): never {
   throw new CapabilityInputError({ code: "QUALITY_TOOLCHAIN_INVALID", message: `${name}: ${reason}`, phase: "quality-toolchain", retryable: false });

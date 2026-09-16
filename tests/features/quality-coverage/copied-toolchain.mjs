@@ -22,7 +22,7 @@ export async function copyPinnedToolchain(consumerRoot) {
       await copy(dependency, local);
     }
   }
-  const pins = { oxlint: "1.77.0", "oxlint-tsgolint": "7.0.2001", typescript: "7.0.2" };
+  const pins = { oxlint: "1.83.0", "oxlint-tsgolint": "7.0.2001", typescript: "7.0.2" };
   for (const name of Object.keys(pins)) { await copy(name, resolveFromTest); }
   return pins;
 }

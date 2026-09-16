@@ -183,6 +183,44 @@ test("type-aware Oxlint policy cannot be bypassed with ESLint directives", async
   );
 });
 
+test("Oxlint preserves a caught error passed as AggregateError cause", async () => {
+  await withTypeScriptProject(
+    `export function wrap(): never {
+  try {
+    throw new Error("original");
+  } catch (error) {
+    throw new AggregateError([], "wrapped", { cause: error });
+  }
+}
+`,
+    (projectRoot) => {
+      const result = runTypeAwareLint(projectRoot);
+      assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    },
+  );
+});
+
+test("Oxlint rejects an AggregateError that discards the caught error", async () => {
+  await withTypeScriptProject(
+    `export function wrap(): never {
+  try {
+    throw new Error("original");
+  } catch (error) {
+    throw new AggregateError([], "wrapped");
+  }
+}
+`,
+    (projectRoot) => {
+      const result = runTypeAwareLint(projectRoot);
+      assert.notEqual(result.status, 0);
+      assert.match(
+        `${result.stdout}${result.stderr}`,
+        /preserve-caught-error/u,
+      );
+    },
+  );
+});
+
 test("Oxlint leaves compiler diagnostics to the pinned TypeScript gate", async () => {
   await withTypeScriptProject(
     `const value: string = 42;\nvoid value;\n`,

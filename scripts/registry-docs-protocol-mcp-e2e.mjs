@@ -85,7 +85,6 @@ function openJsonRpcClient(cliPath, consumerRoot) {
   function fail(error) {
     failure ??= error instanceof Error ? error : new Error(String(error));
     for (const pendingRequest of pending.values()) {
-      // oxlint-disable-next-line promise/no-multiple-resolved -- every pending entry is rejected once before the map is cleared.
       clearTimeout(pendingRequest.timeout);
       pendingRequest.reject(failure);
     }

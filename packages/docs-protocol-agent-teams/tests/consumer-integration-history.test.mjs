@@ -12,7 +12,7 @@ import { CANONICAL_TRANSITION_CATALOG } from "../dist/consumer-integration/appli
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 
-test("stable18, stable19 and stable20 history bind exact generation2 authority and immutable assets", async () => {
+test("stable18 through stable21 history bind exact generation2 authority and immutable assets", async () => {
   const catalog = JSON.parse(CANONICAL_TRANSITION_CATALOG);
   for (const [cohortId, recordDigest, eventDigest, version] of [
     ["docs-2026-09-10-stable18", "a156140015084e74459f1bc8dc6c61dfad9bf5d8f85cfbcba8cfdd7700f1867a",
@@ -20,7 +20,9 @@ test("stable18, stable19 and stable20 history bind exact generation2 authority a
     ["docs-2026-09-10-stable19", "4dab45bfb69bc75ab63180f22e18ad036ed87107f11d2edd843c5f1f82b5f5bf",
       "30385945e581851788e955d406f4e7264c731f3a29a8b9cff4c3ecce1c3bd05a", "0.2.5"],
     ["docs-2026-09-11-stable20", "a2c8ac85c2f0afdaea498d5c994cb897ecabcbe6e97690dc3c5d416cd827b810",
-      "94ef24e30cc5441fc99a7d8bbbd1952b07438a60642818d429062633a7277d95", "0.2.7"]
+      "94ef24e30cc5441fc99a7d8bbbd1952b07438a60642818d429062633a7277d95", "0.2.7"],
+    ["docs-2026-09-12-stable21", "bf5220b191c7339533d21acd9b79594c274567ff0f515b72c4818863819ca92a",
+      "4608734de08ad19ab6f787448d73bf92990115668c9d3d34cff5bba134efdc3b", "0.2.7"]
   ]) {
     const bundle = catalog.directTargetBundles.find(({ cohort }) => cohort.cohortId === cohortId);
     assert.ok(bundle, `Missing qualified upgrade origin ${cohortId}`);
@@ -35,6 +37,16 @@ test("stable18, stable19 and stable20 history bind exact generation2 authority a
         bundle.cohort.assets[`${key}Digest`]);
     }
   }
+  const stable21 = catalog.directTargetBundles.at(-1);
+  assert.equal(stable21.cohort.cohortId, "docs-2026-09-12-stable21");
+  assert.deepEqual(stable21.cohort.upgradeFrom,
+    ["docs-2026-09-10-stable18", "docs-2026-09-10-stable19"]);
+  assert.deepEqual(stable21.cohort.rollbackTo,
+    ["docs-2026-09-10-stable18", "docs-2026-09-10-stable19"]);
+  assert.equal(stable21.cohort.runtime.runtimeClosureDigest,
+    "sha256:ac3ca2c5d7aaed71fa64b0ee3c101b48056c24935bada544529403cef608d711");
+  assert.equal(stable21.cohort.assets.transitionCatalogDigest,
+    "sha256:77ab3d28d39c6959ae3e5be2e9202b704dd9f57bbc9aed6824de81458c773de9");
   const legacy = await loadPackageConsumerAssetCatalog();
   assert.ok(legacy.directTargetBundles.every(({ cohort }) => cohort.schemaVersion === 1));
 });

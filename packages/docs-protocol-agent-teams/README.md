@@ -97,8 +97,10 @@ reviewed with its own digest and retained controller; old proofs are not rewritt
 Source tests do not establish public-package lifecycle qualification or release.
 
 The transition catalog retains the exact qualified `docs-2026-09-10-stable18`,
-`docs-2026-09-10-stable19` and `docs-2026-09-11-stable20` projections and content-addressed Skill/caller bytes as a successor upgrade origin
-and rollback evidence. The successor itself is qualified after publication, so
+`docs-2026-09-10-stable19`, `docs-2026-09-11-stable20` and
+`docs-2026-09-12-stable21` projections and content-addressed Skill/caller bytes
+as successor upgrade origins and rollback evidence. A successor itself is
+qualified after publication, so
 it is never embedded into its own package. Historical generation2 bundles are
 strictly validated but excluded from the generation1 planner; their presence
 does not enable cross-generation execution or qualify a successor release.

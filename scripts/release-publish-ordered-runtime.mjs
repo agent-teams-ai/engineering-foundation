@@ -50,6 +50,36 @@ function executeCommand(executable, args, options = {}) {
   return result.stdout;
 }
 
+// Keep raw npm output (which can contain credentials) inside this adapter.
+// Only positively identified local refusals bypass registry reconciliation.
+export function publishNpmArtifact(artifact, tag, { cwd, spawn = spawnSync } = {}) {
+  const result = spawn("npm", npmPublishArguments(artifact, tag), {
+    cwd, encoding: "utf8", maxBuffer: 32 * 1024 * 1024,
+  });
+  if (result.error === undefined && result.status === 0) {
+    return;
+  }
+  const npmCode = /^npm error code (E[A-Z0-9]+)$/mu.exec(result.stderr ?? "")?.[1];
+  const code = result.error?.code ?? npmCode;
+  const knownCodes = [
+    "ENOENT", "EACCES", "ENEEDAUTH", "EUSAGE", "EPRIVATE",
+    "E401", "E403", "E404", "EPUBLISHCONFLICT", "ECONNRESET",
+    "ETIMEDOUT", "ENOBUFS", "EINTEGRITY", "E422", "E500", "E502", "E503",
+  ];
+  const notStarted = result.error !== undefined
+    ? ["ENOENT", "EACCES"].includes(result.error.code) && result.pid === 0
+    : ["ENEEDAUTH", "EUSAGE", "EPRIVATE"].includes(npmCode);
+  const diagnostic = [
+    `npm publish failed; code=${knownCodes.includes(code) ? code : "unknown"}`,
+    `exit=${Number.isInteger(result.status) ? result.status : "unknown"}`,
+    `signal=${["SIGTERM", "SIGKILL", "SIGINT"].includes(result.signal) ? result.signal : "none-or-unknown"}`,
+    "raw output omitted",
+  ].join("; ");
+  throw Object.assign(new Error(diagnostic), {
+    publishFailure: { diagnostic, notStarted },
+  });
+}
+
 function statementFromAttestations(metadata) {
   const entries = metadata?.attestations?.filter(
     (entry) => entry?.predicateType === "https://slsa.dev/provenance/v1",
@@ -381,10 +411,20 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
       finalTag: decision.tag ?? "latest",
       inspect: inspectVersion,
       publish: async (artifact, tag) => {
-        await readVerifiedArchive(artifact.archivePath, artifact.sha256);
-        assertLiveMainHead(repository, source.commit);
-        executeCommand("npm", npmPublishArguments(artifact, tag), { cwd });
+        try {
+          await readVerifiedArchive(artifact.archivePath, artifact.sha256);
+          assertLiveMainHead(repository, source.commit);
+        } catch {
+          throw Object.assign(new Error("publish prerequisite failed before npm invocation"), {
+            publishFailure: {
+              diagnostic: "publish prerequisite failed before npm invocation",
+              notStarted: true,
+            },
+          });
+        }
+        publishNpmArtifact(artifact, tag, { cwd });
       },
+      reportPublishFailure: (message) => process.stderr.write(`${message}\n`),
       reconcileRelease: reconcileGithubRelease,
       source,
       verifySignature: async (artifact) => await verifyNpmSignature(artifact, source),

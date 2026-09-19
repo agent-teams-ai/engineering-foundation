@@ -123,12 +123,28 @@ async function publishOrReuse(options) {
   if (authorization !== undefined) {
     fail("the live main publication authorization must complete synchronously");
   }
+  let initialFailure;
   try {
     await options.publish(options.artifact, options.finalTag);
-  } catch {
-    // npm can lose the response after accepting an immutable version. Reconcile below.
+  } catch (error) {
+    // The runtime adapter supplies only sanitized diagnostics, never raw npm output.
+    initialFailure = error?.publishFailure?.diagnostic ??
+      "publish failed with an unclassified error; raw output omitted";
+    const message = `${options.artifact.name}@${options.artifact.version} initial publish failure: ${initialFailure}`;
+    options.reportPublishFailure(message);
+    if (error?.publishFailure?.notStarted === true) {
+      fail(`${message}; publication did not start`);
+    }
   }
-  return await observeExact(options);
+  try {
+    // A lost response can follow acceptance of an immutable version. Never republish.
+    return await observeExact(options);
+  } catch (error) {
+    if (initialFailure !== undefined) {
+      fail(`${error.message}; initial publish failure: ${initialFailure}`);
+    }
+    throw error;
+  }
 }
 
 async function assertInitialObservation({ artifact, finalTag, published, source }) {
@@ -222,6 +238,7 @@ export async function orderedRelease({
   publish,
   verifySignature,
   reconcileRelease,
+  reportPublishFailure = () => {},
   source,
   attempts = REGISTRY_OBSERVATION_ATTEMPTS,
   retryDelayMilliseconds = REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
@@ -250,7 +267,7 @@ export async function orderedRelease({
       ? before
       : await publishOrReuse({
         artifact, attempts, authorizePublish, finalTag, inspect, publish,
-        initial: before, retryDelayMilliseconds, source,
+        initial: before, reportPublishFailure, retryDelayMilliseconds, source,
       });
     assertFinalTag(artifact, published, finalTag);
     for (const dependencyName of entry.dependencies) {

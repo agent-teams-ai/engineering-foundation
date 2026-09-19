@@ -399,3 +399,19 @@ The compiler configuration accepts valid Draft 2020-12 open prefix tuples
 already released scaffold receipt's `appliedOperations` schema. AJV's other
 strict checks, IDs, local refs, formats, and prefix/tail instance validation remain
 in force. It changes no historical schema bytes or wire identities.
+
+### Initial npm publication failures
+
+The ordered publisher records a sanitized initial failure before reconciliation
+and retains it in any reconciliation failure. Diagnostics retain allowlisted npm
+or process error codes, numeric exit status and known signals; raw stdout,
+stderr and exception messages are omitted because they may contain credentials.
+Local npm refusals (`ENEEDAUTH`, `EUSAGE`, `EPRIVATE`), failure to spawn npm
+(`ENOENT` or `EACCES` with no child PID), and failed archive/live-main checks
+before invocation stop immediately. Authorization, permission and provenance
+configuration should be investigated using that initial diagnostic.
+Other failures, including HTTP errors, conflicts, timeouts, signals and unknown
+errors, retain the existing 73-observation bound with five-second intervals.
+They never cause a second publish attempt. Exact integrity, manifest, final tag,
+provenance and signature checks remain required before release reconciliation.
+An absent registry version alone does not identify the original npm failure.

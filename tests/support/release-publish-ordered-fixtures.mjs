@@ -154,4 +154,4 @@ async function run(runtime, overrides = {}) {
   });
 }
 
-export { source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, provenanceStatement, auditEvidence, present, publishedState, harness, run };
+export { source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run };

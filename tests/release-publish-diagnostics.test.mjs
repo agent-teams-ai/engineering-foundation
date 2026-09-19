@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { tarballIntegrity } from "../scripts/release-publish-ordered.mjs";
 import { publishNpmArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
-import { foundation, harness, present, RELEASE_TIMESTAMPS, run } from "./support/release-publish-ordered-fixtures.mjs";
+import { foundation, harness, present, RELEASE_TIMESTAMPS, run, source } from "./support/release-publish-ordered-fixtures.mjs";
 
 for (const code of ["ENEEDAUTH", "EUSAGE", "EPRIVATE", "ENOENT", "EACCES"]) {
   test(`stops immediately on proven pre-publication refusal ${code}`, async () => {
@@ -137,4 +137,25 @@ for (const lazy of [false, true]) {
       });
     });
   }
+}
+
+for (const rejection of [undefined, null, { message: 42 }, {},
+  new Error("Ordered release refused: ancestry lookup failed")]) {
+  test(`ancestry rejection retains initial publish diagnostic: ${rejection instanceof Error ? rejection.message : JSON.stringify(rejection)}`, async () => {
+    const runtime = harness();
+    const originalPublish = runtime.publish;
+    runtime.publish = async (value, tag) => {
+      await originalPublish(value, tag);
+      publishNpmArtifact(value, tag, { spawn: () => ({ status: 1, stderr: "npm error code ECONNRESET" }) });
+    };
+    await assert.rejects(run(runtime, {
+      source: { ...source, isTrustedCommit: async () => { throw rejection; } },
+    }), {
+      name: "Error",
+      message: `Ordered release refused: ${rejection instanceof Error
+        ? "ancestry lookup failed" : "registry observation failed with an unclassified error"}; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`,
+    });
+    assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 1);
+    assert.equal(runtime.calls.some((call) => /^(?:signature|release):/u.test(call)), false);
+  });
 }

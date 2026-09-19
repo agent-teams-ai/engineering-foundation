@@ -184,10 +184,10 @@ if (scenario === 'valid-wave' || scenario === 'notes-exact' || scenario === 'los
   if (scenario === 'notes-exact') {
     assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
   }
-  assert.equal(attempts.length, 6);
-  assert.equal(publications.length, 6);
-  assert.equal(reconciliations.length, 6);
-  assert.equal(events.filter(event => event.operation === 'signature').length, 6);
+  assert.equal(attempts.length, PUBLISHABLE_PACKAGES.length);
+  assert.equal(publications.length, PUBLISHABLE_PACKAGES.length);
+  assert.equal(reconciliations.length, PUBLISHABLE_PACKAGES.length);
+  assert.equal(events.filter(event => event.operation === 'signature').length, PUBLISHABLE_PACKAGES.length);
   assert.deepEqual(publications.map(item => item.name), PUBLISHABLE_PACKAGES.map(info => info.name));
   assert.ok(publications.every(item => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));

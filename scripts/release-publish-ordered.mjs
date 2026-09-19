@@ -141,7 +141,10 @@ async function publishOrReuse(options) {
     return await observeExact(options);
   } catch (error) {
     if (initialFailure !== undefined) {
-      fail(`${error.message.replace(/^Ordered release refused: /u, "")}; initial publish failure: ${initialFailure}`);
+      const message = typeof error?.message === "string"
+        ? error.message.replace(/^Ordered release refused: /u, "")
+        : "registry observation failed with an unclassified error";
+      fail(`${message}; initial publish failure: ${initialFailure}`);
     }
     throw error;
   }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { tarballIntegrity } from "../scripts/release-publish-ordered.mjs";
-import { npmPublishArguments, publishNpmArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
+import { publishNpmArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
 import { foundation, harness, present, RELEASE_TIMESTAMPS, run } from "./support/release-publish-ordered-fixtures.mjs";
 
 for (const code of ["ENEEDAUTH", "EUSAGE", "EPRIVATE", "ENOENT", "EACCES"]) {
@@ -84,7 +84,10 @@ test("npm adapter preserves exact invocation and accepts zero exit", () => {
   const value = { ...foundation, archivePath: "/tmp/qualified.tgz" };
   publishNpmArtifact(value, "latest", { cwd: "/tmp", spawn: (command, args, options) => {
     assert.equal(command, "npm");
-    assert.deepEqual(args, npmPublishArguments(value, "latest"));
+    assert.deepEqual(args, [
+      "publish", "/tmp/qualified.tgz", "--access", "public", "--tag", "latest",
+      "--provenance", "--ignore-scripts", "--registry=https://registry.npmjs.org/",
+    ]);
     assert.equal(options.cwd, "/tmp");
     return { status: 0, stdout: "ignored", stderr: "" };
   } });
@@ -111,3 +114,27 @@ test("ambiguous publication still rejects conflicting registry bytes with initia
   await assert.rejects(run(runtime), /different tarball SRI.*initial publish failure.*ECONNRESET/u);
   assert.equal(runtime.calls.some((call) => /^(?:signature|release):/u.test(call)), false);
 });
+
+for (const lazy of [false, true]) {
+  test(`signature fixture resolves and clones present state (lazy=${lazy})`, async () => {
+    const snapshot = present(foundation, RELEASE_TIMESTAMPS.get(foundation.name));
+    const runtime = harness({ [foundation.name]: lazy ? async (value) => {
+      assert.equal(value, foundation);
+      return snapshot;
+    } : snapshot });
+    assert.deepEqual(await runtime.inspect(foundation), snapshot);
+    const provenance = await runtime.verifySignature(foundation);
+    assert.deepEqual(provenance, snapshot.provenance);
+    assert.notEqual(provenance, snapshot.provenance);
+  });
+  for (const state of [undefined, null, { status: "absent" }, { status: "unknown" }, {}]) {
+    test(`signature fixture explicitly rejects non-present state ${JSON.stringify(state)} (lazy=${lazy})`, async () => {
+      const runtime = harness({ [foundation.name]: lazy ? async () => state : state });
+      await assert.rejects(runtime.verifySignature(foundation), (error) => {
+        assert.equal(error.constructor, Error);
+        assert.equal(error.message, `Signature verification requires a present snapshot for ${foundation.name}.`);
+        return true;
+      });
+    });
+  }
+}

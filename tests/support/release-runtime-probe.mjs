@@ -89,6 +89,9 @@ function begin() {
     github: args => {
       assert.match(args[0], /git\/ref\/heads\/main$/u);
       events.push({ operation: 'authorize', liveMain });
+      if (scenario === 'prerequisite-secret' && events.filter(event => event.operation === 'authorize').length === 2) {
+        throw new Error('provider credential-secret');
+      }
       const result = { object: { sha: liveMain, type: 'commit' }, ref: 'refs/heads/main' };
       if (scenario === 'advance-after-authorization' && liveMain === sourceCommit) {
         queueMicrotask(() => {
@@ -100,7 +103,7 @@ function begin() {
         const archive = archiveByName.get(packages[0].name);
         unlinkSync(archive.archivePath);
         writeFileSync(archive.archivePath, 'changed qualified archive');
-        events.push({ operation: 'archive-replaced' });
+        events.push({ operation: 'archive-replaced', archivePath: archive.archivePath });
       }
       return result;
     },
@@ -119,7 +122,10 @@ function begin() {
       assert.ok(args.includes('--provenance') && args.includes('--ignore-scripts'));
       assert.equal(options.cwd, sourceRoot);
       events.push({ operation: 'publish-suppressed', name: archive.packageName, liveMain });
-      published.add(archive.packageName);
+      if (scenario !== 'ambiguous-absent') { published.add(archive.packageName); }
+      if (scenario === 'ambiguous-absent' || scenario === 'lost-response') {
+        return { status: 1, stderr: 'npm error code ECONNRESET\ncredential-secret', stdout: 'credential-secret' };
+      }
       return ok('');
     }
     if (command === 'npm' && args[0] === 'install') {
@@ -127,7 +133,9 @@ function begin() {
       assert.ok(installed);
       return ok('');
     }
-    if (command === 'npm' && args[0] === 'audit') { return ok(JSON.stringify({ invalid: [], missing: [], verified: [{
+    if (command === 'npm' && args[0] === 'audit') {
+      events.push({ operation: 'signature', name: installed });
+      return ok(JSON.stringify({ invalid: [], missing: [], verified: [{
       name: installed, version: versions.get(installed), attestations: { provenance: { predicateType: 'https://slsa.dev/provenance/v1' } },
       attestationBundles: [bundle(installed), { predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1' }],
     }] })); }
@@ -149,6 +157,7 @@ function begin() {
     }
     const archive = archiveByName.get(decoded);
     assert.ok(archive, decoded);
+    events.push({ operation: 'inspect', name: decoded });
     if (!published.has(decoded)) { return { status: 404, ok: false }; }
     return { status: 200, ok: true, json: async () => ({ versions: { [versions.get(decoded)]: {
       dist: { integrity: archive.integrity, tarball: `https://registry.npmjs.org/fixture-tarball/${encodeURIComponent(decoded)}` } } },
@@ -158,7 +167,8 @@ function begin() {
 }
 
 assert.ok(['valid-wave', 'advance-after-authorization', 'digest-mismatch',
-  'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty'].includes(scenario));
+  'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty',
+  'prerequisite-secret', 'ambiguous-absent', 'lost-response'].includes(scenario));
 const events = begin();
 const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')));
 let error;
@@ -167,7 +177,7 @@ catch (caught) { error = caught.message; }
 const attempts = events.filter(event => event.operation === 'publish-attempt');
 const publications = events.filter(event => event.operation === 'publish-suppressed');
 const reconciliations = events.filter(event => event.operation === 'reconcile');
-if (scenario === 'valid-wave' || scenario === 'notes-exact') {
+if (scenario === 'valid-wave' || scenario === 'notes-exact' || scenario === 'lost-response') {
   assert.equal(error, undefined);
   if (scenario === 'notes-exact') {
     assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
@@ -175,6 +185,7 @@ if (scenario === 'valid-wave' || scenario === 'notes-exact') {
   assert.equal(attempts.length, 6);
   assert.equal(publications.length, 6);
   assert.equal(reconciliations.length, 6);
+  assert.equal(events.filter(event => event.operation === 'signature').length, 6);
   assert.deepEqual(publications.map(item => item.name), PUBLISHABLE_PACKAGES.map(info => info.name));
   assert.ok(publications.every(item => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));
@@ -184,13 +195,33 @@ if (scenario === 'valid-wave' || scenario === 'notes-exact') {
   assert.equal(attempts.length, 0);
   assert.equal(publications.length, 0);
   assert.equal(reconciliations.length, 0);
+} else if (scenario === 'ambiguous-absent') {
+  assert.equal(attempts.length, 1);
+  assert.equal(publications.length, 1);
+  assert.equal(reconciliations.length, 0);
+  assert.equal(events.filter(event => event.operation === 'signature').length, 0);
+  assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length, 73);
+  assert.match(error, /registry result remained absent.*initial publish failure: npm publish failed; code=ECONNRESET/u);
+  assert.doesNotMatch(error, /publication did not start|credential-secret/u);
 } else {
-  // The policy catches callback errors and reconciles absence; its diagnostics
-  // and retry latency are inherited and deliberately outside this regression.
   assert.equal(attempts.length, 0, JSON.stringify(events));
   assert.equal(publications.length, 0, JSON.stringify(events));
   assert.equal(reconciliations.length, 0);
-  assert.match(error, /registry result remained absent/u);
-  assert.ok(events.some(event => event.operation === (scenario === 'digest-mismatch' ? 'archive-replaced' : 'main-advanced')));
+  assert.equal(events.filter(event => event.operation === 'signature').length, 0);
+  const authorizationIndex = events.findIndex(event => event.operation === 'authorize');
+  assert.ok(authorizationIndex >= 0);
+  assert.equal(events.slice(authorizationIndex).filter(event => event.operation === 'inspect').length, 0);
+  assert.match(error, /initial publish failure: publish prerequisite failed before npm invocation.*; publication did not start$/u);
+  assert.doesNotMatch(error, /registry result remained|credential-secret/u);
+  if (scenario === 'digest-mismatch') {
+    const replacement = events.find(event => event.operation === 'archive-replaced');
+    assert.ok(replacement);
+    assert.ok(error.endsWith(`: Verified package archive digest changed: ${replacement.archivePath}.; publication did not start`));
+  } else if (scenario === 'advance-after-authorization') {
+    assert.ok(events.some(event => event.operation === 'main-advanced'));
+    assert.match(error, /Ordered publishing refused because protected main advanced beyond this run\./u);
+  } else {
+    assert.match(error, /before npm invocation; publication did not start$/u);
+  }
 }
 process.stdout.write(JSON.stringify({ scenario, error, events }) + '\n');

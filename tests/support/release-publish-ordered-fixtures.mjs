@@ -117,6 +117,10 @@ function publishedState(...values) {
 function harness(initial = {}) {
   const calls = [];
   const states = new Map(Object.entries(initial));
+  const resolveState = async (value) => {
+    const state = states.get(value.name);
+    return typeof state === "function" ? await state(value) : (state ?? { status: "absent" });
+  };
   return {
     authorizePublish: (value) => {
       calls.push(`authorize:${value.name}`);
@@ -125,8 +129,7 @@ function harness(initial = {}) {
     states,
     inspect: async (value) => {
       calls.push(`inspect:${value.name}`);
-      const state = states.get(value.name);
-      return typeof state === "function" ? await state(value) : (state ?? { status: "absent" });
+      return await resolveState(value);
     },
     publish: async (value, tag) => {
       calls.push(`publish:${value.name}:${tag}`);
@@ -137,7 +140,11 @@ function harness(initial = {}) {
     reconcileRelease: async (value) => calls.push(`release:${value.name}`),
     verifySignature: async (value) => {
       calls.push(`signature:${value.name}`);
-      return structuredClone(states.get(value.name).provenance);
+      const state = await resolveState(value);
+      if (state?.status !== "present") {
+        throw new Error(`Signature verification requires a present snapshot for ${value.name}.`);
+      }
+      return structuredClone(state.provenance);
     },
   };
 }

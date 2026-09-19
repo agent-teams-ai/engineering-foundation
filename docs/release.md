@@ -408,7 +408,9 @@ or process error codes, numeric exit status and known signals; raw stdout,
 stderr and exception messages are omitted because they may contain credentials.
 Local npm refusals (`ENEEDAUTH`, `EUSAGE`, `EPRIVATE`), failure to spawn npm
 (`ENOENT` or `EACCES` with no child PID), and failed archive/live-main checks
-before invocation stop immediately. Authorization, permission and provenance
+before invocation stop immediately. These prerequisite failures retain their known
+archive-verification or protected-main diagnostic; arbitrary provider exception
+text remains omitted. Authorization, permission and provenance
 configuration should be investigated using that initial diagnostic.
 Other failures, including HTTP errors, conflicts, timeouts, signals and unknown
 errors, retain the existing 73-observation bound with five-second intervals.

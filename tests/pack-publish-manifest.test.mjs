@@ -177,7 +177,8 @@ test("release and registry targets invoke the concrete qualified pack gate", asy
 });
 
 for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authorization",
-  "notes-exact", "notes-prefix", "notes-level-three", "notes-empty"]) {
+  "notes-exact", "notes-prefix", "notes-level-three", "notes-empty",
+  "prerequisite-secret", "ambiguous-absent", "lost-response"]) {
   for (const eol of ["lf", "crlf"]) {
     test(`actual release runtime closes archive authorization: ${scenario} (${eol})`, () => {
       // Isolate module hooks, subprocess/fetch stubs, and accelerated retry timers.
@@ -186,6 +187,19 @@ for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authoriz
       ], { encoding: "utf8", timeout: 30_000 });
       assert.ifError(result.error);
       assert.equal(result.status, 0, result.stdout + result.stderr);
+      assert.doesNotMatch(result.stdout + result.stderr, /credential-secret/u);
+      const evidence = JSON.parse(result.stdout.trim().split("\n").at(-1));
+      assert.equal(evidence.scenario, scenario);
+      if (["digest-mismatch", "advance-after-authorization", "prerequisite-secret"].includes(scenario)) {
+        assert.match(evidence.error, /publication did not start$/u);
+        assert.equal(result.stderr.trim(), evidence.error.replace(/^Ordered release refused: /u, "")
+          .replace(/; publication did not start$/u, ""));
+        assert.doesNotMatch(result.stdout, /New tag:/u);
+      }
+      if (["ambiguous-absent", "lost-response"].includes(scenario)) {
+        assert.match(result.stderr, /initial publish failure: npm publish failed; code=ECONNRESET/u);
+        assert.equal(result.stderr.trim().split("\n").length, scenario === "lost-response" ? 6 : 1);
+      }
     });
   }
 }

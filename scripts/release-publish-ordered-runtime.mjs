@@ -414,12 +414,22 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
         try {
           await readVerifiedArchive(artifact.archivePath, artifact.sha256);
           assertLiveMainHead(repository, source.commit);
-        } catch {
-          throw Object.assign(new Error("publish prerequisite failed before npm invocation"), {
-            publishFailure: {
-              diagnostic: "publish prerequisite failed before npm invocation",
-              notStarted: true,
-            },
+        } catch (error) {
+          // Retain only diagnostics constructed by the prerequisite checks, never
+          // arbitrary filesystem/provider exception text or subprocess output.
+          const reasons = [
+            "Ordered publishing refused because protected main advanced beyond this run.",
+            `Verified package archive digest changed: ${artifact.archivePath}.`,
+            `Verified package archive was replaced by a symlink: ${artifact.archivePath}.`,
+            `Package archive is not a bounded regular file: ${artifact.archivePath}.`,
+            `Package archive changed before verification: ${artifact.archivePath}.`,
+            `Package archive changed during verification: ${artifact.archivePath}.`,
+          ];
+          const reason = reasons.find((message) => message === error?.message);
+          const diagnostic = "publish prerequisite failed before npm invocation" +
+            (reason === undefined ? "" : `: ${reason}`);
+          throw Object.assign(new Error(diagnostic), {
+            publishFailure: { diagnostic, notStarted: true },
           });
         }
         publishNpmArtifact(artifact, tag, { cwd });

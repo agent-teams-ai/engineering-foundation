@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { readQualifiedReleaseArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
+import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 import { packAndInspectArtifact, snapshotVerifiedArtifact } from "../scripts/pack-artifact-e2e.mjs";
 import { canonicalPublishManifest, npmPackManifest } from "../scripts/pack-artifact-stage-support.mjs";
 import { createPackFixture, qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
@@ -198,7 +199,7 @@ for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authoriz
       }
       if (["ambiguous-absent", "lost-response"].includes(scenario)) {
         assert.match(result.stderr, /initial publish failure: npm publish failed; code=ECONNRESET/u);
-        assert.equal(result.stderr.trim().split("\n").length, scenario === "lost-response" ? 6 : 1);
+        assert.equal(result.stderr.trim().split("\n").length, scenario === "lost-response" ? PUBLISHABLE_PACKAGES.length : 1);
       }
     });
   }

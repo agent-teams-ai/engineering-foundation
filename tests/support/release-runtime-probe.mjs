@@ -7,6 +7,8 @@ import { registerHooks, syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { REGISTRY_OBSERVATION_ATTEMPTS } from '../../scripts/release-publish-ordered.mjs';
+
 const scenario = process.argv[2];
 const changelogEol = process.argv[3] ?? 'lf';
 assert.ok(['lf', 'crlf'].includes(changelogEol));
@@ -35,7 +37,7 @@ const versions = new Map(packages.map(info => [info.name, info.version]));
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
-// Preserve all 73 observations; accelerate only the inherited five-second delay.
+// Preserve all registry observations; accelerate only the inherited five-second delay.
 globalThis.setTimeout = (callback, milliseconds, ...args) => originalTimeout(callback, milliseconds === 5000 ? 0 : milliseconds, ...args);
 registerHooks({ resolve(specifier, context, next) {
   const fromRuntime = context.parentURL === pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')).href;
@@ -200,8 +202,8 @@ if (scenario === 'valid-wave' || scenario === 'notes-exact' || scenario === 'los
   assert.equal(publications.length, 1);
   assert.equal(reconciliations.length, 0);
   assert.equal(events.filter(event => event.operation === 'signature').length, 0);
-  assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length, 73);
-  assert.match(error, /registry result remained absent.*initial publish failure: npm publish failed; code=ECONNRESET/u);
+  assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length, REGISTRY_OBSERVATION_ATTEMPTS);
+  assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
   assert.doesNotMatch(error, /publication did not start|credential-secret/u);
 } else {
   assert.equal(attempts.length, 0, JSON.stringify(events));

@@ -141,7 +141,7 @@ async function publishOrReuse(options) {
     return await observeExact(options);
   } catch (error) {
     if (initialFailure !== undefined) {
-      fail(`${error.message}; initial publish failure: ${initialFailure}`);
+      fail(`${error.message.replace(/^Ordered release refused: /u, "")}; initial publish failure: ${initialFailure}`);
     }
     throw error;
   }

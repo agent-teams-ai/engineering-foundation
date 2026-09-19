@@ -42,7 +42,7 @@ function inspectArchive(input, bytes) {
   }
   const files = new Map();
   const identities = new Map();
-  for (const entry of inspectCompressedTarArchive(bytes).entries) {
+  for (const entry of inspectCompressedTarArchive(bytes, input.packageName).entries) {
     if (!entry.name.startsWith("package/") || !["0", "5"].includes(entry.type)) {
       throw new Error(`Initial artifact contains a non-package or special member: ${entry.name}.`);
     }

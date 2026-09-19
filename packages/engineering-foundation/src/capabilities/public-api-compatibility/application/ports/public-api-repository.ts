@@ -5,6 +5,18 @@ import type {
 } from "../model/public-api.js";
 
 export interface PublicApiRepository {
+  describeReleasedBaselineWrite(
+    consumerRoot: string,
+    policy: PublicApiPackagePolicy,
+    snapshot: PublicApiSnapshot,
+    mode: "create" | "replace"
+  ): Promise<{
+    readonly destination: string;
+    readonly operation: "create" | "replace";
+    readonly preimageDigest: `sha256:${string}` | null;
+    readonly proposedDigest: `sha256:${string}`;
+  }>;
+
   readReleasedBaseline(
     consumerRoot: string,
     policy: PublicApiPackagePolicy,

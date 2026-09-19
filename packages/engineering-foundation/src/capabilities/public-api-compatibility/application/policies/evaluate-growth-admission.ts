@@ -16,7 +16,7 @@ function normalizeGrowthDecision(value: unknown): GrowthDecision {
     coordinates: growthUniqueSorted(value.coordinates, growthCanonicalJson),
     consumerEvidenceRefs: growthUniqueSorted(value.consumerEvidenceRefs, growthCanonicalJson) };
 }
-export function growthDecisionDigest(decision: GrowthDecision, fingerprint: ChangeFingerprint): GrowthDigest {
+export function growthDecisionDigest(decision: unknown, fingerprint: ChangeFingerprint): GrowthDigest {
   return hashGrowthPayload({ domain: "foundation:sdk-growth:decision:1", payload: normalizeGrowthDecision(decision) }, fingerprint);
 }
 function validateTransitions(transitions: readonly GrowthTransition[], fingerprint: ChangeFingerprint): readonly GrowthTransition[] {

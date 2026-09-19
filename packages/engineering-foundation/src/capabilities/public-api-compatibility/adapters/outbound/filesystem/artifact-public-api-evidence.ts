@@ -1,11 +1,14 @@
 import { parseStrictJson } from "@agent-teams/repository-mutation/serialization";
+import { createHash } from "node:crypto";
 import { assertNotCancelled, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiRepositoryEvidence } from "../../../application/ports/public-api-evidence.js";
-import type { PublicApiArtifactSnapshot, PublicApiPackagePolicy, PublicApiSnapshot } from "../../../application/model/public-api.js";
+import { publicApiArtifactBaselineAnchorPath, type PublicApiArtifactSnapshot, type PublicApiPackagePolicy, type PublicApiSnapshot } from "../../../application/model/public-api.js";
 import { artifactApiProjection } from "../../../application/policies/artifact-api-projection.js";
 import type { PublicApiRepository } from "../../../application/ports/public-api-repository.js";
 import type { PublicApiExtractor } from "../../../application/ports/public-api-extractor.js";
 import { readArtifactBaselineBytes, mapReleasedArtifactBaseline, writeArtifactBaseline } from "./public-api-artifact-baseline.js";
+
+const sha256 = (bytes: Uint8Array) => `sha256:${createHash("sha256").update(bytes).digest("hex")}` as const;
 
 /** Artifact records use the same release policy, with their own replay/version identity. */
 export class ArtifactPublicApiEvidence implements PublicApiRepository, PublicApiExtractor {
@@ -62,5 +65,17 @@ export class ArtifactPublicApiEvidence implements PublicApiRepository, PublicApi
     if (mode === "replace" && expectedBytes === undefined) { throw new Error("Artifact baseline must be observed before promotion."); }
     await writeArtifactBaseline({ root, policy, snapshot: current, mode,
       ...(expectedBytes === undefined ? {} : { expectedBytes }), ...(signal === undefined ? {} : { signal }) }, this.evidence);
+  }
+
+  async describeReleasedBaselineWrite(root: string, policy: PublicApiPackagePolicy, snapshot: PublicApiSnapshot, mode: "create" | "replace") {
+    const current = this.snapshot(policy);
+    if (JSON.stringify(snapshot) !== JSON.stringify(artifactApiProjection(current))) { throw new Error("Artifact promotion plan must use its inspected snapshot."); }
+    const before = this.baselineBytes.get(`${root}/${policy.packageName}`);
+    if ((mode === "replace" && before === undefined) || (mode === "create" && before !== undefined)) {
+      throw new Error("Artifact promotion preimage is unavailable or contradicts the operation.");
+    }
+    return { destination: publicApiArtifactBaselineAnchorPath(policy.packageName), operation: mode,
+      preimageDigest: before === undefined ? null : sha256(before),
+      proposedDigest: sha256(Buffer.from(`${JSON.stringify(current, null, 2)}\n`, "utf8")) };
   }
 }

@@ -9,7 +9,8 @@ export interface GrowthReleasedPackage {
   readonly releaseEvidence: GrowthEvidence<PackageReleaseEvidence>;
   readonly evidence:
     | { readonly kind: "released"; readonly typed: GrowthEvidence<PublicApiSnapshot>; readonly artifact: GrowthEvidence<PublicApiSnapshot> }
-    | { readonly kind: "initial-unreleased"; readonly history: GrowthEvidence<GrowthDigest> };
+    | { readonly kind: "initial-unreleased"; readonly history: GrowthEvidence<GrowthDigest>;
+        readonly qualification?: { readonly receiptDigest: GrowthDigest } };
 }
 
 /** Internal context from a trusted input boundary. No candidate observation or

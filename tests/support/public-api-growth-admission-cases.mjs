@@ -273,6 +273,7 @@ export function registerGrowthAdmissionCases() {
    ['candidate authority', f => { f.context.authority={status:'unverified',reasons:['candidate-input']}; }],
    ['missing initial history', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:{status:'unavailable',reasons:['missing-history']}}; }],
    ['unqualified initial history digest', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:available(digest)}; }],
+   ['mismatched initial history qualification', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:available(digest),qualification:{receiptDigest:otherDigest}}; }],
    ['unavailable artifact branch', f => { f.execution.compatibilitySnapshots[0].artifact.snapshot={status:'unavailable',reasons:['lost-archive']}; }]
   ]) { test(`${name} remains incomplete`, async () => {
    const f=useCaseFixture(); mutate(f);

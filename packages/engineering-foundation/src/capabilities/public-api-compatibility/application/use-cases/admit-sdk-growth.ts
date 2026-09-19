@@ -86,7 +86,8 @@ export async function admitSdkGrowth(input: {
       findings: observedComparison.status === "complete" ? observedComparison.transitions : observedComparison.findings
     };
     const compatibility = evaluateGrowthReleaseCompatibility({ current: execution.compatibilitySnapshots, released: context.released,
-      extractorVersion: invocation.tool.extractorVersion, acceptedDecisions: context.acceptedBreakingDecisions }, dependencies.fingerprint);
+      extractorVersion: invocation.tool.extractorVersion, acceptedDecisions: context.acceptedBreakingDecisions,
+      ...(context.authority.status === "verified" ? { authorityReceiptDigest: context.authority.receiptDigest } : {}) }, dependencies.fingerprint);
     const ownerEvidence = context.acceptedBreakingDecisions.growthDecisionAuthority;
     const authority = context.authority.status === "verified" && ownerEvidence?.status === "available" ? ownerEvidence.value : [];
     const admission = evaluateGrowthAdmission({ comparison, decisions: context.decisions, authority, compatibility: compatibility.status }, dependencies.fingerprint);

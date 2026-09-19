@@ -45,7 +45,7 @@ export async function assertInstalledQualityArtifact({ consumerRoot, artifact })
   const bytes = await readRegularArchive(artifact.archivePath);
   assert.equal(sha256(bytes), artifact.sha256, "Packed quality archive identity changed");
   const installed = await realpath(join(consumerRoot, "node_modules/@agent-teams/engineering-foundation"));
-  const entries = inspectCompressedTarArchive(bytes).entries;
+  const entries = inspectCompressedTarArchive(bytes, artifact.packageName).entries;
   for (const entry of entries) {
     if (entry.type !== "0") { continue; }
     assert.ok(entry.name.startsWith("package/"));

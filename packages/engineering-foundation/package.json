@@ -28,6 +28,10 @@
       "types": "./dist/scaffolding/index.d.ts",
       "import": "./dist/scaffolding/index.js"
     },
+    "./sdk-growth-authority": {
+      "types": "./dist/sdk-growth-authority.d.ts",
+      "import": "./dist/sdk-growth-authority.js"
+    },
     "./schemas/*": "./schemas/*",
     "./presets/*": "./presets/*",
     "./package.json": "./package.json"

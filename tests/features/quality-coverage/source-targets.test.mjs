@@ -7,7 +7,8 @@ const topology = { productionRoots: ["packages"], applicationRoots: ["apps"], pr
 test("quality source targets retain supported files inside production source roots", () => {
   assert.deepEqual(qualitySourceTargets([
     "packages/core/src/z.mjs", "packages/core/src/a.ts", "apps/web/src/main.d.mts", "packages/core/src/readme.md"
-  ], topology, { boundaries: [] }), ["apps/web/src/main.d.mts", "packages/core/src/a.ts", "packages/core/src/z.mjs"]);
+  ], { ...topology, toolingFiles: ["packages/core/src/z.mjs"] }, { boundaries: [] }),
+  ["apps/web/src/main.d.mts", "packages/core/src/a.ts", "packages/core/src/z.mjs"]);
 });
 
 test("quality source targets reject non-source files and paths outside production roots", () => {

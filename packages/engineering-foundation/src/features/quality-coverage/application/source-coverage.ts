@@ -65,9 +65,10 @@ export function qualitySourceLanguage(path: string): "typescript" | "javascript"
 export function qualitySourceTargets(paths: readonly string[], topology: QualityTopology, authority: QualitySourceAuthority): readonly string[] {
   return [...new Set(paths)].toSorted().filter((path) => {
     if (qualitySourceLanguage(path) !== "typescript" && qualitySourceLanguage(path) !== "javascript") { return false; }
-    if (topology.toolingFiles?.includes(path) === true || topology.excludedRoots.some((root) => inside(path, root))) { return false; }
+    if (topology.excludedRoots.some((root) => inside(path, root))) { return false; }
     const production = (topology.productionSourceRoots ?? [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots])
       .some((root) => inside(path, root));
+    if (!production && topology.toolingFiles?.includes(path) === true) { return false; }
     const runtimeOwned = authority.boundaries.some(({ roots, dependencyMode }) => dependencyMode === "runtime" && roots.some((root) => inside(path, root)));
     return production || runtimeOwned;
   });

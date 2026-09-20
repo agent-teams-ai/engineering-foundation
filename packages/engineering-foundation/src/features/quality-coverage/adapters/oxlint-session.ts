@@ -68,7 +68,9 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
     const results: T[] = [];
     for (const batch of sourceBatches(input.sourceRoots)) {
       assertNotCancelled(signal);
-      results.push(await execute(batch, signal));
+      const result = await execute(batch, signal);
+      assertNotCancelled(signal);
+      results.push(result);
     }
     return results;
   };
@@ -86,8 +88,10 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
       const root = await realpath(input.consumerRoot);
       const paths = new Set<string>();
       for (const project of input.projects) {
+        assertNotCancelled(signal);
         const result = await run([input.compilerEntrypoint, "--project", project,
           "--noEmit", "--incremental", "false", "--composite", "false", "--listFiles", "--pretty", "false"], signal);
+        assertNotCancelled(signal);
         assertToolSuccess(result);
         for (const line of result.stdout.trim().split(/\r?\n/u)) {
           if (!isAbsolute(line)) { throw new Error("Compiler returned malformed project evidence."); }

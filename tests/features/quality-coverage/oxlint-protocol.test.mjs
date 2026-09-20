@@ -108,17 +108,37 @@ test("large explicit source universes use bounded Oxlint invocations and aggrega
   assert.ok(requests.some(({ args }) => !args.includes("--debug")));
 });
 
-test("batch execution checks cancellation before starting the next process", async () => {
-  const sourceRoots = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
-  const controller = new AbortController();
-  let invocations = 0;
-  const session = createOxlintSession({ ...input, sourceRoots }, { run: async (request) => {
-    invocations += 1;
-    controller.abort();
-    return result(`${sourceArguments(request.args).join("\n")}\n`);
-  } });
-  await assert.rejects(session.select(controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
-  assert.equal(invocations, 1);
+test("batch execution observes cancellation after the final result and before another process", async () => {
+  const many = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
+  for (const sourceRoots of [[source], many]) {
+    const controller = new AbortController();
+    let invocations = 0;
+    const session = createOxlintSession({ ...input, sourceRoots }, { run: async (request) => {
+      invocations += 1;
+      controller.abort();
+      return result(`${sourceArguments(request.args).join("\n")}\n`);
+    } });
+    await assert.rejects(session.select(controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+    assert.equal(invocations, 1);
+  }
+});
+
+test("typed execution observes cancellation before and after a compiler process", async (t) => {
+  const { root } = await compilerFixture(t);
+  for (const abortBeforeRun of [true, false]) {
+    const controller = new AbortController();
+    let invocations = 0;
+    if (abortBeforeRun) { controller.abort(); }
+    const session = createOxlintSession({ ...input, consumerRoot: root, projects: ["one.json", "two.json"] }, {
+      run: async () => {
+        invocations += 1;
+        controller.abort();
+        return result(`${join(root, source)}\n`);
+      }
+    });
+    await assert.rejects(session.typeContext(controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+    assert.equal(invocations, abortBeforeRun ? 0 : 1);
+  }
 });
 
 test("good lint counterpart passes while empty or contradictory execution evidence rejects", async () => {

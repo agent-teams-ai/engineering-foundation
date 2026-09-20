@@ -29,8 +29,12 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
     ...(input.environment === undefined ? {} : { environment: input.environment }),
     timeoutMs: 120_000, strictUtf8: true, ...(signal === undefined ? {} : { signal })
   });
+  const assertExplicitTargets = (): void => {
+    if (input.sourceRoots.length === 0) { throw new Error("Quality tool received no explicit source targets; refusing cwd scan."); }
+  };
   return {
     async select(signal) {
+      assertExplicitTargets();
       const result = await run([...lintArgs, "--debug", "files", ...input.sourceRoots], signal);
       assertToolSuccess(result);
       return parseOxlintSelection(result.stdout);
@@ -54,6 +58,7 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
       return [...paths].toSorted();
     },
     async lint(signal) {
+      assertExplicitTargets();
       const result = await run([...lintArgs, ...input.sourceRoots], signal);
       if (result.signal !== null || result.stderr.trim().length !== 0) {
         throw new Error("Oxlint did not produce valid lint evidence.");

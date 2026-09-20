@@ -140,3 +140,11 @@ test("executor failures and cancellation retain their identity and signal", asyn
   } });
   await assert.rejects(session.select(controller.signal), (error) => error === failure);
 });
+
+test("empty explicit targets fail closed without invoking Oxlint", async () => {
+  let invoked = false;
+  const session = createOxlintSession({ ...input, sourceRoots: [] }, { run: async () => { invoked = true; return result(envelope()); } });
+  await assert.rejects(session.select(), /no explicit source targets/u);
+  await assert.rejects(session.lint(), /no explicit source targets/u);
+  assert.equal(invoked, false);
+});

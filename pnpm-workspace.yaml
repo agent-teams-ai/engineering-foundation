@@ -45,8 +45,8 @@ catalogs:
   parser-oracle:
     typescript: 6.0.3
 
-minimumReleaseAge: 1440
-minimumReleaseAgeStrict: true
+minimumReleaseAge: 0
+
 allowBuilds:
   "@ast-grep/cli": true
   esbuild: false # Use the lockfile-pinned optional platform binary, without postinstall downloads.

@@ -128,9 +128,11 @@ test("nested test and excluded roots take precedence over production roots", () 
   const excludedRoot = `${sourceRoot}/generated`;
   const nestedTest = `${nestedTestRoot}/fixture.test.ts`;
   const excluded = `${excludedRoot}/generated.ts`;
+  const excludedTestRoot = `${nestedTestRoot}/generated`;
+  const excludedTest = `${excludedTestRoot}/fixture.test.ts`;
   const classified = classifyQualityCensus({
-    sourcePaths: [main, nestedTest, excluded], filePaths: [main, nestedTest, excluded], manifestPaths: [],
-    topology: { ...topology, excludedRoots: [excludedRoot],
+    sourcePaths: [main, nestedTest, excluded, excludedTest], filePaths: [main, nestedTest, excluded, excludedTest], manifestPaths: [],
+    topology: { ...topology, excludedRoots: [excludedRoot, excludedTestRoot],
       modules: [{ ...topology.modules[0], testRoots: [nestedTestRoot] }] },
     authority, suppressionRoots: [sourceRoot]
   });

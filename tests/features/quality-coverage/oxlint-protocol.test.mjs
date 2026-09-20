@@ -211,3 +211,16 @@ test("empty explicit targets fail closed without invoking Oxlint", async () => {
   await assert.rejects(session.lint(), /no explicit source targets/u);
   assert.equal(invoked, false);
 });
+
+test("cancellation precedes oversized source validation for selection and lint", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let invocations = 0;
+  const session = createOxlintSession({ ...input, sourceRoots: [`packages/${"x".repeat(8_000)}.ts`] }, {
+    run: async () => { invocations += 1; return result(""); }
+  });
+  for (const operation of ["select", "lint"]) {
+    await assert.rejects(session[operation](controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+  }
+  assert.equal(invocations, 0);
+});

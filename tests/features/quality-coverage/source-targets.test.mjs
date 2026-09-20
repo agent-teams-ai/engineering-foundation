@@ -22,3 +22,12 @@ test("quality source targets retain runtime-owned adapters outside source roots"
   const authority = { boundaries: [{ id: "adapter", dependencyMode: "runtime", roots: ["adapters"] }] };
   assert.deepEqual(qualitySourceTargets(["adapters/owned.mjs", "adapters/tool.mjs", "scripts/build.mjs"], { ...topology, toolingFiles: ["adapters/tool.mjs"] }, authority), ["adapters/owned.mjs"]);
 });
+
+test("raw census targets exclude nested tests even with runtime ownership", () => {
+  const roots = { ...topology, excludedRoots: ["packages/core/src/tests/generated"],
+    modules: [{ root: "packages/core", sourceRoot: "packages/core/src", testRoots: ["packages/core/src/tests"] }] };
+  const authority = { boundaries: [{ id: "core", dependencyMode: "runtime", roots: ["packages/core/src"] }] };
+  assert.deepEqual(qualitySourceTargets([
+    "packages/core/src/main.ts", "packages/core/src/tests/fixture.ts", "packages/core/src/tests/generated/fixture.ts"
+  ], roots, authority), ["packages/core/src/main.ts"]);
+});

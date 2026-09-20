@@ -66,6 +66,7 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
     signal: AbortSignal | undefined,
     execute: (paths: readonly string[], signal?: AbortSignal) => Promise<T>
   ): Promise<readonly T[]> => {
+    assertNotCancelled(signal);
     const results: T[] = [];
     for (const batch of sourceBatches(input.sourceRoots)) {
       assertNotCancelled(signal);

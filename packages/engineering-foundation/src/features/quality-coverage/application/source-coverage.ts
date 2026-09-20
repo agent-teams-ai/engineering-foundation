@@ -66,7 +66,8 @@ export function qualitySourceLanguage(path: string): "typescript" | "javascript"
 export function qualitySourceTargets(paths: readonly string[], topology: QualityTopology, authority: QualitySourceAuthority): readonly string[] {
   return [...new Set(paths)].toSorted().filter((path) => {
     if (qualitySourceLanguage(path) !== "typescript" && qualitySourceLanguage(path) !== "javascript") { return false; }
-    if (topology.excludedRoots.some((root) => inside(path, root))) { return false; }
+    if (topology.excludedRoots.some((root) => inside(path, root)) ||
+      topology.modules.some(({ testRoots }) => testRoots.some((root) => inside(path, root)))) { return false; }
     const production = (topology.productionSourceRoots ?? [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots])
       .some((root) => inside(path, root));
     if (!production && topology.toolingFiles?.includes(path) === true) { return false; }

@@ -15,10 +15,13 @@ export function classifyQualityCensus(input: {
   readonly suppressionRoots: readonly string[];
 }): { readonly sources: readonly QualitySource[]; readonly compilerConfigPaths: readonly string[]; readonly testPaths: readonly string[]; readonly unclassifiedPackages: readonly string[] } {
   const productionRoots = input.topology.productionSourceRoots ?? [...input.topology.modules.map(({ sourceRoot }) => sourceRoot), ...input.topology.applicationRoots];
+  const censusRoots = [...input.topology.productionRoots, ...input.topology.applicationRoots];
   const testRoots = input.topology.modules.flatMap((module) => module.testRoots);
   const nonProductionRoots = [...testRoots, ...input.topology.excludedRoots];
   const unclassifiedPackages = input.manifestPaths.filter((path) =>
     path !== "package.json" &&
+    censusRoots.some((root) => inside(path, root)) &&
+    !input.topology.excludedRoots.some((root) => inside(path, root)) &&
     !input.topology.modules.some(({ root }) => path === `${root}/package.json`) &&
     !testRoots.some((root) => inside(path, root))
   );
@@ -33,7 +36,7 @@ export function classifyQualityCensus(input: {
   };
   const sources = candidates.filter((path) =>
     (productionRoots.some((root) => inside(path, root)) ||
-      (!nonProductionRoots.some((root) => inside(path, root)) &&
+      (censusRoots.some((root) => inside(path, root)) && !nonProductionRoots.some((root) => inside(path, root)) &&
         input.topology.toolingFiles?.includes(path) !== true && !isDevelopmentTooling(path)))
   ).map((path) => ({
     path,
@@ -58,10 +61,7 @@ export function qualitySourceLanguage(path: string): "typescript" | "javascript"
 
 /** Select lint-applicable sources from the authoritative production census. */
 export function qualitySourceTargets(paths: readonly string[], topology: QualityTopology, authority: QualitySourceAuthority): readonly string[] {
-  const { sources } = classifyQualityCensus({
-    sourcePaths: paths, filePaths: [], manifestPaths: [], topology, authority, suppressionRoots: []
-  });
-  return sources.map(({ path }) => path).filter((path) => {
+  return [...new Set(paths)].toSorted().filter((path) => {
     if (qualitySourceLanguage(path) !== "typescript" && qualitySourceLanguage(path) !== "javascript") { return false; }
     if (topology.toolingFiles?.includes(path) === true || topology.excludedRoots.some((root) => inside(path, root))) { return false; }
     const production = (topology.productionSourceRoots ?? [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots])

@@ -123,6 +123,21 @@ test("runtime-owned adapters outside production roots remain in the authoritativ
   assert.deepEqual(classified.sources, [{ path, owners: ["runtime-adapter"], suppressionCovered: true }]);
 });
 
+test("nested test and excluded roots take precedence over production roots", () => {
+  const nestedTestRoot = `${sourceRoot}/tests`;
+  const excludedRoot = `${sourceRoot}/generated`;
+  const nestedTest = `${nestedTestRoot}/fixture.test.ts`;
+  const excluded = `${excludedRoot}/generated.ts`;
+  const classified = classifyQualityCensus({
+    sourcePaths: [main, nestedTest, excluded], filePaths: [main, nestedTest, excluded], manifestPaths: [],
+    topology: { ...topology, excludedRoots: [excludedRoot],
+      modules: [{ ...topology.modules[0], testRoots: [nestedTestRoot] }] },
+    authority, suppressionRoots: [sourceRoot]
+  });
+  assert.deepEqual(classified.sources.map(({ path }) => path), [main]);
+  assert.deepEqual(classified.testPaths, [nestedTest]);
+});
+
 test("nested application packages use exact production sources without promoting tests or scripts", async (t) => {
   const { root, put } = await fixture(t);
   const appRoot = "apps/app";

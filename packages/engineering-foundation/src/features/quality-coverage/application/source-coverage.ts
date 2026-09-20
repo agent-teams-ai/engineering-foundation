@@ -37,8 +37,9 @@ export function classifyQualityCensus(input: {
   const isRuntimeOwned = (path: string): boolean => input.authority.boundaries.some(({ roots, dependencyMode }) =>
     dependencyMode === "runtime" && roots.some((root) => inside(path, root)));
   const sources = candidates.filter((path) =>
+    !nonProductionRoots.some((root) => inside(path, root)) &&
     (productionRoots.some((root) => inside(path, root)) ||
-      (!nonProductionRoots.some((root) => inside(path, root)) && input.topology.toolingFiles?.includes(path) !== true &&
+      (input.topology.toolingFiles?.includes(path) !== true &&
         ((censusRoots.some((root) => inside(path, root)) && !isDevelopmentTooling(path)) || isRuntimeOwned(path))))
   ).map((path) => ({
     path,
@@ -47,8 +48,8 @@ export function classifyQualityCensus(input: {
       : [],
     suppressionCovered: input.suppressionRoots.some((root) => inside(path, root))
   }));
-  const testPaths = input.filePaths.filter((path) => !productionRoots.some((root) => inside(path, root)) &&
-    testRoots.some((root) => inside(path, root)));
+  const testPaths = input.filePaths.filter((path) => testRoots.some((root) => inside(path, root)) &&
+    !input.topology.excludedRoots.some((root) => inside(path, root)));
   const compilerConfigPaths = input.filePaths.filter((path) => compilerConfigs.has(path) && !input.sourcePaths.includes(path));
   return { sources, compilerConfigPaths, testPaths, unclassifiedPackages };
 }

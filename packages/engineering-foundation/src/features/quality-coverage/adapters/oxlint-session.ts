@@ -30,7 +30,9 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
     timeoutMs: 120_000, strictUtf8: true, ...(signal === undefined ? {} : { signal })
   });
   const assertExplicitTargets = (): void => {
-    if (input.sourceRoots.length === 0) { throw new Error("Quality tool received no explicit source targets; refusing cwd scan."); }
+    if (input.sourceRoots.length === 0) {
+      throw new Error("Quality tool received no explicit source targets; refusing cwd scan.");
+    }
   };
   return {
     async select(signal) {

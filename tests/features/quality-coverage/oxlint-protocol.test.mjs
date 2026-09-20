@@ -18,6 +18,7 @@ const input = {
 const envelope = (diagnostics = []) => JSON.stringify({ diagnostics, number_of_files: 1 });
 const finding = { code: "typescript(no-floating-promises)", filename: source, severity: "error" };
 const result = (stdout, exitCode = 0, stderr = "") => ({ stdout, exitCode, stderr, signal: null });
+const sourceArguments = (args) => args.slice(args.indexOf(args.includes("--debug") ? "files" : "json") + 1);
 
 async function compilerFixture(t) {
   const temporary = await mkdtemp(join(tmpdir(), "quality compiler alias "));
@@ -85,6 +86,39 @@ test("selection and typed execution share consumer cwd, config, roots and protec
     assert.deepEqual(request.args.slice(-1), input.sourceRoots);
   }
   assert.deepEqual(requests[0].args.filter((value) => value !== "--debug" && value !== "files"), requests[1].args);
+});
+
+test("large explicit source universes use bounded Oxlint invocations and aggregate evidence", async () => {
+  const sourceRoots = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
+  const requests = [];
+  const executor = { run: async (request) => {
+    requests.push(request);
+    const paths = sourceArguments(request.args);
+    if (request.args.includes("--debug")) { return result(`${paths.join("\n")}\n`); }
+    const findingPath = paths[0];
+    return result(envelope([{ filename: findingPath, code: "typescript(no-floating-promises)", severity: "error" }]), 1);
+  } };
+  const session = createOxlintSession({ ...input, sourceRoots }, executor);
+  assert.deepEqual(await session.select(), sourceRoots.toSorted());
+  const lint = await session.lint();
+  assert.equal(requests.length, 4);
+  assert.equal(lint.files, 2);
+  assert.equal(lint.diagnostics.length, 2);
+  assert.ok(requests.every(({ args }) => sourceArguments(args).join(" ").length <= 8_000));
+  assert.ok(requests.some(({ args }) => !args.includes("--debug")));
+});
+
+test("batch execution checks cancellation before starting the next process", async () => {
+  const sourceRoots = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
+  const controller = new AbortController();
+  let invocations = 0;
+  const session = createOxlintSession({ ...input, sourceRoots }, { run: async (request) => {
+    invocations += 1;
+    controller.abort();
+    return result(`${sourceArguments(request.args).join("\n")}\n`);
+  } });
+  await assert.rejects(session.select(controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+  assert.equal(invocations, 1);
 });
 
 test("good lint counterpart passes while empty or contradictory execution evidence rejects", async () => {

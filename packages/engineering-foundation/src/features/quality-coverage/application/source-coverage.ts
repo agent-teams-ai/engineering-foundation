@@ -34,15 +34,15 @@ export function classifyQualityCensus(input: {
     const owners = input.authority.boundaries.filter(({ roots }) => roots.some((root) => inside(path, root)));
     return owners.length === 1 && owners[0]?.dependencyMode === "development";
   };
+  const isRuntimeOwned = (path: string): boolean => input.authority.boundaries.some(({ roots, dependencyMode }) =>
+    dependencyMode === "runtime" && roots.some((root) => inside(path, root)));
   const sources = candidates.filter((path) =>
     (productionRoots.some((root) => inside(path, root)) ||
-      (censusRoots.some((root) => inside(path, root)) && !nonProductionRoots.some((root) => inside(path, root)) &&
-        input.topology.toolingFiles?.includes(path) !== true && !isDevelopmentTooling(path)))
+      (!nonProductionRoots.some((root) => inside(path, root)) && input.topology.toolingFiles?.includes(path) !== true &&
+        ((censusRoots.some((root) => inside(path, root)) && !isDevelopmentTooling(path)) || isRuntimeOwned(path))))
   ).map((path) => ({
     path,
-    owners: (productionRoots.some((root) => inside(path, root)) || /\.(?:c|h)$/u.test(path) ||
-      input.authority.boundaries.some(({ roots, dependencyMode }) =>
-        dependencyMode === "runtime" && roots.some((root) => inside(path, root))))
+    owners: (productionRoots.some((root) => inside(path, root)) || /\.(?:c|h)$/u.test(path) || isRuntimeOwned(path))
       ? input.authority.boundaries.filter(({ roots }) => roots.some((root) => inside(path, root))).map(({ id }) => id)
       : [],
     suppressionCovered: input.suppressionRoots.some((root) => inside(path, root))

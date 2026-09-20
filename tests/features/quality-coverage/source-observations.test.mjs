@@ -112,6 +112,17 @@ test("development ownership classifies external build tooling without hiding pro
   assert.ok(report.diagnostics.some(({ ruleId, location }) => ruleId === "quality.source-coverage.native-route" && location.path === native));
 });
 
+test("runtime-owned adapters outside production roots remain in the authoritative census", () => {
+  const path = "adapters/runtime/owned.mjs";
+  const classified = classifyQualityCensus({
+    sourcePaths: [path], filePaths: [path], manifestPaths: [], topology,
+    authority: { ...authority, boundaries: [...authority.boundaries,
+      { id: "runtime-adapter", roots: ["adapters/runtime"], dependencyMode: "runtime" }] },
+    suppressionRoots: ["adapters/runtime"]
+  });
+  assert.deepEqual(classified.sources, [{ path, owners: ["runtime-adapter"], suppressionCovered: true }]);
+});
+
 test("nested application packages use exact production sources without promoting tests or scripts", async (t) => {
   const { root, put } = await fixture(t);
   const appRoot = "apps/app";

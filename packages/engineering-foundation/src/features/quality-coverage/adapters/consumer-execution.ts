@@ -19,7 +19,7 @@ export function createQualityToolProvider(input: {
   readonly environment: Readonly<Record<string, string | undefined>>;
 }): QualityToolProvider {
   return {
-    async prepare(consumerRoot, configPath, signal) {
+    async prepare(consumerRoot, configPath, sourcePaths, signal) {
       assertNotCancelled(signal);
       const value = await input.configuration.read(consumerRoot, configPath, "quality-profile", signal);
       await input.configuration.assertProfile(value);
@@ -37,13 +37,7 @@ export function createQualityToolProvider(input: {
         ...(signal === undefined ? {} : { signal })
       });
       assertNotCancelled(signal);
-      const census = await input.ports.census.read({
-        // Discover the complete repository first; only the derived targets below
-        // are bounded to executable production sources for Oxlint.
-        consumerRoot, roots: ["."],
-        ...(signal === undefined ? {} : { signal })
-      });
-      const sourceTargets = qualitySourceTargets(census.sourcePaths, topology, authority);
+      const sourceTargets = qualitySourceTargets(sourcePaths, topology, authority);
       assertNotCancelled(signal);
       return createOxlintSession({
         consumerRoot, ...tools, nodeExecutable: input.nodeExecutable,

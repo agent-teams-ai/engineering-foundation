@@ -31,9 +31,9 @@ export async function checkQualityCoverage(
     const diagnostics = [...evaluateStaticCoverage(observation)];
     if (diagnostics.length > 0) { return report(diagnostics); }
     assertNotCancelled(input.signal);
-    const session = await tools.prepare(input.consumerRoot, input.configPath, input.signal);
     const production = observation.sources.map(({ path }) => path)
       .filter((path) => qualitySourceLanguage(path) === "typescript" || qualitySourceLanguage(path) === "javascript");
+    const session = await tools.prepare(input.consumerRoot, input.configPath, production, input.signal);
     const selected = await session.select(input.signal);
     diagnostics.push(...evaluateSelectedCoverage(production, selected, observation.testPaths));
     assertNotCancelled(input.signal);

@@ -40,7 +40,9 @@ export function classifyQualityCensus(input: {
         input.topology.toolingFiles?.includes(path) !== true && !isDevelopmentTooling(path)))
   ).map((path) => ({
     path,
-    owners: (productionRoots.some((root) => inside(path, root)) || /\.(?:c|h)$/u.test(path))
+    owners: (productionRoots.some((root) => inside(path, root)) || /\.(?:c|h)$/u.test(path) ||
+      input.authority.boundaries.some(({ roots, dependencyMode }) =>
+        dependencyMode === "runtime" && roots.some((root) => inside(path, root))))
       ? input.authority.boundaries.filter(({ roots }) => roots.some((root) => inside(path, root))).map(({ id }) => id)
       : [],
     suppressionCovered: input.suppressionRoots.some((root) => inside(path, root))

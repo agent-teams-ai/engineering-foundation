@@ -86,12 +86,14 @@ test("development ownership classifies external build tooling without hiding pro
     ...input, topology, authority: { ...authority, boundaries }, suppressionRoots: [sourceRoot, scriptsRoot]
   });
   assert.deepEqual(classify([...authority.boundaries, tooling]).sources.map(({ path }) => path), [main]);
-  for (const boundaries of [authority.boundaries,
-    [...authority.boundaries, { id: "tooling", roots: [scriptsRoot] }],
-    [...authority.boundaries, { ...tooling, dependencyMode: "runtime" }]]) {
+  for (const [boundaries, expectedOwners] of [
+    [authority.boundaries, []],
+    [[...authority.boundaries, { id: "tooling", roots: [scriptsRoot] }], []],
+    [[...authority.boundaries, { ...tooling, dependencyMode: "runtime" }], ["tooling"]]
+  ]) {
     const result = classify(boundaries);
     for (const path of scripts) {
-      assert.deepEqual(result.sources.find((source) => source.path === path)?.owners, [], path);
+      assert.deepEqual(result.sources.find((source) => source.path === path)?.owners, expectedOwners, path);
     }
   }
   const ambiguous = classify([...authority.boundaries, tooling,
@@ -510,7 +512,7 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   const nativeScripts = { ...scripts, check: "pnpm product:check && pnpm lint && pnpm native:check",
     lint: "pnpm lint:typed",
     "product:check": "pnpm --filter './packages/**' -r run clean && pnpm product:build && pnpm --filter './packages/**' -r run test",
-    "native:check": `node ${nativeScript}` };
+    "native:check": "node scripts/architecture/../architecture/native-quality.mjs" };
   // Static qualification proves wiring only: this consumer leaf must never execute here.
   await put(nativeScript, "throw new Error('native execution belongs to the consumer gate');\n");
   await put(nativePath, "int helper(void) { return 0; }\n");

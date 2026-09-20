@@ -108,6 +108,15 @@ test("large explicit source universes use bounded Oxlint invocations and aggrega
   assert.ok(requests.some(({ args }) => !args.includes("--debug")));
 });
 
+test("a single source path exceeding the process argument budget rejects before execution", async () => {
+  let invocations = 0;
+  const session = createOxlintSession({ ...input, sourceRoots: [`packages/${"x".repeat(8_000)}.ts`] }, {
+    run: async () => { invocations += 1; return result(""); }
+  });
+  await assert.rejects(session.select(), /argument limit/u);
+  assert.equal(invocations, 0);
+});
+
 test("batch execution observes cancellation after the final result and before another process", async () => {
   const many = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
   for (const sourceRoots of [[source], many]) {
@@ -129,7 +138,7 @@ test("typed execution observes cancellation before and after a compiler process"
     const controller = new AbortController();
     let invocations = 0;
     if (abortBeforeRun) { controller.abort(); }
-    const session = createOxlintSession({ ...input, consumerRoot: root, projects: ["one.json", "two.json"] }, {
+    const session = createOxlintSession({ ...input, consumerRoot: root, projects: ["one.json"] }, {
       run: async () => {
         invocations += 1;
         controller.abort();

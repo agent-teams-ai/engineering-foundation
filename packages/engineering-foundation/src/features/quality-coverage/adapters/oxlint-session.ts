@@ -34,6 +34,7 @@ function sourceBatches(paths: readonly string[]): readonly (readonly string[])[]
   let batch: string[] = [];
   let length = 0;
   for (const path of paths) {
+    if (path.length > MAX_SOURCE_ARGUMENT_LENGTH) { throw new Error("Quality source path exceeds the command argument limit."); }
     const nextLength = length + path.length + (batch.length === 0 ? 0 : 1);
     if (batch.length > 0 && nextLength > MAX_SOURCE_ARGUMENT_LENGTH) {
       batches.push(batch);

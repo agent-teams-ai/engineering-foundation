@@ -1,4 +1,4 @@
-import { relative, resolve, sep } from "node:path";
+import { normalize, relative, resolve, sep } from "node:path";
 import {
   assertNotCancelled, classifyQualityCensus, executesScript, qualitySourceLanguage,
   type QualityCoverageObservation, type QualityCoverageReader,
@@ -18,7 +18,8 @@ function scriptsFrom(value: unknown): Readonly<Record<string, string>> {
 }
 
 function nativeScriptPath(command: string | undefined): string | undefined {
-  return /^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "")?.[1];
+  const path = /^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "")?.[1];
+  return path === undefined ? undefined : normalize(path).split(sep).join("/");
 }
 
 function requiredRoute(

@@ -18,6 +18,6 @@ test("quality source targets reject non-source files and paths outside productio
 });
 
 test("quality source targets retain runtime-owned adapters outside source roots", () => {
-  const authority = { toolingFiles: ["adapters/tool.mjs"], boundaries: [{ id: "adapter", dependencyMode: "runtime", roots: ["adapters"] }] };
+  const authority = { boundaries: [{ id: "adapter", dependencyMode: "runtime", roots: ["adapters"] }] };
   assert.deepEqual(qualitySourceTargets(["adapters/owned.mjs", "adapters/tool.mjs", "scripts/build.mjs"], { ...topology, toolingFiles: ["adapters/tool.mjs"] }, authority), ["adapters/owned.mjs"]);
 });

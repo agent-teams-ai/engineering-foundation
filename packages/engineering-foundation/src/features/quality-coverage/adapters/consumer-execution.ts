@@ -38,7 +38,9 @@ export function createQualityToolProvider(input: {
       });
       assertNotCancelled(signal);
       const census = await input.ports.census.read({
-        consumerRoot, roots: [...topology.productionRoots, ...topology.applicationRoots],
+        // Discover the complete repository first; only the derived targets below
+        // are bounded to executable production sources for Oxlint.
+        consumerRoot, roots: ["."],
         ...(signal === undefined ? {} : { signal })
       });
       const sourceTargets = qualitySourceTargets(census.sourcePaths, topology, authority);

@@ -417,7 +417,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   const staticResult = await invoke(["check", "quality.source-coverage"]);
   assert.equal(staticResult.code, 0, staticResult.stdout || staticResult.stderr);
   assert.equal(JSON.parse(staticResult.stdout).outcome, "passed");
-  const { nativePath, nativeProfile, nativeScripts } = await qualifyNativeRoutes({ root, put, invoke, profile, scripts });
+  const { nativePath, nativeProfile, nativeScript, nativeScripts } = await qualifyNativeRoutes({ root, put, invoke, profile, scripts });
   const strongerConfig = { ...JSON.parse(lintBytes), rules: {
     ...JSON.parse(lintBytes).rules, "typescript/no-unsafe-type-assertion": "error"
   } };
@@ -451,6 +451,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   await put(`${sourceRoot}/owned.d.ts`, "export declare const declared: number;\n");
   await put(`${sourceRoot}/build.mjs`, "export const build = () => 1;\n");
   await put(nativePath, "int helper(void) { return 0; }\n");
+  await put(nativeScript, "throw new Error('native execution belongs to the consumer gate');\n");
   await put("quality.yaml", JSON.stringify(nativeProfile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: nativeScripts, devDependencies }));
   const scoped = await invoke(["quality", "check", "--scope-only"]);
@@ -477,7 +478,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   await put(compilerProject, `// Restored compiler JSONC input\n${projectBytes}`);
   const full = await invoke(["quality", "check"]);
   assert.equal(full.code, 0, full.stdout || full.stderr);
-  await rm(join(root, nativePath));
+  await Promise.all([rm(join(root, nativePath)), rm(join(root, nativeScript))]);
   await put("quality.yaml", JSON.stringify(profile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts, devDependencies }));
   await put(`${sourceRoot}/build.mjs`, Array.from({ length: 501 }, (_, index) => `export const value${index} = ${index};`).join("\n") + "\n");
@@ -548,5 +549,6 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   assert.match(JSON.parse(staleNative.stdout).capabilities[0].problem.message, /no current native source/u);
   await put("quality.yaml", JSON.stringify(profile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts }));
-  return { nativePath, nativeProfile, nativeScripts };
+  await rm(join(root, nativeScript));
+  return { nativePath, nativeProfile, nativeScript, nativeScripts };
 }

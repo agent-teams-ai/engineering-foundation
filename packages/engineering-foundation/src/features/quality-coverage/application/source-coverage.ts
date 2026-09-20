@@ -18,6 +18,7 @@ export function classifyQualityCensus(input: {
   const testRoots = input.topology.modules.flatMap((module) => module.testRoots);
   const nonProductionRoots = [...testRoots, ...input.topology.excludedRoots];
   const unclassifiedPackages = input.manifestPaths.filter((path) =>
+    path !== "package.json" &&
     !input.topology.modules.some(({ root }) => path === `${root}/package.json`) &&
     !testRoots.some((root) => inside(path, root))
   );
@@ -33,11 +34,12 @@ export function classifyQualityCensus(input: {
   const sources = candidates.filter((path) =>
     (productionRoots.some((root) => inside(path, root)) ||
       (!nonProductionRoots.some((root) => inside(path, root)) &&
-        input.topology.toolingFiles?.includes(path) !== true && !isDevelopmentTooling(path) &&
-        input.authority.boundaries.some(({ roots }) => roots.some((root) => inside(path, root)))))
+        input.topology.toolingFiles?.includes(path) !== true && !isDevelopmentTooling(path)))
   ).map((path) => ({
     path,
-    owners: input.authority.boundaries.filter(({ roots }) => roots.some((root) => inside(path, root))).map(({ id }) => id),
+    owners: (productionRoots.some((root) => inside(path, root)) || /\.(?:c|h)$/u.test(path))
+      ? input.authority.boundaries.filter(({ roots }) => roots.some((root) => inside(path, root))).map(({ id }) => id)
+      : [],
     suppressionCovered: input.suppressionRoots.some((root) => inside(path, root))
   }));
   const testPaths = input.filePaths.filter((path) => !productionRoots.some((root) => inside(path, root)) &&
@@ -59,7 +61,12 @@ export function qualitySourceTargets(paths: readonly string[], topology: Quality
   const { sources } = classifyQualityCensus({
     sourcePaths: paths, filePaths: [], manifestPaths: [], topology, authority, suppressionRoots: []
   });
-  return sources.map(({ path }) => path).filter((path) =>
-    qualitySourceLanguage(path) === "typescript" || qualitySourceLanguage(path) === "javascript"
-  );
+  return sources.map(({ path }) => path).filter((path) => {
+    if (qualitySourceLanguage(path) !== "typescript" && qualitySourceLanguage(path) !== "javascript") { return false; }
+    if (topology.toolingFiles?.includes(path) === true || topology.excludedRoots.some((root) => inside(path, root))) { return false; }
+    const production = (topology.productionSourceRoots ?? [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots])
+      .some((root) => inside(path, root));
+    const runtimeOwned = authority.boundaries.some(({ roots, dependencyMode }) => dependencyMode === "runtime" && roots.some((root) => inside(path, root)));
+    return production || runtimeOwned;
+  });
 }

@@ -56,5 +56,5 @@ export interface QualityCoverageReader {
 }
 
 export interface QualityToolProvider {
-  prepare(consumerRoot: string, configPath: string, signal?: AbortSignal): Promise<QualityToolSession>;
+  prepare(consumerRoot: string, configPath: string, sourcePaths: readonly string[], signal?: AbortSignal): Promise<QualityToolSession>;
 }

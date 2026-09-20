@@ -4,7 +4,7 @@ export { QUALITY_COVERAGE_RULES_BY_ID, qualityDiagnostic } from "./application/r
 export type { QualityCoverageReader, QualityToolProvider, QualityToolSession, QualityCoverageObservation } from "./application/model.js";
 export type { ManagedProcessExecutor, ManagedProcessResult } from "./application/tool-execution.js";
 export { containsScriptRoute, executesScript } from "./application/script-route.js";
-export { classifyQualityCensus, qualitySourceLanguage } from "./application/source-coverage.js";
+export { classifyQualityCensus, qualitySourceLanguage, qualitySourceTargets } from "./application/source-coverage.js";
 export { CapabilityInputError, assertNotCancelled } from "./application/input-observations.js";
 export type { QualityDependencyDeclaration, QualityFileReader } from "./application/input-observations.js";
 export type { QualityCoverageProfile, QualityTopology } from "./application/profile.js";

@@ -1,4 +1,4 @@
-import { relative, resolve, sep } from "node:path";
+import { normalize, relative, resolve, sep } from "node:path";
 import {
   assertNotCancelled, classifyQualityCensus, executesScript, qualitySourceLanguage,
   type QualityCoverageObservation, type QualityCoverageReader,
@@ -15,6 +15,11 @@ export interface QualityConfigurationReader {
 function scriptsFrom(value: unknown): Readonly<Record<string, string>> {
   const scripts = qualityRecord(qualityRecord(value)["scripts"]);
   return Object.fromEntries(Object.entries(scripts).map(([name, command]) => [name, qualityString(command)]));
+}
+
+function nativeScriptPath(command: string | undefined): string | undefined {
+  const path = /^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "")?.[1];
+  return path === undefined ? undefined : normalize(path).split(sep).join("/");
 }
 
 function requiredRoute(
@@ -47,12 +52,20 @@ export function createQualityCoverageReader(
       const authority = await ports.authority.source(consumerRoot, profile.sourcePolicyPath, signal);
       const suppressions = await ports.authority.suppressions(consumerRoot, profile.suppressionPolicyPath, signal);
       const inventory = await ports.inventory.read(consumerRoot, authority.workspaceManifestPath, signal);
+      const scripts = scriptsFrom(await configuration.read(consumerRoot, "package.json", "quality-scripts", signal));
+      const nativeToolingFiles = (profile.nativeChecks ?? []).flatMap(({ script }) => {
+        const path = nativeScriptPath(scripts[script]);
+        return path === undefined ? [] : [path];
+      });
       const census = await ports.census.read({
-        consumerRoot, roots: [...topology.productionRoots, ...topology.applicationRoots],
+        // Census is an independent repository observation.  Keep discovery broad;
+        // topology is applied by classification and target projection below.
+        consumerRoot, roots: ["."],
         ...(signal === undefined ? {} : { signal })
       });
       const classified = classifyQualityCensus({
-        ...census, topology, authority, suppressionRoots: suppressions.governedRoots,
+        ...census, topology: { ...topology, toolingFiles: [...new Set([...(topology.toolingFiles ?? []), ...nativeToolingFiles])] },
+        authority, suppressionRoots: suppressions.governedRoots,
         compilerProjects: profile.compilerProjects.map((project) => relative(resolve(consumerRoot), resolve(consumerRoot, project)).split(sep).join("/"))
       });
       const protection = await inspectProtectedConfig(consumerRoot, profile.lintConfigPath,
@@ -60,7 +73,6 @@ export function createQualityCoverageReader(
           files: census.filePaths.filter((path) => !classified.compilerConfigPaths.includes(path)), production: classified.sources.map(({ path }) => path),
           tests: classified.testPaths
         });
-      const scripts = scriptsFrom(await configuration.read(consumerRoot, "package.json", "quality-scripts", signal));
       const nativeMappings = await Promise.all((profile.nativeChecks ?? []).map(async (mapping) => {
         if (!authority.boundaries.some(({ id }) => id === mapping.boundaryId)) {
           invalidQualityInput(`Native gate names an unknown source boundary: ${mapping.boundaryId}.`);
@@ -69,10 +81,10 @@ export function createQualityCoverageReader(
           invalidQualityInput(`Native gate has no current native source: ${mapping.boundaryId}.`);
         }
         const command = scripts[mapping.script];
-        const match = /^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "");
+        const scriptPath = nativeScriptPath(command);
         let reached = false;
-        if (command !== undefined && match?.[1] !== undefined) {
-          try { await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, match[1]), maxBytes: 2 * 1024 * 1024 }); }
+        if (command !== undefined && scriptPath !== undefined) {
+          try { await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, scriptPath), maxBytes: 2 * 1024 * 1024 }); }
           catch { invalidQualityInput(`Native gate script is missing or outside the consumer: ${mapping.script}.`); }
           reached = executesScript(scripts, profile.scripts.full, mapping.script, command);
         }

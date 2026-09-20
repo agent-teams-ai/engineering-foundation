@@ -18,6 +18,7 @@ const input = {
 const envelope = (diagnostics = []) => JSON.stringify({ diagnostics, number_of_files: 1 });
 const finding = { code: "typescript(no-floating-promises)", filename: source, severity: "error" };
 const result = (stdout, exitCode = 0, stderr = "") => ({ stdout, exitCode, stderr, signal: null });
+const sourceArguments = (args) => args.slice(args.indexOf(args.includes("--debug") ? "files" : "json") + 1);
 
 async function compilerFixture(t) {
   const temporary = await mkdtemp(join(tmpdir(), "quality compiler alias "));
@@ -87,6 +88,68 @@ test("selection and typed execution share consumer cwd, config, roots and protec
   assert.deepEqual(requests[0].args.filter((value) => value !== "--debug" && value !== "files"), requests[1].args);
 });
 
+test("large explicit source universes use bounded Oxlint invocations and aggregate evidence", async () => {
+  const sourceRoots = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
+  const requests = [];
+  const executor = { run: async (request) => {
+    requests.push(request);
+    const paths = sourceArguments(request.args);
+    if (request.args.includes("--debug")) { return result(`${paths.join("\n")}\n`); }
+    const findingPath = paths[0];
+    return result(envelope([{ filename: findingPath, code: "typescript(no-floating-promises)", severity: "error" }]), 1);
+  } };
+  const session = createOxlintSession({ ...input, sourceRoots }, executor);
+  assert.deepEqual(await session.select(), sourceRoots.toSorted());
+  const lint = await session.lint();
+  assert.equal(requests.length, 4);
+  assert.equal(lint.files, 2);
+  assert.equal(lint.diagnostics.length, 2);
+  assert.ok(requests.every(({ args }) => sourceArguments(args).join(" ").length <= 8_000));
+  assert.ok(requests.some(({ args }) => !args.includes("--debug")));
+});
+
+test("a single source path exceeding the process argument budget rejects before execution", async () => {
+  let invocations = 0;
+  const session = createOxlintSession({ ...input, sourceRoots: [`packages/${"x".repeat(8_000)}.ts`] }, {
+    run: async () => { invocations += 1; return result(""); }
+  });
+  await assert.rejects(session.select(), /argument limit/u);
+  assert.equal(invocations, 0);
+});
+
+test("batch execution observes cancellation after the final result and before another process", async () => {
+  const many = Array.from({ length: 240 }, (_, index) => `packages/contexts/private/src/generated-${String(index).padStart(3, "0")}.ts`);
+  for (const sourceRoots of [[source], many]) {
+    const controller = new AbortController();
+    let invocations = 0;
+    const session = createOxlintSession({ ...input, sourceRoots }, { run: async (request) => {
+      invocations += 1;
+      controller.abort();
+      return result(`${sourceArguments(request.args).join("\n")}\n`);
+    } });
+    await assert.rejects(session.select(controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+    assert.equal(invocations, 1);
+  }
+});
+
+test("typed execution observes cancellation before and after a compiler process", async (t) => {
+  const { root } = await compilerFixture(t);
+  for (const abortBeforeRun of [true, false]) {
+    const controller = new AbortController();
+    let invocations = 0;
+    if (abortBeforeRun) { controller.abort(); }
+    const session = createOxlintSession({ ...input, consumerRoot: root, projects: ["one.json"] }, {
+      run: async () => {
+        invocations += 1;
+        controller.abort();
+        return result(`${join(root, source)}\n`);
+      }
+    });
+    await assert.rejects(session.typeContext(controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+    assert.equal(invocations, abortBeforeRun ? 0 : 1);
+  }
+});
+
 test("good lint counterpart passes while empty or contradictory execution evidence rejects", async () => {
   const session = createOxlintSession(input, { run: async () => result(envelope()) });
   assert.deepEqual(await session.lint(), { files: 1, diagnostics: [] });
@@ -139,4 +202,25 @@ test("executor failures and cancellation retain their identity and signal", asyn
     throw failure;
   } });
   await assert.rejects(session.select(controller.signal), (error) => error === failure);
+});
+
+test("empty explicit targets fail closed without invoking Oxlint", async () => {
+  let invoked = false;
+  const session = createOxlintSession({ ...input, sourceRoots: [] }, { run: async () => { invoked = true; return result(envelope()); } });
+  await assert.rejects(session.select(), /no explicit source targets/u);
+  await assert.rejects(session.lint(), /no explicit source targets/u);
+  assert.equal(invoked, false);
+});
+
+test("cancellation precedes oversized source validation for selection and lint", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let invocations = 0;
+  const session = createOxlintSession({ ...input, sourceRoots: [`packages/${"x".repeat(8_000)}.ts`] }, {
+    run: async () => { invocations += 1; return result(""); }
+  });
+  for (const operation of ["select", "lint"]) {
+    await assert.rejects(session[operation](controller.signal), (error) => error.problem?.code === "EXECUTION_CANCELLED");
+  }
+  assert.equal(invocations, 0);
 });

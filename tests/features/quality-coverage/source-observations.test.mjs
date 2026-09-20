@@ -86,12 +86,14 @@ test("development ownership classifies external build tooling without hiding pro
     ...input, topology, authority: { ...authority, boundaries }, suppressionRoots: [sourceRoot, scriptsRoot]
   });
   assert.deepEqual(classify([...authority.boundaries, tooling]).sources.map(({ path }) => path), [main]);
-  for (const boundaries of [authority.boundaries,
-    [...authority.boundaries, { id: "tooling", roots: [scriptsRoot] }],
-    [...authority.boundaries, { ...tooling, dependencyMode: "runtime" }]]) {
+  for (const [boundaries, expectedOwners] of [
+    [authority.boundaries, []],
+    [[...authority.boundaries, { id: "tooling", roots: [scriptsRoot] }], []],
+    [[...authority.boundaries, { ...tooling, dependencyMode: "runtime" }], ["tooling"]]
+  ]) {
     const result = classify(boundaries);
     for (const path of scripts) {
-      assert.deepEqual(result.sources.find((source) => source.path === path)?.owners, [], path);
+      assert.deepEqual(result.sources.find((source) => source.path === path)?.owners, expectedOwners, path);
     }
   }
   const ambiguous = classify([...authority.boundaries, tooling,
@@ -108,6 +110,34 @@ test("development ownership classifies external build tooling without hiding pro
     read: async () => ({ ...withNative, routes: [], requiredRoutes: [], requiredSettings: [], requiredSettingObservations: [], settings: [] })
   });
   assert.ok(report.diagnostics.some(({ ruleId, location }) => ruleId === "quality.source-coverage.native-route" && location.path === native));
+});
+
+test("runtime-owned adapters outside production roots remain in the authoritative census", () => {
+  const path = "adapters/runtime/owned.mjs";
+  const classified = classifyQualityCensus({
+    sourcePaths: [path], filePaths: [path], manifestPaths: [], topology,
+    authority: { ...authority, boundaries: [...authority.boundaries,
+      { id: "runtime-adapter", roots: ["adapters/runtime"], dependencyMode: "runtime" }] },
+    suppressionRoots: ["adapters/runtime"]
+  });
+  assert.deepEqual(classified.sources, [{ path, owners: ["runtime-adapter"], suppressionCovered: true }]);
+});
+
+test("nested test and excluded roots take precedence over production roots", () => {
+  const nestedTestRoot = `${sourceRoot}/tests`;
+  const excludedRoot = `${sourceRoot}/generated`;
+  const nestedTest = `${nestedTestRoot}/fixture.test.ts`;
+  const excluded = `${excludedRoot}/generated.ts`;
+  const excludedTestRoot = `${nestedTestRoot}/generated`;
+  const excludedTest = `${excludedTestRoot}/fixture.test.ts`;
+  const classified = classifyQualityCensus({
+    sourcePaths: [main, nestedTest, excluded, excludedTest], filePaths: [main, nestedTest, excluded, excludedTest], manifestPaths: [],
+    topology: { ...topology, excludedRoots: [excludedRoot, excludedTestRoot],
+      modules: [{ ...topology.modules[0], testRoots: [nestedTestRoot] }] },
+    authority, suppressionRoots: [sourceRoot]
+  });
+  assert.deepEqual(classified.sources.map(({ path }) => path), [main]);
+  assert.deepEqual(classified.testPaths, [nestedTest]);
 });
 
 test("nested application packages use exact production sources without promoting tests or scripts", async (t) => {
@@ -417,7 +447,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   const staticResult = await invoke(["check", "quality.source-coverage"]);
   assert.equal(staticResult.code, 0, staticResult.stdout || staticResult.stderr);
   assert.equal(JSON.parse(staticResult.stdout).outcome, "passed");
-  const { nativePath, nativeProfile, nativeScripts } = await qualifyNativeRoutes({ root, put, invoke, profile, scripts });
+  const { nativePath, nativeProfile, nativeScript, nativeScripts } = await qualifyNativeRoutes({ root, put, invoke, profile, scripts });
   const strongerConfig = { ...JSON.parse(lintBytes), rules: {
     ...JSON.parse(lintBytes).rules, "typescript/no-unsafe-type-assertion": "error"
   } };
@@ -451,6 +481,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   await put(`${sourceRoot}/owned.d.ts`, "export declare const declared: number;\n");
   await put(`${sourceRoot}/build.mjs`, "export const build = () => 1;\n");
   await put(nativePath, "int helper(void) { return 0; }\n");
+  await put(nativeScript, "throw new Error('native execution belongs to the consumer gate');\n");
   await put("quality.yaml", JSON.stringify(nativeProfile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: nativeScripts, devDependencies }));
   const scoped = await invoke(["quality", "check", "--scope-only"]);
@@ -477,7 +508,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   await put(compilerProject, `// Restored compiler JSONC input\n${projectBytes}`);
   const full = await invoke(["quality", "check"]);
   assert.equal(full.code, 0, full.stdout || full.stderr);
-  await rm(join(root, nativePath));
+  await Promise.all([rm(join(root, nativePath)), rm(join(root, nativeScript))]);
   await put("quality.yaml", JSON.stringify(profile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts, devDependencies }));
   await put(`${sourceRoot}/build.mjs`, Array.from({ length: 501 }, (_, index) => `export const value${index} = ${index};`).join("\n") + "\n");
@@ -509,7 +540,7 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   const nativeScripts = { ...scripts, check: "pnpm product:check && pnpm lint && pnpm native:check",
     lint: "pnpm lint:typed",
     "product:check": "pnpm --filter './packages/**' -r run clean && pnpm product:build && pnpm --filter './packages/**' -r run test",
-    "native:check": `node ${nativeScript}` };
+    "native:check": "node scripts/architecture/../architecture/native-quality.mjs" };
   // Static qualification proves wiring only: this consumer leaf must never execute here.
   await put(nativeScript, "throw new Error('native execution belongs to the consumer gate');\n");
   await put(nativePath, "int helper(void) { return 0; }\n");
@@ -548,5 +579,6 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   assert.match(JSON.parse(staleNative.stdout).capabilities[0].problem.message, /no current native source/u);
   await put("quality.yaml", JSON.stringify(profile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts }));
-  return { nativePath, nativeProfile, nativeScripts };
+  await rm(join(root, nativeScript));
+  return { nativePath, nativeProfile, nativeScript, nativeScripts };
 }

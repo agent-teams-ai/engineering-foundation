@@ -1,5 +1,6 @@
 import {
   assertNotCancelled,
+  qualitySourceTargets,
   type ManagedProcessExecutor, type QualityFileReader,
   type QualityObservationPorts, type QualityToolProvider
 } from "../api.js";
@@ -18,7 +19,7 @@ export function createQualityToolProvider(input: {
   readonly environment: Readonly<Record<string, string | undefined>>;
 }): QualityToolProvider {
   return {
-    async prepare(consumerRoot, configPath, signal) {
+    async prepare(consumerRoot, configPath, sourcePaths, signal) {
       assertNotCancelled(signal);
       const value = await input.configuration.read(consumerRoot, configPath, "quality-profile", signal);
       await input.configuration.assertProfile(value);
@@ -36,11 +37,13 @@ export function createQualityToolProvider(input: {
         ...(signal === undefined ? {} : { signal })
       });
       assertNotCancelled(signal);
+      const sourceTargets = qualitySourceTargets(sourcePaths, topology, authority);
+      assertNotCancelled(signal);
       return createOxlintSession({
         consumerRoot, ...tools, nodeExecutable: input.nodeExecutable,
         environment: { ...input.environment, OXLINT_TSGOLINT_PATH: tools.typedEntrypoint },
         configPath: profile.lintConfigPath,
-        sourceRoots: topology.productionSourceRoots ?? [...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots],
+        sourceRoots: sourceTargets,
         projects: profile.compilerProjects
       }, input.executor);
     }

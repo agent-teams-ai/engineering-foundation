@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.4.1
+
+### Patch Changes
+
+- [#321](https://github.com/agent-teams-ai/engineering-foundation/pull/321) [`583b164`](https://github.com/agent-teams-ai/engineering-foundation/commit/583b1647b3c453ec613a21c2a820f7cc6ce5d900) Thanks [@777genius](https://github.com/777genius)! - Fix quality tooling to pass the explicit TypeScript and JavaScript production census targets to Oxlint.
+
 ## 1.4.0
 
 ### Minor Changes

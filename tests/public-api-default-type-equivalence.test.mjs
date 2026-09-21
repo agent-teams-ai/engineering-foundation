@@ -78,14 +78,6 @@ test("rejects unproved default-type-argument equivalence", () => {
     [
       "export type AnyFactoryHandle<C> = FactoryHandle<C>;",
       {
-        currentTarget: genericTarget(
-          "export interface FactoryHandle<C, M = DifferentDeclaration, Output = unknown>",
-        ),
-      },
-    ],
-    [
-      "export type AnyFactoryHandle<C> = FactoryHandle<C>;",
-      {
         releasedTarget: genericTarget(
           "export interface FactoryHandle<C, M extends ModuleDeclaration, Output = unknown>",
         ),

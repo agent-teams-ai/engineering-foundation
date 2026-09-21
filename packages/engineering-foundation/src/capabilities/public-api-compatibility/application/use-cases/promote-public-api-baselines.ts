@@ -14,6 +14,7 @@ import type { PublicApiRepository } from "../ports/public-api-repository.js";
 import { approvedBreakingChangeReference } from "../model/public-api.js";
 import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 import { classifyPublicApiChange } from "../policies/evaluate-public-api-compatibility.js";
+import { collectUnchangedPublicTypeBindings } from "../policies/default-type-argument-equivalence.js";
 
 function promotionError(code: string, message: string): never {
   throw new CapabilityInputError({
@@ -90,27 +91,18 @@ function assertExtractorVersionMatch(
   }
 }
 
-export async function promotePublicApiBaselines(
-  input: {
-    readonly consumerRoot: string;
-    readonly policy: PublicApiCompatibilityPolicy;
-    readonly signal?: AbortSignal;
-  },
-  dependencies: {
-    readonly extractor: PublicApiExtractor;
-    readonly fingerprint: ChangeFingerprint;
-    readonly repository: PublicApiRepository;
-    readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
-  }
-): Promise<readonly PublicApiSnapshot[]> {
-  const promotions: Array<{
-    readonly mode: "create" | "replace";
-    readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
-    readonly snapshot: PublicApiSnapshot;
-  }> = [];
-  let acceptedDecisionEvidence:
-    | Awaited<ReturnType<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>>
-    | undefined;
+interface PromotionPackage {
+  readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
+  readonly released: PublicApiSnapshot | undefined;
+  readonly releaseEvidence: Awaited<ReturnType<PublicApiRepository["readReleaseEvidence"]>>;
+  readonly current: Awaited<ReturnType<PublicApiExtractor["extract"]>>;
+}
+
+async function loadPromotionPackages(
+  input: Parameters<typeof promotePublicApiBaselines>[0],
+  dependencies: Parameters<typeof promotePublicApiBaselines>[1]
+): Promise<readonly PromotionPackage[]> {
+  const packages: PromotionPackage[] = [];
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
@@ -133,13 +125,52 @@ export async function promotePublicApiBaselines(
       releaseEvidence.packageVersion,
       input.signal
     );
+    packages.push({ packagePolicy, released, releaseEvidence, current });
+  }
+  return Object.freeze(packages);
+}
+
+export async function promotePublicApiBaselines(
+  input: {
+    readonly consumerRoot: string;
+    readonly policy: PublicApiCompatibilityPolicy;
+    readonly signal?: AbortSignal;
+  },
+  dependencies: {
+    readonly extractor: PublicApiExtractor;
+    readonly fingerprint: ChangeFingerprint;
+    readonly repository: PublicApiRepository;
+    readonly acceptedDecisionEvidence: AcceptedDecisionEvidencePort;
+  }
+): Promise<readonly PublicApiSnapshot[]> {
+  const promotions: Array<{
+    readonly mode: "create" | "replace";
+    readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
+    readonly snapshot: PublicApiSnapshot;
+  }> = [];
+  let acceptedDecisionEvidence:
+    | Awaited<ReturnType<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>>
+    | undefined;
+  const packages = await loadPromotionPackages(input, dependencies);
+  const stableTypeBindings = collectUnchangedPublicTypeBindings(
+    packages.flatMap(({ released, current }) =>
+      released === undefined ? [] : [{ released, current }]
+    )
+  );
+  for (const { packagePolicy, released, releaseEvidence, current } of packages) {
+    assertNotCancelled(input.signal);
     if (released === undefined) {
       assertReviewedBootstrap(packagePolicy, releaseEvidence);
       promotions.push({ packagePolicy, snapshot: current, mode: "create" });
       continue;
     }
     assertExtractorVersionMatch(released, current);
-    const change = classifyPublicApiChange(released, current, dependencies.fingerprint);
+    const change = classifyPublicApiChange(
+      released,
+      current,
+      dependencies.fingerprint,
+      stableTypeBindings
+    );
     if (released.packageVersion === releaseEvidence.packageVersion) {
       if (change.classification !== "none") {
         promotionError(

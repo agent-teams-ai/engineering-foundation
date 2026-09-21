@@ -53,7 +53,8 @@ function itemChanged(
   released: PublicApiItem,
   current: PublicApiItem,
   releasedItems: readonly PublicApiItem[],
-  currentItems: readonly PublicApiItem[]
+  currentItems: readonly PublicApiItem[],
+  stableTypeBindings: ReadonlySet<string>
 ): boolean {
   return (
     released.kind !== current.kind ||
@@ -64,7 +65,8 @@ function itemChanged(
         releasedItem: released,
         currentItem: current,
         releasedItems,
-        currentItems
+        currentItems,
+        stableTypeBindings
       }))
   );
 }
@@ -106,7 +108,8 @@ interface EntrypointItemChange {
 
 function classifyEntrypointItems(
   releasedItems: readonly PublicApiItem[],
-  currentItems: readonly PublicApiItem[]
+  currentItems: readonly PublicApiItem[],
+  stableTypeBindings: ReadonlySet<string>
 ): EntrypointItemChange {
   const released = new Map(
     releasedItems.map((item) => [item.canonicalReference, item])
@@ -122,7 +125,13 @@ function classifyEntrypointItems(
       const currentItem = current.get(key);
       return (
         currentItem !== undefined &&
-        itemChanged(item, currentItem, releasedItems, currentItems)
+        itemChanged(
+          item,
+          currentItem,
+          releasedItems,
+          currentItems,
+          stableTypeBindings
+        )
       );
     })
     .map(([key]) => key)
@@ -220,7 +229,8 @@ interface EntrypointChanges {
 function collectEntrypointChanges(
   released: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
   current: ReadonlyMap<string, PublicApiEntrypointSnapshot>,
-  exportPaths: readonly string[]
+  exportPaths: readonly string[],
+  stableTypeBindings: ReadonlySet<string>
 ): EntrypointChanges {
   const added: PublicApiEntrypointItemReference[] = [];
   const changed: PublicApiEntrypointItemReference[] = [];
@@ -232,7 +242,8 @@ function collectEntrypointChanges(
     const currentEntrypoint = current.get(exportPath);
     const comparison = classifyEntrypointItems(
       releasedEntrypoint?.items ?? [],
-      currentEntrypoint?.items ?? []
+      currentEntrypoint?.items ?? [],
+      stableTypeBindings
     );
     added.push(
       ...comparison.added.map((item) =>
@@ -275,7 +286,8 @@ function collectEntrypointChanges(
 function classifyEntrypointPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
-  fingerprint: ChangeFingerprint
+  fingerprint: ChangeFingerprint,
+  stableTypeBindings: ReadonlySet<string>
 ): PublicApiChangeSet {
   const released = entrypointIndex(releasedSnapshot);
   const current = entrypointIndex(currentSnapshot);
@@ -288,7 +300,12 @@ function classifyEntrypointPublicApiChange(
   const removedEntrypoints = exportPaths.filter(
     (exportPath) => !current.has(exportPath)
   );
-  const changes = collectEntrypointChanges(released, current, exportPaths);
+  const changes = collectEntrypointChanges(
+    released,
+    current,
+    exportPaths,
+    stableTypeBindings
+  );
   const breaking =
     removedEntrypoints.length > 0 ||
     changes.removed.length > 0 ||
@@ -321,12 +338,14 @@ function classifyEntrypointPublicApiChange(
 export function classifyPublicApiChange(
   releasedSnapshot: PublicApiSnapshot,
   currentSnapshot: PublicApiSnapshot,
-  fingerprint: ChangeFingerprint
+  fingerprint: ChangeFingerprint,
+  stableTypeBindings: ReadonlySet<string> = new Set()
 ): PublicApiChangeSet {
   return classifyEntrypointPublicApiChange(
     releasedSnapshot,
     currentSnapshot,
-    fingerprint
+    fingerprint,
+    stableTypeBindings
   );
 }
 

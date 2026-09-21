@@ -10,6 +10,7 @@ import {
   evaluatePublicApiCompatibility
 } from "../policies/evaluate-public-api-compatibility.js";
 import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
+import { collectUnchangedPublicTypeBindings } from "../policies/default-type-argument-equivalence.js";
 
 export async function analyzePublicApiCompatibility(
   input: {
@@ -28,6 +29,12 @@ export async function analyzePublicApiCompatibility(
   let acceptedDecisionEvidence:
     | Awaited<ReturnType<AcceptedDecisionEvidencePort["readAcceptedDecisionEvidence"]>>
     | undefined;
+  const packages: Array<{
+    readonly packagePolicy: PublicApiCompatibilityPolicy["packages"][number];
+    readonly released: Awaited<ReturnType<PublicApiRepository["readReleasedBaseline"]>>;
+    readonly releaseEvidence: Awaited<ReturnType<PublicApiRepository["readReleaseEvidence"]>>;
+    readonly current: Awaited<ReturnType<PublicApiExtractor["extract"]>>;
+  }> = [];
   for (const packagePolicy of input.policy.packages) {
     assertNotCancelled(input.signal);
     const [released, releaseEvidence] = await Promise.all([
@@ -49,10 +56,18 @@ export async function analyzePublicApiCompatibility(
       releaseEvidence.packageVersion,
       input.signal
     );
+    packages.push({ packagePolicy, released, releaseEvidence, current });
+  }
+  const stableTypeBindings = collectUnchangedPublicTypeBindings(
+    packages.map(({ released, current }) => ({ released, current }))
+  );
+  for (const { packagePolicy, released, releaseEvidence, current } of packages) {
+    assertNotCancelled(input.signal);
     const change = classifyPublicApiChange(
       released,
       current,
-      dependencies.fingerprint
+      dependencies.fingerprint,
+      stableTypeBindings
     );
     const approval =
       change.classification === "breaking"

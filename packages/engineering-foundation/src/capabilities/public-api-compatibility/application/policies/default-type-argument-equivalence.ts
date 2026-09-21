@@ -1,4 +1,4 @@
-import type { PublicApiItem } from "../model/public-api.js";
+import type { PublicApiItem, PublicApiSnapshot } from "../model/public-api.js";
 
 const IDENTIFIER = "[A-Za-z_$][A-Za-z0-9_$]*";
 const TYPE_ATOM = `${IDENTIFIER}(?:\\.${IDENTIFIER})*`;
@@ -117,6 +117,12 @@ interface GenericDeclaration {
 interface TypeParameterList {
   readonly names: readonly string[];
   readonly defaults: readonly (string | undefined)[];
+}
+
+interface TypeBindingEvidence {
+  readonly releasedItems: readonly PublicApiItem[];
+  readonly currentItems: readonly PublicApiItem[];
+  readonly stableTypeBindings: ReadonlySet<string>;
 }
 
 function isSupportedTypeAtom(type: string): boolean {
@@ -258,7 +264,8 @@ function unchangedTarget(
 function hasUnchangedTypeAtomBinding(
   type: string,
   releasedItems: readonly PublicApiItem[],
-  currentItems: readonly PublicApiItem[]
+  currentItems: readonly PublicApiItem[],
+  stableTypeBindings: ReadonlySet<string>
 ): boolean {
   if (SUPPORTED_KEYWORD_TYPE_ATOMS.has(type)) {
     return true;
@@ -266,15 +273,17 @@ function hasUnchangedTypeAtomBinding(
   if (type.includes(".")) {
     return false;
   }
-  return unchangedTopLevelType(type, releasedItems, currentItems) !== undefined;
+  return (
+    unchangedTopLevelType(type, releasedItems, currentItems) !== undefined ||
+    stableTypeBindings.has(type)
+  );
 }
 
 function omittedArgumentsEqualDefaults(
   shorter: DirectTypeAlias,
   longer: DirectTypeAlias,
   declaration: GenericDeclaration,
-  releasedItems: readonly PublicApiItem[],
-  currentItems: readonly PublicApiItem[]
+  bindings: TypeBindingEvidence
 ): boolean {
   if (
     shorter.arguments.length >= longer.arguments.length ||
@@ -303,7 +312,12 @@ function omittedArgumentsEqualDefaults(
       leadingName === undefined ||
       declaration.parameterNames.has(leadingName) ||
       shorter.parameterNames.has(leadingName) ||
-      !hasUnchangedTypeAtomBinding(declaredDefault, releasedItems, currentItems)
+      !hasUnchangedTypeAtomBinding(
+        declaredDefault,
+        bindings.releasedItems,
+        bindings.currentItems,
+        bindings.stableTypeBindings
+      )
     ) {
       return false;
     }
@@ -317,6 +331,7 @@ export function hasEquivalentTrailingDefaultTypeArguments(input: {
   readonly currentItem: PublicApiItem;
   readonly releasedItems: readonly PublicApiItem[];
   readonly currentItems: readonly PublicApiItem[];
+  readonly stableTypeBindings?: ReadonlySet<string>;
 }): boolean {
   if (
     input.releasedItem.kind !== "TypeAlias" ||
@@ -346,19 +361,39 @@ export function hasEquivalentTrailingDefaultTypeArguments(input: {
   if (target === undefined) {
     return false;
   }
+  const bindings = Object.freeze({
+    releasedItems: input.releasedItems,
+    currentItems: input.currentItems,
+    stableTypeBindings: input.stableTypeBindings ?? new Set<string>()
+  });
   return released.arguments.length < current.arguments.length
-    ? omittedArgumentsEqualDefaults(
-        released,
-        current,
-        target,
-        input.releasedItems,
-        input.currentItems
-      )
-    : omittedArgumentsEqualDefaults(
-        current,
-        released,
-        target,
-        input.releasedItems,
-        input.currentItems
-      );
+    ? omittedArgumentsEqualDefaults(released, current, target, bindings)
+    : omittedArgumentsEqualDefaults(current, released, target, bindings);
+}
+
+/** Names whose unique public canonical identity is byte-stable across all governed packages. */
+export function collectUnchangedPublicTypeBindings(
+  pairs: readonly {
+    readonly released: PublicApiSnapshot;
+    readonly current: PublicApiSnapshot;
+  }[]
+): ReadonlySet<string> {
+  const releasedItems = pairs.flatMap(({ released }) =>
+    released.entrypoints.flatMap(({ items }) => items)
+  );
+  const currentItems = pairs.flatMap(({ current }) =>
+    current.entrypoints.flatMap(({ items }) => items)
+  );
+  const names = new Set<string>();
+  for (const item of [...releasedItems, ...currentItems]) {
+    const name = TOP_LEVEL_TYPE_DECLARATION.exec(item.signature)?.[1];
+    if (name !== undefined) {
+      names.add(name);
+    }
+  }
+  return new Set(
+    [...names].filter(
+      (name) => unchangedTopLevelType(name, releasedItems, currentItems) !== undefined
+    )
+  );
 }

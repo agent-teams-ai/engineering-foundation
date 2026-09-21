@@ -58,7 +58,10 @@ v1 schemas, baseline bytes and promotion semantics remain authoritative.
   declared default on one unambiguous, unchanged top-level public generic target
   in both the released and current snapshots. An omitted default that references
   any target type parameter, or whose leading name is shadowed by an alias type
-  parameter, is not admitted without exact binding equivalence proof;
+  parameter, is not admitted without exact binding equivalence proof. A
+  non-keyword default must resolve by name to exactly one byte-stable canonical
+  public type, either in the same entrypoint or across the complete governed
+  package set; missing, changed, dotted, or ambiguous bindings fail closed;
 - adding a member beneath an already released class, interface, or namespace is
   conservatively breaking;
 - before `1.0.0`, breaking changes require a minor bump; after `1.0.0`, a major
@@ -77,7 +80,9 @@ parameter without a default, any other alias edit, or a nested or complex type
 expression remains breaking. The complete alias type-parameter header must match
 the bounded parameter grammar and remain byte-for-byte equal in both directions;
 malformed and unsupported headers are not admitted. Failure to parse or prove
-any required fact also remains breaking. The comparator does not normalize,
+any required fact also remains breaking. Every direct alias argument must use
+the same supported atom grammar, including arguments that are not omitted. The
+comparator does not normalize,
 regenerate, or rewrite the released baseline or the extracted current signature;
 both retain their exact stored bytes.
 

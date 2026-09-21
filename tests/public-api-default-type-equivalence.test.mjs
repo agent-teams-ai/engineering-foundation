@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { collectUnchangedPublicTypeBindings } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/default-type-argument-equivalence.js";
 import { classifyPublicApiChange } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.js";
 import { currentBaseline, sha256 } from "./support/public-api-fixtures.mjs";
 
@@ -43,6 +44,16 @@ function namedType(
   };
 }
 
+function snapshot(packageName, items) {
+  return {
+    schemaVersion: 1,
+    packageName,
+    packageVersion: "1.0.0",
+    extractorVersion: "fixture",
+    entrypoints: [{ exportPath: ".", items }],
+  };
+}
+
 function defaultArgumentChange(releasedAlias, currentAlias, options = {}) {
   const releasedTarget = options.releasedTarget ?? genericTarget();
   const currentTarget = options.currentTarget ?? releasedTarget;
@@ -62,7 +73,12 @@ function defaultArgumentChange(releasedAlias, currentAlias, options = {}) {
       items: [typeAlias(currentAlias), currentTarget, ...currentExtras],
     }],
   };
-  return classifyPublicApiChange(released, current, { sha256 });
+  return classifyPublicApiChange(
+    released,
+    current,
+    { sha256 },
+    options.stableTypeBindings,
+  );
 }
 
 test("treats only exact trailing declared default type arguments as unchanged", () => {
@@ -242,6 +258,35 @@ test("rejects default atoms without an unchanged public binding", () => {
   assert.equal(
     defaultArgumentChange(explicit, omitted, { currentExtras: [] }).classification,
     "breaking",
+  );
+});
+
+test("accepts a unique unchanged binding supplied by the governed package set", () => {
+  const explicit = "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
+  const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
+  const releasedBinding = namedType();
+  const stableTypeBindings = collectUnchangedPublicTypeBindings([{
+    released: snapshot("@fixture/core", [releasedBinding]),
+    current: snapshot("@fixture/core", [releasedBinding]),
+  }]);
+  const options = {
+    releasedExtras: [],
+    currentExtras: [],
+    stableTypeBindings,
+  };
+
+  assert.deepEqual([...stableTypeBindings], ["ModuleDeclaration"]);
+  assert.equal(defaultArgumentChange(explicit, omitted, options).classification, "none");
+  assert.equal(defaultArgumentChange(omitted, explicit, options).classification, "none");
+  assert.equal(
+    collectUnchangedPublicTypeBindings([{
+      released: snapshot("@fixture/core", [releasedBinding]),
+      current: snapshot("@fixture/core", [namedType(
+        "ModuleDeclaration",
+        "@fixture/core!RenamedModuleDeclaration:interface",
+      )]),
+    }]).has("ModuleDeclaration"),
+    false,
   );
 });
 

@@ -162,6 +162,60 @@ test("rejects malformed and unsupported alias type-parameter headers", () => {
   }
 });
 
+test("rejects operator and reserved words in alias type parameters", () => {
+  const target = {
+    ...genericTarget(
+      "export type F<T = string> = T",
+      "@fixture/public-api!F:type",
+    ),
+    kind: "TypeAlias",
+  };
+  const cases = [
+    [
+      "export type A<C extends keyof> = F<string>;",
+      "export type A<C extends keyof> = F;",
+    ],
+    ["export type A<C = keyof> = F<string>;", "export type A<C = keyof> = F;"],
+    ["export type A<default> = F<string>;", "export type A<default> = F;"],
+  ];
+
+  for (const [explicit, omitted] of cases) {
+    assert.equal(
+      defaultArgumentChange(explicit, omitted, { releasedTarget: target })
+        .classification,
+      "breaking",
+    );
+    assert.equal(
+      defaultArgumentChange(omitted, explicit, { releasedTarget: target })
+        .classification,
+      "breaking",
+    );
+  }
+});
+
+test("rejects target names shadowed by alias type parameters", () => {
+  const target = {
+    ...genericTarget(
+      "export type F<T = string> = T",
+      "@fixture/public-api!F:type",
+    ),
+    kind: "TypeAlias",
+  };
+  const explicit = "export type A<F> = F<string>;";
+  const omitted = "export type A<F> = F;";
+
+  assert.equal(
+    defaultArgumentChange(explicit, omitted, { releasedTarget: target })
+      .classification,
+    "breaking",
+  );
+  assert.equal(
+    defaultArgumentChange(omitted, explicit, { releasedTarget: target })
+      .classification,
+    "breaking",
+  );
+});
+
 test("requires exact alias headers in both directions", () => {
   const left =
     "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";

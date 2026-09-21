@@ -15,10 +15,90 @@ const TOP_LEVEL_TYPE_DECLARATION = new RegExp(
   "u"
 );
 const TYPE_PARAMETER = new RegExp(
-  `^(${IDENTIFIER})(?: extends ${TYPE_ATOM})?(?: = (${TYPE_ATOM}))?$`,
+  `^(${IDENTIFIER})(?: extends (${TYPE_ATOM}))?(?: = (${TYPE_ATOM}))?$`,
   "u"
 );
 const LEADING_TYPE_NAME = new RegExp(`^(${IDENTIFIER})(?:\\.|$)`, "u");
+const RESERVED_IDENTIFIERS = new Set([
+  "any",
+  "await",
+  "bigint",
+  "boolean",
+  "break",
+  "case",
+  "catch",
+  "class",
+  "const",
+  "continue",
+  "debugger",
+  "default",
+  "delete",
+  "do",
+  "else",
+  "enum",
+  "export",
+  "extends",
+  "false",
+  "finally",
+  "for",
+  "function",
+  "if",
+  "implements",
+  "import",
+  "in",
+  "infer",
+  "instanceof",
+  "interface",
+  "intrinsic",
+  "keyof",
+  "let",
+  "never",
+  "new",
+  "null",
+  "number",
+  "object",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "readonly",
+  "return",
+  "static",
+  "string",
+  "super",
+  "switch",
+  "symbol",
+  "this",
+  "throw",
+  "true",
+  "try",
+  "typeof",
+  "undefined",
+  "unique",
+  "unknown",
+  "var",
+  "void",
+  "while",
+  "with",
+  "yield"
+]);
+const SUPPORTED_KEYWORD_TYPE_ATOMS = new Set([
+  "any",
+  "bigint",
+  "boolean",
+  "false",
+  "never",
+  "null",
+  "number",
+  "object",
+  "string",
+  "symbol",
+  "this",
+  "true",
+  "undefined",
+  "unknown",
+  "void"
+]);
 
 interface DirectTypeAlias {
   readonly header: string;
@@ -39,6 +119,13 @@ interface TypeParameterList {
   readonly defaults: readonly (string | undefined)[];
 }
 
+function isSupportedTypeAtom(type: string): boolean {
+  if (SUPPORTED_KEYWORD_TYPE_ATOMS.has(type)) {
+    return true;
+  }
+  return type.split(".").every((part) => !RESERVED_IDENTIFIERS.has(part));
+}
+
 function parseTypeParameters(header: string): TypeParameterList | undefined {
   const names: string[] = [];
   const defaults: (string | undefined)[] = [];
@@ -47,10 +134,14 @@ function parseTypeParameters(header: string): TypeParameterList | undefined {
   for (const parameter of header.split(", ")) {
     const match = TYPE_PARAMETER.exec(parameter);
     const name = match?.[1];
-    const defaultType = match?.[2];
+    const constraint = match?.[2];
+    const defaultType = match?.[3];
     if (
       match === null ||
       name === undefined ||
+      RESERVED_IDENTIFIERS.has(name) ||
+      (constraint !== undefined && !isSupportedTypeAtom(constraint)) ||
+      (defaultType !== undefined && !isSupportedTypeAtom(defaultType)) ||
       seenNames.has(name) ||
       (sawDefault && defaultType === undefined)
     ) {
@@ -208,7 +299,9 @@ export function hasEquivalentTrailingDefaultTypeArguments(input: {
     released === undefined ||
     current === undefined ||
     released.header !== current.header ||
-    released.target !== current.target
+    released.target !== current.target ||
+    released.parameterNames.has(released.target) ||
+    current.parameterNames.has(current.target)
   ) {
     return false;
   }

@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.4.2
+
+### Patch Changes
+
+- [#323](https://github.com/agent-teams-ai/engineering-foundation/pull/323) [`4dc29ed`](https://github.com/agent-teams-ai/engineering-foundation/commit/4dc29edfaa4de38665e5e663fe7cbf79c53c7039) Thanks [@777genius](https://github.com/777genius)! - Recognize unchanged trailing default generic arguments during public API compatibility comparison.
+
 ## 1.4.1
 
 ### Patch Changes

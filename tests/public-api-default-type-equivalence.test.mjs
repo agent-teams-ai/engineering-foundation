@@ -301,6 +301,16 @@ test("accepts a unique unchanged binding supplied by the governed package set", 
     }]).has("ModuleDeclaration"),
     false,
   );
+  assert.equal(
+    collectUnchangedPublicTypeBindings([{
+      released: snapshot("@fixture/core", [releasedBinding]),
+      current: {
+        ...snapshot("@fixture/core", [releasedBinding]),
+        extractorVersion: "different-extractor",
+      },
+    }]).has("ModuleDeclaration"),
+    false,
+  );
 });
 
 test("accepts defaults on unchanged declared abstract classes", () => {

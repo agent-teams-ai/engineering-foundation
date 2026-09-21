@@ -378,10 +378,13 @@ export function collectUnchangedPublicTypeBindings(
     readonly current: PublicApiSnapshot;
   }[]
 ): ReadonlySet<string> {
-  const releasedItems = pairs.flatMap(({ released }) =>
+  const comparablePairs = pairs.filter(
+    ({ released, current }) => released.extractorVersion === current.extractorVersion
+  );
+  const releasedItems = comparablePairs.flatMap(({ released }) =>
     released.entrypoints.flatMap(({ items }) => items)
   );
-  const currentItems = pairs.flatMap(({ current }) =>
+  const currentItems = comparablePairs.flatMap(({ current }) =>
     current.entrypoints.flatMap(({ items }) => items)
   );
   const names = new Set<string>();

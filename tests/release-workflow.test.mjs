@@ -2147,7 +2147,8 @@ test("release publishing requires real Buf and hermetic registry qualification",
     manifest.scripts["npm-package-bootstrap:candidate-evidence"],
     "node scripts/npm-package-bootstrap-candidate-evidence.mjs",
   );
-  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e"); assert.equal(ci.jobs["linux-registry"]["timeout-minutes"], 25);
+  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e");
+  assert.equal(ci.jobs["linux-registry"]["timeout-minutes"], 30);
   const windowsRegistryCommands = ci.jobs["windows-registry"].steps
     .map((step) => step.run)
     .filter((command) => command !== undefined);

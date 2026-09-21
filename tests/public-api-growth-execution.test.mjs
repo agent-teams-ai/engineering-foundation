@@ -6,6 +6,10 @@ import { parse, stringify } from "yaml";
 import test from "node:test";
 import { check, withPublicApiFixture } from "./support/capability-fixtures.mjs";
 
+const baselineSnapshot = extractorVersion => ({
+  schemaVersion: 1, packageName: "fixture", packageVersion: "0.0.0", extractorVersion, entrypoints: []
+});
+
 test("existing public check route preserves v1 and publishes deterministic incomplete v2 evidence with exit 2", async () => {
   await withPublicApiFixture(async root => {
     assert.equal(check(root).result.status, 0);
@@ -26,6 +30,9 @@ test("existing public check route preserves v1 and publishes deterministic incom
     await mkdir(join(root, "reports"));
     await mkdir(join(root, "evidence"));
     await writeFile(join(root, "evidence/decisions.json"), "[]");
+    const releasedTyped = JSON.parse(await readFile(join(root, "architecture/public-api/public-api.json"), "utf8"));
+    await writeFile(join(root, "evidence/released.json"), JSON.stringify({ typed: releasedTyped,
+      artifact: { ...releasedTyped, extractorVersion: "package-artifact-inventory/1", entrypoints: [{ exportPath: ".", items: [] }] } }));
     await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture-root", private: true, version: "1.0.0" }));
     await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
     execFileSync("git", ["init", "--quiet", root]);
@@ -48,6 +55,26 @@ test("existing public check route preserves v1 and publishes deterministic incom
     assert.ok(report.trustedBaseComparison.reasons.includes("growth-authority-unverified"));
     assert.deepEqual(check(root).report, first.report);
     assert.deepEqual(await readFile(join(root, "reports/sdk.json")), bytes);
+    const previousBreakingFingerprints = new Set(capability.diagnostics
+      .filter(row => row.ruleId === "package.public-api-compatibility.breaking-change-not-approved")
+      .flatMap(row => row.evidence.filter(item => item.kind === "change-fingerprint").map(item => item.value)));
+    const declarationPath = join(root, "packages/library/dist/index.d.ts");
+    const declaration = await readFile(declarationPath, "utf8");
+    const originalCommit = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    await writeFile(declarationPath, declaration.replace("value: string", "value: number"));
+    execFileSync("git", ["-C", root, "add", "packages"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture parameter change"]);
+    const breaking = check(root);
+    assert.equal(breaking.result.status, 2, JSON.stringify(breaking.report));
+    assert.equal(breaking.report.capabilities[0].problem.code, "SDK_GROWTH_EVIDENCE_INCOMPLETE");
+    assert.ok(breaking.report.capabilities[0].diagnostics.some(row =>
+      row.ruleId === "package.public-api-compatibility.breaking-change-not-approved"
+      && row.evidence.some(item => item.kind === "change-fingerprint" && !previousBreakingFingerprints.has(item.value))), JSON.stringify(breaking.report));
+    const breakingReport = JSON.parse(await readFile(join(root, "reports/sdk.json"), "utf8"));
+    assert.equal(breakingReport.verdict, "incomplete");
+    assert.equal(breakingReport.releaseEligible, false);
+    execFileSync("git", ["-C", root, "reset", "--hard", originalCommit], { stdio: "ignore" });
+    assert.deepEqual(check(root).report, first.report);
     const { sourceCommit, sourceTree, topologyDigest, lockDigest, toolchainDigest, artifactDigests } = report.candidate.value;
     const base = { contractRevision: report.contractRevision, observationVersion: "foundation:sdk-growth:observation:1",
       repository: report.repository, sourceCommit, sourceTree, topologyDigest, lockDigest, toolchainDigest, artifactDigests,
@@ -130,19 +157,36 @@ test("report projection validates complete receipts and truthful unavailable and
     admission: { status: "admitted", admittedTransitions: [], diagnostics: [], releaseEligible: false }, decisionDigests: [],
     comparison: compareGrowthSurfaces({ trustedBefore: surface, candidateAfter: surface }, fingerprint),
     compatibility: { status: "complete", diagnostics: [], reasons: [] },
-    released: [{ packageName: "fixture", observation: surface, evidence: { kind: "released" } }] };
+    released: [{ packageName: "fixture", observation: surface, qualification: { receiptDigest: digest }, evidence: { kind: "released" } }] };
   const complete = validateGrowthReport(projectGrowthReport(execution, fingerprint), fingerprint);
   assert.equal(complete.verdict, "admitted");
   assert.ok(complete.phases.every(row => row.status === "complete"));
   assert.equal(complete.transitionReceipts.length, 1);
   assert.equal(complete.transitionReceipts[0].trustedRunRef, "test-only/run");
+  for (const kind of ["released", "initial-unreleased"]) {
+    const removed = structuredClone(execution);
+    removed.observation.surface = structuredClone(surface);
+    removed.observation.surface.value.coverage = [];
+    if (kind === "initial-unreleased") {
+      removed.released[0].evidence = { kind, history: { status: "available", value: digest } };
+    }
+    removed.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:removed-package-compatibility-unavailable"] };
+    const report = validateGrowthReport(projectGrowthReport(removed, fingerprint), fingerprint);
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.releaseEligible, false);
+    assert.equal(report.released.length, 1);
+    assert.equal(report.coverage[0].packageName, "fixture");
+    assert.equal(report.releasedComparison.status, "incomplete");
+    assert.deepEqual(report.phases.map(row => row.name), ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"]);
+  }
   const initial = structuredClone(execution);
   initial.observation.surface.value.entries = [{ coordinate: { packageName: "fixture", exportPath: ".", resolutionBranch: [],
     subject: { kind: "typed", canonicalReference: "NewApi" } }, value: { state: "present", digest } }];
   initial.baseSurface = structuredClone(initial.observation.surface);
   initial.baseReference = { status: "available", value: growthObservationReference(initial.baseSurface.value, fingerprint) };
   initial.comparison = compareGrowthSurfaces({ trustedBefore: initial.baseSurface, candidateAfter: initial.observation.surface }, fingerprint);
-  initial.released = [{ packageName: "fixture", evidence: { kind: "initial-unreleased", history: { status: "available", value: digest } } }];
+  initial.released = [{ packageName: "fixture", qualification: { receiptDigest: digest },
+    evidence: { kind: "initial-unreleased", history: { status: "available", value: digest } } }];
   const initialReport = validateGrowthReport(projectGrowthReport(initial, fingerprint), fingerprint);
   assert.equal(initialReport.verdict, "admitted");
   assert.equal(initialReport.releasedComparison.status, "complete");
@@ -175,6 +219,20 @@ test("report projection validates complete receipts and truthful unavailable and
       assert.equal(report.releaseEligible, false);
       assert.deepEqual(report.transitionReceipts, []);
     }
+  }
+  for (const value of [undefined, null, "", "not-a-digest"]) {
+    const invalidAuthority = structuredClone(execution);
+    invalidAuthority.authority.receiptDigest = value;
+    const report = validateGrowthReport(projectGrowthReport(invalidAuthority, fingerprint), fingerprint);
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.authority.status, "unverified");
+  }
+  for (const value of [undefined, null, { receiptDigest: null }, { receiptDigest: "not-a-digest" }]) {
+    const invalidQualification = structuredClone(execution);
+    invalidQualification.released[0].qualification = value;
+    const report = validateGrowthReport(projectGrowthReport(invalidQualification, fingerprint), fingerprint);
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.releasedComparison.status, "incomplete");
   }
   for (const reasons of [[], "reason", [1], [null], [" "]]) {
     const malformed = structuredClone(incomplete);
@@ -225,3 +283,45 @@ test("report destination rejects missing parents, symlinks, directories and hard
     assert.equal(await readFile(join(root, "input.json"), "utf8"), "protected-input");
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+test("initial-release checking validates package, exact version and Changeset evidence", async () => {
+  const { createHash } = await import("node:crypto");
+  const { evaluateGrowthReleaseCompatibility } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/evaluate-growth-release-compatibility.js");
+  const fingerprint = { sha256: value => createHash("sha256").update(value).digest("hex") };
+  const authorityDigest = `sha256:${"a".repeat(64)}`;
+  const current = [{ packageName: "fixture",
+    typed: { kind: "typed", snapshot: { status: "available", value: baselineSnapshot("7.58.12") } },
+    artifact: { kind: "artifact", snapshot: { status: "available", value: baselineSnapshot("package-artifact-inventory/1") } } }];
+  for (const [failure, releaseEvidence] of [
+    ["package-mismatch", { packageName: "other", packageVersion: "0.0.0", declaredBump: "minor" }],
+    ["version-not-initial", { packageName: "fixture", packageVersion: "invalid", declaredBump: "major" }],
+    ["changeset-missing", { packageName: "fixture", packageVersion: "0.0.0" }],
+    ["changeset-insufficient", { packageName: "fixture", packageVersion: "0.0.0", declaredBump: "patch" }]
+  ]) {
+    const released = [{ packageName: "fixture", policy: { packageName: "fixture", approvedBreakingChanges: [] },
+      releaseEvidence: { status: "available", value: releaseEvidence }, qualification: { receiptDigest: authorityDigest },
+      evidence: { kind: "initial-unreleased", history: { status: "available", value: authorityDigest } } }];
+    const result = evaluateGrowthReleaseCompatibility({ current, released, extractorVersion: "7.58.12",
+      acceptedDecisions: { acceptedDecisionIds: [], acceptedDecisionPaths: [] }, authorityReceiptDigest: authorityDigest }, fingerprint);
+    assert.equal(result.status, "incomplete");
+    assert.ok(result.reasons.includes(`fixture:initial-release-${failure}`), JSON.stringify(result));
+  }
+  for (const packageVersion of ["0.1.0", "1.0.0"]) {
+    const candidate = structuredClone(current);
+    for (const branch of ["typed", "artifact"]) { candidate[0][branch].snapshot.value.packageVersion = packageVersion; }
+    const released = [{ packageName: "fixture", policy: { packageName: "fixture", approvedBreakingChanges: [] },
+      releaseEvidence: { status: "available", value: { packageName: "fixture", packageVersion, declaredBump: "minor" } },
+      qualification: { receiptDigest: authorityDigest },
+      evidence: { kind: "initial-unreleased", history: { status: "available", value: authorityDigest } } }];
+    assert.equal(evaluateGrowthReleaseCompatibility({ current: candidate, released, extractorVersion: "7.58.12",
+      acceptedDecisions: { acceptedDecisionIds: [], acceptedDecisionPaths: [] }, authorityReceiptDigest: authorityDigest }, fingerprint).status, "complete");
+  }
+});
+
+ test("never-published release versions do not relax v1 baseline bootstrap", async () => {
+  const { evaluateInitialReleasePolicy, evaluateBaselineBootstrapPolicy } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/evaluate-initial-release.js");
+  for (const packageVersion of ["0.1.0", "1.0.0"]) {
+    const evidence = { packageName: "fixture", packageVersion, declaredBump: "minor" };
+    assert.equal(evaluateInitialReleasePolicy("fixture", evidence).status, "accepted");
+    assert.deepEqual(evaluateBaselineBootstrapPolicy("fixture", evidence), { status: "rejected", failure: "version-not-initial" });
+  }
+ });

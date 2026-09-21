@@ -7,6 +7,8 @@ export interface GrowthReleasedPackage {
   readonly observation?: GrowthEvidence<GrowthSurfaceObservation>;
   readonly policy: PublicApiPackagePolicy;
   readonly releaseEvidence: GrowthEvidence<PackageReleaseEvidence>;
+  /** Present only after trusted packed custody has qualified this row. */
+  readonly qualification?: { readonly receiptDigest: GrowthDigest };
   readonly evidence:
     | { readonly kind: "released"; readonly typed: GrowthEvidence<PublicApiSnapshot>; readonly artifact: GrowthEvidence<PublicApiSnapshot> }
     | { readonly kind: "initial-unreleased"; readonly history: GrowthEvidence<GrowthDigest> };
@@ -16,6 +18,8 @@ export interface GrowthReleasedPackage {
  * candidate compatibility snapshot is accepted here. Available history denotes
  * a validated exact-target retained receipt, not a caller's initial flag. */
 export interface GrowthInputContext {
+  /** Only the authenticated v3 adapter supplies these exact grant qualifications. */
+  readonly nonReleaseMetadataRoots?: readonly { readonly packageName: string; readonly receiptDigest: GrowthDigest }[];
   readonly trustedBase: GrowthEvidence<GrowthSurfaceObservation>;
   readonly trustedBaseReference: GrowthEvidence<GrowthObservationReference>;
   readonly retainedHistory: GrowthEvidence<{

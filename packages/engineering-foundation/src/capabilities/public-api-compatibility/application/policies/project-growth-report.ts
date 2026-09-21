@@ -49,30 +49,52 @@ export function projectGrowthReport(execution: SdkGrowthAdmissionExecution, fing
     releaseEligible: verdict === "admitted" && execution.compatibility.status === "complete" };
 }
 
+function hasQualification(row: SdkGrowthAdmissionExecution["released"][number],
+  authority: SdkGrowthAdmissionExecution["authority"]): boolean {
+  const value = row.qualification as { readonly receiptDigest?: unknown } | null | undefined;
+  return authority.status === "verified" && value !== undefined && value !== null
+    && typeof value.receiptDigest === "string" && /^sha256:[a-f0-9]{64}$/u.test(value.receiptDigest)
+    && value.receiptDigest === authority.receiptDigest;
+}
+
+function selectPackageObservation(aggregate: import("../model/growth-observation.js").GrowthSurfaceObservation,
+  packageName: string): import("../model/growth-observation.js").GrowthSurfaceObservation {
+  return { ...aggregate,
+    coverage: aggregate.coverage.filter((entry) => entry.packageName === packageName),
+    entries: aggregate.entries.filter((entry) => entry.coordinate.packageName === packageName) };
+}
+
 function compareReleased(execution: SdkGrowthAdmissionExecution, fingerprint: ChangeFingerprint): GrowthComparison {
   const surface = execution.observation.surface;
   const rows = growthUniqueSorted(execution.released, (row) => row.packageName);
   if (surface.status !== "available" || rows.length === 0 || rows.some((row) => row.evidence.kind === "released"
-    ? row.observation?.status !== "available"
-    : row.evidence.history.status !== "available" || projectAuthority(execution.authority).status !== "verified")) {
+    ? row.observation?.status !== "available" || !hasQualification(row, execution.authority)
+    : row.evidence.history.status !== "available" || !hasQualification(row, execution.authority))) {
     return { status: "incomplete", reasons: ["growth-released-aggregate-comparison-unavailable"], findings: [] };
+  }
+  const candidateCoverage = new Map(surface.value.coverage.map((entry) => [entry.packageName, entry]));
+  const missing = rows.filter((row) => !candidateCoverage.has(row.packageName));
+  if (missing.length > 0) {
+    return { status: "incomplete", reasons: missing.map((row) => `${row.packageName}:removed-package-compatibility-unavailable`), findings: [] };
+  }
+  const candidateEntries = new Map<string, typeof surface.value.entries[number][]>();
+  for (const entry of surface.value.entries) {
+    const values = candidateEntries.get(entry.coordinate.packageName) ?? [];
+    values.push(entry); candidateEntries.set(entry.coordinate.packageName, values);
   }
   const before = rows.map((row) => {
     if (row.evidence.kind === "initial-unreleased") {
-      // Available history is verified by the context port. Derive an empty
-      // comparison side, never a released ObservationRef or a v1 snapshot.
-      return normalizeGrowthObservation({ ...surface.value, entries: [] });
+      return normalizeGrowthObservation({ ...surface.value, coverage: [candidateCoverage.get(row.packageName)!], entries: [] });
     }
     if (row.observation?.status !== "available") { throw new Error("Validated released observation disappeared."); }
-    return normalizeGrowthObservation(row.observation.value);
+    return normalizeGrowthObservation(selectPackageObservation(row.observation.value, row.packageName));
   });
   const comparisons = before.map((value, index) => {
     const packageName = rows[index]!.packageName;
-    const select = (aggregate: typeof value) => ({ ...aggregate,
-      coverage: aggregate.coverage.filter((row) => row.packageName === packageName),
-      entries: aggregate.entries.filter((row) => row.coordinate.packageName === packageName) });
-    return compareGrowthSurfaces({ trustedBefore: { status: "available", value: select(value) },
-      candidateAfter: { status: "available", value: select(surface.value) } }, fingerprint);
+    const candidate = normalizeGrowthObservation({ ...surface.value, coverage: [candidateCoverage.get(packageName)!],
+      entries: candidateEntries.get(packageName) ?? [] });
+    return compareGrowthSurfaces({ trustedBefore: { status: "available", value },
+      candidateAfter: { status: "available", value: candidate } }, fingerprint);
   });
   const transitions = growthUniqueSorted(comparisons.flatMap((comparison) => comparison.status === "complete" ? comparison.transitions : comparison.findings),
     (entry) => growthCanonicalJson(entry.coordinate));
@@ -86,27 +108,34 @@ function compareReleased(execution: SdkGrowthAdmissionExecution, fingerprint: Ch
 }
 
 function projectAuthority(authority: SdkGrowthAdmissionExecution["authority"]): GrowthReport["authority"] {
-  return authority.status === "unverified" ? authority
-    : authority.workflowRef?.trim() !== undefined && authority.workflowRef.trim() !== ""
+  if (authority.status === "unverified") { return authority; }
+  if (!/^sha256:[a-f0-9]{64}$/u.test(authority.receiptDigest)) {
+    return { status: "unverified", reasons: ["growth-authority-receipt-digest-unavailable"] };
+  }
+  return authority.workflowRef?.trim() !== undefined && authority.workflowRef.trim() !== ""
       && authority.runRef?.trim() !== undefined && authority.runRef.trim() !== ""
-      ? { status: "verified", workflowRef: authority.workflowRef, runRef: authority.runRef, receiptDigest: authority.receiptDigest }
-      : { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] };
+    ? { status: "verified", workflowRef: authority.workflowRef, runRef: authority.runRef, receiptDigest: authority.receiptDigest }
+    : { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] };
 }
 
 function reportCoverage(execution: SdkGrowthAdmissionExecution, decisionComplete: boolean): GrowthCoverage[] {
   const base = execution.baseSurface.status === "available" ? execution.baseSurface.value.coverage : [];
   const candidate = execution.observation.surface.status === "available" ? execution.observation.surface.value.coverage : [];
   const names = [...new Set([...base, ...candidate].map((row) => row.packageName))].toSorted();
+  const baseByPackage = new Map(base.map((entry) => [entry.packageName, entry]));
+  const candidateByPackage = new Map(candidate.map((entry) => [entry.packageName, entry]));
   const rank = { complete: 0, limited: 1, unsupported: 2, unavailable: 3 };
   return names.map((name) => {
-    const previous = base.find((entry) => entry.packageName === name), current = candidate.find((entry) => entry.packageName === name);
+    const previous = baseByPackage.get(name), current = candidateByPackage.get(name);
     const row = current ?? previous!;
+    const beforeByDimension = new Map(previous?.dimensions.map((entry) => [entry.dimension, entry]));
+    const afterByDimension = new Map(current?.dimensions.map((entry) => [entry.dimension, entry]));
     return { ...row, dimensions: row.dimensions.map((dimension) => {
       if (dimension.dimension === "decision") {
         return { ...dimension, status: decisionComplete ? "complete" : "unavailable", reasons: [decisionComplete ? "growth-decision-set-evaluated" : "growth-owner-and-run-authority-unverified"] };
       }
-      const before = previous?.dimensions.find((entry) => entry.dimension === dimension.dimension);
-      const after = current?.dimensions.find((entry) => entry.dimension === dimension.dimension);
+      const before = beforeByDimension.get(dimension.dimension);
+      const after = afterByDimension.get(dimension.dimension);
       if (before === undefined || after === undefined) { return dimension; }
       return { ...dimension, status: rank[before.status] > rank[after.status] ? before.status : after.status,
         reasons: [...before.reasons.map((reason) => `trusted-base:${reason}`), ...after.reasons.map((reason) => `candidate:${reason}`)].toSorted() };

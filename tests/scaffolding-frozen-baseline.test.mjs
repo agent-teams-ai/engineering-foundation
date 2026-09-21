@@ -249,6 +249,10 @@ test("validates the release-owned public API baseline and freezes the package ex
     "./scaffolding/qualification": {
       types: "./dist/scaffolding/qualification.d.ts",
       import: "./dist/scaffolding/qualification.js"
+    },
+    "./sdk-growth-authority": {
+      types: "./dist/sdk-growth-authority.d.ts",
+      import: "./dist/sdk-growth-authority.js"
     }
   });
 });

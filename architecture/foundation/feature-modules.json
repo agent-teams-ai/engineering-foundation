@@ -967,7 +967,8 @@
         "packages/engineering-foundation/src/public-api-surface.ts",
         "packages/engineering-foundation/src/local-mode/index.ts",
         "packages/engineering-foundation/src/scaffolding/index.ts",
-        "packages/engineering-foundation/src/scaffolding/qualification.ts"
+        "packages/engineering-foundation/src/scaffolding/qualification.ts",
+        "packages/engineering-foundation/src/sdk-growth-authority.ts"
       ],
       "moduleAssembly": [
         "packages/engineering-foundation/src/index.ts",
@@ -979,7 +980,8 @@
         "packages/engineering-foundation/src/schema-catalog.ts",
         "packages/engineering-foundation/src/schema-ids.ts",
         "packages/engineering-foundation/src/foundation-state-contract.ts",
-        "packages/engineering-foundation/src/scaffolding/qualification.ts"
+        "packages/engineering-foundation/src/scaffolding/qualification.ts",
+        "packages/engineering-foundation/src/sdk-growth-authority.ts"
       ],
       "generatedRoots": [],
       "exceptions": [
@@ -1149,6 +1151,14 @@
             },
             {
               "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/evaluate-initial-release.ts",
+              "owner": "engineering-foundation/public-api-compatibility"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-growth-authority-primitives.ts",
               "owner": "engineering-foundation/public-api-compatibility"
             },
             {
@@ -1581,7 +1591,8 @@
             {
               "role": "composition",
               "roots": [
-                "packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts"
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/authority-module.ts"
               ]
             }
           ],
@@ -1596,7 +1607,10 @@
             "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
             "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
             "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs",
-            "packages/engineering-foundation/tests/public-api-audit-projection.test.mjs"
+            "packages/engineering-foundation/tests/public-api-audit-projection.test.mjs",
+            "tests/public-api-growth-authority.test.mjs",
+            "tests/public-api-growth-metadata-root.test.mjs",
+            "tests/public-api-growth-promotion-authority.test.mjs"
           ]
         },
         {

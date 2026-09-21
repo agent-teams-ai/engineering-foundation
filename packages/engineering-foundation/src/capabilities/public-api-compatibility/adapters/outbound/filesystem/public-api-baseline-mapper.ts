@@ -111,7 +111,8 @@ export function promotionBaselineSchemaId(
 export function mapReleasedBaseline(
   input: unknown,
   policy: Pick<PublicApiPackagePolicy, "packageName">,
-  _allowReleaseMigration = false
+  _allowReleaseMigration = false,
+  expectedExtractorVersion?: string
 ): PublicApiSnapshot {
   const baseline = record(input, "released API baseline");
   if (baseline["schemaVersion"] !== 1) {
@@ -136,10 +137,14 @@ export function mapReleasedBaseline(
     validateSortedItems(entrypoint.items);
   }
   validateSortedEntrypoints(entrypoints);
+  const extractorVersion = string(baseline["extractorVersion"], "extractorVersion");
+  if (expectedExtractorVersion !== undefined && extractorVersion !== expectedExtractorVersion) {
+    inputError(`Released API baseline extractor does not match ${expectedExtractorVersion}.`);
+  }
   return Object.freeze({
     schemaVersion: 1,
     ...baselineIdentity(baseline, policy),
-    extractorVersion: string(baseline["extractorVersion"], "extractorVersion"),
+    extractorVersion,
     entrypoints: Object.freeze(entrypoints)
   });
 }

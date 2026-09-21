@@ -9,10 +9,17 @@ const forbiddenEntries = [
   "foundation-link.json", "/secret-fixtures/",
 ];
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
-const MAX_ARCHIVE_ENTRIES = 2_500;
+const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
+const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
+  // Qualified complete Foundation inventory: 623 TypeScript modules produce
+  // 2,492 JS/declaration/map files, plus 37 schemas, seven presets, three
+  // assets and package.json/LICENSE/README.md: 2,546 entries in total.
+  // The full-inventory regression requires requalification for any growth;
+  // every other package retains the existing 2,500-entry bound.
+  "@agent-teams/engineering-foundation": 2_546,
+});
 const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;
-const MAX_TAR_BYTES = MAX_UNCOMPRESSED_BYTES + (MAX_ARCHIVE_ENTRIES + 2) * 1024;
 
 function portableSegmentIdentity(segment) {
   return segment.normalize("NFKC").toUpperCase();
@@ -44,9 +51,15 @@ export function portableEntryIdentity(entry) {
   return segments.map(portableSegmentIdentity).join("/");
 }
 
-function archiveEntries(listing) {
+export function maximumArchiveEntries(packageName) {
+  return typeof packageName === "string" && Object.hasOwn(PACKAGE_MAX_ARCHIVE_ENTRIES, packageName)
+    ? PACKAGE_MAX_ARCHIVE_ENTRIES[packageName]
+    : DEFAULT_MAX_ARCHIVE_ENTRIES;
+}
+
+function archiveEntries(listing, packageName) {
   const entries = listing.split(/\r?\n/u).filter(Boolean);
-  if (entries.length > MAX_ARCHIVE_ENTRIES) {
+  if (entries.length > maximumArchiveEntries(packageName)) {
     throw new Error(`Package contains too many entries: ${entries.length}.`);
   }
   const identities = new Map();
@@ -61,13 +74,18 @@ function archiveEntries(listing) {
   return entries;
 }
 
-export function assertArchiveListing(listing, requiredArtifactPaths, allowedArtifactPaths = requiredArtifactPaths) {
+export function assertArchiveListing(
+  listing,
+  requiredArtifactPaths,
+  allowedArtifactPaths = requiredArtifactPaths,
+  packageName,
+) {
   for (const forbidden of forbiddenEntries) {
     if (listing.includes(forbidden)) {
       throw new Error(`Forbidden package entry detected: ${forbidden}`);
     }
   }
-  const entries = archiveEntries(listing);
+  const entries = archiveEntries(listing, packageName);
   const entrySet = new Set(entries);
   const requiredEntries = [
     "package/package.json", "package/LICENSE", "package/README.md",
@@ -147,13 +165,14 @@ function assertSupportedTarMetadata(type, data) {
   }
 }
 
-export function inspectCompressedTarArchive(archiveBytes) {
+export function inspectCompressedTarArchive(archiveBytes, packageName) {
   if (!Buffer.isBuffer(archiveBytes) || archiveBytes.length > MAX_ARCHIVE_BYTES) {
     throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);
   }
   let tar;
   try {
-    tar = gunzipSync(archiveBytes, { maxOutputLength: MAX_TAR_BYTES });
+    const maximumTarBytes = MAX_UNCOMPRESSED_BYTES + (maximumArchiveEntries(packageName) + 2) * 1024;
+    tar = gunzipSync(archiveBytes, { maxOutputLength: maximumTarBytes });
   } catch (error) {
     throw new Error(`Package archive cannot be decompressed within its safety bound: ${error.message}`, { cause: error });
   }
@@ -192,7 +211,7 @@ export function inspectCompressedTarArchive(archiveBytes) {
       throw new Error(`Package tar members exceed ${MAX_UNCOMPRESSED_BYTES} aggregate bytes.`);
     }
     entryCount += 1;
-    if (entryCount > MAX_ARCHIVE_ENTRIES) {
+    if (entryCount > maximumArchiveEntries(packageName)) {
       throw new Error(`Package contains too many entries: ${entryCount}.`);
     }
     const next = offset + 512 + Math.ceil(size / 512) * 512;
@@ -282,10 +301,17 @@ export function assertNoSpecialTarEntries(verboseListing) {
   }
 }
 
-export function assertArchiveSafety({ allowedArtifactPaths, archiveBytes, listing, requiredArtifactPaths, verboseListing }) {
+export function assertArchiveSafety({
+  allowedArtifactPaths,
+  archiveBytes,
+  listing,
+  packageName,
+  requiredArtifactPaths,
+  verboseListing,
+}) {
   if (!Buffer.isBuffer(archiveBytes) || archiveBytes.length > MAX_ARCHIVE_BYTES) {
     throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);
   }
-  assertArchiveListing(listing, requiredArtifactPaths, allowedArtifactPaths);
+  assertArchiveListing(listing, requiredArtifactPaths, allowedArtifactPaths, packageName);
   assertNoSpecialTarEntries(verboseListing);
 }

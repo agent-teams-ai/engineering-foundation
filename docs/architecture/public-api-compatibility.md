@@ -413,3 +413,16 @@ has SHA-256 `d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`.
 Its fixed private-helper rule applies: this adapter stays within the existing
 capability and Pure DI composition. No Assembly adoption or CMS pin migration
 is introduced. The existing FMS pin and governed roots remain in force.
+
+### Qualified non-release workspace metadata root (S3 authority v3)
+
+[ADR-0055](../decisions/0055-qualified-non-release-metadata-root.md) authorizes
+one narrow distinction between full topology and release obligations. A root
+stays in inventory, source identity, transitions and report coverage. Only
+authenticated consumer-owned classification bound to exact base and candidate
+source bytes may omit its archive and release baseline. All governed packages
+and surviving historical release obligations remain covered across the union.
+The [C0 successor boundary](../reference/sdk-growth-c0.md#revision-6-qualified-non-release-metadata-root)
+and [S3 protocol](../reference/sdk-growth-s3-authority.md#qualified-metadata-root)
+own the closed evidence, rejection rules and unchanged 120-second deadline.
+Private flags and missing exports confer no exemption.

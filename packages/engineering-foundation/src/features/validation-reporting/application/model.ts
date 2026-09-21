@@ -11,12 +11,12 @@ export type FoundationCheckCoverage = "full" | "selected";
 
 export type DiagnosticSeverity = "error" | "warning" | "info";
 
-interface DiagnosticPosition {
+export interface DiagnosticPosition {
   readonly line: number;
   readonly column: number;
 }
 
-interface DiagnosticLocation {
+export interface DiagnosticLocation {
   readonly path: string;
   readonly start?: DiagnosticPosition;
   readonly end?: DiagnosticPosition;

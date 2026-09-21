@@ -12,16 +12,30 @@ import type { GrowthReleaseCompatibilityResult } from "../policies/evaluate-grow
 import { growthCanonicalJson, growthObservationReference, growthUniqueSorted, normalizeGrowthInvocation } from "../policies/normalize-growth-observation.js";
 import { assertGrowthEvidence, validateGrowthExecution } from "../policies/validate-growth-execution.js";
 
+const digestPattern = /^sha256:[a-f0-9]{64}$/u;
+
 function trustedReasons(context: GrowthInputContext, fingerprint: ChangeFingerprint): readonly string[] {
   assertGrowthEvidence(context.trustedBase); assertGrowthEvidence(context.trustedBaseReference); assertGrowthEvidence(context.retainedHistory);
   const reasons: string[] = [];
-  if (context.authority.status === "verified" && !/^sha256:[a-f0-9]{64}$/u.test(context.authority.receiptDigest)) {
+  if (context.authority.status === "verified" && !digestPattern.test(context.authority.receiptDigest)) {
     throw new GrowthObservationInvariantError("growth-authority-receipt-invalid");
   }
-  if (context.retainedHistory.status === "available" && !/^sha256:[a-f0-9]{64}$/u.test(context.retainedHistory.value.receiptDigest)) {
+  if (context.retainedHistory.status === "available" && !digestPattern.test(context.retainedHistory.value.receiptDigest)) {
     throw new GrowthObservationInvariantError("growth-history-receipt-invalid");
   }
   if (context.authority.status !== "verified") { reasons.push("growth-authority-unverified"); }
+  for (const row of context.released) {
+    const qualification = row.qualification as { readonly receiptDigest?: unknown } | null | undefined;
+    if (qualification === undefined || qualification === null) {
+      reasons.push(`${row.packageName}:growth-qualification-unavailable`); continue;
+    }
+    if (typeof qualification.receiptDigest !== "string" || !digestPattern.test(qualification.receiptDigest)) {
+      throw new GrowthObservationInvariantError("growth-qualification-receipt-invalid");
+    }
+    if (context.authority.status !== "verified" || qualification.receiptDigest !== context.authority.receiptDigest) {
+      reasons.push(`${row.packageName}:growth-qualification-authority-mismatch`);
+    }
+  }
   if (context.trustedBase.status !== "available" || context.trustedBaseReference.status !== "available") {
     reasons.push("growth-trusted-base-reference-unavailable"); return reasons;
   }
@@ -39,8 +53,18 @@ function trustedReasons(context: GrowthInputContext, fingerprint: ChangeFingerpr
 function releaseScopeReasons(context: GrowthInputContext, execution: GrowthObservationExecution): readonly string[] {
   if (context.trustedBase.status !== "available" || execution.surface.status !== "available") { return ["growth-release-topology-unavailable"]; }
   const packages = [...new Set([...context.trustedBase.value.coverage, ...execution.surface.value.coverage].map((row) => row.packageName))].toSorted();
+  const roots = growthUniqueSorted(context.nonReleaseMetadataRoots ?? [], (row) => row.packageName);
+  for (const root of roots) {
+    if (context.authority.status !== "verified" || root.receiptDigest !== context.authority.receiptDigest
+      || !context.trustedBase.value.coverage.some((row) => row.packageName === root.packageName)
+      || !execution.surface.value.coverage.some((row) => row.packageName === root.packageName)) {
+      throw new GrowthObservationInvariantError("growth-metadata-root-qualification-invalid");
+    }
+  }
+  const nonRelease = new Set(roots.map((root) => root.packageName));
   const released = growthUniqueSorted(context.released, (row) => row.packageName).map((row) => row.packageName);
-  return growthCanonicalJson(packages) === growthCanonicalJson(released) ? [] : ["growth-release-topology-mismatch"];
+  return growthCanonicalJson(packages.filter((name) => !nonRelease.has(name))) === growthCanonicalJson(released)
+    ? [] : ["growth-release-topology-mismatch"];
 }
 
 export interface SdkGrowthAdmissionExecution {
@@ -85,8 +109,10 @@ export async function admitSdkGrowth(input: {
       reasons: growthUniqueSorted([...reasons, ...(observedComparison.status === "incomplete" ? observedComparison.reasons : [])], (reason) => reason),
       findings: observedComparison.status === "complete" ? observedComparison.transitions : observedComparison.findings
     };
-    const compatibility = evaluateGrowthReleaseCompatibility({ current: execution.compatibilitySnapshots, released: context.released,
-      extractorVersion: invocation.tool.extractorVersion, acceptedDecisions: context.acceptedBreakingDecisions }, dependencies.fingerprint);
+    const nonRelease = new Set((context.nonReleaseMetadataRoots ?? []).map((root) => root.packageName));
+    const compatibility = evaluateGrowthReleaseCompatibility({ current: execution.compatibilitySnapshots.filter((row) => !nonRelease.has(row.packageName)), released: context.released,
+      extractorVersion: invocation.tool.extractorVersion, acceptedDecisions: context.acceptedBreakingDecisions,
+      ...(context.authority.status === "verified" ? { authorityReceiptDigest: context.authority.receiptDigest } : {}) }, dependencies.fingerprint);
     const ownerEvidence = context.acceptedBreakingDecisions.growthDecisionAuthority;
     const authority = context.authority.status === "verified" && ownerEvidence?.status === "available" ? ownerEvidence.value : [];
     const admission = evaluateGrowthAdmission({ comparison, decisions: context.decisions, authority, compatibility: compatibility.status }, dependencies.fingerprint);

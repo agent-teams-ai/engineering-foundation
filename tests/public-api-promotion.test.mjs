@@ -84,6 +84,11 @@ test("bootstraps an absent baseline only for a reviewed initial unreleased packa
 
 for (const [name, releaseEvidence, expectedCode] of [
   [
+    "wrong package",
+    { packageName: "@fixture/other", packageVersion: "0.0.0", declaredBump: "minor" },
+    "PUBLIC_API_BASELINE_BOOTSTRAP_NOT_INITIAL",
+  ],
+  [
     "released package",
     { packageName: packagePolicy.packageName, packageVersion: "1.0.0", declaredBump: "major" },
     "PUBLIC_API_BASELINE_BOOTSTRAP_NOT_INITIAL",

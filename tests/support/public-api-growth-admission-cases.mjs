@@ -1,3 +1,4 @@
+import { createVerifiedGrowthObservation } from "../../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/verified-growth-observation.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isGrowthDecision } from '../../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/validate-growth-decision.js';
@@ -24,6 +25,7 @@ const codes = result => result.diagnostics.map(x => x.code);
 
 const available = value => ({status:'available',value});
 const snapshot = (items = []) => ({schemaVersion:1,packageName:'example',packageVersion:'1.0.0',extractorVersion:'pinned',entrypoints:[{exportPath:'.',items}]});
+const packageSnapshot = (packageName, items, extractorVersion = 'pinned') => ({schemaVersion:1,packageName,packageVersion:'1.0.0',extractorVersion,entrypoints:[{exportPath:'.',items}]});
 function useCaseFixture() {
  const before = observation([]), after = observation([entry('A')]);
  const { contractRevision: _contract, observationVersion: _version, coverage: _coverage, entries: _entries, ...invocation } = after;
@@ -33,8 +35,9 @@ function useCaseFixture() {
  const reference = growthObservationReference(before,fingerprint);
  const context = {trustedBase:available(before), trustedBaseReference:available(reference), retainedHistory:available({targetSurfaceDigest:reference.surfaceDigest,receiptDigest:digest}), released:[{
   packageName:'example', policy:{packageName:'example',packageRoot:'packages/example',manifestPath:'packages/example/package.json',tsconfigPath:'packages/example/tsconfig.json',releasedBaselinePath:'architecture/public-api/example.json',approvedBreakingChanges:[],entrypoints:[{exportPath:'.',declarationEntryPoint:'dist/index.d.ts'}],nonTypeExports:[]},
-  releaseEvidence:available({packageName:'example',packageVersion:'1.0.0',declaredBump:'minor'}), evidence:{kind:'released',typed:available(snapshot()),artifact:available(artifact)}
- }], decisions:[decision],acceptedBreakingDecisions:{acceptedDecisionIds:[],acceptedDecisionPaths:[],growthDecisionAuthority:available([authorityFor(decision)])},authority:{status:'verified',receiptDigest:digest}};
+  releaseEvidence:available({packageName:'example',packageVersion:'1.0.0',declaredBump:'minor'}), qualification:{receiptDigest:digest}, evidence:{kind:'released',typed:available(snapshot()),artifact:available(artifact)}
+ }], packedCandidates:[{packageName:'example',observation:after,coverage:after.coverage[0]}],
+ decisions:[decision],acceptedBreakingDecisions:{acceptedDecisionIds:[],acceptedDecisionPaths:[],growthDecisionAuthority:available([authorityFor(decision)])},authority:{status:'verified',receiptDigest:digest}};
  const execution = {identity:invocation,surface:available(after),compatibilitySnapshots:[{packageName:'example',typed:{kind:'typed',snapshot:available(current)},artifact:{kind:'artifact',snapshot:available(artifact)}}]};
  const calls = [];
  const cancellation = {throwIfCancelled() {}};
@@ -43,7 +46,68 @@ function useCaseFixture() {
  return {input,dependencies,execution,context,calls};
 }
 
+function configureCrossPackageDefaultAliasFixture(fixture, reversePackages = false) {
+ const aliasPackageName = 'example';
+ const bindingPackageName = '@fixture/core';
+ const aliasReference = `${aliasPackageName}!AnyFactoryHandle:type`;
+ const targetReference = `${aliasPackageName}!FactoryHandle:interface`;
+ const alias = signature => ({canonicalReference:aliasReference,kind:'TypeAlias',parentReference:`${aliasPackageName}!`,parentKind:'EntryPoint',signature});
+ const target = {canonicalReference:targetReference,kind:'Interface',parentReference:`${aliasPackageName}!`,parentKind:'EntryPoint',
+  signature:'export interface FactoryHandle<C, D extends ModuleDeclaration = ModuleDeclaration, I = unknown>'};
+ const binding = {canonicalReference:`${bindingPackageName}!ModuleDeclaration:interface`,kind:'Interface',parentReference:`${bindingPackageName}!`,parentKind:'EntryPoint',signature:'export interface ModuleDeclaration'};
+ const releasedAlias = snapshot([alias('export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;'),target]);
+ const currentAlias = snapshot([alias('export type AnyFactoryHandle<C> = FactoryHandle<C>;'),target]);
+ const releasedBinding = packageSnapshot(bindingPackageName,[binding]);
+ const currentBinding = packageSnapshot(bindingPackageName,[binding]);
+ fixture.context.released[0].evidence.typed = available(releasedAlias);
+ fixture.context.released[0].evidence.artifact = available({...releasedAlias,extractorVersion:'package-artifact-inventory/1'});
+ fixture.execution.compatibilitySnapshots[0].typed.snapshot = available(currentAlias);
+ fixture.execution.compatibilitySnapshots[0].artifact.snapshot = available({...currentAlias,extractorVersion:'package-artifact-inventory/1'});
+ const bindingPolicy = {...fixture.context.released[0].policy,packageName:bindingPackageName,
+  packageRoot:'packages/core',manifestPath:'packages/core/package.json',tsconfigPath:'packages/core/tsconfig.json',releasedBaselinePath:'architecture/public-api/core.json'};
+ const releasedRow = {packageName:bindingPackageName,policy:bindingPolicy,
+  releaseEvidence:available({packageName:bindingPackageName,packageVersion:'1.0.0'}),qualification:{receiptDigest:digest},
+  evidence:{kind:'released',typed:available(releasedBinding),artifact:available({...releasedBinding,extractorVersion:'package-artifact-inventory/1'})}};
+ const currentRow = {packageName:bindingPackageName,typed:{kind:'typed',snapshot:available(currentBinding)},
+  artifact:{kind:'artifact',snapshot:available({...currentBinding,extractorVersion:'package-artifact-inventory/1'})}};
+ fixture.context.released.push(releasedRow);
+ fixture.execution.compatibilitySnapshots.push(currentRow);
+ for (const surface of [fixture.context.trustedBase.value,fixture.execution.surface.value]) {
+  surface.coverage.push({...structuredClone(surface.coverage[0]),packageName:bindingPackageName});
+ }
+ const reference = growthObservationReference(fixture.context.trustedBase.value,fingerprint);
+ fixture.context.trustedBaseReference = available(reference);
+ fixture.context.retainedHistory = available({targetSurfaceDigest:reference.surfaceDigest,receiptDigest:digest});
+ if (reversePackages) {
+  fixture.context.released.reverse();
+  fixture.execution.compatibilitySnapshots.reverse();
+ }
+}
+
 function registerGrowthAdmissionRegressionCases() {
+  test('raw context candidate fields cannot rewrite the S1 payload or its digest', async () => {
+    const f = useCaseFixture();
+    const original = structuredClone(f.execution);
+    f.context.packedCandidates = [{ packageName: 'example', observation: observation([]), coverage: observation([]).coverage[0] }];
+    const result = await admitSdkGrowth(f.input, f.dependencies);
+    assert.deepEqual(result.observation, original);
+    assert.deepEqual(growthObservationReference(result.observation.surface.value, fingerprint), growthObservationReference(original.surface.value, fingerprint));
+  });
+
+  test('SDK qualification uses cross-package stable default bindings independent of package order', async () => {
+   const results = [];
+   for (const reversePackages of [false,true]) {
+    const f = useCaseFixture();
+    configureCrossPackageDefaultAliasFixture(f,reversePackages);
+    const result = await admitSdkGrowth(f.input,f.dependencies);
+    assert.equal(result.compatibility.status,'complete',JSON.stringify(result.compatibility));
+    assert.deepEqual(result.compatibility.diagnostics,[]);
+    assert.equal(result.admission.status,'admitted');
+    results.push(result.compatibility);
+   }
+   assert.deepEqual(results[1],results[0]);
+  });
+
   test('decision order cannot change overlap evidence', () => {
     const comparison = compare([], [entry('A')]);
     const decisions = [decisionFor(comparison.transitions, 'ADR-2'), decisionFor(comparison.transitions, 'ADR-1')];
@@ -272,7 +336,8 @@ export function registerGrowthAdmissionCases() {
    ['retained chain target changed', f => { f.context.retainedHistory.value.targetSurfaceDigest=otherDigest; }],
    ['candidate authority', f => { f.context.authority={status:'unverified',reasons:['candidate-input']}; }],
    ['missing initial history', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:{status:'unavailable',reasons:['missing-history']}}; }],
-   ['unqualified initial history digest', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:available(digest)}; }],
+   ['unqualified initial history digest', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:available(digest)}; delete f.context.released[0].qualification; }],
+   ['mismatched initial history qualification', f => { f.context.released[0].evidence={kind:'initial-unreleased',history:available(digest)}; f.context.released[0].qualification={receiptDigest:otherDigest}; }],
    ['unavailable artifact branch', f => { f.execution.compatibilitySnapshots[0].artifact.snapshot={status:'unavailable',reasons:['lost-archive']}; }]
   ]) { test(`${name} remains incomplete`, async () => {
    const f=useCaseFixture(); mutate(f);
@@ -311,6 +376,31 @@ export function registerGrowthAdmissionCases() {
    assert.equal(evaluate(compare([entry('A')],[entry('A',otherDigest)]),[d]).status,'rejected');
    assert.equal(evaluate(compare([],[entry('A',otherDigest)]),[d]).status,'rejected');
   });
+  for (const kind of ['typed', 'data', 'wildcard-member']) {
+   test(`packed-only ${kind} cannot bypass release compatibility`, async () => {
+    const f = useCaseFixture();
+    f.execution.surface.value.entries = [];
+    f.execution.compatibilitySnapshots[0].typed.snapshot = available(snapshot());
+    const packed = structuredClone(f.context.packedCandidates[0]);
+    packed.observation.entries = [{ coordinate: { ...coordinate('PackedOnly'), subject: kind === 'typed'
+      ? { kind, canonicalReference: 'PackedOnly' } : { kind, member: 'dist/packed.json' } }, value: { state: 'present', digest } }];
+    f.context.packedCandidates = [packed];
+    f.dependencies.observation = createVerifiedGrowthObservation(f.dependencies.observation, { packedCandidates: () => f.context.packedCandidates, resolution: () => ({ grant: { metadataRoots: [] } }) });
+    const comparison = compareGrowthSurfaces({ trustedBefore: f.context.trustedBase, candidateAfter: available(packed.observation) }, fingerprint);
+    const decision = decisionFor(comparison.transitions);
+    f.context.decisions = [decision];
+    f.context.acceptedBreakingDecisions.growthDecisionAuthority = available([authorityFor(decision)]);
+    delete f.context.released[0].releaseEvidence.value.declaredBump;
+    const result = await admitSdkGrowth(f.input, f.dependencies);
+    assert.equal(result.comparison.status, 'complete');
+    assert.equal(result.comparison.transitions.length, 1);
+    assert.equal(result.compatibility.status, 'incomplete');
+    assert.ok(result.compatibility.reasons.includes(`example:${kind === 'typed' ? 'typed' : 'artifact'}:compatibility-evidence-unavailable`));
+    assert.equal(result.admission.status, 'incomplete');
+    assert.equal(result.admission.releaseEligible, false);
+   });
+  }
+
   test('removed package release obligations cannot disappear from context', async () => {
    const f=useCaseFixture();
    const before=f.context.trustedBase.value;

@@ -197,3 +197,23 @@ test("historical normalization limits become unavailable while invariant failure
   await writeFile(join(root, "base.json"), JSON.stringify(base));
   await assert.rejects(adapter.read(request, cancellation), error => error.name === "GrowthObservationInvariantError");
 }));
+
+test("unqualified filesystem release evidence retains breaking compatibility diagnostics", async () => fixture(async (_root, adapter) => {
+  const context = await adapter.read(request, cancellation);
+  const { evaluateGrowthReleaseCompatibility } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/policies/evaluate-growth-release-compatibility.js");
+  const typed = currentBaseline();
+  typed.entrypoints[0].items[0] = {
+    ...typed.entrypoints[0].items[0],
+    signature: "export declare function stable(value: number): string;"
+  };
+  const result = evaluateGrowthReleaseCompatibility({
+    current: [{ packageName: "@fixture/public-api", typed: { kind: "typed", snapshot: { status: "available", value: typed } },
+      artifact: { kind: "artifact", snapshot: context.released[0].evidence.artifact } }],
+    released: context.released,
+    extractorVersion: typed.extractorVersion,
+    acceptedDecisions: context.acceptedBreakingDecisions
+  }, dependencies.fingerprint);
+  assert.equal(result.status, "incomplete");
+  assert.ok(result.reasons.includes("@fixture/public-api:released-proof-not-qualified"));
+  assert.ok(result.diagnostics.some(row => row.ruleId === "package.public-api-compatibility.breaking-change-not-approved"), JSON.stringify(result));
+}));

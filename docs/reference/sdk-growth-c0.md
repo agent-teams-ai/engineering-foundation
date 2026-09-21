@@ -1,10 +1,59 @@
 # SDK growth C0 contract
 
-Status: Documentation contract frozen as `foundation:sdk-growth:c0:5`;
-implementation and activation pending S1–S3. This is a repository-only
-pseudo-contract, not a published schema, command, accepted ADR or approval.
+Status: Boundary revision `foundation:sdk-growth:c0:6` adds the authorized
+metadata-root release-role distinction through authority protocol v3. The
+revision 5 observation, decision, policy and report wire vocabulary below stays
+`foundation:sdk-growth:c0:5`; no existing JSON Schema bytes change. External
+activation remains separate. [ADR-0055](../decisions/0055-qualified-non-release-metadata-root.md)
+records the owner-authorized decision.
 The existing [public API policy](../architecture/public-api-compatibility.md)
 and its supported v1 consumers retain their current meaning and bytes.
+
+## Revision 6: qualified non-release metadata root
+
+The workspace metadata root remains in inventory, source identity, topology
+transitions and report coverage. Its full topology remains `governed` in the
+unchanged observation vocabulary. A distinct release role,
+`non-release-metadata-root`, exists only in the closed authenticated
+`reviewrouter:sdk-growth-authority:3` grant. Private flags, absent exports and
+candidate declarations cannot establish that role.
+
+At most one root may qualify, at `.` with manifest `package.json`. The consumer
+owns a closed canonical `foundation:sdk-growth:metadata-root:1` classification
+record containing kind, packageName, rootPath, manifestPath, decisionId, ownerRef
+and `releaseHistory: "none"`. The trusted owner evidence authenticates its
+complete two-source evidence digest, exact request, authorization and approval.
+The grant binds the exact base and candidate commits/trees, manifest bytes,
+workspace bytes, classification bytes/path, and retained history digest. EF
+checks the committed regular files at both sources and the current working
+bytes independently. The classification and workspace bytes must be unchanged.
+Both manifests must retain the same name, `private: true` and no exposure keys.
+Unknown roots, changes of role, public exposure, omitted/substituted evidence,
+root/package removal or rename, and workspace-glob changes fail closed.
+
+Only that qualified root may omit archive and release-baseline rows. Every
+other member of the trusted-base/candidate topology union and every surviving
+historical release obligation stays covered. A release row conflicts with a
+non-release claim. Root coverage reasons explicitly identify
+`qualified-non-release-metadata-root`; they never claim package installation.
+Package archive observations contain exactly one package, and independent
+installed inventory validation still checks every package's bytes. No root
+export resolver, general no-exports behavior, wildcard exemption or automatic
+private-package exemption is introduced.
+
+The successor authority protocol uses version 3 request/grant/completion/receipt
+and digest domains; it explicitly rejects versions 1 and 2. Its evidence manifest
+is version 2 and additionally binds metadata-root evidence digests. The existing
+archive representation and published schemas stay unchanged. Promotion rechecks
+source identity after asynchronous completion and before any baseline write.
+The production deadline remains 120 seconds.
+
+[Retained revision 5 document bytes](sdk-growth-c0/contract-v5.txt) and
+[identity bytes](sdk-growth-c0/contract-identity-v5.json) preserve the previous
+contract exactly. The current identity sidecar records their predecessor
+digests and the revision 6 boundary. The historical inventory and finite matrix
+are unchanged. See the [S3 contract](sdk-growth-s3-authority.md) for the executable
+boundary and its external activation limits.
 
 ## Exact EF checkpoint
 

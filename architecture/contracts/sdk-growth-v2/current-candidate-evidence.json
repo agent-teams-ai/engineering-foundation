@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "status": "current-candidate",
+  "consumerId": "sdk-growth-config-loader-fixture",
+  "consumerVersion": "1.0.0",
+  "contractId": "package-public-api-compatibility",
+  "contractVersion": "2.0.0",
+  "scope": "Current local loader evidence and packed qualification source binding; no external consumer activation, release approval or S3 trust claim.",
+  "schemaSetDigest": "sha256:724350515283296bbdd1ec95ce8a994046ccac0da61b7e93037e83d4ac183210",
+  "fixtureCorpusDigest": "sha256:b2e68eb9189121b81963ae188320a56414e2acdea590a1528e613ee448ddc40c",
+  "retainedHistory": {
+    "firstSurfaceEvidence": {
+      "path": "architecture/contracts/sdk-growth-v2/first-surface-evidence.json",
+      "contentDigest": "sha256:24a3f9730a59c3fb34561536195e86f48c9613b115a7c1154c4a74ab8d3826c0",
+      "source": {
+        "path": "scripts/pack-sdk-growth-test.mjs",
+        "blob": "4ddf1d89e6d672588eed0d458f751b3a837dc443",
+        "tree": "3871dc9de3a0ec8cd470e5a502b687682a99e287",
+        "contentDigest": "sha256:e14f7798c5fe1847229e58394785984a937b8275a66a96211c5ff2a943949ba3"
+      }
+    },
+    "consumerEvidence": {
+      "path": "architecture/contracts/sdk-growth-v2/consumer-evidence.json",
+      "contentDigest": "sha256:a1301a5d998dd94230da494b474dcf0643e65023fb5912f30613e84d5b3f75ef",
+      "source": {
+        "revision": "8fd2dd69494e1307a71842514f46cee13cf6e0f6",
+        "path": "tests/public-api-configuration.test.mjs",
+        "blob": "e7d1aa3f34b838c0034e1007dd0ed5a33bfa3e08",
+        "contentDigest": "sha256:49ff1e062c24f61319febffd10520c2ee41f09adbfe3865f8a7873aa0f24330c"
+      }
+    }
+  },
+  "currentSources": {
+    "packedQualification": {
+      "path": "scripts/pack-sdk-growth-test.mjs",
+      "blob": "00fa895ca60ee4cd4ee62edf60cc402502c7b7d4",
+      "contentDigest": "sha256:277743e72740b73fa7ff7d25876f2c3ce15478d97a80c4f2be3247b257f138fd"
+    },
+    "loaderTest": {
+      "path": "tests/public-api-configuration.test.mjs",
+      "blob": "73de3477bb8fe4bf3fdf4a1acc47f3ca71593e33",
+      "contentDigest": "sha256:2c70f46bd88e9d799d895da4d6f616b02d1c7e7b62ef0174a0ee8f2d34d38a77"
+    },
+    "qualificationPolicy": {
+      "path": "architecture/foundation/public-api-compatibility.yaml",
+      "blob": "0e93ab311eb206e3d4c803a02a0e6357c00bb62d",
+      "contentDigest": "sha256:556e74304b4fbb765dd30a170c519de8e6f939084809c59757d323e04c955757"
+    }
+  },
+  "command": "node --test --test-isolation=none --test-name-pattern='SDK v2' tests/public-api-configuration.test.mjs",
+  "tests": 4,
+  "passed": 4,
+  "failed": 0,
+  "outcome": "passed"
+}

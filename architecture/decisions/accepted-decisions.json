@@ -261,6 +261,11 @@
       "id": "ADR-0054",
       "path": "docs/decisions/0054-hardening-public-api-dispositions.md",
       "immutableDigest": "sha256:f4bd83c225efffe0e0f849ae09f6999429a421d7d234a6e6db631f6820bc9b22"
+    },
+    {
+      "id": "ADR-0055",
+      "path": "docs/decisions/0055-qualified-non-release-metadata-root.md",
+      "immutableDigest": "sha256:08392f3ed924975bd28be19fedb2dd83ce8b4cabf9920e46b1764722abfb72c9"
     }
   ]
 }

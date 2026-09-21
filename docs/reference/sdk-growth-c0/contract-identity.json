@@ -1,11 +1,17 @@
 {
-  "contractRevision": "foundation:sdk-growth:c0:5",
+  "contractRevision": "foundation:sdk-growth:c0:6",
   "canonicalBytes": "UTF-8, LF, exact file bytes including final newline",
   "files": {
-    "docs/reference/sdk-growth-c0.md": "sha256:0457b60d532e4d16fe856c72c1189358550d7510a134d053187d2b7f75b386a3",
+    "docs/reference/sdk-growth-c0.md": "sha256:8522aa5ce5ad71b808019150279ca4d23e63c35e61e94c886ed8b76e4fc12a03",
     "docs/reference/sdk-growth-c0/ef-inventory.json": "sha256:d330bc4bc11fc99e3a683fe1a0edb90002240eea7c15123dba956d3fc23ac072",
     "docs/reference/sdk-growth-c0/surface-matrix.json": "sha256:987bc6a5d2ae010e8fab2fa2c0edf1b0dbb4d9976dcdd67acb332cba461248f5"
   },
   "sourceBase": "576ca17ea28c3df7109e99abdd4bd7cc7e89854a",
-  "planHash": "sha256:e025978dcf3cfac12b7795fa3aafc96f06838620e124df4cc091ebee45352864"
+  "planHash": "sha256:e025978dcf3cfac12b7795fa3aafc96f06838620e124df4cc091ebee45352864",
+  "wireContractRevision": "foundation:sdk-growth:c0:5",
+  "authorityProtocol": "reviewrouter:sdk-growth-authority:3",
+  "predecessor": {
+    "docs/reference/sdk-growth-c0/contract-v5.txt": "sha256:0457b60d532e4d16fe856c72c1189358550d7510a134d053187d2b7f75b386a3",
+    "docs/reference/sdk-growth-c0/contract-identity-v5.json": "sha256:63208167cf424f0731094a58ca365377b6acf9a252da955cf62a20531d88d474"
+  }
 }

@@ -173,11 +173,20 @@ test("Public API baseline schema rejection preserves the file and creates no tem
   await withPublicApiFixture(async (root) => {
     const policy = packagePolicy(), path = join(root, policy.releasedBaselinePath), calls = [];
     const before = await readFile(path), entries = await readdir(dirname(path));
+    const observed = JSON.parse(before.toString("utf8"));
     const failure = new Error("baseline schema rejected");
-    const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); throw failure; }, publicApiEvidenceAdapters());
+    const repository = new FilesystemPublicApiRepository(async (...args) => {
+      calls.push(args);
+      if (args[2] === "public-api-baseline-promotion") { throw failure; }
+      await assertSchema(...args);
+    }, publicApiEvidenceAdapters());
     const snapshot = currentBaseline();
+    await repository.readReleasedBaseline(root, policy);
     await assert.rejects(repository.writeReleasedBaseline(root, policy, snapshot), (error) => error === failure);
-    assert.deepEqual(calls, [["package-public-api-baseline/v1", snapshot, "public-api-baseline-promotion"]]);
+    assert.deepEqual(calls, [
+      ["package-public-api-baseline/v1", observed, "public-api-baseline"],
+      ["package-public-api-baseline/v1", snapshot, "public-api-baseline-promotion"]
+    ]);
     assert.deepEqual(await readFile(path), before);
     assert.deepEqual(await readdir(dirname(path)), entries);
   });
@@ -186,9 +195,14 @@ test("Public API baseline schema rejection preserves the file and creates no tem
 test("Public API baseline promotion retains canonical bytes through the injected schema validator", async () => {
   await withPublicApiFixture(async (root) => {
     const policy = packagePolicy(), calls = [], snapshot = currentBaseline();
+    const observed = JSON.parse(await readFile(join(root, policy.releasedBaselinePath), "utf8"));
     const repository = new FilesystemPublicApiRepository(async (...args) => { calls.push(args); await assertSchema(...args); }, publicApiEvidenceAdapters());
+    await repository.readReleasedBaseline(root, policy);
     await repository.writeReleasedBaseline(root, policy, snapshot);
-    assert.deepEqual(calls, [["package-public-api-baseline/v1", snapshot, "public-api-baseline-promotion"]]);
+    assert.deepEqual(calls, [
+      ["package-public-api-baseline/v1", observed, "public-api-baseline"],
+      ["package-public-api-baseline/v1", snapshot, "public-api-baseline-promotion"]
+    ]);
     assert.equal(await readFile(join(root, policy.releasedBaselinePath), "utf8"), `${JSON.stringify(snapshot, null, 2)}\n`);
   });
 });

@@ -16,7 +16,7 @@ function normalizeGrowthDecision(value: unknown): GrowthDecision {
     coordinates: growthUniqueSorted(value.coordinates, growthCanonicalJson),
     consumerEvidenceRefs: growthUniqueSorted(value.consumerEvidenceRefs, growthCanonicalJson) };
 }
-export function growthDecisionDigest(decision: GrowthDecision, fingerprint: ChangeFingerprint): GrowthDigest {
+export function growthDecisionDigest(decision: unknown, fingerprint: ChangeFingerprint): GrowthDigest {
   return hashGrowthPayload({ domain: "foundation:sdk-growth:decision:1", payload: normalizeGrowthDecision(decision) }, fingerprint);
 }
 function validateTransitions(transitions: readonly GrowthTransition[], fingerprint: ChangeFingerprint): readonly GrowthTransition[] {
@@ -71,11 +71,30 @@ function withinDecisionBudget(rawDecisions: readonly unknown[]): boolean {
   return true;
 }
 
-/** Normalize the full bounded set before claims; duplicate IDs have no authority. */
-function prepareDecisions(rawDecisions: readonly unknown[], diagnostics: GrowthAdmissionDiagnostic[]): readonly GrowthDecision[] | undefined {
-  if (!withinDecisionBudget(rawDecisions)) { return undefined; }
+export interface PreparedGrowthDecisions {
+  readonly budgetExceeded: boolean;
+  /** Every structurally valid original, including duplicate IDs. */
+  readonly decisions: readonly {
+    readonly decision: GrowthDecision;
+    readonly authorityEligible: boolean;
+  }[];
+  /** The only proposals for which external authority may be requested. */
+  readonly authorityCandidates: readonly GrowthDecision[];
+  readonly diagnostics: readonly GrowthAdmissionDiagnostic[];
+}
+
+/** Shared bounded preparation for ordinary admission and trusted authority.
+ * No decision is hashed until the complete raw collection is within budget.
+ * Malformed and duplicate originals remain visible to admission diagnostics,
+ * while only valid unique IDs may be sent to an authority provider. */
+export function prepareGrowthDecisions(rawDecisions: readonly unknown[]): PreparedGrowthDecisions {
+  if (!withinDecisionBudget(rawDecisions)) {
+    return { budgetExceeded: true, decisions: [], authorityCandidates: [], diagnostics: decisionBudgetExhausted().diagnostics };
+  }
+  const diagnostics: GrowthAdmissionDiagnostic[] = [];
   const decisions: GrowthDecision[] = [];
   const counts = new Map<string, number>();
+  const claimCounts = new Map<GrowthDigest, number>();
   for (const raw of rawDecisions) {
     let decision: GrowthDecision;
     try { decision = normalizeGrowthDecision(raw); }
@@ -86,13 +105,24 @@ function prepareDecisions(rawDecisions: readonly unknown[], diagnostics: GrowthA
     }
     decisions.push(decision);
     counts.set(decision.decisionId, (counts.get(decision.decisionId) ?? 0) + 1);
+    for (const claim of decision.transitions) {
+      claimCounts.set(claim, (claimCounts.get(claim) ?? 0) + 1);
+    }
   }
   for (const [id, occurrences] of counts) {
     if (occurrences > 1) { diagnostics.push({ code: "growth-decision-duplicate", subject: id,
       remediation: "Use one exact decision record per decision ID." }); }
   }
-  return decisions.filter((decision) => counts.get(decision.decisionId) === 1)
-    .toSorted((left, right) => compareGrowthStrings(left.decisionId, right.decisionId));
+  const overlapping = new Set(decisions
+    .filter((decision) => decision.transitions.some((claim) => (claimCounts.get(claim) ?? 0) > 1))
+    .map((decision) => decision.decisionId));
+  const prepared = decisions.map((decision) => ({
+    decision,
+    authorityEligible: counts.get(decision.decisionId) === 1 && !overlapping.has(decision.decisionId)
+  })).toSorted((left, right) => compareGrowthStrings(left.decision.decisionId, right.decision.decisionId));
+  return { budgetExceeded: false, decisions: prepared,
+    authorityCandidates: prepared.filter((entry) => entry.authorityEligible).map((entry) => entry.decision),
+    diagnostics };
 }
 
 /** Exact PR admission only. The independent released policy's failure is final;
@@ -113,18 +143,22 @@ export function evaluateGrowthAdmission(input: {
   const transitions = validateTransitions(input.comparison.status === "complete" ? input.comparison.transitions : input.comparison.findings, fingerprint);
   const actual = new Map(transitions.map((entry) => [entry.fingerprint, entry]));
   const claimed = new Set<GrowthDigest>(), admitted = new Set<GrowthDigest>();
-  const decisions = prepareDecisions(input.decisions, diagnostics);
-  if (decisions === undefined) { return decisionBudgetExhausted(); }
-  const authorities = growthUniqueSorted(input.authority, (entry) => entry.decisionId);
-  for (const decision of decisions) {
+  const prepared = prepareGrowthDecisions(input.decisions);
+  if (prepared.budgetExceeded) { return decisionBudgetExhausted(); }
+  diagnostics.push(...prepared.diagnostics);
+  const authorityRows = growthUniqueSorted(input.authority, (entry) => entry.decisionId);
+  const authorities = new Map(authorityRows.map((entry) => [entry.decisionId, entry]));
+  for (const { decision, authorityEligible } of prepared.decisions) {
     const subject = decision.decisionId;
     const exactDiagnostics = exactDecisionDiagnostics(decision, actual, claimed, fingerprint);
     diagnostics.push(...exactDiagnostics);
-    let valid = exactDiagnostics.length === 0;
+    let valid = exactDiagnostics.length === 0 && authorityEligible;
     for (const entry of decision.transitions) { claimed.add(entry); }
-    const authority = authorities.find((entry) => entry.decisionId === subject);
-    if (authority?.ownerRef !== decision.ownerRef || authority.decisionDigest !== growthDecisionDigest(decision, fingerprint)) {
-      add("growth-owner-evidence-unavailable", subject, "Supply independently validated owner evidence binding this complete decision and its exact transitions."); incomplete = true; valid = false;
+    if (authorityEligible) {
+      const authority = authorities.get(subject);
+      if (authority?.ownerRef !== decision.ownerRef || authority.decisionDigest !== growthDecisionDigest(decision, fingerprint)) {
+        add("growth-owner-evidence-unavailable", subject, "Supply independently validated owner evidence binding this complete decision and its exact transitions."); incomplete = true; valid = false;
+      }
     }
     if (valid) { for (const entry of decision.transitions) { admitted.add(entry); } }
   }

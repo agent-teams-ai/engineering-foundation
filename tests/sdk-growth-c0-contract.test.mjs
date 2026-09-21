@@ -59,8 +59,16 @@ test("C0 documents existing command names and a declaration-only pseudo-contract
 
 test("C0 canonical bytes bind the revision, contract and finite observer matrix", async () => {
   const identity = JSON.parse(await read("docs/reference/sdk-growth-c0/contract-identity.json"));
-  assert.deepEqual(Object.keys(identity).toSorted(), ["canonicalBytes", "contractRevision", "files", "planHash", "sourceBase"]);
-  assert.equal(identity.contractRevision, "foundation:sdk-growth:c0:5");
+  assert.deepEqual(Object.keys(identity).toSorted(), ["authorityProtocol", "canonicalBytes", "contractRevision", "files", "planHash", "predecessor", "sourceBase", "wireContractRevision"]);
+  assert.equal(identity.contractRevision, "foundation:sdk-growth:c0:6");
+  assert.equal(identity.wireContractRevision, "foundation:sdk-growth:c0:5");
+  assert.equal(identity.authorityProtocol, "reviewrouter:sdk-growth-authority:3");
+  for (const [path, expected] of Object.entries(identity.predecessor)) {
+    assert.equal(digest(await read(path)), expected);
+  }
+  const predecessor = JSON.parse(await read("docs/reference/sdk-growth-c0/contract-identity-v5.json"));
+  assert.equal(predecessor.contractRevision, "foundation:sdk-growth:c0:5");
+  assert.equal(digest(await read("docs/reference/sdk-growth-c0/contract-v5.txt")), predecessor.files["docs/reference/sdk-growth-c0.md"]);
   assert.equal(identity.canonicalBytes, "UTF-8, LF, exact file bytes including final newline");
   assert.deepEqual(Object.keys(identity.files).toSorted(), [
     "docs/reference/sdk-growth-c0.md",
@@ -144,7 +152,9 @@ const inventoryPath = "docs/reference/sdk-growth-c0/ef-inventory.json";
 const matrixPath = "docs/reference/sdk-growth-c0/surface-matrix.json";
 const documentPath = "docs/reference/sdk-growth-c0.md";
 const frozenArtifacts = Object.fromEntries(await Promise.all(
-  [...Object.keys(frozenDigests), identityPath].map(async (path) => [path, await read(path)]),
+  [...Object.keys(frozenDigests), identityPath].map(async (path) => [path, await read(path === documentPath
+    ? "docs/reference/sdk-growth-c0/contract-v5.txt" : path === identityPath
+      ? "docs/reference/sdk-growth-c0/contract-identity-v5.json" : path)]),
 ));
 
 function assertFrozenArtifacts(artifacts) {

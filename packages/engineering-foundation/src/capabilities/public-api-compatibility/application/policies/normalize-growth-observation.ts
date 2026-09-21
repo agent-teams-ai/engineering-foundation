@@ -60,9 +60,10 @@ export function normalizeGrowthObservation(value: GrowthSurfaceObservation): Gro
       return { ...entry, reasons: growthUniqueSorted(entry.reasons, (reason) => reason) };
     }) };
   });
+  const packageNames = new Set(coverage.map((row) => row.packageName));
   const entries = growthUniqueSorted(value.entries, (entry) => growthCanonicalJson(entry.coordinate));
   for (const entry of entries) {
-    if (!coverage.some((row) => row.packageName === entry.coordinate.packageName)) {
+    if (!packageNames.has(entry.coordinate.packageName)) {
       throw new GrowthObservationInvariantError("growth-entry-package-outside-topology");
     }
     if (entry.value.state === "present") { digest(entry.value.digest); }

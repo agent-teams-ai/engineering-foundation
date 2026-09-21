@@ -11,6 +11,8 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0055: Qualified Non-release Metadata Root](0055-qualified-non-release-metadata-root.md)
+
 - [ADR-0054: Hardening Public API Dispositions](0054-hardening-public-api-dispositions.md)
 
 - [ADR-0053: Restoration Strict JSON Consumer Admission](0053-restoration-strict-json-consumer-admission.md)

@@ -9,7 +9,11 @@ import type { PublicApiFileReader } from "../../../application/ports/public-api-
 import type { GrowthDigest, GrowthInvocation } from "../../../application/model/growth-observation.js";
 import { growthCanonicalJson, normalizeGrowthInvocation } from "../../../application/policies/normalize-growth-observation.js";
 
-const digest = (bytes: string | Uint8Array): GrowthDigest => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+export const growthBytesDigest = (bytes: string | Uint8Array): GrowthDigest => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+
+export function readGrowthInputFile(consumerRoot: string, path: string, files: PublicApiFileReader): Promise<Uint8Array> {
+  return files.read({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 32 * 1024 * 1024 });
+}
 
 function unavailable(reason: string): never {
   publicApiInputError("SDK_GROWTH_EVIDENCE_INCOMPLETE", reason, "sdk-growth-evidence");
@@ -54,7 +58,7 @@ export async function readGrowthInvocation(consumerRoot: string, inventory: Awai
       const bytes = await dependencies.files.read({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 32 * 1024 * 1024 });
       total += bytes.byteLength;
       if (total > 32 * 1024 * 1024) { unavailable("SDK invocation input byte budget exhausted."); }
-      return { path, digest: digest(bytes) };
+      return { path, digest: growthBytesDigest(bytes) };
     } catch (error) {
       const failure = publicApiFileFailure(error);
       if (failure !== undefined) { unavailable(`SDK invocation input ${path} is ${failure}.`); }
@@ -83,9 +87,9 @@ export async function readGrowthInvocation(consumerRoot: string, inventory: Awai
   if (await git(["rev-parse", "--verify", "HEAD"]) !== sourceCommit) { unavailable("Source checkpoint changed during observation."); }
   await git(["diff", "--quiet", "HEAD", "--"]);
   return normalizeGrowthInvocation({ repository: await git(["rev-parse", "--show-toplevel"]), sourceCommit, sourceTree,
-    topologyDigest: digest(growthCanonicalJson({ workspace, manifests: manifests.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) })),
-    lockDigest: lock.digest, toolchainDigest: digest(growthCanonicalJson({ node: process.version, extractor: Extractor.version, lock: lock.digest })),
-    artifactDigests: [digest(growthCanonicalJson(build))],
+    topologyDigest: growthBytesDigest(growthCanonicalJson({ workspace, manifests: manifests.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) })),
+    lockDigest: lock.digest, toolchainDigest: growthBytesDigest(growthCanonicalJson({ node: process.version, extractor: Extractor.version, lock: lock.digest })),
+    artifactDigests: [growthBytesDigest(growthCanonicalJson(build))],
     tool: { version: toolManifest.version, artifactDigest: toolArtifactDigest, extractorVersion: Extractor.version } });
 }
 
@@ -97,7 +101,7 @@ async function distributionDigest(root: string, reader: PublicApiFileReader, sig
     const bytes = await reader.read({ root, candidate: join(root, path), maxBytes: 32 * 1024 * 1024 });
     total += bytes.byteLength;
     if (total > 32 * 1024 * 1024 || files.length >= 4096) { unavailable("SDK checker distribution identity budget exhausted."); }
-    files.push({ path, digest: digest(bytes) });
+    files.push({ path, digest: growthBytesDigest(bytes) });
   }
   async function visit(path: string): Promise<void> {
     for (const entry of await readdir(join(root, path), { withFileTypes: true })) {
@@ -108,7 +112,7 @@ async function distributionDigest(root: string, reader: PublicApiFileReader, sig
   }
   await capture("package.json");
   await visit("dist"); await visit("schemas");
-  return digest(growthCanonicalJson(files.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
+  return growthBytesDigest(growthCanonicalJson(files.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
 }
 
 /** Early destination validation; publication revalidates under its own fence. */

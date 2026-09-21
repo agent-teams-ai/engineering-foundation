@@ -15,6 +15,7 @@ import { approvedBreakingChangeReference } from "../model/public-api.js";
 import { isApprovedBreakingChangeAccepted } from "../policies/accepted-breaking-change.js";
 import { classifyPublicApiChange } from "../policies/evaluate-public-api-compatibility.js";
 import { collectUnchangedPublicTypeBindings } from "../policies/default-type-argument-equivalence.js";
+import { evaluateBaselineBootstrapPolicy, initialUnreleasedVersion } from "../policies/evaluate-initial-release.js";
 
 function promotionError(code: string, message: string): never {
   throw new CapabilityInputError({
@@ -26,7 +27,6 @@ function promotionError(code: string, message: string): never {
 }
 
 const BUMP_RANK = Object.freeze({ patch: 0, minor: 1, major: 2 });
-const INITIAL_UNRELEASED_VERSION = "0.0.0";
 
 function effectiveReleaseBump(input: {
   readonly actualBump: keyof typeof BUMP_RANK;
@@ -59,24 +59,24 @@ function assertReviewedBootstrap(
   packagePolicy: PublicApiCompatibilityPolicy["packages"][number],
   releaseEvidence: Awaited<ReturnType<PublicApiRepository["readReleaseEvidence"]>>
 ): void {
-  if (releaseEvidence.packageVersion !== INITIAL_UNRELEASED_VERSION) {
+  const result = evaluateBaselineBootstrapPolicy(packagePolicy.packageName, releaseEvidence);
+  if (result.status === "accepted") { return; }
+  if (result.failure === "version-not-initial" || result.failure === "package-mismatch") {
     promotionError(
       "PUBLIC_API_BASELINE_BOOTSTRAP_NOT_INITIAL",
-      `Missing baseline for ${packagePolicy.packageName} can be bootstrapped only at the initial unreleased version ${INITIAL_UNRELEASED_VERSION}.`
+      `Missing baseline for ${packagePolicy.packageName} can be bootstrapped only for that exact package at the initial unreleased version ${initialUnreleasedVersion}.`
     );
   }
-  if (releaseEvidence.declaredBump === undefined) {
+  if (result.failure === "changeset-missing") {
     promotionError(
       "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_MISSING",
       `Initial public API baseline for ${packagePolicy.packageName} requires a Changeset.`
     );
   }
-  if (BUMP_RANK[releaseEvidence.declaredBump] < BUMP_RANK.minor) {
-    promotionError(
-      "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_INSUFFICIENT",
-      `Initial public API baseline for ${packagePolicy.packageName} requires at least a minor Changeset.`
-    );
-  }
+  promotionError(
+    "PUBLIC_API_BASELINE_BOOTSTRAP_CHANGESET_INSUFFICIENT",
+    `Initial public API baseline for ${packagePolicy.packageName} requires at least a minor Changeset.`
+  );
 }
 
 function assertExtractorVersionMatch(

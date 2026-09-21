@@ -98,7 +98,7 @@ function typeIsFile(entries, name) {
 
 async function inspectCandidate({ artifact, outputRoot, profile, sourceCommit }) {
   const archiveBytes = await readRegularArchive(artifact.archivePath);
-  const inspection = inspectCompressedTarArchive(archiveBytes);
+  const inspection = inspectCompressedTarArchive(archiveBytes, profile.name);
   const listing = archiveListing(inspection.entries);
   const listingText = inspection.entries.map(({ name }) => name).join("\n");
   const verboseText = verboseListing(inspection.entries);
@@ -107,6 +107,7 @@ async function inspectCandidate({ artifact, outputRoot, profile, sourceCommit })
       allowedArtifactPaths: [...profile.contentPolicy.exact, ...profile.contentPolicy.prefixes],
       archiveBytes,
       listing: `${listingText}\n`,
+      packageName: profile.name,
       requiredArtifactPaths: profile.contentPolicy.required,
       verboseListing: verboseText,
     });

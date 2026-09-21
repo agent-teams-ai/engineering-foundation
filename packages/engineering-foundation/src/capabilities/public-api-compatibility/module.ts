@@ -49,7 +49,7 @@ export function createPublicApiExtractor(): PublicApiExtractor {
   return new MicrosoftPublicApiExtractor(evidence);
 }
 
-function createDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
+export function createPublicApiCompatibilityDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
   return Object.freeze({
     extractor: createPublicApiExtractor(),
     fingerprint: new NodeChangeFingerprint(),
@@ -72,8 +72,8 @@ export async function promotePublicApiRelease(input: {
   if (policy.schemaVersion === 2) {
     configurationInputError("SDK growth release promotion requires the separately qualified S3 authority route.");
   }
-  const dependencies = createDependencies(readAcceptedDecisions, assertSchema);
-  const artifacts = await artifactDependencies(input.consumerRoot, policy.packages, dependencies, inspector, input.signal);
+  const dependencies = createPublicApiCompatibilityDependencies(readAcceptedDecisions, assertSchema);
+  const artifacts = await createPublicApiArtifactDependencies(input.consumerRoot, policy.packages, dependencies, inspector, input.signal);
   return preflightPublicApiPromotions(
     {
       consumerRoot: input.consumerRoot,
@@ -85,7 +85,7 @@ export async function promotePublicApiRelease(input: {
 }
 
 export function createPublicApiCompatibilityCapability(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"], inspector: JsonSchemaSetInspector): CapabilityDefinition {
-  const dependencies = createDependencies(readAcceptedDecisions, assertSchema);
+  const dependencies = createPublicApiCompatibilityDependencies(readAcceptedDecisions, assertSchema);
   const processes = createManagedProcessExecutor();
   return Object.freeze({
     id: CAPABILITY_ID,
@@ -118,7 +118,7 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
             writer: createFilesystemGrowthReportWriter(invocation.consumerRoot)
           });
         }
-        const artifacts = await artifactDependencies(invocation.consumerRoot, policy.packages, dependencies, inspector, invocation.signal);
+        const artifacts = await createPublicApiArtifactDependencies(invocation.consumerRoot, policy.packages, dependencies, inspector, invocation.signal);
         const input = { consumerRoot: invocation.consumerRoot, policy, ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) };
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
@@ -140,7 +140,7 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
   });
 }
 
-async function artifactDependencies(root: string, packages: readonly import("./application/model/public-api.js").PublicApiPackagePolicy[], dependencies: ReturnType<typeof createDependencies>, inspector: JsonSchemaSetInspector, signal?: AbortSignal) {
+export async function createPublicApiArtifactDependencies(root: string, packages: readonly import("./application/model/public-api.js").PublicApiPackagePolicy[], dependencies: ReturnType<typeof createPublicApiCompatibilityDependencies>, inspector: JsonSchemaSetInspector, signal?: AbortSignal) {
   const inventory = new FilesystemPackageArtifactInventory(inspector, evidence);
   const artifacts = new ArtifactPublicApiEvidence(dependencies.repository, await inventory.inspect(root, packages, signal), evidence);
   return { ...dependencies, repository: artifacts, extractor: artifacts };

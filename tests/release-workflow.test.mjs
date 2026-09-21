@@ -165,7 +165,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
 
   assertAttestationDeadlineBudget(attestation.run, jobTimeoutSeconds);
   assert.equal(deadlines.size, 2);
-  assert.equal(primaryDeadlineSeconds, 70 * 60);
+  assert.equal(primaryDeadlineSeconds, 75 * 60);
   assert.equal(finalVerificationSeconds, 60);
   assert.ok(
     ci.jobs["macos-qualification"]["timeout-minutes"] >= 30,
@@ -1988,7 +1988,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.match(attestation.run, /actions\/workflows\/codeql\.yml\/dispatches/u);
   assert.ok(
     attestation.run.indexOf("actions/workflows/codeql.yml/dispatches") <
-      attestation.run.indexOf("deadline=$((SECONDS + 4200))"),
+      attestation.run.indexOf("deadline=$((SECONDS + 4500))"),
   );
   assert.equal(
     (attestation.run.match(/check-release-codeql-evidence\.mjs/gu) ?? []).length,
@@ -2184,6 +2184,11 @@ test("release publishing requires real Buf and hermetic registry qualification",
     [windowsTestB.name, windowsTestB.steps.at(-1).run],
     ["windows-test-b", "pnpm test:shard:built -- --shards 2,3"],
   );
+  for (const job of [ci.jobs["linux-test-2"], windowsTestB]) {
+    const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
+    assert.equal(checkout.with["fetch-depth"], 0);
+    assert.equal(checkout.with["persist-credentials"], false);
+  }
   assert.deepEqual(ci.jobs.check.needs, [
     "dependency-review",
     "linux-static",

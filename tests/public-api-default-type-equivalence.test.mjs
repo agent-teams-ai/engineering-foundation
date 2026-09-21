@@ -30,11 +30,24 @@ function genericTarget(
   };
 }
 
+function namedType(
+  name = "ModuleDeclaration",
+  canonicalReference = `@fixture/public-api!${name}:interface`,
+) {
+  return {
+    canonicalReference,
+    kind: "Interface",
+    parentReference: "@fixture/public-api!",
+    parentKind: "EntryPoint",
+    signature: `export interface ${name}`,
+  };
+}
+
 function defaultArgumentChange(releasedAlias, currentAlias, options = {}) {
   const releasedTarget = options.releasedTarget ?? genericTarget();
   const currentTarget = options.currentTarget ?? releasedTarget;
-  const releasedExtras = options.releasedExtras ?? [];
-  const currentExtras = options.currentExtras ?? [];
+  const releasedExtras = options.releasedExtras ?? [namedType()];
+  const currentExtras = options.currentExtras ?? releasedExtras;
   const released = {
     ...currentBaseline(),
     entrypoints: [{
@@ -206,6 +219,39 @@ test("rejects target names shadowed by alias type parameters", () => {
       .classification,
     "breaking",
   );
+});
+
+test("rejects default atoms without an unchanged public binding", () => {
+  const explicit = "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
+  const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
+  const changedBinding = namedType(
+    "ModuleDeclaration",
+    "@fixture/public-api!OtherModuleDeclaration:interface",
+  );
+
+  assert.equal(
+    defaultArgumentChange(explicit, omitted, { currentExtras: [changedBinding] })
+      .classification,
+    "breaking",
+  );
+  assert.equal(
+    defaultArgumentChange(omitted, explicit, { currentExtras: [changedBinding] })
+      .classification,
+    "breaking",
+  );
+  assert.equal(
+    defaultArgumentChange(explicit, omitted, { currentExtras: [] }).classification,
+    "breaking",
+  );
+});
+
+test("rejects unsupported atoms in direct alias arguments", () => {
+  const explicit =
+    "export type AnyFactoryHandle<C> = FactoryHandle<keyof, ModuleDeclaration, unknown>;";
+  const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<keyof>;";
+
+  assert.equal(defaultArgumentChange(explicit, omitted).classification, "breaking");
+  assert.equal(defaultArgumentChange(omitted, explicit).classification, "breaking");
 });
 
 test("requires exact alias headers in both directions", () => {

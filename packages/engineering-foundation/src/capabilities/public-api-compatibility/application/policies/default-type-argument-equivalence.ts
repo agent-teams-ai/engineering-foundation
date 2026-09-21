@@ -170,11 +170,15 @@ function parseDirectTypeAlias(signature: string): DirectTypeAlias | undefined {
   if (parameters === undefined) {
     return undefined;
   }
+  const aliasArguments = match[4]?.split(", ") ?? [];
+  if (!aliasArguments.every(isSupportedTypeAtom)) {
+    return undefined;
+  }
   return Object.freeze({
     header: match[1],
     parameterNames: new Set(parameters.names),
     target: match[3],
-    arguments: Object.freeze(match[4]?.split(", ") ?? [])
+    arguments: Object.freeze(aliasArguments)
   });
 }
 
@@ -205,11 +209,11 @@ function parseGenericDeclaration(signature: string): GenericDeclaration | undefi
   });
 }
 
-function unchangedTarget(
+function unchangedTopLevelType(
   name: string,
   releasedItems: readonly PublicApiItem[],
   currentItems: readonly PublicApiItem[]
-): GenericDeclaration | undefined {
+): PublicApiItem | undefined {
   const candidates = (items: readonly PublicApiItem[]) =>
     items.filter((item) => {
       if (item.parentKind !== "EntryPoint") {
@@ -235,14 +239,42 @@ function unchangedTarget(
   ) {
     return undefined;
   }
-  const declaration = parseGenericDeclaration(before.signature);
-  return declaration?.kind === before.kind ? declaration : undefined;
+  return before;
+}
+
+function unchangedTarget(
+  name: string,
+  releasedItems: readonly PublicApiItem[],
+  currentItems: readonly PublicApiItem[]
+): GenericDeclaration | undefined {
+  const target = unchangedTopLevelType(name, releasedItems, currentItems);
+  if (target === undefined) {
+    return undefined;
+  }
+  const declaration = parseGenericDeclaration(target.signature);
+  return declaration?.kind === target.kind ? declaration : undefined;
+}
+
+function hasUnchangedTypeAtomBinding(
+  type: string,
+  releasedItems: readonly PublicApiItem[],
+  currentItems: readonly PublicApiItem[]
+): boolean {
+  if (SUPPORTED_KEYWORD_TYPE_ATOMS.has(type)) {
+    return true;
+  }
+  if (type.includes(".")) {
+    return false;
+  }
+  return unchangedTopLevelType(type, releasedItems, currentItems) !== undefined;
 }
 
 function omittedArgumentsEqualDefaults(
   shorter: DirectTypeAlias,
   longer: DirectTypeAlias,
-  declaration: GenericDeclaration
+  declaration: GenericDeclaration,
+  releasedItems: readonly PublicApiItem[],
+  currentItems: readonly PublicApiItem[]
 ): boolean {
   if (
     shorter.arguments.length >= longer.arguments.length ||
@@ -270,7 +302,8 @@ function omittedArgumentsEqualDefaults(
       declaredDefault !== longer.arguments[index] ||
       leadingName === undefined ||
       declaration.parameterNames.has(leadingName) ||
-      shorter.parameterNames.has(leadingName)
+      shorter.parameterNames.has(leadingName) ||
+      !hasUnchangedTypeAtomBinding(declaredDefault, releasedItems, currentItems)
     ) {
       return false;
     }
@@ -314,6 +347,18 @@ export function hasEquivalentTrailingDefaultTypeArguments(input: {
     return false;
   }
   return released.arguments.length < current.arguments.length
-    ? omittedArgumentsEqualDefaults(released, current, target)
-    : omittedArgumentsEqualDefaults(current, released, target);
+    ? omittedArgumentsEqualDefaults(
+        released,
+        current,
+        target,
+        input.releasedItems,
+        input.currentItems
+      )
+    : omittedArgumentsEqualDefaults(
+        current,
+        released,
+        target,
+        input.releasedItems,
+        input.currentItems
+      );
 }

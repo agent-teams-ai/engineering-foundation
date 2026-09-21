@@ -21,6 +21,7 @@ import {
   PUBLIC_API_COMPATIBILITY_RULES,
   type PublicApiCompatibilityRuleMetadata
 } from "../rules.js";
+import { hasEquivalentTrailingDefaultTypeArguments } from "./default-type-argument-equivalence.js";
 
 const BUMP_RANK: Readonly<Record<ReleaseBump, number>> = {
   patch: 0,
@@ -48,12 +49,23 @@ function diagnostic(input: {
   };
 }
 
-function itemChanged(released: PublicApiItem, current: PublicApiItem): boolean {
+function itemChanged(
+  released: PublicApiItem,
+  current: PublicApiItem,
+  releasedItems: readonly PublicApiItem[],
+  currentItems: readonly PublicApiItem[]
+): boolean {
   return (
     released.kind !== current.kind ||
     released.parentKind !== current.parentKind ||
     released.parentReference !== current.parentReference ||
-    released.signature !== current.signature
+    (released.signature !== current.signature &&
+      !hasEquivalentTrailingDefaultTypeArguments({
+        releasedItem: released,
+        currentItem: current,
+        releasedItems,
+        currentItems
+      }))
   );
 }
 
@@ -108,7 +120,10 @@ function classifyEntrypointItems(
   const changed = [...released.entries()]
     .filter(([key, item]) => {
       const currentItem = current.get(key);
-      return currentItem !== undefined && itemChanged(item, currentItem);
+      return (
+        currentItem !== undefined &&
+        itemChanged(item, currentItem, releasedItems, currentItems)
+      );
     })
     .map(([key]) => key)
     .toSorted(compareCanonicalReferences);

@@ -52,6 +52,13 @@ v1 schemas, baseline bytes and promotion semantics remain authoritative.
 
 - a new top-level export is additive and requires a minor Changeset;
 - removing or changing an existing item is breaking;
+- one comparison-time exception treats a direct top-level type-alias RHS as
+  unchanged when its only difference is omitting or restoring trailing generic
+  arguments. Every omitted argument must textually equal the corresponding
+  declared default on one unambiguous, unchanged top-level public generic target
+  in both the released and current snapshots. An omitted default that references
+  any target type parameter, or whose leading name is shadowed by an alias type
+  parameter, is not admitted without exact binding equivalence proof;
 - adding a member beneath an already released class, interface, or namespace is
   conservatively breaking;
 - before `1.0.0`, breaking changes require a minor bump; after `1.0.0`, a major
@@ -61,6 +68,18 @@ v1 schemas, baseline bytes and promotion semantics remain authoritative.
   reference to a currently accepted ADR whose identity and immutable path are
   verified against the accepted-decision baseline by `decisionId`;
 - raw ADR Markdown, including `Status: Accepted`, is not approval evidence.
+
+This exception is deliberately syntax-bounded rather than a general TypeScript
+assignability engine. It admits only direct aliases and simple generic target
+references with simple argument, constraint, and default texts. A changed or
+ambiguous target, a different target name, a non-trailing omission, an omitted
+parameter without a default, any other alias edit, or a nested or complex type
+expression remains breaking. The complete alias type-parameter header must match
+the bounded parameter grammar and remain byte-for-byte equal in both directions;
+malformed and unsupported headers are not admitted. Failure to parse or prove
+any required fact also remains breaking. The comparator does not normalize,
+regenerate, or rewrite the released baseline or the extracted current signature;
+both retain their exact stored bytes.
 
 The fingerprint contains old and new signatures, kinds, parents, every addition,
 and every removal in the same change set. Approval of one break cannot authorize

@@ -18,6 +18,7 @@
         "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs",
         "packages/repository-mutation/tests/known-file-node-api.test.mjs",
         "tests/capability-public-api.test.mjs",
+        "tests/public-api-default-type-equivalence.test.mjs",
         "tests/contract-json-schema-releases.test.mjs",
         "tests/json-schema-releases-dogfood.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",

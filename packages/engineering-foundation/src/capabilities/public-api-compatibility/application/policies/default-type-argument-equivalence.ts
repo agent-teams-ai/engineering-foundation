@@ -7,11 +7,11 @@ const TYPE_ALIAS = new RegExp(
   "u"
 );
 const GENERIC_DECLARATION = new RegExp(
-  `^export (?:(?:declare|abstract) )?(class|interface|type) (${IDENTIFIER})<([^<>\\r\\n]+)>(?=$| extends | implements | = )`,
+  `^export (?:declare )?(?:abstract )?(class|interface|type) (${IDENTIFIER})<([^<>\\r\\n]+)>(?=$| extends | implements | = )`,
   "u"
 );
 const TOP_LEVEL_TYPE_DECLARATION = new RegExp(
-  `^export (?:(?:declare|abstract) )?(?:class|interface|type) (${IDENTIFIER})(?:<| |$)`,
+  `^export (?:declare )?(?:abstract )?(?:class|interface|type|enum) (${IDENTIFIER})(?:<| |$)`,
   "u"
 );
 const TYPE_PARAMETER = new RegExp(

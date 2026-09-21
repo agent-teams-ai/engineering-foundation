@@ -44,6 +44,19 @@ function namedType(
   };
 }
 
+function namedEnum(
+  name = "ModuleKind",
+  canonicalReference = `@fixture/public-api!${name}:enum`,
+) {
+  return {
+    canonicalReference,
+    kind: "Enum",
+    parentReference: "@fixture/public-api!",
+    parentKind: "EntryPoint",
+    signature: `export declare enum ${name}`,
+  };
+}
+
 function snapshot(packageName, items) {
   return {
     schemaVersion: 1,
@@ -288,6 +301,47 @@ test("accepts a unique unchanged binding supplied by the governed package set", 
     }]).has("ModuleDeclaration"),
     false,
   );
+});
+
+test("accepts defaults on unchanged declared abstract classes", () => {
+  const target = {
+    ...genericTarget(
+      "export declare abstract class FactoryHandle<C, D extends ModuleDeclaration = ModuleDeclaration, I = unknown>",
+    ),
+    kind: "Class",
+  };
+  const explicit =
+    "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleDeclaration, unknown>;";
+  const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
+
+  assert.equal(
+    defaultArgumentChange(explicit, omitted, { releasedTarget: target })
+      .classification,
+    "none",
+  );
+  assert.equal(
+    defaultArgumentChange(omitted, explicit, { releasedTarget: target })
+      .classification,
+    "none",
+  );
+});
+
+test("accepts an unchanged exported enum as a default binding", () => {
+  const target = genericTarget(
+    "export interface FactoryHandle<C, D extends ModuleKind = ModuleKind, I = unknown>",
+  );
+  const explicit =
+    "export type AnyFactoryHandle<C> = FactoryHandle<C, ModuleKind, unknown>;";
+  const omitted = "export type AnyFactoryHandle<C> = FactoryHandle<C>;";
+  const binding = namedEnum();
+  const options = {
+    releasedTarget: target,
+    releasedExtras: [binding],
+    currentExtras: [binding],
+  };
+
+  assert.equal(defaultArgumentChange(explicit, omitted, options).classification, "none");
+  assert.equal(defaultArgumentChange(omitted, explicit, options).classification, "none");
 });
 
 test("rejects unsupported atoms in direct alias arguments", () => {

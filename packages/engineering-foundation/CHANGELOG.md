@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.5.1
+
+### Patch Changes
+
+- [#326](https://github.com/agent-teams-ai/engineering-foundation/pull/326) [`9ce89f8`](https://github.com/agent-teams-ai/engineering-foundation/commit/9ce89f804bf237bcf7f9a6694e05616a5a60ce02) Thanks [@777genius](https://github.com/777genius)! - Keep API Extractor stable for Node declaration surfaces that expose `AbortSignal` while preserving forgotten-export errors.
+
 ## 1.5.0
 
 ### Minor Changes

@@ -255,7 +255,12 @@ plugins, project references and unknown external module bindings fail closed.
 The fixed standard-library boundary is AbortSignal, Error, Extract, NoInfer,
 Promise, Readonly, Record and Uint8Array. Admitted symbol declarations must all
 belong to the actual pinned compiler libraries; merged augmentations prevent
-that admission. Primitive keyword text creates no invented reference edge.
+that admission. Rich audit observation always supplies the pinned compiler's
+`lib.dom.d.ts` as a fixed input so an explicit non-web consumer `lib` cannot
+make API Extractor misclassify `AbortSignal`; the existing compiler and
+observation byte budgets include those bytes. Production extraction retains its
+unchanged forgotten-export enforcement and compiler inputs. Primitive keyword
+text creates no invented reference edge.
 
 TSDoc configuration comes from the pinned Extractor base. The report preserves
 message severity and text, replacing only the disposable model-output directory

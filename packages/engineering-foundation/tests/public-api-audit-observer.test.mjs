@@ -59,6 +59,20 @@ test("finite builtin binding is proved against the pinned libraries", async () =
     assert.equal(publicApiAuditEligibility(observations).eligible, true, JSON.stringify({ eligibility: publicApiAuditEligibility(observations), diagnostics: observations[0].diagnostics, references: observations[0].items.flatMap(item => item.references), identities: observations[0].items.map(item => item.identity.canonicalReference) }));
   });
 });
+test("an explicit non-web lib still binds AbortSignal to the pinned compiler library", async () => {
+  await fixture("export declare function f(signal: AbortSignal): void;\n", async (observer, input) => {
+    const tsconfig = JSON.stringify({ compilerOptions: { target: "ES2022", module: "NodeNext", strict: true, skipLibCheck: false, lib: ["ES2022"] }, files: ["index.d.ts"] });
+    await writeFile(join(input.consumerRoot, "tsconfig.json"), tsconfig);
+    const declarations = { ...input.declarations, files: [...input.declarations.files.filter(file => file.path !== "tsconfig.json"), inputFile("tsconfig.json", tsconfig)] };
+    const observations = await observer.observe({ ...input, declarations });
+    assert.deepEqual(observations[0].unsupported, []);
+    assert.equal(observations[0].invocation.outcome, "completed");
+    assert.equal(observations[0].invocation.succeeded, true);
+    assert.ok(observations[0].compilerOptions.lib.includes("lib.dom.d.ts"));
+    assert.deepEqual(observations[0].items.flatMap(item => item.references).map(reference => [reference.canonicalReference, reference.resolution]), [["!AbortSignal:interface", "verified-external-library"]]);
+    assert.deepEqual(publicApiAuditEligibility(observations), { eligible: true, reasons: [] });
+  });
+});
 test("global augmentation cannot pass by matching a builtin spelling", async () => {
   await fixture("declare global { interface Promise<T> { extra: T } } export declare function f(x: Promise<string>): void;\n", async (observer, input) => {
     const observations = await observer.observe(input);

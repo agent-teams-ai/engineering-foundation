@@ -1,4 +1,4 @@
-import { pinnedCompiler, compilerPath, compilerLibraryRoot, tsdocBasePath, pinnedTsdocConfig } from "./load-pinned-audit-sdk.js";
+import { pinnedAbortSignalLibraryPath, pinnedCompiler, compilerPath, compilerLibraryRoot, tsdocBasePath, pinnedTsdocConfig } from "./load-pinned-audit-sdk.js";
 import { bindAuditCompilerReferences } from "./audit-compiler-bindings.js";
 import { stagePublicApiAudit, type AuditInputStage } from "../filesystem/stage-public-api-audit.js";
 import { createRequire } from "node:module";
@@ -135,6 +135,15 @@ async function prepareCompiler(context: ObservationContext, outputRoot: string, 
   const options = { ...parsed.options };
   delete options["outDir"];
   delete options["declarationDir"];
+  const configuredLibraries: unknown = options.lib;
+  const abortSignalLibraryName = basename(pinnedAbortSignalLibraryPath);
+  if (Array.isArray(configuredLibraries) &&
+      configuredLibraries.every((library): library is string => typeof library === "string") &&
+      !configuredLibraries.includes(abortSignalLibraryName)) {
+    // Keep AbortSignal resolvable inside the fixed pinned-library boundary. An
+    // implicit library set already includes this declaration.
+    options.lib = [...configuredLibraries, abortSignalLibraryName];
+  }
   // The compiler host owns every filesystem observation used in resolution. It
   // exposes only declared bytes and actual pinned libraries, never ambient files.
   const host = compiler.createCompilerHost(options);

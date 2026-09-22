@@ -1,5 +1,24 @@
 # @agent-teams/engineering-foundation
 
+## 1.5.0
+
+### Minor Changes
+
+- [#317](https://github.com/agent-teams-ai/engineering-foundation/pull/317) [`1674c4a`](https://github.com/agent-teams-ai/engineering-foundation/commit/1674c4a9459c286f52861dd9beacbb0421a2118b) Thanks [@777genius](https://github.com/777genius)! - Add the trusted SDK growth authority integration entrypoint with exact grant,
+  completion, receipt, report, and promotion-plan bindings.
+
+  Protocol v3 authenticates exact-source consumer-owned non-release metadata-root
+  classification while retaining full topology and historical package obligations.
+  Fence source identity after authority completion and bind package observations
+  to their own archive and independent installed inventory.
+
+### Patch Changes
+
+- [#317](https://github.com/agent-teams-ai/engineering-foundation/pull/317) [`1674c4a`](https://github.com/agent-teams-ai/engineering-foundation/commit/1674c4a9459c286f52861dd9beacbb0421a2118b) Thanks [@777genius](https://github.com/777genius)! - Complete the SDK growth authority type exports, qualify the complete Foundation archive inventory, and retain observable breaking-change diagnostics when trusted release qualification is unavailable.
+
+- [#317](https://github.com/agent-teams-ai/engineering-foundation/pull/317) [`1674c4a`](https://github.com/agent-teams-ai/engineering-foundation/commit/1674c4a9459c286f52861dd9beacbb0421a2118b) Thanks [@777genius](https://github.com/777genius)! - Export the installed inventory reader signature types and their required type
+  dependencies from the SDK growth authority entrypoint.
+
 ## 1.4.2
 
 ### Patch Changes

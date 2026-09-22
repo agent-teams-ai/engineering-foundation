@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.4.2",
+  "packageVersion": "1.5.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -3234,6 +3234,1887 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function runScaffoldCrashQualification(consumerRoot: string, plan: ScaffoldPlan, onPhase: ScaffoldQualificationPhaseCallback): Promise<ScaffoldReceipt>;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./sdk-growth-authority",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport#capabilityConfigSchemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly capabilityConfigSchemaVersion: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport#capabilityId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly capabilityId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly FoundationDiagnostic[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: FoundationOutcome;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport#problem:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly problem?: FoundationProblem;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport#summary:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly summary: DiagnosticSummary;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!CapabilityReport:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CapabilityReport"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticEvidence#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticEvidence#value:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly value: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DiagnosticEvidence"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticLocation#end:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticLocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly end?: DiagnosticPosition;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticLocation#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticLocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticLocation#start:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticLocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly start?: DiagnosticPosition;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticLocation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DiagnosticLocation"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticPosition#column:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticPosition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly column: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticPosition#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticPosition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticPosition:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DiagnosticPosition"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticSeverity:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DiagnosticSeverity = \"error\" | \"warning\" | \"info\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticSummary#errors:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticSummary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly errors: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticSummary#infos:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticSummary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly infos: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticSummary#warnings:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!DiagnosticSummary:interface",
+          "parentKind": "Interface",
+          "signature": "readonly warnings: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!DiagnosticSummary:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DiagnosticSummary"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#evidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidence: readonly DiagnosticEvidence[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#location:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly location: DiagnosticLocation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#relatedLocations:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly relatedLocations: readonly DiagnosticLocation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#remediation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly remediation: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#requiresArchitectureReview:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiresArchitectureReview: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#ruleId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ruleId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#severity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly severity: DiagnosticSeverity;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationDiagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface FoundationDiagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FoundationOutcome = \"passed\" | \"violations\" | \"invalid-input\" | \"failed\" | \"cancelled\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationProblem#code:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationProblem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly code: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationProblem#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationProblem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationProblem#phase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationProblem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phase: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationProblem#retryable:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FoundationProblem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly retryable: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FoundationProblem:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface FoundationProblem"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#evidenceManifestDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidenceManifestDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#historyDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly historyDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#invocation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly invocation: GrowthInvocation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: {\n        readonly contractRevision: \"foundation:sdk-growth:c0:5\";\n        readonly policyVersion: \"foundation:sdk-growth:policy:1\";\n        readonly enrollmentRevision: string;\n        readonly configurationDigest: GrowthDigest;\n        readonly scopeDigest: GrowthDigest;\n        readonly commandDigest: GrowthDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#target:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly target: GrowthAuthorityTarget;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#tool:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly tool: {\n        readonly packageName: \"@agent-teams/engineering-foundation\";\n        readonly version: string;\n        readonly archiveDigest: GrowthDigest;\n        readonly archiveIntegrity: string;\n        readonly distributionDigest: GrowthDigest;\n        readonly extractorVersion: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#verifier:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly verifier: {\n        readonly identity: string;\n        readonly immutableRevision: string;\n        readonly artifactDigest: GrowthDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityBinding"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#binding:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binding: GrowthAuthorityBinding;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#coverageDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly coverageDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#grantDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly grantDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#grantId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly grantId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"completion\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#phasesDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phasesDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#promotion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly promotion: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"plan\";\n        readonly planDigest: GrowthDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#publication:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly publication: \"finalized\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#releaseEligible:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly releaseEligible: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#reportByteLength:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reportByteLength: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#reportDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reportDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#requestDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requestDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: typeof growthAuthoritySchemaVersion;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#verdict:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "parentKind": "Interface",
+          "signature": "readonly verdict: \"admitted\" | \"rejected\" | \"incomplete\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityCompletion"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#admissionReceipt:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly admissionReceipt: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"receipt\";\n        readonly receipt: GrowthAuthorityReceipt;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#archives:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly archives: readonly GrowthAuthorityPackedEvidence[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#binding:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binding: GrowthAuthorityBinding;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#candidates:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly candidates: readonly GrowthAuthorityPackedEvidence[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#expiresAt:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly expiresAt: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#grantId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly grantId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#issuedAt:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly issuedAt: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"grant\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#metadataRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly metadataRoots: readonly GrowthAuthorityMetadataRoot[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#ownerEvidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerEvidence: readonly GrowthAuthorityOwnerEvidence[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#released:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly released: readonly GrowthAuthorityReleasedEvidence[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#requestDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requestDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#requiredCoverageDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredCoverageDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#requiredPhases:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredPhases: typeof growthAuthorityRequiredPhases;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#retainedHistory:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly retainedHistory: {\n        readonly targetSource: GrowthAuthoritySource;\n        readonly targetSurfaceDigest: GrowthDigest;\n        readonly receiptDigest: GrowthDigest;\n        readonly custodyEvidenceDigest: GrowthDigest;\n        readonly custodyEvidence: GrowthAuthorityPackedEvidence[\"custodyEvidence\"];\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#runRef:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runRef: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: typeof growthAuthoritySchemaVersion;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#trustedBase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly trustedBase: GrowthSurfaceObservation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#trustedBaseReference:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly trustedBaseReference: GrowthObservationReference;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#workflowRef:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "parentKind": "Interface",
+          "signature": "readonly workflowRef: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityGrant"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot#evidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidence: {\n        readonly kind: \"non-release-metadata-root\";\n        readonly packageName: string;\n        readonly rootPath: \".\";\n        readonly manifestPath: \"package.json\";\n        readonly classificationPath: string;\n        readonly historyDigest: GrowthDigest;\n        readonly base: GrowthMetadataRootSource;\n        readonly candidate: GrowthMetadataRootSource;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot#evidenceDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidenceDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot#ownerEvidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerEvidence: GrowthAuthorityOwnerEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityMetadataRoot"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence#approvalEvidenceDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly approvalEvidenceDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence#authenticatedSubjectId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authenticatedSubjectId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence#authorizationEvidenceDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authorizationEvidenceDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence#sourceBindingDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceBindingDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityOwnerEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityOwnerEvidence extends GrowthDecisionAuthority"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#archiveDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly archiveDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#archiveIntegrity:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly archiveIntegrity: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#coverage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly coverage: GrowthCoverage;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#custodyEvidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly custodyEvidence: {\n        readonly archiveDigest: GrowthDigest;\n        readonly archiveIntegrity: string;\n        readonly archivePayload: string;\n        readonly archiveManifest: readonly {\n            readonly path: string;\n            readonly digest: GrowthDigest;\n        }[];\n        readonly installedFiles: readonly {\n            readonly path: string;\n            readonly digest: GrowthDigest;\n        }[];\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#custodyEvidenceDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly custodyEvidenceDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#installedDistribution:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly installedDistribution: {\n        readonly packageName: string;\n        readonly packageVersion: string;\n        readonly source: GrowthAuthoritySource;\n        readonly archiveDigest: GrowthDigest;\n        readonly archiveIntegrity: string;\n        readonly observationDigest: GrowthDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#observation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly observation: GrowthSurfaceObservation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#observationDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly observationDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#packageName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#packageVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageVersion: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#source:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly source: GrowthAuthoritySource;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityPackedEvidence"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#binding:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binding: GrowthAuthorityBinding;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#completionDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly completionDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#coverageDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly coverageDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#custodyRef:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly custodyRef: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#grantDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly grantDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#grantId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly grantId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#issuedAt:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly issuedAt: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"receipt\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#operation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operation: \"check\" | \"promote-release\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#phasesDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phasesDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#promotion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly promotion: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"plan\";\n        readonly planDigest: GrowthDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#provenance:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly provenance?: {\n        readonly grant: GrowthAuthorityGrant;\n        readonly completion: GrowthAuthorityCompletion;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#qualification:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly qualification: \"qualified\" | \"not-qualified\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#receiptId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#releaseEligible:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly releaseEligible: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#reportDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reportDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#requestDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requestDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: typeof growthAuthoritySchemaVersion;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#verdict:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly verdict: \"admitted\" | \"rejected\" | \"incomplete\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityReceipt"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence#evidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidence: {\n        readonly kind: \"released\";\n        readonly typed: PublicApiSnapshot;\n        readonly artifact: PublicApiSnapshot;\n    } | {\n        readonly kind: \"initial-unreleased\";\n        readonly historyDigest: GrowthDigest;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence#observation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly observation?: GrowthSurfaceObservation;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence#packageName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence#releaseEvidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly releaseEvidence: PackageReleaseEvidence;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityReleasedEvidence"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository#name:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository:interface",
+          "parentKind": "Interface",
+          "signature": "readonly name: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository#owner:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository:interface",
+          "parentKind": "Interface",
+          "signature": "readonly owner: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository#provider:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository:interface",
+          "parentKind": "Interface",
+          "signature": "readonly provider: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository#repositoryId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repositoryId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRepository:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityRepository"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#admissionReceiptId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly admissionReceiptId: string | null;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#binding:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binding: GrowthAuthorityBinding;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#contextSelectors:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contextSelectors: GrowthContextRequest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#decisionDigests:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly decisionDigests: readonly GrowthDigest[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"request\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#operation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly operation: \"check\" | \"promote-release\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#requiredPhases:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly requiredPhases: typeof growthAuthorityRequiredPhases;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: typeof growthAuthoritySchemaVersion;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthoritySource#commit:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthoritySource:interface",
+          "parentKind": "Interface",
+          "signature": "readonly commit: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthoritySource#tree:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthoritySource:interface",
+          "parentKind": "Interface",
+          "signature": "readonly tree: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthoritySource:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthoritySource"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#base:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly base: GrowthAuthoritySource;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#evaluation:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evaluation: GrowthAuthoritySource;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#evaluationKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evaluationKind: \"head\" | \"merge-result\" | \"release-preimage\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#head:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly head: GrowthAuthoritySource;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#mergeBase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mergeBase: GrowthAuthoritySource;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#pullRequestNumber:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly pullRequestNumber: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: GrowthAuthorityRepository;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityTarget:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthAuthorityTarget"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCancellation#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCancellation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCancellation#throwIfCancelled:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCancellation:interface",
+          "parentKind": "Interface",
+          "signature": "throwIfCancelled(): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCancellation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthCancellation"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthComparison:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthComparison = {\n    readonly status: \"complete\";\n    readonly before: GrowthDigest;\n    readonly after: GrowthDigest;\n    readonly transitions: readonly GrowthTransition[];\n} | {\n    readonly status: \"incomplete\";\n    readonly reasons: readonly string[];\n    readonly findings: readonly GrowthTransition[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthContextRequest#decisionsPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthContextRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly decisionsPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthContextRequest#released:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthContextRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly released: readonly ({\n        readonly packageName: string;\n    } & ({\n        readonly kind: \"released\";\n        readonly observationPath: string;\n    } | {\n        readonly kind: \"initial-unreleased\";\n        readonly trustedHistoryPath: string;\n    }))[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthContextRequest#trustedBasePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthContextRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly trustedBasePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthContextRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthContextRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoordinate#exportPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
+          "parentKind": "Interface",
+          "signature": "readonly exportPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoordinate#packageName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoordinate#resolutionBranch:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
+          "parentKind": "Interface",
+          "signature": "readonly resolutionBranch: readonly GrowthResolutionStep[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoordinate#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: {\n        readonly kind: \"typed\";\n        readonly canonicalReference: string;\n    } | {\n        readonly kind: \"export-branch\";\n    } | {\n        readonly kind: \"bin\";\n        readonly name: string;\n    } | {\n        readonly kind: \"data\" | \"wildcard-member\";\n        readonly member: string;\n    } | {\n        readonly kind: \"package\";\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthCoordinate"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoverage#classification:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoverage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly classification: \"governed\" | \"private-only\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoverage#dimensions:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoverage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly dimensions: readonly {\n        readonly dimension: typeof growthDimensions[number];\n        readonly status: \"complete\" | \"limited\" | \"unsupported\" | \"unavailable\";\n        readonly reasons: readonly string[];\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoverage#packageName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthCoverage:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoverage:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthCoverage"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority#decisionDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly decisionDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority#decisionId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly decisionId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority#ownerRef:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority:interface",
+          "parentKind": "Interface",
+          "signature": "readonly ownerRef: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthDecisionAuthority:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthDecisionAuthority"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthDigest:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthDigest = `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthEvidence:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthEvidence<T> = {\n    readonly status: \"available\";\n    readonly value: T;\n} | {\n    readonly status: \"unavailable\";\n    readonly reasons: readonly string[];\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInstalledInventoryReader#read:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInstalledInventoryReader:interface",
+          "parentKind": "Interface",
+          "signature": "read(identity: Pick<GrowthAuthorityPackedEvidence, \"packageName\" | \"packageVersion\" | \"archiveDigest\" | \"archiveIntegrity\" | \"source\">, cancellation: GrowthCancellation): Promise<readonly {\n        readonly path: string;\n        readonly bytes: Uint8Array;\n    }[]>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInstalledInventoryReader:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthInstalledInventoryReader"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#artifactDigests:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly artifactDigests: readonly GrowthDigest[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#lockDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lockDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#sourceCommit:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceCommit: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#sourceTree:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceTree: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#tool:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly tool: {\n        readonly version: string;\n        readonly artifactDigest: GrowthDigest;\n        readonly extractorVersion: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#toolchainDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly toolchainDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#topologyDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly topologyDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthInvocation"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource#classificationBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource:interface",
+          "parentKind": "Interface",
+          "signature": "readonly classificationBytes: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource#manifestBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource:interface",
+          "parentKind": "Interface",
+          "signature": "readonly manifestBytes: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource#source:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource:interface",
+          "parentKind": "Interface",
+          "signature": "readonly source: GrowthAuthoritySource;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource#workspaceBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource:interface",
+          "parentKind": "Interface",
+          "signature": "readonly workspaceBytes: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthMetadataRootSource:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthMetadataRootSource"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthObservationReference:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthObservationReference = Pick<GrowthInvocation, \"sourceCommit\" | \"sourceTree\" | \"topologyDigest\" | \"lockDigest\" | \"toolchainDigest\" | \"artifactDigests\"> & {\n    readonly surfaceDigest: GrowthDigest;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan#binding:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binding: GrowthAuthorityBinding;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan#writes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan:interface",
+          "parentKind": "Interface",
+          "signature": "readonly writes: readonly {\n        readonly destination: string;\n        readonly operation: \"create\" | \"replace\";\n        readonly preimageDigest: GrowthDigest | null;\n        readonly proposedDigest: GrowthDigest;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthPromotionPlan"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#authority:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly authority: {\n        readonly status: \"verified\";\n        readonly workflowRef: string;\n        readonly runRef: string;\n        readonly receiptDigest: GrowthDigest;\n    } | {\n        readonly status: \"unverified\";\n        readonly reasons: readonly string[];\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#candidate:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly candidate: GrowthEvidence<GrowthObservationReference>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#contractRevision:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contractRevision: \"foundation:sdk-growth:c0:5\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#coverage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly coverage: readonly GrowthCoverage[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#phases:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly phases: readonly {\n        readonly name: typeof growthReportPhases[number];\n        readonly status: \"complete\" | \"failed\" | \"unavailable\";\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#policyVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policyVersion: \"foundation:sdk-growth:policy:1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#releaseEligible:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly releaseEligible: boolean;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#released:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly released: readonly {\n        readonly packageName: string;\n        readonly evidence: {\n            readonly kind: \"released\";\n            readonly observation: GrowthEvidence<GrowthObservationReference>;\n        } | {\n            readonly kind: \"initial-unreleased\";\n            readonly history: GrowthEvidence<GrowthDigest>;\n        };\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#releasedComparison:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly releasedComparison: GrowthComparison;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#tool:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly tool: GrowthInvocation[\"tool\"];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#transitionReceipts:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly transitionReceipts: readonly {\n        readonly before: GrowthDigest;\n        readonly after: GrowthDigest;\n        readonly decisions: readonly GrowthDigest[];\n        readonly transitions: readonly GrowthDigest[];\n        readonly trustedRunRef: string;\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#trustedBase:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly trustedBase: GrowthEvidence<GrowthObservationReference>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#trustedBaseComparison:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly trustedBaseComparison: GrowthComparison;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#verdict:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly verdict: \"admitted\" | \"rejected\" | \"incomplete\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthReport"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthResolutionStep:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthResolutionStep = {\n    readonly condition: string;\n} | {\n    readonly index: number;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation#contractRevision:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contractRevision: \"foundation:sdk-growth:c0:5\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation#coverage:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly coverage: readonly GrowthCoverage[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation#entries:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly entries: readonly {\n        readonly coordinate: GrowthCoordinate;\n        readonly value: {\n            readonly state: \"absent\";\n        } | {\n            readonly state: \"present\";\n            readonly digest: GrowthDigest;\n        };\n    }[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation#observationVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly observationVersion: \"foundation:sdk-growth:observation:1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthSurfaceObservation extends GrowthInvocation"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition#after:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly after: GrowthValueRef;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition#before:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly before: GrowthValueRef;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition#coordinate:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly coordinate: GrowthCoordinate;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition#fingerprint:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly fingerprint: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition#policyVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policyVersion: typeof growthPolicyVersion;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthTransition"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthValueRef:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthValueRef = {\n    readonly state: \"absent\";\n} | {\n    readonly state: \"present\";\n    readonly digest: GrowthDigest;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence#declaredBump:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly declaredBump?: ReleaseBump;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence#packageName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence#packageVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageVersion: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence#prereleaseInitialVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly prereleaseInitialVersion?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence#prereleaseTag:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence:interface",
+          "parentKind": "Interface",
+          "signature": "readonly prereleaseTag?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PackageReleaseEvidence:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PackageReleaseEvidence"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiEntrypointSnapshot#exportPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiEntrypointSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly exportPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiEntrypointSnapshot#items:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiEntrypointSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly items: readonly PublicApiItem[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiEntrypointSnapshot:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PublicApiEntrypointSnapshot"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiItem#canonicalReference:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiItem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly canonicalReference: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiItem#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiItem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiItem#parentKind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiItem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentKind: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiItem#parentReference:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiItem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parentReference?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiItem#signature:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiItem:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signature: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiItem:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PublicApiItem"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiSnapshot#entrypoints:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly entrypoints: readonly PublicApiEntrypointSnapshot[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiSnapshot#extractorVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly extractorVersion: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiSnapshot#packageName:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageName: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiSnapshot#packageVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageVersion: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiSnapshot#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PublicApiSnapshot:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PublicApiSnapshot:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PublicApiSnapshot"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!QualifiedSdkGrowthExecution#receipt:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!QualifiedSdkGrowthExecution:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receipt?: GrowthAuthorityReceipt;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!QualifiedSdkGrowthExecution:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface QualifiedSdkGrowthExecution extends SdkGrowthCheckExecution"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ReleaseBump:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ReleaseBump = \"major\" | \"minor\" | \"patch\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput#binding:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly binding: GrowthAuthorityBinding;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput#configPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly configPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityOperationInput:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SdkGrowthAuthorityOperationInput"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityTransport#complete:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityTransport:interface",
+          "parentKind": "Interface",
+          "signature": "complete(completion: unknown, signal?: AbortSignal): Promise<string | Uint8Array>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityTransport#resolve:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityTransport:interface",
+          "parentKind": "Interface",
+          "signature": "resolve(request: unknown, signal?: AbortSignal): Promise<string | Uint8Array>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthAuthorityTransport:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SdkGrowthAuthorityTransport"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution#capability:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution:interface",
+          "parentKind": "Interface",
+          "signature": "readonly capability: CapabilityReport;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution#report:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution:interface",
+          "parentKind": "Interface",
+          "signature": "readonly report?: GrowthReport;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution#reportByteLength:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reportByteLength?: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution#reportDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution:interface",
+          "parentKind": "Interface",
+          "signature": "readonly reportDigest?: import(\"../model/growth-observation.js\").GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SdkGrowthCheckExecution:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SdkGrowthCheckExecution"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!createSdkGrowthAuthorityVerifier:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function createSdkGrowthAuthorityVerifier(transport: SdkGrowthAuthorityTransport, installedInventory?: GrowthInstalledInventoryReader, now?: () => Date): Readonly<{\n    qualifyCheck(input: import(\"../capabilities/public-api-compatibility/authority-module.js\").SdkGrowthAuthorityOperationInput): Promise<import(\"../sdk-growth-authority.js\").QualifiedSdkGrowthExecution>;\n    promoteRelease(input: import(\"../capabilities/public-api-compatibility/authority-module.js\").SdkGrowthAuthorityOperationInput & {\n        readonly admissionReceiptId: string;\n    }): Promise<{\n        readonly snapshots: readonly import(\"../sdk-growth-authority.js\").PublicApiSnapshot[];\n        readonly receipt: import(\"../capabilities/public-api-compatibility/application/model/growth-authority.js\").GrowthAuthorityReceipt;\n    }>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!growthAuthorityRequiredPhases:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "growthAuthorityRequiredPhases: readonly [\"topology\", \"observation\", \"packed\", \"decision\", \"trusted-base\", \"released\", \"authority\"]"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!growthAuthoritySchemaVersion:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "growthAuthoritySchemaVersion: \"reviewrouter:sdk-growth-authority:3\""
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!growthDimensions:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "growthDimensions: readonly [\"topology\", \"resolution\", \"typed\", \"reachable\", \"runtime\", \"bin\", \"data\", \"wildcard\", \"packed\", \"decision\"]"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!growthPolicyVersion:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "growthPolicyVersion: \"foundation:sdk-growth:policy:1\""
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!growthReportPhases:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "growthReportPhases: readonly [\"topology\", \"observation\", \"packed\", \"decision\", \"trusted-base\", \"released\", \"authority\"]"
         }
       ]
     }

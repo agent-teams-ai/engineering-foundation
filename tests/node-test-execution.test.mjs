@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -290,4 +290,55 @@ test('public gate run built route propagates mandatory outcomes', async () => fi
     const skipped = spawnSync(process.execPath, [gateCli, 'gate', 'run', 'verify', '--consumer', root, '--format', 'json'],
       { cwd: root, encoding: 'utf8', env: childEnvironment });
     assert.equal(skipped.status, 0, `${skipped.stdout}\n${skipped.stderr}`);
+}));
+
+test('Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests', async () => fixture(async (root) => {
+  const contractPath = join(root, 'architecture/foundation/node-test-execution.json');
+  await mkdir(join(root, 'architecture/foundation'), { recursive: true });
+  await writeFile(join(root, 'invoke.mjs'), `import { maybeRunMandatoryNodeTests, runUnadoptedNodeTests }
+  from ${JSON.stringify(pathToFileURL(resolve('scripts/mandatory-node-test.mjs')).href)};
+const files = process.argv.slice(2);
+process.exitCode = await maybeRunMandatoryNodeTests(files, {}, ${JSON.stringify(root)}) ??
+  await runUnadoptedNodeTests(files);\n`);
+  const required = identity(testFile, ['parent', 'child']);
+  const writeContract = async (exceptions = []) => writeFile(contractPath,
+    JSON.stringify(contract([required], exceptions)));
+  const runCase = async (source) => {
+    await writeFile(join(root, testFile), source);
+    return spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile],
+      { cwd: root, encoding: 'utf8', env: childEnvironment });
+  };
+  await writeContract();
+  const passing = "import { describe, it } from 'node:test'; describe('parent', () => { it('child', () => {}); });";
+  const passed = await runCase(passing);
+  assert.equal(passed.status, 0, passed.stderr);
+  for (const [label, source] of [
+    ['skipped case', "import { describe, it } from 'node:test'; describe('parent', () => { it.skip('child', () => {}); });"],
+    ['TODO case', "import { describe, it } from 'node:test'; describe('parent', () => { it.todo('child'); });"],
+    ['skipped suite', "import { describe, it } from 'node:test'; describe.skip('parent', () => { it('child', () => {}); });"],
+    ['omitted case', "import { describe, it } from 'node:test'; describe('parent', () => { it('other', () => {}); });"],
+  ]) {
+    assert.equal((await runCase(source)).status, 1, label);
+  }
+  await unlink(contractPath);
+  const missing = await runCase(passing);
+  assert.equal(missing.status, 1, 'missing contract must fail closed');
+  assert.match(missing.stderr, /ENOENT.*node-test-execution\.json/u);
+  const skipped = "import { describe, it } from 'node:test'; describe('parent', () => { it.skip('child', () => {}); });";
+  await writeContract([exception(required, 'skipped')]);
+  assert.equal((await runCase(skipped)).status, 0, 'applicable platform exception');
+  await writeContract([exception(required, 'skipped', process.platform === 'win32' ? 'linux' : 'win32')]);
+  assert.equal((await runCase(skipped)).status, 1, 'inapplicable platform exception');
+  await writeContract();
+  const unadopted = join(root, 'unadopted.test.mjs');
+  await writeFile(join(root, testFile), passing);
+  await writeFile(unadopted, "import test from 'node:test'; test.skip('platform-only advisory case', () => {});");
+  const mixedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile, unadopted],
+    { cwd: root, encoding: 'utf8', env: childEnvironment });
+  assert.equal(mixedRun.status, 0, mixedRun.stderr);
+  await writeFile(unadopted, "import test from 'node:test'; test('unadopted', () => {});");
+  const unadoptedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), unadopted],
+    { cwd: root, encoding: 'utf8', env: childEnvironment });
+  assert.equal(unadoptedRun.status, 0, unadoptedRun.stderr);
+  assert.match(unadoptedRun.stdout, /unadopted/u);
 }));

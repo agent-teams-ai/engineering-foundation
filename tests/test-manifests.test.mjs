@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
 
 import {
   testRoots,
   testRootsForPackages,
+  repositoryRoot,
+  validateMandatoryShardSelection,
   validateTestManifestData,
   validateTestManifests,
 } from "../scripts/check-test-manifests.mjs";
@@ -60,6 +64,19 @@ test("repository test manifests cover every top-level test exactly once", async 
   assert.ok(result.coverageConfig.include.includes(
     "packages/docs-protocol-agent-teams/dist/**/*.js",
   ));
+});
+
+test("Foundation mandatory identities belong to their required shard", async () => {
+  const contract = JSON.parse(await readFile(join(repositoryRoot,
+    "architecture/foundation/node-test-execution.json"), "utf8"));
+  const manifest = await validateTestManifests();
+  assert.equal(contract.required.length, 15);
+  assert.ok(contract.required.every((item) =>
+    item.file === "tests/node-test-execution.test.mjs" &&
+    manifest.shards.get("4").includes(item.file)));
+  const coverageOnly = { shards: new Map([["4", []]]),
+    coverageShards: new Map([["4", ["tests/node-test-execution.test.mjs"]]]) };
+  assert.throws(() => validateMandatoryShardSelection(contract, coverageOnly), /not selected by a required shard/u);
 });
 
 test("built test runner consumes the validated inventory without shell globs", () => {

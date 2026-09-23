@@ -3,11 +3,13 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import { validateNodeTestContract } from "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.ts";
 
 const scriptRoot = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = dirname(scriptRoot);
 const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shards.v1.json");
 const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
+const mandatoryContractPath = join(repositoryRoot, "architecture", "foundation", "node-test-execution.json");
 const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
 const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
@@ -284,6 +286,16 @@ async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
+export function validateMandatoryShardSelection(contract, manifest) {
+  const { required } = validateNodeTestContract(contract);
+  const shardByFile = new Map([...manifest.shards].flatMap(([id, files]) => files.map((file) => [file, id])));
+  for (const item of required.values()) {
+    if (!shardByFile.has(item.file)) {
+      fail(`mandatory identity file is not selected by a required shard: ${item.file}`);
+    }
+  }
+}
+
 export async function validateTestManifests() {
   const testPaths = [];
   for (const relativeRoot of testRoots) {
@@ -332,6 +344,7 @@ export async function validateTestManifests() {
     testPaths,
     packages: PUBLISHABLE_PACKAGES,
   });
+  validateMandatoryShardSelection(await readJson(mandatoryContractPath), result);
   return result;
 }
 

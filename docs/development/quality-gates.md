@@ -126,12 +126,13 @@ hosted-review evidence belongs in pull-request comments; it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 
 `tests/manifests/test-shards.v1.json` owns the cross-platform shards.
-An optional `architecture/foundation/node-test-execution.json` invokes the
-mandatory Node execution runner from built, shard, coverage, and focused QGR
-scripts when their selected files contain adopted identities. Its absence
-leaves the current advisory test inventory unchanged. The contract cannot be
-empty; selected files with adopted identities use structured completion
-evidence. See [mandatory Node test execution](../reference/quality-gate-runner.md#mandatory-node-test-execution).
+`architecture/foundation/node-test-execution.json` declares Foundation's
+mandatory Node case identities. Built, shard, coverage, and focused QGR scripts
+fail when the contract is missing or invalid. Selected files with adopted
+identities use structured completion evidence; other selected files still run.
+The test manifest check requires every adopted file to belong to a required
+shard. Platform skips outside the declared identities retain their ordinary
+Node behavior. See [mandatory Node test execution](../reference/quality-gate-runner.md#mandatory-node-test-execution).
 QGR synthetic and real-pnpm lifecycle capability qualification is assigned to shard 3.
 The required `macos-qualification` adapter-qualification lane deliberately reruns the focused QGR
 lifecycle command after its Darwin build, including entrypoint cancellation and

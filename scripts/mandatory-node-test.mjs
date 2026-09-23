@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { constants as osConstants } from 'node:os';
 import { join, relative, resolve as resolvePath, sep } from 'node:path';
@@ -8,19 +8,13 @@ import { repositoryRoot } from './check-test-manifests.mjs';
 
 const contractPath = 'architecture/foundation/node-test-execution.json';
 
-export async function maybeRunMandatoryNodeTests(files, runOptions = {}) {
+export async function maybeRunMandatoryNodeTests(files, runOptions = {}, root = repositoryRoot) {
   try {
-    await access(join(repositoryRoot, contractPath));
-  } catch (error) {
-    if (error?.code === 'ENOENT') { return null; }
-    throw error;
-  }
-  try {
-    const contract = JSON.parse(await readFile(join(repositoryRoot, contractPath), 'utf8'));
+    const contract = JSON.parse(await readFile(join(root, contractPath), 'utf8'));
     const { required } = validateNodeTestContract(contract);
-    const selected = new Set(files.map((file) => relative(repositoryRoot, resolvePath(repositoryRoot, file)).split(sep).join('/')));
+    const selected = new Set(files.map((file) => relative(root, resolvePath(root, file)).split(sep).join('/')));
     if (![...required.values()].some((item) => selected.has(item.file))) { return null; }
-    await runNodeTestExecution({ root: repositoryRoot, files, contractPath, runOptions });
+    await runNodeTestExecution({ root, files, contractPath, runOptions });
     return 0;
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);

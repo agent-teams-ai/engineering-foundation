@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "required": [
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "contract rejects empty, ambiguous, broad and malformed authority"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "mandatory command requires event-capable Node 24.21 or later within major 24"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "event evidence needs unique completion, result, ancestry and selected file"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "a failed result and an unsuccessful native summary always reject"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "expected-failure evidence rejects even with passing completion and summaries"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "nested, skip, TODO and omissions fail unless an exact applicable exception exists"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "directive evidence accepts empty strings and rejects malformed values across observed entries"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "empty-reason directive on a required ancestor prevents descendant qualification"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "actual Node empty-reason skip and TODO evidence requires exact exceptions"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "actual Node expected assertion failure cannot satisfy a required identity"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "actual Node run evidence rejects skip, filtered omission and conditional omission"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "canonical root aliases are accepted; escaped and symlinked entries reject"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "a symlinked mandatory contract cannot supply execution authority"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "public gate run built route propagates mandatory outcomes"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests"
+      ],
+      "kind": "test"
+    }
+  ],
+  "exceptions": []
+}

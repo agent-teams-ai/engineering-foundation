@@ -1,4 +1,4 @@
-import { lstat, readFile, realpath } from "node:fs/promises";
+import { constants, lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { run } from "node:test";
 
@@ -13,6 +13,33 @@ type Entry = { file: string; name: string; kind: "suite" | "test"; id: number; p
 const platforms = new Set(["darwin", "linux", "win32"]);
 const identityKey = (file: string, names: readonly string[]): string => JSON.stringify([file, names]);
 function fail(message: string): never { throw new Error(`Node test execution contract: ${message}`); }
+function fileSnapshot(stat: { dev: bigint; ino: bigint; mode: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint }): string {
+  return [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
+}
+async function readContractFile(path: string): Promise<string> {
+  // Keep the verified inode open while reading. NOFOLLOW blocks a final
+  // symlink on POSIX; NONBLOCK prevents a FIFO from hanging before fstat.
+  const flags = process.platform === "win32" ? 0 : constants.O_NOFOLLOW | constants.O_NONBLOCK;
+  const handle = await open(path, constants.O_RDONLY | flags).catch((error: unknown) => {
+    if (record(error) && error.code === "ELOOP") { fail("contract must be a real regular file"); }
+    throw error;
+  });
+  try {
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile() ||
+      await realpath(path) !== path || fileSnapshot(await lstat(path, { bigint: true })) !== fileSnapshot(opened)) {
+      fail("contract must be a real regular file");
+    }
+    const content = await handle.readFile("utf8");
+    if (fileSnapshot(await handle.stat({ bigint: true })) !== fileSnapshot(opened) ||
+      await realpath(path) !== path || fileSnapshot(await lstat(path, { bigint: true })) !== fileSnapshot(opened)) {
+      fail("contract changed while reading");
+    }
+    return content;
+  } finally {
+    await handle.close();
+  }
+}
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -310,10 +337,7 @@ export async function runNodeTestExecution({ root = process.cwd(), files, contra
     fail("contract path must be a normalized relative file");
   }
   const absoluteContract = resolve(absoluteRoot, contractPath);
-  if (!(await lstat(absoluteContract)).isFile() || await realpath(absoluteContract) !== absoluteContract) {
-    fail("contract must be a real regular file");
-  }
-  const contract = JSON.parse(await readFile(absoluteContract, "utf8")) as unknown;
+  const contract = JSON.parse(await readContractFile(absoluteContract)) as unknown;
   const { required } = validateNodeTestContract(contract);
   if (!selected.some((file) => [...required.values()].some((item) => item.file === file.file))) {
     fail("selection contains no mandatory identities");

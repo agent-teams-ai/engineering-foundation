@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -45,6 +45,7 @@ async function fixture(fn) {
 async function runFixture(root, source, required, exceptions = [], options = {}) {
   await writeFile(join(root, testFile), source);
   await writeFile(join(root, 'contract.json'), JSON.stringify(contract(required, exceptions)));
+  await options.prepareContract?.(root);
   await writeFile(join(root, 'invoke.mjs'), `import { runNodeTestExecution } from ${JSON.stringify(pathToFileURL(runnerPath).href)};
 await runNodeTestExecution({ root: ${JSON.stringify(options.rootAlias ?? root)}, files: ${JSON.stringify(options.selectedFiles ?? [testFile])},
   contractPath: 'contract.json', runOptions: ${options.testNamePatterns ? '{ testNamePatterns: [/unrelated/] }' : '{}'} });\n`);
@@ -256,6 +257,19 @@ test('canonical root aliases are accepted; escaped and symlinked entries reject'
   const escaped = await runFixture(root, source, required, [], { selectedFiles: ['../escaped.test.mjs'] });
   assert.equal(escaped.status, 1);
   assert.match(escaped.stderr, /invalid selected file/);
+}));
+
+test('a symlinked mandatory contract cannot supply execution authority', async () => fixture(async (root) => {
+  const required = [identity(testFile, ['required'])];
+  const source = "import test from 'node:test'; test('required', () => {});";
+  const result = await runFixture(root, source, required, [], { prepareContract: async (directory) => {
+    const contractPath = join(directory, 'contract.json');
+    await writeFile(join(directory, 'foreign.json'), JSON.stringify(contract(required)));
+    await unlink(contractPath);
+    await symlink(join(directory, 'foreign.json'), contractPath);
+  } });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /contract must be a real regular file/);
 }));
 
 test('public gate run built route propagates mandatory outcomes', async () => fixture(async (root) => {

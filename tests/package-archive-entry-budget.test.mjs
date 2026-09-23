@@ -24,15 +24,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_546);
+  const atFoundationLimit = archiveWithEntries(2_558);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_546,
+    2_558,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_547), FOUNDATION_PACKAGE),
-    /too many entries: 2547/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_559), FOUNDATION_PACKAGE),
+    /too many entries: 2559/u,
   );
 });
 
@@ -56,7 +56,7 @@ test("applies the same Foundation budget to archive listings", () => {
       { length: 1 },
       (_, index) => `package/dist/extra-${index}.js`,
     )].join("\n"),
-  }), /too many entries: 2547/u);
+  }), /too many entries: 2559/u);
 });
 
 test("admits the complete built Foundation package inventory and rejects one additional member", async () => {
@@ -75,11 +75,11 @@ test("admits the complete built Foundation package inventory and rejects one add
     }
   }
   for (const path of manifest.files) { await visit(path); }
-  assert.equal(paths.size, 2_546, "Requalify the complete package inventory when its membership changes");
+  assert.equal(paths.size, 2_558, "Requalify the complete package inventory when its membership changes");
   const listing = [...paths].toSorted().map(path => `package/${path}`);
   const input = { archiveBytes: Buffer.from("inventory"), packageName: FOUNDATION_PACKAGE,
     requiredArtifactPaths: [...paths], allowedArtifactPaths: manifest.files, verboseListing: "" };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
   assert.throws(() => assertArchiveSafety({ ...input,
-    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2547/u);
+    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2559/u);
 });

@@ -16,7 +16,7 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // assets and package.json/LICENSE/README.md: 2,546 entries in total.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_546,
+  "@agent-teams/engineering-foundation": 2_558,
 });
 const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;

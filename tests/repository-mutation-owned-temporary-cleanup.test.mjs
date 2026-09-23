@@ -517,7 +517,7 @@ test("does not begin a cleanup transition for missing or foreign evidence", asyn
   const paths = await fixture();
   try {
     const events = [];
-    await rm(paths.temporaryPath);
+    await rename(paths.temporaryPath, join(paths.parent, "retained-original"));
     const missing = options(paths);
     missing.value.transition = transition(events);
     assert.equal(

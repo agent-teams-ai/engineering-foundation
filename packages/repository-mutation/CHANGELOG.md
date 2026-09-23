@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+### Patch Changes
+
+- [#334](https://github.com/agent-teams-ai/engineering-foundation/pull/334) [`ff3488a`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3488a7d82b47fbad9a3c3d1289e6494f065fed) Thanks [@777genius](https://github.com/777genius)! - Add a default governed gate for explicit `unknown` assertion bridges in full quality coverage checks, with exact, source-bound admissions and rejecting evidence.
+
+  Tighten Document Authoring contract snapshots and transaction envelope validation, Repository Mutation known-file envelope validation, and the managed Docs Protocol adapter's consumer profile and restoration validation.
+
 ## 0.2.0
 
 ### Minor Changes

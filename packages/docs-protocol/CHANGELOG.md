@@ -1,5 +1,13 @@
 # @agent-teams/docs-protocol
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [[`ff3488a`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3488a7d82b47fbad9a3c3d1289e6494f065fed)]:
+  - @agent-teams/document-authoring@0.3.1
+  - @agent-teams/repository-mutation@0.2.1
+
 ## 0.6.0
 
 ### Minor Changes

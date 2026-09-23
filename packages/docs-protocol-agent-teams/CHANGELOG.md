@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.10
+
+### Patch Changes
+
+- [#334](https://github.com/agent-teams-ai/engineering-foundation/pull/334) [`ff3488a`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3488a7d82b47fbad9a3c3d1289e6494f065fed) Thanks [@777genius](https://github.com/777genius)! - Add a default governed gate for explicit `unknown` assertion bridges in full quality coverage checks, with exact, source-bound admissions and rejecting evidence.
+
+  Tighten Document Authoring contract snapshots and transaction envelope validation, Repository Mutation known-file envelope validation, and the managed Docs Protocol adapter's consumer profile and restoration validation.
+
+- [#328](https://github.com/agent-teams-ai/engineering-foundation/pull/328) [`481909e`](https://github.com/agent-teams-ai/engineering-foundation/commit/481909e0540e557e427b22aec4f1eef5102c059e) Thanks [@777genius](https://github.com/777genius)! - Bundle the immutable stable23 cohort authority and historical assets.
+
+- Updated dependencies [[`ff3488a`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3488a7d82b47fbad9a3c3d1289e6494f065fed)]:
+  - @agent-teams/repository-mutation@0.2.1
+  - @agent-teams/docs-protocol@0.6.1
+
 ## 0.2.9
 
 ### Patch Changes

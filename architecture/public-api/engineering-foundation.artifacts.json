@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.5.1",
+  "packageVersion": "1.6.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -47,6 +47,7 @@
         "schemas/quality-gate-run-report/v1.schema.json",
         "schemas/quality-gate-runner/v1.schema.json",
         "schemas/quality-source-coverage/v1.schema.json",
+        "schemas/quality-source-coverage/v2.schema.json",
         "schemas/quality-suppression-governance/v1.schema.json",
         "schemas/repository-agent-workflow/v1.schema.json",
         "schemas/repository-security-baseline/v1.schema.json",
@@ -384,6 +385,16 @@
       "discriminators": {
         "schemaVersion": {
           "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/quality-source-coverage/v2.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-source-coverage/v2",
+      "digest": "sha256:82c1677af3ac0901661d9294d66b04b8c5de89a2e7b9db8fdfcf3ffc9f6fe7eb",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 2
         }
       }
     },

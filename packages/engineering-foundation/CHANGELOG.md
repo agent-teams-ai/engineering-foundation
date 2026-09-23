@@ -1,5 +1,21 @@
 # @agent-teams/engineering-foundation
 
+## 1.6.0
+
+### Minor Changes
+
+- [#333](https://github.com/agent-teams-ai/engineering-foundation/pull/333) [`28d610a`](https://github.com/agent-teams-ai/engineering-foundation/commit/28d610a71e575e4d033252068fdd08765773f0e5) Thanks [@777genius](https://github.com/777genius)! - Add an opt-in public Node test execution runner that validates exact required test identities against structured completion events.
+
+- [#334](https://github.com/agent-teams-ai/engineering-foundation/pull/334) [`ff3488a`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3488a7d82b47fbad9a3c3d1289e6494f065fed) Thanks [@777genius](https://github.com/777genius)! - Add a default governed gate for explicit `unknown` assertion bridges in full quality coverage checks, with exact, source-bound admissions and rejecting evidence.
+
+  Tighten Document Authoring contract snapshots and transaction envelope validation, Repository Mutation known-file envelope validation, and the managed Docs Protocol adapter's consumer profile and restoration validation.
+
+### Patch Changes
+
+- Updated dependencies [[`ff3488a`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3488a7d82b47fbad9a3c3d1289e6494f065fed)]:
+  - @agent-teams/document-authoring@0.3.1
+  - @agent-teams/repository-mutation@0.2.1
+
 ## 1.5.1
 
 ### Patch Changes

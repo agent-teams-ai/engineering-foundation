@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
 import { requireContainedRealDirectory, writeShardEvidence } from "./coverage-evidence.mjs";
+import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
 export function parseTestShardArguments(arguments_) {
   const normalizedArguments = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
@@ -58,6 +59,22 @@ async function main() {
   const tests = selectTestShardPaths(manifest, ids, evidenceDirectory !== undefined);
   const activeEvidenceDirectory = await prepareEvidenceDirectory(evidenceDirectory);
   const bootstrapUrl = new URL("./coverage-process-bootstrap.mjs", import.meta.url).href;
+  const mandatoryOptions = activeEvidenceDirectory === undefined ? {} : {
+      execArgv: ["--import", bootstrapUrl],
+      env: { ...process.env, NODE_V8_COVERAGE: joinEvidencePath(activeEvidenceDirectory, "raw") },
+    };
+  const mandatoryExit = await maybeRunMandatoryNodeTests(tests, mandatoryOptions);
+  if (mandatoryExit !== null) {
+    if (mandatoryExit === 0 && activeEvidenceDirectory !== undefined) {
+      try {
+        await writeShardEvidence({ directory: activeEvidenceDirectory, headSha, shardId: ids[0] });
+      } catch (error) {
+        process.stderr.write(`Coverage evidence finalization is advisory: ${String(error)}\n`);
+      }
+    }
+    process.exitCode = mandatoryExit;
+    return;
+  }
   const childArguments = [
     ...(activeEvidenceDirectory === undefined ? [] : ["--import", bootstrapUrl]),
     "--test",

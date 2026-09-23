@@ -77,6 +77,72 @@ cycles, overlap between `needs` and `after`, unsafe script IDs, missing scripts,
 direct runner recursion, recognized indirect package-script recursion, invalid
 concurrency, and invalid timeouts fail before execution.
 
+### Mandatory Node test execution
+
+An adopted test task can invoke the packaged `agent-teams-node-test` command:
+
+```json
+{
+  "scripts": {
+    "test:mandatory": "agent-teams-node-test --contract architecture/foundation/node-test-execution.json -- tests/required.test.mjs"
+  }
+}
+```
+
+The consumer owns that JSON file and the exact selected entry files. Foundation
+owns the validation and Node `run()` event adapter. The contract has
+`schemaVersion: 1`, a nonempty `required` array, and an `exceptions` array.
+Each required item is `{"file":"tests/required.test.mjs","names":["suite","case"],"kind":"test"}`.
+`file` is the normalized path relative to the consumer root for the selected
+entry file. `names` is the complete Node test-name ancestry, including parent
+tests created with `t.test()`; `kind` is `test` or `suite`. Duplicate
+identities, ambiguous observed names, malformed event fields, and an empty
+mandatory inventory fail. A required identity in a selected file must have
+Node's matching enqueue, completion, and pass events. Registration, a passing
+parent, process exit, and summary counts alone are insufficient. Omitted,
+skipped, TODO, cancelled, failed, and unrun required identities reject.
+Unrelated advisory or platform tests remain outside `required` until adopted.
+
+An exception is exact to one required `file`, `names`, and `kind`; it adds
+`status`, a reviewed nonempty `reason`, and
+`"applicability":{"platforms":["win32"]}`. Status is exactly one of
+`omitted`, `skipped`, or `todo`; applicability is a proper
+nonempty subset of `linux`, `darwin`, and `win32`. Failed assertions,
+cancelled tests, and unsuccessful Node summaries always reject. A skipped or failed
+ancestor cannot excuse an omitted required descendant. Exceptions do not
+authorize broad platform skips or a summary-level skip count. Remove an
+exception when the reason ceases to apply.
+
+The adopted command requires Node >=24.21.0 <25 (the package-wide
+Node >=24.18.0 <25 engine range remains unchanged). It collects structured `node:test`
+`run()` events inside the invoking process. It trusts that process, its selected
+test files, and the consumer-owned contract; it is not a hostile-code
+attestation. Its evidence applies only to selected entry files in that
+invocation. The public QGR remains a task exit aggregator, so adoption requires
+putting this command in the consumer's selected package script and QGR profile.
+Foundation never infers a mandatory identity inventory from advisory tests.
+The ordinary focused test exercises the built public gate. The existing
+registry-install qualification separately exercises the same fixture against
+its actual isolated registry-installed Foundation candidate and installed
+dependency closure. That proves only this local candidate, not a public release.
+This runner is an inbound helper owned by the existing
+`quality.gate-runner` feature. It adds no consumer module, capability ID, or
+composition boundary. The consumer retains its test inventory and exceptions;
+Foundation supplies only the reusable contract and Node adapter.
+The current Get Modular Consumer Module Standard input
+(`.task-inputs/current-common-assembly.md`, commit
+`6b31f20fe3e5fb8324812aa2ee907905751cde71`, complete-byte SHA-256
+`d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`)
+permits fixed private helpers inside one cohesive feature without an Assembly
+handle. This command uses the existing QGR feature owner, exact public entry
+and process assembly declaration, and the narrowly admitted `node:test` adapter.
+It introduces no new production composition root or lifecycle graph node.
+The existing `architecture/foundation/feature-modules.json` pin is for the
+organization Feature Module Standard v1; it is not a Get Modular Consumer
+Module Standard pin or adoption profile. This comparison records the
+feature-local classification only and claims no Get Modular adoption or
+migration evidence.
+
 Static script inspection is intentionally conservative rather than a shell
 parser. An inherited runtime marker also rejects recursion assembled dynamically
 by a wrapper script, so an unrecognized command shape fails instead of creating

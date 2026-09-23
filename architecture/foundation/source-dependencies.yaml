@@ -721,8 +721,10 @@ boundaries:
   - id: foundation.cli
     roots:
       - packages/engineering-foundation/src/cli.ts
+      - packages/engineering-foundation/src/node-test-cli.ts
     allow:
       boundaries:
+        - capability.quality-gate-runner.composition
         - foundation.local-mode.adapters
         - foundation.local-mode.application
         - foundation.local-mode.composition
@@ -902,8 +904,10 @@ boundaries:
         - node:fs/promises
         - node:path
         - node:perf_hooks
+        - node:test
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/command.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/configuration/load-quality-gate-policy.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/node-signal-cancellation-source.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts

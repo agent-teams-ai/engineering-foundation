@@ -56,3 +56,5 @@ export function createQualityGateRunnerCapability(input: {
     }
   });
 }
+
+export { runProcessMandatoryNodeTests } from "./adapters/inbound/node-test-execution/command.js";

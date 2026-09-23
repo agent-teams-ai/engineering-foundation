@@ -9,7 +9,8 @@
     "build": "tsc --build tsconfig.json --pretty false"
   },
   "bin": {
-    "agent-teams-foundation": "./dist/cli.js"
+    "agent-teams-foundation": "./dist/cli.js",
+    "agent-teams-node-test": "./dist/node-test-cli.js"
   },
   "exports": {
     ".": {
@@ -31,6 +32,10 @@
     "./sdk-growth-authority": {
       "types": "./dist/sdk-growth-authority.d.ts",
       "import": "./dist/sdk-growth-authority.js"
+    },
+    "./node-test-execution": {
+      "types": "./dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.d.ts",
+      "import": "./dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.js"
     },
     "./schemas/*": "./schemas/*",
     "./presets/*": "./presets/*",

@@ -4,6 +4,7 @@ import { resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
+import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
 export function builtTestArguments(manifest) {
   if (!Array.isArray(manifest?.tests) || manifest.tests.length === 0) {
@@ -14,6 +15,8 @@ export function builtTestArguments(manifest) {
 
 export async function runBuiltTests({ spawnChild = spawn } = {}) {
   const manifest = await validateTestManifests();
+  const mandatoryExit = await maybeRunMandatoryNodeTests(manifest.tests);
+  if (mandatoryExit !== null) { return mandatoryExit; }
   const child = spawnChild(process.execPath, builtTestArguments(manifest), {
     cwd: repositoryRoot,
     stdio: "inherit",

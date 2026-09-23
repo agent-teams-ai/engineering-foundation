@@ -232,6 +232,7 @@
         "tests/public-docs-install-e2e.test.mjs",
         "tests/public-managed-registry-canary.test.mjs",
         "tests/quality-gate-runner-remediation.test.mjs",
+        "tests/node-test-execution.test.mjs",
         "tests/quality-gate-runner.test.mjs",
         "tests/registry-docs-protocol-mcp-e2e.test.mjs",
         "tests/registry-install-policy.test.mjs",

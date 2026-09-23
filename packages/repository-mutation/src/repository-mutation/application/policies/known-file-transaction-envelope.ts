@@ -36,7 +36,7 @@ function exactKeys(
   }
 }
 
-export function assertIdentity(value: unknown, subject: string): void {
+function assertIdentity(value: unknown, subject: string): void {
   const identity = record(value, subject);
   exactKeys(identity, ["birthtimeNs", "dev", "ino"], subject);
   for (const field of ["birthtimeNs", "dev", "ino"] as const) {

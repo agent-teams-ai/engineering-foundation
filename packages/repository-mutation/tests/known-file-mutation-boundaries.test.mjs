@@ -21,12 +21,27 @@ test("Mutation production boundaries have one layer owner and no outgoing violat
 
 const admission = await import("../dist/repository-mutation/application/policies/known-file-mutation-admission.js");
 const codec = await import("../dist/repository-mutation/application/policies/known-file-transaction-envelope.js");
-test("journal identities reject numeric coercion before deserialization", () => {
+test("journal identities reject numeric coercion before deserialization", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const fixture = JSON.parse(await readFile(new URL(
+    "../../../tests/fixtures/repository-mutation-known-file/base-valid-applying-envelope.json", import.meta.url
+  )));
   const valid = { birthtimeNs: "1", dev: "2", ino: "3" };
-  assert.doesNotThrow(() => codec.assertIdentity(valid, "journal identity"));
+  const journal = {
+    ...fixture.payload,
+    operations: [{ ...fixture.payload.operations[0], state: "temporary-ready",
+      temporaryIdentity: valid,
+      retirement: { kind: "temporary", state: "ready", directoryIdentity: valid, pathIdentity: valid }
+    }, fixture.payload.operations[1]]
+  };
+  const input = { ownerArtifact: fixture.ownerArtifact, kernelArtifact: fixture.kernelArtifact,
+    state: fixture.state, journal };
+  assert.doesNotThrow(() => codec.compileKnownFileTransactionEnvelope(input));
   for (const field of Object.keys(valid)) {
-    assert.throws(() => codec.assertIdentity({ ...valid, [field]: Number(valid[field]) }, "journal identity"),
-      /journal identity\..* is invalid/u);
+    const changed = structuredClone(journal);
+    changed.operations[0].temporaryIdentity[field] = Number(valid[field]);
+    assert.throws(() => codec.compileKnownFileTransactionEnvelope({ ...input, journal: changed }),
+      /temporary identity\..* is invalid/u);
   }
 });
 const { KnownFileTransactionError } = await import("../dist/index.js");

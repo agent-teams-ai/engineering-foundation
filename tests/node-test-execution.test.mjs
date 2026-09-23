@@ -6,10 +6,13 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 
-import { assertSupportedNodeTestRuntime, evaluateNodeTestEvents, validateNodeTestContract } from '../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.js';
 import { mandatoryTestFile, writeMandatoryGateFixture } from '../scripts/mandatory-node-test-gate-fixture.mjs';
 
 const packageRoot = resolve('packages/engineering-foundation');
+const sourceRunner = join(packageRoot, 'src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.ts');
+const runnerPath = process.env.EF332_SOURCE_RUNNER ?? sourceRunner;
+const { assertSupportedNodeTestRuntime, evaluateNodeTestEvents, validateNodeTestContract } =
+  await import(pathToFileURL(runnerPath).href);
 const builtCli = join(packageRoot, 'dist/node-test-cli.js');
 const gateCli = join(packageRoot, 'dist/cli.js');
 const childEnvironment = { ...process.env };
@@ -42,8 +45,6 @@ async function fixture(fn) {
 async function runFixture(root, source, required, exceptions = [], options = {}) {
   await writeFile(join(root, testFile), source);
   await writeFile(join(root, 'contract.json'), JSON.stringify(contract(required, exceptions)));
-  const runnerPath = process.env.EF332_SOURCE_RUNNER ??
-    join(packageRoot, 'dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.js');
   await writeFile(join(root, 'invoke.mjs'), `import { runNodeTestExecution } from ${JSON.stringify(pathToFileURL(runnerPath).href)};
 await runNodeTestExecution({ root: ${JSON.stringify(options.rootAlias ?? root)}, files: ${JSON.stringify(options.selectedFiles ?? [testFile])},
   contractPath: 'contract.json', runOptions: ${options.testNamePatterns ? '{ testNamePatterns: [/unrelated/] }' : '{}'} });\n`);
@@ -104,6 +105,73 @@ test('nested, skip, TODO and omissions fail unless an exact applicable exception
   assert.throws(() => evaluateNodeTestEvents(successfulEvents([node(1, 'parent')]), contract([identity('other.test.mjs', ['parent'])]), selected), /no mandatory identities/);
   assert.equal(evaluateNodeTestEvents(successfulEvents([node(1, 'parent')]), contract([identity(testFile, ['parent']), identity('other.test.mjs', ['other'])]), selected).protectedCount, 1);
 });
+
+test('directive evidence accepts empty strings and rejects malformed values across observed entries', () => {
+  const required = identity(testFile, ['required']);
+  for (const directive of ['skip', 'todo']) {
+    const status = directive === 'skip' ? 'skipped' : 'todo';
+    const events = successfulEvents([node(1, 'required')]).map((item) =>
+      item.type === 'test:pass' ? { ...item, data: { ...item.data, [directive]: '' } } : item);
+    assert.throws(() => evaluateNodeTestEvents(events, contract([required]), selected), new RegExp(status));
+    assert.equal(evaluateNodeTestEvents(events, contract([required], [exception(required, status)]), selected).protectedCount, 1);
+    for (const type of ['test:enqueue', 'test:complete', 'test:pass']) {
+      for (const malformed of [null, undefined, 0, 1, {}, []]) {
+        const invalid = successfulEvents([node(1, 'required'), node(2, 'unrelated')]).map((item) =>
+          item.type === type && item.data?.name === 'unrelated'
+            ? { ...item, data: { ...item.data, [directive]: malformed } } : item);
+        assert.throws(() => evaluateNodeTestEvents(invalid, contract([required]), selected), /malformed .* directive/);
+      }
+    }
+  }
+  const inactive = successfulEvents([node(1, 'required')]).map((item) =>
+    item.type === 'test:pass' ? { ...item, data: { ...item.data, skip: false, todo: false } } : item);
+  assert.equal(evaluateNodeTestEvents(inactive, contract([required]), selected).protectedCount, 1);
+  const enqueueSkip = successfulEvents([node(1, 'required')]).map((item) =>
+    item.type === 'test:enqueue' ? { ...item, data: { ...item.data, skip: '' } } : item);
+  assert.throws(() => evaluateNodeTestEvents(enqueueSkip, contract([required]), selected), /skipped/);
+  const conflicting = successfulEvents([node(1, 'required'), node(2, 'unrelated')]).map((item) =>
+    item.data?.name === 'unrelated' && item.type === 'test:complete'
+      ? { ...item, data: { ...item.data, skip: '' } }
+      : item.data?.name === 'unrelated' && item.type === 'test:pass'
+        ? { ...item, data: { ...item.data, todo: '' } } : item);
+  assert.throws(() => evaluateNodeTestEvents(conflicting, contract([required]), selected), /conflicting/);
+  const malformedSummary = successfulEvents([node(1, 'required')]).map((item) =>
+    item.type === 'test:summary' ? { ...item, data: { ...item.data, skip: null } } : item);
+  assert.throws(() => evaluateNodeTestEvents(malformedSummary, contract([required]), selected), /malformed skip directive/);
+  const skippedWrapper = [
+    { type: 'test:pass', data: { file: selected[0].absolute, name: selected[0].absolute, parentId: 0, skip: '' } },
+    ...successfulEvents([node(1, 'required')]),
+  ];
+  assert.throws(() => evaluateNodeTestEvents(skippedWrapper, contract([required]), selected), /directive outside a test identity/);
+});
+
+test('empty-reason directive on a required ancestor prevents descendant qualification', () => {
+  const child = identity(testFile, ['parent', 'child']);
+  const events = successfulEvents([node(1, 'parent'), node(2, 'child', 1)]).map((item) =>
+    item.type === 'test:pass' && item.data?.name === 'parent'
+      ? { ...item, data: { ...item.data, skip: '' } } : item);
+  assert.throws(() => evaluateNodeTestEvents(events, contract([child]), selected), /unexecuted ancestor/);
+});
+
+test('actual Node empty-reason skip and TODO evidence requires exact exceptions', async () => fixture(async (root) => {
+  const required = [identity(testFile, ['required'])];
+  for (const [source, status] of [
+    ["import test from 'node:test'; test('required', t => t.skip(''));", 'skipped'],
+    ["import test from 'node:test'; test('required', t => t.todo(''));", 'todo'],
+  ]) {
+    const rejected = await runFixture(root, source, required);
+    assert.equal(rejected.status, 1, rejected.stderr);
+    assert.match(rejected.stderr, new RegExp(status));
+    const allowed = await runFixture(root, source, required, [exception(required[0], status)]);
+    assert.equal(allowed.status, 0, allowed.stderr);
+  }
+  const child = [identity(testFile, ['parent', 'child'])];
+  const parentSkipped = await runFixture(root,
+    "import test from 'node:test'; test('parent', async t => { t.skip(''); await t.test('child', () => {}); });",
+    child, [exception(child[0], 'omitted')]);
+  assert.equal(parentSkipped.status, 1, parentSkipped.stderr);
+  assert.match(parentSkipped.stderr, /unexecuted ancestor/);
+}));
 
 test('actual Node run evidence rejects skip, filtered omission and conditional omission', async () => fixture(async (root) => {
   const required = [identity(testFile, ['parent', 'child'])];

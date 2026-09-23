@@ -8,7 +8,7 @@ type Exception = Identity & { status: "omitted" | "skipped" | "todo"; reason: st
 type Event = { type: string; data?: Record<string, unknown> };
 type Selected = { absolute: string; file: string };
 type Entry = { file: string; name: string; kind: "suite" | "test"; id: number; parentId: number;
-  complete?: Record<string, unknown>; result?: Event };
+  enqueue: Record<string, unknown>; complete?: Record<string, unknown>; result?: Event };
 
 const platforms = new Set(["darwin", "linux", "win32"]);
 const identityKey = (file: string, names: readonly string[]): string => JSON.stringify([file, names]);
@@ -104,6 +104,22 @@ function checkEvent(data: Record<string, unknown>, label: string): void {
     typeof data.name !== "string" || data.name.length === 0) { fail(`malformed ${label} event`); }
 }
 
+function directiveActive(data: Record<string, unknown> | undefined, name: "skip" | "todo"): boolean {
+  if (data === undefined || !Object.hasOwn(data, name)) { return false; }
+  const value = data[name];
+  if (typeof value === "string") { return true; }
+  if (typeof value === "boolean") { return value; }
+  fail(`malformed ${name} directive`);
+}
+
+function checkDirectives(data: Record<string, unknown>): void {
+  const skipped = directiveActive(data, "skip");
+  const todo = directiveActive(data, "todo");
+  if (skipped && todo) {
+    fail("conflicting skip and todo directives");
+  }
+}
+
 type Evidence = { selected: Set<string>; entries: Map<string, Entry>; summaries: Map<string, boolean>;
   finalSummary?: boolean };
 
@@ -125,13 +141,13 @@ function collectSummary(data: Record<string, unknown>, evidence: Evidence): void
 function collectResult(event: Event, data: Record<string, unknown>, evidence: Evidence): void {
   checkEvent(data, event.type);
   if (!evidence.selected.has(data.entryFile as string)) { fail("event belongs to an unselected file"); }
-  const key = `${data.entryFile}\0${data.testId}`;
+  const key = `${String(data.entryFile)}\0${String(data.testId)}`;
   if (event.type === "test:enqueue") {
     if (evidence.entries.has(key) || (data.type !== "test" && data.type !== "suite")) {
       fail("duplicate or malformed enqueue");
     }
     evidence.entries.set(key, { file: data.entryFile as string, name: data.name as string,
-      kind: data.type as "test" | "suite", id: data.testId as number, parentId: data.parentId as number });
+      kind: data.type, id: data.testId as number, parentId: data.parentId as number, enqueue: data });
     return;
   }
   const entry = evidence.entries.get(key);
@@ -151,17 +167,29 @@ function collectResult(event: Event, data: Record<string, unknown>, evidence: Ev
 
 function collectEvent(event: Event, evidence: Evidence): void {
   const data = event.data;
+  if (record(data)) { checkDirectives(data); }
   if (event.type === "test:summary") {
     if (!record(data)) { fail("malformed summary"); }
+    if (directiveActive(data, "skip") || directiveActive(data, "todo")) {
+      fail("directive outside a test identity");
+    }
     collectSummary(data, evidence);
     return;
   }
-  if (!["test:enqueue", "test:complete", "test:pass", "test:fail"].includes(event.type)) { return; }
+  if (!["test:enqueue", "test:complete", "test:pass", "test:fail"].includes(event.type)) {
+    if (record(data) && (directiveActive(data, "skip") || directiveActive(data, "todo"))) {
+      fail("directive outside a test identity");
+    }
+    return;
+  }
   if (!record(data)) { fail(`malformed ${event.type} event`); }
   if (data.entryFile === undefined) {
     // The Node runner's outer file wrapper is not a test identity.
     if (typeof data.file !== "string" || !evidence.selected.has(data.file) ||
       data.name !== data.file || data.parentId !== 0) { fail(`unattributed ${event.type} event`); }
+    if (directiveActive(data, "skip") || directiveActive(data, "todo")) {
+      fail("directive outside a test identity");
+    }
     if (event.type === "test:fail") { fail(`failed entry file: ${data.file}`); }
     return;
   }
@@ -193,6 +221,7 @@ function observedEntries(entries: Map<string, Entry>): Map<string, Entry> {
     if (entry.result.type === "test:fail" || (entry.complete.details as Record<string, unknown>).passed !== true) {
       fail(`failed test execution: ${key}`);
     }
+    outcomeOf(entry, entry.kind);
   }
   return observed;
 }
@@ -200,8 +229,13 @@ function observedEntries(entries: Map<string, Entry>): Map<string, Entry> {
 function outcomeOf(entry: Entry | undefined, kind: Identity["kind"]): string {
   if (entry === undefined) { return "omitted"; }
   if (entry.kind !== kind) { return "wrong-kind"; }
-  if (entry.result?.data?.skip || entry.complete?.skip) { return "skipped"; }
-  if (entry.result?.data?.todo || entry.complete?.todo) { return "todo"; }
+  const skipped = directiveActive(entry.enqueue, "skip") ||
+    directiveActive(entry.result?.data, "skip") || directiveActive(entry.complete, "skip");
+  const todo = directiveActive(entry.enqueue, "todo") ||
+    directiveActive(entry.result?.data, "todo") || directiveActive(entry.complete, "todo");
+  if (skipped && todo) { fail("conflicting skip and todo directives"); }
+  if (skipped) { return "skipped"; }
+  if (todo) { return "todo"; }
   return "passed";
 }
 
@@ -220,7 +254,7 @@ function countProtected(required: Map<string, Identity>, exceptions: Map<string,
   const failures: string[] = [];
   for (const [key, item] of required) {
     const absolute = selectedFiles.find((file) => file.file === item.file)?.absolute;
-    if (!absolute) { continue; }
+    if (absolute === undefined) { continue; }
     count++;
     requireExecutedAncestors(item, absolute, observed, key);
     const outcome = outcomeOf(observed.get(identityKey(absolute, item.names)), item.kind);

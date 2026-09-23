@@ -319,7 +319,7 @@ async function qualifyLayout({ consumerRoot, nested, artifact }) {
     rationale: "Exact tuple representation retains array order and duplicate values.",
     rejectingTest: "tests/tuple-rejection.test.mjs" }] });
   const qualified = JSON.parse(await readFile(join(root, "quality.yaml"), "utf8"));
-  await put("quality.yaml", { ...qualified, bridgeAdmissionsPath: "bridges.json" });
+  await put("quality.yaml", { ...qualified, schemaVersion: 2, bridgeAdmissionsPath: "bridges.json" });
   assert.equal((await invoke(["quality", "check"])).outcome, "passed");
   await put("bridges.json", { schemaVersion: 1, bridges: [] });
   assert.equal((await invoke(["quality", "check"], 1)).outcome, "violations");

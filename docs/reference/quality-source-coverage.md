@@ -23,8 +23,10 @@ comments, non-null and `satisfies` wrappers. The target type name has no effect.
 Source read and parse failures reject the check. Scope mode remains a coverage
 observation and does not run this syntax check.
 
-The optional `bridgeAdmissionsPath` in the v1 quality profile names one contained
-JSON or YAML data file. It has `schemaVersion: 1` and a finite `bridges` array.
+The v1 quality profile remains the default without admissions: explicit `unknown`
+bridges reject during full checks. Opt into admissions with `schemaVersion: 2`
+and the optional `bridgeAdmissionsPath`, which names one contained JSON or YAML
+data file. That admission file has `schemaVersion: 1` and a finite `bridges` array.
 Each record has exactly `path`, `start`, `end`, `sha256`, `rationale` and
 `rejectingTest`. Start and end are OXC's zero-based source offsets for the full
 outer assertion; SHA-256 covers that exact source slice. Paths are relative to

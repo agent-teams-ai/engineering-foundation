@@ -117,6 +117,6 @@ test("parsePair admits only two finite numbers", () => {
     end: start + expression.length, sha256: createHash("sha256").update(expression).digest("hex"),
     rationale: "The parser checks exact length and finite numeric element types before this tuple assertion.",
     rejectingTest: "tests/pair-rejection.test.mjs" }] });
-  await put("quality.yaml", { ...quality, bridgeAdmissionsPath: "bridges.json" });
+  await put("quality.yaml", { ...quality, schemaVersion: 2, bridgeAdmissionsPath: "bridges.json" });
   assert.equal((await invoke(0)).outcome, "passed");
 }

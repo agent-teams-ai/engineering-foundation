@@ -89,7 +89,17 @@ test("built public quality check rejects unknown chains and accepts exact eviden
     await put("tests/bridge-rejection.test.mjs", 'import assert from "node:assert/strict";\nimport test from "node:test";\ntest("flat tuple order and duplicates", () => {\n  assert.deepEqual([[1], [1, 2]].flat(), [1, 1, 2]);\n  assert.notDeepEqual([[1], [1, 2]].flat(), [1, 2]);\n});\n');
     await promisify(execFile)(process.execPath, ["--test", "tests/bridge-rejection.test.mjs"], { cwd: root });
     await put("bridges.json", { schemaVersion: 1, bridges: [bridge] });
+    assert.equal(createHash("sha256").update(await readFile(join(repository,
+      "packages/engineering-foundation/schemas/quality-source-coverage/v1.schema.json"))).digest("hex"),
+    "a5987fbc1d0686dc260aa2b7cc062aa2d0581de7deb1d7739b4d1d8cf1f76fb9");
     await put("quality.yaml", { schemaVersion: 1, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
+      featureProfilePath: "features.json", lintConfigPath: "lint.json", compilerProjects: ["config/production.json"],
+      bridgeAdmissionsPath: "bridges.json",
+      scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
+    const v1Admission = await invoke();
+    assert.equal(v1Admission.code, 2, JSON.stringify(v1Admission.report));
+    assert.equal(v1Admission.report.outcome, "invalid-input");
+    await put("quality.yaml", { schemaVersion: 2, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
       featureProfilePath: "features.json", lintConfigPath: "lint.json", compilerProjects: ["config/production.json"],
       bridgeAdmissionsPath: "bridges.json",
       scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
@@ -128,6 +138,10 @@ test("built public quality check rejects unknown chains and accepts exact eviden
     assert.ok(rejected.report.capabilities[0].diagnostics.some(({ location, evidence }) =>
       location.path === main && evidence.some(({ value }) => value === "typescript(no-floating-promises)")));
     await put(main, 'interface Trusted { readonly marker: "trusted" }\nexport const value: Trusted = { marker: "trusted" };\n');
+    assert.equal((await invoke()).code, 0);
+    await put("quality.yaml", { schemaVersion: 1, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
+      featureProfilePath: "features.json", lintConfigPath: "lint.json", compilerProjects: ["config/production.json"],
+      scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
     assert.equal((await invoke()).code, 0);
     await put("lint.json", { options: { respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" },
       extends: ["./presets/type-aware.json", "./presets/maintainability.json"], jsPlugins: ["./plugin.mjs"] });

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.agent-teams.ai/engineering-foundation/quality-source-coverage/v1",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/quality-source-coverage/v2",
   "title": "Production quality source coverage profile",
   "type": "object",
   "additionalProperties": false,
@@ -15,7 +15,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "const": 2
     },
     "sourcePolicyPath": {
       "type": "string",
@@ -36,6 +36,12 @@
       "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.(?:ya?ml|json)$"
     },
     "lintConfigPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.(?:ya?ml|json)$"
+    },
+    "bridgeAdmissionsPath": {
       "type": "string",
       "minLength": 1,
       "maxLength": 240,

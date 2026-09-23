@@ -131,6 +131,57 @@ test("quality closure validates the fixture snapshot after copying it", async (t
   assert.deepEqual(await readdir(join(fixture.destination, "..")), []);
 });
 
+test("quality closure rejects a manifest symlink replacement after snapshot validation", async (t) => {
+  const fixture = await createQualityClosureFixture(t);
+  const outsideManifest = join(fixture.root, "outside-package.json");
+  const symlinkProbe = join(fixture.root, "manifest-symlink-probe.json");
+  await writeFile(outsideManifest, JSON.stringify({ name: "@fixture/public-api" }));
+  try {
+    await symlink(outsideManifest, symlinkProbe, "file");
+  } catch (error) {
+    if (process.platform === "win32" && error?.code === "EPERM") {
+      t.skip("Creating file symlinks requires unavailable Windows privileges");
+      return;
+    }
+    throw error;
+  }
+  await rm(symlinkProbe);
+  await assert.rejects(
+    copyInstalledClosure(fixture.source, fixture.destination, {
+      afterFixtureSnapshotTreeValidated: async ({ snapshot }) => {
+        const manifestPath = join(snapshot, "package.json");
+        await rm(manifestPath);
+        await symlink(outsideManifest, manifestPath);
+      }
+    }),
+    (error) => error?.code === "ELOOP" ||
+      (error?.code === "ERR_ASSERTION" &&
+        /Approved workspace fixture manifest must be a regular file/u.test(error.message))
+  );
+  await assert.rejects(lstat(fixture.destination), { code: "ENOENT" });
+  assert.deepEqual(await readdir(join(fixture.destination, "..")), []);
+});
+
+test("quality closure rejects a manifest path replacement after opening it", async (t) => {
+  const fixture = await createQualityClosureFixture(t);
+  const { ino } = await lstat(join(fixture.fixtureRoot, "package.json"), { bigint: true });
+  if (ino === 0n) {
+    t.skip("File IDs are unavailable on this filesystem");
+    return;
+  }
+  await assert.rejects(
+    copyInstalledClosure(fixture.source, fixture.destination, {
+      afterFixtureSnapshotManifestOpened: async ({ manifestPath }) => {
+        await rm(manifestPath);
+        await writeFile(manifestPath, JSON.stringify({ name: "@fixture/public-api" }));
+      }
+    }),
+    /Approved workspace fixture manifest identity changed/u
+  );
+  await assert.rejects(lstat(fixture.destination), { code: "ENOENT" });
+  assert.deepEqual(await readdir(join(fixture.destination, "..")), []);
+});
+
 test("quality closure never rereads the fixture after validating its snapshot", async (t) => {
   await t.test("source mutation", async (context) => {
     const fixture = await createQualityClosureFixture(context);

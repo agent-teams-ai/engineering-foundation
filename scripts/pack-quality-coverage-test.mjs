@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { cp, lstat, mkdir, mkdtemp, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
 import { inspectCompressedTarArchive, readRegularArchive, sha256 } from "./pack-artifact-archive.mjs";
@@ -63,20 +64,45 @@ async function assertRegularFixtureTree(directory) {
   }
 }
 
-async function validateWorkspaceFixtureSnapshot(snapshot) {
+function hasReliableFileIdentity(metadata) {
+  return metadata.ino !== 0n;
+}
+
+async function validateWorkspaceFixtureSnapshot(snapshot, testHooks) {
   const snapshotStatus = await lstat(snapshot);
   assert.ok(
     snapshotStatus.isDirectory() && !snapshotStatus.isSymbolicLink(),
     "Approved workspace fixture snapshot must be a physical directory"
   );
   await assertRegularFixtureTree(snapshot);
+  await testHooks.afterFixtureSnapshotTreeValidated?.({ snapshot });
   const manifestPath = join(snapshot, "package.json");
-  assert.ok(
-    (await lstat(manifestPath)).isFile(),
-    "Approved workspace fixture manifest must be a regular file"
-  );
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.equal(manifest.name, "@fixture/public-api", "Approved workspace fixture identity changed");
+  const noFollowFlags = process.platform === "win32"
+    ? 0
+    : fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK;
+  const manifestHandle = await open(manifestPath, fsConstants.O_RDONLY | noFollowFlags);
+  try {
+    await testHooks.afterFixtureSnapshotManifestOpened?.({ manifestPath });
+    const [manifestPathStatus, manifestHandleStatus] = await Promise.all([
+      lstat(manifestPath, { bigint: true }),
+      manifestHandle.stat({ bigint: true })
+    ]);
+    assert.ok(
+      manifestPathStatus.isFile() && !manifestPathStatus.isSymbolicLink() && manifestHandleStatus.isFile(),
+      "Approved workspace fixture manifest must be a regular file"
+    );
+    assert.ok(
+      !hasReliableFileIdentity(manifestPathStatus) ||
+        !hasReliableFileIdentity(manifestHandleStatus) ||
+        (manifestPathStatus.dev === manifestHandleStatus.dev &&
+          manifestPathStatus.ino === manifestHandleStatus.ino),
+      "Approved workspace fixture manifest identity changed"
+    );
+    const manifest = JSON.parse(await manifestHandle.readFile("utf8"));
+    assert.equal(manifest.name, "@fixture/public-api", "Approved workspace fixture identity changed");
+  } finally {
+    await manifestHandle.close();
+  }
 }
 
 async function assertAbsent(path) {
@@ -131,7 +157,7 @@ export async function copyInstalledClosure(source, destination, testHooks = {}) 
         recursive: true,
         verbatimSymlinks: true
       });
-      await validateWorkspaceFixtureSnapshot(fixtureSnapshot);
+      await validateWorkspaceFixtureSnapshot(fixtureSnapshot, testHooks);
       await testHooks.afterFixtureSnapshotValidated?.({ fixtureSource: fixture.fixtureSource });
     }
 

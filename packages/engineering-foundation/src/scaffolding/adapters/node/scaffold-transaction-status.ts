@@ -1,9 +1,6 @@
 import { canonicalJson, type CanonicalJsonValue } from "@agent-teams/repository-mutation";
 import type { ScaffoldLegacyDigests, ScaffoldTransactionArtifacts } from "../../application/ports/transaction-observation.js";
 import type { ScaffoldSchemaValidator } from "../schema-validation.js";
-import type {
-  AuthorityScaffoldJournal
-} from "../../contract/types.js";
 import type { FoundationRecoveryRoute, FoundationTransactionDiagnostic, InternalFoundationTransactionStatus } from "../../application/policies/transaction-identity.js";
 import { assertLegacyScaffoldingJournal } from "./legacy-scaffolding-transaction-validation.js";
 import { parseFoundationScaffoldEnvelope } from "./foundation-scaffold-envelope.js";
@@ -58,9 +55,9 @@ export async function inspectLegacyScaffoldingJournal(options: {
     options.value,
     "foundation-transaction-slot"
   );
-  const journal = options.value as unknown as AuthorityScaffoldJournal;
   assertLegacyScaffoldingJournal(options.value, digests);
-  const compiler = journal.plan["compiler"];
+  const plan = options.value["plan"];
+  const compiler = isRecord(plan) ? plan["compiler"] : undefined;
   if (!isRecord(compiler) || typeof compiler["version"] !== "string") {
     throw new Error("Legacy scaffolding journal compiler version is invalid.");
   }

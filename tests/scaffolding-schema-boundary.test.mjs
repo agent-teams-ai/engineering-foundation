@@ -113,3 +113,24 @@ for (const [name, inspect, schema] of [
     assert.deepEqual(value, {});
   });
 }
+
+test("legacy journal reads compiler only after schema and digest validation", async () => withFixture(async (root) => {
+  const journal = freshAuthorityScaffoldJournal(await plan(root));
+  const calls = [];
+  const observed = await inspectLegacyScaffoldingJournal({
+    value: journal, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
+  }, async (id, input, phase) => {
+    calls.push([id, input, phase]);
+    await assertSchema(id, input, phase);
+  }, scaffoldLegacyDigests);
+  assert.deepEqual(calls, [["scaffold-recovery-journal/v1", journal, "foundation-transaction-slot"]]);
+  assert.equal(observed.state, "pending");
+  assert.equal(observed.foundationVersion, journal.plan.compiler.version);
+  const failure = new Error("digest rejected");
+  await assert.rejects(inspectLegacyScaffoldingJournal({
+    value: journal, installedVersion: "1.0.0", installedBuildIdentity: "identity"
+  }, async () => { calls.push("schema accepted"); }, {
+    journalPlanDigest() { throw failure; }, assertEnvelopeDigests() { assert.fail("unused"); }
+  }), (error) => error === failure);
+  assert.equal(calls.at(-1), "schema accepted");
+}));

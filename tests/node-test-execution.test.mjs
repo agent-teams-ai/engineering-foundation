@@ -94,6 +94,37 @@ test('a failed result and an unsuccessful native summary always reject', () => {
     ? { ...item, data: { ...item.data, success: false } } : item), contract([required]), selected), /unsuccessful/);
 });
 
+test('expected-failure evidence rejects even with passing completion and summaries', () => {
+  const required = identity(testFile, ['required']);
+  const ordinary = successfulEvents([node(1, 'required')]);
+  assert.equal(evaluateNodeTestEvents(ordinary, contract([required]), selected).protectedCount, 1);
+  for (const type of ['test:enqueue', 'test:complete', 'test:pass']) {
+    for (const value of [true, 'reviewed failure']) {
+      const expectedFailure = ordinary.map((item) => item.type === type
+        ? { ...item, data: { ...item.data, expectFailure: value } } : item);
+      assert.throws(() => evaluateNodeTestEvents(expectedFailure, contract([required]), selected), /expected failure/);
+    }
+    for (const malformed of [null, undefined, 0, 1, {}, []]) {
+      const invalid = successfulEvents([node(1, 'required'), node(2, 'unrelated')]).map((item) =>
+        item.type === type && item.data?.name === 'unrelated'
+          ? { ...item, data: { ...item.data, expectFailure: malformed } } : item);
+      assert.throws(() => evaluateNodeTestEvents(invalid, contract([required]), selected), /malformed expectFailure directive/);
+    }
+  }
+  const inactive = ordinary.map((item) => item.type === 'test:pass'
+    ? { ...item, data: { ...item.data, expectFailure: false } } : item);
+  assert.equal(evaluateNodeTestEvents(inactive, contract([required]), selected).protectedCount, 1);
+  const child = identity(testFile, ['parent', 'child']);
+  const inherited = successfulEvents([node(1, 'parent'), node(2, 'child', 1)]).map((item) =>
+    item.type === 'test:pass' && item.data?.name === 'parent'
+      ? { ...item, data: { ...item.data, expectFailure: true } } : item);
+  assert.throws(() => evaluateNodeTestEvents(inherited, contract([child]), selected), /expected failure/);
+  assert.throws(() => evaluateNodeTestEvents(inherited, contract([child], [exception(child, 'todo')]), selected), /expected failure/);
+  const malformedSummary = ordinary.map((item) => item.type === 'test:summary'
+    ? { ...item, data: { ...item.data, expectFailure: null } } : item);
+  assert.throws(() => evaluateNodeTestEvents(malformedSummary, contract([required]), selected), /malformed expectFailure directive/);
+});
+
 test('nested, skip, TODO and omissions fail unless an exact applicable exception exists', () => {
   const child = identity(testFile, ['parent', 'child']);
   assert.throws(() => evaluateNodeTestEvents(successfulEvents([node(1, 'parent'), node(2, 'child', 1, 'test', 'skip')]), contract([child]), selected), /skipped/);
@@ -171,6 +202,19 @@ test('actual Node empty-reason skip and TODO evidence requires exact exceptions'
     child, [exception(child[0], 'omitted')]);
   assert.equal(parentSkipped.status, 1, parentSkipped.stderr);
   assert.match(parentSkipped.stderr, /unexecuted ancestor/);
+}));
+
+test('actual Node expected assertion failure cannot satisfy a required identity', async () => fixture(async (root) => {
+  const required = [identity(testFile, ['required'])];
+  const expectedFailure = await runFixture(root,
+    "import assert from 'node:assert/strict'; import test from 'node:test'; test('required', { expectFailure: true }, () => assert.equal(1, 2));",
+    required);
+  assert.equal(expectedFailure.status, 1, expectedFailure.stderr);
+  assert.match(expectedFailure.stderr, /expected failure/);
+  const ordinaryPass = await runFixture(root,
+    "import assert from 'node:assert/strict'; import test from 'node:test'; test('required', () => assert.equal(1, 1));",
+    required);
+  assert.equal(ordinaryPass.status, 0, ordinaryPass.stderr);
 }));
 
 test('actual Node run evidence rejects skip, filtered omission and conditional omission', async () => fixture(async (root) => {

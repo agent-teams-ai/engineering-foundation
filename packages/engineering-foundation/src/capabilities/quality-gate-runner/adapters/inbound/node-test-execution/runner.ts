@@ -104,7 +104,7 @@ function checkEvent(data: Record<string, unknown>, label: string): void {
     typeof data.name !== "string" || data.name.length === 0) { fail(`malformed ${label} event`); }
 }
 
-function directiveActive(data: Record<string, unknown> | undefined, name: "skip" | "todo"): boolean {
+function directiveActive(data: Record<string, unknown> | undefined, name: "skip" | "todo" | "expectFailure"): boolean {
   if (data === undefined || !Object.hasOwn(data, name)) { return false; }
   const value = data[name];
   if (typeof value === "string") { return true; }
@@ -115,6 +115,9 @@ function directiveActive(data: Record<string, unknown> | undefined, name: "skip"
 function checkDirectives(data: Record<string, unknown>): void {
   const skipped = directiveActive(data, "skip");
   const todo = directiveActive(data, "todo");
+  if (directiveActive(data, "expectFailure")) {
+    fail("expected failure cannot qualify as passing test execution");
+  }
   if (skipped && todo) {
     fail("conflicting skip and todo directives");
   }

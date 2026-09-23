@@ -25,6 +25,9 @@ function assertMandatoryGateReport(result, scenario) {
 
 async function verifyInstalledMandatoryNodeTests(installedRoot, consumerRoot) {
   const manifest = await readManifest(installedRoot);
+  if (Object.hasOwn(manifest.exports ?? {}, "./node-test-execution")) {
+    throw new Error("Mandatory Node execution must not publish its internal evaluator API.");
+  }
   const bin = manifest.bin?.["agent-teams-node-test"];
   if (bin !== "./dist/node-test-cli.js") {
     throw new Error("Installed Foundation mandatory Node test bin is missing.");

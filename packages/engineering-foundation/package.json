@@ -33,10 +33,6 @@
       "types": "./dist/sdk-growth-authority.d.ts",
       "import": "./dist/sdk-growth-authority.js"
     },
-    "./node-test-execution": {
-      "types": "./dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.d.ts",
-      "import": "./dist/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.js"
-    },
     "./schemas/*": "./schemas/*",
     "./presets/*": "./presets/*",
     "./package.json": "./package.json"

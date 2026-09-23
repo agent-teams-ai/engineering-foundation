@@ -193,15 +193,18 @@ function rebindEnvelope(value) {
   return value;
 }
 
+function digest(bytes) {
+  return `sha256:${createHash("sha256").update(Buffer.from(bytes, "utf8")).digest("hex")}`;
+}
+
 test("transaction digest bridges retain canonical bytes and reject malformed runtime values", async () => {
   for (const generation of [1, 2]) {
     const envelope = await candidateEnvelope(generation);
-    const { envelopeDigest: _ignored, ...body } = envelope;
+    const { envelopeDigest: _ignored, ...envelopeWithoutDigest } = envelope;
     const payloadBytes = canonicalJson(envelope.journal);
-    const bodyBytes = canonicalJson(body);
-    const digest = (bytes) => `sha256:${createHash("sha256").update(Buffer.from(bytes, "utf8")).digest("hex")}`;
+    const bodyBytes = canonicalJson(envelopeWithoutDigest);
     assert.deepEqual(JSON.parse(payloadBytes), envelope.journal);
-    assert.deepEqual(JSON.parse(bodyBytes), body);
+    assert.deepEqual(JSON.parse(bodyBytes), envelopeWithoutDigest);
     assert.equal(documentTransactionPayloadDigest(envelope.journal), digest(payloadBytes));
     assert.equal(documentTransactionEnvelopeDigest(envelope), digest(bodyBytes));
     assert.equal(envelope.payloadDigest, digest(payloadBytes));

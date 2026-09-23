@@ -134,6 +134,15 @@ function invoke(root, args) {
   return { status: result.status, stderr: result.stderr, envelope: JSON.parse(result.stdout) };
 }
 
+function assertAppliedAndCurrent(root, planned) {
+  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.equal(applied.envelope.plan.outcome, "current");
+  const checked = invoke(root, ["check"]);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.equal(checked.envelope.outcome, "current");
+}
+
 function assertFleetAuthority(bundle, cohortId) {
   const expected = fleetAuthorities.cohorts.find(({ cohort: authority }) =>
     authority.cohortId === cohortId
@@ -287,12 +296,7 @@ test("migrates the exact fleet rc2 bundle to a successor Cohort", async () => {
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
   assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
-  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
-  assert.equal(applied.status, 0, applied.stderr);
-  assert.equal(applied.envelope.plan.outcome, "current");
-  const checked = invoke(root, ["check"]);
-  assert.equal(checked.status, 0, checked.stderr);
-  assert.equal(checked.envelope.outcome, "current");
+  assertAppliedAndCurrent(root, planned);
 });
 
 test("migrates the exact fleet rc3 bundle to a fix-forward stable Cohort", async () => {
@@ -354,12 +358,7 @@ test("migrates the exact fleet rc3 bundle to a fix-forward stable Cohort", async
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
   assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
-  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
-  assert.equal(applied.status, 0, applied.stderr);
-  assert.equal(applied.envelope.plan.outcome, "current");
-  const checked = invoke(root, ["check"]);
-  assert.equal(checked.status, 0, checked.stderr);
-  assert.equal(checked.envelope.outcome, "current");
+  assertAppliedAndCurrent(root, planned);
 });
 
 test("migrates the exact stable1 bundle to a successor without fabricating rollback", async () => {
@@ -420,12 +419,7 @@ test("migrates the exact stable1 bundle to a successor without fabricating rollb
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
   assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
-  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
-  assert.equal(applied.status, 0, applied.stderr);
-  assert.equal(applied.envelope.plan.outcome, "current");
-  const checked = invoke(root, ["check"]);
-  assert.equal(checked.status, 0, checked.stderr);
-  assert.equal(checked.envelope.outcome, "current");
+  assertAppliedAndCurrent(root, planned);
 });
 
 for (const { priorCohortId, targetCohortId, profileSchemaVersion } of [
@@ -493,12 +487,7 @@ test(`migrates the exact ${priorCohortId} bundle to a fix-forward successor`, as
   assert.equal(planned.status, 1, planned.stderr);
   assert.equal(planned.envelope.outcome, "change-required");
   assertCanonicalMigrationAssets(planned.envelope.plan, prior, targetCohort);
-  const applied = invoke(root, ["apply", "--expect", planned.envelope.plan.planDigest]);
-  assert.equal(applied.status, 0, applied.stderr);
-  assert.equal(applied.envelope.plan.outcome, "current");
-  const checked = invoke(root, ["check"]);
-  assert.equal(checked.status, 0, checked.stderr);
-  assert.equal(checked.envelope.outcome, "current");
+  assertAppliedAndCurrent(root, planned);
   if (profileSchemaVersion === 2) {
     const retained = JSON.parse(await readFile(
       join(root, "architecture", "foundation", "docs-consumer-integration.json"),

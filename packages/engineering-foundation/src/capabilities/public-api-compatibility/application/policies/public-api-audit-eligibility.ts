@@ -80,7 +80,7 @@ function referenceReasons(reference: AuditReference, observation: AuditObservati
   return reasons;
 }
 /** Admission is Foundation-derived; extraction failure remains a separate failed gate. */
-function publicApiAuditEligibility(observations: readonly AuditObservation[]): AuditEligibility {
+export function publicApiAuditEligibility(observations: readonly AuditObservation[]): AuditEligibility {
   const reasons = new Set<string>();
   const identities = new Set<string>();
   if (observations.length === 0) {reasons.add("missing-observations");}

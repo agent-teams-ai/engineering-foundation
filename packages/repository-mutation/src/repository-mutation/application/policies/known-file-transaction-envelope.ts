@@ -109,8 +109,10 @@ function assertJournalOperationIdentities(options: {
   if (options.operation["retirement"] !== undefined) {
     const retirement = record(options.operation["retirement"], `${subject} retirement`);
     exactKeys(retirement, ["directoryIdentity", "kind", "pathIdentity", "state"], `${subject} retirement`);
-    if (!["destination", "rollback-temporary", "temporary"].includes(String(retirement["kind"])) ||
-      !["ready", "captured", "unlink-authorized"].includes(String(retirement["state"]))) {
+    if (typeof retirement["kind"] !== "string" ||
+      !["destination", "rollback-temporary", "temporary"].includes(retirement["kind"]) ||
+      typeof retirement["state"] !== "string" ||
+      !["ready", "captured", "unlink-authorized"].includes(retirement["state"])) {
       throw new KnownFileTransactionEnvelopeError(`${subject} retirement transition is invalid.`);
     }
     assertIdentity(retirement["directoryIdentity"], `${subject} retirement directory identity`);
@@ -135,10 +137,11 @@ function assertJournalOperation(
     ].includes(String(state));
     exactKeys(operation, journalOperationKeys(operation, withTemporary), `Known-file journal operation ${index}`);
     if (operation["path"] !== plan.operations[index]?.path ||
+      typeof state !== "string" ||
       ![
         "already-satisfied", "pending", "temporary-authorized", "temporary-ready", "capture-authorized", "capture-ready",
         "preimage-captured", "destination-retired", "publishing", "published", "rollback-restored"
-      ].includes(String(state))) {
+      ].includes(state)) {
       throw new KnownFileTransactionEnvelopeError(`Known-file journal operation ${index} is invalid.`);
     }
     const matched = operation["matchedPreimage"];

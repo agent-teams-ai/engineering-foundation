@@ -39,9 +39,13 @@ export function assertLegacyScaffoldingJournal(journal: Record<string, unknown>,
   if (planDigest !== digests.journalPlanDigest(body)) {
     throw new Error("Legacy scaffolding Plan digest is invalid.");
   }
-  const normalized = normalizeLegacyScaffoldingValue(journal) as AuthorityScaffoldJournal;
-  const { planDigest: _normalizedDigest, ...normalizedBody } = normalized.plan;
-  (normalized as unknown as { plan: { planDigest: string } }).plan.planDigest =
-    sha256DocumentJson(normalizedBody as unknown as JsonValue);
-  assertAuthorityScaffoldJournal(normalized);
+  const normalized = normalizeLegacyScaffoldingValue(journal);
+  if (!isRecord(normalized) || !isRecord(normalized["plan"])) {
+    throw new Error("Legacy scaffolding Plan binding is invalid.");
+  }
+  const normalizedPlan = normalized["plan"];
+  const { planDigest: _normalizedDigest, ...normalizedBody } = normalizedPlan;
+  normalizedPlan["planDigest"] = sha256DocumentJson(normalizedBody as JsonValue);
+  // The callers have already validated the closed recovery-journal schema.
+  assertAuthorityScaffoldJournal(normalized as unknown as AuthorityScaffoldJournal);
 }

@@ -21,11 +21,9 @@ class DocumentTransactionEnvelopeError extends Error {
   }
 }
 
-function canonicalSnapshot<T>(value: T): T {
+function canonicalSnapshot(value: unknown): unknown {
   try {
-    return JSON.parse(
-      canonicalJson(value as unknown as CanonicalJsonValue)
-    ) as T;
+    return JSON.parse(canonicalJson(value as CanonicalJsonValue));
   } catch (error) {
     throw new DocumentTransactionEnvelopeError(
       "Document transaction envelope must use canonical JSON values.",
@@ -227,13 +225,19 @@ export async function createDocumentTransactionEnvelope(
   body: DocumentTransactionEnvelopeBody
 ): Promise<DocumentTransactionEnvelope> {
   const snapshot = deepFreezeCanonical(canonicalSnapshot(body));
+  if (!isRecord(snapshot)) {
+    throw new DocumentTransactionEnvelopeError(
+      "Document transaction envelope must be an object."
+    );
+  }
   const withPayload = {
-    ...snapshot,
-    payloadDigest: documentTransactionPayloadDigest(snapshot.journal)
-  } as Omit<DocumentTransactionEnvelope, "envelopeDigest">;
+    ...body,
+    payloadDigest: documentTransactionPayloadDigest(body.journal)
+  };
   const envelope = deepFreezeCanonical({
-    ...withPayload,
+    ...snapshot,
+    payloadDigest: withPayload.payloadDigest,
     envelopeDigest: documentTransactionEnvelopeDigest(withPayload)
-  }) as DocumentTransactionEnvelope;
+  });
   return assertDocumentTransactionEnvelope(schema, envelope);
 }

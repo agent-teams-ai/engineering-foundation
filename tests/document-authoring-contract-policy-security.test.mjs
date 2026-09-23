@@ -3,6 +3,7 @@ import { documentTemporaryPath } from "../packages/document-authoring/dist/docum
 import { currentDocumentContractFixture, fixtureKernelArtifact } from "./support/current-document-contract-fixture.mjs";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -191,6 +192,37 @@ function rebindEnvelope(value) {
   value.envelopeDigest = documentTransactionEnvelopeDigest(value);
   return value;
 }
+
+test("transaction digest bridges retain canonical bytes and reject malformed runtime values", async () => {
+  for (const generation of [1, 2]) {
+    const envelope = await candidateEnvelope(generation);
+    const { envelopeDigest: _ignored, ...body } = envelope;
+    const payloadBytes = canonicalJson(envelope.journal);
+    const bodyBytes = canonicalJson(body);
+    const digest = (bytes) => `sha256:${createHash("sha256").update(Buffer.from(bytes, "utf8")).digest("hex")}`;
+    assert.deepEqual(JSON.parse(payloadBytes), envelope.journal);
+    assert.deepEqual(JSON.parse(bodyBytes), body);
+    assert.equal(documentTransactionPayloadDigest(envelope.journal), digest(payloadBytes));
+    assert.equal(documentTransactionEnvelopeDigest(envelope), digest(bodyBytes));
+    assert.equal(envelope.payloadDigest, digest(payloadBytes));
+    assert.equal(envelope.envelopeDigest, digest(bodyBytes));
+    await assertDocumentTransactionEnvelope(envelope);
+
+    const extra = structuredClone(envelope);
+    extra.journal.unexpected = true;
+    await assert.rejects(assertDocumentTransactionEnvelope(rebindEnvelope(extra)), /closed versioned schema/u);
+  }
+  for (const malformed of [undefined, NaN, 1.5, "e\u0301", Symbol("invalid")]) {
+    assert.throws(() => documentTransactionPayloadDigest({ invalid: malformed }), /Canonical JSON/u);
+    assert.throws(() => documentTransactionEnvelopeDigest({ invalid: malformed }), /Canonical JSON/u);
+    await assert.rejects(createDocumentTransactionEnvelope({ ...body("PREPARED", {
+      destination: { path: fixture.plan.destination, state: "pending" }
+    }), invalid: malformed }), /canonical JSON values/u);
+  }
+  const sparse = [];
+  sparse.length = 1;
+  await assert.rejects(assertDocumentTransactionEnvelope({ journal: sparse }), /canonical JSON values/u);
+});
 
 for (const generation of [1, 2]) {
   test(`v${generation} current schemas reject native Foundation and kernel-less evidence`, async () => {

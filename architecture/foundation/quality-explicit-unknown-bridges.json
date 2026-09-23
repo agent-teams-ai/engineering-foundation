@@ -115,8 +115,8 @@
     },
     {
       "path": "packages/document-authoring/src/document-authoring/application/policies/document-transaction-envelope-policy.ts",
-      "start": 7373,
-      "end": 7424,
+      "start": 7354,
+      "end": 7405,
       "sha256": "c2a4b5959d8dcdea6e30c9125fb21c3696ee3490969678201c1bb731101cb7d7",
       "rationale": "Closed versioned schema validation precedes this document envelope narrowing.",
       "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
@@ -347,24 +347,24 @@
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 10814,
-      "end": 11329,
+      "start": 10922,
+      "end": 11437,
       "sha256": "3e5c95510f0b21edc4a904e013086e974bb57eb38d5f4ac7e4b3f72786efacee",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 11233,
-      "end": 11279,
+      "start": 11341,
+      "end": 11387,
       "sha256": "8ffbe9860691ce84d9e35649363336e07e014b629a7180de511bdc79f583e6bc",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 12587,
-      "end": 12628,
+      "start": 12695,
+      "end": 12736,
       "sha256": "449a379cf244001ecbb73be15c05913bec023d07c9fd91a3c03d69979507a835",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
@@ -440,6 +440,30 @@
       "sha256": "8846f9e5fc95a91fe9a094a0c70622eefa9f1131fc0fd0e2f4a66fd76946ded6",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-transaction-digests.ts",
+      "start": 526,
+      "end": 566,
+      "sha256": "973bb81e431724bb1ef7a3b94f29d196dbe1463e9ba9477d796a66ca8a649546",
+      "rationale": "Typed document contract data crosses into canonicalJson, which rejects malformed runtime representation before SHA-256 hashes the exact canonical bytes.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-transaction-digests.ts",
+      "start": 884,
+      "end": 921,
+      "sha256": "8846f9e5fc95a91fe9a094a0c70622eefa9f1131fc0fd0e2f4a66fd76946ded6",
+      "rationale": "Typed document contract data crosses into canonicalJson, which rejects malformed runtime representation before SHA-256 hashes the exact canonical bytes.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.ts",
+      "start": 2050,
+      "end": 2099,
+      "sha256": "c41e2f4d62a4c522a5d3119a24abea3c31395d59d3e6b23e6ae7ceaf5cc4fe7d",
+      "rationale": "Closed recovery-journal schema is checked by both callers before normalized top-level shape and Plan binding are checked here; semantic validation consumes the normalized journal.",
+      "rejectingTest": "tests/scaffolding-schema-boundary.test.mjs"
     }
   ]
 }

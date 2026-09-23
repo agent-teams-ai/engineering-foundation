@@ -1,5 +1,6 @@
 import { scaffoldAuthorityDependencies, scaffoldTransactionArtifacts, scaffoldLegacyDigests, createNodeScaffoldingApi, createScaffoldFilesystemDependencies } from "../packages/engineering-foundation/dist/scaffolding/composition/node-scaffolding.js";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,8 +13,10 @@ import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { serializeScaffoldJournal, parseScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-evidence.js";
 import { inspectLegacyScaffoldingJournal, inspectLegacyScaffoldingEnvelope } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/scaffold-transaction-status.js";
+import { assertLegacyScaffoldingJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/legacy-scaffolding-transaction-validation.js";
 import { parseFoundationScaffoldEnvelope } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/foundation-scaffold-envelope.js";
 import { compileRepositoryMutationEnvelope } from "../packages/repository-mutation/dist/coordination.js";
+import { canonicalJson } from "../packages/repository-mutation/dist/serialization.js";
 
 async function unusedTransactions() { assert.fail("no filesystem transaction is admitted in this test"); }
 async function withFixture(run) {
@@ -144,4 +147,39 @@ test("legacy journal reads compiler only after schema and digest validation", as
     journalPlanDigest() { throw failure; }, assertEnvelopeDigests() { assert.fail("unused"); }
   }), (error) => error === failure);
   assert.equal(calls.at(-1), "schema accepted");
+}));
+
+test("legacy journal bridge preserves negative zero and lone-surrogate digest normalization", async () => withFixture(async (root) => {
+  const journal = structuredClone(freshAuthorityScaffoldJournal(await plan(root)));
+  journal.plan.resolved.recipeParameters = { negativeZero: -0, loneSurrogate: "\uD800" };
+  const { planDigest: _ignored, ...historicalBody } = journal.plan;
+  journal.plan.planDigest = scaffoldLegacyDigests.journalPlanDigest(historicalBody);
+  await assertSchema("scaffold-recovery-journal/v1", journal, "legacy-bridge-fixture");
+  const normalizedBody = structuredClone(historicalBody);
+  normalizedBody.resolved.recipeParameters = { negativeZero: 0, loneSurrogate: "\uFFFD" };
+  const canonicalBytes = canonicalJson(normalizedBody);
+  const expectedDigest = `sha256:${createHash("sha256").update(Buffer.from(canonicalBytes, "utf8")).digest("hex")}`;
+  assert.notEqual(journal.plan.planDigest, expectedDigest);
+  assert.match(canonicalBytes, /"loneSurrogate":"\uFFFD","negativeZero":0/u);
+  assert.equal(Object.is(journal.plan.resolved.recipeParameters.negativeZero, -0), true);
+  assert.equal(JSON.parse(canonicalBytes).resolved.recipeParameters.loneSurrogate, "\uFFFD");
+  assert.equal((await inspectLegacyScaffoldingJournal({
+    value: journal, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
+  }, assertSchema, scaffoldLegacyDigests)).state, "pending");
+  assert.equal(Object.is(journal.plan.resolved.recipeParameters.negativeZero, -0), true);
+  assert.equal(journal.plan.resolved.recipeParameters.loneSurrogate, "\uD800");
+
+  const extra = structuredClone(journal);
+  extra.plan.unexpected = true;
+  await assert.rejects(inspectLegacyScaffoldingJournal({
+    value: extra, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
+  }, assertSchema, scaffoldLegacyDigests));
+  const malformed = structuredClone(journal);
+  malformed.plan.resolved.recipeParameters.negativeZero = Infinity;
+  await assert.rejects(inspectLegacyScaffoldingJournal({
+    value: malformed, installedVersion: "1.0.0", installedBuildIdentity: `sha256:${"a".repeat(64)}`
+  }, assertSchema, scaffoldLegacyDigests));
+  assert.throws(() => assertLegacyScaffoldingJournal(malformed, {
+    journalPlanDigest: () => malformed.plan.planDigest
+  }), /Canonical JSON numbers/u);
 }));

@@ -1,4 +1,4 @@
-import { canonicalJson, type CanonicalJsonValue, sha256Json } from "@agent-teams/repository-mutation/serialization";
+import { canonicalJson, type CanonicalJsonValue, sha256Text } from "@agent-teams/repository-mutation/serialization";
 import type { DocumentAuthorityDigest } from "../model/document-catalog.js";
 import type {
   DocumentTransactionEnvelope,
@@ -6,14 +6,10 @@ import type {
   DocumentTransactionJournalV3
 } from "../model/document-transaction.js";
 
-function canonicalSnapshot<T>(value: T): T {
-  return JSON.parse(canonicalJson(value as unknown as CanonicalJsonValue)) as T;
-}
-
 export function documentTransactionPayloadDigest(
   journal: DocumentTransactionJournal | DocumentTransactionJournalV3
 ): DocumentAuthorityDigest {
-  return sha256Json(canonicalSnapshot(journal) as unknown as CanonicalJsonValue);
+  return sha256Text(canonicalJson(journal as unknown as CanonicalJsonValue));
 }
 
 export function documentTransactionEnvelopeDigest(
@@ -23,7 +19,5 @@ export function documentTransactionEnvelopeDigest(
 ): DocumentAuthorityDigest {
   const { envelopeDigest: _ignored, ...body } =
     envelope as DocumentTransactionEnvelope;
-  return sha256Json(
-    canonicalSnapshot(body) as unknown as CanonicalJsonValue
-  );
+  return sha256Text(canonicalJson(body as unknown as CanonicalJsonValue));
 }

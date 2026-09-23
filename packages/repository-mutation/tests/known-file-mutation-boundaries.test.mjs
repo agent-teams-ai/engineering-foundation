@@ -30,7 +30,9 @@ test("journal identities reject numeric coercion before deserialization", () => 
   }
 });
 const { KnownFileTransactionError } = await import("../dist/index.js");
-const { RepositoryMutationEnvelopeError } = await import("../dist/coordination.js");
+const { RepositoryMutationEnvelopeError, compileRepositoryMutationEnvelope,
+  parseRepositoryMutationEnvelope } = await import("../dist/coordination.js");
+const { canonicalJson } = await import("../dist/serialization.js");
 const artifact = Object.freeze({
   name: "@agent-teams/repository-mutation", version: "0.1.0", buildIdentity: `sha256:${"1".repeat(64)}`
 });
@@ -150,4 +152,49 @@ test("the journal codec reproduces historical valid bytes and exact rejection id
   assert.throws(() => codec.decodeKnownFileTransactionEnvelope(Buffer.from("not json"), stored.ownerArtifact, stored.kernelArtifact), RepositoryMutationEnvelopeError);
   assert.throws(() => codec.decodeKnownFileTransactionEnvelope(Buffer.from(JSON.stringify(stored, null, 2)), stored.ownerArtifact, stored.kernelArtifact), /journal bytes are not canonical/u);
   assert.deepEqual(bytes, copy);
+});
+
+test("journal enum fields reject array values during compile and after verified decode", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const fixture = JSON.parse(await readFile(new URL(
+    "../../../tests/fixtures/repository-mutation-known-file/base-valid-applying-envelope.json", import.meta.url
+  )));
+  const identity = { birthtimeNs: "1", dev: "2", ino: "3" };
+  const validRetirement = {
+    ...fixture.payload,
+    operations: [{
+      ...fixture.payload.operations[0], state: "temporary-ready", temporaryIdentity: identity,
+      retirement: { kind: "temporary", state: "ready", directoryIdentity: identity, pathIdentity: identity }
+    }, fixture.payload.operations[1]]
+  };
+  assert.doesNotThrow(() => codec.compileKnownFileTransactionEnvelope({
+    ownerArtifact: fixture.ownerArtifact, kernelArtifact: fixture.kernelArtifact,
+    state: fixture.state, journal: validRetirement
+  }));
+  const cases = [
+    ["operation state", fixture.payload, (journal) => { journal.operations[0].state = ["pending"]; },
+      /Known-file journal operation 0 is invalid/u],
+    ["retirement kind", validRetirement, (journal) => { journal.operations[0].retirement.kind = ["temporary"]; },
+      /Known-file journal operation 0 retirement transition is invalid/u],
+    ["retirement state", validRetirement, (journal) => { journal.operations[0].retirement.state = ["ready"]; },
+      /Known-file journal operation 0 retirement transition is invalid/u]
+  ];
+  for (const [field, source, mutate, expected] of cases) {
+    const journal = structuredClone(source);
+    mutate(journal);
+    assert.throws(() => codec.compileKnownFileTransactionEnvelope({
+      ownerArtifact: fixture.ownerArtifact, kernelArtifact: fixture.kernelArtifact,
+      state: fixture.state, journal
+    }), expected, `${field} compile`);
+    const sealed = compileRepositoryMutationEnvelope({
+      adapterContractVersion: fixture.adapterContractVersion,
+      kernelArtifact: fixture.kernelArtifact, operationKind: fixture.operationKind,
+      ownerArtifact: fixture.ownerArtifact, payload: journal, payloadKind: fixture.payloadKind,
+      recoveryHandler: fixture.recoveryHandler, state: fixture.state
+    });
+    const bytes = Buffer.from(`${canonicalJson(sealed)}\n`);
+    assert.deepEqual(parseRepositoryMutationEnvelope(bytes), sealed, `${field} checksum proof`);
+    assert.throws(() => codec.decodeKnownFileTransactionEnvelope(bytes,
+      fixture.ownerArtifact, fixture.kernelArtifact), expected, `${field} decode`);
+  }
 });

@@ -11,8 +11,8 @@ import { mandatoryTestFile, writeMandatoryGateFixture } from '../scripts/mandato
 const packageRoot = resolve('packages/engineering-foundation');
 const sourceRunner = join(packageRoot, 'src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.ts');
 const runnerPath = process.env.EF332_SOURCE_RUNNER ?? sourceRunner;
-const { assertSupportedNodeTestRuntime, evaluateNodeTestEvents, validateNodeTestContract } =
-  await import(pathToFileURL(runnerPath).href);
+import { assertSupportedNodeTestRuntime, evaluateNodeTestEvents, validateNodeTestContract }
+  from "../packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/runner.ts";
 const builtCli = join(packageRoot, 'dist/node-test-cli.js');
 const gateCli = join(packageRoot, 'dist/cli.js');
 const childEnvironment = { ...process.env };

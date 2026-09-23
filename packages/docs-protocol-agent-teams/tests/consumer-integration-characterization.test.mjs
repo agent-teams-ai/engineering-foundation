@@ -9,8 +9,20 @@ import {
   describeCanonicalConsumerAssets,
   planConsumerIntegration
 } from "../dist/consumer-integration/index.js";
-import { loadPackageConsumerAssetCatalog } from
+import { loadPackageConsumerAssetCatalog, packagePair } from
   "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
+
+test("current executor package pair rejects coerced arrays and preserves valid package fields", () => {
+  const valid = { docsProtocol: { version: "0.2.0", integrity: `sha512-${"A".repeat(86)}==` },
+    engineeringFoundation: { version: "1.2.3", integrity: `sha512-${"B".repeat(86)}==` } };
+  assert.deepEqual(packagePair(valid), valid);
+  for (const name of ["docsProtocol", "engineeringFoundation"]) {
+    for (const field of ["version", "integrity"]) {
+      const invalid = { ...valid, [name]: { ...valid[name], [field]: [valid[name][field]] } };
+      assert.throws(() => packagePair(invalid), /package pair is invalid/u);
+    }
+  }
+});
 import {
   canonicalManagedRoute,
   canonicalManagedState,

@@ -1,6 +1,7 @@
 import type { KnownFileTransactionPlanV1 } from "@agent-teams/repository-mutation";
 import type { ConsumerIntegrationDesiredStateV1, ConsumerIntegrationDesiredStateV3, QualifiedDocsCohortBindingV2 } from "../domain/model.js";
-import { requireRestoration, restorationJson } from "../application-api.js";
+import { requireRestoration, restorationJson, assertQualifiedDocsCohortBindingV2 } from "../application-api.js";
+import { assertConsumerIntegrationProfileSchema } from "./consumer-integration-schema-validator.js";
 import {
   CANONICAL_DOCS_SKILL_V2, canonicalCallerWorkflow, canonicalDocsScriptsDigest,
   canonicalManagedRoute, canonicalManagedState, describeCanonicalConsumerAssets, digestBytes
@@ -30,6 +31,7 @@ export async function assertRestorationManagedEffects(input: {
   const profileOperation = plan.operations.find(({ path }) => path === INTEGRATION_PROFILE_PATH);
   requireRestoration(profileOperation !== undefined, "migration lacks its profile replacement.");
   const profileTarget = parseJsonRecord(Buffer.from(profileOperation.postimage.contentBase64, "base64").toString("utf8"))["cohort"];
+  assertQualifiedDocsCohortBindingV2(profileTarget);
   requireRestoration(restorationJson(profileTarget) === restorationJson(target), "profile target differs from selected authority.");
   const workspace = originals.get("pnpm-workspace.yaml");
   const projected = await projectConsumerUpgradeFiles({
@@ -37,7 +39,9 @@ export async function assertRestorationManagedEffects(input: {
     manifest: original("package.json"), profile: original(INTEGRATION_PROFILE_PATH),
     ...(workspace === undefined ? {} : { workspace })
   });
-  const desired = parseJsonRecord(Buffer.from(projected.profile).toString("utf8")) as unknown as ConsumerIntegrationDesiredStateV3;
+  const desiredRecord = parseJsonRecord(Buffer.from(projected.profile).toString("utf8"));
+  await assertConsumerIntegrationProfileSchema(desiredRecord);
+  const desired = desiredRecord as unknown as ConsumerIntegrationDesiredStateV3;
   const assets = describeCanonicalConsumerAssets(target);
   requireRestoration(restorationJson(assets) === restorationJson(target.assets), "target assets differ from retained controller projections.");
   const routeDigest = digestBytes(Buffer.from(canonicalManagedRoute(current.skillPath)));

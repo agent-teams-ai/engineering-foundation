@@ -209,7 +209,7 @@ export function assertAuthorityScaffoldReceiptDigest(
   receipt: AuthorityScaffoldReceipt,
   plan?: AuthorityScaffoldPlan
 ): void {
-  const candidate = receipt as unknown as AuthorityScaffoldReceiptCandidate;
+  const candidate: AuthorityScaffoldReceiptCandidate = receipt;
   if (candidate.schemaVersion !== 1 || candidate.protocolVersion !== 1) {
     invalidReceipt("Scaffolding Receipt does not use current scaffolding protocol.");
   }

@@ -2,25 +2,41 @@
   "schemaVersion": 1,
   "bridges": [
     {
+      "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
+      "start": 11562,
+      "end": 11804,
+      "sha256": "d3db648a3ea08555222db162f7f1598b1879196ed60e11757ed2f5219ac43c38",
+      "rationale": "Closed versioned profile schema validation precedes desired-state interpretation.",
+      "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs"
+    },
+    {
+      "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-scope.ts",
+      "start": 3098,
+      "end": 3159,
+      "sha256": "143e4c4169daec9f823829ef60861723ef8ff0abcd82e43f7c708474d290f3a1",
+      "rationale": "Closed versioned projected profile schema validation precedes desired-state interpretation.",
+      "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs"
+    },
+    {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "start": 2368,
-      "end": 2426,
+      "start": 2553,
+      "end": 2611,
       "sha256": "7c5b17c52f6a639722e4f87d4b185a9fea15e9870304cc05e330ce26a167faf0",
-      "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
+      "rationale": "Closed package fields require string versions and integrities before format validation and narrowing.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
     },
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "start": 2808,
-      "end": 2866,
+      "start": 2993,
+      "end": 3051,
       "sha256": "941d9d38c16f32e37bd770325695825a473bf1fbc86d6fcbd3c645019d1b3ab6",
       "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
     },
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "start": 3356,
-      "end": 3414,
+      "start": 3541,
+      "end": 3599,
       "sha256": "391b24213c15e59a45eccd11a3d4e5e0f6929a72343562077bc23fe5b2956b62",
       "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
@@ -43,10 +59,10 @@
     },
     {
       "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-contract-validator.ts",
-      "start": 11493,
-      "end": 11524,
-      "sha256": "744a9195ce3cf2fa25e7df7d63b3638787ed023f9eadb36ad7b660004b243182",
-      "rationale": "The closed Plan snapshot walk validates every value and freezes it before narrowing.",
+      "start": 12567,
+      "end": 12602,
+      "sha256": "b558c91dad29a587626e6f4f6dc8d5b1bb3d920c241a044e9159e707d726c5d1",
+      "rationale": "The inert JSON snapshot is narrowed only after closed versioned Plan schema validation.",
       "rejectingTest": "tests/document-authoring-plan-validation-hostile.test.mjs"
     },
     {
@@ -179,42 +195,26 @@
     },
     {
       "path": "packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts",
-      "start": 8468,
-      "end": 8496,
+      "start": 8455,
+      "end": 8483,
       "sha256": "298b425356cbe2e9b70f908153b2f233a3f817c1bce904f15228f737a75820f2",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/scaffolding-authority.test.mjs"
     },
     {
       "path": "packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts",
-      "start": 9726,
-      "end": 9754,
+      "start": 9713,
+      "end": 9741,
       "sha256": "298b425356cbe2e9b70f908153b2f233a3f817c1bce904f15228f737a75820f2",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/scaffolding-authority.test.mjs"
     },
     {
       "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
-      "start": 1855,
-      "end": 1895,
+      "start": 2716,
+      "end": 2756,
       "sha256": "973bb81e431724bb1ef7a3b94f29d196dbe1463e9ba9477d796a66ca8a649546",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
-      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
-    },
-    {
-      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
-      "start": 2495,
-      "end": 2550,
-      "sha256": "3214b4fdcb7dc6d022455b404169523d164d3a5fbae440b8fa7bee9e6867e0bb",
-      "rationale": "Closed envelope construction or schema and binding checks govern this representation boundary.",
-      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
-    },
-    {
-      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
-      "start": 2591,
-      "end": 2646,
-      "sha256": "3214b4fdcb7dc6d022455b404169523d164d3a5fbae440b8fa7bee9e6867e0bb",
-      "rationale": "Closed envelope construction or schema and binding checks govern this representation boundary.",
       "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
     },
     {
@@ -339,32 +339,32 @@
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 1930,
-      "end": 2044,
+      "start": 1968,
+      "end": 2082,
       "sha256": "23c8ba2e589b0f248e1dda5ff83c3393a626f10d4a62673ab16e3dc6e9c35f42",
-      "rationale": "Closed envelope construction or schema and binding checks govern this representation boundary.",
-      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+      "rationale": "Closed identity fields require decimal strings before deserialization and narrowing.",
+      "rejectingTest": "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 10776,
-      "end": 11291,
+      "start": 10814,
+      "end": 11329,
       "sha256": "3e5c95510f0b21edc4a904e013086e974bb57eb38d5f4ac7e4b3f72786efacee",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 11195,
-      "end": 11241,
+      "start": 11233,
+      "end": 11279,
       "sha256": "8ffbe9860691ce84d9e35649363336e07e014b629a7180de511bdc79f583e6bc",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 12549,
-      "end": 12590,
+      "start": 12587,
+      "end": 12628,
       "sha256": "449a379cf244001ecbb73be15c05913bec023d07c9fd91a3c03d69979507a835",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"

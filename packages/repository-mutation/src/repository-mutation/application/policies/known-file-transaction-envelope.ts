@@ -36,11 +36,11 @@ function exactKeys(
   }
 }
 
-function assertIdentity(value: unknown, subject: string): void {
+export function assertIdentity(value: unknown, subject: string): void {
   const identity = record(value, subject);
   exactKeys(identity, ["birthtimeNs", "dev", "ino"], subject);
   for (const field of ["birthtimeNs", "dev", "ino"] as const) {
-    if (!POSITIVE_INTEGER.test(String(identity[field]))) {
+    if (typeof identity[field] !== "string" || !POSITIVE_INTEGER.test(identity[field])) {
       throw new KnownFileTransactionEnvelopeError(`${subject}.${field} is invalid.`);
     }
   }
@@ -286,10 +286,9 @@ export function decodeKnownFileTransactionEnvelope(
 ): KnownFileTransactionEnvelopeV1 {
   const generic = parseRepositoryMutationEnvelope(bytes);
   assertRepositoryMutationArtifactBindings(generic, expectedOwner, expectedKernel);
-  const parsed = generic as unknown as KnownFileTransactionEnvelopeV1;
-  assertKnownFileTransactionEnvelope(parsed);
-  if (!bytes.equals(encodeKnownFileTransactionEnvelope(parsed))) {
+  assertKnownFileTransactionEnvelope(generic);
+  if (!bytes.equals(encodeKnownFileTransactionEnvelope(generic))) {
     throw new Error("Known-file transaction journal bytes are not canonical.");
   }
-  return parsed;
+  return generic;
 }

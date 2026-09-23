@@ -37,7 +37,7 @@ function hasExactKeys(value: object, keys: readonly string[]): boolean {
   return Object.keys(value).toSorted().join("\u0000") === [...keys].toSorted().join("\u0000");
 }
 
-function packagePair(value: unknown): CurrentSourceExecutorV1["packages"] {
+export function packagePair(value: unknown): CurrentSourceExecutorV1["packages"] {
   const packages = record(value, "currentSourceExecutor.packages");
   const docsProtocol = record(packages["docsProtocol"], "currentSourceExecutor.packages.docsProtocol");
   const engineeringFoundation = record(
@@ -47,10 +47,10 @@ function packagePair(value: unknown): CurrentSourceExecutorV1["packages"] {
   if (!hasExactKeys(packages, ["docsProtocol", "engineeringFoundation"]) ||
     !hasExactKeys(docsProtocol, ["version", "integrity"]) ||
     !hasExactKeys(engineeringFoundation, ["version", "integrity"]) ||
-    !SEMVER.test(String(docsProtocol["version"])) ||
-    !SEMVER.test(String(engineeringFoundation["version"])) ||
-    !INTEGRITY.test(String(docsProtocol["integrity"])) ||
-    !INTEGRITY.test(String(engineeringFoundation["integrity"]))) {
+    typeof docsProtocol["version"] !== "string" || !SEMVER.test(docsProtocol["version"]) ||
+    typeof engineeringFoundation["version"] !== "string" || !SEMVER.test(engineeringFoundation["version"]) ||
+    typeof docsProtocol["integrity"] !== "string" || !INTEGRITY.test(docsProtocol["integrity"]) ||
+    typeof engineeringFoundation["integrity"] !== "string" || !INTEGRITY.test(engineeringFoundation["integrity"])) {
     throw new TypeError("Current source executor package pair is invalid.");
   }
   return packages as unknown as CurrentSourceExecutorV1["packages"];

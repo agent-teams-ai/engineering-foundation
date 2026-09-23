@@ -21,6 +21,14 @@ test("Mutation production boundaries have one layer owner and no outgoing violat
 
 const admission = await import("../dist/repository-mutation/application/policies/known-file-mutation-admission.js");
 const codec = await import("../dist/repository-mutation/application/policies/known-file-transaction-envelope.js");
+test("journal identities reject numeric coercion before deserialization", () => {
+  const valid = { birthtimeNs: "1", dev: "2", ino: "3" };
+  assert.doesNotThrow(() => codec.assertIdentity(valid, "journal identity"));
+  for (const field of Object.keys(valid)) {
+    assert.throws(() => codec.assertIdentity({ ...valid, [field]: Number(valid[field]) }, "journal identity"),
+      /journal identity\..* is invalid/u);
+  }
+});
 const { KnownFileTransactionError } = await import("../dist/index.js");
 const { RepositoryMutationEnvelopeError } = await import("../dist/coordination.js");
 const artifact = Object.freeze({

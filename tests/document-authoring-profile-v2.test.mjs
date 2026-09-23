@@ -5,11 +5,24 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-
+import { freezeReachability } from "../packages/document-authoring/dist/document-authoring/application/policies/project-document-authoring-description.js";
 import { loadValidatedDocumentAuthoringProfileV2 } from "../packages/document-authoring/dist/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.js";
 import { NodeDocumentPlanningProfileReader } from "../packages/document-authoring/dist/document-authoring/adapters/node/node-document-planning-profile-reader.js";
 import { PlanDocumentationDocument } from "../packages/document-authoring/dist/document-authoring/application/use-cases/plan-documentation-document.js";
 import { assertSchema } from "../packages/document-authoring/dist/document-authoring/adapters/node/schema-catalog.js";
+
+test("reachability projection constructs only the three closed strategy variants", () => {
+  for (const value of [
+    { kind: "manual-fixed-index", indexPath: "docs/README.md" },
+    { kind: "manual-colocated-index", pathPrefix: "before-required-segments", indexBasename: "README.md" },
+    { kind: "not-required", reason: "indexed by hierarchy" }
+  ]) {
+    assert.deepEqual(freezeReachability(value), value);
+    assert.equal(Object.isFrozen(freezeReachability(value)), true);
+    assert.throws(() => freezeReachability({ ...value, unexpected: true }), /strategy is invalid/u);
+  }
+  assert.throws(() => freezeReachability({ kind: "manual-fixed-index", indexPath: 1 }), /strategy is invalid/u);
+});
 
 const fixturePath = fileURLToPath(
   new URL("fixtures/document-authoring-contracts/valid-v1.json", import.meta.url),

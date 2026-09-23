@@ -15,6 +15,23 @@ import type { ScaffoldTransactionArtifacts } from "../../application/ports/trans
 const operationKind = "scaffolding";
 const recoveryHandlerId = "agent-teams.engineering-foundation.scaffolding/v1";
 const payloadKind = "agent-teams.engineering-foundation.scaffold-recovery-journal/v1";
+let journalValidator: Promise<ValidateFunction<AuthorityScaffoldJournal>> | undefined;
+
+function validateJournal(value: unknown): Promise<AuthorityScaffoldJournal> {
+  journalValidator ??= (async () => {
+    const ajv = new Ajv2020({ allErrors: true, strict: true });
+    const plan = JSON.parse(await readFile(new URL("../../../../schemas/scaffold-plan/v1.schema.json", import.meta.url), "utf8")) as object;
+    const journal = JSON.parse(await readFile(new URL("../../../../schemas/scaffold-recovery-journal/v1.schema.json", import.meta.url), "utf8")) as object;
+    ajv.addSchema(plan);
+    return ajv.compile<AuthorityScaffoldJournal>(journal);
+  })();
+  return journalValidator.then((validate) => {
+    if (!validate(value)) {
+      throw new Error("Foundation scaffolding journal does not satisfy the released contract.");
+    }
+    return value;
+  });
+}
 
 function assertClosedFoundationScaffoldTuple(envelope: RepositoryMutationEnvelope): void {
   if (envelope.operationKind !== operationKind ||
@@ -55,9 +72,12 @@ export async function parseFoundationScaffoldEnvelope(
   // Bind both installed artifacts before interpreting any owner payload fields.
   assertRepositoryMutationArtifactBindings(envelope, artifacts.owner, artifacts.kernel);
   assertClosedFoundationScaffoldTuple(envelope);
-  assertAuthorityScaffoldJournal(envelope.payload as unknown as AuthorityScaffoldJournal);
+  const journal = await validateJournal(envelope.payload);
+  assertAuthorityScaffoldJournal(journal);
   return {
     envelope,
-    journal: envelope.payload as unknown as AuthorityScaffoldJournal
+    journal
   };
 }
+import { readFile } from "node:fs/promises";
+import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";

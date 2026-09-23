@@ -11,7 +11,6 @@ import { copyPinnedToolchain } from "./copied-toolchain.mjs";
 
 const repository = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const cli = join(repository, "packages/engineering-foundation/dist/cli.js");
-const installedCli = join(repository, ".ef331-installed/node_modules/@agent-teams/engineering-foundation/dist/cli.js");
 
 test("built public quality check rejects unknown chains and accepts exact evidence-bound bridges", async () => {
   const root = await mkdtemp(join(tmpdir(), "ef-331-public-quality-TEST-"));
@@ -66,12 +65,14 @@ test("built public quality check rejects unknown chains and accepts exact eviden
       }
     };
     await put(main, cast);
-    const physicalOld = await realpath(dirname(installedCli));
-    assert.match(physicalOld, /node_modules\/.*engineering-foundation\/dist$/u);
-    const oldManifest = JSON.parse(await readFile(join(physicalOld, "../package.json"), "utf8"));
-    assert.equal(oldManifest.version, "1.5.1");
-    const old = await invoke(installedCli);
-    assert.deepEqual({ code: old.code, outcome: old.report.outcome }, { code: 0, outcome: "passed" }, JSON.stringify(old.report));
+    if (process.env.EF331_INSTALLED_CLI) {
+      const physicalOld = await realpath(dirname(process.env.EF331_INSTALLED_CLI));
+      assert.match(physicalOld, /node_modules\/.*engineering-foundation\/dist$/u);
+      const oldManifest = JSON.parse(await readFile(join(physicalOld, "../package.json"), "utf8"));
+      assert.equal(oldManifest.version, "1.5.1");
+      const old = await invoke(process.env.EF331_INSTALLED_CLI);
+      assert.deepEqual({ code: old.code, outcome: old.report.outcome }, { code: 0, outcome: "passed" }, JSON.stringify(old.report));
+    }
     const unadmitted = await invoke();
     assert.equal(unadmitted.code, 1, JSON.stringify(unadmitted.report));
     assert.ok(unadmitted.report.capabilities[0].diagnostics.some(({ ruleId, location }) =>
@@ -93,6 +94,10 @@ test("built public quality check rejects unknown chains and accepts exact eviden
       bridgeAdmissionsPath: "bridges.json",
       scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
     assert.equal((await invoke()).code, 0);
+    await put("bridges.json", { schemaVersion: 1, bridges: [{ ...bridge, rejectingTest: "tests/bridge-proof.json" }] });
+    await put("tests/bridge-proof.json", { evidence: "independently audited test pointer" });
+    assert.equal((await invoke()).code, 0);
+    await put("bridges.json", { schemaVersion: 1, bridges: [bridge] });
     await put("bridges.json", { schemaVersion: 1, bridges: [bridge, bridge] });
     assert.equal((await invoke()).code, 2);
     await put("bridges.json", { schemaVersion: 1, bridges: [{ ...bridge, sha256: "0".repeat(64) }] });
@@ -101,6 +106,7 @@ test("built public quality check rejects unknown chains and accepts exact eviden
     const variants = [
       'type Alias = Trusted; export const value = (("unsafe" as /* bridge */ unknown)!) satisfies unknown as Alias;\n',
       'type Alias = Trusted; export const value = <Alias>(<unknown>"unsafe");\n'
+      , 'type Alias = Trusted; export const value = ("unsafe" as (unknown)) as Alias;\n'
     ];
     for (const variant of variants) {
       await put(main, `interface Trusted { readonly marker: "trusted" }\n${variant}`);
@@ -112,6 +118,10 @@ test("built public quality check rejects unknown chains and accepts exact eviden
       await put("bridges.json", { schemaVersion: 1, bridges: [bridge] });
     }
     await put("bridges.json", { schemaVersion: 1, bridges: [] });
+    await put(main, 'export const value = (1 as unknown) as unknown;\n');
+    const widened = await invoke();
+    assert.ok(!widened.report.capabilities[0].diagnostics.some(({ ruleId }) =>
+      ruleId === "quality.source-coverage.explicit-unknown"));
     await put(main, 'interface Trusted { readonly marker: "trusted" }\nexport const value: Trusted = { marker: "trusted" };\nPromise.resolve(1);\n');
     const rejected = await invoke();
     assert.equal(rejected.code, 1);

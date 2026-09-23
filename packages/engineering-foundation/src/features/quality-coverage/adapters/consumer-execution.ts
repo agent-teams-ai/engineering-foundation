@@ -97,16 +97,30 @@ function unwrap(node: { readonly type: string; readonly expression?: unknown }):
   return current;
 }
 
+function typeName(node: unknown): string | undefined {
+  let current: unknown = node;
+  while (current !== null && typeof current === "object" &&
+    "type" in current && current.type === "TSParenthesizedType") {
+    current = "typeAnnotation" in current ? current.typeAnnotation : undefined;
+  }
+  return current !== null && typeof current === "object" && "type" in current &&
+    typeof current.type === "string" ? current.type : undefined;
+}
+
 function findChains(path: string, source: string): readonly Finding[] {
   const parsed = parseSync(path, source, { astType: "ts" });
   if (parsed.errors.length > 0) { throw new Error(`Explicit unknown scan could not parse ${path}.`); }
   const findings: Finding[] = [];
-  const visit = (node: { readonly type: string; readonly expression: unknown; readonly start: number; readonly end: number }) => {
+  // OXC's JS binding reports UTF-16 offsets, including after and inside astral text.
+  const visit = (node: { readonly type: string; readonly expression: unknown; readonly typeAnnotation?: unknown; readonly start: number; readonly end: number }) => {
     const inner = unwrap(node.expression as { type: string; expression?: unknown });
     if (inner !== null && typeof inner === "object" &&
       ["TSAsExpression", "TSTypeAssertion"].includes((inner as { type: string }).type) &&
-      (inner as { typeAnnotation: { type: string } }).typeAnnotation.type === "TSUnknownKeyword") {
-      findings.push({ path, start: node.start, end: node.end, sha256: digest(source.slice(node.start, node.end)) });
+      typeName((inner as { typeAnnotation?: unknown }).typeAnnotation) === "TSUnknownKeyword" &&
+      typeName(node.typeAnnotation) !== "TSUnknownKeyword") {
+      const start = node.start;
+      const end = node.end;
+      findings.push({ path, start, end, sha256: digest(source.slice(start, end)) });
     }
   };
   new Visitor({ TSAsExpression: visit, TSTypeAssertion: visit }).visit(parsed.program);
@@ -133,7 +147,7 @@ function parseAdmission(entry: unknown): Admission {
     throw new Error("Invalid explicit unknown admission record.");
   }
   const item = entry as Partial<Admission>;
-  if (!boundedPath(item.path) || !boundedPath(item.rejectingTest) || !item.rejectingTest.endsWith(".test.mjs") ||
+  if (!boundedPath(item.path) || !boundedPath(item.rejectingTest) ||
     !Number.isSafeInteger(item.start) || !Number.isSafeInteger(item.end) ||
     (item.start ?? -1) < 0 || (item.end ?? 0) <= (item.start ?? 0) ||
     typeof item.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(item.sha256) ||
@@ -164,7 +178,7 @@ export async function inspectExplicitUnknown(input: {
   const diagnostics: FoundationDiagnostic[] = [];
   for (const path of input.paths.toSorted()) {
     if (input.signal?.aborted) { throw input.signal.reason; }
-    if (!path.endsWith(".ts") && !path.endsWith(".d.mts")) { continue; }
+    if (!/\.(?:ts|tsx|mts|cts)$/u.test(path)) { continue; }
     const bytes = await input.read({ root: input.consumerRoot, candidate: resolve(input.consumerRoot, path), maxBytes: 2 * 1024 * 1024 });
     const source = decoder.decode(bytes);
     for (const finding of findChains(path, source)) {

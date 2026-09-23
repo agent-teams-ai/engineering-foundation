@@ -73,7 +73,7 @@ export async function historicalRestorationProfile(root: string, revision: strin
   requireRestoration(parsed["schemaVersion"] === 1 || parsed["schemaVersion"] === 2,
     "recorded source must be an explicit historical profile.");
   const { qualification: _qualification, ...source } = parsed;
-  const desired = { ...source, schemaVersion: 1 } as unknown as ConsumerIntegrationDesiredStateV1;
+  const desired = { ...source, schemaVersion: 1 };
   assertConsumerIntegrationDesiredStateV1(desired);
   return desired;
 }

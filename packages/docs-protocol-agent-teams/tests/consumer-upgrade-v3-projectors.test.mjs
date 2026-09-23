@@ -11,6 +11,7 @@ import {
 import {
   projectPnpmManifestCohortPinsV2
 } from "../dist/consumer-integration/adapters/pnpm-manifest-adapter-v2.js";
+import { assertConsumerIntegrationProfileSchema } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
 
 const integrity = `sha512-${"A".repeat(86)}==`;
 const coordinate = (version) => ({ version, integrity });
@@ -75,6 +76,13 @@ function profile(binding) {
     cohort: binding
   };
 }
+
+test("profile v3 schema rejects extra projected fields before desired-state interpretation", async () => {
+  const valid = profile(cohort("source", "1.0.0"));
+  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(valid));
+  await assert.rejects(assertConsumerIntegrationProfileSchema({ ...valid, unexpected: true }), /validation failed/u);
+  await assert.rejects(assertConsumerIntegrationProfileSchema({ ...valid, cohort: { ...valid.cohort, unexpected: true } }), /validation failed/u);
+});
 
 const workspaceExclusions = (bytes) => parse(Buffer.from(bytes).toString("utf8"))
   .minimumReleaseAgeExclude;

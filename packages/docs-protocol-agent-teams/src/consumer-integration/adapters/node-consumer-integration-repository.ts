@@ -303,17 +303,16 @@ async function readManagedConsumerIntegrationInput(options: {
   let desired: ConsumerIntegrationDesiredState;
   let lockfile: ConsumerIntegrationFileObservation;
   try {
-    const parsed = parseJsonRecord(
-      Buffer.from(profile.bytes).toString("utf8")
-    ) as unknown as (
+    const parsedRecord = parseJsonRecord(Buffer.from(profile.bytes).toString("utf8"));
+    rejectPrototypeKeys(parsedRecord);
+    await assertConsumerIntegrationProfileSchema(parsedRecord);
+    const parsed = parsedRecord as unknown as (
       | (Omit<ConsumerIntegrationDesiredStateV1, "schemaVersion"> & {
           readonly schemaVersion: 1 | 2;
           readonly qualification?: unknown;
         })
       | ConsumerIntegrationDesiredStateV3
     );
-    rejectPrototypeKeys(parsed);
-    await assertConsumerIntegrationProfileSchema(parsed);
     switch (parsed.schemaVersion) {
       case 1:
         desired = parsed as ConsumerIntegrationDesiredStateV1;

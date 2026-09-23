@@ -12,6 +12,8 @@ import { assessScaffoldPlanAuthority } from "../packages/engineering-foundation/
 import { freshAuthorityScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-journal-state.js";
 import { serializeScaffoldJournal, parseScaffoldJournal } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/node-scaffold-journal-evidence.js";
 import { inspectLegacyScaffoldingJournal, inspectLegacyScaffoldingEnvelope } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/scaffold-transaction-status.js";
+import { parseFoundationScaffoldEnvelope } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/foundation-scaffold-envelope.js";
+import { compileRepositoryMutationEnvelope } from "../packages/repository-mutation/dist/coordination.js";
 
 async function unusedTransactions() { assert.fail("no filesystem transaction is admitted in this test"); }
 async function withFixture(run) {
@@ -94,6 +96,15 @@ test("journal codecs preserve historical pretty JSON and current envelope bytes"
   assert.deepEqual(calls, [["scaffold-recovery-journal/v1", "scaffold-recovery-journal"], ["scaffold-plan/v1", "scaffold-recovery-journal"]]);
   const current = await serializeScaffoldJournal(journal, validate, scaffoldTransactionArtifacts);
   assert.deepEqual(await parseScaffoldJournal(current, validate, scaffoldTransactionArtifacts), journal);
+  const parsed = JSON.parse(current.toString("utf8"));
+  const malformed = compileRepositoryMutationEnvelope({
+    operationKind: parsed.operationKind, recoveryHandler: parsed.recoveryHandler,
+    ownerArtifact: parsed.ownerArtifact, kernelArtifact: parsed.kernelArtifact,
+    adapterContractVersion: parsed.adapterContractVersion, payloadKind: parsed.payloadKind,
+    state: parsed.state, payload: { ...journal, unexpected: true }
+  });
+  await assert.rejects(parseFoundationScaffoldEnvelope(Buffer.from(JSON.stringify(malformed)), scaffoldTransactionArtifacts),
+    /does not satisfy the released contract/u);
   assert.deepEqual(await serializeScaffoldJournal(journal, assertSchema, scaffoldTransactionArtifacts), current);
   const invalid = Buffer.from(`${historical.toString("utf8")} `);
   await assert.rejects(parseScaffoldJournal(invalid, validate, scaffoldTransactionArtifacts), /historical canonical form/u);

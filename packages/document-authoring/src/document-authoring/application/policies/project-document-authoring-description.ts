@@ -37,10 +37,25 @@ function freezePlacement(placement: DocumentPlacementStrategy): DocumentPlacemen
     : Object.freeze({ ...placement });
 }
 
-function freezeReachability(value: unknown): DocumentReachabilityStrategyV2 {
-  return Object.freeze({
-    ...(value as Record<string, unknown>)
-  }) as unknown as DocumentReachabilityStrategyV2;
+export function freezeReachability(value: unknown): DocumentReachabilityStrategyV2 {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !("kind" in value)) {
+    throw new DocumentCatalogError("DOCUMENT_CATALOG_INPUT_INVALID", "Document reachability strategy is invalid.");
+  }
+  const keys = Object.keys(value).toSorted().join(",");
+  if (value.kind === "manual-fixed-index" && keys === "indexPath,kind" &&
+    "indexPath" in value && typeof value.indexPath === "string") {
+    return Object.freeze({ kind: value.kind, indexPath: value.indexPath });
+  }
+  if (value.kind === "manual-colocated-index" && keys === "indexBasename,kind,pathPrefix" &&
+    "indexBasename" in value && value.indexBasename === "README.md" &&
+    "pathPrefix" in value && value.pathPrefix === "before-required-segments") {
+    return Object.freeze({ kind: value.kind, indexBasename: value.indexBasename, pathPrefix: value.pathPrefix });
+  }
+  if (value.kind === "not-required" && keys === "kind,reason" &&
+    "reason" in value && typeof value.reason === "string") {
+    return Object.freeze({ kind: value.kind, reason: value.reason });
+  }
+  throw new DocumentCatalogError("DOCUMENT_CATALOG_INPUT_INVALID", "Document reachability strategy is invalid.");
 }
 
 function describeType(

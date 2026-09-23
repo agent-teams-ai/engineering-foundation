@@ -311,7 +311,7 @@ function assertPlanScalar(value: unknown): boolean {
   return true;
 }
 
-function snapshotInertPlan(input: unknown): DocumentPlan {
+function snapshotInertPlan(input: unknown): Record<string, unknown> {
   if (input === null || typeof input !== "object") {
     throw planContractTypeError("must be a JSON object.");
   }
@@ -352,7 +352,7 @@ function snapshotInertPlan(input: unknown): DocumentPlan {
     }
     Object.freeze(current.target);
   }
-  return root as unknown as DocumentPlan;
+  return root;
 }
 
 export class NodeDocumentContractValidator implements DocumentContractValidator {
@@ -386,8 +386,9 @@ export class NodeDocumentContractValidator implements DocumentContractValidator 
         snapshot,
         "document-plan"
       );
-      assertDocumentPlanDigests(snapshot);
-      return snapshot;
+      const plan = snapshot as unknown as DocumentPlan;
+      assertDocumentPlanDigests(plan);
+      return plan;
     } catch (error) {
       if (isDocumentInputFailure(error)) {
         invalidContract("Plan", error);

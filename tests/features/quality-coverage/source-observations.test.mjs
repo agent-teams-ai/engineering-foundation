@@ -69,8 +69,8 @@ test("independent nested/private census includes untracked and unclassified sour
     read: async () => ({ ...classified, routes: [], requiredRoutes: [], requiredSettings: [], requiredSettingObservations: [], settings: [] })
   });
   assert.equal(report.outcome, "violations");
-  assert.ok(report.diagnostics.some(({ ruleId, location }) => ruleId === "quality.source-coverage.source-language" && location.path === "packages/new-private/src/new.mts"));
-  assert.equal(qualitySourceLanguage("packages/new-private/src/new.mts"), "unsupported");
+  assert.ok(report.diagnostics.some(({ ruleId, location }) => ruleId === "quality.source-coverage.source-classification" && location.path === "packages/new-private/src/new.mts"));
+  assert.equal(qualitySourceLanguage("packages/new-private/src/new.mts"), "typescript");
 });
 
 test("development ownership classifies external build tooling without hiding production or native source", async (t) => {
@@ -251,7 +251,7 @@ test("native package roots outside src require consumer classification", async (
 
 test("owned TypeScript declarations remain in the independent production census", async (t) => {
   const { put, census } = await fixture(t);
-  const declarations = [`${sourceRoot}/public.d.ts`, `${sourceRoot}/public.d.mts`];
+  const declarations = [`${sourceRoot}/public.d.ts`, `${sourceRoot}/public.d.mts`, `${sourceRoot}/public.d.cts`];
   for (const declaration of declarations) {
     await put(declaration, "export declare const value: number;\n");
   }
@@ -262,6 +262,9 @@ test("owned TypeScript declarations remain in the independent production census"
     assert.deepEqual(source?.owners, ["worker"]);
     assert.equal(source?.suppressionCovered, true);
     assert.equal(qualitySourceLanguage(declaration), "typescript");
+  }
+  for (const extension of ["ts", "tsx", "mts", "cts"]) {
+    assert.equal(qualitySourceLanguage(`${sourceRoot}/entry.${extension}`), "typescript");
   }
 });
 

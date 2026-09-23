@@ -462,7 +462,7 @@ async function fixture(root, registry) {
 async function changesetsFixture(root) {
   await json(join(root, "package.json"), {
     name: "release-fixture",
-    packageManager: "npm@11.16.0",
+    packageManager: "npm@11.19.0",
     private: true,
     workspaces: ["packages/*"],
   });

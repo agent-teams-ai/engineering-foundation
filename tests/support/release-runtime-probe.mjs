@@ -114,7 +114,9 @@ function begin() {
   childProcess.spawnSync = (command, args, options = {}) => {
     if (command === 'tar') { return originalSpawn(command, args, options); }
     if (command === 'git' && args[0] === 'merge-base') { return ok(''); }
-    if (command === 'npm' && args[0] === '--version') { return ok('11.16.0\n'); }
+    if (command === 'npm' && args[0] === '--version') {
+      return ok(scenario === 'wrong-npm' ? '11.16.0\n' : '11.19.0\n');
+    }
     if (command === 'npm' && args[0] === 'publish') {
       // Record entry before assertions: release reconciliation catches their errors.
       events.push({ operation: 'publish-attempt', archivePath: args[1], liveMain });
@@ -168,7 +170,7 @@ function begin() {
   return events;
 }
 
-assert.ok(['valid-wave', 'advance-after-authorization', 'digest-mismatch',
+assert.ok(['valid-wave', 'wrong-npm', 'advance-after-authorization', 'digest-mismatch',
   'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty',
   'prerequisite-secret', 'ambiguous-absent', 'lost-response'].includes(scenario));
 const events = begin();
@@ -179,7 +181,10 @@ catch (caught) { error = caught.message; }
 const attempts = events.filter(event => event.operation === 'publish-attempt');
 const publications = events.filter(event => event.operation === 'publish-suppressed');
 const reconciliations = events.filter(event => event.operation === 'reconcile');
-if (scenario === 'valid-wave' || scenario === 'notes-exact' || scenario === 'lost-response') {
+if (scenario === 'wrong-npm') {
+  assert.equal(error, 'Ordered publishing requires npm 11.19.0, observed 11.16.0.');
+  assert.deepEqual(events, []);
+} else if (scenario === 'valid-wave' || scenario === 'notes-exact' || scenario === 'lost-response') {
   assert.equal(error, undefined);
   if (scenario === 'notes-exact') {
     assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));

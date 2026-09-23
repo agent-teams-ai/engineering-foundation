@@ -18,8 +18,14 @@ import {
 import { publishablePackageByName } from "./publishable-packages.mjs";
 import { readVerifiedArchive } from "./pack-artifact-archive.mjs";
 
-const EXPECTED_NPM_VERSION = "11.16.0";
+const EXPECTED_NPM_VERSION = "11.19.0";
 export { GITHUB_RECONCILIATION_ATTEMPTS, GITHUB_RECONCILIATION_RETRY_MILLISECONDS };
+
+export function assertNpmVersion(npmVersion = executeCommand("npm", ["--version"]).trim()) {
+  if (npmVersion !== EXPECTED_NPM_VERSION) {
+    throw new Error(`Ordered publishing requires npm ${EXPECTED_NPM_VERSION}, observed ${npmVersion}.`);
+  }
+}
 
 export function npmPublishArguments(artifact, tag) {
   const registry = artifact.registry ?? "https://registry.npmjs.org/";
@@ -397,10 +403,7 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
       !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(source.repository)) {
     throw new Error("Ordered publishing requires the exact protected-main GitHub source identity.");
   }
-  const npmVersion = executeCommand("npm", ["--version"], { cwd }).trim();
-  if (npmVersion !== EXPECTED_NPM_VERSION) {
-    throw new Error(`Ordered publishing requires npm ${EXPECTED_NPM_VERSION}, observed ${npmVersion}.`);
-  }
+  assertNpmVersion();
   const temporary = await mkdtemp(join(tmpdir(), "ordered-release-pack-"));
   try {
     const artifacts = await packArtifacts(cwd, state, temporary);

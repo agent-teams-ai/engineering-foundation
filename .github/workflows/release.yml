@@ -40,6 +40,8 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      - name: Guard npm release version
+        run: node --input-type=module -e 'import { assertNpmVersion } from "./scripts/release-publish-ordered-runtime.mjs"; assertNpmVersion();'
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Guard public package bootstrap baselines
         run: node scripts/npm-package-bootstrap-cli.mjs check-release

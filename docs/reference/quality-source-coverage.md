@@ -29,7 +29,7 @@ Each record has exactly `path`, `start`, `end`, `sha256`, `rationale` and
 `rejectingTest`. Start and end are OXC's zero-based source offsets for the full
 outer assertion; SHA-256 covers that exact source slice. Paths are relative to
 the consumer root. Rationale is concise and the test path must resolve to a
-contained regular `.test.mjs` file. Duplicate, stale and unmatched records
+contained regular file. Duplicate, stale and unmatched records
 reject. With no path, the admission set is empty. Foundation verifies identity
 and test-file existence; the consumer must review semantic safety and actually
 run the rejecting test in its gates. Reading a path is no evidence that a test
@@ -55,12 +55,12 @@ Markdown documentation remains visible in the file census but is not a lint
 source. Native C files and headers require consumer-owned gate mappings;
 unknown source languages receive an explicit unsupported-language diagnostic.
 
-The current language contract supports `.ts` (including owned `.d.ts`), owned
-`.d.mts` declarations and `.mjs` lint sources, plus classification and gate
-wiring for `.c` and `.h`. It does not qualify `.tsx`, general `.mts`, `.cts` or
-other source extensions. Preserve existing consumer checks for these files
-until their coverage is explicitly qualified; do not remove fixtures or
-classify production as tooling to make adoption pass.
+The current language contract supports `.ts`, `.tsx`, `.mts` and `.cts`,
+including their declaration forms, and `.mjs` lint sources, plus classification
+and gate wiring for `.c` and `.h`. Other source extensions remain unqualified.
+Preserve existing consumer checks for those files until their coverage is
+explicitly qualified; do not remove fixtures or classify production as tooling
+to make adoption pass.
 
 The protected configuration reader accepts a bounded JSON `extends` closure
 and rejects `jsPlugins` in every visited configuration, including inherited

@@ -32,18 +32,19 @@ async function runFixture(packageRoot) {
     const source = join(root, "src/main.ts");
     const corrected = 'interface Trusted { readonly marker: "trusted" }\nexport const value: Trusted = { marker: "trusted" };\n';
     const tuple = 'export const values = [[1], [1, 2]].flat() as unknown as readonly [number, number, number];\n';
-    const args = [lint, "--config", join(root, "oxlint.json"), "--deny-warnings", "--disable-nested-config", source];
+    const args = [lint, "--config", join(root, "oxlint.json"), "--deny-warnings", "--disable-nested-config", "--format", "json", source];
     await writeFile(source, corrected);
     const accepted = await execute(process.execPath, args, { cwd: root, env: environment });
-    assert.equal(accepted.stdout, "");
-    assert.equal(accepted.stderr, "");
+    assert.equal(JSON.parse(accepted.stdout).number_of_files, 1);
+    assert.deepEqual(JSON.parse(accepted.stdout).diagnostics, []);
     await writeFile(source, tuple);
     const tupleAccepted = await execute(process.execPath, args, { cwd: root, env: environment });
-    assert.equal(tupleAccepted.stdout, "");
+    assert.equal(JSON.parse(tupleAccepted.stdout).number_of_files, 1);
+    assert.deepEqual(JSON.parse(tupleAccepted.stdout).diagnostics, []);
     await writeFile(source, `${corrected}Promise.resolve(1);\n`);
     await assert.rejects(execute(process.execPath, args, { cwd: root, env: environment }), (error) => {
       assert.equal(error.code, 1);
-      assert.match(`${error.stdout}${error.stderr}`, /typescript\(no-floating-promises\)/u);
+      assert.ok(JSON.parse(error.stdout).diagnostics.some(({ code }) => code === "typescript(no-floating-promises)"));
       return true;
     });
   } finally {

@@ -54,6 +54,58 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+async function verifyPackedDocsAdapterHistory(adapterArtifact) {
+  const root = join(temporaryRoot, "docs-adapter-history-inspection");
+  await mkdir(root, { recursive: true });
+  await runCommand("tar", ["-xzf", adapterArtifact.archivePath, "-C", root], temporaryRoot);
+  const packageRoot = join(root, "package");
+  const transitionCatalogBytes = await readFile(
+    join(packageRoot, "assets", "transition-catalog.json")
+  );
+  const transitionCatalog = JSON.parse(transitionCatalogBytes.toString("utf8"));
+  const expectedIds = [
+    "docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9",
+    "docs-2026-08-18-rc1", "docs-2026-08-18-rc2", "docs-2026-08-18-rc3",
+    "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3",
+    "docs-2026-08-28-stable8", "docs-2026-08-28-stable9.1", "docs-2026-08-31-stable10",
+    "docs-2026-09-10-stable18", "docs-2026-09-10-stable19", "docs-2026-09-11-stable20",
+    "docs-2026-09-12-stable21", "docs-2026-09-15-stable23"
+  ];
+  const actualIds = transitionCatalog.directTargetBundles.map(({ cohort }) => cohort.cohortId);
+  if (transitionCatalog.currentSourceExecutors.length !== 0 ||
+      actualIds.length !== expectedIds.length || new Set(actualIds).size !== expectedIds.length ||
+      actualIds.some((id, index) => id !== expectedIds[index])) {
+    throw new Error("Packed adapter transition history is incomplete, reordered, or duplicated.");
+  }
+  const stable23 = transitionCatalog.directTargetBundles.find(
+    ({ cohort }) => cohort.cohortId === "docs-2026-09-15-stable23"
+  );
+  if (stable23 === undefined ||
+      stable23.cohort.recordDigest !== "sha256:287fca0b66c212e93d865b3a54fcb681eda12f4f8954c077a59148a348a361c9" ||
+      stable23.cohort.qualificationEventDigest !== "sha256:d65de3c1885c948dcdfa9b7fe79e9638ed74542ac32b85097ece90b5e02866d9" ||
+      stable23.cohort.packages.docsProtocolAgentTeams.version !== "0.2.8" ||
+      stable23.cohort.packages.engineeringFoundation.version !== "1.3.3" ||
+      stable23.cohort.assets.transitionCatalogDigest !== "sha256:ab84cf314a24f9f32a3baabce0c814699366af6c2a4aeb91e59327bb6783606f" ||
+      stable23.cohort.runtime.runtimeClosureDigest !== "sha256:6e768aa2e3be45c358d27d6a8a234f10806ba9ac22f1a003b36396ecc41ae157") {
+    throw new Error("Packed adapter stable23 projection differs from central authority.");
+  }
+  for (const [path, expectedDigest] of [
+    [stable23.skillPath, "sha256:a86d8c9b990124f11b50b1c6703e1aeb5e3b981d51f7e8f5c163c4f5b987d7c5"],
+    [stable23.callerWorkflowPath, "sha256:d8d3b1281990179ee25ded67ba160f0e7573d2f70707b8c5b312d70b68d85125"]
+  ]) {
+    if (sha256(await readFile(join(packageRoot, path))) !== expectedDigest) {
+      throw new Error(`Packed adapter historical asset digest mismatch: ${path}.`);
+    }
+  }
+  const api = await import(`${pathToFileURL(join(
+    packageRoot,
+    "dist", "consumer-integration", "generated", "canonical-assets.js"
+  )).href}?history-inspection=1`);
+  if (api.GENERATED_TRANSITION_CATALOG !== transitionCatalogBytes.toString("utf8")) {
+    throw new Error("Packed adapter generated transition authority differs from its asset bytes.");
+  }
+}
+
 function parseDocsExecution(stdout) {
   if (typeof stdout !== "string" || stdout.trim() === "") {
     throw new Error("Packed Docs Protocol CLI returned no JSON output.");
@@ -491,6 +543,7 @@ try {
   const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
   const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
   const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
+  await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact);
   const rollbackFixtureArtifact = await createRollbackFixturePackage(
     docsProtocolAdapterArtifact,
     docsProtocolArtifact,

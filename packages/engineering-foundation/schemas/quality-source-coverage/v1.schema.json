@@ -41,6 +41,12 @@
       "maxLength": 240,
       "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.(?:ya?ml|json)$"
     },
+    "bridgeAdmissionsPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.(?:ya?ml|json)$"
+    },
     "scripts": {
       "type": "object",
       "additionalProperties": false,

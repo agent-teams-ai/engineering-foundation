@@ -1,0 +1,445 @@
+{
+  "schemaVersion": 1,
+  "bridges": [
+    {
+      "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
+      "start": 2368,
+      "end": 2426,
+      "sha256": "7c5b17c52f6a639722e4f87d4b185a9fea15e9870304cc05e330ce26a167faf0",
+      "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
+      "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
+    },
+    {
+      "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
+      "start": 2808,
+      "end": 2866,
+      "sha256": "941d9d38c16f32e37bd770325695825a473bf1fbc86d6fcbd3c645019d1b3ab6",
+      "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
+      "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
+    },
+    {
+      "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
+      "start": 3356,
+      "end": 3414,
+      "sha256": "391b24213c15e59a45eccd11a3d4e5e0f6929a72343562077bc23fe5b2956b62",
+      "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
+      "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts",
+      "start": 3587,
+      "end": 3632,
+      "sha256": "d2f4310a6fe5ab38d19e0cb0123ef368b856523c58616c7d9fa4728f63ed4d5d",
+      "rationale": "Versioned schema and semantic validation precede profile type interpretation.",
+      "rejectingTest": "tests/document-authoring-path-policy.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/adapters/node/load-validated-document-authoring-profile-v2.ts",
+      "start": 3974,
+      "end": 4036,
+      "sha256": "5b1e49665bd91169054704ec2ec99628b72c5926d5a69a11ff04563c784e49d1",
+      "rationale": "Versioned schema and semantic validation precede profile type interpretation.",
+      "rejectingTest": "tests/document-authoring-path-policy.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-contract-validator.ts",
+      "start": 11493,
+      "end": 11524,
+      "sha256": "744a9195ce3cf2fa25e7df7d63b3638787ed023f9eadb36ad7b660004b243182",
+      "rationale": "The closed Plan snapshot walk validates every value and freezes it before narrowing.",
+      "rejectingTest": "tests/document-authoring-plan-validation-hostile.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts",
+      "start": 3300,
+      "end": 3342,
+      "sha256": "ed99f1ee86b900d64601daf484c5b8dae9af63bba46dcc0e6dc15e2e824addfa",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/legacy-document-transaction-envelope.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-authoring-semantic-digests.ts",
+      "start": 2315,
+      "end": 2355,
+      "sha256": "2a538235acd4a8b10c62df8cb79ef0897e388273502e1e5c8e4d41304048675f",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-authoring-semantic-digests.ts",
+      "start": 4323,
+      "end": 4363,
+      "sha256": "2a538235acd4a8b10c62df8cb79ef0897e388273502e1e5c8e4d41304048675f",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-contract-digests.ts",
+      "start": 2332,
+      "end": 2372,
+      "sha256": "c2aaf5b5c8cf3e682da57c783f7b58228da60b160f8686e87fb2151291adb557",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-receipt-policy.ts",
+      "start": 620,
+      "end": 657,
+      "sha256": "8846f9e5fc95a91fe9a094a0c70622eefa9f1131fc0fd0e2f4a66fd76946ded6",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-receipt-policy.ts",
+      "start": 4004,
+      "end": 4071,
+      "sha256": "d681e5a3a71844e500de23dbd02a73aa9b1593fb5534f1f6697e2f8f3b3724a2",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/policies/document-transaction-envelope-policy.ts",
+      "start": 7373,
+      "end": 7424,
+      "sha256": "c2a4b5959d8dcdea6e30c9125fb21c3696ee3490969678201c1bb731101cb7d7",
+      "rationale": "Closed versioned schema validation precedes this document envelope narrowing.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/use-cases/compile-document-plan.ts",
+      "start": 7543,
+      "end": 7717,
+      "sha256": "fb4c02bd5ba677934c56a931eb5ee1defe22fe4976f392e5c2f44ee318641c86",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/use-cases/compile-document-plan.ts",
+      "start": 10537,
+      "end": 10654,
+      "sha256": "dd130989122c707e7a3799ca2e9850cca0558179bdbaaf24aef30bd95cdedd80",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/use-cases/document-authority-recompiler.ts",
+      "start": 873,
+      "end": 910,
+      "sha256": "b4711a3ca348833adff2fc24d4d89b12b706d2892826636ba43b9be3c4d7e8df",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/use-cases/document-authority-recompiler.ts",
+      "start": 934,
+      "end": 972,
+      "sha256": "6154ecd00496e3ac84123781e155aba5c47b2f1474df5a74d4591d271910cb2a",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/document-authoring/src/document-authoring/application/use-cases/document-authority-recompiler.ts",
+      "start": 3025,
+      "end": 3087,
+      "sha256": "9ae76ae97c8a0dab394275f0009b360f875c6cf35d8056929c96e413b37a2a1a",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/document-authoring-contract-policy-security.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/capabilities/source-dependencies/adapters/outbound/oxc/loader-syntax.ts",
+      "start": 969,
+      "end": 1011,
+      "sha256": "7535fec20ff62a0dd15af36be939d4284a5bf79b8ff4cb58feb4df0b999e0619",
+      "rationale": "OXC visitor keys select object fields after the parser supplies this AST node.",
+      "rejectingTest": "tests/source-dependency-loader-edges.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/features/configuration-input/application/schema-list.ts",
+      "start": 747,
+      "end": 804,
+      "sha256": "e6781b0bee37e8acd8844757cd42a22ee469816ab4ad068abf35b5864519eeac",
+      "rationale": "Array.flat preserves finite tuple order and duplicates; readonly precision is type only.",
+      "rejectingTest": "tests/source-configuration.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/features/validation-reporting/application/reporting.ts",
+      "start": 1067,
+      "end": 1118,
+      "sha256": "c90a37c1ebb81e8496de7abafa365624b77328fbcddebccf01e5098c11cbe629",
+      "rationale": "CapabilityInputError already owns this problem; bounded field checks follow before reporting.",
+      "rejectingTest": "tests/reporting-rest.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/local-mode/application/package-metadata.ts",
+      "start": 10049,
+      "end": 10095,
+      "sha256": "27b7982efda253efabc0251ee59ae60209dd426ff8bad2607c1606f14a3bbec3",
+      "rationale": "Every self-check field is checked before narrowing the decoded package metadata.",
+      "rejectingTest": "tests/local-mode.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts",
+      "start": 8468,
+      "end": 8496,
+      "sha256": "298b425356cbe2e9b70f908153b2f233a3f817c1bce904f15228f737a75820f2",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/inbound/authority-scaffold-receipt.ts",
+      "start": 9726,
+      "end": 9754,
+      "sha256": "298b425356cbe2e9b70f908153b2f233a3f817c1bce904f15228f737a75820f2",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
+      "start": 1855,
+      "end": 1895,
+      "sha256": "973bb81e431724bb1ef7a3b94f29d196dbe1463e9ba9477d796a66ca8a649546",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
+      "start": 2495,
+      "end": 2550,
+      "sha256": "3214b4fdcb7dc6d022455b404169523d164d3a5fbae440b8fa7bee9e6867e0bb",
+      "rationale": "Closed envelope construction or schema and binding checks govern this representation boundary.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/foundation-scaffold-envelope.ts",
+      "start": 2591,
+      "end": 2646,
+      "sha256": "3214b4fdcb7dc6d022455b404169523d164d3a5fbae440b8fa7bee9e6867e0bb",
+      "rationale": "Closed envelope construction or schema and binding checks govern this representation boundary.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/adapters/node/node-scaffold-journal-evidence.ts",
+      "start": 2944,
+      "end": 2976,
+      "sha256": "ad677ae610c1d7940c3464e69ea108967ccf88bb90739c2966df91bce8b6dc48",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts",
+      "start": 2380,
+      "end": 2595,
+      "sha256": "8398661b83c523b97705f98e0630f8728be832c0c988f80e461754dab5c86abf",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-compiler.ts",
+      "start": 3300,
+      "end": 3332,
+      "sha256": "d4f1559b88633cc5491c7184792f03de65d2490b635bd8948cd679f25b7cf043",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts",
+      "start": 1683,
+      "end": 1711,
+      "sha256": "298b425356cbe2e9b70f908153b2f233a3f817c1bce904f15228f737a75820f2",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts",
+      "start": 1927,
+      "end": 1978,
+      "sha256": "bf2dfe563faa7457360cf7bb937203ea9f547739a11e03f8c2f731986f55a6c0",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts",
+      "start": 2801,
+      "end": 2831,
+      "sha256": "d9e8c23d733d05d7f66eb0a97c2b71df95dd8f2e007ffbf09131a2872231b4b4",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts",
+      "start": 4535,
+      "end": 4568,
+      "sha256": "a4a17ed2d12d20b423e1671c052a02574a94ec447326b5f0bc7595f9276961e4",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/authority-evidence.ts",
+      "start": 4596,
+      "end": 4636,
+      "sha256": "d625df7a01544a057b1f282f27df366ebe197a8dd6c4d22731312679bb33d289",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-authority.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/compiler.ts",
+      "start": 14705,
+      "end": 15214,
+      "sha256": "2ff2688744c27dea5bc887a5ca8f94b0a40fa71a32e9a05fa35688a690f2ae6b",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/compiler.ts",
+      "start": 15467,
+      "end": 15507,
+      "sha256": "a1e869cb9b115bf96031d9b6c7f389cd63c45aadb1bdfc5fb3a23fe44e96eafa",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/definition-registry.ts",
+      "start": 5331,
+      "end": 5752,
+      "sha256": "41d0ff1462b671a804830f0f440d96060747a3fdf33126f9aec13a853f13639c",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/definition-registry.ts",
+      "start": 5802,
+      "end": 5832,
+      "sha256": "85c6b35544d4ac30a3327c8193117b6bc156215f6594104b8ee51ee8416365ea",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/definition-registry.ts",
+      "start": 5882,
+      "end": 6477,
+      "sha256": "e4c3f2cd19f6e496a02fb4e61b3359abf5a50b9b7c818f6a65aa9757c5941072",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/definition-registry.ts",
+      "start": 6537,
+      "end": 6810,
+      "sha256": "529fb56fb5a8895f52f282888e1ddfbe9fe0ad3e9d4029a3344d74b3c87fd6c4",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/engineering-foundation/src/scaffolding/kernel/plan-content-validation.ts",
+      "start": 543,
+      "end": 571,
+      "sha256": "298b425356cbe2e9b70f908153b2f233a3f817c1bce904f15228f737a75820f2",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/scaffolding-adversarial.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
+      "start": 1930,
+      "end": 2044,
+      "sha256": "23c8ba2e589b0f248e1dda5ff83c3393a626f10d4a62673ab16e3dc6e9c35f42",
+      "rationale": "Closed envelope construction or schema and binding checks govern this representation boundary.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
+      "start": 10776,
+      "end": 11291,
+      "sha256": "3e5c95510f0b21edc4a904e013086e974bb57eb38d5f4ac7e4b3f72786efacee",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
+      "start": 11195,
+      "end": 11241,
+      "sha256": "8ffbe9860691ce84d9e35649363336e07e014b629a7180de511bdc79f583e6bc",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
+      "start": 12549,
+      "end": 12590,
+      "sha256": "449a379cf244001ecbb73be15c05913bec023d07c9fd91a3c03d69979507a835",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 4378,
+      "end": 4415,
+      "sha256": "b4711a3ca348833adff2fc24d4d89b12b706d2892826636ba43b9be3c4d7e8df",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 4436,
+      "end": 4474,
+      "sha256": "6154ecd00496e3ac84123781e155aba5c47b2f1474df5a74d4591d271910cb2a",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 6732,
+      "end": 6793,
+      "sha256": "c7eb9264af8721e8fb2c40b321fca4d2d8bca3288c3d24f175ea32ee9b90ba5d",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 6819,
+      "end": 6876,
+      "sha256": "20967de32f858385c3380b777c85d0c4c13967af91782c4685bdb3a8ea128e45",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 9062,
+      "end": 9175,
+      "sha256": "d26ded7b4e946c6f43220b80015d4d09e05342f9e53ce3645e5df1c52e4c6027",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 11642,
+      "end": 11688,
+      "sha256": "081ef3447e9e5a4f83e6b2e99f05d739871807fb29b66b20772818cb381a1d50",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-plan.ts",
+      "start": 11712,
+      "end": 11750,
+      "sha256": "ba62f6b50b1bd4ce0c1afe3d7ed85a20a0f12e559bda394e5d85d38c30aad26a",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-receipt.ts",
+      "start": 1508,
+      "end": 1546,
+      "sha256": "ba62f6b50b1bd4ce0c1afe3d7ed85a20a0f12e559bda394e5d85d38c30aad26a",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    },
+    {
+      "path": "packages/repository-mutation/src/transaction-coordination/application/repository-mutation-envelope.ts",
+      "start": 10200,
+      "end": 10237,
+      "sha256": "8846f9e5fc95a91fe9a094a0c70622eefa9f1131fc0fd0e2f4a66fd76946ded6",
+      "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
+      "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
+    }
+  ]
+}

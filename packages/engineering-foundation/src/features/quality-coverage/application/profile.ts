@@ -3,6 +3,7 @@ export interface QualityCoverageProfile {
   readonly suppressionPolicyPath: string;
   readonly featureProfilePath: string;
   readonly lintConfigPath: string;
+  readonly bridgeAdmissionsPath?: string;
   /** Existing source boundary and consumer-owned native gate script identities. */
   readonly nativeChecks?: readonly { readonly boundaryId: string; readonly script: string }[];
   readonly compilerProjects: readonly string[];

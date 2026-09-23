@@ -77,6 +77,7 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
     return results;
   };
   return {
+    async explicitUnknown() { throw new Error("Explicit unknown scan requires the consumer source reader."); },
     async select(signal) {
       assertExplicitTargets();
       const results = await runSourceBatches(signal, async (paths, batchSignal) => {

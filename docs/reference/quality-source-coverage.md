@@ -16,6 +16,33 @@ production universe and checks compiler project inclusion. Full execution uses
 the same prepared tool session and runs typed lint once after those prerequisites
 pass. A scope result does not establish absence of lint violations.
 
+Full `quality check` parses every TypeScript source in the classified production
+inventory with the private OXC adapter. It rejects an `as` or angle assertion
+through explicit `unknown` followed by another assertion, including parentheses,
+comments, non-null and `satisfies` wrappers. The target type name has no effect.
+Source read and parse failures reject the check. Scope mode remains a coverage
+observation and does not run this syntax check.
+
+The optional `bridgeAdmissionsPath` in the v1 quality profile names one contained
+JSON or YAML data file. It has `schemaVersion: 1` and a finite `bridges` array.
+Each record has exactly `path`, `start`, `end`, `sha256`, `rationale` and
+`rejectingTest`. Start and end are OXC's zero-based source offsets for the full
+outer assertion; SHA-256 covers that exact source slice. Paths are relative to
+the consumer root. Rationale is concise and the test path must resolve to a
+contained regular `.test.mjs` file. Duplicate, stale and unmatched records
+reject. With no path, the admission set is empty. Foundation verifies identity
+and test-file existence; the consumer must review semantic safety and actually
+run the rejecting test in its gates. Reading a path is no evidence that a test
+ran or rejects the relevant false claim.
+
+This rule governs explicit syntax only. It cannot prove an assertion safe,
+resolve semantic aliases of `unknown`, follow an intermediate variable, or
+detect a dishonest predicate. Admissions never waive another lint, schema,
+source-coverage or runtime check. Foundation owns syntax and evidence identity;
+the consumer owns bridge rationale and behavior checks. Product execution and
+lifecycle orchestration remain with its Host. The scanner is a fixed private
+quality helper, not a new Assembly capability or a universal FMS adoption claim.
+
 For example, a newly discovered
 `packages/contexts/private-worker/src/main.ts` needs one classification in the
 existing source authority and inclusion in suppression governance. Moving it to

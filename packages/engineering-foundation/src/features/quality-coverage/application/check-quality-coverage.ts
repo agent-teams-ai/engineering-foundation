@@ -40,6 +40,9 @@ export async function checkQualityCoverage(
     const typed = production.filter((path) => qualitySourceLanguage(path) === "typescript");
     diagnostics.push(...evaluateTypeContext(typed, await session.typeContext(input.signal)));
     if (diagnostics.length === 0 && !input.scopeOnly) {
+      diagnostics.push(...await session.explicitUnknown(input.signal));
+    }
+    if (diagnostics.length === 0 && !input.scopeOnly) {
       const lint = await session.lint(input.signal);
       const selectedPaths = new Set(selected);
       if (lint.files !== selectedPaths.size || lint.diagnostics.some(({ location }) => !selectedPaths.has(location.path))) {

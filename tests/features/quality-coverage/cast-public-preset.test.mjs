@@ -30,17 +30,20 @@ async function runFixture(packageRoot) {
       compilerOptions: { strict: true, noEmit: true }, include: ["src/**/*.ts"]
     }));
     const source = join(root, "src/main.ts");
-    const cast = 'interface Trusted { readonly marker: "trusted" }\nexport const value = "unsafe" as unknown as Trusted;\n';
+    const corrected = 'interface Trusted { readonly marker: "trusted" }\nexport const value: Trusted = { marker: "trusted" };\n';
+    const tuple = 'export const values = [[1], [1, 2]].flat() as unknown as readonly [number, number, number];\n';
     const args = [lint, "--config", join(root, "oxlint.json"), "--deny-warnings", "--disable-nested-config", source];
-    await writeFile(source, cast);
+    await writeFile(source, corrected);
     const accepted = await execute(process.execPath, args, { cwd: root, env: environment });
     assert.equal(accepted.stdout, "");
     assert.equal(accepted.stderr, "");
-    await writeFile(source, `${cast}Promise.resolve(1);\n`);
+    await writeFile(source, tuple);
+    const tupleAccepted = await execute(process.execPath, args, { cwd: root, env: environment });
+    assert.equal(tupleAccepted.stdout, "");
+    await writeFile(source, `${corrected}Promise.resolve(1);\n`);
     await assert.rejects(execute(process.execPath, args, { cwd: root, env: environment }), (error) => {
       assert.equal(error.code, 1);
       assert.match(`${error.stdout}${error.stderr}`, /typescript\(no-floating-promises\)/u);
-      assert.doesNotMatch(`${error.stdout}${error.stderr}`, /no-unsafe-type-assertion/u);
       return true;
     });
   } finally {
@@ -48,13 +51,13 @@ async function runFixture(packageRoot) {
   }
 }
 
-test("built public quality preset accepts explicit unknown cast while typed lint remains active", async () => {
+test("built public quality preset retains typed checks and tuple representation", async () => {
   await runFixture(join(repository, "packages/engineering-foundation"));
 });
 
 const installed = process.env["EF_331_INSTALLED_PACKAGE_ROOT"];
 if (installed !== undefined) {
-  test("installed public quality preset has the same cast behavior", async () => {
+  test("installed public quality preset retains the same typed baseline", async () => {
     const physical = await realpath(installed);
     assert.match(physical, /node_modules\/.*engineering-foundation/u);
     const manifest = JSON.parse(await readFile(join(physical, "package.json"), "utf8"));

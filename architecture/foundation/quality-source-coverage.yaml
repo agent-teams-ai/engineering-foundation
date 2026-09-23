@@ -3,6 +3,7 @@ sourcePolicyPath: architecture/foundation/source-dependencies.yaml
 suppressionPolicyPath: architecture/foundation/suppression-governance.yaml
 featureProfilePath: architecture/foundation/feature-modules.json
 lintConfigPath: .oxlintrc.type-aware.json
+bridgeAdmissionsPath: architecture/foundation/quality-explicit-unknown-bridges.json
 compilerProjects:
   - packages/repository-mutation/tsconfig.json
   - packages/document-authoring/tsconfig.json

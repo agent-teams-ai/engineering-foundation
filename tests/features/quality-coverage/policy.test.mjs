@@ -22,6 +22,7 @@ function tool(overrides = {}) {
     return {
       select: async () => { calls.push("select"); return [path]; },
       typeContext: async () => { calls.push("context"); return [path]; },
+      explicitUnknown: async () => { calls.push("scan"); return []; },
       lint: async () => { calls.push("lint"); return { files: 1, diagnostics: [] }; },
       ...overrides
     };
@@ -36,7 +37,7 @@ test("static, selected scope, and full execution are distinct operations", async
   assert.deepEqual(scoped.calls, ["prepare", "select", "context"]);
   const full = tool();
   assert.equal((await checkQualityCoverage(invocation, reader(), full.provider)).outcome, "passed");
-  assert.deepEqual(full.calls, ["prepare", "select", "context", "lint"]);
+  assert.deepEqual(full.calls, ["prepare", "select", "context", "scan", "lint"]);
 });
 
 test("new unclassified private source and weakened protection fail before tool execution", async () => {
@@ -262,7 +263,7 @@ test("classified selected tests preserve production coverage and full selection 
   const selected = [path, testPath];
   const complete = tool({ select: async () => selected, lint: async () => ({ files: 2, diagnostics: [] }) });
   assert.equal((await checkQualityCoverage(invocation, reader(observation), complete.provider)).outcome, "passed");
-  assert.deepEqual(complete.calls, ["prepare", "context"]);
+  assert.deepEqual(complete.calls, ["prepare", "context", "scan"]);
   const scope = tool({ select: async () => selected });
   assert.equal((await checkQualityCoverage({ ...invocation, scopeOnly: true }, reader(observation), scope.provider)).outcome, "passed");
   const omitted = await checkQualityCoverage(invocation, reader(observation), tool({ select: async () => [testPath] }).provider);
@@ -285,7 +286,7 @@ test("native production remains classified and requires consumer gate wiring out
   const observation = { ...good, sources: [...good.sources, native] };
   const execution = tool();
   assert.equal((await checkQualityCoverage(invocation, reader(observation), execution.provider)).outcome, "passed");
-  assert.deepEqual(execution.calls, ["prepare", "select", "context", "lint"]);
+  assert.deepEqual(execution.calls, ["prepare", "select", "context", "scan", "lint"]);
   for (const nativeGates of [[], [{ script: "native:check", reached: false }], [native.nativeGates[0], native.nativeGates[0]]]) {
     const rejected = await checkStaticQualityCoverage(invocation, reader({ ...observation,
       sources: [...good.sources, { ...native, nativeGates }] }));

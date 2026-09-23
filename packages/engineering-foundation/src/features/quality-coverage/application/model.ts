@@ -49,6 +49,8 @@ export interface QualityToolSession {
     readonly files: number;
     readonly diagnostics: readonly FoundationDiagnostic[];
   }>;
+  /** Full mode only: source-bound syntax governance over the production inventory. */
+  explicitUnknown(signal?: AbortSignal): Promise<readonly FoundationDiagnostic[]>;
 }
 
 export interface QualityCoverageReader {

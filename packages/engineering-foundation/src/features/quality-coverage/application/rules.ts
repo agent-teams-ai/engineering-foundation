@@ -13,7 +13,8 @@ const RULES = {
   "required-route": ["Required gates must execute the declared coverage mode.", "Restore the literal required script route to quality check."],
   "selection-mismatch": ["Oxlint selection must equal the lint-applicable portion of the independently discovered production universe.", "Remove exclusions or repair source classification so production and selected files agree."],
   "type-context": ["Every production file needs a real compiler project context.", "Restore production tsconfig inclusion and build required declarations."],
-  "lint-violation": ["The consumer-local typed linter reported a source violation.", "Fix the reported tool rule at the indicated source location."]
+  "lint-violation": ["The consumer-local typed linter reported a source violation.", "Fix the reported tool rule at the indicated source location."],
+  "explicit-unknown": ["An explicit unknown assertion chain needs an exact, source-bound bridge admission.", "Remove the chain or admit this exact bridge with a rationale and rejecting evidence in the consumer profile."]
 } satisfies Record<string, readonly [string, string]>;
 
 export type QualityCoverageRule = keyof typeof RULES;

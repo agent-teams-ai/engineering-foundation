@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
@@ -304,6 +305,26 @@ async function qualifyLayout({ consumerRoot, nested, artifact }) {
   assert.equal((await invoke(["check", "quality.source-coverage"])).outcome, "passed");
   assert.equal((await invoke(["quality", "check", "--scope-only"])).outcome, "passed");
   assert.equal((await invoke(["quality", "check"])).outcome, "passed");
+  const tuple = 'export const values = [1, 2] as unknown as readonly [number, number];\n';
+  await put(main, tuple);
+  const castRejected = await invoke(["quality", "check"], 1);
+  assert.ok(castRejected.capabilities[0].diagnostics.some(({ ruleId, location }) =>
+    ruleId === "quality.source-coverage.explicit-unknown" && location.path === main));
+  const expression = '[1, 2] as unknown as readonly [number, number]';
+  const start = tuple.indexOf(expression);
+  await put("tests/tuple-rejection.test.mjs", `import assert from "node:assert/strict";\nimport test from "node:test";\ntest("tuple representation preserves order and duplicates", () => {\n  assert.deepEqual([[1], [1, 2]].flat(), [1, 1, 2]);\n  assert.notDeepEqual([[1], [1, 2]].flat(), [1, 2]);\n});\n`);
+  await runCommand(process.execPath, ["--test", "tests/tuple-rejection.test.mjs"], root);
+  await put("bridges.json", { schemaVersion: 1, bridges: [{ path: main, start, end: start + expression.length,
+    sha256: createHash("sha256").update(expression).digest("hex"),
+    rationale: "Exact tuple representation retains array order and duplicate values.",
+    rejectingTest: "tests/tuple-rejection.test.mjs" }] });
+  const qualified = JSON.parse(await readFile(join(root, "quality.yaml"), "utf8"));
+  await put("quality.yaml", { ...qualified, bridgeAdmissionsPath: "bridges.json" });
+  assert.equal((await invoke(["quality", "check"])).outcome, "passed");
+  await put("bridges.json", { schemaVersion: 1, bridges: [] });
+  assert.equal((await invoke(["quality", "check"], 1)).outcome, "violations");
+  await put("quality.yaml", qualified);
+  await put(main, "export const value = 1;\n");
   await put(main, "export const value = 1;\nPromise.resolve(2);\n");
   const rejected = await invoke(["quality", "check"], 1);
   assert.ok(rejected.capabilities[0].diagnostics.some(({ location, evidence }) => location.path === main &&

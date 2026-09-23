@@ -31,6 +31,7 @@ export function mapQualityProfile(value: unknown): QualityCoverageProfile {
     suppressionPolicyPath: qualityString(input["suppressionPolicyPath"]),
     featureProfilePath: qualityString(input["featureProfilePath"]),
     lintConfigPath: qualityString(input["lintConfigPath"]),
+    ...(input["bridgeAdmissionsPath"] === undefined ? {} : { bridgeAdmissionsPath: qualityString(input["bridgeAdmissionsPath"]) }),
     compilerProjects,
     ...(input["nativeChecks"] === undefined ? {} : { nativeChecks: nativeChecks(input["nativeChecks"]) }),
     scripts: { fast: qualityString(scripts["fast"]), full: qualityString(scripts["full"]), scope: qualityString(scripts["scope"]), typed: qualityString(scripts["typed"]) }

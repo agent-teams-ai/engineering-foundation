@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
 import { inspectCompressedTarArchive, readRegularArchive, sha256 } from "./pack-artifact-archive.mjs";
@@ -17,26 +18,165 @@ async function installedLinks(directory) {
   return links;
 }
 
-async function copyInstalledClosure(source, destination) {
+const publicApiFixtureLink = join(".pnpm", "node_modules", "@fixture", "public-api");
+const publicApiFixtureTarget = join("packages", "library");
+
+async function approvedWorkspaceFixtureTarget(source, sourceLink, physicalTarget) {
+  assert.equal(
+    relative(source, sourceLink),
+    publicApiFixtureLink,
+    "Installed dependency link escapes its node_modules closure"
+  );
+  const consumerRoot = dirname(source);
+  const target = join(consumerRoot, publicApiFixtureTarget);
+  let canonicalTarget;
+  try {
+    canonicalTarget = await realpath(target);
+  } catch {
+    assert.fail("Installed dependency link escapes its node_modules closure");
+  }
+  assert.equal(
+    physicalTarget,
+    canonicalTarget,
+    "Installed dependency link escapes its node_modules closure"
+  );
+  const targetStatus = await lstat(target);
+  assert.ok(
+    targetStatus.isDirectory() && !targetStatus.isSymbolicLink(),
+    "Approved workspace fixture target must be a physical directory"
+  );
+  return target;
+}
+
+async function assertRegularFixtureTree(directory) {
+  for await (const entry of await opendir(directory)) {
+    const path = join(directory, entry.name);
+    const status = await lstat(path);
+    assert.ok(
+      !status.isSymbolicLink(),
+      "Approved workspace fixture target must not contain symbolic links"
+    );
+    assert.ok(
+      status.isDirectory() || status.isFile(),
+      "Approved workspace fixture target must contain only regular files and directories"
+    );
+    if (status.isDirectory()) { await assertRegularFixtureTree(path); }
+  }
+}
+
+function hasReliableFileIdentity(metadata) {
+  return metadata.ino !== 0n;
+}
+
+async function validateWorkspaceFixtureSnapshot(snapshot, testHooks) {
+  const snapshotStatus = await lstat(snapshot);
+  assert.ok(
+    snapshotStatus.isDirectory() && !snapshotStatus.isSymbolicLink(),
+    "Approved workspace fixture snapshot must be a physical directory"
+  );
+  await assertRegularFixtureTree(snapshot);
+  await testHooks.afterFixtureSnapshotTreeValidated?.({ snapshot });
+  const manifestPath = join(snapshot, "package.json");
+  const noFollowFlags = process.platform === "win32"
+    ? 0
+    : fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK;
+  const manifestHandle = await open(manifestPath, fsConstants.O_RDONLY | noFollowFlags);
+  try {
+    await testHooks.afterFixtureSnapshotManifestOpened?.({ manifestPath });
+    const [manifestPathStatus, manifestHandleStatus] = await Promise.all([
+      lstat(manifestPath, { bigint: true }),
+      manifestHandle.stat({ bigint: true })
+    ]);
+    assert.ok(
+      manifestPathStatus.isFile() && !manifestPathStatus.isSymbolicLink() && manifestHandleStatus.isFile(),
+      "Approved workspace fixture manifest must be a regular file"
+    );
+    assert.ok(
+      !hasReliableFileIdentity(manifestPathStatus) ||
+        !hasReliableFileIdentity(manifestHandleStatus) ||
+        (manifestPathStatus.dev === manifestHandleStatus.dev &&
+          manifestPathStatus.ino === manifestHandleStatus.ino),
+      "Approved workspace fixture manifest identity changed"
+    );
+    const manifest = JSON.parse(await manifestHandle.readFile("utf8"));
+    assert.equal(manifest.name, "@fixture/public-api", "Approved workspace fixture identity changed");
+  } finally {
+    await manifestHandle.close();
+  }
+}
+
+async function assertAbsent(path) {
+  try {
+    await lstat(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") { return; }
+    throw error;
+  }
+  assert.fail(`Copy destination already exists: ${path}`);
+}
+
+export async function copyInstalledClosure(source, destination, testHooks = {}) {
+  await assertAbsent(destination);
   const physicalSource = await realpath(source);
   const links = await installedLinks(source);
-  await cp(source, destination, { recursive: true, verbatimSymlinks: true });
+  const plan = [];
 
   for (const sourceLink of links.toSorted()) {
     const physicalTarget = await realpath(sourceLink);
     const targetSuffix = relative(physicalSource, physicalTarget);
-    assert.ok(
-      !isAbsolute(targetSuffix) && targetSuffix.split(/[\\/]/u)[0] !== "..",
-      "Installed dependency link escapes its node_modules closure"
-    );
+    const contained = !isAbsolute(targetSuffix) && targetSuffix.split(/[\\/]/u)[0] !== "..";
+    if (!contained) {
+      plan.push({
+        fixtureSource: await approvedWorkspaceFixtureTarget(source, sourceLink, physicalTarget),
+        relativeLink: relative(source, sourceLink)
+      });
+      continue;
+    }
 
-    const destinationLink = join(destination, relative(source, sourceLink));
-    const destinationTarget = join(destination, targetSuffix);
-    await rm(destinationLink, { recursive: true, force: true });
-    const targetType = (await stat(physicalTarget)).isDirectory()
-      ? process.platform === "win32" ? "junction" : "dir"
-      : "file";
-    await symlink(destinationTarget, destinationLink, targetType);
+    const targetStatus = await stat(physicalTarget);
+    plan.push({
+      relativeLink: relative(source, sourceLink),
+      targetSuffix,
+      targetType: targetStatus.isDirectory()
+        ? process.platform === "win32" ? "junction" : "dir"
+        : "file"
+    });
+  }
+
+  const fixture = plan.find(({ fixtureSource }) => fixtureSource !== undefined);
+  if (fixture !== undefined) {
+    await testHooks.afterFixtureTargetApproved?.({ fixtureSource: fixture.fixtureSource });
+  }
+
+  const temporaryRoot = await mkdtemp(join(dirname(destination), ".quality-closure-copy-"));
+  const stagedDestination = join(temporaryRoot, "node_modules");
+  const fixtureSnapshot = join(temporaryRoot, "public-api-fixture");
+  try {
+    if (fixture !== undefined) {
+      await cp(fixture.fixtureSource, fixtureSnapshot, {
+        recursive: true,
+        verbatimSymlinks: true
+      });
+      await validateWorkspaceFixtureSnapshot(fixtureSnapshot, testHooks);
+      await testHooks.afterFixtureSnapshotValidated?.({ fixtureSource: fixture.fixtureSource });
+    }
+
+    await cp(source, stagedDestination, { recursive: true, verbatimSymlinks: true });
+
+    for (const { fixtureSource, relativeLink, targetSuffix, targetType } of plan) {
+      const destinationLink = join(stagedDestination, relativeLink);
+      await rm(destinationLink, { recursive: true, force: true });
+      await mkdir(dirname(destinationLink), { recursive: true });
+      if (fixtureSource !== undefined) {
+        await rename(fixtureSnapshot, destinationLink);
+        continue;
+      }
+      await symlink(join(destination, targetSuffix), destinationLink, targetType);
+    }
+
+    await rename(stagedDestination, destination);
+  } finally {
+    await rm(temporaryRoot, { force: true, recursive: true });
   }
 }
 

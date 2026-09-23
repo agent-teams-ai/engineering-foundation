@@ -47,6 +47,7 @@
         "tests/package-boundary.test.mjs",
         "tests/package-boundary-agent-teams.test.mjs",
         "tests/pack-publish-manifest.test.mjs",
+        "tests/pack-quality-coverage-fixture.test.mjs",
         "tests/package-archive-entry-budget.test.mjs",
         "tests/pack-publishable-artifacts.test.mjs",
         "tests/repository-mutation-qualification-api.test.mjs",

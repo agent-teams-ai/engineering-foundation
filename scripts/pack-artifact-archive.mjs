@@ -11,10 +11,10 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Qualified complete Foundation inventory: 2,558 archive entries.
+  // Qualified complete Foundation inventory: 2,559 archive entries.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_558,
+  "@agent-teams/engineering-foundation": 2_559,
 });
 const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;

@@ -11,8 +11,8 @@
     },
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-scope.ts",
-      "start": 3098,
-      "end": 3159,
+      "start": 3066,
+      "end": 3127,
       "sha256": "143e4c4169daec9f823829ef60861723ef8ff0abcd82e43f7c708474d290f3a1",
       "rationale": "Closed versioned projected profile schema validation precedes desired-state interpretation.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs"

@@ -35,7 +35,7 @@ export async function assertRestorationManagedEffects(input: {
   requireRestoration(restorationJson(profileTarget) === restorationJson(target), "profile target differs from selected authority.");
   const workspace = originals.get("pnpm-workspace.yaml");
   const projected = await projectConsumerUpgradeFiles({
-    current, authority: { repository: "agent-teams-ai/.github", path: "governance/docs-qualified-cohorts.json", revision: "1".repeat(40), cohort: profileTarget as QualifiedDocsCohortBindingV2 },
+    current, authority: { repository: "agent-teams-ai/.github", path: "governance/docs-qualified-cohorts.json", revision: "1".repeat(40), cohort: profileTarget },
     manifest: original("package.json"), profile: original(INTEGRATION_PROFILE_PATH),
     ...(workspace === undefined ? {} : { workspace })
   });

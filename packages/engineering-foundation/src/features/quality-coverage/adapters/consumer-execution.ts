@@ -60,7 +60,7 @@ export function createQualityToolProvider(input: {
             return await inspectExplicitUnknown({ consumerRoot, paths: sourceTargets, admissionValue, read: input.readFile,
               ...(scanSignal === undefined ? {} : { signal: scanSignal }) });
           } catch (error) {
-            if (scanSignal?.aborted || error instanceof CapabilityInputError) { throw error; }
+            if (scanSignal?.aborted === true || error instanceof CapabilityInputError) { throw error; }
             invalidQualityInput(error instanceof Error ? error.message : "Explicit unknown scan failed.");
           }
         }
@@ -170,7 +170,7 @@ export async function inspectExplicitUnknown(input: {
   const matched = new Set<string>();
   const unadmitted: Finding[] = [];
   for (const path of input.paths.toSorted()) {
-    if (input.signal?.aborted) { throw input.signal.reason; }
+    if (input.signal?.aborted === true) { throw input.signal.reason; }
     if (!/\.(?:ts|tsx|mts|cts)$/u.test(path)) { continue; }
     const bytes = await input.read({ root: input.consumerRoot, candidate: resolve(input.consumerRoot, path), maxBytes: 2 * 1024 * 1024 });
     const source = decoder.decode(bytes);

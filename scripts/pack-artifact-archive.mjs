@@ -11,9 +11,7 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Qualified complete Foundation inventory: 626 TypeScript modules produce
-  // 2,504 JS/declaration/map files, plus 37 schemas, seven presets, three
-  // assets and package.json/LICENSE/README.md: 2,558 entries in total.
+  // Qualified complete Foundation inventory: 2,558 archive entries.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
   "@agent-teams/engineering-foundation": 2_558,

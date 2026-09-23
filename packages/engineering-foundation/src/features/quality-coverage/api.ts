@@ -1,7 +1,7 @@
 export { checkQualityCoverage, checkStaticQualityCoverage } from "./application/check-quality-coverage.js";
 export { createQualityCoverageCapability, createQualityCoverageCommand } from "./application/capability.js";
 export { QUALITY_COVERAGE_RULES_BY_ID, qualityDiagnostic } from "./application/rules.js";
-export type { QualityCoverageReader, QualityToolProvider, QualityToolSession, QualityCoverageObservation } from "./application/model.js";
+export type { QualityCoverageReader, QualityToolProvider, QualityToolSession, QualityCoverageObservation, ExplicitUnknownFinding } from "./application/model.js";
 export type { ManagedProcessExecutor, ManagedProcessResult } from "./application/tool-execution.js";
 export { containsScriptRoute, executesScript } from "./application/script-route.js";
 export { classifyQualityCensus, qualitySourceLanguage, qualitySourceTargets } from "./application/source-coverage.js";

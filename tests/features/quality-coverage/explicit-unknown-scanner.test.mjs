@@ -20,7 +20,8 @@ test("contained OXC scan rejects unreadable and unparseable production sources",
   await writeFile(join(root, path), "type Alias = string; const value = ((1 as /* bridge */ unknown)!) satisfies unknown as Alias;");
   const findings = await scan();
   assert.equal(findings.length, 1);
-  assert.equal(findings[0].ruleId, "quality.source-coverage.explicit-unknown");
+  assert.equal(findings[0].path, path);
+  assert.match(findings[0].sha256, /^[a-f0-9]{64}$/u);
   await writeFile(join(root, path), "type Alias = string; const value = <Alias>(<unknown>1);");
   assert.equal((await scan()).length, 1);
 });
@@ -43,8 +44,7 @@ test("scanner uses UTF-16 source identity across TS extensions and ignores widen
     const expectedStart = text.indexOf(expression);
     const findings = await inspectExplicitUnknown({ consumerRoot: root, paths: [path], read: readContainedRegularFile });
     assert.equal(findings.length, 1, path);
-    assert.equal(findings[0].subject, `${path}:${expectedStart}-${expectedStart + expression.length}`);
-    assert.equal(findings[0].evidence[1].value, bridge.sha256);
+    assert.deepEqual(findings[0], { path, start: expectedStart, end: expectedStart + expression.length, sha256: bridge.sha256 });
   }
   assert.deepEqual(await inspectExplicitUnknown({ consumerRoot: root, paths: [bridge.path], read: readContainedRegularFile,
     admissionValue: { schemaVersion: 1, bridges: [bridge] } }), []);

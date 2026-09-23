@@ -1928,6 +1928,7 @@ boundaries:
         - foundation.scaffolding.shared-adapters
       packages:
         - "@agent-teams/repository-mutation"
+        - ajv
       builtins:
         - node:fs/promises
         - node:path
@@ -3824,12 +3825,15 @@ boundaries:
     allow:
       boundaries:
         - foundation.quality-coverage.application
-      packages: []
+      packages:
+        - oxc-parser
       builtins:
+        - node:crypto
         - node:path
         - node:fs/promises
         - node:module
         - node:url
+        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/features/quality-coverage/node.ts

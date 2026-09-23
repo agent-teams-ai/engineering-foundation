@@ -74,6 +74,16 @@ test("selected files absent from production compiler context cannot reach typed 
   assert.ok(!execution.calls.includes("lint"));
 });
 
+test("application maps unadmitted source findings to rejecting diagnostics", async () => {
+  const execution = tool({ explicitUnknown: async () => [{ path, start: 12, end: 24, sha256: "a".repeat(64) }] });
+  const result = await checkQualityCoverage(invocation, reader(), execution.provider);
+  assert.equal(result.outcome, "violations");
+  assert.equal(result.diagnostics[0].ruleId, "quality.source-coverage.explicit-unknown");
+  assert.equal(result.diagnostics[0].subject, `${path}:12-24`);
+  assert.deepEqual(result.diagnostics[0].evidence[1], { kind: "actual", value: "a".repeat(64) });
+  assert.ok(!execution.calls.includes("lint"));
+});
+
 test("missing tools and malformed output are errors, never lint rejection evidence", async () => {
   for (const error of [new Error("malformed output"), new CapabilityInputError({ code: "QUALITY_TOOL_MISSING", message: "Missing pinned tool.", phase: "quality-tool", retryable: false })]) {
     const execution = tool({ select: async () => { throw error; } });

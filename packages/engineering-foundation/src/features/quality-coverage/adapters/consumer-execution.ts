@@ -2,14 +2,12 @@ import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { TextDecoder } from "node:util";
 import { parseSync, Visitor } from "oxc-parser";
-import type { FoundationDiagnostic } from "../../validation-reporting/api.js";
-import { qualityDiagnostic } from "../application/rules.js";
 import {
   assertNotCancelled,
   CapabilityInputError,
   qualitySourceTargets,
   type ManagedProcessExecutor, type QualityFileReader,
-  type QualityObservationPorts, type QualityToolProvider
+  type QualityObservationPorts, type QualityToolProvider, type ExplicitUnknownFinding
 } from "../api.js";
 import type { QualityConfigurationReader } from "./consumer-observations.js";
 import { inspectConsumerToolchain } from "./consumer-toolchain.js";
@@ -71,12 +69,7 @@ export function createQualityToolProvider(input: {
   };
 }
 
-interface Finding {
-  readonly path: string;
-  readonly start: number;
-  readonly end: number;
-  readonly sha256: string;
-}
+type Finding = ExplicitUnknownFinding;
 
 interface Admission extends Finding {
   readonly rationale: string;
@@ -157,14 +150,14 @@ function parseAdmission(entry: unknown): Admission {
   return item as Admission;
 }
 
-/** OXC objects end here. Only normalized findings enter the quality policy/report. */
+/** OXC objects end here. Only normalized findings enter application policy. */
 export async function inspectExplicitUnknown(input: {
   readonly consumerRoot: string;
   readonly paths: readonly string[];
   readonly admissionValue?: unknown;
   readonly read: QualityFileReader;
   readonly signal?: AbortSignal;
-}): Promise<readonly FoundationDiagnostic[]> {
+}): Promise<readonly Finding[]> {
   const records = input.admissionValue === undefined ? [] : admissions(input.admissionValue);
   const recordKeys = new Set<string>();
   for (const record of records) {
@@ -175,7 +168,7 @@ export async function inspectExplicitUnknown(input: {
     await input.read({ root: input.consumerRoot, candidate: resolve(input.consumerRoot, record.rejectingTest), maxBytes: 2 * 1024 * 1024 });
   }
   const matched = new Set<string>();
-  const diagnostics: FoundationDiagnostic[] = [];
+  const unadmitted: Finding[] = [];
   for (const path of input.paths.toSorted()) {
     if (input.signal?.aborted) { throw input.signal.reason; }
     if (!/\.(?:ts|tsx|mts|cts)$/u.test(path)) { continue; }
@@ -184,12 +177,11 @@ export async function inspectExplicitUnknown(input: {
     for (const finding of findChains(path, source)) {
       const identity = key(finding);
       if (recordKeys.has(identity)) { matched.add(identity); continue; }
-      diagnostics.push(qualityDiagnostic("explicit-unknown", path, `${path}:${finding.start}-${finding.end}`,
-        "Exact bridge admission with rationale and rejecting test", finding.sha256));
+      unadmitted.push(finding);
     }
   }
   for (const record of records) {
     if (!matched.has(key(record))) { throw new Error(`Stale or unmatched explicit unknown admission: ${record.path}:${record.start}.`); }
   }
-  return diagnostics;
+  return unadmitted;
 }

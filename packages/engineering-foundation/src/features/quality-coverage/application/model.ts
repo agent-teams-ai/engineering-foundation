@@ -41,6 +41,14 @@ export interface QualityCoverageObservation {
   readonly routes: readonly RequiredQualityRoute[];
 }
 
+/** Source-bound syntax evidence from the adapter; application policy owns diagnostics. */
+export interface ExplicitUnknownFinding {
+  readonly path: string;
+  readonly start: number;
+  readonly end: number;
+  readonly sha256: string;
+}
+
 /** An execution session binds selection, context and lint to the same inputs. */
 export interface QualityToolSession {
   select(signal?: AbortSignal): Promise<readonly string[]>;
@@ -50,7 +58,7 @@ export interface QualityToolSession {
     readonly diagnostics: readonly FoundationDiagnostic[];
   }>;
   /** Full mode only: source-bound syntax governance over the production inventory. */
-  explicitUnknown(signal?: AbortSignal): Promise<readonly FoundationDiagnostic[]>;
+  explicitUnknown(signal?: AbortSignal): Promise<readonly ExplicitUnknownFinding[]>;
 }
 
 export interface QualityCoverageReader {

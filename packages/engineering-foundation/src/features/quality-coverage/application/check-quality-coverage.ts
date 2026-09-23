@@ -5,7 +5,7 @@ import {
 import { evaluateSelectedCoverage, evaluateStaticCoverage, evaluateTypeContext } from "./evaluate-coverage.js";
 import type { QualityCoverageReader, QualityToolProvider } from "./model.js";
 import { qualitySourceLanguage } from "./source-coverage.js";
-import { QUALITY_COVERAGE_ID } from "./rules.js";
+import { QUALITY_COVERAGE_ID, qualityDiagnostic } from "./rules.js";
 
 /** Static validation has no process port and cannot accidentally execute a tool. */
 export async function checkStaticQualityCoverage(input: CapabilityInvocation, reader: QualityCoverageReader): Promise<CapabilityReport> {
@@ -40,7 +40,9 @@ export async function checkQualityCoverage(
     const typed = production.filter((path) => qualitySourceLanguage(path) === "typescript");
     diagnostics.push(...evaluateTypeContext(typed, await session.typeContext(input.signal)));
     if (diagnostics.length === 0 && !input.scopeOnly) {
-      diagnostics.push(...await session.explicitUnknown(input.signal));
+      diagnostics.push(...(await session.explicitUnknown(input.signal)).map(({ path, start, end, sha256 }) =>
+        qualityDiagnostic("explicit-unknown", path, `${path}:${start}-${end}`,
+          "Exact bridge admission with rationale and rejecting test", sha256)));
     }
     if (diagnostics.length === 0 && !input.scopeOnly) {
       const lint = await session.lint(input.signal);

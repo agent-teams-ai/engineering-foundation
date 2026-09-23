@@ -339,32 +339,32 @@
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 1968,
-      "end": 2082,
+      "start": 1961,
+      "end": 2075,
       "sha256": "23c8ba2e589b0f248e1dda5ff83c3393a626f10d4a62673ab16e3dc6e9c35f42",
       "rationale": "Closed identity fields require decimal strings before deserialization and narrowing.",
       "rejectingTest": "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 10922,
-      "end": 11437,
+      "start": 10915,
+      "end": 11430,
       "sha256": "3e5c95510f0b21edc4a904e013086e974bb57eb38d5f4ac7e4b3f72786efacee",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 11341,
-      "end": 11387,
+      "start": 11334,
+      "end": 11380,
       "sha256": "8ffbe9860691ce84d9e35649363336e07e014b629a7180de511bdc79f583e6bc",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"
     },
     {
       "path": "packages/repository-mutation/src/repository-mutation/application/policies/known-file-transaction-envelope.ts",
-      "start": 12695,
-      "end": 12736,
+      "start": 12688,
+      "end": 12729,
       "sha256": "449a379cf244001ecbb73be15c05913bec023d07c9fd91a3c03d69979507a835",
       "rationale": "Typed contract data crosses the canonical JSON representation boundary; canonicalization rejects invalid values.",
       "rejectingTest": "tests/known-file-transaction-plan.test.mjs"

@@ -380,7 +380,7 @@
     {
       "path": "schemas/quality-source-coverage/v1.schema.json",
       "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-source-coverage/v1",
-      "digest": "sha256:8a438a75df854103e17ffc4b85c4f2af87bf3f8011703319bf8ac69b7bf3e156",
+      "digest": "sha256:a5987fbc1d0686dc260aa2b7cc062aa2d0581de7deb1d7739b4d1d8cf1f76fb9",
       "discriminators": {
         "schemaVersion": {
           "const": 1

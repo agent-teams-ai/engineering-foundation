@@ -6,13 +6,17 @@ import {
   BOOTSTRAP_KNOWN_PRIOR_DOCS_SKILLS,
   CANONICAL_DOCS_SKILL_V2,
   canonicalCallerWorkflow,
+  canonicalManagedRoute,
   canonicalManagedState,
+  CANONICAL_TRANSITION_CATALOG,
   canonicalDocsScriptsDigest,
   describeCanonicalConsumerAssets
 } from "../dist/consumer-integration/application/policies/consumer-integration-assets.js";
 import {
   compileConsumerIntegration
 } from "../dist/consumer-integration/application/use-cases/plan-consumer-integration.js";
+import { loadPackageConsumerAssetCatalog } from
+  "../dist/consumer-integration/adapters/package-consumer-asset-catalog.js";
 
 const INTEGRITY = `sha512-${"A".repeat(86)}==`;
 const absent = Object.freeze({ state: "absent" });
@@ -175,6 +179,26 @@ test("profile v3 plans only canonical new assets and accepts exact managed-state
   );
 });
 
+test("exact stable21 and stable25 profile v3 sources remain current for a future direct upgrade", async () => {
+  const assetCatalog = await loadPackageConsumerAssetCatalog();
+  const history = JSON.parse(CANONICAL_TRANSITION_CATALOG).directTargetBundles;
+  for (const cohortId of ["docs-2026-09-12-stable21", "docs-2026-09-16-stable25"]) {
+    const binding = history.find(({ cohort }) => cohort.cohortId === cohortId)?.cohort;
+    assert.ok(binding, `${cohortId} requires a bundled source`);
+    const source = { ...desired(), cohort: binding };
+    const current = snapshot();
+    current.skill = file(CANONICAL_DOCS_SKILL_V2);
+    current.callerWorkflow = file(canonicalCallerWorkflow(binding));
+    current.managedState = file(canonicalManagedState(source, {
+      ...binding.assets,
+      agentsRouteDigest: digest(Buffer.from(canonicalManagedRoute(source.skillPath))),
+      docsScriptsDigest: canonicalDocsScriptsDigest(source.profilePath)
+    }));
+    const plan = compileConsumerIntegration({ desired: source, snapshot: current, assetCatalog }, ports([])).plan;
+    assert.equal(plan.outcome, "current", `${cohortId}: ${JSON.stringify(plan.issues)}`);
+  }
+});
+
 test("profile v3 blocks modified managed bytes, forged asset digests, and V1 catalogs", () => {
   const target = desired();
   const modified = snapshot();
@@ -300,7 +324,7 @@ test("optional portable projection leaves exact old managed state readable and s
   let writes = 0;
   const useCases = createConsumerIntegrationUseCases({
     input: { async read() {return { root: "/disposable", desired: target, snapshot: pending };} },
-    planning: ports([]), assets: { async read() {throw new Error("V1 catalog must not be read");} },
+    planning: ports([]), assets: { read: loadPackageConsumerAssetCatalog },
     transaction: {
       async inspect() {return { state: "idle" };},
       async apply() {writes++; throw new Error("must refuse before mutation");}

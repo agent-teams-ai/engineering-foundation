@@ -24,6 +24,7 @@ import {
 } from "../scripts/pack-publishable-artifacts.mjs";
 import { boundedDirectoryEntries } from "../scripts/pack-artifact-stage-support.mjs";
 import { assertSecretCanaryAbsent } from "../scripts/pack-test-support.mjs";
+import { registerPackedDocsAdapterHistoryTests } from "./pack-docs-adapter-history-cases.mjs";
 import {
   catalogEntry, compressedTar, createPackFixture, isPhysicallyContainedPath,
   qualifiedArchive, tarArchive, tarHeader,
@@ -57,9 +58,7 @@ function syntheticProjection(catalogOrder) {
   };
 }
 
-function requiredPolicy(packages) {
-  return Object.fromEntries(packages.map(({ name }) => [name, ["dist/index.js"]]));
-}
+const requiredPolicy = (packages) => Object.fromEntries(packages.map(({ name }) => [name, ["dist/index.js"]]));
 
 test("manifest projection drives deterministic transitive build support closure", () => {
   const first = syntheticProjection(["d", "unrelated", "c", "a", "b"]);
@@ -835,3 +834,5 @@ test("secret canary scanning remains fail closed", async (t) => {
   );
   await assert.rejects(assertSecretCanaryAbsent(root), /Secret-like content leaked/u);
 });
+
+registerPackedDocsAdapterHistoryTests();

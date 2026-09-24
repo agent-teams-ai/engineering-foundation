@@ -42,7 +42,8 @@ export type {
   CanonicalManagedAssetDigests,
   ConsumerAssetCatalogV1,
   CurrentSourceExecutorV1,
-  KnownPriorCohortCatalogEntryV1
+  KnownPriorCohortCatalogEntryV1,
+  KnownPriorCohortCatalogEntryV2
 } from "./application/policies/consumer-integration-assets.js";
 export {
   assertConsumerIntegrationDesiredStateV3,

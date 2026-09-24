@@ -20,6 +20,8 @@ import {
   canonicalDocsScriptsDigest,
   canonicalManagedRoute,
   canonicalManagedState,
+  type ConsumerAssetCatalogV1,
+  type KnownPriorCohortCatalogEntryV2,
   describeCanonicalConsumerAssets,
   digestBytes
 } from "../policies/consumer-integration-assets.js";
@@ -214,13 +216,17 @@ export function partialAsset(input: {
 }
 
 function cohortIssuesV3(
-  desired: ConsumerIntegrationDesiredStateV3
+  desired: ConsumerIntegrationDesiredStateV3,
+  historical: KnownPriorCohortCatalogEntryV2 | undefined
 ): readonly ConsumerIntegrationIssue[] {
   const canonical = describeCanonicalConsumerAssets(desired.cohort);
-  if (canonical.skillDigest === desired.cohort.assets.skillDigest &&
+  if ((canonical.skillDigest === desired.cohort.assets.skillDigest &&
     canonical.callerWorkflowDigest === desired.cohort.assets.callerWorkflowDigest &&
     canonical.assetCatalogDigest === desired.cohort.assets.assetCatalogDigest &&
-    canonical.transitionCatalogDigest === desired.cohort.assets.transitionCatalogDigest) {
+    canonical.transitionCatalogDigest === desired.cohort.assets.transitionCatalogDigest) ||
+    (historical !== undefined &&
+      digestBytes(historical.skill) === desired.cohort.assets.skillDigest &&
+      digestBytes(historical.callerWorkflow) === desired.cohort.assets.callerWorkflowDigest)) {
     return [];
   }
   return [issue(
@@ -233,9 +239,11 @@ function cohortIssuesV3(
 function planFullAssetsV3(input: {
   readonly desired: ConsumerIntegrationDesiredStateV3;
   readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly historical?: KnownPriorCohortCatalogEntryV2;
 }): readonly FullAssetResult[] {
-  const skillBytes = Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
-  const callerBytes = Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
+  const skillBytes = input.historical?.skill ?? Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
+  const callerBytes = input.historical?.callerWorkflow ??
+    Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
   const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");
   const managedStateBytes = Buffer.from(canonicalManagedState(input.desired, {
     skillDigest: digestBytes(skillBytes),
@@ -273,6 +281,7 @@ function planFullAssetsV3(input: {
 export function compileConsumerIntegrationV3(input: {
   readonly desired: ConsumerIntegrationDesiredStateV3;
   readonly snapshot: ConsumerIntegrationSnapshot;
+  readonly assetCatalog?: ConsumerAssetCatalogV1;
 }, ports: ConsumerIntegrationPlanningPorts): {
   readonly plan: ConsumerIntegrationPlanV1;
   readonly mutationPlan?: ReturnType<typeof compileKnownFileTransactionPlan>;
@@ -280,7 +289,10 @@ export function compileConsumerIntegrationV3(input: {
   assertConsumerIntegrationDesiredStateV3(input.desired);
   assertSnapshotRuntime(input.snapshot);
   const desired = input.desired;
-  const issues: ConsumerIntegrationIssue[] = [...cohortIssuesV3(desired)];
+  const historical = input.assetCatalog?.historicalV2Bundles?.find(({ cohort }) =>
+    canonicalConsumerIntegrationJson(cohort) === canonicalConsumerIntegrationJson(desired.cohort)
+  );
+  const issues: ConsumerIntegrationIssue[] = [...cohortIssuesV3(desired, historical)];
   const manifest = ports.packageManifest.plan({
     observation: input.snapshot.packageManifest,
     profilePath: desired.profilePath,
@@ -292,7 +304,7 @@ export function compileConsumerIntegrationV3(input: {
     skillPath: desired.skillPath
   });
   issues.push(...route.issues);
-  const results = planFullAssetsV3({ desired, snapshot: input.snapshot });
+  const results = planFullAssetsV3({ desired, snapshot: input.snapshot, ...(historical === undefined ? {} : { historical }) });
   for (const result of results) {
     if (result.issue !== undefined) {issues.push(result.issue);}
   }

@@ -12,6 +12,8 @@ import { CANONICAL_TRANSITION_CATALOG } from "../dist/consumer-integration/appli
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const PRIOR_DIRECT_TARGET_BUNDLES_DIGEST =
   "sha256:0a4400a503795b3335ff55d0290aee0ff3364cb1b17244a8cac7e5d491b60c74";
+const PUBLISHED_DIRECT_TARGET_BUNDLES_DIGEST =
+  "sha256:d5de2d9cf1076230dc663f6f1d99b21d39a4d0540cfe235a1af46236de177111";
 
 const STABLE23_COHORT = {
   schemaVersion: 2,
@@ -67,10 +69,13 @@ const STABLE23_COHORT = {
 test("stable18 through stable26 history bind exact generation2 authority and immutable assets", async () => {
   const catalog = JSON.parse(CANONICAL_TRANSITION_CATALOG);
   assert.equal(
-    digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, -1)))),
+    digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, 17)))),
     PRIOR_DIRECT_TARGET_BUNDLES_DIGEST,
     "The 17 previously published direct-target bundles must remain byte-for-byte unchanged"
   );
+  assert.equal(digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, -1)))),
+    PUBLISHED_DIRECT_TARGET_BUNDLES_DIGEST,
+    "All 18 published bundles, including stable26, must remain byte-for-byte unchanged");
   for (const [cohortId, recordDigest, eventDigest, version] of [
     ["docs-2026-09-10-stable18", "a156140015084e74459f1bc8dc6c61dfad9bf5d8f85cfbcba8cfdd7700f1867a",
       "5dfc82cfcb9f6be5484369ce4a39ff23dd6f4b74836f9fc5a164a4bf6dd56e18", "0.2.3"],
@@ -133,8 +138,45 @@ test("stable18 through stable26 history bind exact generation2 authority and imm
   assert.equal(stable26.cohort.packages.docsProtocolAgentTeams.version, "0.2.9");
   assert.equal(stable26.skillPath, stable23.skillPath);
   assert.equal(stable26.callerWorkflowPath, stable23.callerWorkflowPath);
+  const stable25 = catalog.directTargetBundles.find(
+    ({ cohort }) => cohort.cohortId === "docs-2026-09-16-stable25"
+  );
+  assert.ok(stable25);
+  assert.equal(stable25.cohort.recordDigest,
+    "sha256:105c34ecc7fc422939b43daaca513f9ce630ce69d4a2820d39423fcdc13dcc61");
+  assert.equal(stable25.cohort.qualificationEventDigest,
+    "sha256:090325fe7992c7ca15e03a5375188d006d8c410f7a895a219fafb4e735f5d28b");
+  assert.deepEqual(stable25.cohort.upgradeFrom, ["docs-2026-09-12-stable21"]);
+  assert.deepEqual(stable25.cohort.rollbackTo, ["docs-2026-09-12-stable21"]);
+  assert.deepEqual(stable25.cohort.assets, stable26.cohort.assets);
+  assert.deepEqual(stable25.cohort.workflow, stable26.cohort.workflow);
+  assert.deepEqual(stable25.cohort.schemas,
+    { consumerIntegration: 3, managedState: 2, docsProtocol: 1 });
+  assert.equal(stable25.cohort.runtime.runtimeClosureDigest,
+    "sha256:87cb5e3495848f453c1ac0e4dc8caa7d66828f0cab270cefd46d73dee2ea341a");
+  assert.deepEqual(Object.fromEntries(Object.entries(stable25.cohort.packages).map(
+    ([name, { version }]) => [name, version]
+  )), {
+    repositoryMutation: "0.2.0", documentAuthoring: "0.3.0", docsProtocol: "0.6.0",
+    docsProtocolAgentTeams: "0.2.9", engineeringFoundation: "1.4.0"
+  });
+  assert.deepEqual(stable25.cohort.packages.repositoryMutation, stable26.cohort.packages.repositoryMutation);
+  assert.deepEqual(stable25.cohort.packages.documentAuthoring, stable26.cohort.packages.documentAuthoring);
+  assert.deepEqual(stable25.cohort.packages.docsProtocol, stable26.cohort.packages.docsProtocol);
+  assert.deepEqual(stable25.cohort.packages.docsProtocolAgentTeams, stable26.cohort.packages.docsProtocolAgentTeams);
+  assert.equal(stable25.cohort.packages.engineeringFoundation.integrity,
+    "sha512-m8rLOvctyXu+kqN4LyCW4LIz303a7p+ZIvx+oieYIwst6DNBpsWUu/Ux7UZM3fZH5JTYhB4eSEBEfi5lUTt4vQ==");
+  for (const [path, expected] of [[stable25.skillPath, stable25.skillDigest],
+    [stable25.callerWorkflowPath, stable25.callerWorkflowDigest]]) {
+    assert.equal(digest(await readFile(join(import.meta.dirname, "..", path))), expected);
+  }
   const legacy = await loadPackageConsumerAssetCatalog();
   assert.ok(legacy.directTargetBundles.every(({ cohort }) => cohort.schemaVersion === 1));
+  assert.deepEqual(legacy.historicalV2Bundles.map(({ cohort }) => cohort.cohortId), [
+    "docs-2026-09-10-stable18", "docs-2026-09-10-stable19", "docs-2026-09-11-stable20",
+    "docs-2026-09-12-stable21", "docs-2026-09-15-stable23", "docs-2026-09-21-stable26",
+    "docs-2026-09-16-stable25"
+  ]);
 });
 
 test("package loader rejects malformed or corrupted generation2 history before legacy filtering", async () => {
@@ -171,6 +213,19 @@ test("package loader rejects malformed or corrupted generation2 history before l
       await writeFile(catalogPath, JSON.stringify(catalog));
       assert.throws(load, /TypeError/u);
     }
+    const stable25Id = "docs-2026-09-16-stable25";
+    const wrongIntegrity = structuredClone(original);
+    wrongIntegrity.directTargetBundles.find(
+      ({ cohort }) => cohort.cohortId === stable25Id
+    ).cohort.packages.engineeringFoundation.integrity = "sha512-invalid";
+    await writeFile(catalogPath, JSON.stringify(wrongIntegrity));
+    assert.throws(load, /TypeError/u);
+    const missingAsset = structuredClone(original);
+    missingAsset.directTargetBundles.find(
+      ({ cohort }) => cohort.cohortId === stable25Id
+    ).skillPath = "assets/history/sha256-" + "0".repeat(64) + "/skill.md";
+    await writeFile(catalogPath, JSON.stringify(missingAsset));
+    assert.throws(load);
     const duplicate = structuredClone(original);
     duplicate.directTargetBundles.push(structuredClone(stable23));
     await writeFile(catalogPath, JSON.stringify(duplicate));

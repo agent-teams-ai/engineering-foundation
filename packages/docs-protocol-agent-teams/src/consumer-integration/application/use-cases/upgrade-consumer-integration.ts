@@ -233,16 +233,11 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     const input = await ports.input.read({ consumerRoot: options.consumerRoot });
     const restorationIssue = restorationOptionIssue(options, input.desired, ports.restoration);
     if (restorationIssue !== undefined) {return restorationIssue;}
-    const source = input.desired.schemaVersion === 1
-      ? compileConsumerIntegration({
-          desired: input.desired,
-          snapshot: input.snapshot,
-          assetCatalog: await ports.assets.read()
-        }, ports.planning).plan
-      : compileConsumerIntegration({
-          desired: input.desired,
-          snapshot: input.snapshot
-        }, ports.planning).plan;
+    const source = compileConsumerIntegration({
+      desired: input.desired,
+      snapshot: input.snapshot,
+      assetCatalog: await ports.assets.read()
+    }, ports.planning).plan;
     if (source.outcome !== "current") {
       return blocked(issue(
         "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT",

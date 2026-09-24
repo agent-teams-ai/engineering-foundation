@@ -19,24 +19,24 @@
     },
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "start": 2553,
-      "end": 2611,
+      "start": 2629,
+      "end": 2687,
       "sha256": "7c5b17c52f6a639722e4f87d4b185a9fea15e9870304cc05e330ce26a167faf0",
       "rationale": "Closed package fields require string versions and integrities before format validation and narrowing.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
     },
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "start": 2993,
-      "end": 3051,
+      "start": 3069,
+      "end": 3127,
       "sha256": "941d9d38c16f32e37bd770325695825a473bf1fbc86d6fcbd3c645019d1b3ab6",
       "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"
     },
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts",
-      "start": 3541,
-      "end": 3599,
+      "start": 3617,
+      "end": 3675,
       "sha256": "391b24213c15e59a45eccd11a3d4e5e0f6929a72343562077bc23fe5b2956b62",
       "rationale": "Exact fields and digest or pinned package formats are checked before narrowing catalog data.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs"

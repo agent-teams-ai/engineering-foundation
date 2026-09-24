@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.11
+
+### Patch Changes
+
+- [#337](https://github.com/agent-teams-ai/engineering-foundation/pull/337) [`7368516`](https://github.com/agent-teams-ai/engineering-foundation/commit/73685166404c9127cccfcf2f6677278f5adf7b20) Thanks [@777genius](https://github.com/777genius)! - Bundle the exact qualified stable26 history so managed Docs consumers can upgrade directly from the current recommended cohort.
+
 ## 0.2.10
 
 ### Patch Changes

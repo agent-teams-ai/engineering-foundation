@@ -69,7 +69,8 @@ async function verifyPackedDocsAdapterHistory(adapterArtifact) {
     "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3",
     "docs-2026-08-28-stable8", "docs-2026-08-28-stable9.1", "docs-2026-08-31-stable10",
     "docs-2026-09-10-stable18", "docs-2026-09-10-stable19", "docs-2026-09-11-stable20",
-    "docs-2026-09-12-stable21", "docs-2026-09-15-stable23"
+    "docs-2026-09-12-stable21", "docs-2026-09-15-stable23",
+    "docs-2026-09-21-stable26"
   ];
   const actualIds = transitionCatalog.directTargetBundles.map(({ cohort }) => cohort.cohortId);
   if (transitionCatalog.currentSourceExecutors.length !== 0 ||
@@ -88,6 +89,15 @@ async function verifyPackedDocsAdapterHistory(adapterArtifact) {
       stable23.cohort.assets.transitionCatalogDigest !== "sha256:ab84cf314a24f9f32a3baabce0c814699366af6c2a4aeb91e59327bb6783606f" ||
       stable23.cohort.runtime.runtimeClosureDigest !== "sha256:6e768aa2e3be45c358d27d6a8a234f10806ba9ac22f1a003b36396ecc41ae157") {
     throw new Error("Packed adapter stable23 projection differs from central authority.");
+  }
+  const stable26 = transitionCatalog.directTargetBundles.at(-1);
+  if (stable26?.cohort.cohortId !== "docs-2026-09-21-stable26" ||
+      stable26.cohort.recordDigest !== "sha256:c96167d5b3fa35b9f331c528e0b3055643e5ba702eb08d1eee1c412e78889c30" ||
+      stable26.cohort.qualificationEventDigest !== "sha256:2b4b2b27583a6f2fd188f47ac8ec29e52db8224fcc66ab0ba1a364ba27312589" ||
+      stable26.cohort.packages.docsProtocolAgentTeams.version !== "0.2.9" ||
+      stable26.skillPath !== stable23.skillPath ||
+      stable26.callerWorkflowPath !== stable23.callerWorkflowPath) {
+    throw new Error("Packed adapter stable26 projection differs from central authority.");
   }
   for (const [path, expectedDigest] of [
     [stable23.skillPath, "sha256:a86d8c9b990124f11b50b1c6703e1aeb5e3b981d51f7e8f5c163c4f5b987d7c5"],

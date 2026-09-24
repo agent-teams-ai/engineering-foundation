@@ -24,7 +24,7 @@ import {
 } from "../scripts/pack-publishable-artifacts.mjs";
 import { boundedDirectoryEntries } from "../scripts/pack-artifact-stage-support.mjs";
 import { assertSecretCanaryAbsent } from "../scripts/pack-test-support.mjs";
-import { assertPackedDocsAdapterHistory } from "../scripts/pack-docs-adapter-history.mjs";
+import { registerPackedDocsAdapterHistoryTests } from "./pack-docs-adapter-history-cases.mjs";
 import {
   catalogEntry, compressedTar, createPackFixture, isPhysicallyContainedPath,
   qualifiedArchive, tarArchive, tarHeader,
@@ -58,9 +58,7 @@ function syntheticProjection(catalogOrder) {
   };
 }
 
-function requiredPolicy(packages) {
-  return Object.fromEntries(packages.map(({ name }) => [name, ["dist/index.js"]]));
-}
+const requiredPolicy = (packages) => Object.fromEntries(packages.map(({ name }) => [name, ["dist/index.js"]]));
 
 test("manifest projection drives deterministic transitive build support closure", () => {
   const first = syntheticProjection(["d", "unrelated", "c", "a", "b"]);
@@ -837,51 +835,4 @@ test("secret canary scanning remains fail closed", async (t) => {
   await assert.rejects(assertSecretCanaryAbsent(root), /Secret-like content leaked/u);
 });
 
-const catalog = JSON.parse(await readFile(new URL(
-  "../packages/docs-protocol-agent-teams/assets/transition-catalog.json",
-  import.meta.url
-), "utf8"));
-
-function changedCatalog(change) {
-  const copy = structuredClone(catalog);
-  change(copy.directTargetBundles);
-  return copy;
-}
-
-test("packed adapter history accepts stable25 after stable26", () => {
-  const stable23 = assertPackedDocsAdapterHistory(catalog);
-  assert.equal(stable23.cohort.cohortId, "docs-2026-09-15-stable23");
-});
-
-test("packed adapter history rejects missing, reordered, and duplicate cohorts", () => {
-  for (const change of [
-    (bundles) => bundles.pop(),
-    (bundles) => bundles.reverse(),
-    (bundles) => bundles.push(structuredClone(bundles.at(-1)))
-  ]) {
-    assert.throws(() => assertPackedDocsAdapterHistory(changedCatalog(change)),
-      /incomplete, reordered, or duplicated/);
-  }
-});
-
-test("packed adapter history rejects changed stable25 authority and integrity", () => {
-  for (const change of [
-    (bundle) => { bundle.cohort.recordDigest = "sha256:changed"; },
-    (bundle) => { bundle.cohort.qualificationEventDigest = "sha256:changed"; },
-    (bundle) => { bundle.cohort.assets.transitionCatalogDigest = "sha256:changed"; },
-    (bundle) => { bundle.cohort.packages.engineeringFoundation.integrity = "sha512-changed"; },
-    (bundle) => { bundle.skillPath = "assets/changed-skill.md"; }
-  ]) {
-    assert.throws(() => assertPackedDocsAdapterHistory(changedCatalog(
-      (bundles) => change(bundles.at(-1))
-    )), /stable25 projection differs/);
-  }
-});
-
-test("packed adapter history still qualifies stable26 by cohort ID", () => {
-  const changed = changedCatalog((bundles) => {
-    const stable26 = bundles.find(({ cohort }) => cohort.cohortId === "docs-2026-09-21-stable26");
-    stable26.cohort.recordDigest = "sha256:changed";
-  });
-  assert.throws(() => assertPackedDocsAdapterHistory(changed), /stable26 projection differs/);
-});
+registerPackedDocsAdapterHistoryTests();

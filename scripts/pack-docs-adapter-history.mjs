@@ -50,16 +50,17 @@ function hasStable25Authority(stable25) {
 }
 
 function hasStable25PackageVersionsAndIntegrity(stable25) {
-  return stable25.cohort.packages.docsProtocolAgentTeams.version === "0.2.9" &&
-      stable25.cohort.packages.docsProtocolAgentTeams.integrity === "sha512-3wFo/xK/l0eLNseN2H8xrdPHWmjVIyZFy3OkAvyfLfMYVTT0Rm9L/R+33U4h2JeN5Mqb9kK8nCEvEfMY9Vxq0Q==" &&
-      stable25.cohort.packages.engineeringFoundation.version === "1.4.0" &&
-      stable25.cohort.packages.engineeringFoundation.integrity === "sha512-m8rLOvctyXu+kqN4LyCW4LIz303a7p+ZIvx+oieYIwst6DNBpsWUu/Ux7UZM3fZH5JTYhB4eSEBEfi5lUTt4vQ==" &&
-      stable25.cohort.packages.docsProtocol.version === "0.6.0" &&
-      stable25.cohort.packages.docsProtocol.integrity === "sha512-xSlc0DFTGh0jed9581LoToHAXwxxZMhzlItbPeoc67YNBSDxLCP8XNwK0LCMs4w8MLqY6silJDtpzsHFw2XSVg==" &&
-      stable25.cohort.packages.documentAuthoring.version === "0.3.0" &&
-      stable25.cohort.packages.documentAuthoring.integrity === "sha512-LdNT8VHPQxXvuyXsCblFSeCmbEEZcXwiCTY1E+c0ZEWWJG0V2qoi95F8fHAwI4ngZLDmLr/yzHGyDqwkd9GBrA==" &&
-      stable25.cohort.packages.repositoryMutation.version === "0.2.0" &&
-      stable25.cohort.packages.repositoryMutation.integrity === "sha512-a02kzLlWtQjPAG2fFo/HyC+T6D+hW+FJ+aNCYoTLuTdKqeuL50hIvSnQLMUbGajWBb4nAvaINvW2jvmJ+Qku0g==";
+  const packages = stable25.cohort.packages;
+  return packages?.docsProtocolAgentTeams?.version === "0.2.9" &&
+      packages.docsProtocolAgentTeams.integrity === "sha512-3wFo/xK/l0eLNseN2H8xrdPHWmjVIyZFy3OkAvyfLfMYVTT0Rm9L/R+33U4h2JeN5Mqb9kK8nCEvEfMY9Vxq0Q==" &&
+      packages.engineeringFoundation?.version === "1.4.0" &&
+      packages.engineeringFoundation.integrity === "sha512-m8rLOvctyXu+kqN4LyCW4LIz303a7p+ZIvx+oieYIwst6DNBpsWUu/Ux7UZM3fZH5JTYhB4eSEBEfi5lUTt4vQ==" &&
+      packages.docsProtocol?.version === "0.6.0" &&
+      packages.docsProtocol.integrity === "sha512-xSlc0DFTGh0jed9581LoToHAXwxxZMhzlItbPeoc67YNBSDxLCP8XNwK0LCMs4w8MLqY6silJDtpzsHFw2XSVg==" &&
+      packages.documentAuthoring?.version === "0.3.0" &&
+      packages.documentAuthoring.integrity === "sha512-LdNT8VHPQxXvuyXsCblFSeCmbEEZcXwiCTY1E+c0ZEWWJG0V2qoi95F8fHAwI4ngZLDmLr/yzHGyDqwkd9GBrA==" &&
+      packages.repositoryMutation?.version === "0.2.0" &&
+      packages.repositoryMutation.integrity === "sha512-a02kzLlWtQjPAG2fFo/HyC+T6D+hW+FJ+aNCYoTLuTdKqeuL50hIvSnQLMUbGajWBb4nAvaINvW2jvmJ+Qku0g==";
 }
 
 function assertStable25Projection(stable25, stable23, stable26) {

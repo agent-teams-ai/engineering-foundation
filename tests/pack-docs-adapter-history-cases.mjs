@@ -41,6 +41,8 @@ export function registerPackedDocsAdapterHistoryTests() {
       (bundle) => { bundle.cohort.qualificationEventDigest = "sha256:changed"; },
       (bundle) => { bundle.cohort.assets.transitionCatalogDigest = "sha256:changed"; },
       (bundle) => { bundle.cohort.packages.engineeringFoundation.integrity = "sha512-changed"; },
+      (bundle) => { delete bundle.cohort.packages; },
+      (bundle) => { delete bundle.cohort.packages.engineeringFoundation; },
       (bundle) => { bundle.skillPath = "assets/changed-skill.md"; }
     ]) {
       assert.throws(() => assertPackedDocsAdapterHistory(changedCatalog(

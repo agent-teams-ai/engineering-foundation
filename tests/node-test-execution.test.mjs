@@ -360,7 +360,7 @@ process.exitCode = await maybeRunMandatoryNodeTests(files, {}, ${JSON.stringify(
     const aliased = spawnSync(process.execPath, [join(root, 'invoke.mjs'), hardlink],
       { cwd: root, encoding: 'utf8', env: childEnvironment });
     assert.equal(aliased.status, 1, aliased.stderr);
-    assert.match(aliased.stderr, /selection contains no mandatory identities/u);
+    assert.match(aliased.stderr, /selected file aliases an adopted entry/u);
 
     const caseAlias = join(root, 'CASES.TEST.MJS');
     const caseAliasStat = await stat(caseAlias, { bigint: true }).catch((error) => {
@@ -373,8 +373,19 @@ process.exitCode = await maybeRunMandatoryNodeTests(files, {}, ${JSON.stringify(
         const caseVariant = spawnSync(process.execPath, [join(root, 'invoke.mjs'), caseAlias],
           { cwd: root, encoding: 'utf8', env: childEnvironment });
         assert.equal(caseVariant.status, 1, caseVariant.stderr);
-        assert.match(caseVariant.stderr, /selection contains no mandatory identities/u);
+        assert.match(caseVariant.stderr, /selected file aliases an adopted entry/u);
       }
     }
+
+    const secondFile = 'second-required.test.mjs';
+    await writeFile(contractPath, JSON.stringify(contract([required, identity(secondFile, ['second required'])])));
+    await writeFile(adopted, passing);
+    await writeFile(join(root, secondFile), "import test from 'node:test'; test.skip('second required', () => {});");
+    const secondAlias = join(root, 'second-alias.test.mjs');
+    await link(join(root, secondFile), secondAlias);
+    const mixedAlias = spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile, secondAlias],
+      { cwd: root, encoding: 'utf8', env: childEnvironment });
+    assert.equal(mixedAlias.status, 1, mixedAlias.stderr);
+    assert.match(mixedAlias.stderr, /selected file aliases an adopted entry/u);
   });
 }));

@@ -12,16 +12,26 @@ export async function maybeRunMandatoryNodeTests(files, runOptions = {}, root = 
   try {
     const contract = JSON.parse(await readFile(join(root, contractPath), 'utf8'));
     const { required } = validateNodeTestContract(contract);
-    const selected = new Set(files.map((file) => relative(root, resolvePath(root, file)).split(sep).join('/')));
     const requiredFiles = new Set([...required.values()].map((item) => item.file));
-    if (![...requiredFiles].some((file) => selected.has(file))) {
-      const identity = ({ dev, ino }) => `${dev}:${ino}`;
-      const adopted = new Set(await Promise.all([...requiredFiles].map(async (file) =>
-        identity(await stat(join(root, file), { bigint: true })))));
-      const aliases = await Promise.all(files.map(async (file) =>
-        identity(await stat(resolvePath(root, file), { bigint: true }))));
-      if (!aliases.some((file) => adopted.has(file))) { return null; }
+    const identity = ({ dev, ino }) => `${dev}:${ino}`;
+    const adopted = new Map();
+    for (const file of requiredFiles) {
+      const key = identity(await stat(join(root, file), { bigint: true }));
+      if (adopted.has(key) && adopted.get(key) !== file) {
+        throw new Error(`mandatory contract aliases an adopted entry: ${file}`);
+      }
+      adopted.set(key, file);
     }
+    let mandatorySelected = false;
+    for (const file of files) {
+      const path = relative(root, resolvePath(root, file)).split(sep).join('/');
+      const adoptedFile = adopted.get(identity(await stat(resolvePath(root, file), { bigint: true })));
+      if (adoptedFile !== undefined && adoptedFile !== path) {
+        throw new Error(`selected file aliases an adopted entry: ${path}`);
+      }
+      mandatorySelected ||= adoptedFile !== undefined;
+    }
+    if (!mandatorySelected) { return null; }
     await runNodeTestExecution({ root, files, contractPath, runOptions });
     return 0;
   } catch (error) {

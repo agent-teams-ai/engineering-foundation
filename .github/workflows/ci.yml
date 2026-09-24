@@ -421,11 +421,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      # Successful runs 32652672062, 32654047694, and 32654516277 measured the
-      # former 1+2 lane at 431/414/424s versus 240/246/236s for 3+4. Pairing
-      # opposite shards separates the two longest observed Windows suites. The
-      # QGR synthetic and real-pnpm lifecycle qualification stays in shard 3,
-      # opposite shard 1. macOS repeats only the focused QGR lifecycle command.
+      # Keep shards 1 and 4 together. The larger 2+3 lane is split below after
+      # two exact-head runs hit its 65-minute timeout with tests still passing.
       - run: pnpm test:shard:built -- --shards 1,4
 
   windows-test-b:
@@ -444,7 +441,25 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 2,3
+      - run: pnpm test:shard:built -- --shards 2
+
+  windows-test-c:
+    name: windows-test-c
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm test:shard:built -- --shards 3
 
   windows-package:
     name: windows-package
@@ -510,6 +525,7 @@ jobs:
       - windows-static
       - windows-test-a
       - windows-test-b
+      - windows-test-c
       - windows-package
       - windows-registry
       - windows-published

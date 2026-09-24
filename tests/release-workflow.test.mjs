@@ -2164,6 +2164,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 45);
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
+  assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));
   assert.equal(
     manifest.scripts["published-compatibility:e2e"],
     "node scripts/published-compatibility-e2e.mjs",
@@ -2176,13 +2177,18 @@ test("release publishing requires real Buf and hermetic registry qualification",
   }
   const windowsTestA = ci.jobs["windows-test-a"];
   const windowsTestB = ci.jobs["windows-test-b"];
+  const windowsTestC = ci.jobs["windows-test-c"];
   assert.deepEqual(
     [windowsTestA.name, windowsTestA.steps.at(-1).run],
     ["windows-test-a", "pnpm test:shard:built -- --shards 1,4"],
   );
   assert.deepEqual(
     [windowsTestB.name, windowsTestB.steps.at(-1).run],
-    ["windows-test-b", "pnpm test:shard:built -- --shards 2,3"],
+    ["windows-test-b", "pnpm test:shard:built -- --shards 2"],
+  );
+  assert.deepEqual(
+    [windowsTestC.name, windowsTestC.steps.at(-1).run],
+    ["windows-test-c", "pnpm test:shard:built -- --shards 3"],
   );
   for (const job of [ci.jobs["linux-test-2"], windowsTestB]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));

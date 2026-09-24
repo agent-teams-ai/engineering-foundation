@@ -105,6 +105,14 @@
         "Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests"
       ],
       "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests",
+        "entry aliases cannot bypass mandatory identities"
+      ],
+      "kind": "test"
     }
   ],
   "exceptions": []

@@ -130,6 +130,8 @@ into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 mandatory Node case identities. Built, shard, coverage, and focused QGR scripts
 fail when the contract is missing or invalid. Selected files with adopted
 identities use structured completion evidence; other selected files still run.
+Case variants and hard links to an adopted file enter the mandatory route, where
+noncanonical entry paths fail instead of falling back to ordinary Node tests.
 The test manifest check requires every adopted file to belong to a required
 shard. Platform skips outside the declared identities retain their ordinary
 Node behavior. See [mandatory Node test execution](../reference/quality-gate-runner.md#mandatory-node-test-execution).

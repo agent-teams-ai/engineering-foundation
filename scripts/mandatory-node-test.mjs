@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { constants as osConstants } from 'node:os';
 import { join, relative, resolve as resolvePath, sep } from 'node:path';
@@ -13,7 +13,15 @@ export async function maybeRunMandatoryNodeTests(files, runOptions = {}, root = 
     const contract = JSON.parse(await readFile(join(root, contractPath), 'utf8'));
     const { required } = validateNodeTestContract(contract);
     const selected = new Set(files.map((file) => relative(root, resolvePath(root, file)).split(sep).join('/')));
-    if (![...required.values()].some((item) => selected.has(item.file))) { return null; }
+    const requiredFiles = new Set([...required.values()].map((item) => item.file));
+    if (![...requiredFiles].some((file) => selected.has(file))) {
+      const identity = ({ dev, ino }) => `${dev}:${ino}`;
+      const adopted = new Set(await Promise.all([...requiredFiles].map(async (file) =>
+        identity(await stat(join(root, file), { bigint: true })))));
+      const aliases = await Promise.all(files.map(async (file) =>
+        identity(await stat(resolvePath(root, file), { bigint: true }))));
+      if (!aliases.some((file) => adopted.has(file))) { return null; }
+    }
     await runNodeTestExecution({ root, files, contractPath, runOptions });
     return 0;
   } catch (error) {

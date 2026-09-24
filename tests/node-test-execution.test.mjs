@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, rm, stat, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -350,5 +350,31 @@ process.exitCode = await maybeRunMandatoryNodeTests(files, {}, ${JSON.stringify(
       { cwd: root, encoding: 'utf8', env: childEnvironment });
     assert.equal(unadoptedRun.status, 0, unadoptedRun.stderr);
     assert.match(unadoptedRun.stdout, /unadopted/u);
+  });
+  await t.test('entry aliases cannot bypass mandatory identities', async () => {
+    await writeContract();
+    await writeFile(join(root, testFile), skipped);
+    const adopted = join(root, testFile);
+    const hardlink = join(root, 'alias.test.mjs');
+    await link(adopted, hardlink);
+    const aliased = spawnSync(process.execPath, [join(root, 'invoke.mjs'), hardlink],
+      { cwd: root, encoding: 'utf8', env: childEnvironment });
+    assert.equal(aliased.status, 1, aliased.stderr);
+    assert.match(aliased.stderr, /selection contains no mandatory identities/u);
+
+    const caseAlias = join(root, 'CASES.TEST.MJS');
+    const caseAliasStat = await stat(caseAlias, { bigint: true }).catch((error) => {
+      if (error?.code === 'ENOENT') { return null; }
+      throw error;
+    });
+    if (caseAliasStat !== null) {
+      const adoptedStat = await stat(adopted, { bigint: true });
+      if (caseAliasStat.dev === adoptedStat.dev && caseAliasStat.ino === adoptedStat.ino) {
+        const caseVariant = spawnSync(process.execPath, [join(root, 'invoke.mjs'), caseAlias],
+          { cwd: root, encoding: 'utf8', env: childEnvironment });
+        assert.equal(caseVariant.status, 1, caseVariant.stderr);
+        assert.match(caseVariant.stderr, /selection contains no mandatory identities/u);
+      }
+    }
   });
 }));

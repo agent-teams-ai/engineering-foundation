@@ -11,7 +11,7 @@ import { CANONICAL_TRANSITION_CATALOG } from "../dist/consumer-integration/appli
 
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const PRIOR_DIRECT_TARGET_BUNDLES_DIGEST =
-  "sha256:451f8777c078c7de5ea1af2d4608b643ed10ae98b3bd825bb9ee6324ce9a0456";
+  "sha256:0a4400a503795b3335ff55d0290aee0ff3364cb1b17244a8cac7e5d491b60c74";
 
 const STABLE23_COHORT = {
   schemaVersion: 2,
@@ -64,12 +64,12 @@ const STABLE23_COHORT = {
   }
 };
 
-test("stable18 through stable23 history bind exact generation2 authority and immutable assets", async () => {
+test("stable18 through stable26 history bind exact generation2 authority and immutable assets", async () => {
   const catalog = JSON.parse(CANONICAL_TRANSITION_CATALOG);
   assert.equal(
     digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, -1)))),
     PRIOR_DIRECT_TARGET_BUNDLES_DIGEST,
-    "The 16 previously published direct-target bundles must remain byte-for-byte unchanged"
+    "The 17 previously published direct-target bundles must remain byte-for-byte unchanged"
   );
   for (const [cohortId, recordDigest, eventDigest, version] of [
     ["docs-2026-09-10-stable18", "a156140015084e74459f1bc8dc6c61dfad9bf5d8f85cfbcba8cfdd7700f1867a",
@@ -121,6 +121,18 @@ test("stable18 through stable23 history bind exact generation2 authority and imm
     skillDigest: STABLE23_COHORT.assets.skillDigest,
     skillPath: "assets/history/sha256-a86d8c9b990124f11b50b1c6703e1aeb5e3b981d51f7e8f5c163c4f5b987d7c5/skill.md"
   });
+  const stable26 = catalog.directTargetBundles.find(
+    ({ cohort }) => cohort.cohortId === "docs-2026-09-21-stable26"
+  );
+  assert.ok(stable26);
+  assert.equal(stable26.cohort.schemaVersion, 2);
+  assert.equal(stable26.cohort.recordDigest,
+    "sha256:c96167d5b3fa35b9f331c528e0b3055643e5ba702eb08d1eee1c412e78889c30");
+  assert.equal(stable26.cohort.qualificationEventDigest,
+    "sha256:2b4b2b27583a6f2fd188f47ac8ec29e52db8224fcc66ab0ba1a364ba27312589");
+  assert.equal(stable26.cohort.packages.docsProtocolAgentTeams.version, "0.2.9");
+  assert.equal(stable26.skillPath, stable23.skillPath);
+  assert.equal(stable26.callerWorkflowPath, stable23.callerWorkflowPath);
   const legacy = await loadPackageConsumerAssetCatalog();
   assert.ok(legacy.directTargetBundles.every(({ cohort }) => cohort.schemaVersion === 1));
 });

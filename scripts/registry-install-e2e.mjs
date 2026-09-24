@@ -35,6 +35,7 @@ import {
 } from "./registry-installed-package-qualification.mjs";
 import { registryPublishArguments } from "./registry-publication-policy.mjs";
 import { verifyRegistryQualityCast } from "./registry-quality-cast-e2e.mjs";
+import { verifyRegistryMandatoryNodeTests } from "./registry-mandatory-node-test-e2e.mjs";
 import { publishWithExactEffectReconciliation } from "./registry-publish-reconciliation.mjs";
 import {
   installRegistryConsumerWithRetry,
@@ -511,6 +512,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry) {
       verifyInstalledBufQualifier,
     });
     await verifyRegistryQualityCast({ consumerRoot, installedRoot: installedFoundationRoot });
+    await verifyRegistryMandatoryNodeTests({ consumerRoot, installedRoot: installedFoundationRoot });
   }
   const lockPath = join(
     consumerRoot,

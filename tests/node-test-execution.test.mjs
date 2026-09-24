@@ -292,7 +292,7 @@ test('public gate run built route propagates mandatory outcomes', async () => fi
     assert.equal(skipped.status, 0, `${skipped.stdout}\n${skipped.stderr}`);
 }));
 
-test('Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests', async () => fixture(async (root) => {
+test('Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests', async (t) => fixture(async (root) => {
   const contractPath = join(root, 'architecture/foundation/node-test-execution.json');
   await mkdir(join(root, 'architecture/foundation'), { recursive: true });
   await writeFile(join(root, 'invoke.mjs'), `import { maybeRunMandatoryNodeTests, runUnadoptedNodeTests }
@@ -308,37 +308,47 @@ process.exitCode = await maybeRunMandatoryNodeTests(files, {}, ${JSON.stringify(
     return spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile],
       { cwd: root, encoding: 'utf8', env: childEnvironment });
   };
-  await writeContract();
   const passing = "import { describe, it } from 'node:test'; describe('parent', () => { it('child', () => {}); });";
-  const passed = await runCase(passing);
-  assert.equal(passed.status, 0, passed.stderr);
-  for (const [label, source] of [
-    ['skipped case', "import { describe, it } from 'node:test'; describe('parent', () => { it.skip('child', () => {}); });"],
-    ['TODO case', "import { describe, it } from 'node:test'; describe('parent', () => { it.todo('child'); });"],
-    ['skipped suite', "import { describe, it } from 'node:test'; describe.skip('parent', () => { it('child', () => {}); });"],
-    ['omitted case', "import { describe, it } from 'node:test'; describe('parent', () => { it('other', () => {}); });"],
-  ]) {
-    assert.equal((await runCase(source)).status, 1, label);
-  }
-  await unlink(contractPath);
-  const missing = await runCase(passing);
-  assert.equal(missing.status, 1, 'missing contract must fail closed');
-  assert.match(missing.stderr, /ENOENT.*node-test-execution\.json/u);
+  await t.test('required pass, skip, TODO and omission', async () => {
+    await writeContract();
+    const passed = await runCase(passing);
+    assert.equal(passed.status, 0, passed.stderr);
+    for (const [label, source] of [
+      ['skipped case', "import { describe, it } from 'node:test'; describe('parent', () => { it.skip('child', () => {}); });"],
+      ['TODO case', "import { describe, it } from 'node:test'; describe('parent', () => { it.todo('child'); });"],
+      ['skipped suite', "import { describe, it } from 'node:test'; describe.skip('parent', () => { it('child', () => {}); });"],
+      ['omitted case', "import { describe, it } from 'node:test'; describe('parent', () => { it('other', () => {}); });"],
+    ]) {
+      assert.equal((await runCase(source)).status, 1, label);
+    }
+  });
+  await t.test('missing contract fails closed', async () => {
+    await unlink(contractPath);
+    const missing = await runCase(passing);
+    assert.equal(missing.status, 1, 'missing contract must fail closed');
+    assert.match(missing.stderr, /ENOENT.*node-test-execution\.json/u);
+  });
   const skipped = "import { describe, it } from 'node:test'; describe('parent', () => { it.skip('child', () => {}); });";
-  await writeContract([exception(required, 'skipped')]);
-  assert.equal((await runCase(skipped)).status, 0, 'applicable platform exception');
-  await writeContract([exception(required, 'skipped', process.platform === 'win32' ? 'linux' : 'win32')]);
-  assert.equal((await runCase(skipped)).status, 1, 'inapplicable platform exception');
-  await writeContract();
+  await t.test('platform-scoped exception', async () => {
+    await writeContract([exception(required, 'skipped')]);
+    assert.equal((await runCase(skipped)).status, 0, 'applicable platform exception');
+    await writeContract([exception(required, 'skipped', process.platform === 'win32' ? 'linux' : 'win32')]);
+    assert.equal((await runCase(skipped)).status, 1, 'inapplicable platform exception');
+  });
   const unadopted = join(root, 'unadopted.test.mjs');
-  await writeFile(join(root, testFile), passing);
-  await writeFile(unadopted, "import test from 'node:test'; test.skip('platform-only advisory case', () => {});");
-  const mixedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile, unadopted],
-    { cwd: root, encoding: 'utf8', env: childEnvironment });
-  assert.equal(mixedRun.status, 0, mixedRun.stderr);
-  await writeFile(unadopted, "import test from 'node:test'; test('unadopted', () => {});");
-  const unadoptedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), unadopted],
-    { cwd: root, encoding: 'utf8', env: childEnvironment });
-  assert.equal(unadoptedRun.status, 0, unadoptedRun.stderr);
-  assert.match(unadoptedRun.stdout, /unadopted/u);
+  await t.test('mixed mandatory and skipped unadopted selection', async () => {
+    await writeContract();
+    await writeFile(join(root, testFile), passing);
+    await writeFile(unadopted, "import test from 'node:test'; test.skip('platform-only advisory case', () => {});");
+    const mixedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile, unadopted],
+      { cwd: root, encoding: 'utf8', env: childEnvironment });
+    assert.equal(mixedRun.status, 0, mixedRun.stderr);
+  });
+  await t.test('unadopted-only selection', async () => {
+    await writeFile(unadopted, "import test from 'node:test'; test('unadopted', () => {});");
+    const unadoptedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), unadopted],
+      { cwd: root, encoding: 'utf8', env: childEnvironment });
+    assert.equal(unadoptedRun.status, 0, unadoptedRun.stderr);
+    assert.match(unadoptedRun.stdout, /unadopted/u);
+  });
 }));

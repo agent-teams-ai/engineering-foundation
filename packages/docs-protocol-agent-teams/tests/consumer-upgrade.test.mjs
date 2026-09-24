@@ -934,8 +934,15 @@ test("test-only Foundation 1.6 Cohort plans direct stable21 and stable25 origins
     const historical = catalog.historicalV2Bundles.find(({ cohort }) => cohort.cohortId === sourceId);
     assert.ok(historical, `missing ${sourceId} source bundle`);
     const current = desiredV3(structuredClone(historical.cohort));
-    options.mutateSource?.(current.cohort);
     const snapshot = sourceSnapshotV3(current);
+    options.mutateSource?.(current.cohort);
+    if (options.mutateSource !== undefined) {
+      const observed = JSON.parse(Buffer.from(snapshot.integrationProfile.bytes).toString("utf8"));
+      assert.equal(observed.cohort.packages.engineeringFoundation.integrity,
+        historical.cohort.packages.engineeringFoundation.integrity);
+      assert.notEqual(current.cohort.packages.engineeringFoundation.integrity,
+        observed.cohort.packages.engineeringFoundation.integrity);
+    }
     options.mutateSnapshot?.(snapshot);
     let stagedInput;
     const upgrade = createConsumerUpgradeUseCase({
@@ -973,6 +980,11 @@ test("test-only Foundation 1.6 Cohort plans direct stable21 and stable25 origins
   assert.equal(missingBundle.issues[0].code, "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT");
   for (const options of [
     { mutateSource: (cohort) => {cohort.packages.engineeringFoundation.integrity = V2_INTEGRITY;} },
+    { mutateSnapshot: (snapshot) => {
+      const wrongSource = desiredV3(structuredClone(stable25));
+      wrongSource.cohort.packages.engineeringFoundation.integrity = V2_INTEGRITY;
+      snapshot.managedState = sourceSnapshotV3(wrongSource).managedState;
+    } },
     { mutateSnapshot: (snapshot) => {snapshot.skill = fileObservation(Buffer.from("modified skill\n"));} },
     { mutateSnapshot: (snapshot) => {snapshot.managedState = fileObservation(Buffer.from("{}\n"));} }
   ]) {

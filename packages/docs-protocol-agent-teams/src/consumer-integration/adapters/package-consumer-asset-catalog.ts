@@ -8,6 +8,7 @@ import {
   type CurrentSourceExecutorV1,
   type KnownPriorCohortCatalogEntryV1,
   type KnownPriorCohortCatalogEntryV2,
+  type QualifiedDocsCohortBindingV2,
   type ConsumerAssetCatalogReader
 } from "../application-api.js";
 
@@ -117,9 +118,11 @@ function currentSource(value: unknown): CurrentSourceExecutorV1 {
   });
 }
 
-async function directTarget(value: unknown): Promise<
-  KnownPriorCohortCatalogEntryV1 | KnownPriorCohortCatalogEntryV2
-> {
+type LoadedTarget = Omit<KnownPriorCohortCatalogEntryV1, "cohort"> & {
+  readonly cohort: KnownPriorCohortCatalogEntryV1["cohort"] | QualifiedDocsCohortBindingV2;
+};
+
+async function directTarget(value: unknown): Promise<LoadedTarget> {
   const target = record(value, "directTargetBundle");
   if (!hasExactKeys(target, [
     "cohort", "skillPath", "skillDigest", "callerWorkflowPath", "callerWorkflowDigest",
@@ -147,9 +150,6 @@ async function directTarget(value: unknown): Promise<
     agentsRouteDigest,
     docsScriptsDigest
   });
-  if (cohort.schemaVersion === 2) {
-    return Object.freeze({ cohort, ...bundle });
-  }
   return Object.freeze({ cohort, ...bundle });
 }
 

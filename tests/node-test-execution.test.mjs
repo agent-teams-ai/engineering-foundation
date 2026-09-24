@@ -340,7 +340,7 @@ process.exitCode = await maybeRunMandatoryNodeTests(files, {}, ${JSON.stringify(
     await writeContract();
     await writeFile(join(root, testFile), passing);
     await writeFile(unadopted, "import test from 'node:test'; test.skip('platform-only advisory case', () => {});");
-    const mixedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile, unadopted],
+    const mixedRun = spawnSync(process.execPath, [join(root, 'invoke.mjs'), testFile, 'unadopted.test.mjs'],
       { cwd: root, encoding: 'utf8', env: childEnvironment });
     assert.equal(mixedRun.status, 0, mixedRun.stderr);
   });

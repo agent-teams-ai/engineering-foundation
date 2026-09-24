@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.12
+
+### Patch Changes
+
+- [#341](https://github.com/agent-teams-ai/engineering-foundation/pull/341) [`c4bd7ba`](https://github.com/agent-teams-ai/engineering-foundation/commit/c4bd7bacde9b40937260e012d93841fd92eeb4d9) Thanks [@777genius](https://github.com/777genius)! - Add the exact qualified stable25 Cohort as an immutable historical managed upgrade origin. This is pre-registration conformance evidence for a future separately qualified Cohort; it does not publish or activate that Cohort.
+
 ## 0.2.11
 
 ### Patch Changes

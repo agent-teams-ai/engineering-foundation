@@ -7,16 +7,16 @@ import { runNodeTestExecution, validateNodeTestContract } from '../packages/engi
 import { repositoryRoot } from './check-test-manifests.mjs';
 
 const contractPath = 'architecture/foundation/node-test-execution.json';
+const fileIdentity = ({ dev, ino }) => `${dev}:${ino}`;
 
 export async function maybeRunMandatoryNodeTests(files, runOptions = {}, root = repositoryRoot) {
   try {
     const contract = JSON.parse(await readFile(join(root, contractPath), 'utf8'));
     const { required } = validateNodeTestContract(contract);
     const requiredFiles = new Set([...required.values()].map((item) => item.file));
-    const identity = ({ dev, ino }) => `${dev}:${ino}`;
     const adopted = new Map();
     for (const file of requiredFiles) {
-      const key = identity(await stat(join(root, file), { bigint: true }));
+      const key = fileIdentity(await stat(join(root, file), { bigint: true }));
       if (adopted.has(key) && adopted.get(key) !== file) {
         throw new Error(`mandatory contract aliases an adopted entry: ${file}`);
       }
@@ -25,7 +25,7 @@ export async function maybeRunMandatoryNodeTests(files, runOptions = {}, root = 
     let mandatorySelected = false;
     for (const file of files) {
       const path = relative(root, resolvePath(root, file)).split(sep).join('/');
-      const adoptedFile = adopted.get(identity(await stat(resolvePath(root, file), { bigint: true })));
+      const adoptedFile = adopted.get(fileIdentity(await stat(resolvePath(root, file), { bigint: true })));
       if (adoptedFile !== undefined && adoptedFile !== path) {
         throw new Error(`selected file aliases an adopted entry: ${path}`);
       }

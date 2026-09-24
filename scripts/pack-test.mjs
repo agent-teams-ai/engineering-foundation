@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
+import { assertPackedDocsAdapterHistory } from "./pack-docs-adapter-history.mjs";
 import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
 import { testPackedSdkGrowth } from "./pack-sdk-growth-test.mjs";
 import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
@@ -63,42 +64,7 @@ async function verifyPackedDocsAdapterHistory(adapterArtifact) {
     join(packageRoot, "assets", "transition-catalog.json")
   );
   const transitionCatalog = JSON.parse(transitionCatalogBytes.toString("utf8"));
-  const expectedIds = [
-    "docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9",
-    "docs-2026-08-18-rc1", "docs-2026-08-18-rc2", "docs-2026-08-18-rc3",
-    "docs-2026-08-23-stable1", "docs-2026-08-24-stable2", "docs-2026-08-25-stable3",
-    "docs-2026-08-28-stable8", "docs-2026-08-28-stable9.1", "docs-2026-08-31-stable10",
-    "docs-2026-09-10-stable18", "docs-2026-09-10-stable19", "docs-2026-09-11-stable20",
-    "docs-2026-09-12-stable21", "docs-2026-09-15-stable23",
-    "docs-2026-09-21-stable26"
-  ];
-  const actualIds = transitionCatalog.directTargetBundles.map(({ cohort }) => cohort.cohortId);
-  if (transitionCatalog.currentSourceExecutors.length !== 0 ||
-      actualIds.length !== expectedIds.length || new Set(actualIds).size !== expectedIds.length ||
-      actualIds.some((id, index) => id !== expectedIds[index])) {
-    throw new Error("Packed adapter transition history is incomplete, reordered, or duplicated.");
-  }
-  const stable23 = transitionCatalog.directTargetBundles.find(
-    ({ cohort }) => cohort.cohortId === "docs-2026-09-15-stable23"
-  );
-  if (stable23 === undefined ||
-      stable23.cohort.recordDigest !== "sha256:287fca0b66c212e93d865b3a54fcb681eda12f4f8954c077a59148a348a361c9" ||
-      stable23.cohort.qualificationEventDigest !== "sha256:d65de3c1885c948dcdfa9b7fe79e9638ed74542ac32b85097ece90b5e02866d9" ||
-      stable23.cohort.packages.docsProtocolAgentTeams.version !== "0.2.8" ||
-      stable23.cohort.packages.engineeringFoundation.version !== "1.3.3" ||
-      stable23.cohort.assets.transitionCatalogDigest !== "sha256:ab84cf314a24f9f32a3baabce0c814699366af6c2a4aeb91e59327bb6783606f" ||
-      stable23.cohort.runtime.runtimeClosureDigest !== "sha256:6e768aa2e3be45c358d27d6a8a234f10806ba9ac22f1a003b36396ecc41ae157") {
-    throw new Error("Packed adapter stable23 projection differs from central authority.");
-  }
-  const stable26 = transitionCatalog.directTargetBundles.at(-1);
-  if (stable26?.cohort.cohortId !== "docs-2026-09-21-stable26" ||
-      stable26.cohort.recordDigest !== "sha256:c96167d5b3fa35b9f331c528e0b3055643e5ba702eb08d1eee1c412e78889c30" ||
-      stable26.cohort.qualificationEventDigest !== "sha256:2b4b2b27583a6f2fd188f47ac8ec29e52db8224fcc66ab0ba1a364ba27312589" ||
-      stable26.cohort.packages.docsProtocolAgentTeams.version !== "0.2.9" ||
-      stable26.skillPath !== stable23.skillPath ||
-      stable26.callerWorkflowPath !== stable23.callerWorkflowPath) {
-    throw new Error("Packed adapter stable26 projection differs from central authority.");
-  }
+  const stable23 = assertPackedDocsAdapterHistory(transitionCatalog);
   for (const [path, expectedDigest] of [
     [stable23.skillPath, "sha256:a86d8c9b990124f11b50b1c6703e1aeb5e3b981d51f7e8f5c163c4f5b987d7c5"],
     [stable23.callerWorkflowPath, "sha256:d8d3b1281990179ee25ded67ba160f0e7573d2f70707b8c5b312d70b68d85125"]

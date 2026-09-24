@@ -7,6 +7,7 @@ import {
   type ConsumerAssetCatalogV1,
   type CurrentSourceExecutorV1,
   type KnownPriorCohortCatalogEntryV1,
+  type KnownPriorCohortCatalogEntryV2,
   type ConsumerAssetCatalogReader
 } from "../application-api.js";
 
@@ -116,7 +117,9 @@ function currentSource(value: unknown): CurrentSourceExecutorV1 {
   });
 }
 
-async function directTarget(value: unknown): Promise<KnownPriorCohortCatalogEntryV1 | undefined> {
+async function directTarget(value: unknown): Promise<
+  KnownPriorCohortCatalogEntryV1 | KnownPriorCohortCatalogEntryV2
+> {
   const target = record(value, "directTargetBundle");
   if (!hasExactKeys(target, [
     "cohort", "skillPath", "skillDigest", "callerWorkflowPath", "callerWorkflowDigest",
@@ -138,14 +141,16 @@ async function directTarget(value: unknown): Promise<KnownPriorCohortCatalogEntr
     target["callerWorkflowDigest"] !== cohort.assets.callerWorkflowDigest) {
     throw new TypeError("Direct-target bundle assets differ from their Cohort binding.");
   }
-  if (cohort.schemaVersion === 2) {return undefined;}
-  return Object.freeze({
-    cohort,
+  const bundle = Object.freeze({
     skill,
     callerWorkflow,
     agentsRouteDigest,
     docsScriptsDigest
   });
+  if (cohort.schemaVersion === 2) {
+    return Object.freeze({ cohort, ...bundle });
+  }
+  return Object.freeze({ cohort, ...bundle });
 }
 
 export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCatalogV1> {
@@ -177,7 +182,12 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
   );
   const loadedTargets = await Promise.all(targets.map(directTarget));
   // V2 history is validated above, but is not executable by the V1 planner.
-  const directTargetBundles = loadedTargets.filter((target) => target !== undefined);
+  const directTargetBundles = loadedTargets.filter(
+    (target): target is KnownPriorCohortCatalogEntryV1 => target.cohort.schemaVersion === 1
+  );
+  const historicalV2Bundles = loadedTargets.filter(
+    (target): target is KnownPriorCohortCatalogEntryV2 => target.cohort.schemaVersion === 2
+  );
   const directTargetIds = new Set(targets.map((target: unknown) =>
     record(record(target, "directTargetBundle")["cohort"], "cohort")["cohortId"]));
   const legacyTargetIds = new Set(directTargetBundles.map(({ cohort }) => cohort.cohortId));
@@ -190,7 +200,8 @@ export async function loadPackageConsumerAssetCatalog(): Promise<ConsumerAssetCa
     catalogDigest: digestBytes(bytes),
     transitionCatalogDigest: digestBytes(transitionBytes),
     currentSourceExecutors: Object.freeze(currentSourceExecutors),
-    directTargetBundles: Object.freeze(directTargetBundles)
+    directTargetBundles: Object.freeze(directTargetBundles),
+    historicalV2Bundles: Object.freeze(historicalV2Bundles)
   });
 }
 

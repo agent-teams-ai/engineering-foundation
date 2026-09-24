@@ -76,6 +76,14 @@ export interface KnownPriorCohortCatalogEntryV1 {
   readonly docsScriptsDigest: ConsumerIntegrationDigest;
 }
 
+export interface KnownPriorCohortCatalogEntryV2 {
+  readonly cohort: QualifiedDocsCohortBindingV2;
+  readonly skill: Uint8Array;
+  readonly callerWorkflow: Uint8Array;
+  readonly agentsRouteDigest: ConsumerIntegrationDigest;
+  readonly docsScriptsDigest: ConsumerIntegrationDigest;
+}
+
 export interface CurrentSourceExecutorV1 {
   readonly packages: QualifiedDocsCohortBindingV1["packages"];
   readonly schemas: QualifiedDocsCohortBindingV1["schemas"];
@@ -93,6 +101,7 @@ export interface ConsumerAssetCatalogV1 {
   readonly transitionCatalogDigest: ConsumerIntegrationDigest;
   readonly currentSourceExecutors: readonly CurrentSourceExecutorV1[];
   readonly directTargetBundles: readonly KnownPriorCohortCatalogEntryV1[];
+  readonly historicalV2Bundles?: readonly KnownPriorCohortCatalogEntryV2[];
 }
 
 export interface CanonicalManagedAssetDigests {

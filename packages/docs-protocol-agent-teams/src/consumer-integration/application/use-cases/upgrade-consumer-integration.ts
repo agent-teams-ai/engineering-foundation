@@ -241,7 +241,8 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         }, ports.planning).plan
       : compileConsumerIntegration({
           desired: input.desired,
-          snapshot: input.snapshot
+          snapshot: input.snapshot,
+          assetCatalog: await ports.assets.read()
         }, ports.planning).plan;
     if (source.outcome !== "current") {
       return blocked(issue(

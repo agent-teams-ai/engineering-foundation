@@ -312,12 +312,14 @@ export function compileConsumerIntegration(input: {
           : { knownPriorCohorts: input.knownPriorCohorts })
       }, ports);
     case 3:
-      if (input.assetCatalog !== undefined || input.knownPriorCohorts !== undefined) {
+      if (input.knownPriorCohorts !== undefined ||
+        (input.assetCatalog !== undefined && input.assetCatalog.historicalV2Bundles === undefined)) {
         throw new TypeError("Consumer integration profile v3 does not accept V1 asset catalogs.");
       }
       return compileConsumerIntegrationV3({
         desired: input.desired,
-        snapshot: input.snapshot
+        snapshot: input.snapshot,
+        ...(input.assetCatalog === undefined ? {} : { assetCatalog: input.assetCatalog })
       }, ports);
   }
 }

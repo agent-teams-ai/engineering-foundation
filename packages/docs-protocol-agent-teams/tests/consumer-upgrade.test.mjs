@@ -842,7 +842,7 @@ test("coordinates a profile-v3 rollback with exact source HEAD and managed preim
   const preimage = Buffer.from("before-v3\n");
   const postimage = Buffer.from("after-v3\n");
   const upgrade = createConsumerUpgradeUseCase({
-    assets: { read: async () => {throw new Error("V3 must not read the V1 catalog");} },
+    assets: packageConsumerAssetCatalogReader,
     authority: { read: async () => authority },
     input: { read: async () => ({
       desired: current,
@@ -899,6 +899,85 @@ test("coordinates a profile-v3 rollback with exact source HEAD and managed preim
   for (const proof of Object.values(prepared.managedPreimages)) {
     assert.equal(proof.mode, 0o644);
     assert.match(proof.digest, /^sha256:[0-9a-f]{64}$/u);
+  }
+});
+
+test("test-only Foundation 1.6 Cohort plans direct stable21 and stable25 origins and rejects drift", async () => {
+  const catalog = await packageConsumerAssetCatalogReader.read();
+  const sourceIds = ["docs-2026-09-12-stable21", "docs-2026-09-16-stable25"];
+  const stable25 = catalog.historicalV2Bundles.find(({ cohort }) =>
+    cohort.cohortId === sourceIds[1]
+  ).cohort;
+  const target = {
+    ...cohortV2("docs-test-only-future-foundation-1-6", {
+      upgradeFrom: sourceIds,
+      rollbackTo: sourceIds
+    }),
+    packages: {
+      ...stable25.packages,
+      docsProtocolAgentTeams: { version: "0.2.12", integrity: V2_INTEGRITY },
+      engineeringFoundation: {
+        version: "1.6.0",
+        integrity: "sha512-E6ytO+3xhZsaPTo49DRuhldQBRMFlF06EGqqERuGHrc4q11eLssTA9fsbEGCm1e4B8n/i8AsMt2ZkQklFeolWA=="
+      }
+    }
+  };
+  assert.deepEqual(target.schemas, { consumerIntegration: 3, managedState: 2, docsProtocol: 1 });
+  const authority = {
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: "8".repeat(40),
+    cohort: target
+  };
+  const staged = new Error("candidate reached sandbox planning");
+  async function attempt(sourceId, options = {}) {
+    const historical = catalog.historicalV2Bundles.find(({ cohort }) => cohort.cohortId === sourceId);
+    assert.ok(historical, `missing ${sourceId} source bundle`);
+    const current = desiredV3(structuredClone(historical.cohort));
+    options.mutateSource?.(current.cohort);
+    const snapshot = sourceSnapshotV3(current);
+    options.mutateSnapshot?.(snapshot);
+    let stagedInput;
+    const upgrade = createConsumerUpgradeUseCase({
+      assets: { read: async () => options.catalog ?? catalog },
+      authority: { read: async () => options.authority ?? authority },
+      input: { read: async () => ({ desired: current, snapshot, root: "/test-only-consumer",
+        repositoryHead: "a".repeat(40) }) },
+      planning: consumerIntegrationPlanningPorts,
+      sandbox: { prepareV2: async (input) => { stagedInput = input; throw staged; } },
+      transaction: { inspect: async () => ({ state: "idle" }) }
+    });
+    try {
+      return await upgrade({ consumerRoot: "/test-only-consumer", targetGeneration: 2, to: target.cohortId });
+    } catch (error) {
+      if (error !== staged) {throw error;}
+      return { stagedInput };
+    }
+  }
+  for (const sourceId of sourceIds) {
+    const result = await attempt(sourceId);
+    assert.equal(result.stagedInput.current.cohort.cohortId, sourceId);
+    assert.equal(result.stagedInput.authority.cohort.packages.engineeringFoundation.version, "1.6.0");
+    assert.deepEqual(Object.keys(result.stagedInput.managedPreimages).toSorted(),
+      ["callerWorkflow", "managedState", "skill"]);
+  }
+  const noEdge = await attempt(sourceIds[1], { authority: {
+    ...authority, cohort: { ...target, upgradeFrom: [] }
+  } });
+  assert.equal(noEdge.issues[0].code, "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN");
+  const missingBundle = await attempt(sourceIds[1], { catalog: {
+    ...catalog, historicalV2Bundles: catalog.historicalV2Bundles.filter(
+      ({ cohort }) => cohort.cohortId !== sourceIds[1]
+    )
+  } });
+  assert.equal(missingBundle.issues[0].code, "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT");
+  for (const options of [
+    { mutateSource: (cohort) => {cohort.packages.engineeringFoundation.integrity = V2_INTEGRITY;} },
+    { mutateSnapshot: (snapshot) => {snapshot.skill = fileObservation(Buffer.from("modified skill\n"));} },
+    { mutateSnapshot: (snapshot) => {snapshot.managedState = fileObservation(Buffer.from("{}\n"));} }
+  ]) {
+    const rejected = await attempt(sourceIds[1], options);
+    assert.equal(rejected.issues[0].code, "DOCS_CONSUMER_UPGRADE_SOURCE_NOT_CURRENT");
   }
 });
 

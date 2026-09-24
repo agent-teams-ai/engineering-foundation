@@ -35,7 +35,8 @@ async function compile(
       }, ports.planning)
     : compileConsumerIntegration({
         desired: input.desired,
-        snapshot: input.snapshot
+        snapshot: input.snapshot,
+        assetCatalog: await ports.assets.read()
       }, ports.planning);
   return {
     root: input.root,

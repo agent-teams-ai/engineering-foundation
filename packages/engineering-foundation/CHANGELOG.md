@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.6.1
+
+### Patch Changes
+
+- [#343](https://github.com/agent-teams-ai/engineering-foundation/pull/343) [`f8b8c85`](https://github.com/agent-teams-ai/engineering-foundation/commit/f8b8c85feb927d99155bba2d4ee8c62f3e49d583) Thanks [@777genius](https://github.com/777genius)! - Report governed SDK packages excluded from the observed pnpm workspace as incomplete growth evidence, while retaining the full governed candidate scope and publishing a full coverage report.
+
 ## 1.6.0
 
 ### Minor Changes

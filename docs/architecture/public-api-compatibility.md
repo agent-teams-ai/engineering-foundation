@@ -51,20 +51,23 @@ remain authoritative.
 ### Current status: implemented, dormant (2026-09-25)
 
 The v1 compatibility gate is the active SDK protection. It rejects breaking
-changes (`breaking-change-not-approved`), undeclared runtime exports and
-policy or baseline repointing through the ordinary `foundation:check` route.
+changes (`breaking-change-not-approved`), runtime exports outside the closed
+`package.json` `exports` contract described above, and policy or baseline
+repointing through the ordinary `foundation:check` route.
 Additions pass v1 and remain visible in the baseline diff and the growth
 report, where the repository owner reviews them in the pull request.
 
 SDK growth qualification ([v2](#sdk-growth-execution-v2-pre-s3)) and the
 trusted authority entrypoint ([S3, protocol v3](../reference/sdk-growth-s3-authority.md))
 are implemented and tested but intentionally not used. Without a trusted host,
-v2 always reports `incomplete` and never admits growth. The owner decided not
-to build the host: the threat it covers, a pull request forging its own
-baseline or approval, is unlikely while one owner reviews and merges every
-pull request, and closing it would take roughly 1,500-2,500 lines across
-ReviewRouter and EF. Get Modular and Agent Runtime profiles keep
-`activation: hold` with all claims `false`.
+v2 never produces a trusted pass or admits growth. The owner decided not to
+build the host: the threat it covers, a pull request forging its own baseline
+or approval, is unlikely while one owner reviews and merges every pull
+request, and the owner's estimate for closing it is 1,500-2,500 lines across
+ReviewRouter and EF. The Get Modular and Agent Runtime SDK growth profiles stay
+unactivated. While this decision stands, G1/A3 activation and any C0 lane that
+requires an activated G1, such as K1, remain blocked. The frozen C0 contract is
+not edited.
 
 Accepted limits of the active gate. A candidate pull request can rewrite a
 released baseline in place, approve its own break through a new accepted ADR
@@ -74,15 +77,18 @@ visible in the diff, and review has to catch it.
 
 Known v2 defect, not fixed while v2 is dormant: a package without wildcard
 exports projects zero artifact entrypoints, but `package-public-api-baseline/v1`
-requires at least one. Its released artifact observation is therefore
-unrepresentable, and v2 reports a false `breaking-change-not-approved`.
+requires at least one. A faithful released artifact observation is rejected by
+the schema. A placeholder `.` entrypoint without items passes the schema but is
+compared as a removed entrypoint, so v2 reports a false
+`breaking-change-not-approved` on an unchanged package.
 
 Revisit this decision when pull requests merge without owner review, for
 example with external contributors or unattended agent auto-merge. Reviving
 it requires:
 
-- a ReviewRouter implementation of the v3 host port instead of the current v1
-  codec, with a storage migration for multi-package custody;
+- a ReviewRouter implementation of the v3 host port (its production
+  composition used the v1 codec as of 2026-09-25), with a storage migration for
+  multi-package custody;
 - a real owner-approval authority behind ReviewRouter's trusted ingestion
   ports;
 - a verifier runner that executes this entrypoint;

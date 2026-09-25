@@ -139,8 +139,8 @@ export function registerRestorationSelectionTests(helpers) {
         [fixture.current.skillPath, (bytes) => Buffer.concat([bytes, Buffer.from("\nUnrelated instructions.\n")])],
         ["architecture/foundation/docs-consumer-integration.json", (bytes) => Buffer.from(bytes.toString().replace('"owner": "', '"owner": "foreign/'))]
       ];
-      for (const [path, change] of targets) {
-        await t.test(`recomputed overreach: ${path}`, async () => {
+      for (const [index, [path, change]] of targets.entries()) {
+        await t.test(`recomputed overreach ${index + 1}: ${path}`, async () => {
           const before = Buffer.from(migrated[path].bytes, "base64"); const after = change(before);
           // The profile has no free owner field; change a preserved path instead.
           const candidateBytes = after.equals(before) ? Buffer.from(before.toString().replace('"profilePath": "', '"profilePath": "foreign/')) : after;

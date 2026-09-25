@@ -168,7 +168,7 @@ test("authenticated non-release root remains in admitted report while package re
       surface: { status: "available", value: accepted.trustedBase }, compatibilitySnapshots }; } }, {
       packedCandidates: () => accepted.candidates, resolution: () => ({ grant: accepted })
     }, fingerprint), context: { async read() { return context; } }, fingerprint });
-  const report = projectGrowthReport(await run(), fingerprint);
+  const report = projectGrowthReport(await run(), fingerprint, []);
   assert.equal(report.verdict, "admitted"); assert.equal(report.releaseEligible, true);
   assert.deepEqual(report.coverage.map(row => row.packageName), ["fixture", "workspace-root"]);
   assert.deepEqual(report.released.map(row => row.packageName), ["fixture"]);

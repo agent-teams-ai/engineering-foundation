@@ -261,7 +261,7 @@ test("report projection validates complete receipts and truthful unavailable and
     comparison: compareGrowthSurfaces({ trustedBefore: surface, candidateAfter: surface }, fingerprint),
     compatibility: { status: "complete", diagnostics: [], reasons: [] },
     released: [{ packageName: "fixture", observation: surface, qualification: { receiptDigest: digest }, evidence: { kind: "released" } }] };
-  const complete = validateGrowthReport(projectGrowthReport(execution, fingerprint), fingerprint);
+  const complete = validateGrowthReport(projectGrowthReport(execution, fingerprint, []), fingerprint);
   assert.equal(complete.verdict, "admitted");
   assert.ok(complete.phases.every(row => row.status === "complete"));
   assert.equal(complete.transitionReceipts.length, 1);
@@ -274,13 +274,26 @@ test("report projection validates complete receipts and truthful unavailable and
       removed.released[0].evidence = { kind, history: { status: "available", value: digest } };
     }
     removed.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:removed-package-compatibility-unavailable"] };
-    const report = validateGrowthReport(projectGrowthReport(removed, fingerprint), fingerprint);
+    const report = validateGrowthReport(projectGrowthReport(removed, fingerprint, []), fingerprint);
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.releaseEligible, false);
     assert.equal(report.released.length, 1);
     assert.equal(report.coverage[0].packageName, "fixture");
     assert.equal(report.releasedComparison.status, "incomplete");
     assert.deepEqual(report.phases.map(row => row.name), ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"]);
+  }
+  // An unobserved candidate keeps the full governed scope and never claims scope drift.
+  const unobserved = structuredClone(execution);
+  unobserved.observation.surface = { status: "unavailable", reasons: ["workspace-observation-unavailable"] };
+  unobserved.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:candidate-unobserved"] };
+  const unobservedReport = validateGrowthReport(projectGrowthReport(unobserved, fingerprint, ["fixture", "governed-only"]), fingerprint);
+  assert.equal(unobservedReport.verdict, "incomplete");
+  assert.deepEqual(unobservedReport.coverage.map(row => row.packageName), ["fixture", "governed-only"]);
+  for (const row of unobservedReport.coverage) {
+    for (const dimension of row.dimensions.filter(entry => entry.dimension !== "decision")) {
+      assert.equal(dimension.status, "unavailable");
+      assert.deepEqual(dimension.reasons, ["candidate:workspace-observation-unavailable"]);
+    }
   }
   const initial = structuredClone(execution);
   initial.observation.surface.value.entries = [{ coordinate: { packageName: "fixture", exportPath: ".", resolutionBranch: [],
@@ -290,7 +303,7 @@ test("report projection validates complete receipts and truthful unavailable and
   initial.comparison = compareGrowthSurfaces({ trustedBefore: initial.baseSurface, candidateAfter: initial.observation.surface }, fingerprint);
   initial.released = [{ packageName: "fixture", qualification: { receiptDigest: digest },
     evidence: { kind: "initial-unreleased", history: { status: "available", value: digest } } }];
-  const initialReport = validateGrowthReport(projectGrowthReport(initial, fingerprint), fingerprint);
+  const initialReport = validateGrowthReport(projectGrowthReport(initial, fingerprint, []), fingerprint);
   assert.equal(initialReport.verdict, "admitted");
   assert.equal(initialReport.releasedComparison.status, "complete");
   assert.equal(initialReport.releasedComparison.transitions.length, 1);
@@ -301,13 +314,13 @@ test("report projection validates complete receipts and truthful unavailable and
   const invalidPolicy = structuredClone(initialReport);
   invalidPolicy.releasedComparison.transitions[0].policyVersion = "unknown";
   assert.throws(() => validateGrowthReport(invalidPolicy, fingerprint), { reason: "invalid-growth-report" });
-  const missingInitial = validateGrowthReport(projectGrowthReport(initial, fingerprint), fingerprint);
+  const missingInitial = validateGrowthReport(projectGrowthReport(initial, fingerprint, []), fingerprint);
   assert.equal(missingInitial.verdict, "incomplete");
   assert.deepEqual(missingInitial.transitionReceipts, []);
   assert.equal(missingInitial.released[0].evidence.kind, "initial-unreleased");
   const unavailable = structuredClone(execution);
   unavailable.authority = { status: "unverified", reasons: ["z", "a"] };
-  const incomplete = validateGrowthReport(projectGrowthReport(unavailable, fingerprint), fingerprint);
+  const incomplete = validateGrowthReport(projectGrowthReport(unavailable, fingerprint, []), fingerprint);
   assert.equal(incomplete.verdict, "incomplete");
   assert.deepEqual(incomplete.transitionReceipts, []);
   assert.deepEqual(incomplete.authority.reasons, ["a", "z"]);
@@ -316,7 +329,7 @@ test("report projection validates complete receipts and truthful unavailable and
     for (const value of [undefined, null, "", " \t\n"]) {
       const missingAuthority = structuredClone(execution);
       missingAuthority.authority[field] = value;
-      const report = validateGrowthReport(projectGrowthReport(missingAuthority, fingerprint), fingerprint);
+      const report = validateGrowthReport(projectGrowthReport(missingAuthority, fingerprint, []), fingerprint);
       assert.deepEqual(report.authority, { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] });
       assert.equal(report.verdict, "incomplete");
       assert.equal(report.releaseEligible, false);
@@ -326,14 +339,14 @@ test("report projection validates complete receipts and truthful unavailable and
   for (const value of [undefined, null, "", "not-a-digest"]) {
     const invalidAuthority = structuredClone(execution);
     invalidAuthority.authority.receiptDigest = value;
-    const report = validateGrowthReport(projectGrowthReport(invalidAuthority, fingerprint), fingerprint);
+    const report = validateGrowthReport(projectGrowthReport(invalidAuthority, fingerprint, []), fingerprint);
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.authority.status, "unverified");
   }
   for (const value of [undefined, null, { receiptDigest: null }, { receiptDigest: "not-a-digest" }]) {
     const invalidQualification = structuredClone(execution);
     invalidQualification.released[0].qualification = value;
-    const report = validateGrowthReport(projectGrowthReport(invalidQualification, fingerprint), fingerprint);
+    const report = validateGrowthReport(projectGrowthReport(invalidQualification, fingerprint, []), fingerprint);
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.releasedComparison.status, "incomplete");
   }
@@ -344,7 +357,7 @@ test("report projection validates complete receipts and truthful unavailable and
   }
   const broken = structuredClone(execution);
   broken.compatibility.status = "rejected";
-  const rejected = validateGrowthReport(projectGrowthReport(broken, fingerprint), fingerprint);
+  const rejected = validateGrowthReport(projectGrowthReport(broken, fingerprint, []), fingerprint);
   assert.equal(rejected.verdict, "rejected");
   assert.equal(rejected.phases.find(row => row.name === "released").status, "failed");
   assert.deepEqual(rejected.transitionReceipts, []);

@@ -98,6 +98,109 @@ test("existing public check route preserves v1 and publishes deterministic incom
   });
 });
 
+test("public check reports governed package scope drift without losing the full release scope", async () => {
+  await withPublicApiFixture(async root => {
+    const configPath = join(root, "architecture/foundation/public-api-compatibility.yaml");
+    const config = parse(await readFile(configPath, "utf8"));
+    await cp("tests/fixtures/governance-architecture-decisions/valid", root, { recursive: true });
+    await cp("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", join(root, "architecture/foundation/governance-architecture-decisions.yaml"));
+    config.schemaVersion = 2;
+    config.governanceConfigPath = "architecture/foundation/governance-architecture-decisions.yaml";
+    config.sdkGrowth = {
+      contractRevision: "foundation:sdk-growth:c0:5", policyVersion: "foundation:sdk-growth:policy:1",
+      comparison: { trustedBasePath: "evidence/base.json", released: [
+        { packageName: "@fixture/public-api", kind: "released", observationPath: "evidence/released.json" }
+      ] }, decisionsPath: "evidence/decisions.json", reportPath: "reports/sdk.json"
+    };
+    await writeFile(configPath, stringify(config));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture-root", private: true, version: "1.0.0" }));
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    await mkdir(join(root, "reports"));
+    await mkdir(join(root, "evidence"));
+    await writeFile(join(root, "evidence/decisions.json"), "[]");
+    execFileSync("git", ["init", "--quiet", root]);
+    execFileSync("git", ["-C", root, "add", "packages", "pnpm-workspace.yaml"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture"]);
+    const baseline = check(root);
+    assert.equal(baseline.result.status, 2, JSON.stringify(baseline.report));
+    const baselineBytes = await readFile(join(root, "reports/sdk.json"));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - other/*\n");
+    execFileSync("git", ["-C", root, "add", "pnpm-workspace.yaml"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture scope drift"]);
+    const drift = check(root);
+    assert.equal(drift.result.status, 2, JSON.stringify(drift.report));
+    assert.equal(drift.report.capabilities[0].problem.code, "SDK_GROWTH_EVIDENCE_INCOMPLETE");
+    const driftBytes = await readFile(join(root, "reports/sdk.json"));
+    assert.notDeepEqual(driftBytes, baselineBytes);
+    const report = JSON.parse(driftBytes);
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.releaseEligible, false);
+    assert.equal(report.candidate.status, "available");
+    assert.deepEqual(report.coverage.map(row => row.packageName), ["@fixture/public-api", "fixture-root"]);
+    assert.ok(report.coverage.find(row => row.packageName === "@fixture/public-api").dimensions
+      .some(row => row.dimension === "topology" && row.status === "unavailable" && row.reasons.includes("package-outside-observed-topology")));
+    assert.ok(report.trustedBaseComparison.reasons.includes("growth-release-topology-unavailable"));
+    assert.deepEqual(check(root).report, drift.report);
+    assert.deepEqual(await readFile(join(root, "reports/sdk.json")), driftBytes);
+  });
+});
+
+test("public check retains configured packages outside workspace selection as unavailable coverage", async () => {
+  await withPublicApiFixture(async root => {
+    const configPath = join(root, "architecture/foundation/public-api-compatibility.yaml");
+    const config = parse(await readFile(configPath, "utf8"));
+    await cp("tests/fixtures/governance-architecture-decisions/valid", root, { recursive: true });
+    await cp("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", join(root, "architecture/foundation/governance-architecture-decisions.yaml"));
+    config.schemaVersion = 2;
+    config.governanceConfigPath = "architecture/foundation/governance-architecture-decisions.yaml";
+    config.sdkGrowth = {
+      contractRevision: "foundation:sdk-growth:c0:5", policyVersion: "foundation:sdk-growth:policy:1",
+      comparison: { trustedBasePath: "evidence/base.json", released: [
+        { packageName: "@fixture/public-api", kind: "released", observationPath: "evidence/released.json" }
+      ] }, decisionsPath: "evidence/decisions.json", reportPath: "reports/sdk.json"
+    };
+    const orphan = structuredClone(config.packages[0]);
+    orphan.packageName = "@fixture/orphan";
+    orphan.packageRoot = "other/orphan";
+    orphan.manifestPath = "other/orphan/package.json";
+    orphan.tsconfigPath = "other/orphan/tsconfig.json";
+    orphan.entrypoints[0].declarationEntryPoint = "other/orphan/dist/index.d.ts";
+    orphan.releasedBaselinePath = "architecture/public-api/orphan.json";
+    config.packages.push(orphan);
+    await writeFile(configPath, stringify(config));
+    await cp(join(root, "packages/library"), join(root, "other/orphan"), { recursive: true });
+    const orphanManifest = JSON.parse(await readFile(join(root, orphan.manifestPath), "utf8"));
+    orphanManifest.name = orphan.packageName;
+    await writeFile(join(root, orphan.manifestPath), JSON.stringify(orphanManifest));
+    const orphanBaseline = JSON.parse(await readFile(join(root, "architecture/public-api/public-api.json"), "utf8"));
+    orphanBaseline.packageName = orphan.packageName;
+    await writeFile(join(root, orphan.releasedBaselinePath), JSON.stringify(orphanBaseline));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture-root", private: true, version: "1.0.0" }));
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    await mkdir(join(root, "reports"));
+    await mkdir(join(root, "evidence"));
+    await writeFile(join(root, "evidence/decisions.json"), "[]");
+    execFileSync("git", ["init", "--quiet", root]);
+    execFileSync("git", ["-C", root, "add", "packages", "other", "pnpm-workspace.yaml"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture"]);
+    const result = check(root);
+    assert.equal(result.result.status, 2, JSON.stringify(result.report));
+    const report = JSON.parse(await readFile(join(root, "reports/sdk.json"), "utf8"));
+    assert.deepEqual(report.coverage.map(row => row.packageName), ["@fixture/orphan", "@fixture/public-api", "fixture-root"]);
+    const orphanCoverage = report.coverage.find(row => row.packageName === "@fixture/orphan");
+    assert.equal(orphanCoverage.classification, "governed");
+    assert.ok(orphanCoverage.dimensions.every(row => row.status === "unavailable"));
+    assert.ok(orphanCoverage.dimensions.filter(row => row.dimension !== "decision")
+      .every(row => row.reasons.includes("package-outside-observed-topology")));
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.releaseEligible, false);
+    assert.deepEqual(report.transitionReceipts, []);
+    assert.ok(report.trustedBaseComparison.reasons.includes("growth-release-topology-unavailable"));
+  });
+});
+
 test("v2 rejects protected report destinations before loading execution inputs", async () => {
   const { loadCapabilityConfig } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js");
   const { assertSchema } = await import("../packages/engineering-foundation/dist/schema-catalog.js");
@@ -158,7 +261,7 @@ test("report projection validates complete receipts and truthful unavailable and
     comparison: compareGrowthSurfaces({ trustedBefore: surface, candidateAfter: surface }, fingerprint),
     compatibility: { status: "complete", diagnostics: [], reasons: [] },
     released: [{ packageName: "fixture", observation: surface, qualification: { receiptDigest: digest }, evidence: { kind: "released" } }] };
-  const complete = validateGrowthReport(projectGrowthReport(execution, fingerprint), fingerprint);
+  const complete = validateGrowthReport(projectGrowthReport(execution, fingerprint, []), fingerprint);
   assert.equal(complete.verdict, "admitted");
   assert.ok(complete.phases.every(row => row.status === "complete"));
   assert.equal(complete.transitionReceipts.length, 1);
@@ -171,13 +274,41 @@ test("report projection validates complete receipts and truthful unavailable and
       removed.released[0].evidence = { kind, history: { status: "available", value: digest } };
     }
     removed.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:removed-package-compatibility-unavailable"] };
-    const report = validateGrowthReport(projectGrowthReport(removed, fingerprint), fingerprint);
+    const report = validateGrowthReport(projectGrowthReport(removed, fingerprint, []), fingerprint);
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.releaseEligible, false);
     assert.equal(report.released.length, 1);
     assert.equal(report.coverage[0].packageName, "fixture");
     assert.equal(report.releasedComparison.status, "incomplete");
     assert.deepEqual(report.phases.map(row => row.name), ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"]);
+  }
+  // An unobserved candidate keeps the full governed scope and never claims scope drift.
+  const unobserved = structuredClone(execution);
+  unobserved.observation.surface = { status: "unavailable", reasons: ["workspace-observation-unavailable"] };
+  unobserved.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:candidate-unobserved"] };
+  const unobservedReport = validateGrowthReport(projectGrowthReport(unobserved, fingerprint, ["fixture", "governed-only"]), fingerprint);
+  assert.equal(unobservedReport.verdict, "incomplete");
+  assert.deepEqual(unobservedReport.coverage.map(row => row.packageName), ["fixture", "governed-only"]);
+  for (const row of unobservedReport.coverage) {
+    for (const dimension of row.dimensions.filter(entry => entry.dimension !== "decision")) {
+      assert.equal(dimension.status, "unavailable");
+      assert.deepEqual(dimension.reasons, ["candidate:workspace-observation-unavailable"]);
+    }
+  }
+  // A trusted-base package excluded from an observed candidate gets exactly one side prefix,
+  // whether the observer supplied a placeholder row or omitted the package entirely.
+  for (const placeholder of [true, false]) {
+    const excluded = structuredClone(execution);
+    excluded.observation.surface.value.coverage = placeholder ? [{ packageName: "fixture", classification: "governed",
+      dimensions: surface.value.coverage[0].dimensions.map(({ dimension }) => ({ dimension, status: "unavailable", reasons: ["package-outside-observed-topology"] })) }] : [];
+    excluded.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:excluded-package-compatibility-unavailable"] };
+    const excludedReport = validateGrowthReport(projectGrowthReport(excluded, fingerprint, ["fixture"]), fingerprint);
+    assert.equal(excludedReport.verdict, "incomplete");
+    for (const dimension of excludedReport.coverage[0].dimensions.filter(entry => entry.dimension !== "decision")) {
+      assert.equal(dimension.status, "unavailable");
+      assert.ok(dimension.reasons.includes("candidate:package-outside-observed-topology"), JSON.stringify(dimension));
+      assert.ok(dimension.reasons.every(reason => !reason.startsWith("candidate:candidate:")), JSON.stringify(dimension));
+    }
   }
   const initial = structuredClone(execution);
   initial.observation.surface.value.entries = [{ coordinate: { packageName: "fixture", exportPath: ".", resolutionBranch: [],
@@ -187,7 +318,7 @@ test("report projection validates complete receipts and truthful unavailable and
   initial.comparison = compareGrowthSurfaces({ trustedBefore: initial.baseSurface, candidateAfter: initial.observation.surface }, fingerprint);
   initial.released = [{ packageName: "fixture", qualification: { receiptDigest: digest },
     evidence: { kind: "initial-unreleased", history: { status: "available", value: digest } } }];
-  const initialReport = validateGrowthReport(projectGrowthReport(initial, fingerprint), fingerprint);
+  const initialReport = validateGrowthReport(projectGrowthReport(initial, fingerprint, []), fingerprint);
   assert.equal(initialReport.verdict, "admitted");
   assert.equal(initialReport.releasedComparison.status, "complete");
   assert.equal(initialReport.releasedComparison.transitions.length, 1);
@@ -198,13 +329,13 @@ test("report projection validates complete receipts and truthful unavailable and
   const invalidPolicy = structuredClone(initialReport);
   invalidPolicy.releasedComparison.transitions[0].policyVersion = "unknown";
   assert.throws(() => validateGrowthReport(invalidPolicy, fingerprint), { reason: "invalid-growth-report" });
-  const missingInitial = validateGrowthReport(projectGrowthReport(initial, fingerprint), fingerprint);
+  const missingInitial = validateGrowthReport(projectGrowthReport(initial, fingerprint, []), fingerprint);
   assert.equal(missingInitial.verdict, "incomplete");
   assert.deepEqual(missingInitial.transitionReceipts, []);
   assert.equal(missingInitial.released[0].evidence.kind, "initial-unreleased");
   const unavailable = structuredClone(execution);
   unavailable.authority = { status: "unverified", reasons: ["z", "a"] };
-  const incomplete = validateGrowthReport(projectGrowthReport(unavailable, fingerprint), fingerprint);
+  const incomplete = validateGrowthReport(projectGrowthReport(unavailable, fingerprint, []), fingerprint);
   assert.equal(incomplete.verdict, "incomplete");
   assert.deepEqual(incomplete.transitionReceipts, []);
   assert.deepEqual(incomplete.authority.reasons, ["a", "z"]);
@@ -213,7 +344,7 @@ test("report projection validates complete receipts and truthful unavailable and
     for (const value of [undefined, null, "", " \t\n"]) {
       const missingAuthority = structuredClone(execution);
       missingAuthority.authority[field] = value;
-      const report = validateGrowthReport(projectGrowthReport(missingAuthority, fingerprint), fingerprint);
+      const report = validateGrowthReport(projectGrowthReport(missingAuthority, fingerprint, []), fingerprint);
       assert.deepEqual(report.authority, { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] });
       assert.equal(report.verdict, "incomplete");
       assert.equal(report.releaseEligible, false);
@@ -223,14 +354,14 @@ test("report projection validates complete receipts and truthful unavailable and
   for (const value of [undefined, null, "", "not-a-digest"]) {
     const invalidAuthority = structuredClone(execution);
     invalidAuthority.authority.receiptDigest = value;
-    const report = validateGrowthReport(projectGrowthReport(invalidAuthority, fingerprint), fingerprint);
+    const report = validateGrowthReport(projectGrowthReport(invalidAuthority, fingerprint, []), fingerprint);
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.authority.status, "unverified");
   }
   for (const value of [undefined, null, { receiptDigest: null }, { receiptDigest: "not-a-digest" }]) {
     const invalidQualification = structuredClone(execution);
     invalidQualification.released[0].qualification = value;
-    const report = validateGrowthReport(projectGrowthReport(invalidQualification, fingerprint), fingerprint);
+    const report = validateGrowthReport(projectGrowthReport(invalidQualification, fingerprint, []), fingerprint);
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.releasedComparison.status, "incomplete");
   }
@@ -241,7 +372,7 @@ test("report projection validates complete receipts and truthful unavailable and
   }
   const broken = structuredClone(execution);
   broken.compatibility.status = "rejected";
-  const rejected = validateGrowthReport(projectGrowthReport(broken, fingerprint), fingerprint);
+  const rejected = validateGrowthReport(projectGrowthReport(broken, fingerprint, []), fingerprint);
   assert.equal(rejected.verdict, "rejected");
   assert.equal(rejected.phases.find(row => row.name === "released").status, "failed");
   assert.deepEqual(rejected.transitionReceipts, []);

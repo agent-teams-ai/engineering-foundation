@@ -2,6 +2,7 @@ import { compareGrowthSurfaces, hashGrowthPayload } from "./compare-growth-surfa
 import type { GrowthComparison } from "../model/growth-admission.js";
 import type { SdkGrowthAdmissionExecution } from "../use-cases/admit-sdk-growth.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
+import { growthDimensions } from "../model/growth-observation.js";
 import type { GrowthCoverage } from "../model/growth-observation.js";
 import type { GrowthReport } from "../model/growth-report.js";
 import { growthReportPhases } from "../model/growth-report.js";
@@ -9,14 +10,15 @@ import { growthCanonicalJson, growthObservationReference, growthUniqueSorted, no
 
 /** Project only retained evidence. V1 release snapshots cannot manufacture
  * released growth observations or trusted transition receipts. */
-export function projectGrowthReport(execution: SdkGrowthAdmissionExecution, fingerprint: ChangeFingerprint): GrowthReport {
+export function projectGrowthReport(execution: SdkGrowthAdmissionExecution, fingerprint: ChangeFingerprint,
+  governedPackages: readonly string[]): GrowthReport {
   const surface = execution.observation.surface;
   const candidate = surface.status === "available" ? { status: "available" as const,
     value: growthObservationReference(surface.value, fingerprint) } : surface;
   const authority = projectAuthority(execution.authority);
   const releasedComparison = compareReleased(execution, fingerprint);
   const decisionComplete = authority.status === "verified" && execution.admission.status !== "incomplete";
-  const coverage = reportCoverage(execution, decisionComplete);
+  const coverage = reportCoverage(execution, decisionComplete, governedPackages);
   const released: GrowthReport["released"] = growthUniqueSorted(execution.released, (row) => row.packageName).map((row) => ({
     packageName: row.packageName, evidence: row.evidence.kind === "initial-unreleased"
       ? { kind: "initial-unreleased", history: row.evidence.history }
@@ -118,16 +120,24 @@ function projectAuthority(authority: SdkGrowthAdmissionExecution["authority"]): 
     : { status: "unverified", reasons: ["growth-workflow-and-run-reference-unavailable"] };
 }
 
-function reportCoverage(execution: SdkGrowthAdmissionExecution, decisionComplete: boolean): GrowthCoverage[] {
+function reportCoverage(execution: SdkGrowthAdmissionExecution, decisionComplete: boolean, governedPackages: readonly string[]): GrowthCoverage[] {
   const base = execution.baseSurface.status === "available" ? execution.baseSurface.value.coverage : [];
-  const candidate = execution.observation.surface.status === "available" ? execution.observation.surface.value.coverage : [];
-  const names = [...new Set([...base, ...candidate].map((row) => row.packageName))].toSorted();
+  const surface = execution.observation.surface;
+  const candidate = surface.status === "available" ? surface.value.coverage : [];
+  // Only an observed candidate proves that a governed package left the topology;
+  // otherwise the candidate row is missing for the surface's own reason.
+  const candidateMissing = surface.status === "available" ? ["candidate:package-outside-observed-topology"]
+    : surface.reasons.map((reason) => `candidate:${reason}`);
+  const names = [...new Set([...base.map((row) => row.packageName), ...candidate.map((row) => row.packageName),
+    ...execution.released.map((row) => row.packageName), ...governedPackages])].toSorted();
   const baseByPackage = new Map(base.map((entry) => [entry.packageName, entry]));
   const candidateByPackage = new Map(candidate.map((entry) => [entry.packageName, entry]));
   const rank = { complete: 0, limited: 1, unsupported: 2, unavailable: 3 };
   return names.map((name) => {
     const previous = baseByPackage.get(name), current = candidateByPackage.get(name);
-    const row = current ?? previous!;
+    const row = current ?? previous ?? { packageName: name, classification: "governed" as const,
+      dimensions: growthDimensions.map((dimension) => ({ dimension, status: "unavailable" as const,
+        reasons: candidateMissing })) };
     const beforeByDimension = new Map(previous?.dimensions.map((entry) => [entry.dimension, entry]));
     const afterByDimension = new Map(current?.dimensions.map((entry) => [entry.dimension, entry]));
     return { ...row, dimensions: row.dimensions.map((dimension) => {
@@ -136,7 +146,8 @@ function reportCoverage(execution: SdkGrowthAdmissionExecution, decisionComplete
       }
       const before = beforeByDimension.get(dimension.dimension);
       const after = afterByDimension.get(dimension.dimension);
-      if (before === undefined || after === undefined) { return dimension; }
+      if (after === undefined) { return { ...dimension, status: "unavailable", reasons: candidateMissing }; }
+      if (before === undefined) { return dimension; }
       return { ...dimension, status: rank[before.status] > rank[after.status] ? before.status : after.status,
         reasons: [...before.reasons.map((reason) => `trusted-base:${reason}`), ...after.reasons.map((reason) => `candidate:${reason}`)].toSorted() };
     }) };

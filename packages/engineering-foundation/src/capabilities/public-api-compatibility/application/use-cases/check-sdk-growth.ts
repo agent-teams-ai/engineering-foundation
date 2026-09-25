@@ -53,7 +53,8 @@ export async function executeSdkGrowth(input: {
   if (growthCanonicalJson(finalInvocation) !== growthCanonicalJson(invocation)) {
     throw new GrowthObservationInvariantError("growth-execution-inputs-changed");
   }
-  const payload = validateGrowthReport(projectGrowthReport(execution, dependencies.fingerprint), dependencies.fingerprint);
+  const payload = validateGrowthReport(projectGrowthReport(execution, dependencies.fingerprint,
+    config.compatibility.packages.map((policy) => policy.packageName)), dependencies.fingerprint);
   let publication;
   try {
     publication = await dependencies.writer.write({ path: config.sdkGrowth.reportPath,

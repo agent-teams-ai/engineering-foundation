@@ -1,7 +1,7 @@
 import type { GrowthWorkspaceReader } from "../ports/growth-workspace.js";
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type { GrowthCancellation, GrowthCompatibilityPackage, GrowthInvocation, GrowthObservationExecution } from "../model/growth-observation.js";
-import { GrowthObservationInvariantError, GrowthObservationUnavailableError } from "../model/growth-observation.js";
+import { GrowthObservationInvariantError, GrowthObservationUnavailableError, growthDimensions } from "../model/growth-observation.js";
 import type { GrowthObservationPort } from "../ports/growth-observation.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
 import type { PackageArtifactInventory } from "../ports/package-artifact-inventory.js";
@@ -22,9 +22,13 @@ function immutable<T>(value: T): T {
   freeze(copy);
   return copy;
 }
-function missingCompatibility(packageName: string): GrowthCompatibilityPackage {
-  const snapshot = { status: "unavailable" as const, reasons: ["package-observer-policy-unavailable"] };
+function missingCompatibility(packageName: string, reason: string): GrowthCompatibilityPackage {
+  const snapshot = { status: "unavailable" as const, reasons: [reason] };
   return { packageName, typed: { kind: "typed", snapshot }, artifact: { kind: "artifact", snapshot } };
+}
+function missingCoverage(packageName: string) {
+  return { packageName, classification: "governed" as const, dimensions: growthDimensions.map((dimension) => ({
+    dimension, status: "unavailable" as const, reasons: ["package-outside-observed-topology"] })) };
 }
 
 /** Private Pure DI composition of existing observations. Inputs select files and
@@ -63,7 +67,10 @@ export function createGrowthObservation(input: {
         return immutable({ identity, surface: { status: "unavailable", reasons: ["workspace-topology-empty"] }, compatibilitySnapshots: [] });
       }
       growthUniqueSorted(packages, (pkg) => pkg.manifestPath);
-      for (const subject of subjects) {
+      const observedNames = new Set(packages.map((pkg) => pkg.name));
+      const observedSubjects = subjects.filter((subject) => observedNames.has(subject.policy.packageName));
+      const missingSubjects = subjects.filter((subject) => !observedNames.has(subject.policy.packageName));
+      for (const subject of observedSubjects) {
         const pkg = packages.find((candidate) => candidate.name === subject.policy.packageName);
         if (pkg === undefined || pkg.manifestPath !== subject.policy.manifestPath || pkg.rootPath !== subject.policy.packageRoot) {
           throw new GrowthObservationInvariantError("growth-policy-outside-observed-topology");
@@ -72,8 +79,11 @@ export function createGrowthObservation(input: {
         growthUniqueSorted(subject.policy.nonTypeExports, (entry) => entry.exportPath);
         growthUniqueSorted(subject.policy.approvedBreakingChanges, (entry) => entry.fingerprint);
       }
-      const retained = await retainGrowthCompatibility({ consumerRoot: selected.consumerRoot, subjects, extractorVersion: identity.tool.extractorVersion, cancellation }, dependencies);
-      const compatibilitySnapshots = packages.map((pkg) => retained.find((row) => row.compatibility.packageName === pkg.name)?.compatibility ?? missingCompatibility(pkg.name));
+      const retained = await retainGrowthCompatibility({ consumerRoot: selected.consumerRoot, subjects: observedSubjects, extractorVersion: identity.tool.extractorVersion, cancellation }, dependencies);
+      const compatibilitySnapshots = growthUniqueSorted([
+        ...packages.map((pkg) => retained.find((row) => row.compatibility.packageName === pkg.name)?.compatibility ?? missingCompatibility(pkg.name, "package-observer-policy-unavailable")),
+        ...missingSubjects.map((subject) => missingCompatibility(subject.policy.packageName, "package-outside-observed-topology"))
+      ], (row) => row.packageName);
       try {
         const projections = packages.map((pkg) => {
           cancellation.throwIfCancelled();
@@ -83,7 +93,8 @@ export function createGrowthObservation(input: {
         if (entries.length > 100_000) {
           return immutable({ identity, surface: { status: "unavailable", reasons: ["growth-entry-budget-exhausted"] }, compatibilitySnapshots });
         }
-        const value = normalizeGrowthObservation({ ...identity, contractRevision: "foundation:sdk-growth:c0:5", observationVersion: "foundation:sdk-growth:observation:1", coverage: projections.map((projection) => projection.coverage), entries });
+        const value = normalizeGrowthObservation({ ...identity, contractRevision: "foundation:sdk-growth:c0:5", observationVersion: "foundation:sdk-growth:observation:1",
+          coverage: [...projections.map((projection) => projection.coverage), ...missingSubjects.map((subject) => missingCoverage(subject.policy.packageName))], entries });
         growthCanonicalJson({ domain: "foundation:sdk-growth:observation:1", payload: value });
         cancellation.throwIfCancelled();
         return immutable({ identity, surface: { status: "available", value }, compatibilitySnapshots });

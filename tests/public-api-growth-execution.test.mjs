@@ -139,7 +139,7 @@ test("public check reports governed package scope drift without losing the full 
     assert.equal(report.candidate.status, "available");
     assert.deepEqual(report.coverage.map(row => row.packageName), ["@fixture/public-api", "fixture-root"]);
     assert.ok(report.coverage.find(row => row.packageName === "@fixture/public-api").dimensions
-      .some(row => row.dimension === "topology" && row.status === "unavailable" && row.reasons.includes("candidate:package-outside-observed-topology")));
+      .some(row => row.dimension === "topology" && row.status === "unavailable" && row.reasons.includes("package-outside-observed-topology")));
     assert.ok(report.trustedBaseComparison.reasons.includes("growth-release-topology-unavailable"));
     assert.deepEqual(check(root).report, drift.report);
     assert.deepEqual(await readFile(join(root, "reports/sdk.json")), driftBytes);
@@ -193,7 +193,7 @@ test("public check retains configured packages outside workspace selection as un
     assert.equal(orphanCoverage.classification, "governed");
     assert.ok(orphanCoverage.dimensions.every(row => row.status === "unavailable"));
     assert.ok(orphanCoverage.dimensions.filter(row => row.dimension !== "decision")
-      .every(row => row.reasons.includes("candidate:package-outside-observed-topology")));
+      .every(row => row.reasons.includes("package-outside-observed-topology")));
     assert.equal(report.verdict, "incomplete");
     assert.equal(report.releaseEligible, false);
     assert.deepEqual(report.transitionReceipts, []);
@@ -293,6 +293,21 @@ test("report projection validates complete receipts and truthful unavailable and
     for (const dimension of row.dimensions.filter(entry => entry.dimension !== "decision")) {
       assert.equal(dimension.status, "unavailable");
       assert.deepEqual(dimension.reasons, ["candidate:workspace-observation-unavailable"]);
+    }
+  }
+  // A trusted-base package excluded from an observed candidate gets exactly one side prefix,
+  // whether the observer supplied a placeholder row or omitted the package entirely.
+  for (const placeholder of [true, false]) {
+    const excluded = structuredClone(execution);
+    excluded.observation.surface.value.coverage = placeholder ? [{ packageName: "fixture", classification: "governed",
+      dimensions: surface.value.coverage[0].dimensions.map(({ dimension }) => ({ dimension, status: "unavailable", reasons: ["package-outside-observed-topology"] })) }] : [];
+    excluded.compatibility = { status: "incomplete", diagnostics: [], reasons: ["fixture:excluded-package-compatibility-unavailable"] };
+    const excludedReport = validateGrowthReport(projectGrowthReport(excluded, fingerprint, ["fixture"]), fingerprint);
+    assert.equal(excludedReport.verdict, "incomplete");
+    for (const dimension of excludedReport.coverage[0].dimensions.filter(entry => entry.dimension !== "decision")) {
+      assert.equal(dimension.status, "unavailable");
+      assert.ok(dimension.reasons.includes("candidate:package-outside-observed-topology"), JSON.stringify(dimension));
+      assert.ok(dimension.reasons.every(reason => !reason.startsWith("candidate:candidate:")), JSON.stringify(dimension));
     }
   }
   const initial = structuredClone(execution);

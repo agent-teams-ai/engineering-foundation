@@ -28,7 +28,7 @@ function missingCompatibility(packageName: string, reason: string): GrowthCompat
 }
 function missingCoverage(packageName: string) {
   return { packageName, classification: "governed" as const, dimensions: growthDimensions.map((dimension) => ({
-    dimension, status: "unavailable" as const, reasons: ["candidate:package-outside-observed-topology"] })) };
+    dimension, status: "unavailable" as const, reasons: ["package-outside-observed-topology"] })) };
 }
 
 /** Private Pure DI composition of existing observations. Inputs select files and

@@ -2,6 +2,7 @@ import { compareGrowthSurfaces, hashGrowthPayload } from "./compare-growth-surfa
 import type { GrowthComparison } from "../model/growth-admission.js";
 import type { SdkGrowthAdmissionExecution } from "../use-cases/admit-sdk-growth.js";
 import type { ChangeFingerprint } from "../ports/change-fingerprint.js";
+import { growthDimensions } from "../model/growth-observation.js";
 import type { GrowthCoverage } from "../model/growth-observation.js";
 import type { GrowthReport } from "../model/growth-report.js";
 import { growthReportPhases } from "../model/growth-report.js";
@@ -121,13 +122,15 @@ function projectAuthority(authority: SdkGrowthAdmissionExecution["authority"]): 
 function reportCoverage(execution: SdkGrowthAdmissionExecution, decisionComplete: boolean): GrowthCoverage[] {
   const base = execution.baseSurface.status === "available" ? execution.baseSurface.value.coverage : [];
   const candidate = execution.observation.surface.status === "available" ? execution.observation.surface.value.coverage : [];
-  const names = [...new Set([...base, ...candidate].map((row) => row.packageName))].toSorted();
+  const names = [...new Set([...base, ...candidate, ...execution.released].map((row) => row.packageName))].toSorted();
   const baseByPackage = new Map(base.map((entry) => [entry.packageName, entry]));
   const candidateByPackage = new Map(candidate.map((entry) => [entry.packageName, entry]));
   const rank = { complete: 0, limited: 1, unsupported: 2, unavailable: 3 };
   return names.map((name) => {
     const previous = baseByPackage.get(name), current = candidateByPackage.get(name);
-    const row = current ?? previous!;
+    const row = current ?? previous ?? { packageName: name, classification: "governed" as const,
+      dimensions: growthDimensions.map((dimension) => ({ dimension, status: "unavailable" as const,
+        reasons: ["candidate:package-outside-observed-topology"] })) };
     const beforeByDimension = new Map(previous?.dimensions.map((entry) => [entry.dimension, entry]));
     const afterByDimension = new Map(current?.dimensions.map((entry) => [entry.dimension, entry]));
     return { ...row, dimensions: row.dimensions.map((dimension) => {
@@ -136,7 +139,8 @@ function reportCoverage(execution: SdkGrowthAdmissionExecution, decisionComplete
       }
       const before = beforeByDimension.get(dimension.dimension);
       const after = afterByDimension.get(dimension.dimension);
-      if (before === undefined || after === undefined) { return dimension; }
+      if (after === undefined) { return { ...dimension, status: "unavailable", reasons: ["candidate:package-outside-observed-topology"] }; }
+      if (before === undefined) { return dimension; }
       return { ...dimension, status: rank[before.status] > rank[after.status] ? before.status : after.status,
         reasons: [...before.reasons.map((reason) => `trusted-base:${reason}`), ...after.reasons.map((reason) => `candidate:${reason}`)].toSorted() };
     }) };

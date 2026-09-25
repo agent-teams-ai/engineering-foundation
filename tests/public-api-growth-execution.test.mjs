@@ -98,6 +98,109 @@ test("existing public check route preserves v1 and publishes deterministic incom
   });
 });
 
+test("public check reports governed package scope drift without losing the full release scope", async () => {
+  await withPublicApiFixture(async root => {
+    const configPath = join(root, "architecture/foundation/public-api-compatibility.yaml");
+    const config = parse(await readFile(configPath, "utf8"));
+    await cp("tests/fixtures/governance-architecture-decisions/valid", root, { recursive: true });
+    await cp("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", join(root, "architecture/foundation/governance-architecture-decisions.yaml"));
+    config.schemaVersion = 2;
+    config.governanceConfigPath = "architecture/foundation/governance-architecture-decisions.yaml";
+    config.sdkGrowth = {
+      contractRevision: "foundation:sdk-growth:c0:5", policyVersion: "foundation:sdk-growth:policy:1",
+      comparison: { trustedBasePath: "evidence/base.json", released: [
+        { packageName: "@fixture/public-api", kind: "released", observationPath: "evidence/released.json" }
+      ] }, decisionsPath: "evidence/decisions.json", reportPath: "reports/sdk.json"
+    };
+    await writeFile(configPath, stringify(config));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture-root", private: true, version: "1.0.0" }));
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    await mkdir(join(root, "reports"));
+    await mkdir(join(root, "evidence"));
+    await writeFile(join(root, "evidence/decisions.json"), "[]");
+    execFileSync("git", ["init", "--quiet", root]);
+    execFileSync("git", ["-C", root, "add", "packages", "pnpm-workspace.yaml"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture"]);
+    const baseline = check(root);
+    assert.equal(baseline.result.status, 2, JSON.stringify(baseline.report));
+    const baselineBytes = await readFile(join(root, "reports/sdk.json"));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - other/*\n");
+    execFileSync("git", ["-C", root, "add", "pnpm-workspace.yaml"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture scope drift"]);
+    const drift = check(root);
+    assert.equal(drift.result.status, 2, JSON.stringify(drift.report));
+    assert.equal(drift.report.capabilities[0].problem.code, "SDK_GROWTH_EVIDENCE_INCOMPLETE");
+    const driftBytes = await readFile(join(root, "reports/sdk.json"));
+    assert.notDeepEqual(driftBytes, baselineBytes);
+    const report = JSON.parse(driftBytes);
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.releaseEligible, false);
+    assert.equal(report.candidate.status, "available");
+    assert.deepEqual(report.coverage.map(row => row.packageName), ["@fixture/public-api", "fixture-root"]);
+    assert.ok(report.coverage.find(row => row.packageName === "@fixture/public-api").dimensions
+      .some(row => row.dimension === "topology" && row.status === "unavailable" && row.reasons.includes("candidate:package-outside-observed-topology")));
+    assert.ok(report.trustedBaseComparison.reasons.includes("growth-release-topology-unavailable"));
+    assert.deepEqual(check(root).report, drift.report);
+    assert.deepEqual(await readFile(join(root, "reports/sdk.json")), driftBytes);
+  });
+});
+
+test("public check retains configured packages outside workspace selection as unavailable coverage", async () => {
+  await withPublicApiFixture(async root => {
+    const configPath = join(root, "architecture/foundation/public-api-compatibility.yaml");
+    const config = parse(await readFile(configPath, "utf8"));
+    await cp("tests/fixtures/governance-architecture-decisions/valid", root, { recursive: true });
+    await cp("tests/fixtures/governance-architecture-decisions/valid/governance-architecture-decisions.yaml", join(root, "architecture/foundation/governance-architecture-decisions.yaml"));
+    config.schemaVersion = 2;
+    config.governanceConfigPath = "architecture/foundation/governance-architecture-decisions.yaml";
+    config.sdkGrowth = {
+      contractRevision: "foundation:sdk-growth:c0:5", policyVersion: "foundation:sdk-growth:policy:1",
+      comparison: { trustedBasePath: "evidence/base.json", released: [
+        { packageName: "@fixture/public-api", kind: "released", observationPath: "evidence/released.json" }
+      ] }, decisionsPath: "evidence/decisions.json", reportPath: "reports/sdk.json"
+    };
+    const orphan = structuredClone(config.packages[0]);
+    orphan.packageName = "@fixture/orphan";
+    orphan.packageRoot = "other/orphan";
+    orphan.manifestPath = "other/orphan/package.json";
+    orphan.tsconfigPath = "other/orphan/tsconfig.json";
+    orphan.entrypoints[0].declarationEntryPoint = "other/orphan/dist/index.d.ts";
+    orphan.releasedBaselinePath = "architecture/public-api/orphan.json";
+    config.packages.push(orphan);
+    await writeFile(configPath, stringify(config));
+    await cp(join(root, "packages/library"), join(root, "other/orphan"), { recursive: true });
+    const orphanManifest = JSON.parse(await readFile(join(root, orphan.manifestPath), "utf8"));
+    orphanManifest.name = orphan.packageName;
+    await writeFile(join(root, orphan.manifestPath), JSON.stringify(orphanManifest));
+    const orphanBaseline = JSON.parse(await readFile(join(root, "architecture/public-api/public-api.json"), "utf8"));
+    orphanBaseline.packageName = orphan.packageName;
+    await writeFile(join(root, orphan.releasedBaselinePath), JSON.stringify(orphanBaseline));
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+    await writeFile(join(root, "package.json"), JSON.stringify({ name: "fixture-root", private: true, version: "1.0.0" }));
+    await writeFile(join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    await mkdir(join(root, "reports"));
+    await mkdir(join(root, "evidence"));
+    await writeFile(join(root, "evidence/decisions.json"), "[]");
+    execFileSync("git", ["init", "--quiet", root]);
+    execFileSync("git", ["-C", root, "add", "packages", "other", "pnpm-workspace.yaml"]);
+    execFileSync("git", ["-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--quiet", "-m", "fixture"]);
+    const result = check(root);
+    assert.equal(result.result.status, 2, JSON.stringify(result.report));
+    const report = JSON.parse(await readFile(join(root, "reports/sdk.json"), "utf8"));
+    assert.deepEqual(report.coverage.map(row => row.packageName), ["@fixture/orphan", "@fixture/public-api", "fixture-root"]);
+    const orphanCoverage = report.coverage.find(row => row.packageName === "@fixture/orphan");
+    assert.equal(orphanCoverage.classification, "governed");
+    assert.ok(orphanCoverage.dimensions.every(row => row.status === "unavailable"));
+    assert.ok(orphanCoverage.dimensions.filter(row => row.dimension !== "decision")
+      .every(row => row.reasons.includes("candidate:package-outside-observed-topology")));
+    assert.equal(report.verdict, "incomplete");
+    assert.equal(report.releaseEligible, false);
+    assert.deepEqual(report.transitionReceipts, []);
+    assert.ok(report.trustedBaseComparison.reasons.includes("growth-release-topology-unavailable"));
+  });
+});
+
 test("v2 rejects protected report destinations before loading execution inputs", async () => {
   const { loadCapabilityConfig } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js");
   const { assertSchema } = await import("../packages/engineering-foundation/dist/schema-catalog.js");

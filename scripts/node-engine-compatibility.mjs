@@ -1,5 +1,6 @@
+import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -40,6 +41,38 @@ async function packPackage(packageEntry, destination) {
 async function installedManifest(consumerRoot, packageName) {
   const requireFromConsumer = createRequire(join(consumerRoot, "qualification.mjs"));
   return readManifest(requireFromConsumer.resolve(`${packageName}/package.json`));
+}
+
+async function runPortableQualification(qualification, temporaryRoot) {
+  const fixtureRoot = join(temporaryRoot, "portable-qualification-fixture");
+  await cp(
+    join(repositoryRoot, "packages", "docs-protocol", "tests", "fixtures", "portable-qualification"),
+    fixtureRoot,
+    { recursive: true, errorOnExist: true, force: false }
+  );
+  const receipt = await qualification.runDocsProtocolQualification({
+    fixtureRoot,
+    scenario: {
+      find: { query: { type: "adr" }, expectedIds: [] },
+      newDocument: {
+        intent: {
+          type: "adr",
+          id: "ADR-0001",
+          title: "Node engine compatibility qualification",
+          owner: "architecture/tooling",
+          summary: "Proves the installed portable qualification on a disposable fixture."
+        }
+      }
+    }
+  });
+  assert.equal(receipt.schemaVersion, 1);
+  assert.equal(receipt.projectId, "docs-protocol-qualification");
+  assert.equal(receipt.appliedDocumentPath, "docs/decisions/generated/0001-node-engine-compatibility-qualification.md");
+  assert.deepEqual(receipt.checks, [
+    "info", "find", "preview", "crash", "doctor", "recover", "receipt", "parent",
+    "apply", "index", "check", "source-unchanged"
+  ]);
+  return receipt;
 }
 
 export async function qualifyNodeEngineCompatibility() {
@@ -95,6 +128,7 @@ export async function qualifyNodeEngineCompatibility() {
     if (typeof qualification.runDocsProtocolQualification !== "function") {
       throw new Error("Installed Docs Protocol qualification entrypoint is unavailable.");
     }
+    const portableReceipt = await runPortableQualification(qualification, temporaryRoot);
     const installed = [];
     for (const entry of PUBLISHABLE_PACKAGES) {
       const manifest = await installedManifest(consumerRoot, entry.name);
@@ -110,6 +144,13 @@ export async function qualifyNodeEngineCompatibility() {
       packageEngine,
       installMode: "fresh-consumer-engine-strict",
       qualificationEntry: "@agent-teams/docs-protocol/qualification#runDocsProtocolQualification",
+      portableQualification: {
+        outcome: "passed",
+        fixtureMode: "disposable-copy",
+        projectId: portableReceipt.projectId,
+        appliedDocumentPath: portableReceipt.appliedDocumentPath,
+        checks: portableReceipt.checks
+      },
       packages: installed,
     };
   } finally {

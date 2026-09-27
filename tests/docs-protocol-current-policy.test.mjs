@@ -62,7 +62,7 @@ test("current policy binds package engines, schema generations and the real qual
     ["portableCommandEnvelope", "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope"],
   ]) {
     const generation = policy.contracts[family];
-    assert.deepEqual(generation.supported, [...generation.supported].sort((left, right) => left - right));
+    assert.deepEqual(generation.supported, generation.supported.toSorted((left, right) => left - right));
     assert.ok(generation.supported.includes(generation.current));
     assert.equal(generation.currentSchemaPath, `${expectedPath}/v${generation.current}.schema.json`);
     for (const version of generation.supported) {

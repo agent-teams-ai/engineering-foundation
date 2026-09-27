@@ -62,11 +62,13 @@ test('contract rejects empty, ambiguous, broad and malformed authority', () => {
   assert.throws(() => validateNodeTestContract(contract([item], [exception(item, 'failed')])), /exact status/);
 });
 
-test('mandatory command requires event-capable Node 24.21 or later within major 24', () => {
-  assert.throws(() => assertSupportedNodeTestRuntime('24.18.0'), /Node >=24\.21\.0 <25/);
-  assert.throws(() => assertSupportedNodeTestRuntime('23.99.0'), /Node >=24\.21\.0 <25/);
-  assert.throws(() => assertSupportedNodeTestRuntime('25.0.0'), /Node >=24\.21\.0 <25/);
+test('mandatory command keeps Node 24 default and accepts the Node 26 compatibility lane', () => {
+  assert.throws(() => assertSupportedNodeTestRuntime('24.18.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
+  assert.throws(() => assertSupportedNodeTestRuntime('23.99.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
+  assert.throws(() => assertSupportedNodeTestRuntime('25.0.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
+  assert.throws(() => assertSupportedNodeTestRuntime('27.0.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
   assert.doesNotThrow(() => assertSupportedNodeTestRuntime('24.21.0'));
+  assert.doesNotThrow(() => assertSupportedNodeTestRuntime('26.10.0'));
 });
 
 test('event evidence needs unique completion, result, ancestry and selected file', () => {

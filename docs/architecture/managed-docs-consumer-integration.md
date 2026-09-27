@@ -149,10 +149,11 @@ Exact V1 check and same-generation V1 upgrade routes remain executable only for
 already installed V1 consumers and recovery evidence. They do not infer V2,
 write new V1 formats, or provide a cross-generation compatibility bridge.
 Unsupported or ambiguous topologies produce stable diagnostics and no writes.
-The active boundary remains Node 24, root pnpm 11, one root manifest and
-lockfile, GitHub Actions, and one integration root. Windows supports check and
-plan; apply remains fail-closed until the Windows mutation adapter passes
-separate capability qualification.
+The active managed boundary remains Node 24, root pnpm 11, one root manifest and
+lockfile, GitHub Actions, and one integration root. The Node 26 package
+compatibility lane does not broaden a historical Cohort runtime or authorize
+managed cutover. Windows supports check and plan; apply remains fail-closed
+until the Windows mutation adapter passes separate capability qualification.
 
 ## Non-goals
 

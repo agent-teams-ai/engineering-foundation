@@ -113,8 +113,8 @@ ancestor cannot excuse an omitted required descendant. Exceptions do not
 authorize broad platform skips or a summary-level skip count. Remove an
 exception when the reason ceases to apply.
 
-The adopted command requires Node >=24.21.0 <25 (the package-wide
-Node >=24.18.0 <25 engine range remains unchanged). It collects structured `node:test`
+The adopted command requires Node >=24.21.0 <25 or >=26.0.0 <27. The package
+supports Node `^24.18.0 || ^26.0.0`, while Node 24 remains the default. It collects structured `node:test`
 `run()` events inside the invoking process. It trusts that process, its selected
 test files, and the consumer-owned contract; it is not a hostile-code
 attestation. Its evidence applies only to selected entry files in that

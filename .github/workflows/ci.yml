@@ -80,6 +80,41 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm check:changed
 
+  node26-compatibility:
+    name: node-compatibility (${{ matrix.lane }})
+    needs: dependency-review
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: node24-production-default
+            node-version: "24.21.0"
+          - lane: node26-compatibility
+            node-version: "26.10.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+      - name: Require a clean compatibility install
+        run: test ! -d node_modules
+      - run: pnpm install --frozen-lockfile --ignore-scripts --engine-strict
+      - run: pnpm rebuild
+      - name: Qualify publishable packages in a fresh strict-engine consumer
+        run: pnpm node-compatibility:qualification | tee "$RUNNER_TEMP/node-engine-compatibility.json"
+      - name: Run focused observable compatibility regressions
+        run: node --test --test-concurrency=1 tests/node-test-execution.test.mjs tests/docs-protocol-current-policy.test.mjs packages/docs-protocol/tests/qualification.test.mjs
+
   linux-static:
     name: linux-static
     needs: dependency-review

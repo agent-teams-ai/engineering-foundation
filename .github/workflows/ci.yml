@@ -106,9 +106,14 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm foundation:check:built
+      - name: Run Foundation check
+        id: foundation-check
+        run: node packages/engineering-foundation/dist/cli.js check --consumer . --format json | tee "$RUNNER_TEMP/foundation-check.json"
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Show SDK public API report
+        if: ${{ always() && steps.foundation-check.outcome != 'skipped' }}
+        run: node scripts/sdk-api-ci-summary.mjs "$RUNNER_TEMP/foundation-check.json"
       - run: pnpm release-owned-files:check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}

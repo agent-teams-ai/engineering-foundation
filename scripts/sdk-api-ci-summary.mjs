@@ -1,6 +1,7 @@
 import { appendFile, readFile } from "node:fs/promises";
 
 const capabilityId = "package.public-api-compatibility";
+const outcomes = new Set(["passed", "violations", "invalid-input", "failed", "cancelled"]);
 const reportPath = process.argv[2];
 if (reportPath === undefined) {
   throw new Error("Usage: node scripts/sdk-api-ci-summary.mjs <foundation-check.json>");
@@ -11,7 +12,7 @@ try {
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   if (report.reportSchemaVersion === 1 && Array.isArray(report.capabilities)) {
     const candidate = report.capabilities.find((entry) => entry?.capabilityId === capabilityId);
-    if (candidate && typeof candidate.outcome === "string" &&
+    if (candidate && outcomes.has(candidate.outcome) &&
       Number.isInteger(candidate.summary?.errors) &&
       Number.isInteger(candidate.summary?.warnings) &&
       Number.isInteger(candidate.summary?.infos)) {

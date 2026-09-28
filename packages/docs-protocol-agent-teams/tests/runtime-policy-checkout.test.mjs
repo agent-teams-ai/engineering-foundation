@@ -30,7 +30,9 @@ test("Windows-style CRLF checkout preserves current and historical policy digest
     await writeFile(join(directory, "line-ending-control.txt"), "control\n");
     git("-c", "core.autocrlf=false", "add", "--", ".gitattributes", ...checkoutPaths,
       "line-ending-control.txt");
-    for (const path of checkoutPaths) await rm(join(directory, path));
+    for (const path of checkoutPaths) {
+      await rm(join(directory, path));
+    }
     await rm(join(directory, "line-ending-control.txt"));
     git("-c", "core.autocrlf=true", "checkout-index", "--", ...checkoutPaths,
       "line-ending-control.txt");

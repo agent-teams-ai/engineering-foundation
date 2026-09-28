@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -16,6 +16,10 @@ import {
 } from "../scripts/ci-feedback.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+
+function pathWithStub(directory, inheritedPath, separator = delimiter) {
+  return `${directory}${separator}${inheritedPath}`;
+}
 
 function sourceRun() {
   return {
@@ -268,15 +272,35 @@ test("Node compatibility qualification propagates the producer status through te
   const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-compatibility-shell-"));
   try {
     const pnpmPath = join(fixtureRoot, "pnpm");
-    await writeFile(pnpmPath, "#!/usr/bin/env bash\n[[ $# -eq 1 && $1 == node-compatibility:qualification ]] || exit 99\nprintf '%s\\n' '{\"qualification\":\"observed\"}'\nexit \"$QUALIFICATION_EXIT\"\n");
+    const markerPath = join(fixtureRoot, "stub-selected");
+    await writeFile(pnpmPath, `#!/usr/bin/env bash\n[[ $# -eq 1 && $1 == node-compatibility:qualification ]] || exit 99\nprintf 'selected\\n' >> "$RUNNER_TEMP/stub-selected"\nprintf '%s\\n' '{"qualification":"observed"}'\nexit "$QUALIFICATION_EXIT"\n`);
     await chmod(pnpmPath, 0o755);
+    const shellDirectory = spawnSync("bash", ["-c", "pwd -P"], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+    });
+    assert.equal(shellDirectory.error, undefined);
+    assert.equal(shellDirectory.status, 0, shellDirectory.stderr);
+    const inheritedPath = Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
+    const env = {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH")),
+      PATH: pathWithStub(fixtureRoot, inheritedPath),
+      RUNNER_TEMP: shellDirectory.stdout.trim(),
+    };
+    // Confirm Bash selected this fixture, then invoke that exact executable.
+    // A missing stub must never run the installed pnpm qualification instead.
+    const selected = spawnSync("bash", ["-c", 'stub=$(type -P pnpm) && [[ -n $stub && $stub -ef "$RUNNER_TEMP/pnpm" ]] && "$stub" node-compatibility:qualification'], {
+      encoding: "utf8",
+      env: { ...env, QUALIFICATION_EXIT: "0" },
+    });
+    assert.equal(selected.error, undefined);
+    assert.equal(selected.status, 0, selected.stderr);
+    assert.equal(await readFile(markerPath, "utf8"), "selected\n");
     // GitHub's implicit Linux shell runs `bash -e {0}` without pipefail.
     const run = (exitCode) => spawnSync("bash", ["-e", "-c", step.run], {
       encoding: "utf8",
       env: {
-        ...process.env,
-        PATH: `${fixtureRoot}:${process.env.PATH}`,
-        RUNNER_TEMP: fixtureRoot,
+        ...env,
         QUALIFICATION_EXIT: String(exitCode),
       },
     });
@@ -284,15 +308,47 @@ test("Node compatibility qualification propagates the producer status through te
     const failed = run(42);
     assert.equal(failed.error, undefined);
     assert.equal(failed.status, 42);
+    assert.equal(await readFile(markerPath, "utf8"), "selected\nselected\n");
     assert.equal(failed.stdout, '{"qualification":"observed"}\n');
     assert.equal(await readFile(join(fixtureRoot, "node-engine-compatibility.json"), "utf8"), failed.stdout);
 
     const succeeded = run(0);
     assert.equal(succeeded.error, undefined);
     assert.equal(succeeded.status, 0);
+    assert.equal(await readFile(markerPath, "utf8"), "selected\nselected\nselected\n");
     assert.equal(succeeded.stdout, '{"qualification":"observed"}\n');
     assert.deepEqual(JSON.parse(succeeded.stdout), { qualification: "observed" });
     assert.equal(await readFile(join(fixtureRoot, "node-engine-compatibility.json"), "utf8"), succeeded.stdout);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test("Windows-native PATH separator keeps the qualification stub first after Git Bash conversion", {
+  skip: process.platform === "win32" && "Linux-only simulation; native Windows exercises the workflow-step test",
+}, async () => {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-compatibility-windows-path-"));
+  try {
+    const markerPath = join(fixtureRoot, "stub-selected");
+    const pnpmPath = join(fixtureRoot, "pnpm");
+    await writeFile(pnpmPath, '#!/usr/bin/env bash\nprintf "selected\\n" > "$STUB_MARKER"\n');
+    await chmod(pnpmPath, 0o755);
+
+    // Model the native Windows PATH given to a native Node process and the
+    // semicolon-to-colon conversion Git Bash applies when launching Bash.
+    const nativePath = pathWithStub(fixtureRoot, "/usr/bin;/bin", ";");
+    const bashPath = nativePath.split(";").join(":");
+    const env = { ...process.env, PATH: bashPath, STUB_MARKER: markerPath };
+    const selected = spawnSync("bash", ["-c", '[[ $(type -P pnpm) == "$EXPECTED_STUB" ]]'], {
+      encoding: "utf8",
+      env: { ...env, EXPECTED_STUB: pnpmPath },
+    });
+    assert.equal(selected.error, undefined);
+    assert.equal(selected.status, 0, selected.stderr);
+    const invoked = spawnSync("bash", ["-c", "pnpm"], { encoding: "utf8", env });
+    assert.equal(invoked.error, undefined);
+    assert.equal(invoked.status, 0, invoked.stderr);
+    assert.equal(await readFile(markerPath, "utf8"), "selected\n");
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }

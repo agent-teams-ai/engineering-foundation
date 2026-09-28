@@ -136,7 +136,7 @@
       "contractVersion": "2.0.0",
       "schemaSetDigest": "sha256:724350515283296bbdd1ec95ce8a994046ccac0da61b7e93037e83d4ac183210",
       "fixtureCorpusDigest": "sha256:b2e68eb9189121b81963ae188320a56414e2acdea590a1528e613ee448ddc40c",
-      "evidenceDigest": "sha256:35bdf5d368f2777c7760cefbcd5d260a22844a79d48ad0a0e6cbb552fa8d0ddc",
+      "evidenceDigest": "sha256:b864a98b9f1e8e5e7278769fbcf6238e9fb9f869b606a12775d02bef143ef9b0",
       "outcome": "passed"
     }
   ]

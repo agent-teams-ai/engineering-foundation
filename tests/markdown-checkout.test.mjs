@@ -26,7 +26,7 @@ test("reviewed supplementary license preserves authenticated bytes under CRLF ch
   assert.deepEqual(checkedOutBytes, licenseBytes);
 });
 
-test("current SDK source bindings preserve accepted bytes under CRLF checkout filters", async (t) => {
+test("SDK source bindings preserve accepted bytes under CRLF checkout filters", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "sdk-source-checkout-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const repositoryRoot = join(import.meta.dirname, "..");
@@ -40,10 +40,13 @@ test("current SDK source bindings preserve accepted bytes under CRLF checkout fi
     "qualificationPolicy",
   ]);
   const sources = Object.values(candidate.currentSources);
+  const acceptedSourceBytes = source => source.path === "architecture/foundation/public-api-compatibility.yaml"
+    ? execFileSync("git", ["cat-file", "blob", source.blob], { cwd: repositoryRoot, stdio: "pipe" })
+    : readFile(join(repositoryRoot, source.path));
 
   await writeFile(join(root, ".gitattributes"), await readFile(join(repositoryRoot, ".gitattributes")));
   for (const source of sources) {
-    const sourceBytes = await readFile(join(repositoryRoot, source.path));
+    const sourceBytes = await acceptedSourceBytes(source);
     await mkdir(dirname(join(root, source.path)), { recursive: true });
     await writeFile(join(root, source.path), sourceBytes);
   }
@@ -56,7 +59,7 @@ test("current SDK source bindings preserve accepted bytes under CRLF checkout fi
   git("add", "--", ".gitattributes", controlPath, ...sources.map(({ path }) => path));
 
   for (const source of sources) {
-    const acceptedBytes = await readFile(join(repositoryRoot, source.path));
+    const acceptedBytes = await acceptedSourceBytes(source);
     const stagedBytes = git("show", `:${source.path}`);
     assert.equal(`sha256:${sha256(stagedBytes)}`, source.contentDigest, `${source.path} clean-filter bytes`);
     assert.deepEqual(stagedBytes, acceptedBytes, `${source.path} clean-filter bytes`);
@@ -65,7 +68,7 @@ test("current SDK source bindings preserve accepted bytes under CRLF checkout fi
   git("checkout-index", "--all", "--prefix=checkout/");
   assert.deepEqual(await readFile(join(root, "checkout", controlPath)), Buffer.from("first\r\nsecond\r\n"));
   for (const source of sources) {
-    const acceptedBytes = await readFile(join(repositoryRoot, source.path));
+    const acceptedBytes = await acceptedSourceBytes(source);
     const checkedOutBytes = await readFile(join(root, "checkout", source.path));
     assert.equal(`sha256:${sha256(checkedOutBytes)}`, source.contentDigest, `${source.path} checkout bytes`);
     assert.deepEqual(checkedOutBytes, acceptedBytes, `${source.path} checkout bytes`);

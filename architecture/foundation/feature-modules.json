@@ -870,6 +870,7 @@
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
             "packages/docs-protocol-agent-teams/tests/direct-split-structure.test.mjs",
             "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
           ]

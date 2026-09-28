@@ -630,6 +630,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/direct-split-structure.test.mjs
       - packages/docs-protocol-agent-teams/tests/fixtures
       - packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs
+      - packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification.test.mjs
@@ -687,8 +688,10 @@ boundaries:
       - packages/docs-protocol-agent-teams/scripts
     allow:
       boundaries: []
-      packages: []
+      packages:
+        - ajv
       builtins:
+        - node:crypto
         - node:fs/promises
         - node:path
       runtimeReferences: []

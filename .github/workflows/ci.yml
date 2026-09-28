@@ -110,6 +110,7 @@ jobs:
       - name: Require a clean compatibility install
         run: test ! -d node_modules
       - run: pnpm install --frozen-lockfile --ignore-scripts --engine-strict
+      - run: pnpm dependencies:peers:check
       - run: pnpm rebuild
       - name: Qualify publishable packages in a fresh strict-engine consumer
         run: pnpm node-compatibility:qualification | tee "$RUNNER_TEMP/node-engine-compatibility.json"

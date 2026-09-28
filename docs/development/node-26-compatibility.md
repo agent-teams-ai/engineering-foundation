@@ -19,8 +19,11 @@ qualification installs packed packages into a new disposable consumer with
 It never reuses an install created by the other Node lane.
 pnpm 11 enforces workspace install policy from `pnpm-workspace.yaml`:
 `engineStrict` and `strictPeerDependencies` are both true. The compatibility
-matrix runs rejecting disposable dependency fixtures for both rules, and both
-required CI aggregates depend on the complete matrix.
+matrix runs rejecting disposable dependency fixtures for both rules. A frozen
+install can accept a lockfile created with peer enforcement disabled, so the
+matrix also runs `pnpm peers check --lockfile-only` after its frozen install.
+The fixture proves that this check rejects an incompatible locked peer graph.
+Both required CI aggregates depend on the complete matrix.
 
 The existing portable qualification runner remains the behavioral path for
 info, find, preview, crash/recovery, doctor, receipt, parent creation, apply,
@@ -31,19 +34,12 @@ against real projects.
 
 ## Publication order
 
-The manifest-derived topological order is exact:
-
-1. `@agent-teams/repository-mutation`
-2. `@agent-teams/document-authoring`
-3. `@agent-teams/docs-protocol`
-4. `@agent-teams/docs-protocol-agent-teams`
-5. `@agent-teams/docs-protocol-mcp`
-6. `@agent-teams/engineering-foundation`
-
-Items 4 and 5 are independent after Docs Protocol and are ordered
-lexicographically by the release projection. The ordered publisher must verify
-each packed manifest and exact dependency timestamp before moving to its
-dependents. No package or release is published by this change.
+[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md#package-release-concerns-and-consumer-rollout)
+owns the package graph. The [manifest-derived release projection](../../scripts/publishable-packages.mjs)
+computes its topological publication order at the exact release head. The
+ordered publisher verifies each packed manifest and exact dependency timestamp
+before moving to its dependents. No package or release is published by this
+change.
 
 ## Consumer blockers
 

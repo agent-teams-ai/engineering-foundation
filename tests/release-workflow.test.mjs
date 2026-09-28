@@ -2197,6 +2197,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   }
   assert.deepEqual(ci.jobs.check.needs, [
     "dependency-review",
+    "node26-compatibility",
     "linux-static",
     "linux-test-1",
     "linux-test-2",

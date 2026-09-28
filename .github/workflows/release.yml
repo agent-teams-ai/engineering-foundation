@@ -43,6 +43,7 @@ jobs:
       - name: Guard npm release version
         run: node --input-type=module -e 'import { assertNpmVersion } from "./scripts/release-publish-ordered-runtime.mjs"; assertNpmVersion();'
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm dependencies:peers:check
       - name: Guard public package bootstrap baselines
         run: node scripts/npm-package-bootstrap-cli.mjs check-release
       - id: changesets
@@ -181,6 +182,7 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm dependencies:peers:check
       - name: Dispatch and attest release pull request checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

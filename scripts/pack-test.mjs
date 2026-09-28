@@ -174,7 +174,7 @@ async function createRollbackFixturePackage(
     },
     schemas: { consumerIntegration: 1, managedState: 1, docsProtocol: 1 },
     runtime: {
-      node: "^24.18.0 || ^26.0.0",
+      node: ">=24.18.0 <25",
       pnpm: ">=11.17.0 <12",
       runtimeClosureDigest: `sha256:${"e".repeat(64)}`
     }

@@ -91,6 +91,8 @@ capability qualifications run in parallel checkouts. The stable required context
 and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
 missing prerequisite fails the required context. Every executable pull request
 job depends directly on Dependency Review.
+Both required aggregates include the complete Node 24 default and Node 26
+compatibility matrix as a direct prerequisite.
 
 The CI workflow also records a conservative shadow classification for future
 feedback experiments. It has no place in any job's `needs` or `if` expression

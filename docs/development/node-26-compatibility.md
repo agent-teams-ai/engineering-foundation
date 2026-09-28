@@ -17,6 +17,10 @@ qualification installs packed packages into a new disposable consumer with
 `engine-strict`, then verifies the installed manifests and
 `@agent-teams/docs-protocol/qualification#runDocsProtocolQualification`.
 It never reuses an install created by the other Node lane.
+pnpm 11 enforces workspace install policy from `pnpm-workspace.yaml`:
+`engineStrict` and `strictPeerDependencies` are both true. The compatibility
+matrix runs rejecting disposable dependency fixtures for both rules, and both
+required CI aggregates depend on the complete matrix.
 
 The existing portable qualification runner remains the behavioral path for
 info, find, preview, crash/recovery, doctor, receipt, parent creation, apply,

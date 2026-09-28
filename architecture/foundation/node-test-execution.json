@@ -11,7 +11,7 @@
     {
       "file": "tests/node-test-execution.test.mjs",
       "names": [
-        "mandatory command requires event-capable Node 24.21 or later within major 24"
+        "mandatory command keeps Node 24 default and accepts the Node 26 compatibility lane"
       ],
       "kind": "test"
     },

@@ -2,6 +2,11 @@ packages:
   - "packages/*"
   - "spikes/*"
 
+# pnpm 11 reads these install policy settings from the workspace manifest.
+engineStrict: true
+strictPeerDependencies: true
+saveExact: true
+
 catalogMode: strict
 
 catalog:

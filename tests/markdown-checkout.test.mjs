@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -40,8 +41,20 @@ test("SDK source bindings preserve accepted bytes under CRLF checkout filters", 
     "qualificationPolicy",
   ]);
   const sources = Object.values(candidate.currentSources);
+  // The fixture puts this historical blob in shallow checkouts. Normalize only
+  // checkout line endings before authenticating the accepted Git blob bytes.
+  const fixturePath = "tests/fixtures/sdk-growth-v2/public-api-compatibility-0e93ab31.yaml";
+  const historicalPolicyBytes = Buffer.from((await readFile(join(repositoryRoot, fixturePath), "utf8"))
+    .replaceAll("\r\n", "\n"), "utf8");
+  const historicalPolicy = candidate.currentSources.qualificationPolicy;
+  assert.equal(historicalPolicy.path, "architecture/foundation/public-api-compatibility.yaml");
+  assert.equal(`sha256:${sha256(historicalPolicyBytes)}`, historicalPolicy.contentDigest);
+  assert.equal(createHash("sha1")
+    .update(`blob ${historicalPolicyBytes.length}\0`)
+    .update(historicalPolicyBytes)
+    .digest("hex"), historicalPolicy.blob);
   const acceptedSourceBytes = source => source.path === "architecture/foundation/public-api-compatibility.yaml"
-    ? execFileSync("git", ["cat-file", "blob", source.blob], { cwd: repositoryRoot, stdio: "pipe" })
+    ? historicalPolicyBytes
     : readFile(join(repositoryRoot, source.path));
 
   await writeFile(join(root, ".gitattributes"), await readFile(join(repositoryRoot, ".gitattributes")));

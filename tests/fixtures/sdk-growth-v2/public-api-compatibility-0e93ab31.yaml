@@ -1,0 +1,153 @@
+schemaVersion: 1
+changesetDirectory: .changeset
+acceptedDecisionBaselinePath: architecture/decisions/accepted-decisions.json
+governanceConfigPath: architecture/foundation/governance-architecture-decisions.yaml
+packages:
+  - packageName: "@agent-teams/repository-mutation"
+    packageRoot: packages/repository-mutation
+    manifestPath: packages/repository-mutation/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/repository-mutation/dist/index.d.ts
+      - exportPath: "./coordination"
+        declarationEntryPoint: packages/repository-mutation/dist/coordination.d.ts
+      - exportPath: "./known-file"
+        declarationEntryPoint: packages/repository-mutation/dist/known-file.d.ts
+      - exportPath: "./paths"
+        declarationEntryPoint: packages/repository-mutation/dist/paths.d.ts
+      - exportPath: "./serialization"
+        declarationEntryPoint: packages/repository-mutation/dist/serialization.d.ts
+      - exportPath: "./node"
+        declarationEntryPoint: packages/repository-mutation/dist/node.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/repository-mutation/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/repository-mutation/tsconfig.json
+    releasedBaselinePath: architecture/public-api/repository-mutation.json
+    approvedBreakingChanges:
+      - fingerprint: sha256:d9e941c4b83743f5785dc879e6e0161dd0e8e42dd31237c19c2805bdfff37be8
+        decisionId: ADR-0054
+  - packageName: "@agent-teams/engineering-foundation"
+    packageRoot: packages/engineering-foundation
+    manifestPath: packages/engineering-foundation/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/engineering-foundation/dist/index.d.ts
+      - exportPath: "./local-mode"
+        declarationEntryPoint: packages/engineering-foundation/dist/local-mode/index.d.ts
+      - exportPath: "./scaffolding"
+        declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/index.d.ts
+      - exportPath: "./scaffolding/qualification"
+        declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/qualification.d.ts
+      - exportPath: "./sdk-growth-authority"
+        declarationEntryPoint: packages/engineering-foundation/dist/sdk-growth-authority.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./presets/*"
+        kind: wildcard
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/engineering-foundation/tsconfig.json
+    releasedBaselinePath: architecture/public-api/engineering-foundation.json
+    approvedBreakingChanges:
+      - fingerprint: sha256:711650333ab91ab523cc55659ddd5b29f116b776495f790da5bf21e358a351d4
+        decisionId: ADR-0043
+      - fingerprint: sha256:b08385a793df8ea8604e90f0f636f3b394e2486b127179ce05e41da0b7fd003b
+        decisionId: ADR-0043
+      - fingerprint: sha256:d53672af4035cdb2a8500756f521795eec32c98c628b06df94f1c95642b9ac99
+        decisionId: ADR-0035
+      - fingerprint: sha256:0eb24a3f641fe85b6b805f606b597c7a51481b81541506ac7190fcdcc94b7c7b
+        decisionId: ADR-0032
+      - fingerprint: sha256:f11c5502fc004a03c72c9571370aad35779bce1a4736658c6c312c683f928259
+        decisionId: ADR-0030
+      - fingerprint: sha256:1c4c93fc648080de769cbb4008fc3825df464b65ffb95a2f7708d9da481027e2
+        decisionId: ADR-0022
+      - fingerprint: sha256:85c312a8b2c3409369ec7626573b5e41f1a6fb2a75f9a6dadc513304e106ee08
+        decisionId: ADR-0019
+      - fingerprint: sha256:32e703cac807a3a87a50b922ac8cdcfd5d8c9b5153d12f2fc9c69e28e02807dc
+        decisionId: ADR-0011
+      - fingerprint: sha256:505922ffad5df5a690a4000832916dac2d6d25c315dc3da65dd575eef04c0b38
+        decisionId: ADR-0013
+      - fingerprint: sha256:cd3b61b7d835a912ddbd87d9c4a7b3e26efa39b9f0638cad7fba9317b1fe5d07
+        decisionId: ADR-0014
+  - packageName: "@agent-teams/document-authoring"
+    packageRoot: packages/document-authoring
+    manifestPath: packages/document-authoring/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/document-authoring/dist/index.d.ts
+      - exportPath: "./observation"
+        declarationEntryPoint: packages/document-authoring/dist/observation.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/document-authoring/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/document-authoring/tsconfig.json
+    releasedBaselinePath: architecture/public-api/document-authoring.json
+    approvedBreakingChanges:
+      - fingerprint: sha256:e0826ff1337a882ec8cb37f9445dd59444d2304d83ccaa398cd8680364c2b983
+        decisionId: ADR-0054
+      - fingerprint: sha256:7e5eb1fb1386edb0b7bcf1de3bc63c95ba51094a069a0edcf648c8c284795558
+        decisionId: ADR-0049
+  - packageName: "@agent-teams/docs-protocol"
+    packageRoot: packages/docs-protocol
+    manifestPath: packages/docs-protocol/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/docs-protocol/dist/index.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/docs-protocol/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/docs-protocol/tsconfig.json
+    releasedBaselinePath: architecture/public-api/docs-protocol.json
+    approvedBreakingChanges:
+      - fingerprint: sha256:827cd050444ab05940f024a174d78af44c902a7950c117fba68a900c83587def
+        decisionId: ADR-0054
+      - fingerprint: sha256:096e0026367471de807d7e73e7e1575f08f30a60eb94c497e557951d0fbd91fb
+        decisionId: ADR-0043
+      - fingerprint: sha256:5922ed32132a25a4f6fcf3a08bc756ffee05fc9c74b2bc4964c425438cdd68e1
+        decisionId: ADR-0043
+      - fingerprint: sha256:181c6e224092cae9505f524005b4f6595700bb518f07cb3e5a2dcd3a68266f70
+        decisionId: ADR-0038
+  - packageName: "@agent-teams/docs-protocol-mcp"
+    packageRoot: packages/docs-protocol-mcp
+    manifestPath: packages/docs-protocol-mcp/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/docs-protocol-mcp/dist/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+    tsconfigPath: packages/docs-protocol-mcp/tsconfig.json
+    releasedBaselinePath: architecture/public-api/docs-protocol-mcp.json
+    approvedBreakingChanges:
+      - fingerprint: sha256:70265de1eac87781a438da079020c2b6d5f61e70f87da97fd745550514155ee1
+        decisionId: ADR-0043
+  - packageName: "@agent-teams/docs-protocol-agent-teams"
+    packageRoot: packages/docs-protocol-agent-teams
+    manifestPath: packages/docs-protocol-agent-teams/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/docs-protocol-agent-teams/dist/index.d.ts
+      - exportPath: "./qualification"
+        declarationEntryPoint: packages/docs-protocol-agent-teams/dist/qualification/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./schemas/*"
+        kind: wildcard
+    tsconfigPath: packages/docs-protocol-agent-teams/tsconfig.json
+    releasedBaselinePath: architecture/public-api/docs-protocol-agent-teams.json
+    approvedBreakingChanges: []

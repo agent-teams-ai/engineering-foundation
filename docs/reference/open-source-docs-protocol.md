@@ -12,9 +12,7 @@ It does not require the Agent Teams managed preset, a site, or a portal.
 
 ## Requirements
 
-- For the coordinated current Foundation package wave, Node `^24.18.0` or
-  `^26.0.0`. Node 24 remains the production/default lane; Node 26 is an
-  independently observed compatibility lane and is not a cutover decision;
+- Node `>=24.18.0 <25` for the exact published coordinates documented here;
 - a clean reviewable repository state before bootstrap apply;
 - one exact package version, committed in the consumer manifest and lockfile;
 - no `latest`, ranges, floating `npx`, or floating `dlx` invocation.
@@ -28,10 +26,8 @@ release explicitly adds durable Windows transaction evidence.
 
 ## Install one exact version
 
-The `0.4.0` and `0.1.0` coordinates in this historical workflow remain Node 24
-artifacts with their published engine ranges. Do not install those old
-coordinates on Node 26. Use the exact versions produced by the coordinated
-current package wave and its strict-engine qualification instead.
+This published workflow remains Node 24-only. Node 26 compatibility is
+[staged separately](../development/node-26-compatibility.md).
 
 The initial portable release qualifies npm and pnpm. First prove that the exact
 CLI coordinate exists. Override both the default and scoped registry so user or
@@ -246,7 +242,5 @@ multi-tenant operation are not part of the portable profile.
 - Bootstrap uses only reviewed create-absent and exact-preimage operations.
 - The Agent Teams managed preset and Cohort workflow remain separate and
   unchanged.
-- Node 24 remains the production/default runtime. Node 26 is supported only as
-  the versioned compatibility lane in the
-  [current policy](../../architecture/foundation/docs-protocol-current-policy.json);
-  another Node major or alternative runtime remains unsupported.
+- This published workflow remains Node 24-only. Node 26 compatibility is
+  [staged separately](../development/node-26-compatibility.md).

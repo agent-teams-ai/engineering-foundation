@@ -19,7 +19,8 @@ qualification installs packed packages into a new disposable consumer with
 It never reuses an install created by the other Node lane.
 pnpm 11 enforces workspace install policy from `pnpm-workspace.yaml`:
 `engineStrict` and `strictPeerDependencies` are both true. The compatibility
-matrix runs rejecting disposable dependency fixtures for both rules. A frozen
+matrix runs disposable dependency fixtures that verify rejection of incompatible
+engines and peers. A frozen
 install can accept a lockfile created with peer enforcement disabled, so the
 matrix also runs `pnpm peers check --lockfile-only` after its frozen install.
 The fixture proves that this check rejects an incompatible locked peer graph.

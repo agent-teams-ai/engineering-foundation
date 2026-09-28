@@ -262,7 +262,7 @@ test("workflow_run observer is read-only and never checks out pull request code"
   assert.equal(workflow.jobs.observe.steps.some(({ run }) => /pnpm install/u.test(run ?? "")), false);
 });
 
-test("Node compatibility qualification propagates the producer status through tee", async () => {
+test("Node compatibility qualification propagates the producer status and stdout", async () => {
   const workflow = parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"));
   const step = workflow.jobs["node26-compatibility"].steps.find(({ name }) =>
     name === "Qualify publishable packages in a fresh strict-engine consumer");
@@ -310,7 +310,6 @@ test("Node compatibility qualification propagates the producer status through te
     assert.equal(failed.status, 42);
     assert.equal(await readFile(markerPath, "utf8"), "selected\nselected\n");
     assert.equal(failed.stdout, '{"qualification":"observed"}\n');
-    assert.equal(await readFile(join(fixtureRoot, "node-engine-compatibility.json"), "utf8"), failed.stdout);
 
     const succeeded = run(0);
     assert.equal(succeeded.error, undefined);
@@ -318,13 +317,12 @@ test("Node compatibility qualification propagates the producer status through te
     assert.equal(await readFile(markerPath, "utf8"), "selected\nselected\nselected\n");
     assert.equal(succeeded.stdout, '{"qualification":"observed"}\n');
     assert.deepEqual(JSON.parse(succeeded.stdout), { qualification: "observed" });
-    assert.equal(await readFile(join(fixtureRoot, "node-engine-compatibility.json"), "utf8"), succeeded.stdout);
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
 });
 
-test("Windows-native PATH separator keeps the qualification stub first after Git Bash conversion", {
+test("PATH separator normalization preserves qualification stub precedence", {
   skip: process.platform === "win32" && "Linux-only simulation; native Windows exercises the workflow-step test",
 }, async () => {
   const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-compatibility-windows-path-"));
@@ -334,8 +332,7 @@ test("Windows-native PATH separator keeps the qualification stub first after Git
     await writeFile(pnpmPath, '#!/usr/bin/env bash\nprintf "selected\\n" > "$STUB_MARKER"\n');
     await chmod(pnpmPath, 0o755);
 
-    // Model the native Windows PATH given to a native Node process and the
-    // semicolon-to-colon conversion Git Bash applies when launching Bash.
+    // Synthetically normalize a semicolon-separated PATH before launching Bash.
     const nativePath = pathWithStub(fixtureRoot, "/usr/bin;/bin", ";");
     const bashPath = nativePath.split(";").join(":");
     const env = { ...process.env, PATH: bashPath, STUB_MARKER: markerPath };

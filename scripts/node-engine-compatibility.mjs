@@ -43,6 +43,13 @@ async function installedManifest(consumerRoot, packageName) {
   return readManifest(requireFromConsumer.resolve(`${packageName}/package.json`));
 }
 
+export async function importInstalledQualification(consumerRoot) {
+  const bridge = join(consumerRoot, "qualification.mjs");
+  await writeFile(bridge,
+    "export { runDocsProtocolQualification } from '@agent-teams/docs-protocol/qualification';\n");
+  return import(pathToFileURL(bridge).href);
+}
+
 async function runPortableQualification(qualification, temporaryRoot) {
   const fixtureRoot = join(temporaryRoot, "portable-qualification-fixture");
   await cp(
@@ -119,12 +126,7 @@ export async function qualifyNodeEngineCompatibility() {
       ...archives,
     ], { cwd: consumerRoot, env: { ...process.env, npm_config_engine_strict: "true" } });
 
-    const qualificationEntry = join(
-      consumerRoot, "node_modules", "@agent-teams", "docs-protocol", "dist", "qualification", "index.js"
-    );
-    const qualification = await import(
-      `${pathToFileURL(qualificationEntry).href}?node-engine-qualification=1`
-    );
+    const qualification = await importInstalledQualification(consumerRoot);
     if (typeof qualification.runDocsProtocolQualification !== "function") {
       throw new Error("Installed Docs Protocol qualification entrypoint is unavailable.");
     }

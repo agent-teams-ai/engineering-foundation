@@ -30,8 +30,32 @@
       "required": ["packageEngine", "productionDefault", "compatibilityLane"],
       "properties": {
         "packageEngine": { "const": "^24.18.0 || ^26.0.0" },
-        "productionDefault": { "$ref": "#/$defs/runtimeLane" },
-        "compatibilityLane": { "$ref": "#/$defs/runtimeLane" }
+        "productionDefault": {
+          "allOf": [
+            { "$ref": "#/$defs/runtimeLane" },
+            { "type": "object", "properties": {
+              "id": { "const": "node-24-production-default" },
+              "status": { "const": "production-default" },
+              "nodeMajor": { "const": 24 },
+              "engine": { "const": "^24.18.0" },
+              "qualificationVersion": { "const": "24.21.0" },
+              "default": { "const": true }
+            } }
+          ]
+        },
+        "compatibilityLane": {
+          "allOf": [
+            { "$ref": "#/$defs/runtimeLane" },
+            { "type": "object", "properties": {
+              "id": { "const": "node-26-compatibility" },
+              "status": { "const": "compatibility-lane" },
+              "nodeMajor": { "const": 26 },
+              "engine": { "const": "^26.0.0" },
+              "qualificationVersion": { "const": "26.10.0" },
+              "default": { "const": false }
+            } }
+          ]
+        }
       }
     },
     "contracts": {
@@ -49,8 +73,24 @@
             "schemaPath": { "const": "packages/docs-protocol/schemas/docs-protocol/v1.schema.json" }
           }
         },
-        "profile": { "$ref": "#/$defs/currentSchemaSet" },
-        "portableCommandEnvelope": { "$ref": "#/$defs/currentSchemaSet" },
+        "profile": {
+          "allOf": [
+            { "$ref": "#/$defs/currentSchemaSet" },
+            { "type": "object", "properties": {
+              "current": { "const": 4 },
+              "supported": { "type": "array", "contains": { "const": 4 } }
+            } }
+          ]
+        },
+        "portableCommandEnvelope": {
+          "allOf": [
+            { "$ref": "#/$defs/currentSchemaSet" },
+            { "type": "object", "properties": {
+              "current": { "const": 3 },
+              "supported": { "type": "array", "contains": { "const": 3 } }
+            } }
+          ]
+        },
         "portableQualificationReceipt": {
           "type": "object",
           "additionalProperties": false,
@@ -161,7 +201,7 @@
         },
         "currentSchemaPath": {
           "type": "string",
-          "pattern": "^packages/docs-protocol/schemas/[^\\u0000]+/v[0-9]+\\.schema\\.json$"
+          "pattern": "^packages/docs-protocol/schemas/[A-Za-z0-9_-]+/v[0-9]+\\.schema\\.json$"
         }
       }
     },

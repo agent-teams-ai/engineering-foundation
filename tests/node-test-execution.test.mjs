@@ -64,10 +64,12 @@ test('contract rejects empty, ambiguous, broad and malformed authority', () => {
 
 test('mandatory command keeps Node 24 default and accepts the Node 26 compatibility lane', () => {
   assert.throws(() => assertSupportedNodeTestRuntime('24.18.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
+  assert.throws(() => assertSupportedNodeTestRuntime('24.20.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
   assert.throws(() => assertSupportedNodeTestRuntime('23.99.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
   assert.throws(() => assertSupportedNodeTestRuntime('25.0.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
   assert.throws(() => assertSupportedNodeTestRuntime('27.0.0'), /Node >=24\.21\.0 <25 or >=26\.0\.0 <27/);
   assert.doesNotThrow(() => assertSupportedNodeTestRuntime('24.21.0'));
+  assert.doesNotThrow(() => assertSupportedNodeTestRuntime('26.0.0'));
   assert.doesNotThrow(() => assertSupportedNodeTestRuntime('26.10.0'));
 });
 

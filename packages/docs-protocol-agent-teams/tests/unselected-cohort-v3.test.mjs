@@ -49,7 +49,7 @@ test("v2 policy is a closed unselected successor and packed projection binds its
   assert.equal(hash(await read("../../architecture/foundation/docs-protocol-current-policy.json")),
     "sha256:b446075de07aa2655561e0cba7d15ed13cc2062b91303e961f06b6afddb18efc");
   assert.equal(hash(await read("../../architecture/contracts/docs-protocol-current-policy/v1.schema.json")),
-    "sha256:aca756c7d0410f6ccd35729ed70cd8c2e67ec795305e507ba39b81fc00626b50");
+    "sha256:3067433b3e5b8f964049f5b83dc29ac06bb32d6c88ac3d39eee3ad7769bd6f70");
   assert.equal(hash(source), "sha256:4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801");
   assert.equal(hash(asset), "sha256:d8da2a5234309f52801b39649695a80cb8875df999027b8d6367eebff8bdb87b");
   assert.equal(validatePolicy(policy), true, JSON.stringify(validatePolicy.errors));

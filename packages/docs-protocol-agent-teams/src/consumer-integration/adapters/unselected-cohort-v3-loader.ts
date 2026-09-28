@@ -16,7 +16,7 @@ export async function loadUnselectedCohortV3(source: string): Promise<Unselected
   return bindUnselectedCohortV3(candidate, await loadPackedManagedRuntimePolicy());
 }
 
-export async function loadPackedManagedRuntimePolicy(): Promise<PackedManagedRuntimePolicy> {
+async function loadPackedManagedRuntimePolicy(): Promise<PackedManagedRuntimePolicy> {
   const policySchema = parseJsonRecord(await readFile(new URL("../../../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"));
   const asset = parseJsonRecord(await readFile(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8"));
   const validatePolicy = new Ajv2020({ strict: true, allErrors: true }).compile(policySchema);

@@ -113,7 +113,9 @@ jobs:
       - run: pnpm dependencies:peers:check
       - run: pnpm rebuild
       - name: Qualify publishable packages in a fresh strict-engine consumer
-        run: pnpm node-compatibility:qualification | tee "$RUNNER_TEMP/node-engine-compatibility.json"
+        run: |
+          set -o pipefail
+          pnpm node-compatibility:qualification | tee "$RUNNER_TEMP/node-engine-compatibility.json"
       - name: Run focused observable compatibility regressions
         run: node --test --test-concurrency=1 tests/node-test-execution.test.mjs tests/docs-protocol-current-policy.test.mjs tests/registry-install-policy.test.mjs packages/docs-protocol/tests/qualification.test.mjs
 

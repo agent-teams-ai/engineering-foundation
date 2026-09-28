@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -254,4 +256,44 @@ test("workflow_run observer is read-only and never checks out pull request code"
   assert.equal(checkout.with.ref, "${{ github.sha }}");
   assert.doesNotMatch(source, /pull_request\.head|head_sha/u);
   assert.equal(workflow.jobs.observe.steps.some(({ run }) => /pnpm install/u.test(run ?? "")), false);
+});
+
+test("Node compatibility qualification propagates the producer status through tee", async () => {
+  const workflow = parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"));
+  const step = workflow.jobs["node26-compatibility"].steps.find(({ name }) =>
+    name === "Qualify publishable packages in a fresh strict-engine consumer");
+  assert.ok(step);
+  assert.equal(step.shell, undefined);
+
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-compatibility-shell-"));
+  try {
+    const pnpmPath = join(fixtureRoot, "pnpm");
+    await writeFile(pnpmPath, "#!/usr/bin/env bash\n[[ $# -eq 1 && $1 == node-compatibility:qualification ]] || exit 99\nprintf '%s\\n' '{\"qualification\":\"observed\"}'\nexit \"$QUALIFICATION_EXIT\"\n");
+    await chmod(pnpmPath, 0o755);
+    // GitHub's implicit Linux shell runs `bash -e {0}` without pipefail.
+    const run = (exitCode) => spawnSync("bash", ["-e", "-c", step.run], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${fixtureRoot}:${process.env.PATH}`,
+        RUNNER_TEMP: fixtureRoot,
+        QUALIFICATION_EXIT: String(exitCode),
+      },
+    });
+
+    const failed = run(42);
+    assert.equal(failed.error, undefined);
+    assert.equal(failed.status, 42);
+    assert.equal(failed.stdout, '{"qualification":"observed"}\n');
+    assert.equal(await readFile(join(fixtureRoot, "node-engine-compatibility.json"), "utf8"), failed.stdout);
+
+    const succeeded = run(0);
+    assert.equal(succeeded.error, undefined);
+    assert.equal(succeeded.status, 0);
+    assert.equal(succeeded.stdout, '{"qualification":"observed"}\n');
+    assert.deepEqual(JSON.parse(succeeded.stdout), { qualification: "observed" });
+    assert.equal(await readFile(join(fixtureRoot, "node-engine-compatibility.json"), "utf8"), succeeded.stdout);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
 });

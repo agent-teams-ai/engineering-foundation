@@ -22,31 +22,42 @@ const packageManager = "pnpm@11.20.0";
 
 function pnpmCli() {
   const directories = (process.env.PATH ?? "").split(delimiter);
-  const candidates = [process.env.npm_execpath,
+  const candidates = [
     ...directories.flatMap((directory) => [
-      join(directory, "pnpm"), join(directory, "pnpm.cmd"),
+      ...(process.platform === "win32"
+        ? [join(directory, "pnpm.exe"), join(directory, "pnpm.cmd"), join(directory, "pnpm")]
+        : [join(directory, "pnpm")]),
       join(directory, "pnpm.mjs"), join(directory, "pnpm.cjs"),
-      join(directory, "..", "pnpm", "bin", "pnpm.mjs"),
-      join(directory, "..", "pnpm", "bin", "pnpm.cjs"),
-      join(directory, "node_modules", "pnpm", "bin", "pnpm.cjs"),
-      join(directory, "node_modules", "pnpm", "bin", "pnpm.mjs"),
-    ])].filter(Boolean);
+    ]), process.env.npm_execpath].filter(Boolean);
   for (const candidate of candidates) {
     if (!existsSync(candidate)) { continue; }
     const resolved = realpathSync(candidate);
-    if ([".mjs", ".cjs", ".js"].includes(extname(resolved))) { return resolved; }
-    // A Windows command shim is not executable by Node. Its installed package
-    // is normally adjacent to the shim under PNPM_HOME/node_modules.
-    for (const entry of ["pnpm.mjs", "pnpm.cjs"]) {
-      const adjacent = join(dirname(resolved), "node_modules", "pnpm", "bin", entry);
-      if (existsSync(adjacent)) { return realpathSync(adjacent); }
+    if ([".mjs", ".cjs", ".js"].includes(extname(resolved))) {
+      return { command: process.execPath, prefix: [resolved] };
     }
+    // A Windows command shim is not executable by Node without a shell. Resolve
+    // only the pnpm package installed beside that selected shim.
+    if (process.platform === "win32" && extname(resolved).toLowerCase() === ".cmd") {
+      for (const packageDir of [
+        join(dirname(candidate), "..", "pnpm", "bin"),
+        join(dirname(candidate), "node_modules", "pnpm", "bin"),
+      ]) {
+        for (const entry of ["pnpm.mjs", "pnpm.cjs"]) {
+          const adjacent = join(packageDir, entry);
+          if (existsSync(adjacent)) {
+            return { command: process.execPath, prefix: [realpathSync(adjacent)] };
+          }
+        }
+      }
+      throw new Error(`The selected pnpm command shim has no adjacent JavaScript CLI: ${resolved}`);
+    }
+    return { command: resolved, prefix: [] };
   }
-  throw new Error("The selected pnpm JavaScript CLI was not found on PATH.");
+  throw new Error("The selected pnpm executable was not found on PATH.");
 }
 
 function runPnpm(cli, root, args) {
-  return spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: "utf8" });
+  return spawnSync(cli.command, [...cli.prefix, ...args], { cwd: root, encoding: "utf8" });
 }
 
 test("registry qualification covers npm and pnpm with docs-only and MCP profiles", () => {

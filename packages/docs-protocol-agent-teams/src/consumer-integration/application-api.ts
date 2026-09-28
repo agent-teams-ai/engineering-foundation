@@ -99,3 +99,5 @@ export { assertConsumerIntegrationDesiredStateV1 } from "./application/policies/
 
 export { bindUnselectedCohortV3 } from "./application/policies/qualified-docs-cohort-v3.js";
 export type { UnselectedCohortV3, PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";
+export { projectManagedSuccessorState } from "./application/policies/managed-successor-state.js";
+export type { ManagedSuccessorProfile, ManagedSuccessorAssetDigests } from "./application/policies/managed-successor-state.js";

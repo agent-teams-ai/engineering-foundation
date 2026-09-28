@@ -631,6 +631,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/fixtures
       - packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs
       - packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs
+      - packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification.test.mjs

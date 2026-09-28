@@ -634,6 +634,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification.test.mjs
+      - packages/docs-protocol-agent-teams/tests/runtime-policy-checkout.test.mjs
     allow:
       boundaries:
         - docs-protocol-agent-teams.adapters

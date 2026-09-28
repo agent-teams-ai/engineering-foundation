@@ -18,6 +18,7 @@ const hash = bytes => `sha256:${createHash("sha256").update(bytes).digest("hex")
 const gitObject = (kind, bytes) => createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest();
 const execFileAsync = promisify(execFile);
 const gitBytes = async args => Buffer.from((await execFileAsync("git", args, { encoding: "buffer" })).stdout);
+const foundationPackage = packages => packages.find(row => row.packageName === "@agent-teams/engineering-foundation");
 const currentSourcePaths = Object.freeze({
   loaderTest: "tests/public-api-configuration.test.mjs",
   packedQualification: "scripts/pack-sdk-growth-test.mjs",
@@ -38,7 +39,6 @@ const assertCandidateSources = async candidate => {
       const historicalBytes = await gitBytes(["cat-file", "blob", snapshot.blob]);
       assert.equal(hash(historicalBytes), snapshot.contentDigest);
       assert.equal(gitObject("blob", historicalBytes).toString("hex"), snapshot.blob);
-      const foundationPackage = packages => packages.find(row => row.packageName === "@agent-teams/engineering-foundation");
       const historicalPackages = parseCapabilityConfig(parse(historicalBytes.toString("utf8"))).packages;
       const currentPackages = parseCapabilityConfig(parse(await readFile(path, "utf8"))).packages;
       const evidencedFoundationPolicy = foundationPackage(historicalPackages);

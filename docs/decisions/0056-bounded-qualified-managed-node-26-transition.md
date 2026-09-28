@@ -621,6 +621,11 @@ selects `productionDefault` and `compatibilityLane`. P1a must retain those
 portable Node24/Node26 observations and their exact qualification behavior when
 the canonical policy advances: either the integrated checker reads v2 with
 explicit version validation, or a versioned selection keeps its v1 input exact.
+A P1a acceptance invariant for both `contracts.profile` and
+`contracts.portableCommandEnvelope`: the v2 schema and loader reject a `current`
+generation absent from `supported`, or a `currentSchemaPath` other than the exact
+schema path for that family and `current` generation. Mutation fixtures for each
+family must reject both an omitted current generation and a mismatched path.
 A passing managed projection test cannot substitute for this portable checker.
 Coordinate that reader change with the active portable owner, without modifying
 it in this docs-only lane. Synthetic policy data may support preparatory reader

@@ -33,6 +33,7 @@ not repeat their rules.
 | Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Cooperative-writer boundary implemented and released; registry qualification complete |
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
+| Node compatibility | [Node 24 default and Node 26 lane](development/node-26-compatibility.md) | Implemented compatibility policy; Node 24 remains production/default |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Hardening migration preparation | [Seven-consumer migration packets](development/docs-new-package-migration.md) | Draft; exact artifacts, recovery and consumer qualification pending |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |

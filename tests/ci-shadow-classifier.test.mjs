@@ -30,3 +30,17 @@ test("PR and merge-group CI never route required lanes through the shadow result
     assert.doesNotMatch(serialized, /needs\.shadow-classifier|effective-plan/u, name);
   }
 });
+
+test("both required aggregates depend on the complete Node compatibility matrix", async () => {
+  const workflow = parseYaml(await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"));
+  const compatibility = workflow.jobs["node26-compatibility"];
+  assert.equal(compatibility.strategy["fail-fast"], false);
+  assert.deepEqual(compatibility.strategy.matrix.include.map(({ lane }) => lane), [
+    "node24-production-default", "node26-compatibility",
+  ]);
+  for (const name of ["check", "windows-check"]) {
+    assert.ok(workflow.jobs[name].needs.includes("node26-compatibility"), name);
+    assert.match(workflow.jobs[name].if, /always\(\)/u, name);
+    assert.match(JSON.stringify(workflow.jobs[name].steps), /toJSON\(needs\)/u, name);
+  }
+});

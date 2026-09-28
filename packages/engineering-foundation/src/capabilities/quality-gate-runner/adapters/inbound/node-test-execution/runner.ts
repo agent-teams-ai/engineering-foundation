@@ -318,9 +318,10 @@ export function evaluateNodeTestEvents(events: Event[], contract: unknown, selec
 
 export function assertSupportedNodeTestRuntime(version = process.versions.node): void {
   const [major, minor, patch] = version.split(".").map(Number);
-  if (major !== 24 || minor === undefined || !Number.isSafeInteger(minor) || minor < 21 ||
-    patch === undefined || !Number.isSafeInteger(patch) || patch < 0) {
-    fail("requires Node >=24.21.0 <25");
+  const node24 = major === 24 && minor !== undefined && Number.isSafeInteger(minor) && minor >= 21;
+  const node26 = major === 26 && minor !== undefined && Number.isSafeInteger(minor) && minor >= 0;
+  if ((!node24 && !node26) || patch === undefined || !Number.isSafeInteger(patch) || patch < 0) {
+    fail("requires Node >=24.21.0 <25 or >=26.0.0 <27");
   }
 }
 

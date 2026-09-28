@@ -12,8 +12,7 @@ It does not require the Agent Teams managed preset, a site, or a portal.
 
 ## Requirements
 
-- Node `>=24.18.0 <25` until a later compatibility decision qualifies more
-  runtimes;
+- Node `>=24.18.0 <25` for the exact published coordinates documented here;
 - a clean reviewable repository state before bootstrap apply;
 - one exact package version, committed in the consumer manifest and lockfile;
 - no `latest`, ranges, floating `npx`, or floating `dlx` invocation.
@@ -26,6 +25,9 @@ there. Do not run or automate local Windows `init --apply` or recovery until a
 release explicitly adds durable Windows transaction evidence.
 
 ## Install one exact version
+
+This published workflow remains Node 24-only. Node 26 compatibility is
+[staged separately](../development/node-26-compatibility.md).
 
 The initial portable release qualifies npm and pnpm. First prove that the exact
 CLI coordinate exists. Override both the default and scoped registry so user or
@@ -240,5 +242,5 @@ multi-tenant operation are not part of the portable profile.
 - Bootstrap uses only reviewed create-absent and exact-preimage operations.
 - The Agent Teams managed preset and Cohort workflow remain separate and
   unchanged.
-- A wider Node range or alternative runtime is unsupported until it passes
-  separate capability qualification.
+- This published workflow remains Node 24-only. Node 26 compatibility is
+  [staged separately](../development/node-26-compatibility.md).

@@ -55,7 +55,9 @@ cells. Each consumer records its own activation status in its repository.
 JSON Schema files exported by Foundation packages remain artifact-protected by
 public-api sidecars. Family support is claimed only for
 `docs-protocol-profile` public contract `3.0.0`. All other exported schema
-families stay `artifact-protected; family support not claimed`.
+families stay `artifact-protected; family support not claimed`. The repository
+Docs Protocol current-policy schema is also artifact-protected and does not add
+a second JSON Schema family support claim.
 
 ## Goals
 

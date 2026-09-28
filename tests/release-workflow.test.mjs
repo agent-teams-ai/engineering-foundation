@@ -2161,7 +2161,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     ci.jobs["windows-package"].steps.at(-1).run,
     "pnpm package:check",
   );
-  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 45);
+  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 60);
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));
@@ -2197,6 +2197,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   }
   assert.deepEqual(ci.jobs.check.needs, [
     "dependency-review",
+    "node26-compatibility",
     "linux-static",
     "linux-test-1",
     "linux-test-2",

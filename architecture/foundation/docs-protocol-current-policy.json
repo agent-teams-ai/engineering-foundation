@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "policyId": "agent-teams.docs-protocol-current-policy",
+  "policyVersion": "1.0.0",
+  "supportClaim": "artifact-protected; family support not claimed",
+  "runtime": {
+    "packageEngine": "^24.18.0 || ^26.0.0",
+    "productionDefault": {
+      "id": "node-24-production-default",
+      "status": "production-default",
+      "nodeMajor": 24,
+      "engine": "^24.18.0",
+      "qualificationVersion": "24.21.0",
+      "default": true,
+      "cutoverAuthorized": false
+    },
+    "compatibilityLane": {
+      "id": "node-26-compatibility",
+      "status": "compatibility-lane",
+      "nodeMajor": 26,
+      "engine": "^26.0.0",
+      "qualificationVersion": "26.10.0",
+      "default": false,
+      "cutoverAuthorized": false
+    }
+  },
+  "contracts": {
+    "protocol": {
+      "id": "agent-teams.docs-protocol",
+      "version": 1,
+      "schemaPath": "packages/docs-protocol/schemas/docs-protocol/v1.schema.json"
+    },
+    "profile": {
+      "current": 4,
+      "supported": [3, 4],
+      "currentSchemaPath": "packages/docs-protocol/schemas/docs-protocol-profile/v4.schema.json"
+    },
+    "portableCommandEnvelope": {
+      "current": 3,
+      "supported": [1, 2, 3],
+      "currentSchemaPath": "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope/v3.schema.json"
+    },
+    "portableQualificationReceipt": {
+      "current": 1,
+      "entrypoint": "@agent-teams/docs-protocol/qualification",
+      "export": "runDocsProtocolQualification"
+    },
+    "managed": {
+      "profile": 3,
+      "cohort": 2,
+      "qualificationReceipt": 3,
+      "runtime": "Node 24 production cohort only"
+    }
+  },
+  "qualification": {
+    "command": "pnpm node-compatibility:qualification",
+    "requiresDisposableFixture": true,
+    "proves": [
+      "engine-strict-install",
+      "node-24-default",
+      "node-26-compatibility",
+      "portable-qualification-entrypoint"
+    ]
+  },
+  "history": {
+    "mutationPolicy": "preserve exact historical schema bytes",
+    "preservedSchemas": [
+      {
+        "path": "packages/docs-protocol/schemas/docs-protocol/v1.schema.json",
+        "sha256": "sha256:8c71e07f9cf9b8980cf5fe68ac80fda85cb1ec0f6ad05c79f029b77e4c67a774"
+      },
+      {
+        "path": "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope/v1.schema.json",
+        "sha256": "sha256:b00207b5484f3bf477909bc8b1272701212eda9dbe1eefd6fb263c6df4a69c11"
+      },
+      {
+        "path": "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope/v2.schema.json",
+        "sha256": "sha256:6120aab2431b23a8694c4bfbaf11d90dc7e63fa9cb1d2e97226ed9fb23b31712"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-protocol-profile/v1.schema.json",
+        "sha256": "sha256:499eb16ae1f31700860a7f9dd59ab11539c2884c41e5f6e1e3b184a25827bcd6"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-protocol-profile/v2.schema.json",
+        "sha256": "sha256:8cb8137fa4d2ecf343fb1429813707be2e041a19c1406cc623b3821c48bf1a44"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-consumer-integration-profile/v1.schema.json",
+        "sha256": "sha256:4575850d75a657c8fdfa5022484c0dda73d3a9ba873f43cba8d78ae5c73b4195"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-consumer-integration-profile/v2.schema.json",
+        "sha256": "sha256:cc130ed565aa10b43fb222a40c986a2fd39d226be86cb7669cbb605a42ac0ddf"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-consumer-managed-state/v1.schema.json",
+        "sha256": "sha256:03c466f64b8ac8fc43a33c388f51d92b9822d6ece3a7c74e5379677cf7ced2a8"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-protocol-qualification/v2.schema.json",
+        "sha256": "sha256:e9275b7f53dc34c217fa7d7eada54fa23ebe4e60966fb83d0a875682d47b5f86"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/docs-protocol-qualification-receipt/v2.schema.json",
+        "sha256": "sha256:87a16fd0dd1ec570cb21fe372fdada4060b641559adf8f513e37c4e195498578"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/qualified-docs-cohort/v1.schema.json",
+        "sha256": "sha256:b5bdb0582a9a1b6a9988e1fa79b6412d0ef586c96cc8c44f03d9bd3e3c400d68"
+      },
+      {
+        "path": "packages/docs-protocol-agent-teams/schemas/qualified-docs-cohort/v2.schema.json",
+        "sha256": "sha256:fe5db76521578be6cfbf7a5f763346118bf97c21a823696c9c52b924523ff9ce"
+      }
+    ]
+  }
+}

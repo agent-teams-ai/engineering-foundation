@@ -79,7 +79,7 @@ export function bindUnselectedCohortV3(
       candidate.rollbackTo.some((origin) => !candidate.upgradeFrom.includes(origin))) {
     throw new TypeError("Cohort v3 source and rollback edges are inconsistent.");
   }
-  if (runtime.policy.digest !== policy.sourceDigest ||
+  if (runtime.policy.digest !== policy.sourceDigest || !lane ||
       runtime.node !== lane.node || runtime.pnpm !== policy.pnpm ||
       runtime.qualificationRuntime.nodeVersion !== lane.qualificationRuntime.nodeVersion ||
       runtime.qualificationRuntime.pnpmVersion !== lane.qualificationRuntime.pnpmVersion ||

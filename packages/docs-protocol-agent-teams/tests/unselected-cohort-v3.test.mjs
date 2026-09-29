@@ -205,3 +205,17 @@ test("direct Cohort v3 binder admits only real whole UTC seconds", () => {
     assert.throws(() => bindUnselectedCohortV3(candidate, policy), /eligibleAfter/, eligibleAfter);
   }
 });
+
+test("direct Cohort v3 binder rejects an unknown selected lane with a controlled error", () => {
+  const policy = {
+    sourceDigest: projected.sourceDigest,
+    pnpm: projected.managedRuntime.pnpm,
+    lanes: projected.managedRuntime.lanes,
+  };
+  const candidate = valid();
+  candidate.runtime.selectedLane = "node-99-unknown";
+  assert.throws(() => bindUnselectedCohortV3(candidate, policy), {
+    name: "TypeError",
+    message: "Cohort v3 runtime differs from the packed managed policy lane.",
+  });
+});

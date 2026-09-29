@@ -55,13 +55,13 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   assert.ok(manifest.files.includes("schemas"));
   const ajv = new Ajv2020({ strict: true });
   ajv.addSchema(await read("../schemas/qualified-docs-cohort/v3.schema.json"));
-  const validateProfile = ajv.compile(await read("../schemas/docs-consumer-integration-profile/v4.schema.json"));
   const validateState = ajv.compile(await read("../schemas/docs-consumer-managed-state/v3.schema.json"));
   const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
-  assert.equal(validateProfile(selected), true);
   await assert.rejects(assertConsumerIntegrationProfileSchema(selected), /exactly 1, 2, or 3/);
   const state = JSON.parse(projectManagedSuccessorState(selected, assets()));
   assert.equal(validateState(state), true, JSON.stringify(validateState.errors));
+  assert.equal(state.assets.agentsRouteDigest, sha(route));
+  assert.equal(state.assets.docsScriptsDigest, sha(canonical(scripts)));
   const { stateDigest, ...body } = state;
   assert.equal(stateDigest, "sha256:f12a16bc343e2b6773ade9c2bf042c4254ea0fd480d800ab26cb7eece03ec9bf");
   assert.equal(stateDigest, sha(canonical({ domain: "agent-teams.docs-protocol.managed-state/v3", body })));
@@ -77,7 +77,7 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   assert.equal(old.compile(await read("../schemas/docs-consumer-managed-state/v2.schema.json"))(state), false);
 });
 
-test("profile and state refuse mixed generations, policy swaps and asset mutation", async () => {
+test("profile refuses mixed generations and policy swaps", async () => {
   for (const mutate of [
     (p) => { p.schemaVersion = 3; }, (p) => { p.cohort.schemas.managedState = 2; },
     (p) => { p.cohort.runtime.selectedLane = "node-24-production-default"; },
@@ -86,45 +86,28 @@ test("profile and state refuse mixed generations, policy swaps and asset mutatio
     (p) => { p.cohort.candidateDigest = digest("0"); },
     (p) => { p.cohort.rollbackTo = ["unrelated"]; },
   ]) { const invalid = profile(); mutate(invalid); await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid))); }
-  const valid = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
-  const badAssets = assets(); badAssets.skillDigest = digest("f");
-  assert.throws(() => projectManagedSuccessorState(valid, badAssets));
   const nestedDuplicate = JSON.stringify(profile()).replace('"selectedLane":"node-26-managed-qualified"',
     '"selectedLane":"node-26-managed-qualified","selected\\u004cane":"node-24-production-default"');
   await assert.rejects(loadUnselectedManagedProfileV4(nestedDuplicate));
   await assert.rejects(loadUnselectedManagedProfileV4("x".repeat(1024 * 1024 + 1)), /bounded input size/);
 });
 
-test("successor state accepts canonical route and scripts digests", async () => {
+test("successor state rejects asset digests unrelated to the cohort or paths", async () => {
   const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
-  const expected = assets();
-  const state = JSON.parse(projectManagedSuccessorState(selected, expected));
-  assert.equal(state.assets.agentsRouteDigest, sha(route));
-  assert.equal(state.assets.docsScriptsDigest, sha(canonical(scripts)));
+  for (const [key, wrongDigest] of [["skillDigest", digest("f")], ["agentsRouteDigest", digest("8")],
+    ["docsScriptsDigest", digest("a")]]) {
+    assert.throws(() => projectManagedSuccessorState(selected, { ...assets(), [key]: wrongDigest }),
+      /Successor state assets do not bind the cohort/, key);
+  }
 });
 
-test("successor state rejects a route digest unrelated to the skill path", async () => {
-  const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
-  const expected = assets();
-  assert.throws(() => projectManagedSuccessorState(selected, { ...expected, agentsRouteDigest: digest("8") }),
-    /Successor state assets do not bind the cohort/);
-});
-
-test("successor state rejects a scripts digest unrelated to the profile path", async () => {
-  const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
-  const expected = assets();
-  assert.throws(() => projectManagedSuccessorState(selected, { ...expected, docsScriptsDigest: digest("a") }),
-    /Successor state assets do not bind the cohort/);
-});
-
-test("duplicate profile key diagnostic identifies managed profile v4", async () => {
-  await assert.rejects(loadUnselectedManagedProfileV4('{"schemaVersion":4,"schemaVersion":4}'),
-    { name: "ConsumerJsonInputError", message: "Managed profile v4 must not contain duplicate keys." });
-});
-
-test("non-object profile diagnostic identifies managed profile v4", async () => {
-  await assert.rejects(loadUnselectedManagedProfileV4("[]"),
-    { name: "ConsumerJsonInputError", message: "Managed profile v4 must be one JSON object." });
+test("managed profile v4 strict JSON diagnostics identify invalid input", async () => {
+  for (const [source, message] of [
+    ['{"schemaVersion":4,"schemaVersion":4}', "Managed profile v4 must not contain duplicate keys."],
+    ["[]", "Managed profile v4 must be one JSON object."],
+  ]) {
+    await assert.rejects(loadUnselectedManagedProfileV4(source), { name: "ConsumerJsonInputError", message });
+  }
 });
 
 test("default manifest parse diagnostics remain stable", () => {

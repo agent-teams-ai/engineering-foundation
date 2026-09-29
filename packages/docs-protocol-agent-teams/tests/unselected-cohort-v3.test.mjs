@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml } from "yaml";
-import { loadUnselectedCohortV3 } from "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
+import { loadUnselectedCohortV3, parseRecord } from "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root));
@@ -103,6 +103,23 @@ test("packed policy asset has an exact public artifact disposition", async () =>
     { exportPath: "./package.json", kind: "data" },
     { exportPath: "./schemas/*", kind: "wildcard" },
   ]);
+});
+
+test("policy and schema admission rejects decoded duplicate keys before validation", async () => {
+  for (const [name, bytes, nested] of [
+    ["policy", asset, '"managedRuntime": {'],
+    ["schema", await read("schemas/managed-runtime-policy/v1.schema.json"), '"const": {'],
+  ]) {
+    const sourceText = bytes.toString("utf8");
+    for (const [scope, candidate] of [
+      ["top-level", sourceText.replace("{", '{"x":0,"x":1,')],
+      ["nested", sourceText.replace(nested, `${nested}"x":0,"x":1,`)],
+      ["escaped", sourceText.replace("{", '{"x":0,"\\u0078":1,')],
+    ]) {
+      assert.notEqual(candidate, sourceText, `${name} ${scope} fixture must change`);
+      assert.throws(() => parseRecord(candidate), { name: "StrictJsonError", failure: "duplicate-key" }, `${name} ${scope}`);
+    }
+  }
 });
 
 test("unselected v3 validates closed tuple, lanes, identity and packed policy references", async () => {

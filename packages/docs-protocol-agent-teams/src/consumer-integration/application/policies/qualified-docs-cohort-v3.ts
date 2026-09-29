@@ -9,6 +9,8 @@ export interface UnselectedCohortV3 {
   readonly upgradeFrom: readonly string[];
   readonly rollbackTo: readonly string[];
   readonly candidateDigest: string;
+  readonly lifecycleState: "QUALIFIED" | "CANARY" | "RECOMMENDED";
+  readonly canaryRepositoryIds: readonly string[];
   readonly packages: Readonly<Record<"repositoryMutation" | "documentAuthoring" | "docsProtocol" |
     "docsProtocolAgentTeams" | "engineeringFoundation", { readonly version: string; readonly integrity: string }>>;
   readonly workflow: { readonly repository: "agent-teams-ai/.github"; readonly path: ".github/workflows/docs-protocol-check.yml";

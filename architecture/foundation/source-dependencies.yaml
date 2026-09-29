@@ -691,6 +691,7 @@ boundaries:
       boundaries: []
       packages:
         - ajv
+        - jsonc-parser
       builtins:
         - node:crypto
         - node:fs/promises

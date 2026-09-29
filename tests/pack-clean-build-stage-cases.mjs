@@ -92,14 +92,17 @@ export function registerCleanBuildStageTests() {
     }
     const installedAjv = join(sourceRepositoryRoot, "node_modules", "ajv");
     const ajvVersion = JSON.parse(await readFile(join(installedAjv, "package.json"), "utf8")).version;
+    const installedJsonc = join(sourceRepositoryRoot, "packages", "docs-protocol-agent-teams", "node_modules", "jsonc-parser");
+    const jsoncVersion = JSON.parse(await readFile(join(installedJsonc, "package.json"), "utf8")).version;
     await mkdir(join(packageRoot, "node_modules"), { recursive: true });
     await symlink(await realpath(installedAjv), join(packageRoot, "node_modules", "ajv"), "dir");
+    await symlink(await realpath(installedJsonc), join(packageRoot, "node_modules", "jsonc-parser"), "dir");
     await writeFile(join(repositoryRoot, "LICENSE"), "fixture license\n");
     await writeFile(join(repositoryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
     await writeFile(join(packageRoot, "README.md"), "# Managed policy build fixture\n");
     await writeFile(join(packageRoot, "package.json"), `${JSON.stringify({
       name: packageName, version: "0.0.0", type: "module",
-      dependencies: { ajv: ajvVersion }, files: ["assets", "schemas"],
+      dependencies: { ajv: ajvVersion, "jsonc-parser": jsoncVersion }, files: ["assets", "schemas"],
     })}\n`);
 
     const stage = (label) => createCleanBuildStage({
@@ -137,6 +140,35 @@ export function registerCleanBuildStageTests() {
     await symlink(alias, policySource);
     await assert.rejects(stage("aliased-policy"), /not the canonical repository file/u);
     await rm(policySource);
+    await writeFile(policySource, originalPolicy);
+
+    for (const [path, nested, key, escapedKey, nestedKey] of [
+      [policyPath, '"runtime": {', "policyId", "policy\\u0049d", "productionDefault"],
+      [schemaPath, '"$defs": {', "$schema", "$sche\\u006da", "currentSchemaSet"],
+    ]) {
+      const original = await readFile(join(repositoryRoot, path), "utf8");
+      const parsed = JSON.parse(original);
+      const nestedValue = path === policyPath ? parsed.runtime[nestedKey] : parsed.$defs[nestedKey];
+      for (const [scope, changed] of [
+        ["top", original.replace("{", `{${JSON.stringify(key)}:${JSON.stringify(parsed[key])},`)],
+        ["nested", original.replace(nested, `${nested}${JSON.stringify(nestedKey)}:${JSON.stringify(nestedValue)},`)],
+        ["escaped", original.replace("{", `{${JSON.stringify(escapedKey).replace("\\\\", "\\")}:${JSON.stringify(parsed[key])},`)],
+      ]) {
+        assert.notEqual(changed, original, `${path} ${scope} fixture must change`);
+        assert.deepEqual(JSON.parse(changed), parsed, `${path} ${scope} must retain the value native parsing would accept`);
+        await writeFile(join(repositoryRoot, path), changed);
+        await assert.rejects(stage(`duplicate-${path === policyPath ? "policy" : "schema"}-${scope}`), (error) => {
+          assert.match(error.stderr, /duplicate decoded JSON keys/u);
+          return true;
+        });
+      }
+      await writeFile(join(repositoryRoot, path), original);
+    }
+    await writeFile(policySource, `${originalPolicy.toString("utf8")} // JSONC is not JSON`);
+    await assert.rejects(stage("jsonc-policy"), (error) => {
+      assert.match(error.stderr, /SyntaxError|Unexpected|JSON/u);
+      return true;
+    });
     await writeFile(policySource, originalPolicy);
 
     await writeFile(policySource, `${originalPolicy.toString("utf8")}\n`);

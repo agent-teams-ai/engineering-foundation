@@ -320,55 +320,6 @@
     }
   },
   "$defs": {
-    "runtimeLane": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "status",
-        "nodeMajor",
-        "engine",
-        "qualificationVersion",
-        "default",
-        "cutoverAuthorized"
-      ],
-      "properties": {
-        "id": {
-          "enum": [
-            "node-24-production-default",
-            "node-26-compatibility"
-          ]
-        },
-        "status": {
-          "enum": [
-            "production-default",
-            "compatibility-lane"
-          ]
-        },
-        "nodeMajor": {
-          "enum": [
-            24,
-            26
-          ]
-        },
-        "engine": {
-          "enum": [
-            "^24.18.0",
-            "^26.0.0"
-          ]
-        },
-        "qualificationVersion": {
-          "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
-        },
-        "default": {
-          "type": "boolean"
-        },
-        "cutoverAuthorized": {
-          "const": false
-        }
-      }
-    },
     "currentSchemaSet": {
       "type": "object",
       "additionalProperties": false,

@@ -390,6 +390,10 @@
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
             {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-cohort-v3-loader.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
               "path": "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/artifact-public-api-evidence.ts",
               "owner": "engineering-foundation/public-api-compatibility"
             },

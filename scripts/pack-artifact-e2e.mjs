@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { observePackageWildcardExports } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-package-artifact-inventory.js";
 import { assertPackedWildcardMembers } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/module.js";
 import { readContainedRegularFile, pathTraversesSymbolicLink } from "../packages/engineering-foundation/dist/source-inventory/node.js";
-import { runtimePolicyBuildInputPaths } from "../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs";
 
 import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
 import { projectMarkdownPublication } from "./markdown-publication.mjs";
@@ -22,6 +21,7 @@ async function stageManagedPolicyBuildInputs(repositoryRoot, stageRoot, stagedPa
   if (!stagedPackagesByName.has(managedPolicyPackage)) {
     return;
   }
+  const { runtimePolicyBuildInputPaths } = await import("../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs");
   const physicalRepositoryRoot = await realpath(repositoryRoot);
   for (const relativePath of runtimePolicyBuildInputPaths) {
     const source = join(repositoryRoot, relativePath);

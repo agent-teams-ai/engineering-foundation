@@ -39,6 +39,7 @@ const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
 for (const [failureCode, failures, expectedAttempts, expectedRootExists] of [
   ["EBUSY", 1, 2, false],
   ["EPERM", 1, 2, false],
+  ["ENOTEMPTY", 1, 2, false],
   ["EBUSY", 100, 4, true],
   ["EACCES", 100, 1, true]
 ]) {

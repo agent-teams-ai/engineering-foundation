@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,6 +32,89 @@ const TEST_TIMEOUT_MS = 90_000;
 const READY_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 10;
 const WINDOWS_CONTROL_ROOT_PREFIX = "agent-teams-foundation-process-";
+
+// A one-shot EBUSY or EPERM turns red with single-attempt cleanup, including
+// after a delayed wrapper exit. Persistent EBUSY turns red for unbounded
+// retries or a forgotten root. EACCES turns red if a permanent error is retried.
+for (const [failureCode, failures, expectedAttempts, expectedRootExists] of [
+  ["EBUSY", 1, 2, false],
+  ["EPERM", 1, 2, false],
+  ["ENOTEMPTY", 1, 2, false],
+  ["EBUSY", 100, 4, true],
+  ["EACCES", 100, 1, true]
+]) {
+  for (const path of ["immediate", "deferred"]) {
+    test(`bounds ${path} Windows control-root cleanup after ${String(failures)} ${failureCode} failure(s)`, () => {
+      const source = `
+        import fs from "node:fs";
+        import childProcess from "node:child_process";
+        import { EventEmitter } from "node:events";
+        import { syncBuiltinESMExports } from "node:module";
+        const remove = fs.rmSync;
+        const spawn = childProcess.spawn;
+        let attempts = 0;
+        let controlRoot;
+        let child;
+        fs.rmSync = (path, options) => {
+          controlRoot = path;
+          attempts += 1;
+          if (attempts <= ${String(failures)}) {
+            throw Object.assign(new Error("injected cleanup failure"), { code: ${JSON.stringify(failureCode)} });
+          }
+          return remove(path, options);
+        };
+        if (${JSON.stringify(path)} === "deferred") {
+          childProcess.spawn = () => {
+            child = new EventEmitter();
+            child.stdin = null;
+            child.exitCode = null;
+            child.signalCode = null;
+            child.pid = 123;
+            child.kill = () => true;
+            return child;
+          };
+        }
+        syncBuiltinESMExports();
+        const { spawnWindowsManagedProcess } = await import(
+          "./packages/engineering-foundation/dist/process-execution/windows-managed-process.js"
+        );
+        try {
+          spawnWindowsManagedProcess({
+            command: process.execPath,
+            args: [],
+            cwd: process.cwd(),
+            launcherEnvironment: { SystemRoot: ${JSON.stringify(path === "immediate" ? "relative-system-root" : "C:\\Windows")} }
+          });
+          throw new Error("expected launch failure");
+        } catch (error) {
+          if (!String(error).includes(${JSON.stringify(path === "immediate" ? "SystemRoot must be an absolute Windows path" : "did not expose its bootstrap input")})) {
+            throw error;
+          }
+        }
+        if (child) {
+          child.exitCode = 0;
+          child.emit("exit", 0, null);
+        }
+        fs.rmSync = remove;
+        childProcess.spawn = spawn;
+        syncBuiltinESMExports();
+        const rootExists = fs.existsSync(controlRoot);
+        if (rootExists) remove(controlRoot, { force: true, recursive: true });
+        process.stdout.write(JSON.stringify({ attempts, rootExists }));
+      `;
+      const result = spawnSync(process.execPath, ["--input-type=module", "-e", source], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        timeout: 10_000
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout), {
+        attempts: expectedAttempts,
+        rootExists: expectedRootExists
+      });
+    });
+  }
+}
 
 test("reports bounded Windows cleanup diagnostics without exposing wrapper output", () => {
   const timeout = new Error(

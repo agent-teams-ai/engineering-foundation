@@ -160,6 +160,7 @@ export function registerCleanBuildStageTests() {
       [schemaPath, '\n  "$defs": {', "$schema", "$sche\\u006da", "currentSchemaSet"],
     ]) {
       const original = await readFile(join(repositoryRoot, path), "utf8");
+      assert.ok(original.startsWith("{\n"), `${path} must be checked out with LF line endings`);
       const parsed = JSON.parse(original);
       const nestedValue = path === policyPath ? parsed.runtime[nestedKey] : parsed.$defs[nestedKey];
       assert.equal(JSON.parse(`"${escapedKey}"`), key, `${path} escaped key must decode to ${key}`);

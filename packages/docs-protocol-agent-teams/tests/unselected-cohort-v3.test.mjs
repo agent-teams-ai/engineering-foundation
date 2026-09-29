@@ -22,6 +22,18 @@ const validateAsset = ajv.compile(assetSchema);
 const validateCohort = ajv.compile(cohortSchema);
 const validateOld = ajv.compile(oldSchema);
 const digest = (digit) => `sha256:${digit.repeat(64)}`;
+const insertDuplicateKey = (sourceText, marker, insertion, atRoot = false) => {
+  const position = sourceText.indexOf(marker);
+  if (atRoot) {
+    assert.equal(position, 0, "root object marker must be at the start");
+    assert.ok(sourceText.startsWith("{\n"), "root object must start with a newline");
+  } else {
+    assert.ok(position > 0, `expected nested marker ${marker}`);
+    assert.equal(sourceText.lastIndexOf(marker), position, `nested marker ${marker} must be unique`);
+  }
+  const end = position + marker.length;
+  return sourceText.slice(0, end) + insertion + sourceText.slice(end);
+};
 const pkg = { version: "1.0.0", integrity: `sha512-${"A".repeat(86)}==` };
 const valid = () => ({
   schemaVersion: 3, cohortId: "candidate-v3", channel: "rc", recordDigest: digest("1"),
@@ -107,14 +119,14 @@ test("packed policy asset has an exact public artifact disposition", async () =>
 
 test("policy and schema admission rejects decoded duplicate keys before validation", async () => {
   for (const [name, bytes, nested] of [
-    ["policy", asset, '"managedRuntime": {'],
-    ["schema", await read("schemas/managed-runtime-policy/v1.schema.json"), '"const": {'],
+    ["policy", asset, '\n  "managedRuntime": {'],
+    ["schema", await read("schemas/managed-runtime-policy/v1.schema.json"), '\n  "const": {'],
   ]) {
     const sourceText = bytes.toString("utf8");
     for (const [scope, candidate] of [
-      ["top-level", sourceText.replace("{", '{"x":0,"x":1,')],
-      ["nested", sourceText.replace(nested, `${nested}"x":0,"x":1,`)],
-      ["escaped", sourceText.replace("{", '{"x":0,"\\u0078":1,')],
+      ["top-level", insertDuplicateKey(sourceText, "{", '"x":0,"x":1,', true)],
+      ["nested", insertDuplicateKey(sourceText, nested, '"x":0,"x":1,')],
+      ["escaped", insertDuplicateKey(sourceText, "{", '"x":0,"\\u0078":1,', true)],
     ]) {
       assert.notEqual(candidate, sourceText, `${name} ${scope} fixture must change`);
       assert.throws(() => parseRecord(candidate), { name: "StrictJsonError", failure: "duplicate-key" }, `${name} ${scope}`);

@@ -10,6 +10,19 @@ import { createCleanBuildStage } from "../scripts/pack-artifact-e2e.mjs";
 import { runCommand } from "../scripts/pack-test-support.mjs";
 import { isPhysicallyContainedPath } from "./pack-publishable-artifacts-support.mjs";
 
+const insertDuplicateKey = (sourceText, marker, insertion, atRoot = false) => {
+  const position = sourceText.indexOf(marker);
+  if (atRoot) {
+    assert.equal(position, 0, "root object marker must be at the start");
+    assert.ok(sourceText.startsWith("{\n"), "root object must start with a newline");
+  } else {
+    assert.ok(position > 0, `expected nested marker ${marker}`);
+    assert.equal(sourceText.lastIndexOf(marker), position, `nested marker ${marker} must be unique`);
+  }
+  const end = position + marker.length;
+  return sourceText.slice(0, end) + insertion + sourceText.slice(end);
+};
+
 export function registerCleanBuildStageTests() {
   test("clean stage resolves internal imports to freshly built staged copies", async (t) => {
     const repositoryRoot = await mkdtemp(join(tmpdir(), "pack-stage-resolution-"));
@@ -143,16 +156,17 @@ export function registerCleanBuildStageTests() {
     await writeFile(policySource, originalPolicy);
 
     for (const [path, nested, key, escapedKey, nestedKey] of [
-      [policyPath, '"runtime": {', "policyId", "policy\\u0049d", "productionDefault"],
-      [schemaPath, '"$defs": {', "$schema", "$sche\\u006da", "currentSchemaSet"],
+      [policyPath, '\n  "runtime": {', "policyId", "policy\\u0049d", "productionDefault"],
+      [schemaPath, '\n  "$defs": {', "$schema", "$sche\\u006da", "currentSchemaSet"],
     ]) {
       const original = await readFile(join(repositoryRoot, path), "utf8");
       const parsed = JSON.parse(original);
       const nestedValue = path === policyPath ? parsed.runtime[nestedKey] : parsed.$defs[nestedKey];
+      assert.equal(JSON.parse(`"${escapedKey}"`), key, `${path} escaped key must decode to ${key}`);
       for (const [scope, changed] of [
-        ["top", original.replace("{", `{${JSON.stringify(key)}:${JSON.stringify(parsed[key])},`)],
-        ["nested", original.replace(nested, `${nested}${JSON.stringify(nestedKey)}:${JSON.stringify(nestedValue)},`)],
-        ["escaped", original.replace("{", `{${JSON.stringify(escapedKey).replace("\\\\", "\\")}:${JSON.stringify(parsed[key])},`)],
+        ["top", insertDuplicateKey(original, "{", `${JSON.stringify(key)}:${JSON.stringify(parsed[key])},`, true)],
+        ["nested", insertDuplicateKey(original, nested, `${JSON.stringify(nestedKey)}:${JSON.stringify(nestedValue)},`)],
+        ["escaped", insertDuplicateKey(original, "{", `"${escapedKey}":${JSON.stringify(parsed[key])},`, true)],
       ]) {
         assert.notEqual(changed, original, `${path} ${scope} fixture must change`);
         assert.deepEqual(JSON.parse(changed), parsed, `${path} ${scope} must retain the value native parsing would accept`);

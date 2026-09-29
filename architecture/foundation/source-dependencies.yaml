@@ -2413,6 +2413,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/public-api-artifact-baseline.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/governance/governance-accepted-decision-evidence-acl.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/authority/growth-authority-contract.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/authority/growth-authority-tooling-codec.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/reviewrouter-growth-authority-acl.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/verified-growth-input-context.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/verified-growth-observation.ts

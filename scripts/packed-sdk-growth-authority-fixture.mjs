@@ -250,7 +250,15 @@ function assertAlteredReportRejected(api, completion, context, mutate, expectedR
 function assertPackedCompletionCodec(api, completion, context) {
   const { request, grant, finalizedReportBytes } = context;
   const decodedCompletion = api.decodeCompletion(completion, { request, grant, finalizedReportBytes });
+  const overDepthReport = Buffer.from(`${"[".repeat(10000)}0${"]".repeat(10000)}`);
+  assert.throws(() => api.decodeCompletion(completion, { request, grant, finalizedReportBytes: overDepthReport }),
+    error => error instanceof TypeError && /depth/u.test(error.message));
   if (completion.promotion.kind === "plan") { assertPriorReportBindingRejected(api, completion, { request, grant, finalizedReportBytes }); }
+  if (completion.promotion.kind === "none" && completion.verdict === "admitted") {
+    assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => {
+      report.authority.receiptDigest = digest("wrong-current-grant");
+    }, "growth-authority-completion-report-authority-mismatch");
+  }
   if (completion.promotion.kind === "none") {
     assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => { report.repository = "github:999"; },
       "growth-authority-report-source-mismatch");
@@ -295,6 +303,10 @@ export async function assertPackedSdkGrowthAuthorityExecution(input) {
   }
   const entrypoint = join(dirname(installedManifest), target);
   const api = await import(pathToFileURL(entrypoint));
+  const overDepth = `${"[".repeat(10000)}0${"]".repeat(10000)}`;
+  for (const value of [overDepth, Buffer.from(overDepth)]) {
+    assert.throws(() => api.decodeRequest(value), error => error instanceof TypeError && /depth/u.test(error.message));
+  }
   const candidate = input.matchedReport.candidate.value;
   const rootEvidence = await metadataRootEvidence(input);
   const trustedBase = { ...qualifyMetadataCoverage(await selectFixtureObservation(input, input.trustedBase, input.releasedArchivePath), rootEvidence), repository: "github:123" };

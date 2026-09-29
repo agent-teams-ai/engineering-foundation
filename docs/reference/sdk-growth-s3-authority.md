@@ -30,7 +30,7 @@ verdict, eligibility, exact request/grant binding, and operation-specific
 promotion field. For promotion, report authority binds the prior check grant
 in the current grant's admission receipt provenance, while the completion binds
 the current promotion grant. `encodeGrant` requires a finite trusted `now` for
-live issuance; completion and receipt decoding accept an expired grant as
+live issuance; completion decoding and receipt encoding accept an expired grant as
 historical evidence. The caller remains responsible for authentication,
 authorization, installed inventory, source bytes, and durable custody.
 The codec proves the report's closed shape and explicit authority, repository,

@@ -67,11 +67,11 @@ export function ruleIds(values) {
 }
 
 export async function withTemporaryDirectory(callback) {
-  const directory = await realpath(await mkdtemp(join(tmpdir(), "foundation-source-v2-")));
+  const created = await mkdtemp(join(tmpdir(), "foundation-source-v2-"));
   try {
-    return await callback(directory);
+    return await callback(await realpath(created));
   } finally {
-    await rm(directory, { force: true, recursive: true });
+    await rm(created, { force: true, recursive: true });
   }
 }
 

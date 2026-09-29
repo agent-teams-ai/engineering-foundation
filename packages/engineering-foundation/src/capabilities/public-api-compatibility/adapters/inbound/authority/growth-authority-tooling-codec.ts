@@ -71,10 +71,10 @@ function input(value: unknown): unknown {
   let parsed = value;
   if (typeof value === "string") {
     if (value.length > maximumBytes || encoder.encode(value).byteLength > maximumBytes) { invalid("growth-authority-tooling-input-budget-exhausted"); }
-    parsed = parseStrictJsonResponse(value);
+    parsed = parseStrictJsonResponse(value, 64);
   } else if (intrinsicByteLength(value) !== null) {
     const bytes = copyBytes(value);
-    parsed = parseStrictJsonResponse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    parsed = parseStrictJsonResponse(new TextDecoder("utf-8", { fatal: true }).decode(bytes), 64);
   }
   const safe = snapshot(parsed, { nodes: 0, units: 0 });
   if (encoder.encode(growthCanonicalJson(safe)).byteLength > maximumBytes) { invalid("growth-authority-tooling-input-budget-exhausted"); }
@@ -102,6 +102,10 @@ export function decodeRequest(value: unknown): GrowthToolingValidated<GrowthAuth
 
 function grant(value: unknown, validatedRequest: GrowthAuthorityRequest, now: Date): GrowthAuthorityGrant {
   return validateGrowthAuthorityGrant(input(value), validatedRequest, fingerprint, inspection, now);
+}
+function historicalGrant(value: unknown, validatedRequest: GrowthAuthorityRequest): GrowthAuthorityGrant {
+  const safe = input(value);
+  return validateGrowthAuthorityGrant(safe, validatedRequest, fingerprint, inspection, historicalTime(safe));
 }
 function issuanceTime(value: unknown): Date {
   if (types.isProxy(value) || value === null || typeof value !== "object") { invalid("growth-authority-trusted-time-invalid"); }
@@ -156,7 +160,7 @@ export function parseFinalizedGrowthReportBytes(bytes: Uint8Array, reportFingerp
   let source: string;
   try { source = new TextDecoder("utf-8", { fatal: true }).decode(safe); }
   catch { throw new GrowthObservationInvariantError("growth-authority-report-json-invalid"); }
-  const report = validateGrowthReport(parseStrictJsonResponse(source) as GrowthReport, reportFingerprint);
+  const report = validateGrowthReport(parseStrictJsonResponse(source, 64) as GrowthReport, reportFingerprint);
   if (!Buffer.from(safe).equals(Buffer.from(`${growthCanonicalJson(report)}\n`, "utf8"))) {
     throw new GrowthObservationInvariantError("growth-authority-report-bytes-invalid");
   }
@@ -231,11 +235,11 @@ function assertCompletionFields(row: Record<string, unknown>, grantValue: Growth
     || row["coverageDigest"] !== reportDigests.coverageDigest || row["phasesDigest"] !== reportDigests.phasesDigest
     || row["verdict"] !== report.verdict || row["releaseEligible"] !== report.releaseEligible) { invalid("growth-authority-completion-mismatch"); }
 }
-function validateCompletion(value: unknown, options: { readonly request: unknown; readonly grant: unknown; readonly finalizedReportBytes: unknown }): GrowthAuthorityCompletion {
+function validateCompletion(value: unknown, options: { readonly request: unknown; readonly grant: unknown; readonly finalizedReportBytes: unknown },
+  validatedContext?: { readonly request: GrowthAuthorityRequest; readonly grant: GrowthAuthorityGrant }): GrowthAuthorityCompletion {
   const args = optionsRecord(options, ["request", "grant", "finalizedReportBytes"]);
-  const validatedRequest = request(args["request"]);
-  const rawGrant = input(args["grant"]);
-  const validatedGrant = grant(rawGrant, validatedRequest, historicalTime(rawGrant));
+  const validatedRequest = validatedContext?.request ?? request(args["request"]);
+  const validatedGrant = validatedContext?.grant ?? historicalGrant(args["grant"], validatedRequest);
   const row = object(input(value), ["schemaVersion", "kind", "grantId", "grantDigest", "requestDigest", "binding", "reportDigest", "reportByteLength",
     "coverageDigest", "phasesDigest", "verdict", "releaseEligible", "publication", "promotion"]);
   if (row["schemaVersion"] !== growthAuthoritySchemaVersion || row["kind"] !== "completion" || row["publication"] !== "finalized") {
@@ -264,9 +268,9 @@ export function decodeCompletion(value: unknown, options: { readonly request: un
 export function encodeReceipt(value: unknown, options: { readonly request: unknown; readonly grant: unknown; readonly completion: unknown; readonly finalizedReportBytes: unknown }): GrowthToolingValidatedReceipt {
   const args = optionsRecord(options, ["request", "grant", "completion", "finalizedReportBytes"]);
   const validatedRequest = request(args["request"]);
-  const rawGrant = input(args["grant"]);
-  const validatedGrant = grant(rawGrant, validatedRequest, historicalTime(rawGrant));
-  const validatedCompletion = validateCompletion(args["completion"], { request: validatedRequest, grant: validatedGrant, finalizedReportBytes: args["finalizedReportBytes"] });
+  const validatedGrant = historicalGrant(args["grant"], validatedRequest);
+  const validatedCompletion = validateCompletion(args["completion"], { request: validatedRequest, grant: validatedGrant, finalizedReportBytes: args["finalizedReportBytes"] },
+    { request: validatedRequest, grant: validatedGrant });
   const validated = validateGrowthAuthorityReceipt(input(value), validatedCompletion, validatedRequest.operation, fingerprint);
   if (validated.grantId !== validatedGrant.grantId || validated.grantDigest !== growthAuthorityGrantDigest(validatedGrant, fingerprint)
     || validated.requestDigest !== growthAuthorityRequestDigest(validatedRequest, fingerprint)) { invalid("growth-authority-receipt-grant-mismatch"); }

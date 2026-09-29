@@ -155,7 +155,7 @@ function reportBytes(value: unknown): Uint8Array {
   return copyBytes(value);
 }
 /** Pure parser for the exact retained report artifact, including its final LF. */
-export function parseFinalizedGrowthReportBytes(bytes: Uint8Array, reportFingerprint: ChangeFingerprint = fingerprint): GrowthReport {
+function parseFinalizedGrowthReportBytes(bytes: Uint8Array, reportFingerprint: ChangeFingerprint): GrowthReport {
   const safe = reportBytes(bytes);
   let source: string;
   try { source = new TextDecoder("utf-8", { fatal: true }).decode(safe); }

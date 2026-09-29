@@ -5,6 +5,7 @@ import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml } from "yaml";
 import { loadUnselectedCohortV3, parseRecord } from "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
+import { bindUnselectedCohortV3 } from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root));
@@ -183,5 +184,24 @@ test("packed Cohort v3 accepts real UTC seconds and rejects impossible calendar 
   for (const eligibleAfter of ["2026-02-30T00:00:00Z", "2026-99-99T99:99:99Z", "2025-02-29T00:00:00Z"]) {
     const candidate = valid(); candidate.eligibleAfter = eligibleAfter;
     await assert.rejects(loadUnselectedCohortV3(JSON.stringify(candidate)), /eligibleAfter/);
+  }
+});
+
+test("direct Cohort v3 binder admits only real whole UTC seconds", () => {
+  const policy = {
+    sourceDigest: projected.sourceDigest,
+    pnpm: projected.managedRuntime.pnpm,
+    lanes: projected.managedRuntime.lanes,
+  };
+  for (const eligibleAfter of ["2024-02-29T23:59:59Z", "2026-02-28T00:00:00Z", "2026-12-31T23:59:59Z"]) {
+    const candidate = valid(); candidate.eligibleAfter = eligibleAfter;
+    assert.equal(bindUnselectedCohortV3(candidate, policy), candidate);
+  }
+  for (const eligibleAfter of [
+    "2026-09-28T00:00:00.999Z", "2026-09-28T00:00:00.001Z", "2026-09-28T00:00:00.000Z",
+    "2026-02-30T00:00:00Z", "2026-99-99T99:99:99Z", "2025-02-29T00:00:00Z",
+  ]) {
+    const candidate = valid(); candidate.eligibleAfter = eligibleAfter;
+    assert.throws(() => bindUnselectedCohortV3(candidate, policy), /eligibleAfter/, eligibleAfter);
   }
 });

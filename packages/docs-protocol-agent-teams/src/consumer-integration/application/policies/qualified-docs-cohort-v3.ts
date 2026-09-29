@@ -55,6 +55,7 @@ const EXACT_PACKAGE_VERSION =
 
 /** Calendar validation for the UTC-second eligibility value shared by Cohort3 and Profile4. */
 function isCanonicalUtcSecond(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(value)) { return false; }
   const milliseconds = Date.parse(value);
   return Number.isFinite(milliseconds) &&
     new Date(milliseconds).toISOString().replace(".000", "") === value;

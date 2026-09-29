@@ -7,8 +7,7 @@ import { GrowthReportWriteError } from "../../../application/ports/growth-report
 import type { GrowthDigest, GrowthReportWriter } from "../../../application/ports/growth-report-writer.js";
 import type { ChangeFingerprint } from "../../../application/ports/change-fingerprint.js";
 import type { GrowthReport } from "../../../application/model/growth-report.js";
-import { growthCanonicalJson } from "../../../application/policies/normalize-growth-observation.js";
-import { validateGrowthReport } from "../../../application/policies/validate-growth-report.js";
+import { parseFinalizedGrowthReportBytes } from "../../inbound/authority/growth-authority-tooling-codec.js";
 
 type ReportFilesystem = Pick<typeof filesystem, "lstat" | "open" | "rename" | "unlink">;
 const maximumBytes = 32 * 1024 * 1024;
@@ -17,15 +16,7 @@ function digest(bytes: Uint8Array): GrowthDigest {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 export function parseFinalizedGrowthReport(bytes: Uint8Array, fingerprint: ChangeFingerprint): GrowthReport {
-  const buffer = Buffer.from(bytes);
-  let parsed: unknown;
-  try { parsed = JSON.parse(buffer.toString("utf8")); }
-  catch { conflict("growth-authority-report-json-invalid"); }
-  const report = validateGrowthReport(parsed as GrowthReport, fingerprint);
-  if (!buffer.equals(Buffer.from(`${growthCanonicalJson(report)}\n`, "utf8"))) {
-    conflict("growth-authority-report-bytes-invalid");
-  }
-  return report;
+  return parseFinalizedGrowthReportBytes(bytes, fingerprint);
 }
 function code(error: unknown): string | undefined {
   return error instanceof Error && "code" in error && typeof error.code === "string" ? error.code : undefined;

@@ -4,6 +4,8 @@ import { AjvJsonSchemaReleaseInspector } from "../capabilities/contract-json-sch
 import { readAcceptedArchitectureDecisionEvidence } from "../capabilities/governance-architecture-decisions/module.js";
 import type { SdkGrowthAuthorityTransport, GrowthInstalledInventoryReader } from "../capabilities/public-api-compatibility/adapters/inbound/authority/growth-authority-contract.js";
 import { createSdkGrowthAuthorityModule } from "../capabilities/public-api-compatibility/authority-module.js";
+export { decodeRequest, encodeGrant, decodeCompletion, encodeReceipt } from "../capabilities/public-api-compatibility/authority-module.js";
+export type { GrowthToolingValidated, GrowthToolingValidatedReceipt } from "../capabilities/public-api-compatibility/authority-module.js";
 
 const readAcceptedDecisions = (input: Parameters<typeof readAcceptedArchitectureDecisionEvidence>[0]) =>
   readAcceptedArchitectureDecisionEvidence(input, assertSchema);

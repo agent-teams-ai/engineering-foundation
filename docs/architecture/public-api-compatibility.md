@@ -462,11 +462,15 @@ power-loss durability and protection from hostile ancestor replacement are not
 claimed. Trusted isolation remains S3 work. The report confers no authority.
 Trusted integration and consumer activation remain S3/G1/A3 obligations.
 
-CMS review: the current complete GM document at `610e595fe1f2e893d01ee44ceecd6349b5a3c8ce`
-has SHA-256 `d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`.
-Its fixed private-helper rule applies: this adapter stays within the existing
-capability and Pure DI composition. No Assembly adoption or CMS pin migration
-is introduced. The existing FMS pin and governed roots remain in force.
+CMS review: the previously reviewed complete GM document at
+`610e595fe1f2e893d01ee44ceecd6349b5a3c8ce` has full-document SHA-256
+`d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`.
+Current GM revision `bec157f1b7c317dd063a95103fc0b1d440976b9c` has
+full-document SHA-256 `33b41d5babf0a431c97e8e596a56e6ec1557ba1a0b26d39bf23e13d9a19e1fbd`.
+Its new optional dynamic Host lifecycle candidate does not change the fixed
+private-helper rule here: this adapter stays within the existing capability
+and Pure DI composition. No Assembly adoption or CMS pin migration is introduced.
+The existing FMS pin and governed roots remain in force.
 
 ### Qualified non-release workspace metadata root (S3 authority v3)
 

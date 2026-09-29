@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
@@ -16,7 +16,7 @@ const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const pnpmHooks = createRequire(import.meta.url)("../.pnpmfile.cjs").hooks;
 
 test("bootstrap CLI runs before build in a clean source checkout", async (context) => {
-  const temporary = await mkdtemp(join(tmpdir(), "TEST-bootstrap-no-dist #"));
+  const temporary = await realpath(await mkdtemp(join(tmpdir(), "TEST-bootstrap-no-dist #")));
   context.after(() => rm(temporary, { recursive: true, force: true }));
   await cp(join(repositoryRoot, "scripts"), join(temporary, "scripts"), { recursive: true });
   for (const { root, manifestPath } of PUBLISHABLE_PACKAGE_CATALOG) {

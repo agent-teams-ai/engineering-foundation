@@ -6,6 +6,50 @@ trusted host such as ReviewRouter. The entrypoint is an EF port and adapter
 boundary. It does not implement ReviewRouter authentication, persistence,
 workflow dispatch, status publication, or consumer activation.
 
+## Tooling-only v3 wire codec
+
+The public entrypoint also exports pure `decodeRequest(input)`,
+`encodeGrant(grant, { request, now })`,
+`decodeCompletion(completion, { request, grant, finalizedReportBytes })`, and
+`encodeReceipt(receipt, { request, grant, completion, finalizedReportBytes })`.
+These methods are for a protected engineering-tooling process. Product
+production runtime must not import this package. Each method returns a validated
+normalized `value`, canonical JSON `wire`, and `wireDigest` of those wire bytes.
+Request, grant, and completion additionally return their existing domain-separated
+`protocolDigest`. Receipt has no protocol digest. The host must keep these
+identities in separately named fields; historical ReviewRouter grant/completion
+wire hashes are not protocol digests.
+
+The codec accepts untrusted JSON text, UTF-8 bytes, or plain data objects. It
+rejects duplicate JSON keys, malformed UTF-8, accessors, proxies, symbols,
+non-plain prototypes, sparse arrays, and oversized inputs before domain
+validation. Canonical report bytes are a separate artifact and must end with
+exactly one LF; protocol JSON wires have no final LF. The completion validator
+checks the full finalized report, report length and hash, coverage, phases,
+verdict, eligibility, exact request/grant binding, and operation-specific
+promotion field. For promotion, report authority binds the prior check grant
+in the current grant's admission receipt provenance, while the completion binds
+the current promotion grant. `encodeGrant` requires a finite trusted `now` for
+live issuance; completion and receipt decoding accept an expired grant as
+historical evidence. The caller remains responsible for authentication,
+authorization, installed inventory, source bytes, and durable custody.
+The codec proves the report's closed shape and explicit authority, repository,
+tool, source-reference, released-evidence, comparison endpoint and admitted
+decision correlations with the grant. Its digest check alone cannot independently
+prove every comparison or transition from the per-package grant evidence. A protected verifier/runner must authenticate
+the report's generation and return evidence bound to these exact report bytes.
+
+The canonical Consumer Module Standard was reviewed from pinned Get Modular revision
+`610e595fe1f2e893d01ee44ceecd6349b5a3c8ce` (full-document SHA-256
+`d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`)
+through current revision `bec157f1b7c317dd063a95103fc0b1d440976b9c` (full-document
+SHA-256 `33b41d5babf0a431c97e8e596a56e6ec1557ba1a0b26d39bf23e13d9a19e1fbd`).
+The delta admits an optional dynamic Host lifecycle candidate; it does not change
+this fixed EF adapter's composition or ownership boundary.
+This fixed codec is an adapter in the existing EF capability, with no new
+independently assembled component or lifecycle owner. Its governed adapter
+entrypoint is recorded in the source-dependency profile.
+
 The ordinary `foundation:check` route remains unchanged. Its filesystem context
 rejects embedded verified claims and cannot produce trusted authority. The S3
 entrypoint accepts an executable transport only through trusted host composition;

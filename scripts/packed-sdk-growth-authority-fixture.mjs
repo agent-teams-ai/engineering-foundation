@@ -225,6 +225,73 @@ async function packedEvidence(archivePath, observation, packageName, installatio
 /** Run the installed public authority entrypoint against the disposable packed
  * SDK repository assembled by pack-sdk-growth-test. Transport responses cross
  * the real serialized JSON boundary. */
+function assertDistinctPromotionRequestRejected(api, request, grant) {
+  const differentRequest = { ...request, contextSelectors: { ...request.contextSelectors, decisionsPath: "evidence/different-decisions.json" } };
+  const differentDigest = api.decodeRequest(differentRequest).protocolDigest;
+  const differentGrant = { ...grant, requestDigest: differentDigest,
+    ownerEvidence: grant.ownerEvidence.map(row => ({ ...row, sourceBindingDigest: differentDigest })),
+    metadataRoots: grant.metadataRoots.map(row => ({ ...row, ownerEvidence: { ...row.ownerEvidence, sourceBindingDigest: differentDigest } })) };
+  assert.throws(() => api.encodeGrant(differentGrant, { request: differentRequest, now: controlledNow() }),
+    error => error.reason === "growth-authority-admission-request-mismatch");
+}
+function assertPriorReportBindingRejected(api, completion, context) {
+  assertAlteredReportRejected(api, completion, context, report => { report.authority.receiptDigest = digest("wrong-prior-grant"); },
+    "growth-authority-completion-mismatch");
+}
+function assertAlteredReportRejected(api, completion, context, mutate, expectedReason) {
+  const report = JSON.parse(context.finalizedReportBytes);
+  mutate(report);
+  const finalizedReportBytes = Buffer.from(`${canonicalJson(report)}\n`);
+  const changedCompletion = { ...completion, reportDigest: `sha256:${createHash("sha256").update(finalizedReportBytes).digest("hex")}`,
+    reportByteLength: finalizedReportBytes.byteLength };
+  assert.throws(() => api.decodeCompletion(changedCompletion, { ...context, finalizedReportBytes }),
+    error => error.reason === expectedReason);
+}
+function assertPackedCompletionCodec(api, completion, context) {
+  const { request, grant, finalizedReportBytes } = context;
+  const decodedCompletion = api.decodeCompletion(completion, { request, grant, finalizedReportBytes });
+  const overDepthReport = Buffer.from(`${"[".repeat(10000)}0${"]".repeat(10000)}`);
+  assert.throws(() => api.decodeCompletion(completion, { request, grant, finalizedReportBytes: overDepthReport }),
+    error => error instanceof TypeError && /depth/u.test(error.message));
+  if (completion.promotion.kind === "plan") { assertPriorReportBindingRejected(api, completion, { request, grant, finalizedReportBytes }); }
+  if (completion.promotion.kind === "none" && completion.verdict === "admitted") {
+    assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => {
+      report.authority.receiptDigest = digest("wrong-current-grant");
+    }, "growth-authority-completion-report-authority-mismatch");
+  }
+  if (completion.promotion.kind === "none") {
+    assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => { report.repository = "github:999"; },
+      "growth-authority-report-source-mismatch");
+  }
+  if (completion.promotion.kind === "none" && JSON.parse(finalizedReportBytes).candidate.status === "available") {
+    assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => { report.candidate.value.sourceCommit = "9".repeat(40); },
+      "growth-authority-report-source-mismatch");
+  }
+  if (completion.promotion.kind === "none" && completion.verdict === "admitted") {
+    assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => { report.candidate.value.surfaceDigest = digest("wrong-surface"); },
+      "growth-authority-report-source-mismatch");
+    assertAlteredReportRejected(api, completion, { request, grant, finalizedReportBytes }, report => { report.transitionReceipts[0].decisions = [digest("wrong-owner")]; },
+      "growth-authority-report-source-mismatch");
+  }
+  assert.throws(() => api.decodeCompletion(completion, { request, grant, finalizedReportBytes: new Proxy(finalizedReportBytes, {}) }));
+  class HostileBytes extends Uint8Array { get byteLength() { throw new Error("getter executed"); } }
+  assert.throws(() => api.decodeCompletion(completion, { request, grant, finalizedReportBytes: new HostileBytes(finalizedReportBytes) }),
+    error => error.message !== "getter executed");
+  assert.equal(decodedCompletion.protocolDigest, digest({ domain: "reviewrouter:sdk-growth-authority:completion:3", completion: decodedCompletion.value }));
+  assert.notEqual(decodedCompletion.protocolDigest, decodedCompletion.wireDigest);
+  assert.throws(() => api.decodeCompletion({ ...completion, grantDigest: digest("wrong-grant") }, { request, grant, finalizedReportBytes }));
+  assert.throws(() => api.decodeCompletion({ ...completion, coverageDigest: digest("wrong-coverage") }, { request, grant, finalizedReportBytes }));
+  assert.throws(() => api.decodeCompletion({ ...completion, phasesDigest: digest("wrong-phases") }, { request, grant, finalizedReportBytes }));
+  assert.throws(() => api.decodeCompletion(completion, { request, grant, finalizedReportBytes: Buffer.concat([finalizedReportBytes, Buffer.from(" ")]) }));
+  const bomReportBytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), finalizedReportBytes]);
+  const bomCompletion = { ...completion, reportDigest: `sha256:${createHash("sha256").update(bomReportBytes).digest("hex")}`,
+    reportByteLength: bomReportBytes.byteLength };
+  assert.throws(() => api.decodeCompletion(bomCompletion, { request, grant, finalizedReportBytes: bomReportBytes }),
+    error => error.reason === "growth-authority-report-bytes-invalid");
+  if (completion.verdict !== "admitted") {
+    assert.throws(() => api.decodeCompletion({ ...completion, releaseEligible: true }, { request, grant, finalizedReportBytes }));
+  }
+}
 export async function assertPackedSdkGrowthAuthorityExecution(input) {
   const requireFromConsumer = createRequire(join(input.installedConsumerRoot, "package.json"));
   const installedManifest = requireFromConsumer.resolve("@agent-teams/engineering-foundation/package.json");
@@ -236,6 +303,10 @@ export async function assertPackedSdkGrowthAuthorityExecution(input) {
   }
   const entrypoint = join(dirname(installedManifest), target);
   const api = await import(pathToFileURL(entrypoint));
+  const overDepth = `${"[".repeat(10000)}0${"]".repeat(10000)}`;
+  for (const value of [overDepth, Buffer.from(overDepth)]) {
+    assert.throws(() => api.decodeRequest(value), error => error instanceof TypeError && /depth/u.test(error.message));
+  }
   const candidate = input.matchedReport.candidate.value;
   const rootEvidence = await metadataRootEvidence(input);
   const trustedBase = { ...qualifyMetadataCoverage(await selectFixtureObservation(input, input.trustedBase, input.releasedArchivePath), rootEvidence), repository: "github:123" };
@@ -279,9 +350,19 @@ export async function assertPackedSdkGrowthAuthorityExecution(input) {
     retainedHistory: digest({ domain: "foundation:sdk-growth:custody:1", payload: historicalCustody })
   } });
   let admissionReceipt, admissionGrant, admissionCompletion;
+  const requests = new Map(), grants = new Map();
   const race = {};
   const transport = {
     async resolve(request) {
+      const decodedRequest = api.decodeRequest(request);
+      assert.equal(decodedRequest.protocolDigest, digest({ domain: "reviewrouter:sdk-growth-authority:request:3", request: decodedRequest.value }));
+      assert.equal(decodedRequest.wireDigest, `sha256:${createHash("sha256").update(decodedRequest.wire).digest("hex")}`);
+      assert.notEqual(decodedRequest.protocolDigest, decodedRequest.wireDigest);
+      assert.throws(() => api.decodeRequest('{"kind":"request","kind":"request"}'), /duplicate-key/u);
+      assert.throws(() => api.decodeRequest(new Proxy(request, {})), /unsafe/u);
+      const hostilePrototype = new Proxy({}, { getPrototypeOf() { throw new Error("prototype trap executed"); } });
+      assert.throws(() => api.decodeRequest(Object.create(hostilePrototype)), error => error.message !== "prototype trap executed");
+      assert.throws(() => api.decodeRequest("x".repeat(32 * 1024 * 1024 + 1)));
       const requestDigest = digest({ domain: "reviewrouter:sdk-growth-authority:request:3", request });
       const now = controlledNow().getTime();
       const grant = { schemaVersion: "reviewrouter:sdk-growth-authority:3", kind: "grant", grantId: `packed-${request.operation}`,
@@ -301,11 +382,22 @@ export async function assertPackedSdkGrowthAuthorityExecution(input) {
         metadataRoots: [{ ...rootEvidence, ownerEvidence: { ...rootEvidence.ownerEvidence, sourceBindingDigest: requestDigest } }],
         requiredCoverageDigest: digest({ domain: "reviewrouter:sdk-growth-authority:coverage:3", coverage: expectedCoverage }),
         requiredPhases: ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"] };
+      const encodedGrant = api.encodeGrant(grant, { request, now: controlledNow() });
+      assert.equal(encodedGrant.protocolDigest, digest({ domain: "reviewrouter:sdk-growth-authority:grant:3", grant: encodedGrant.value }));
+      assert.notEqual(encodedGrant.protocolDigest, encodedGrant.wireDigest);
+      assert.throws(() => api.encodeGrant({ ...grant, requestDigest: digest("wrong-request") }, { request, now: controlledNow() }));
+      assert.throws(() => api.encodeGrant({ ...grant, candidates: [{ ...grant.candidates[0], packageName: "wrong-package" }] }, { request, now: controlledNow() }));
+      assert.throws(() => api.encodeGrant({ ...grant, metadataRoots: [{ ...grant.metadataRoots[0], evidenceDigest: digest("wrong-root") }] }, { request, now: controlledNow() }));
+      if (request.operation === "promote-release") { assertDistinctPromotionRequestRejected(api, request, grant); }
+      requests.set(grant.grantId, request); grants.set(grant.grantId, grant);
       if (request.operation === "check") { admissionGrant = grant; }
       return JSON.stringify(grant);
     },
     async complete(completion) {
       if (completion.promotion.kind === "plan") { await race.mutate?.(); }
+      const request = requests.get(completion.grantId), grant = grants.get(completion.grantId);
+      const finalizedReportBytes = await readFile(join(input.repositoryRoot, "reports/sdk.json"));
+      assertPackedCompletionCodec(api, completion, { request, grant, finalizedReportBytes });
       const receipt = { schemaVersion: "reviewrouter:sdk-growth-authority:3", kind: "receipt",
         receiptId: completion.promotion.kind === "none" ? "packed-admission" : "packed-promotion", grantId: completion.grantId,
         grantDigest: completion.grantDigest, requestDigest: completion.requestDigest,
@@ -315,6 +407,10 @@ export async function assertPackedSdkGrowthAuthorityExecution(input) {
         qualification: completion.verdict === "admitted" && completion.releaseEligible ? "qualified" : "not-qualified",
         operation: completion.promotion.kind === "none" ? "check" : "promote-release", promotion: completion.promotion,
         custodyRef: "packed/receipts/317", issuedAt: controlledNow().toISOString() };
+      const encodedReceipt = api.encodeReceipt(receipt, { request, grant, completion, finalizedReportBytes });
+      assert.equal(encodedReceipt.wireDigest, `sha256:${createHash("sha256").update(encodedReceipt.wire).digest("hex")}`);
+      assert.equal("protocolDigest" in encodedReceipt, false);
+      assert.throws(() => api.encodeReceipt({ ...receipt, reportDigest: digest("wrong-report") }, { request, grant, completion, finalizedReportBytes }));
       if (completion.promotion.kind === "none") { admissionReceipt = receipt; admissionCompletion = completion; }
       return new TextEncoder().encode(JSON.stringify(receipt));
     }

@@ -4,7 +4,7 @@ import * as fs from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
-import { createFilesystemGrowthReportWriter } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-report-writer.js";
+import { createFilesystemGrowthReportWriter, parseFinalizedGrowthReport } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-report-writer.js";
 import { GrowthReportWriteError } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/ports/growth-report-writer.js";
 
 const hash = (text) => `sha256:${createHash("sha256").update(text).digest("hex")}`;
@@ -13,6 +13,9 @@ const cancellation = (controller = new AbortController()) => ({
 });
 const request = (contents = "new\n", expectedPreimage = null) => ({ path: "report.json", contents, expectedPreimage });
 const failure = (kind, reason) => (error) => error instanceof GrowthReportWriteError && error.kind === kind && (!reason || error.reason === reason);
+test("growth report parser retains its conflict error for malformed retained bytes", () => {
+  assert.throws(() => parseFinalizedGrowthReport(Buffer.from("{"), {}), failure("conflict", "growth-authority-report-json-invalid"));
+});
 async function fixture(run) {
   const root = await fs.realpath(await fs.mkdtemp(join(tmpdir(), "sdk-report-")));
   try { await run(root); } finally { await fs.rm(root, { recursive: true, force: true }); }

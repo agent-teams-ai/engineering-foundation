@@ -1,11 +1,11 @@
-function malformed(reason: "syntax" | "duplicate-key"): never {
+function malformed(reason: "syntax" | "duplicate-key" | "depth"): never {
   throw new TypeError(`SDK growth authority response is invalid strict JSON: ${reason}.`);
 }
 
 /** Validate duplicate-key and grammar invariants before JSON.parse erases the
  * original token stream. JSON.parse then creates ordinary data objects without
  * carrying accessors or Proxy behavior across the transport boundary. */
-export function parseStrictJsonResponse(source: string): unknown {
+export function parseStrictJsonResponse(source: string, maximumDepth?: number): unknown {
   let offset = 0;
   const space = (): void => { while (/\s/u.test(source[offset] ?? "")) { offset += 1; } };
   const take = (expected: string): void => {
@@ -30,22 +30,23 @@ export function parseStrictJsonResponse(source: string): unknown {
     }
     return malformed("syntax");
   };
-  const value = (): void => {
+  const value = (depth: number): void => {
+    if (maximumDepth !== undefined && depth > maximumDepth) { malformed("depth"); }
     space();
     const character = source[offset];
-    if (character === "{") { object(); return; }
-    if (character === "[") { array(); return; }
+    if (character === "{") { object(depth); return; }
+    if (character === "[") { array(depth); return; }
     if (character === '"') { string(); return; }
     const token = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/u.exec(source.slice(offset))?.[0];
     if (token === undefined) { malformed("syntax"); }
     offset += token.length;
   };
-  const array = (): void => {
+  const array = (depth: number): void => {
     take("["); space();
     if (source[offset] === "]") { offset += 1; return; }
-    for (;;) { value(); space(); if (source[offset] === "]") { offset += 1; return; } take(","); }
+    for (;;) { value(depth + 1); space(); if (source[offset] === "]") { offset += 1; return; } take(","); }
   };
-  const object = (): void => {
+  const object = (depth: number): void => {
     take("{");
     const keys = new Set<string>();
     space();
@@ -53,12 +54,12 @@ export function parseStrictJsonResponse(source: string): unknown {
     for (;;) {
       const key = string();
       if (keys.has(key)) { malformed("duplicate-key"); }
-      keys.add(key); take(":"); value(); space();
+      keys.add(key); take(":"); value(depth + 1); space();
       if (source[offset] === "}") { offset += 1; return; }
       take(",");
     }
   };
-  value(); space();
+  value(0); space();
   if (offset !== source.length) { malformed("syntax"); }
   try { return JSON.parse(source) as unknown; }
   catch { return malformed("syntax"); }

@@ -160,3 +160,5 @@ export function createSdkGrowthAuthorityModule(dependencies: SdkGrowthAuthorityM
     }
   });
 }
+export { decodeRequest, encodeGrant, decodeCompletion, encodeReceipt } from "./adapters/inbound/authority/growth-authority-tooling-codec.js";
+export type { GrowthToolingValidated, GrowthToolingValidatedReceipt } from "./adapters/inbound/authority/growth-authority-tooling-codec.js";

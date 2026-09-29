@@ -1,4 +1,6 @@
-import { canonicalConsumerIntegrationJson, digestBytes } from "./consumer-integration-assets.js";
+import {
+  canonicalConsumerIntegrationJson, canonicalDocsScriptsDigest, canonicalManagedRoute, digestBytes
+} from "./consumer-integration-assets.js";
 import type { UnselectedCohortV3 } from "./qualified-docs-cohort-v3.js";
 
 export interface ManagedSuccessorProfile {
@@ -38,7 +40,9 @@ export function projectManagedSuccessorState(
       assets.skillDigest !== profile.cohort.assets.skillDigest ||
       assets.callerWorkflowDigest !== profile.cohort.assets.callerWorkflowDigest ||
       assets.assetCatalogDigest !== profile.cohort.assets.assetCatalogDigest ||
-      assets.transitionCatalogDigest !== profile.cohort.assets.transitionCatalogDigest) {
+      assets.transitionCatalogDigest !== profile.cohort.assets.transitionCatalogDigest ||
+      assets.agentsRouteDigest !== digestBytes(Buffer.from(canonicalManagedRoute(profile.skillPath), "utf8")) ||
+      assets.docsScriptsDigest !== canonicalDocsScriptsDigest(profile.profilePath)) {
     throw new TypeError("Successor state assets do not bind the cohort.");
   }
   const cohort = profile.cohort;

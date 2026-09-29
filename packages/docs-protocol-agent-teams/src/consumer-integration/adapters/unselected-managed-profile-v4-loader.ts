@@ -13,7 +13,7 @@ export async function loadUnselectedManagedProfileV4(source: string): Promise<Ma
   const ajv = new Ajv2020({ strict: true, allErrors: true });
   ajv.addSchema(cohort);
   const validate = ajv.compile<ManagedSuccessorProfile>(schema);
-  const profile = parseJsonRecord(source);
+  const profile = parseJsonRecord(source, "Managed profile v4");
   if (!validate(profile)) { throw new TypeError(`Invalid managed profile v4: ${JSON.stringify(validate.errors)}`); }
   bindUnselectedCohortV3(profile.cohort, await loadPackedManagedRuntimePolicy());
   return profile;

@@ -249,6 +249,7 @@
         "packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs",
         "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
         "packages/docs-protocol-agent-teams/tests/runtime-policy-checkout.test.mjs",
         "tests/managed-layer-ownership.test.mjs",

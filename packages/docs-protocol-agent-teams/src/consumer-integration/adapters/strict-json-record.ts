@@ -7,15 +7,15 @@ class ConsumerJsonInputError extends Error {
   }
 }
 
-export function parseJsonRecord(source: string): Record<string, unknown> {
+export function parseJsonRecord(source: string, subject = "Package manifest"): Record<string, unknown> {
   const duplicateCheck = parseDocument(source, { uniqueKeys: true });
   if (duplicateCheck.errors.length > 0) {
-    throw new ConsumerJsonInputError("Package manifest must not contain duplicate keys.");
+    throw new ConsumerJsonInputError(`${subject} must not contain duplicate keys.`);
   }
   const value = JSON.parse(source) as unknown;
   if (typeof value !== "object" || value === null || Array.isArray(value) ||
     Object.getPrototypeOf(value) !== Object.prototype) {
-    throw new ConsumerJsonInputError("Package manifest must be one JSON object.");
+    throw new ConsumerJsonInputError(`${subject} must be one JSON object.`);
   }
   return value as Record<string, unknown>;
 }

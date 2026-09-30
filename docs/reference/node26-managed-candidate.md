@@ -9,8 +9,9 @@ bound by `sourceDigest`. The
 [Cohort v3 schema](../../packages/docs-protocol-agent-teams/schemas/qualified-docs-cohort/v3.schema.json)
 closes five packages, the future 4/3/1 tuple, both managed lanes and policy
 references. Its loader checks lane, range, tuple and packed policy consistency.
-Profile v4 and State v3 remain P1b work. There is no cutover authorization,
-Node 26 managed dispatch, qualification, activation, or JSON Schema family support claim.
+Profile v4 strictly loads unselected Cohort v3 bindings; State v3 projects their
+authority and assets. There is no cutover authorization, Node 26 managed dispatch,
+qualification, activation, or JSON Schema family support claim.
 
 Historical v1 policy, Cohort v2, profile v3, state v2 and receipt v3 bytes remain
 unchanged; `assets:check` rejects projection drift.

@@ -298,7 +298,9 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
     if (!retryable || wait <= 0 || attempt + 1 >= REGISTRY_OBSERVATION_ATTEMPTS) {
       throw new Error(`npm signature audit failed; code=${retryable ? "E404" : "unknown-or-non-transient"}; raw output omitted.`);
     }
-    await new Promise((done) => { setTimeout(done, wait); });
+    const { promise, resolve: finishWait } = Promise.withResolvers();
+    setTimeout(finishWait, wait);
+    await promise;
   }
 }
 

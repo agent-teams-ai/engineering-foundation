@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.6.1",
+  "packageVersion": "1.7.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -4767,6 +4767,48 @@
           "signature": "export interface GrowthSurfaceObservation extends GrowthInvocation"
         },
         {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthToolingValidated#protocolDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthToolingValidated:interface",
+          "parentKind": "Interface",
+          "signature": "readonly protocolDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthToolingValidated#value:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthToolingValidated:interface",
+          "parentKind": "Interface",
+          "signature": "readonly value: T;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthToolingValidated#wire:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthToolingValidated:interface",
+          "parentKind": "Interface",
+          "signature": "readonly wire: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthToolingValidated#wireDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!GrowthToolingValidated:interface",
+          "parentKind": "Interface",
+          "signature": "readonly wireDigest: GrowthDigest;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthToolingValidated:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface GrowthToolingValidated<T>"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!GrowthToolingValidatedReceipt:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GrowthToolingValidatedReceipt = Omit<GrowthToolingValidated<GrowthAuthorityReceipt>, \"protocolDigest\">;"
+        },
+        {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthTransition#after:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthTransition:interface",
@@ -5080,6 +5122,34 @@
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function createSdkGrowthAuthorityVerifier(transport: SdkGrowthAuthorityTransport, installedInventory?: GrowthInstalledInventoryReader, now?: () => Date): Readonly<{\n    qualifyCheck(input: import(\"../capabilities/public-api-compatibility/authority-module.js\").SdkGrowthAuthorityOperationInput): Promise<import(\"../sdk-growth-authority.js\").QualifiedSdkGrowthExecution>;\n    promoteRelease(input: import(\"../capabilities/public-api-compatibility/authority-module.js\").SdkGrowthAuthorityOperationInput & {\n        readonly admissionReceiptId: string;\n    }): Promise<{\n        readonly snapshots: readonly import(\"../sdk-growth-authority.js\").PublicApiSnapshot[];\n        readonly receipt: import(\"../capabilities/public-api-compatibility/application/model/growth-authority.js\").GrowthAuthorityReceipt;\n    }>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!decodeCompletion:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function decodeCompletion(value: unknown, options: {\n    readonly request: unknown;\n    readonly grant: unknown;\n    readonly finalizedReportBytes: unknown;\n}): GrowthToolingValidated<GrowthAuthorityCompletion>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!decodeRequest:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function decodeRequest(value: unknown): GrowthToolingValidated<GrowthAuthorityRequest>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!encodeGrant:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function encodeGrant(value: unknown, options: {\n    readonly request: unknown;\n    readonly now: Date;\n}): GrowthToolingValidated<GrowthAuthorityGrant>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!encodeReceipt:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function encodeReceipt(value: unknown, options: {\n    readonly request: unknown;\n    readonly grant: unknown;\n    readonly completion: unknown;\n    readonly finalizedReportBytes: unknown;\n}): GrowthToolingValidatedReceipt;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!growthAuthorityRequiredPhases:var",

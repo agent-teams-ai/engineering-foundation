@@ -1,5 +1,5 @@
 import { sourceDependencyAdapters, sourceTopologyAdapters, schemaConfigurationDependencies } from "../support/capability-adapters.mjs";
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -67,11 +67,11 @@ export function ruleIds(values) {
 }
 
 export async function withTemporaryDirectory(callback) {
-  const directory = await mkdtemp(join(tmpdir(), "foundation-source-v2-"));
+  const created = await mkdtemp(join(tmpdir(), "foundation-source-v2-"));
   try {
-    return await callback(directory);
+    return await callback(await realpath(created));
   } finally {
-    await rm(directory, { force: true, recursive: true });
+    await rm(created, { force: true, recursive: true });
   }
 }
 

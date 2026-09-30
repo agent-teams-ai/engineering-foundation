@@ -10,7 +10,8 @@ bound by `sourceDigest`. The
 closes five packages, the future 4/3/1 tuple, both managed lanes and policy
 references. Its loader checks lane, range, tuple and packed policy consistency.
 Profile v4 strictly loads unselected Cohort v3 bindings; State v3 projects their
-authority and assets. No dispatch, activation, qualification, or JSON Schema family claim follows.
+authority and assets. There is no cutover authorization, Node 26 managed dispatch,
+qualification, activation, or JSON Schema family support claim.
 
 Historical v1 policy, Cohort v2, profile v3, state v2 and receipt v3 bytes remain
 unchanged; `assets:check` rejects projection drift.

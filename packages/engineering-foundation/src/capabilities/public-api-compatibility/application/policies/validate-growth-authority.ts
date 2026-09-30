@@ -13,6 +13,7 @@ import { validateGrowthMetadataRoots } from "./validate-growth-metadata-root.js"
 export { growthDecisionDigest, prepareGrowthDecisions } from "./evaluate-growth-admission.js";
 import { growthCanonicalJson, growthObservationReference, growthUniqueSorted, normalizeGrowthInvocation, normalizeGrowthObservation } from "./normalize-growth-observation.js";
 import { array, commit, custodyPath, date, digest, exact, exactVersion, integrity, invalid, member, object, repositoryPath, source, text, uniqueMap } from "./validate-growth-authority-primitives.js";
+export { digest, exact, invalid, object, text } from "./validate-growth-authority-primitives.js";
 export { validateGrowthInstalledInventory } from "./validate-growth-installed-inventory.js";
 
 export function growthAuthorityRepositoryIdentity(repository: GrowthAuthorityRepository): string {
@@ -76,7 +77,7 @@ function validateSelectors(value: unknown): GrowthAuthorityRequest["contextSelec
   return { trustedBasePath: repositoryPath(row["trustedBasePath"]), decisionsPath: repositoryPath(row["decisionsPath"]),
     released: growthUniqueSorted(released, (entry) => entry.packageName) };
 }
-function validateGrowthAuthorityRequest(value: unknown): GrowthAuthorityRequest {
+export function validateGrowthAuthorityRequest(value: unknown): GrowthAuthorityRequest {
   const row = object(value, ["schemaVersion", "kind", "operation", "admissionReceiptId", "binding", "contextSelectors", "decisionDigests", "requiredPhases"]);
   if (row["schemaVersion"] !== growthAuthoritySchemaVersion || row["kind"] !== "request" || !["check", "promote-release"].includes(String(row["operation"]))) {
     invalid("growth-authority-request-invalid");

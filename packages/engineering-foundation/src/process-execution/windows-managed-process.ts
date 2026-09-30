@@ -33,6 +33,12 @@ const CONTROL_CONFIRMATION_TIMEOUT_MS = 30_000;
 const WRAPPER_EXIT_TIMEOUT_MS = 5_000;
 const WRAPPER_EXIT_CONFIRMATION_GRACE_MS = 1_000;
 const CONTROL_POLL_INTERVAL_MS = 10;
+const CONTROL_ROOT_REMOVE_RETRIES = 3;
+const CONTROL_ROOT_REMOVE_RETRY_DELAY_MS = 50;
+const controlRootRetryWait = new Int32Array(new SharedArrayBuffer(4));
+const TRANSIENT_CONTROL_ROOT_REMOVE_CODES = new Set([
+  "EBUSY", "EMFILE", "ENFILE", "ENOTEMPTY", "EPERM"
+]);
 
 // The packaged native helper owns the JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 // contract. Its TerminateRemainingProcessesAndWait(job) path confirms that
@@ -95,12 +101,24 @@ function commandEnvironmentWithSystemRoot(
 }
 
 function removeControlRootBestEffort(root: string): boolean {
-  try {
-    rmSync(root, { force: true, recursive: true });
-    return true;
-  } catch {
-    return false;
+  for (let retry = 0; retry <= CONTROL_ROOT_REMOVE_RETRIES; retry += 1) {
+    try {
+      rmSync(root, { force: true, recursive: true });
+      return true;
+    } catch (error) {
+      if (
+        retry === CONTROL_ROOT_REMOVE_RETRIES ||
+        !(error instanceof Error) ||
+        !("code" in error) ||
+        typeof error.code !== "string" ||
+        !TRANSIENT_CONTROL_ROOT_REMOVE_CODES.has(error.code)
+      ) {
+        return false;
+      }
+      Atomics.wait(controlRootRetryWait, 0, 0, CONTROL_ROOT_REMOVE_RETRY_DELAY_MS);
+    }
   }
+  return false;
 }
 
 function disposeControl(child: ChildProcess, control: WindowsProcessControl): void {

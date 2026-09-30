@@ -22,6 +22,8 @@ export type {
 export type { SdkGrowthAuthorityTransport, GrowthInstalledInventoryReader } from "./capabilities/public-api-compatibility/adapters/inbound/authority/growth-authority-contract.js";
 export type { SdkGrowthAuthorityOperationInput } from "./capabilities/public-api-compatibility/authority-module.js";
 export { createSdkGrowthAuthorityVerifier } from "./composition/sdk-growth-authority.js";
+export { decodeRequest, encodeGrant, decodeCompletion, encodeReceipt } from "./composition/sdk-growth-authority.js";
+export type { GrowthToolingValidated, GrowthToolingValidatedReceipt } from "./composition/sdk-growth-authority.js";
 export type {
   GrowthAuthorityRepository,
   GrowthAuthorityTarget,

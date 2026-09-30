@@ -1,5 +1,23 @@
 # @agent-teams/engineering-foundation
 
+## 1.7.0
+
+### Minor Changes
+
+- [#353](https://github.com/agent-teams-ai/engineering-foundation/pull/353) [`243b99a`](https://github.com/agent-teams-ai/engineering-foundation/commit/243b99abbd89216fca55a1ffe4a1b83a1b7efc2e) Thanks [@777genius](https://github.com/777genius)! - Expose a tooling-only SDK growth authority v3 codec with strict wire validation and distinct protocol and wire digests.
+
+### Patch Changes
+
+- [#347](https://github.com/agent-teams-ai/engineering-foundation/pull/347) [`3fde2f4`](https://github.com/agent-teams-ai/engineering-foundation/commit/3fde2f456223f1f3a5751e61b59ed882ace14cc7) Thanks [@777genius](https://github.com/777genius)! - Allow strict-engine installation on Node 24 and Node 26 while retaining Node 24
+  as the production/default lane. Qualify the portable Docs Protocol entrypoint
+  and preserve historical schema bytes.
+
+- [#352](https://github.com/agent-teams-ai/engineering-foundation/pull/352) [`6de39d4`](https://github.com/agent-teams-ai/engineering-foundation/commit/6de39d4358bda27ca28f7ca60e283e1cb8da670f) Thanks [@777genius](https://github.com/777genius)! - Retry transient Windows control-root removal failures within a fixed bound while
+  preserving the existing behavior for persistent failures.
+- Updated dependencies [[`3fde2f4`](https://github.com/agent-teams-ai/engineering-foundation/commit/3fde2f456223f1f3a5751e61b59ed882ace14cc7)]:
+  - @agent-teams/repository-mutation@0.2.2
+  - @agent-teams/document-authoring@0.3.2
+
 ## 1.6.1
 
 ### Patch Changes

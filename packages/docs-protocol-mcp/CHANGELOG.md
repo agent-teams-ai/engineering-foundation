@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5
+
+### Patch Changes
+
+- [#347](https://github.com/agent-teams-ai/engineering-foundation/pull/347) [`3fde2f4`](https://github.com/agent-teams-ai/engineering-foundation/commit/3fde2f456223f1f3a5751e61b59ed882ace14cc7) Thanks [@777genius](https://github.com/777genius)! - Allow strict-engine installation on Node 24 and Node 26 while retaining Node 24
+  as the production/default lane. Qualify the portable Docs Protocol entrypoint
+  and preserve historical schema bytes.
+- Updated dependencies [[`3fde2f4`](https://github.com/agent-teams-ai/engineering-foundation/commit/3fde2f456223f1f3a5751e61b59ed882ace14cc7)]:
+  - @agent-teams/docs-protocol@0.6.2
+
 ## 0.2.4
 
 ### Patch Changes

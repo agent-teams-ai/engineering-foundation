@@ -82,7 +82,8 @@ test("v2 current policy binds each family's current generation, supported set an
     );
     rejectsAt(wrongCurrent, family, "current", `${family}: current differs from path`);
 
-    const shiftedGeneration = structuredClone(wrongCurrent);
+    const shiftedGeneration = structuredClone(v2Policy);
+    shiftedGeneration.contracts[family].current = wrongCurrent.contracts[family].current;
     shiftedGeneration.contracts[family].currentSchemaPath = canonical.currentSchemaPath.replace(
       `/v${canonical.current}.schema.json`, `/v${wrongCurrent.contracts[family].current}.schema.json`,
     );

@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { tarballIntegrity } from "../scripts/release-publish-ordered.mjs";
-import { assertNpmVersion, publishNpmArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
+import { assertNpmVersion, publishNpmArtifact, runTimedAudit } from "../scripts/release-publish-ordered-runtime.mjs";
 import { foundation, harness, present, RELEASE_TIMESTAMPS, run, source } from "./support/release-publish-ordered-fixtures.mjs";
 
 test("ordered publishing requires the pinned npm version", () => {
@@ -23,6 +23,40 @@ test("ordered publisher rejects an npm mismatch before packing", () => {
   const evidence = JSON.parse(result.stdout.trim().split("\n").at(-1));
   assert.equal(evidence.error, "Ordered publishing requires npm 11.19.0, observed 11.16.0.");
   assert.deepEqual(evidence.events, []);
+});
+
+// These cases catch a premature abort, unbounded retry, retry of unrelated/auth failures,
+// a second publish, or raw credentials leaking from npm's failed audit output.
+for (const [scenario, expectedSignatures] of [
+  ["attestation-e404-then-valid", 7],
+  ["attestation-auth-failure", 1],
+  ["attestation-other-e404", 1],
+  ["attestation-e404-persistent", 7],
+]) {
+  test(`npm attestation verification handles ${scenario} without another publish`, () => {
+    const result = spawnSync(process.execPath, [
+      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), scenario, "lf",
+    ], { encoding: "utf8", timeout: 30_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    const evidence = JSON.parse(result.stdout.trim().split("\n").at(-1));
+    assert.equal(evidence.events.filter((event) => event.operation === "signature").length, expectedSignatures);
+    assert.equal(evidence.events.filter((event) => event.operation === "publish-attempt").length,
+      scenario === "attestation-e404-then-valid" ? 6 : 1);
+    assert.doesNotMatch(result.stdout + result.stderr, /credential-secret/u);
+  });
+}
+
+// A child that traps SIGTERM must still be killed at the audit timeout.
+test("timed audit forcibly terminates a child that ignores SIGTERM", () => {
+  const started = performance.now();
+  const result = runTimedAudit(process.execPath, ["-e",
+    "process.on('SIGTERM', () => {}); process.stdout.write('ready'); setInterval(() => {}, 1000);",
+  ], { timeout: 300 });
+  assert.equal(result.stdout, "ready");
+  assert.equal(result.error?.code, "ETIMEDOUT");
+  assert.equal(result.signal, "SIGKILL");
+  assert.ok(performance.now() - started < 3_000);
 });
 
 for (const code of ["ENEEDAUTH", "EUSAGE", "EPRIVATE", "ENOENT", "EACCES"]) {

@@ -37,8 +37,17 @@ const versions = new Map(packages.map(info => [info.name, info.version]));
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
+let acceleratedNow = 0;
+if (scenario === 'attestation-e404-persistent') {
+  globalThis.performance = { now: () => acceleratedNow };
+}
 // Preserve all registry observations; accelerate only the inherited five-second delay.
-globalThis.setTimeout = (callback, milliseconds, ...args) => originalTimeout(callback, milliseconds === 5000 ? 0 : milliseconds, ...args);
+globalThis.setTimeout = (callback, milliseconds, ...args) => {
+  if (scenario === 'attestation-e404-persistent' && milliseconds === 5000) {
+    acceleratedNow += 60_000;
+  }
+  return originalTimeout(callback, milliseconds === 5000 ? 0 : milliseconds, ...args);
+};
 registerHooks({ resolve(specifier, context, next) {
   const fromRuntime = context.parentURL === pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')).href;
   const stubs = {
@@ -139,6 +148,18 @@ function begin() {
     }
     if (command === 'npm' && args[0] === 'audit') {
       events.push({ operation: 'signature', name: installed });
+      if (installed === packages[0].name &&
+          (scenario === 'attestation-e404-persistent' ||
+            events.filter(event => event.operation === 'signature').length === 1) &&
+          ['attestation-e404-then-valid', 'attestation-auth-failure',
+            'attestation-other-e404', 'attestation-e404-persistent'].includes(scenario)) {
+        const endpoint = scenario === 'attestation-other-e404'
+          ? 'https://registry.npmjs.org/unrelated'
+          : `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(installed)}@${versions.get(installed)}`;
+        const code = scenario === 'attestation-auth-failure' ? 'E401' : 'E404';
+        return { status: 1, stdout: 'credential-secret',
+          stderr: `npm error code ${code}\nnpm error 404 Not Found - GET ${endpoint} - credential-secret` };
+      }
       return ok(JSON.stringify({ invalid: [], missing: [], verified: [{
       name: installed, version: versions.get(installed), attestations: { provenance: { predicateType: 'https://slsa.dev/provenance/v1' } },
       attestationBundles: [bundle(installed), { predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1' }],
@@ -172,7 +193,9 @@ function begin() {
 
 assert.ok(['valid-wave', 'wrong-npm', 'advance-after-authorization', 'digest-mismatch',
   'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty',
-  'prerequisite-secret', 'ambiguous-absent', 'lost-response'].includes(scenario));
+  'prerequisite-secret', 'ambiguous-absent', 'lost-response',
+  'attestation-e404-then-valid', 'attestation-auth-failure',
+  'attestation-other-e404', 'attestation-e404-persistent'].includes(scenario));
 const events = begin();
 const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')));
 let error;
@@ -184,7 +207,7 @@ const reconciliations = events.filter(event => event.operation === 'reconcile');
 if (scenario === 'wrong-npm') {
   assert.equal(error, 'Ordered publishing requires npm 11.19.0, observed 11.16.0.');
   assert.deepEqual(events, []);
-} else if (scenario === 'valid-wave' || scenario === 'notes-exact' || scenario === 'lost-response') {
+} else if (['valid-wave', 'notes-exact', 'lost-response', 'attestation-e404-then-valid'].includes(scenario)) {
   assert.equal(error, undefined);
   if (scenario === 'notes-exact') {
     assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
@@ -192,7 +215,8 @@ if (scenario === 'wrong-npm') {
   assert.equal(attempts.length, PUBLISHABLE_PACKAGES.length);
   assert.equal(publications.length, PUBLISHABLE_PACKAGES.length);
   assert.equal(reconciliations.length, PUBLISHABLE_PACKAGES.length);
-  assert.equal(events.filter(event => event.operation === 'signature').length, PUBLISHABLE_PACKAGES.length);
+  assert.equal(events.filter(event => event.operation === 'signature').length,
+    PUBLISHABLE_PACKAGES.length + (scenario === 'attestation-e404-then-valid' ? 1 : 0));
   assert.deepEqual(publications.map(item => item.name), PUBLISHABLE_PACKAGES.map(info => info.name));
   assert.ok(publications.every(item => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));
@@ -210,6 +234,15 @@ if (scenario === 'wrong-npm') {
   assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length, REGISTRY_OBSERVATION_ATTEMPTS);
   assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
   assert.doesNotMatch(error, /publication did not start|credential-secret/u);
+} else if (['attestation-auth-failure', 'attestation-other-e404', 'attestation-e404-persistent'].includes(scenario)) {
+  assert.match(error, scenario === 'attestation-e404-persistent'
+    ? /npm signature audit failed; code=E404; raw output omitted/u
+    : /npm signature audit failed; code=unknown-or-non-transient; raw output omitted/u);
+  assert.doesNotMatch(error, /credential-secret/u);
+  assert.equal(events.filter(event => event.operation === 'signature').length,
+    scenario === 'attestation-e404-persistent' ? 7 : 1);
+  assert.equal(attempts.length, 1);
+  assert.equal(reconciliations.length, 0);
 } else {
   assert.equal(attempts.length, 0, JSON.stringify(events));
   assert.equal(publications.length, 0, JSON.stringify(events));

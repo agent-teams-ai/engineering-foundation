@@ -5,6 +5,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  REGISTRY_OBSERVATION_ATTEMPTS,
+  REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
   npmPurlName,
   orderedRelease,
   tarballIntegrity,
@@ -230,15 +232,73 @@ async function verifyNpmSignature(artifact, source) {
   const registry = artifact.registry ?? "https://registry.npmjs.org/";
   try {
     await writeFile(join(temporary, "package.json"), `${JSON.stringify({ private: true })}\n`);
-    executeCommand("npm", npmSignatureInstallArguments(artifact), {
-      cwd: temporary, timeout: 120_000,
-    });
-    const evidence = JSON.parse(executeCommand("npm", [
-      "audit", "signatures", "--json", "--include-attestations", `--registry=${registry}`,
-    ], { cwd: temporary, timeout: 120_000 }));
-    return verifiedProvenanceFromNpmAudit(evidence, artifact, source);
+    try {
+      executeCommand("npm", npmSignatureInstallArguments(artifact), {
+        cwd: temporary, timeout: 120_000,
+      });
+    } catch {
+      throw new Error("npm signature installation failed; raw output omitted.");
+    }
+    return await auditNpmSignature(artifact, source, temporary, registry);
   } finally {
     await rm(temporary, { force: true, recursive: true });
+  }
+}
+
+// A timed audit must terminate even when npm ignores SIGTERM.
+export function runTimedAudit(command, args, options) {
+  return spawnSync(command, args, {
+    encoding: "utf8", maxBuffer: 32 * 1024 * 1024, ...options, killSignal: "SIGKILL",
+  });
+}
+
+function isExactAttestationE404(result, expectedUrl) {
+  if (result.error !== undefined || result.status === 0) {
+    return false;
+  }
+  const stderr = result.stderr ?? "";
+  const codes = [...stderr.matchAll(/^npm error code (E[A-Z0-9]+)$/gmu)].map((match) => match[1]);
+  const urls = [...stderr.matchAll(/^npm error 404 Not Found - GET (https?:\/\/\S+)/gmu)].map((match) => match[1]);
+  if (codes.length === 0 || !codes.every((code) => code === "E404") || urls.length !== 1) {
+    return false;
+  }
+  try {
+    const observed = new URL(urls[0]);
+    return observed.origin === expectedUrl.origin && observed.username === "" &&
+      observed.password === "" && observed.search === "" && observed.hash === "" &&
+      decodeURIComponent(observed.pathname) === decodeURIComponent(expectedUrl.pathname);
+  } catch {
+    return false;
+  }
+}
+
+async function auditNpmSignature(artifact, source, temporary, registry) {
+  const args = ["audit", "signatures", "--json", "--include-attestations", `--registry=${registry}`];
+  const endpoint = registryUrl(
+    artifact, `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`,
+  );
+  const deadline = performance.now() +
+    (REGISTRY_OBSERVATION_ATTEMPTS - 1) * REGISTRY_OBSERVATION_RETRY_MILLISECONDS;
+  for (let attempt = 0; attempt < REGISTRY_OBSERVATION_ATTEMPTS; attempt += 1) {
+    const remaining = Math.max(1, Math.ceil(deadline - performance.now()));
+    const result = runTimedAudit("npm", args, {
+      cwd: temporary, timeout: Math.min(120_000, remaining),
+    });
+    if (result.error === undefined && result.status === 0) {
+      let evidence;
+      try {
+        evidence = JSON.parse(result.stdout);
+      } catch {
+        throw new Error("npm signature audit returned malformed JSON; raw output omitted.");
+      }
+      return verifiedProvenanceFromNpmAudit(evidence, artifact, source);
+    }
+    const retryable = isExactAttestationE404(result, endpoint);
+    const wait = Math.min(REGISTRY_OBSERVATION_RETRY_MILLISECONDS, deadline - performance.now());
+    if (!retryable || wait <= 0 || attempt + 1 >= REGISTRY_OBSERVATION_ATTEMPTS) {
+      throw new Error(`npm signature audit failed; code=${retryable ? "E404" : "unknown-or-non-transient"}; raw output omitted.`);
+    }
+    await new Promise((done) => { setTimeout(done, wait); });
   }
 }
 

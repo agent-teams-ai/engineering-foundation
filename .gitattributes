@@ -30,3 +30,7 @@ architecture/foundation/sdk-growth-json-schema-releases.json text eol=lf
 scripts/pack-sdk-growth-test.mjs text eol=lf
 tests/public-api-configuration.test.mjs text eol=lf
 architecture/foundation/public-api-compatibility.yaml text eol=lf
+architecture/foundation/docs-protocol-current-policy-v2.json text eol=lf
+architecture/foundation/docs-protocol-current-policy.json text eol=lf
+architecture/contracts/docs-protocol-current-policy/v1.schema.json text eol=lf
+architecture/contracts/docs-protocol-current-policy/v2.schema.json text eol=lf

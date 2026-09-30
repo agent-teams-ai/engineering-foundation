@@ -283,6 +283,7 @@ test("reviewed catalog and API baseline follow the public Agent Teams adapter ma
   assert.equal(manifest.private, undefined);
   assert.deepEqual(Object.keys(manifest.exports).toSorted(), [
     ".",
+    "./assets/runtime-policy.v1.json",
     "./package.json",
     "./qualification",
     "./schemas/*",

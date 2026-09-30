@@ -96,3 +96,6 @@ export {
   parseConsumerRestorationProof, requireRestoration, restorationJson
 } from "./application/policies/consumer-restoration-proof.js";
 export { assertConsumerIntegrationDesiredStateV1 } from "./application/policies/consumer-integration-desired-state.js";
+
+export { bindUnselectedCohortV3 } from "./application/policies/qualified-docs-cohort-v3.js";
+export type { UnselectedCohortV3, PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";

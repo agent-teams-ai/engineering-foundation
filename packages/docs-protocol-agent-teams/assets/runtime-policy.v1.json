@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "policyId": "agent-teams.docs-protocol-current-policy",
+  "policyVersion": "2.0.0",
+  "sourceDigest": "sha256:4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801",
+  "productionDefault": {
+    "id": "node-24-production-default",
+    "status": "production-default",
+    "nodeMajor": 24,
+    "engine": "^24.18.0",
+    "qualificationVersion": "24.21.0",
+    "default": true,
+    "cutoverAuthorized": false
+  },
+  "compatibilityLane": {
+    "id": "node-26-compatibility",
+    "status": "compatibility-lane",
+    "nodeMajor": 26,
+    "engine": "^26.0.0",
+    "qualificationVersion": "26.10.0",
+    "default": false,
+    "cutoverAuthorized": false
+  },
+  "managedCandidate": {
+    "selected": false,
+    "cohortSchema": 3,
+    "consumerIntegrationProfile": 4,
+    "managedState": 3,
+    "qualificationReceipt": 1,
+    "runtimeLane": "node-26-managed-qualified",
+    "status": "candidate-unqualified"
+  },
+  "managedRuntime": {
+    "status": "candidate-unqualified",
+    "lanes": {
+      "node-24-production-default": {
+        "node": ">=24.18.0 <25",
+        "qualificationRuntime": {
+          "nodeVersion": "24.21.0",
+          "pnpmVersion": "11.20.0",
+          "platform": "linux",
+          "architecture": "x64"
+        },
+        "default": true
+      },
+      "node-26-managed-qualified": {
+        "node": ">=26.0.0 <27",
+        "qualificationRuntime": {
+          "nodeVersion": "26.10.0",
+          "pnpmVersion": "11.20.0",
+          "platform": "linux",
+          "architecture": "x64"
+        },
+        "default": false
+      }
+    },
+    "pnpm": ">=11.17.0 <12"
+  }
+}

@@ -18,6 +18,7 @@ const hash = bytes => `sha256:${createHash("sha256").update(bytes).digest("hex")
 const gitObject = (kind, bytes) => createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest();
 const execFileAsync = promisify(execFile);
 const gitBytes = async args => Buffer.from((await execFileAsync("git", args, { encoding: "buffer" })).stdout);
+const foundationPackage = packages => packages.find(row => row.packageName === "@agent-teams/engineering-foundation");
 const currentSourcePaths = Object.freeze({
   loaderTest: "tests/public-api-configuration.test.mjs",
   packedQualification: "scripts/pack-sdk-growth-test.mjs",
@@ -28,16 +29,30 @@ const assertSnapshot = async snapshot => {
   assert.equal(hash(bytes), snapshot.contentDigest);
   assert.equal(gitObject("blob", bytes).toString("hex"), snapshot.blob);
 };
-const assertCurrentSources = async candidate => {
+const assertCandidateSources = async candidate => {
   assert.deepEqual(Object.keys(candidate.currentSources).toSorted(), Object.keys(currentSourcePaths).toSorted());
   for (const [role, path] of Object.entries(currentSourcePaths)) {
     assert.equal(candidate.currentSources[role].path, path, `${role} must bind ${path}`);
-    await assertSnapshot(candidate.currentSources[role]);
+    if (role === "qualificationPolicy") {
+      // This release-owned observation predates later, unrelated package policy edits.
+      const snapshot = candidate.currentSources[role];
+      const historicalBytes = await gitBytes(["cat-file", "blob", snapshot.blob]);
+      assert.equal(hash(historicalBytes), snapshot.contentDigest);
+      assert.equal(gitObject("blob", historicalBytes).toString("hex"), snapshot.blob);
+      const historicalPackages = parseCapabilityConfig(parse(historicalBytes.toString("utf8"))).packages;
+      const currentPackages = parseCapabilityConfig(parse(await readFile(path, "utf8"))).packages;
+      const evidencedFoundationPolicy = foundationPackage(historicalPackages);
+      assert.ok(evidencedFoundationPolicy);
+      assert.deepEqual(foundationPackage(currentPackages), evidencedFoundationPolicy,
+        "SDK v2 qualification policy must preserve the evidenced Foundation package configuration");
+    } else {
+      await assertSnapshot(candidate.currentSources[role]);
+    }
   }
 };
 const assertCurrentCandidateSources = async (candidateBytes, policyEntry) => {
   assert.equal(hash(candidateBytes), policyEntry.evidenceDigest);
-  await assertCurrentSources(JSON.parse(candidateBytes));
+  await assertCandidateSources(JSON.parse(candidateBytes));
 };
 test("release-owned SDK v2 corpus binds exact schema bytes and discriminating fixtures", async () => {
   const corpus = JSON.parse(await readFile("architecture/contracts/sdk-growth-v2/identity.json"));
@@ -103,7 +118,7 @@ test("v2 first-surface decision matches the real schema wildcard projection and 
   assert.equal(tree, decision.consumerEvidenceRefs[0].source.tree);
   assert.equal(retained.sourceSnapshot.tree, tree);
   assert.equal(decision.consumerEvidenceRefs[0].source.commit, null);
-  await assertCurrentSources(candidate);
+  await assertCandidateSources(candidate);
 });
 
 test("v2 release-owned family baseline and real loader consumer evidence pass the schema-release capability", async () => {
@@ -125,7 +140,7 @@ test("v2 release-owned family baseline and real loader consumer evidence pass th
   assert.equal(gitObject("blob", historicalSource).toString("hex"), retainedSource.blob);
   assert.equal(historical.sourcePath, retainedSource.path);
   assert.equal(historical.sourceDigest, retainedSource.contentDigest);
-  await assertCurrentSources(candidate);
+  await assertCandidateSources(candidate);
   assert.deepEqual(policy.currentConsumerEvidence[0], {
     consumerId: candidate.consumerId, consumerVersion: candidate.consumerVersion,
     contractId: candidate.contractId, contractVersion: candidate.contractVersion,

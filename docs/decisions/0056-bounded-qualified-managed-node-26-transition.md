@@ -456,7 +456,7 @@ with future live release/admission explicitly separate.
 | --- | --- | --- |
 | P0 | Exact Foundation/CMS/central source review | This docs-only proposed ADR and complete reservations/semantics. No accepted-status claim or activated edge. Remove unaccepted proposal only; historical ADRs untouched |
 | P1a | P0 + coordinated policy ownership | Complete unselected Cohort3, canonical current-policy v2 schema/data and generated managed projection closure, with loader, packed refs and rejecting tests. Revert this additive unit before selection |
-| P1b | P1a | Complete unselected profile4/state3 schema-model-projector-loader closure and rejecting tests. P1a plus P1b stay within 2,000 authored additions+deletions, with no runtime effects or dangling receipt reference |
+| P1b | P1a | Complete unselected profile4/state3 schema-model-projector-loader closure and rejecting tests. P1a plus P1b use the measured allowance below, with no runtime effects or dangling receipt reference |
 | G1 | P0/P1 contract | Central registry/inventory/candidate/auth/install/receipt/workflow readers and exact guard successors with rejecting tests; split by closed reader/workflow seams. No selectable Node26 record yet |
 | P2 | P1 | Feature-private explicit runtime observation/process adapter and bounded ports, real negative engine/peer fixtures; no public process SPI |
 | P3 | P1/P2 | Catalog2, snapshot/runtime/workspace CAS guards and installed pack closure; offline check/plan only, original five repair assets |
@@ -467,7 +467,7 @@ with future live release/admission explicitly separate.
 | P8 | P7 + relevant integrated portable compatibility result | Exact-head package/exports/ref/schema guards, API/artifact proposals, CI/manifests/coverage, historical and registry-install evidence; normal full verify; no publication here |
 | G2/consumer preparation | Exact qualified released artifacts and existing owner release procedure | Append-only central admission and consumer-specific runtime packets, live protected checks, support and rollback evidence. Release and cutover remain excluded by this task |
 
-Aim each later checkpoint below 2,000 authored additions+deletions, counting hand-written
+Aim each checkpoint after P1b below 2,000 authored additions+deletions, counting hand-written
 schema/test/docs. Split at closed API/reader/test seams, not by dropping safety tests. Generated
 output may be excluded only with named deterministic generator/input hashes/rebuild diff and its own
 separate count. Never add a stub dispatch or generic flags framework: withhold the new operational
@@ -488,7 +488,7 @@ generated managed projection closure with its loader, packed refs and rejection
 tests. P1b owns profile4/state3 schema/model/projector/loader closure and
 rejection tests over the P1a authority. Neither checkpoint selects an
 operational path; both together satisfy the P1 data deliverable. The combined
-authored additions plus deletions remain at most 2,000 lines. Do not count a
+authored additions plus deletions remain at most 2,500 under the owner decision below. Do not count a
 nonclosing half as complete P1 or publish a schema with a dangling reference.
 
 ## Deliverable and hard boundary
@@ -497,11 +497,19 @@ Deliver a fully loadable, strict, deterministic and unselected managed data
 contract for Cohort3/profile4/state3 plus canonical current-policy v2 and its
 packed managed-runtime projection. Validate and project it with independent
 rejecting fixtures while preserving every old schema/reader/output. At most
-**2,000 authored additions plus deletions**, including schemas, tests,
-configuration, exports, docs and Changeset. The target budget is 1,900.
-Generated declaration/asset copies can be separately counted only with the
-exact generator, input digests and reproducible diff; hand-written JSON/YAML
-and copied fixtures count as authored.
+**2,500 authored additions plus deletions across P1a and P1b**, including
+schemas, tests, configuration, exports, docs and Changesets.
+Full P1 `87fbf3e1183c5f2bce296c6bbdcabce99dd7c7fe` against parent
+`33de70fba708b0a03206bade3ce2d5a97e75d7b1` measured 2,209 raw: 2,086 authored
+and 123 generated (59-line asset, 64-line schema). Exclude those 123 only with
+a byte rebuild by `packages/docs-protocol-agent-teams/scripts/generate-runtime-policy.mjs`
+from canonical input SHA-256 `4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801`.
+Recount final PRs with docs and Changesets; no other exclusion applies.
+
+Owner decision (2026-09-29): adopt the 2,500 combined P1a/P1b authored-line
+ceiling after review of approximately 2,435 authored additions plus deletions.
+The canonical packed projection asset name is `runtime-policy.v1.json`.
+ADR-0056 remains Proposed; this decision does not accept the broader transition.
 
 P1 does not install, spawn, mutate a consumer, dispatch upgrade/finalize/restore, emit receipt4,
 select central generation3 or expose an incomplete public runtime API. It is a useful closed
@@ -552,7 +560,7 @@ within budget; this is an estimate, not a future measured diff.
 | `schemas/qualified-docs-cohort/v3.schema.json` | `$id` `https://agent-teams.ai/schemas/qualified-docs-cohort/v3`; closed `$defs/cohortCore` and `$defs/cohortBinding`; generation3, exact five coordinates, workflow/assets, explicit 4/3/1 tuple and runtime binding |
 | `schemas/docs-consumer-integration-profile/v4.schema.json` | `$id` `https://agent-teams.ai/schemas/docs-consumer-integration-profile/v4`; schemaVersion4; preserve repository/root/pnpm/profile/skill/caller/state/qualification/governed-roots fields; Cohort ref only `.../qualified-docs-cohort/v3#/$defs/cohortBinding` |
 | `schemas/docs-consumer-managed-state/v3.schema.json` | `$id` `https://agent-teams.ai/schemas/docs-consumer-managed-state/v3`; schemaVersion3; package/schema/runtime and authority projections exclusively from Cohort3; domain-separated state digest covers complete policy/lane/tuple/authority/assets |
-| Managed runtime policy projection asset and schema | Proposed `assets/managed-runtime-policy.v1.json` and `schemas/managed-runtime-policy/v1.schema.json`; schemaVersion1 projection is derived from canonical current-policy successor, binds source id/version/digest and exact two-lane table; no independent mutable authority |
+| Managed runtime policy projection asset and schema | Proposed `assets/runtime-policy.v1.json` and `schemas/managed-runtime-policy/v1.schema.json`; schemaVersion1 projection is derived from canonical current-policy successor, binds source id/version/digest and exact two-lane table; no independent mutable authority |
 | Sibling model/validator/projection | Explicit V3 Cohort binding, V4 profile, V3 state and closed runtime selection types; no widening of old Node24 aliases, no `any`/double-cast proofs; selected policy validation and deterministic state projection |
 | Schema adapter/pack registration | Load every new local `$id` and `$ref` without remote resolution, register exact version, export the schema files and include packed refs; keep old entrypoints/dispatch unchanged |
 
@@ -659,10 +667,10 @@ to release-owned artifact treatment. Adding them does not publish them in this s
 | Positive/rejecting/runtime-type and historical regression tests | 580 |
 | Feature/source/test manifests, docs and Changeset | 100 |
 | Contingency | 40 |
-| Target total | 1,900 |
+| Original target total | 1,900 |
 
 Count actual authored diff, including moved/deleted lines; no compressing tests into unreadable
-lines or relabeling copied schemas generated. Hard ceiling 2,000. If the complete coherent slice
+lines or relabeling copied schemas generated. The combined P1a/P1b ceiling is 2,500. If the complete coherent slice
 grows beyond this limit, first deliver only the closed Cohort3/canonical-policy-v2/managed-projection
 schema/model/loader/pack+tests P1a sub-seam and then profile4/state3 with their complete
 reader/projector/test closure in a separate checkpoint, as the original plan allowed. Do not leave
@@ -700,7 +708,7 @@ timestamps. This proposal supplies no implementation test result.
 P1 is complete only when: all new refs resolve from packed bytes; every model/schema/guard tuple
 agrees; real canonical policy input is bound; independent positive/rejecting and historical tests
 pass; exports/feature/source/test manifests and coverage include new code; authored diff is measured
-<=2,000; existing operational dispatch remains unchanged; normal required gates pass at the actual
+<=2,500 under the owner decision; existing operational dispatch remains unchanged; normal required gates pass at the actual
 code head. These are future acceptance requirements, not evidence supplied by this review.
 
 Before operational selection, revert the additive schema/model/projection/tests and their

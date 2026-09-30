@@ -15,6 +15,29 @@ export {
 } from "./pack-artifact-archive.mjs";
 
 const verifiedArchiveBytes = new WeakMap();
+const managedPolicyPackage = "@agent-teams/docs-protocol-agent-teams";
+
+async function stageManagedPolicyBuildInputs(repositoryRoot, stageRoot, stagedPackagesByName) {
+  if (!stagedPackagesByName.has(managedPolicyPackage)) {
+    return;
+  }
+  const { runtimePolicyBuildInputPaths } = await import("../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs");
+  const physicalRepositoryRoot = await realpath(repositoryRoot);
+  for (const relativePath of runtimePolicyBuildInputPaths) {
+    const source = join(repositoryRoot, relativePath);
+    const physical = await realpath(source);
+    if (physical !== join(physicalRepositoryRoot, relativePath)) {
+      throw new Error(`Managed policy build input is not the canonical repository file: ${relativePath}.`);
+    }
+    const [pathname, metadata] = await Promise.all([lstat(source), lstat(physical)]);
+    const { bytes, mode } = await readStableRegularFile(source, { bytes: 0 }, "Managed policy build input", {
+      metadata, pathname, physical,
+    });
+    const destination = join(stageRoot, relativePath);
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx", mode });
+  }
+}
 
 function hasAuthoritativeFileIdentity(metadata) {
   return (typeof metadata.dev === "bigint" ? metadata.dev > 0n : Number.isSafeInteger(metadata.dev) && metadata.dev > 0) &&
@@ -208,6 +231,7 @@ export async function createCleanBuildStage(input, label) {
     throw new Error(`Clean stage has no target package ${input.packageName}.`);
   }
   await writeFile(join(stageRoot, "pnpm-workspace.yaml"), workspace.bytes, { flag: "wx", mode: workspace.mode });
+  await stageManagedPolicyBuildInputs(input.repositoryRoot, stageRoot, stagedPackagesByName);
   for (const packageName of input.buildPackageNames ?? [input.packageName]) {
     const buildRoot = stagedPackagesByName.get(packageName);
     if (buildRoot === undefined) {

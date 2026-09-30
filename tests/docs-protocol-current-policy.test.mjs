@@ -11,11 +11,16 @@ import { importInstalledQualification } from "../scripts/node-engine-compatibili
 
 const schemaPath = "architecture/contracts/docs-protocol-current-policy/v1.schema.json";
 const policyPath = "architecture/foundation/docs-protocol-current-policy.json";
+const v2SchemaPath = "architecture/contracts/docs-protocol-current-policy/v2.schema.json";
+const v2PolicyPath = "architecture/foundation/docs-protocol-current-policy-v2.json";
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const fromRoot = (path) => join(repositoryRoot, path);
 const schema = JSON.parse(await readFile(fromRoot(schemaPath), "utf8"));
 const policy = JSON.parse(await readFile(fromRoot(policyPath), "utf8"));
 const validatePolicy = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
+const v2Schema = JSON.parse(await readFile(fromRoot(v2SchemaPath), "utf8"));
+const v2Policy = JSON.parse(await readFile(fromRoot(v2PolicyPath), "utf8"));
+const validateV2Policy = new Ajv2020({ allErrors: true, strict: true }).compile(v2Schema);
 
 async function json(path) {
   return JSON.parse(await readFile(fromRoot(path), "utf8"));
@@ -48,6 +53,51 @@ test("current-policy schema rejects missing current generations and escaping sch
       escaping.contracts[slot].currentSchemaPath = path;
       assert.equal(validatePolicy(escaping), false, `${slot}: ${path}`);
     }
+  }
+});
+
+test("v2 current policy binds each family's current generation, supported set and schema path", () => {
+  assert.equal(validateV2Policy(v2Policy), true, JSON.stringify(validateV2Policy.errors, null, 2));
+  const rejectsAt = (candidate, family, field, description) => {
+    assert.equal(validateV2Policy(candidate), false, description);
+    assert.ok(
+      validateV2Policy.errors.some((error) => error.instancePath === `/contracts/${family}/${field}`),
+      `${description}: ${JSON.stringify(validateV2Policy.errors)}`,
+    );
+  };
+  for (const [family, otherFamily] of [
+    ["profile", "portableCommandEnvelope"],
+    ["portableCommandEnvelope", "profile"],
+  ]) {
+    const canonical = v2Policy.contracts[family];
+    const withoutCurrent = structuredClone(v2Policy);
+    withoutCurrent.contracts[family].supported = canonical.supported.filter(
+      (generation) => generation !== canonical.current,
+    );
+    rejectsAt(withoutCurrent, family, "supported", `${family}: supported omits current`);
+
+    const wrongCurrent = structuredClone(v2Policy);
+    wrongCurrent.contracts[family].current = canonical.supported.find(
+      (generation) => generation !== canonical.current,
+    );
+    rejectsAt(wrongCurrent, family, "current", `${family}: current differs from path`);
+
+    const shiftedGeneration = structuredClone(v2Policy);
+    shiftedGeneration.contracts[family].current = wrongCurrent.contracts[family].current;
+    shiftedGeneration.contracts[family].currentSchemaPath = canonical.currentSchemaPath.replace(
+      `/v${canonical.current}.schema.json`, `/v${wrongCurrent.contracts[family].current}.schema.json`,
+    );
+    rejectsAt(shiftedGeneration, family, "current", `${family}: v2 generation is fixed`);
+
+    const wrongVersionPath = structuredClone(v2Policy);
+    wrongVersionPath.contracts[family].currentSchemaPath = shiftedGeneration.contracts[family].currentSchemaPath;
+    rejectsAt(wrongVersionPath, family, "currentSchemaPath", `${family}: path differs from current`);
+
+    const wrongFamilyPath = structuredClone(v2Policy);
+    wrongFamilyPath.contracts[family].currentSchemaPath = v2Policy.contracts[otherFamily].currentSchemaPath.replace(
+      /\/v\d+\.schema\.json$/, `/v${canonical.current}.schema.json`,
+    );
+    rejectsAt(wrongFamilyPath, family, "currentSchemaPath", `${family}: path names another family`);
   }
 });
 

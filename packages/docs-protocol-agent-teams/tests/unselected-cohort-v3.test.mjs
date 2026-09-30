@@ -66,6 +66,13 @@ test("v2 policy is a closed unselected successor and packed projection binds its
   assert.equal(hash(source), "sha256:4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801");
   assert.equal(hash(asset), "sha256:d8da2a5234309f52801b39649695a80cb8875df999027b8d6367eebff8bdb87b");
   assert.equal(validatePolicy(policy), true, JSON.stringify(validatePolicy.errors));
+  for (const [family, current] of [["profile", 4], ["portableCommandEnvelope", 3]]) {
+    const missingCurrent = structuredClone(policy);
+    missingCurrent.contracts[family].supported = missingCurrent.contracts[family].supported.filter(
+      (generation) => generation !== current,
+    );
+    assert.equal(validatePolicy(missingCurrent), false, `${family}.supported must include current ${current}`);
+  }
   for (const path of [policy.contracts.protocol.schemaPath, policy.contracts.profile.currentSchemaPath,
     policy.contracts.portableCommandEnvelope.currentSchemaPath]) {
     assert.ok((await read(`../../${path}`)).byteLength > 0, path);
@@ -187,7 +194,7 @@ test("packed Cohort v3 accepts real UTC seconds and rejects impossible calendar 
   }
 });
 
-test("direct Cohort v3 binder admits only real whole UTC seconds", () => {
+test("direct Cohort v3 binder admits real whole UTC seconds and rejects impossible dates", () => {
   const policy = {
     sourceDigest: projected.sourceDigest,
     pnpm: projected.managedRuntime.pnpm,
@@ -198,8 +205,21 @@ test("direct Cohort v3 binder admits only real whole UTC seconds", () => {
     assert.equal(bindUnselectedCohortV3(candidate, policy), candidate);
   }
   for (const eligibleAfter of [
-    "2026-09-28T00:00:00.999Z", "2026-09-28T00:00:00.001Z", "2026-09-28T00:00:00.000Z",
     "2026-02-30T00:00:00Z", "2026-99-99T99:99:99Z", "2025-02-29T00:00:00Z",
+  ]) {
+    const candidate = valid(); candidate.eligibleAfter = eligibleAfter;
+    assert.throws(() => bindUnselectedCohortV3(candidate, policy), /eligibleAfter/, eligibleAfter);
+  }
+});
+
+test("direct Cohort v3 binder rejects fractional and explicit millisecond timestamps", () => {
+  const policy = {
+    sourceDigest: projected.sourceDigest,
+    pnpm: projected.managedRuntime.pnpm,
+    lanes: projected.managedRuntime.lanes,
+  };
+  for (const eligibleAfter of [
+    "2026-09-28T00:00:00.999Z", "2026-09-28T00:00:00.001Z", "2026-09-28T00:00:00.000Z",
   ]) {
     const candidate = valid(); candidate.eligibleAfter = eligibleAfter;
     assert.throws(() => bindUnselectedCohortV3(candidate, policy), /eligibleAfter/, eligibleAfter);

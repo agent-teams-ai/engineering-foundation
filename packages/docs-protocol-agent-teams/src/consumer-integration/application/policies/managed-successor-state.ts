@@ -14,7 +14,7 @@ export interface ManagedSuccessorProfile {
   readonly managedStatePath: string;
   readonly qualification: { readonly contractPath: string; readonly gateCommand: string };
   readonly governedDocsRoots?: readonly string[];
-  readonly cohort: UnselectedCohortV3;
+  readonly cohort: Omit<UnselectedCohortV3, "lifecycleState" | "canaryRepositoryIds">;
 }
 
 export interface ManagedSuccessorAssetDigests {

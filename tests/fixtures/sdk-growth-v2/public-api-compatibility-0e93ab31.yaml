@@ -144,8 +144,6 @@ packages:
       - exportPath: "./qualification"
         declarationEntryPoint: packages/docs-protocol-agent-teams/dist/qualification/index.d.ts
     nonTypeExports:
-      - exportPath: "./assets/runtime-policy.v1.json"
-        kind: data
       - exportPath: "./package.json"
         kind: data
       - exportPath: "./schemas/*"

@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-teams.ai/schemas/docs-protocol-current-policy/v2",
+  "title": "Docs Protocol current policy v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyId",
+    "policyVersion",
+    "supportClaim",
+    "runtime",
+    "contracts",
+    "qualification",
+    "history",
+    "managedCandidate",
+    "managedRuntime"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "policyId": {
+      "const": "agent-teams.docs-protocol-current-policy"
+    },
+    "policyVersion": {
+      "const": "2.0.0"
+    },
+    "supportClaim": {
+      "const": "artifact-protected; family support not claimed"
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageEngine",
+        "productionDefault",
+        "compatibilityLane"
+      ],
+      "properties": {
+        "packageEngine": {
+          "const": "^24.18.0 || ^26.0.0"
+        },
+        "productionDefault": {
+          "const": {
+            "id": "node-24-production-default",
+            "status": "production-default",
+            "nodeMajor": 24,
+            "engine": "^24.18.0",
+            "qualificationVersion": "24.21.0",
+            "default": true,
+            "cutoverAuthorized": false
+          }
+        },
+        "compatibilityLane": {
+          "const": {
+            "id": "node-26-compatibility",
+            "status": "compatibility-lane",
+            "nodeMajor": 26,
+            "engine": "^26.0.0",
+            "qualificationVersion": "26.10.0",
+            "default": false,
+            "cutoverAuthorized": false
+          }
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "profile",
+        "portableCommandEnvelope",
+        "portableQualificationReceipt",
+        "managed"
+      ],
+      "properties": {
+        "protocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "schemaPath"
+          ],
+          "properties": {
+            "id": {
+              "const": "agent-teams.docs-protocol"
+            },
+            "version": {
+              "const": 1
+            },
+            "schemaPath": {
+              "const": "packages/docs-protocol/schemas/docs-protocol/v1.schema.json"
+            }
+          }
+        },
+        "profile": {
+          "allOf": [
+            { "$ref": "#/$defs/currentSchemaSet" },
+            {
+              "type": "object",
+              "properties": {
+                "current": { "const": 4 },
+                "supported": { "type": "array", "contains": { "const": 4 } },
+                "currentSchemaPath": {
+                  "const": "packages/docs-protocol/schemas/docs-protocol-profile/v4.schema.json"
+                }
+              }
+            }
+          ]
+        },
+        "portableCommandEnvelope": {
+          "allOf": [
+            { "$ref": "#/$defs/currentSchemaSet" },
+            {
+              "type": "object",
+              "properties": {
+                "current": { "const": 3 },
+                "supported": { "type": "array", "contains": { "const": 3 } },
+                "currentSchemaPath": {
+                  "const": "packages/docs-protocol/schemas/docs-protocol-portable-command-envelope/v3.schema.json"
+                }
+              }
+            }
+          ]
+        },
+        "portableQualificationReceipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "current",
+            "entrypoint",
+            "export"
+          ],
+          "properties": {
+            "current": {
+              "const": 1
+            },
+            "entrypoint": {
+              "const": "@agent-teams/docs-protocol/qualification"
+            },
+            "export": {
+              "const": "runDocsProtocolQualification"
+            }
+          }
+        },
+        "managed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "profile",
+            "cohort",
+            "qualificationReceipt",
+            "runtime"
+          ],
+          "properties": {
+            "profile": {
+              "const": 3
+            },
+            "cohort": {
+              "const": 2
+            },
+            "qualificationReceipt": {
+              "const": 3
+            },
+            "runtime": {
+              "const": "Node 24 production cohort only"
+            }
+          }
+        }
+      }
+    },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "requiresDisposableFixture",
+        "proves"
+      ],
+      "properties": {
+        "command": {
+          "const": "pnpm node-compatibility:qualification"
+        },
+        "requiresDisposableFixture": {
+          "const": true
+        },
+        "proves": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "prefixItems": [
+            {
+              "const": "engine-strict-install"
+            },
+            {
+              "const": "node-24-default"
+            },
+            {
+              "const": "node-26-compatibility"
+            },
+            {
+              "const": "portable-qualification-entrypoint"
+            }
+          ],
+          "items": false
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mutationPolicy",
+        "preservedSchemas"
+      ],
+      "properties": {
+        "mutationPolicy": {
+          "const": "preserve exact historical schema bytes"
+        },
+        "preservedSchemas": {
+          "type": "array",
+          "minItems": 15,
+          "maxItems": 15,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/preservedSchema"
+          }
+        }
+      }
+    },
+    "managedCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected",
+        "cohortSchema",
+        "consumerIntegrationProfile",
+        "managedState",
+        "qualificationReceipt",
+        "runtimeLane",
+        "status"
+      ],
+      "properties": {
+        "selected": {
+          "const": false
+        },
+        "cohortSchema": {
+          "const": 3
+        },
+        "consumerIntegrationProfile": {
+          "const": 4
+        },
+        "managedState": {
+          "const": 3
+        },
+        "qualificationReceipt": {
+          "const": 1
+        },
+        "runtimeLane": {
+          "const": "node-26-managed-qualified"
+        },
+        "status": {
+          "const": "candidate-unqualified"
+        }
+      }
+    },
+    "managedRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "lanes",
+        "pnpm"
+      ],
+      "properties": {
+        "status": {
+          "const": "candidate-unqualified"
+        },
+        "pnpm": {
+          "const": ">=11.17.0 <12"
+        },
+        "lanes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "node-24-production-default",
+            "node-26-managed-qualified"
+          ],
+          "properties": {
+            "node-24-production-default": {
+              "const": {
+                "node": ">=24.18.0 <25",
+                "qualificationRuntime": {
+                  "nodeVersion": "24.21.0",
+                  "pnpmVersion": "11.20.0",
+                  "platform": "linux",
+                  "architecture": "x64"
+                },
+                "default": true
+              }
+            },
+            "node-26-managed-qualified": {
+              "const": {
+                "node": ">=26.0.0 <27",
+                "qualificationRuntime": {
+                  "nodeVersion": "26.10.0",
+                  "pnpmVersion": "11.20.0",
+                  "platform": "linux",
+                  "architecture": "x64"
+                },
+                "default": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "currentSchemaSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current",
+        "supported",
+        "currentSchemaPath"
+      ],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "supported": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "currentSchemaPath": {
+          "type": "string",
+          "pattern": "^packages/docs-protocol/schemas/[^\\u0000]+/v[0-9]+\\.schema\\.json$"
+        }
+      }
+    },
+    "preservedSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^packages/(?!\\.\\.?/)(?!.*(?:/\\.\\.?/|/\\.\\.?$))(?!.*\\\\)[A-Za-z0-9._@/-]+\\.json$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

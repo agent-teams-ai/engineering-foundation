@@ -279,6 +279,7 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
   );
   const deadline = performance.now() +
     (REGISTRY_OBSERVATION_ATTEMPTS - 1) * REGISTRY_OBSERVATION_RETRY_MILLISECONDS;
+  let observedExactE404 = false;
   for (let attempt = 0; attempt < REGISTRY_OBSERVATION_ATTEMPTS; attempt += 1) {
     const remaining = Math.max(1, Math.ceil(deadline - performance.now()));
     const result = runTimedAudit("npm", args, {
@@ -294,10 +295,13 @@ async function auditNpmSignature(artifact, source, temporary, registry) {
       return verifiedProvenanceFromNpmAudit(evidence, artifact, source);
     }
     const retryable = isExactAttestationE404(result, endpoint);
+    const timedOutAfterExactE404 = observedExactE404 && result.error?.code === "ETIMEDOUT" &&
+      !result.stderr;
     const wait = Math.min(REGISTRY_OBSERVATION_RETRY_MILLISECONDS, deadline - performance.now());
     if (!retryable || wait <= 0 || attempt + 1 >= REGISTRY_OBSERVATION_ATTEMPTS) {
-      throw new Error(`npm signature audit failed; code=${retryable ? "E404" : "unknown-or-non-transient"}; raw output omitted.`);
+      throw new Error(`npm signature audit failed; code=${retryable || timedOutAfterExactE404 ? "E404" : "unknown-or-non-transient"}; raw output omitted.`);
     }
+    observedExactE404 = true;
     const { promise, resolve: finishWait } = Promise.withResolvers();
     setTimeout(finishWait, wait);
     await promise;

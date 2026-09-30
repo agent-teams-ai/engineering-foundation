@@ -7,7 +7,7 @@ import { registerHooks, syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { REGISTRY_OBSERVATION_ATTEMPTS } from '../../scripts/release-publish-ordered.mjs';
+import { REGISTRY_OBSERVATION_ATTEMPTS, REGISTRY_OBSERVATION_RETRY_MILLISECONDS } from '../../scripts/release-publish-ordered.mjs';
 
 const scenario = process.argv[2];
 const changelogEol = process.argv[3] ?? 'lf';
@@ -38,15 +38,15 @@ const versions = new Map(packages.map(info => [info.name, info.version]));
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
 let acceleratedNow = 0;
-if (scenario === 'attestation-e404-persistent') {
+if (scenario.startsWith('attestation-e404-persistent')) {
   globalThis.performance = { now: () => acceleratedNow };
 }
-// Preserve all registry observations; accelerate only the inherited five-second delay.
+// Preserve all registry observations while advancing the audit's virtual deadline.
 globalThis.setTimeout = (callback, milliseconds, ...args) => {
-  if (scenario === 'attestation-e404-persistent' && milliseconds === 5000) {
-    acceleratedNow += 60_000;
+  if (scenario.startsWith('attestation-e404-persistent') && milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS) {
+    acceleratedNow += milliseconds;
   }
-  return originalTimeout(callback, milliseconds === 5000 ? 0 : milliseconds, ...args);
+  return originalTimeout(callback, milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS ? 0 : milliseconds, ...args);
 };
 registerHooks({ resolve(specifier, context, next) {
   const fromRuntime = context.parentURL === pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')).href;
@@ -148,11 +148,19 @@ function begin() {
     }
     if (command === 'npm' && args[0] === 'audit') {
       events.push({ operation: 'signature', name: installed });
+      if (['attestation-e404-persistent-final-timeout', 'attestation-e404-persistent-final-auth-timeout'].includes(scenario) &&
+          events.filter(event => event.operation === 'signature').length === REGISTRY_OBSERVATION_ATTEMPTS) {
+        assert.equal(options.timeout, 1);
+        return { status: null, error: Object.assign(new Error('secret'), { code: 'ETIMEDOUT' }),
+          stderr: scenario.endsWith('auth-timeout') ? 'npm error code E401\ncredential-secret' : '' };
+      }
       if (installed === packages[0].name &&
-          (scenario === 'attestation-e404-persistent' ||
+          (scenario.startsWith('attestation-e404-persistent') ||
             events.filter(event => event.operation === 'signature').length === 1) &&
           ['attestation-e404-then-valid', 'attestation-auth-failure',
-            'attestation-other-e404', 'attestation-e404-persistent'].includes(scenario)) {
+            'attestation-other-e404', 'attestation-e404-persistent',
+            'attestation-e404-persistent-final-timeout',
+            'attestation-e404-persistent-final-auth-timeout'].includes(scenario)) {
         const endpoint = scenario === 'attestation-other-e404'
           ? 'https://registry.npmjs.org/unrelated'
           : `https://registry.npmjs.org/-/npm/v1/attestations/${encodeURIComponent(installed)}@${versions.get(installed)}`;
@@ -195,7 +203,9 @@ assert.ok(['valid-wave', 'wrong-npm', 'advance-after-authorization', 'digest-mis
   'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty',
   'prerequisite-secret', 'ambiguous-absent', 'lost-response',
   'attestation-e404-then-valid', 'attestation-auth-failure',
-  'attestation-other-e404', 'attestation-e404-persistent'].includes(scenario));
+  'attestation-other-e404', 'attestation-e404-persistent',
+  'attestation-e404-persistent-final-timeout',
+  'attestation-e404-persistent-final-auth-timeout'].includes(scenario));
 const events = begin();
 const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')));
 let error;
@@ -234,13 +244,15 @@ if (scenario === 'wrong-npm') {
   assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length, REGISTRY_OBSERVATION_ATTEMPTS);
   assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
   assert.doesNotMatch(error, /publication did not start|credential-secret/u);
-} else if (['attestation-auth-failure', 'attestation-other-e404', 'attestation-e404-persistent'].includes(scenario)) {
-  assert.match(error, scenario === 'attestation-e404-persistent'
+} else if (['attestation-auth-failure', 'attestation-other-e404', 'attestation-e404-persistent',
+  'attestation-e404-persistent-final-timeout',
+  'attestation-e404-persistent-final-auth-timeout'].includes(scenario)) {
+  assert.match(error, scenario.startsWith('attestation-e404-persistent') && !scenario.endsWith('auth-timeout')
     ? /npm signature audit failed; code=E404; raw output omitted/u
     : /npm signature audit failed; code=unknown-or-non-transient; raw output omitted/u);
   assert.doesNotMatch(error, /credential-secret/u);
   assert.equal(events.filter(event => event.operation === 'signature').length,
-    scenario === 'attestation-e404-persistent' ? 7 : 1);
+    scenario.startsWith('attestation-e404-persistent') ? REGISTRY_OBSERVATION_ATTEMPTS : 1);
   assert.equal(attempts.length, 1);
   assert.equal(reconciliations.length, 0);
 } else {

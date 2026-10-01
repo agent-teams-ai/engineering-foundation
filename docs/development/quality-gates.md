@@ -94,6 +94,14 @@ job depends directly on Dependency Review.
 Both required aggregates include the complete Node 24 default and Node 26
 compatibility matrix as a direct prerequisite.
 
+The required macOS qualification runs the real packaging containment tests via
+`node scripts/run-selected-tests.mjs tests/tooling.test.mjs`. Its transient and
+persistent retained-zombie cases are mandatory identities in
+`architecture/foundation/node-test-execution.json`: neither skip nor omission
+is admitted on Darwin. Exact `skipped` exceptions apply only on Linux and
+Windows, whose kernels do not supply these Darwin semantics. Python3 must be
+available on macOS; a missing interpreter fails the tests.
+
 The CI workflow also records a conservative shadow classification for future
 feedback experiments. It has no place in any job's `needs` or `if` expression
 and its effective plan is always `full`; ready pull requests and merge-queue

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { performance } from "node:perf_hooks";
 
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;
@@ -179,6 +180,32 @@ async function terminateWindowsProcessTree(child, windowsManagedProcess) {
   await windowsManagedProcess.requestWindowsManagedProcessTermination(child);
 }
 
+async function observeDarwinGroupRemoval(pgid, cleanupError) {
+  // Darwin may retain an all-zombie group. Only ESRCH confirms its removal;
+  // a successful probe still leaves containment unconfirmed. Do not kill again.
+  const deadline = performance.now() + 1_000;
+  while (performance.now() < deadline) {
+    try {
+      process.kill(pgid, 0);
+      break;
+    } catch (error) {
+      if (error?.code === "ESRCH") {
+        return;
+      }
+      if (error?.code !== "EPERM") {
+        break;
+      }
+    }
+    const remaining = deadline - performance.now();
+    if (remaining > 0) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, Math.min(50, remaining));
+      });
+    }
+  }
+  throw cleanupError;
+}
+
 async function terminateCommandTree(child, windowsManagedProcess) {
   if (child.pid === undefined) {
     return;
@@ -190,9 +217,14 @@ async function terminateCommandTree(child, windowsManagedProcess) {
   try {
     process.kill(-child.pid, commandTerminationSignal);
   } catch (error) {
-    if (error?.code !== "ESRCH") {
-      throw error;
+    if (error?.code === "ESRCH") {
+      return;
     }
+    if (process.platform === "darwin" && error?.code === "EPERM") {
+      await observeDarwinGroupRemoval(-child.pid, error);
+      return;
+    }
+    throw error;
   }
 }
 

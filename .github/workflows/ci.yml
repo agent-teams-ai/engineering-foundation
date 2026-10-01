@@ -605,6 +605,8 @@ jobs:
       - run: pnpm build
       - name: Qualify QGR lifecycle on Darwin
         run: pnpm test:qgr:lifecycle:built
+      - name: Qualify packaging containment and required Darwin controls
+        run: node scripts/run-selected-tests.mjs tests/tooling.test.mjs
       - name: Qualify repository mutation, scaffolding, and durable document writing
         run: >-
           node scripts/run-selected-tests.mjs

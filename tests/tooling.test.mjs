@@ -320,6 +320,88 @@ test("packaging confirms containment after a normal nonzero exit", async () => {
   );
 });
 
+test("packaging aborts a real subprocess and confirms termination", async () => {
+  const controller = new AbortController();
+  const command = runCommand(
+    process.execPath,
+    ["--eval", "setInterval(() => {}, 1000);"],
+    repositoryRoot,
+    { signal: controller.signal, timeoutMs: 5_000 },
+  );
+  await wait(0);
+  controller.abort(new Error("TEST abort"));
+  await assert.rejects(command, (error) =>
+    error?.killed === true && error?.timedOut === false &&
+    error?.terminationConfirmed === true && error?.cause?.message === "TEST abort");
+});
+
+async function assertDarwinRetainedGroup(persistent, context) {
+  // Python's fork/setpgid/waitpid supplies real custody; Node has no equivalent.
+  const python = spawnSync("python3", ["--version"], { encoding: "utf8", timeout: 5_000 });
+  assert.equal(python.status, 0, `macOS CI requires Python3: ${python.error ?? python.stderr}`);
+  const root = await mkdtemp(join(tmpdir(), "foundation-pack-darwin-zombie-"));
+  let record;
+  let settled = false;
+  const command = runCommand(
+    "python3", [join(processFixtureRoot, "darwin-retained-group.py"), root],
+    repositoryRoot, { timeoutMs: 5_000 },
+  ).then((value) => ({ value }), (error) => ({ error }));
+  void command.then((outcome) => { settled = true; return outcome; });
+  try {
+    record = await readProcessRecord(join(root, "ready.json"));
+    assert.equal(record.sid, record.parent);
+    assert.equal(record.childPgid, record.parent);
+    assert.equal(record.childSid, record.sid);
+    assert.equal(record.custodianPgid, record.custodian);
+    assert.notEqual(record.custodianPgid, record.parent);
+    assert.match(record.zombieState, /^Z/u);
+    // Same-owner live leader can be probed; an unreaped zombie cannot on Darwin.
+    assert.equal(process.kill(-record.parent, 0), true);
+    const started = performance.now();
+    await writeFile(join(root, "exit"), "");
+    await assertProcessExited(record.parent);
+    assert.throws(() => process.kill(-record.parent, 0), { code: "EPERM" });
+    if (persistent) {
+      const { error } = await command;
+      assert.equal(error?.code, 0);
+      assert.equal(error?.terminationConfirmed, false);
+      assert.equal(error?.cause?.code, "EPERM");
+      assert.equal(error?.cause?.syscall, "kill");
+      assert.ok(performance.now() - started >= 900, "cleanup must observe before rejecting");
+      assert.ok(performance.now() - started < 2_500, "cleanup must stay bounded");
+      assert.throws(() => process.kill(-record.parent, 0), { code: "EPERM" });
+    } else {
+      await wait(100);
+      assert.equal(settled, false, "EPERM alone must not settle the command");
+      await writeFile(join(root, "release"), "");
+      const outcome = await command;
+      assert.equal(outcome.error, undefined, outcome.error?.stack);
+      assert.deepEqual(outcome.value, { stdout: "READY\n", stderr: "" });
+      assert.throws(() => process.kill(-record.parent, 0), { code: "ESRCH" });
+    }
+  } finally {
+    await writeFile(join(root, "release"), "");
+    await writeFile(join(root, "exit"), "");
+    await command;
+    const custody = record ?? await readProcessRecord(join(root, "custodian.json"));
+    await assertProcessExited(custody.custodian);
+    const reaped = await readProcessRecord(join(root, "reaped.json"));
+    if (record !== undefined) {
+      assert.equal(reaped.waited, record.child);
+      assert.equal(reaped.status, 0);
+      assert.equal(reaped.groupProbe, "ESRCH");
+      context.diagnostic(JSON.stringify({ persistent, record, reaped }));
+    }
+    await rm(root, { force: true, recursive: true });
+  }
+}
+
+test("packaging Darwin transient zombie succeeds only after group ESRCH",
+  { skip: process.platform !== "darwin" }, async (context) => assertDarwinRetainedGroup(false, context));
+
+test("packaging Darwin persistent zombie rejects code zero with cleanup debt",
+  { skip: process.platform !== "darwin" }, async (context) => assertDarwinRetainedGroup(true, context));
+
 test("packaging rejects unsupported deadlines before process creation", async () => {
   await assert.rejects(
     runCommand(

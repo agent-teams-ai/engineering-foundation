@@ -58,9 +58,14 @@ export function createQualityCoverageReader(
         return path === undefined ? [] : [path];
       });
       const census = await ports.census.read({
-        // Census is an independent repository observation.  Keep discovery broad;
-        // topology is applied by classification and target projection below.
-        consumerRoot, roots: ["."],
+        // Keep the repository census broad while reopening explicitly owned
+        // source beneath ordinary package-level generated-output exclusions.
+        consumerRoot, roots: [...new Set([
+          ".", ...(topology.productionSourceRoots ?? [
+            ...topology.modules.map(({ sourceRoot }) => sourceRoot), ...topology.applicationRoots
+          ]), ...authority.boundaries.filter(({ dependencyMode }) => dependencyMode === "runtime")
+            .flatMap(({ roots }) => roots)
+        ])],
         ...(signal === undefined ? {} : { signal })
       });
       const classified = classifyQualityCensus({

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,125 @@ import { copyPinnedToolchain } from "./copied-toolchain.mjs";
 
 const repository = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const cli = join(repository, "packages/engineering-foundation/dist/cli.js");
+
+async function governedDistFixture(t) {
+  const root = await mkdtemp(join(tmpdir(), "ef-governed-dist-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const put = async (path, value) => {
+    await mkdir(dirname(join(root, path)), { recursive: true });
+    await writeFile(join(root, path), typeof value === "string" ? value : JSON.stringify(value));
+  };
+  const pins = await copyPinnedToolchain(root);
+  for (const name of ["base", "node", "type-aware", "maintainability"]) {
+    await mkdir(join(root, "presets"), { recursive: true });
+    await cp(join(repository, "packages/engineering-foundation/presets/oxlint", `${name}.json`), join(root, "presets", `${name}.json`));
+  }
+  await put("package.json", { name: "governed-dist-test", private: true, type: "module",
+    scripts: { "check:fast": "pnpm quality:scope", check: "pnpm lint:typed",
+      "quality:scope": "agent-teams-foundation quality check --consumer . --scope-only",
+      "lint:typed": "agent-teams-foundation quality check --consumer ." },
+    devDependencies: { "@agent-teams/engineering-foundation": "1.7.0", ...pins } });
+  await put("pnpm-workspace.yaml", "packages: ['packages/*']\n");
+  await put("packages/worker/package.json", { name: "@fixture/worker", private: true, type: "module" });
+  await put("packages/worker/src/main.ts", "export const value = 1;\n");
+  await put("config/production.json", { compilerOptions: { strict: true, target: "ES2022", module: "NodeNext", types: [], noEmit: true },
+    include: ["../packages/worker/src/**/*.ts", "../packages/worker/dist/**/*.ts"] });
+  await put("suppressions.yaml", { schemaVersion: 1, governedRoots: ["packages/worker/src", "packages/worker/dist"], nonWaivableRulePrefixes: [], waivers: [] });
+  await put("lint.json", { options: { respectEslintDisableDirectives: false, reportUnusedDisableDirectives: "error" },
+    extends: ["./presets/type-aware.json", "./presets/maintainability.json"] });
+  await put("quality.yaml", { schemaVersion: 1, sourcePolicyPath: "source.yaml", suppressionPolicyPath: "suppressions.yaml",
+    featureProfilePath: "features.json", lintConfigPath: "lint.json", compilerProjects: ["config/production.json"],
+    scripts: { fast: "check:fast", full: "check", scope: "quality:scope", typed: "lint:typed" } });
+  await put("foundation.config.yaml", { schemaVersion: 2, project: { id: "governed-dist-test" },
+    capabilities: { "quality.source-coverage": { configPath: "quality.yaml" }, "architecture.source-dependencies": { configPath: "source.yaml" } } });
+  const invoke = async (route = ["quality", "check"]) => {
+    try {
+      const result = await promisify(execFile)(process.execPath, [cli, ...route, "--consumer", root, "--format", "json"], { cwd: root });
+      return { code: 0, report: JSON.parse(result.stdout) };
+    } catch (error) { return { code: error.code, report: JSON.parse(error.stdout) }; }
+  };
+  return { root, put, invoke };
+}
+
+test("public quality check reopens declared production and runtime dist source", async (t) => {
+  const { root, put, invoke } = await governedDistFixture(t);
+  const src = "packages/worker/src";
+  const dist = "packages/worker/dist";
+  const path = `${dist}/escape.ts`;
+  const clean = 'interface Trusted { readonly marker: "trusted" }\nexport const value: Trusted = { marker: "trusted" };\n';
+  const bridge = 'interface Trusted { readonly marker: "trusted" }\nexport const value = "unsafe" as unknown as Trusted;\n';
+  const allow = { boundaries: [], packages: [], builtins: [], runtimeReferences: [] };
+  const source = { schemaVersion: 2, workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" }, packageRoots: ["packages"],
+    governedRoots: [src, dist], boundaries: [{ id: "worker", roots: [src], entrypoints: [`${src}/main.ts`], allow }] };
+  const topology = { schemaVersion: 1, standard: { id: "agent-teams.feature-module-standard", version: "v1" },
+    productionRoots: ["packages"], applicationRoots: [], excludedRoots: [], topology: { sourcePolicy: "source.yaml" },
+    modules: [{ root: "packages/worker", sourceRoot: src, testRoots: ["packages/worker/tests"] }] };
+  for (const [name, sourceRoot, roots, dependencyMode] of [
+    ["runtime directory", src, [dist], "runtime"],
+    ["runtime file with default mode", src, [path], undefined],
+    ["production directory with development owner", dist, [dist], "development"]
+  ]) {
+    await t.test(name, async () => {
+      await put("features.json", { ...topology, modules: [{ ...topology.modules[0], sourceRoot }] });
+      await put("source.yaml", { ...source, boundaries: [...source.boundaries,
+        { id: "dist-source", roots, entrypoints: [path], allow, ...(dependencyMode === undefined ? {} : { dependencyMode }) }] });
+      await put(path, clean);
+      const valid = await invoke(["check", "architecture.source-dependencies"]);
+      assert.deepEqual({ code: valid.code, outcome: valid.report.outcome }, { code: 0, outcome: "passed" }, JSON.stringify(valid));
+      const counterpart = await invoke();
+      assert.deepEqual({ code: counterpart.code, outcome: counterpart.report.outcome }, { code: 0, outcome: "passed" }, JSON.stringify(counterpart));
+      await put(path, bridge);
+      const rejected = await invoke();
+      assert.equal(rejected.code, 1, JSON.stringify(rejected));
+      assert.equal(rejected.report.outcome, "violations");
+      assert.ok(rejected.report.capabilities[0].diagnostics.some(({ ruleId, location }) =>
+        ruleId === "quality.source-coverage.explicit-unknown" && location.path === path), JSON.stringify(rejected));
+      assert.deepEqual(await invoke(), rejected, "diagnostics remain deterministic");
+      assert.equal((await invoke(["quality", "check", "--scope-only"])).code, 0, "scope does not run bridge policy");
+    });
+  }
+  await put("features.json", topology);
+  await put("source.yaml", { ...source, boundaries: [...source.boundaries,
+    { id: "dist-source", roots: [dist], entrypoints: [path], allow, dependencyMode: "runtime" }] });
+  await put(path, clean);
+  await t.test("unreadable declared directory rejects after a real EACCES probe", async (permission) => {
+    await chmod(join(root, dist), 0);
+    try {
+      let denied;
+      try { await readdir(join(root, dist)); } catch (error) { denied = error.code; }
+      if (denied === undefined) { permission.skip("process bypasses directory permissions"); return; }
+      assert.equal(denied, "EACCES");
+      const rejected = await invoke();
+      assert.equal(rejected.code, 2, JSON.stringify(rejected));
+      assert.equal(rejected.report.capabilities[0].problem.code, "WORKSPACE_DISCOVERY_UNAVAILABLE");
+      assert.ok(rejected.report.capabilities[0].problem.message.includes(dist));
+    } finally { await chmod(join(root, dist), 0o755); }
+  });
+  await t.test("unreadable declared file rejects at its compiler coverage path after EACCES", async (permission) => {
+    await chmod(join(root, path), 0);
+    try {
+      let denied;
+      try { await readFile(join(root, path)); } catch (error) { denied = error.code; }
+      if (denied === undefined) { permission.skip("process bypasses file permissions"); return; }
+      assert.equal(denied, "EACCES");
+      const rejected = await invoke();
+      assert.equal(rejected.code, 1, JSON.stringify(rejected));
+      assert.ok(rejected.report.capabilities[0].diagnostics.some(({ ruleId, location }) =>
+        ruleId === "quality.source-coverage.type-context" && location.path === path), JSON.stringify(rejected));
+    } finally { await chmod(join(root, path), 0o644); }
+  });
+  await put(path, bridge);
+  await put("source.yaml", { ...source, governedRoots: [src] });
+  const generated = await invoke();
+  assert.deepEqual({ code: generated.code, outcome: generated.report.outcome }, { code: 0, outcome: "passed" }, JSON.stringify(generated));
+  await put("source.yaml", { ...source, boundaries: [...source.boundaries,
+    { id: "dist-source", roots: [dist], entrypoints: [path], allow, dependencyMode: "runtime" }] });
+  await rm(join(root, dist), { recursive: true });
+  const missing = await invoke();
+  assert.equal(missing.code, 2, JSON.stringify(missing));
+  assert.equal(missing.report.capabilities[0].problem.code, "SOURCE_DIRECTORY_UNAVAILABLE");
+  assert.ok(missing.report.capabilities[0].problem.message.includes(dist));
+});
 
 test("built public quality check rejects unknown chains and accepts exact evidence-bound bridges", async () => {
   const root = await mkdtemp(join(tmpdir(), "ef-331-public-quality-TEST-"));

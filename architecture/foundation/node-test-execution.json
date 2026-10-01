@@ -113,7 +113,52 @@
         "entry aliases cannot bypass mandatory identities"
       ],
       "kind": "test"
+    },
+    {
+      "file": "tests/tooling.test.mjs",
+      "names": [
+        "packaging Darwin transient zombie succeeds only after group ESRCH"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/tooling.test.mjs",
+      "names": [
+        "packaging Darwin persistent zombie rejects code zero with cleanup debt"
+      ],
+      "kind": "test"
     }
   ],
-  "exceptions": []
+  "exceptions": [
+    {
+      "file": "tests/tooling.test.mjs",
+      "names": [
+        "packaging Darwin transient zombie succeeds only after group ESRCH"
+      ],
+      "kind": "test",
+      "status": "skipped",
+      "reason": "Darwin kernel retained-zombie group semantics require the macOS qualification lane.",
+      "applicability": {
+        "platforms": [
+          "linux",
+          "win32"
+        ]
+      }
+    },
+    {
+      "file": "tests/tooling.test.mjs",
+      "names": [
+        "packaging Darwin persistent zombie rejects code zero with cleanup debt"
+      ],
+      "kind": "test",
+      "status": "skipped",
+      "reason": "Darwin kernel retained-zombie group semantics require the macOS qualification lane.",
+      "applicability": {
+        "platforms": [
+          "linux",
+          "win32"
+        ]
+      }
+    }
+  ]
 }

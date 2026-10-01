@@ -350,12 +350,18 @@ async function qualifyNestedRejections({ root, put, invoke, main, sourceRoot, mo
       ruleId === "quality.source-coverage.native-route" && location.path === `${moduleRoot}/native/helper.${extension}`));
   }
   await put("quality.yaml", qualityProfile);
-  await rename(join(root, moduleRoot, "native"), join(root, "native-backup"));
+  // Keep the declared root available so this control reaches the stale mapping.
+  const nativeFiles = ["helper.c", "helper.h"];
+  for (const file of nativeFiles) {
+    await rename(join(root, moduleRoot, "native", file), join(root, `${file}.qualification-backup`));
+  }
   try {
     const staleNative = await invoke(["check", "quality.source-coverage"], 2);
     assert.match(staleNative.capabilities[0].problem.message, /no current native source/u);
   } finally {
-    await rename(join(root, "native-backup"), join(root, moduleRoot, "native"));
+    for (const file of nativeFiles) {
+      await rename(join(root, `${file}.qualification-backup`), join(root, moduleRoot, "native", file));
+    }
   }
   assert.equal((await invoke(["quality", "check"])).outcome, "passed");
   await put(main, 'export const value: number = JSON.parse("1");\n');

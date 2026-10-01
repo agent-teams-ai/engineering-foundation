@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#350](https://github.com/agent-teams-ai/engineering-foundation/pull/350) [`d63e4aa`](https://github.com/agent-teams-ai/engineering-foundation/commit/d63e4aa83cee6b97fcb4ce76ae8a73ee6e87c3f3) Thanks [@777genius](https://github.com/777genius)! - Add unselected Cohort v3 and loader, canonical current-policy v2, and generated
+  managed Node 26 runtime projection. Profile v4 and State v3 follow in P1b.
+
+- [#351](https://github.com/agent-teams-ai/engineering-foundation/pull/351) [`1a1096b`](https://github.com/agent-teams-ai/engineering-foundation/commit/1a1096bace7929705a3c19da629c9e5768891e82) Thanks [@777genius](https://github.com/777genius)! - Add unselected managed Profile v4 and State v3 contracts with a strict loader and deterministic state projector.
+
 ## 0.2.13
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @agent-teams/engineering-foundation
 
+## 1.7.1
+
+### Patch Changes
+
+- [#357](https://github.com/agent-teams-ai/engineering-foundation/pull/357) [`5b3eccc`](https://github.com/agent-teams-ai/engineering-foundation/commit/5b3ecccde391e0bddfc33df841d5aef0a13cc8f0) Thanks [@777genius](https://github.com/777genius)! - Update the existing `brace-expansion` override from 5.0.9 to the admitted
+  same-major 5.0.12 pattern-reader patch. Refresh the locked `js-yaml` CI readers
+  from 3.15.1 to 3.15.2 for workspace YAML and from 4.3.1 to 4.3.2 for Changeset
+  frontmatter.
+
+- [#356](https://github.com/agent-teams-ai/engineering-foundation/pull/356) [`7b1f423`](https://github.com/agent-teams-ai/engineering-foundation/commit/7b1f4234b2a8f4e65b8786bf3eeb57a33b670b9d) Thanks [@777genius](https://github.com/777genius)! - Include explicitly declared production and runtime source beneath package-level
+  generated-output directories in quality coverage. Preserve the broad repository
+  census and exclusions for ordinary ungoverned build output and dependencies.
+
 ## 1.7.0
 
 ### Minor Changes

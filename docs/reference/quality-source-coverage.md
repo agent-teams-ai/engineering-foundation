@@ -9,6 +9,15 @@ production universe with consumer-owned semantic classifications, suppression
 coverage, protected lint settings and required command routes. It does not own
 the consumer's package catalog, business architecture or waiver approvals.
 
+Discovery retains the broad repository census and reopens package-level `dist`
+and `coverage` when existing production source roots or runtime boundary roots
+explicitly declare source there. Runtime roots may name directories or exact
+files, including outside module source roots. Declared roots must exist and
+remain contained and symlink-free. Ordinary ungoverned generated output and
+dependency directories retain their discovery exclusions; a compiler output
+directory alone does not declare production source. The same census supplies
+static checks, scope execution and full execution.
+
 The application separates three operations. Static validation accepts file,
 configuration and route observations without a process executor. Explicit scope
 execution additionally compares the pinned tool's actual selection with the

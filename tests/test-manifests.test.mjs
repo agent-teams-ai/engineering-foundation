@@ -70,13 +70,16 @@ test("Foundation mandatory identities belong to their required shard", async () 
   const contract = JSON.parse(await readFile(join(repositoryRoot,
     "architecture/foundation/node-test-execution.json"), "utf8"));
   const manifest = await validateTestManifests();
-  assert.equal(contract.required.length, 16);
-  assert.ok(contract.required.every((item) =>
-    item.file === "tests/node-test-execution.test.mjs" &&
-    manifest.shards.get("4").includes(item.file)));
-  const coverageOnly = { shards: new Map([["4", []]]),
-    coverageShards: new Map([["4", ["tests/node-test-execution.test.mjs"]]]) };
-  assert.throws(() => validateMandatoryShardSelection(contract, coverageOnly), /not selected by a required shard/u);
+  assert.doesNotThrow(() => validateMandatoryShardSelection(contract, manifest));
+  for (const file of new Set(contract.required.map((item) => item.file))) {
+    const coverageOnly = {
+      ...manifest,
+      shards: new Map([...manifest.shards].map(([id, files]) =>
+        [id, files.filter((path) => path !== file)])),
+    };
+    assert.throws(() => validateMandatoryShardSelection(contract, coverageOnly),
+      /not selected by a required shard/u, `${file} cannot rely only on coverage selection`);
+  }
 });
 
 test("built test runner consumes the validated inventory without shell globs", () => {

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.2.13",
+  "packageVersion": "0.3.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -13,8 +13,10 @@
         "schemas/docs-consumer-integration-profile/v1.schema.json",
         "schemas/docs-consumer-integration-profile/v2.schema.json",
         "schemas/docs-consumer-integration-profile/v3.schema.json",
+        "schemas/docs-consumer-integration-profile/v4.schema.json",
         "schemas/docs-consumer-managed-state/v1.schema.json",
         "schemas/docs-consumer-managed-state/v2.schema.json",
+        "schemas/docs-consumer-managed-state/v3.schema.json",
         "schemas/docs-consumer-restoration-execution/v1.schema.json",
         "schemas/docs-consumer-upgrade-execution/v1.schema.json",
         "schemas/docs-protocol-agent-teams/docs-consumer-integration-execution/v1.schema.json",
@@ -28,8 +30,10 @@
         "schemas/docs-protocol-qualification-receipt/v2.schema.json",
         "schemas/docs-protocol-qualification-receipt/v3.schema.json",
         "schemas/docs-protocol-qualification/v2.schema.json",
+        "schemas/managed-runtime-policy/v1.schema.json",
         "schemas/qualified-docs-cohort/v1.schema.json",
-        "schemas/qualified-docs-cohort/v2.schema.json"
+        "schemas/qualified-docs-cohort/v2.schema.json",
+        "schemas/qualified-docs-cohort/v3.schema.json"
       ]
     }
   ],
@@ -163,6 +167,34 @@
       }
     },
     {
+      "path": "schemas/docs-consumer-integration-profile/v4.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v4",
+      "digest": "sha256:0b48e1f3fe63b26fd274ab6c61784da8dc40349c4dad3d6c1a0fb3f426ce00cd",
+      "discriminators": {
+        "callerWorkflowPath": {
+          "const": ".github/workflows/docs-protocol.yml"
+        },
+        "integrationRoot": {
+          "const": "."
+        },
+        "managedStatePath": {
+          "const": "architecture/foundation/docs-protocol-managed-state.json"
+        },
+        "packageManager": {
+          "const": "pnpm"
+        },
+        "profilePath": {
+          "const": "architecture/foundation/docs-protocol.yaml"
+        },
+        "schemaVersion": {
+          "const": 4
+        },
+        "skillPath": {
+          "const": ".agents/skills/docs-authoring/SKILL.md"
+        }
+      }
+    },
+    {
       "path": "schemas/docs-consumer-managed-state/v1.schema.json",
       "id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v1",
       "digest": "sha256:03c466f64b8ac8fc43a33c388f51d92b9822d6ece3a7c74e5379677cf7ced2a8",
@@ -179,6 +211,28 @@
       "discriminators": {
         "schemaVersion": {
           "const": 2
+        }
+      }
+    },
+    {
+      "path": "schemas/docs-consumer-managed-state/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/docs-consumer-managed-state/v3",
+      "digest": "sha256:bcb982af79128be816734f961a3246dbb824d3e69b4f6eba8157524d48d0148a",
+      "discriminators": {
+        "callerWorkflowPath": {
+          "const": ".github/workflows/docs-protocol.yml"
+        },
+        "managedStatePath": {
+          "const": "architecture/foundation/docs-protocol-managed-state.json"
+        },
+        "profilePath": {
+          "const": "architecture/foundation/docs-protocol.yaml"
+        },
+        "schemaVersion": {
+          "const": 3
+        },
+        "skillPath": {
+          "const": ".agents/skills/docs-authoring/SKILL.md"
         }
       }
     },
@@ -460,6 +514,12 @@
       }
     },
     {
+      "path": "schemas/managed-runtime-policy/v1.schema.json",
+      "id": "https://agent-teams.ai/schemas/managed-runtime-policy/v1",
+      "digest": "sha256:9904453f86884a3613e532d6c45cced4807a07e146db2bd180f36144ed509f67",
+      "discriminators": {}
+    },
+    {
       "path": "schemas/qualified-docs-cohort/v1.schema.json",
       "id": "https://agent-teams.ai/schemas/qualified-docs-cohort/v1",
       "digest": "sha256:b5bdb0582a9a1b6a9988e1fa79b6412d0ef586c96cc8c44f03d9bd3e3c400d68",
@@ -486,6 +546,12 @@
       "path": "schemas/qualified-docs-cohort/v2.schema.json",
       "id": "https://agent-teams.ai/schemas/qualified-docs-cohort/v2",
       "digest": "sha256:fe5db76521578be6cfbf7a5f763346118bf97c21a823696c9c52b924523ff9ce",
+      "discriminators": {}
+    },
+    {
+      "path": "schemas/qualified-docs-cohort/v3.schema.json",
+      "id": "https://agent-teams.ai/schemas/qualified-docs-cohort/v3",
+      "digest": "sha256:246a4d8b01fc0a1d7a7ca4c5a2968094c080b3d7f4bf809c5d0fc70c3aea5fba",
       "discriminators": {}
     }
   ]

@@ -85,14 +85,77 @@ thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses four
-checked-in weighted test shards; Windows combines the same manifest into two
-sequential shards. Package, registry, published-version, coverage, and static
+checked-in sequential test shards; Windows runs shards 1 and 4 together and shards
+2 and 3 in separate lanes. Package, registry, published-version, coverage, and static
 capability qualifications run in parallel checkouts. The stable required contexts `check`
 and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
 missing prerequisite fails the required context. Every executable pull request
 job depends directly on Dependency Review.
 Both required aggregates include the complete Node 24 default and Node 26
 compatibility matrix as a direct prerequisite.
+
+The reviewed bounded redistribution moves only these six suites:
+
+| Suite | Previous shard | Current shard |
+| --- | --- | --- |
+| `tests/capability-public-api.test.mjs` | 1 | 4 |
+| `tests/source-dependency-loader-cli.test.mjs` | 1 | 3 |
+| `packages/engineering-foundation/tests/public-api-audit-observer.test.mjs` | 1 | 4 |
+| `packages/engineering-foundation/tests/public-api-audit-command.test.mjs` | 1 | 4 |
+| `tests/source-dependency-root-package.test.mjs` | 2 | 4 |
+| `tests/source-dependency-source-coverage.test.mjs` | 2 | 3 |
+
+Its basis is the root-extracted proposal from successful
+[CI run 37032382026](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/37032382026)
+at `9843822e6c10c4b805cf2bb95fc0f43e5211edeb`. Top-level TAP `duration_ms`
+records mapped only to unique AST-decoded static test titles or the unique
+most-specific AST template with at least 15 literal characters. Mapping covered
+88.17% of observed test-body duration; unmatched and ambiguous records were
+omitted. The six moved files have independently attributable body durations.
+This is a conservative bounded distribution, not a universal balancing solver.
+All other files, including unmeasured files and the two Linux-only managed suites,
+retain their shards and relative order. Moved files append in their existing
+source order. Raw coverage-only assignments, exact mandatory identities,
+no-skip enforcement, serial `--test-concurrency=1`, and shard 4's Node 26 tools
+remain unchanged.
+
+Body-duration projections do not prove whole-file duration, startup cost, raw
+coverage overhead, Windows impact, or other OS-specific timings. Final exact-head
+Linux, Windows, and macOS CI must qualify the partition; actual CI and performance
+proof remain with the root controller. Estimates are not measured speedup results.
+Linux shards 3 and 4 have 30-minute job budgets to accommodate the projected
+20- and 17-minute loads plus preparation, coverage and artifact uploads.
+
+All seven Windows static, test, package, registry, and published-version jobs
+set `TEMP` and `TMP` to the trusted runtime `RUNNER_TEMP` value through
+`GITHUB_ENV` after Node setup and before install, rebuild, build, or test
+subprocesses. A missing value fails the setup step. Linux and macOS retain their
+default temporary directories.
+
+[Windows experiment 37034137614](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/37034137614)
+measured 27:16 with `C:\Users\RUNNER~1\AppData\Local\Temp` versus 14:42 with
+`D:\a\_temp`: 1.855x faster, saving 754 seconds. Both variants qualified all
+34 build commands and two independent clean builds; all six archives matched
+versions, byte counts, and SHA-256 digests through the final post-process hash
+barrier. Defender was already disabled and unchanged. The experiment used source
+`a983c0ef2fdfc147508d1a9168a14f1e5a9f803c`; it is bounded baseline evidence,
+not a timing promise or artifact qualification for the current head. Existing
+timing and coverage workflow assertions and exact-head Windows CI must verify
+the final configuration.
+
+Shard invocations may pass `--timing-output <dir>` to retain advisory per-file
+and per-test Node timings as `events.jsonl`. The mandatory path observes named
+completion events through the existing setup hook; its identity verifier remains
+the only stream consumer. The hook preserves the prior setup result, including
+asynchronous completion and rejection. Other shards keep TAP output alongside a
+private timing reporter. The parent writes records after the verdict, with write
+failures reported as warnings. Timing directories must be outside coverage
+evidence, including aliases. CI uses a separate runner-temp directory for each
+invocation and retains timings for 14 days, even when tests fail. Missing or failed
+timing uploads are advisory. Timings do not qualify mandatory identities or
+coverage. The timing observer remains passive: it does not select a partition
+or change serial test concurrency. Redistribution requires a separately reviewed
+manifest change.
 
 The required macOS qualification runs the real packaging containment tests via
 `node scripts/run-selected-tests.mjs tests/tooling.test.mjs`. Its transient and
@@ -164,8 +227,8 @@ suites to Linux x64, matching their [linux/x64 support contract](../reference/no
 renamed or additional managed-runtime suites until their platform policy is reviewed.
 Built, shard and legacy coverage runners apply the same platform/architecture selection.
 They report requested/selected counts and exact Linux x64-only paths; an empty dispatch refuses.
-The global inventory remains 275 files: Linux x64 admits all 275; Windows, Darwin and
-other Linux architectures admit 273. Required shard counts exclude the unchanged coverage-only additions;
+The global inventory contains 276 files: Linux x64 admits all 276; Windows, Darwin and
+other Linux architectures admit 274. Required shard counts exclude the unchanged coverage-only additions;
 every portable required file and every declared mandatory identity remains selected.
 The portable managed-profile suite checks unsupported-platform refusal before IO,
 including Linux selections on actual unsupported hosts. The existing inert construction
@@ -173,7 +236,7 @@ and unadmitted-close case lives in that portable suite as well. Such refusal is 
 evidence, never a positive Linux runtime observation. Mandatory adoption of either
 Linux-only file requires a reviewed platform contract; the existing versioned
 mandatory contract and its exact identities remain unchanged.
-Raw coverage selection requires Linux x64 and retains all 275 files across four shards.
+Raw coverage selection requires Linux x64 and retains all 276 files across four shards.
 The coverage manifest's `additionalTestsByShard` extends only the Linux
 raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep

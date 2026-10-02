@@ -309,6 +309,7 @@ test("coverage shard arguments enforce one isolated shard and repository contain
     evidenceDirectory: undefined,
     headSha: undefined,
     ids: ["1"],
+    timingDirectory: undefined,
   });
   assert.deepEqual(parseTestShardArguments(["--", "--shards", "1"]).ids, ["1"]);
   assert.equal(

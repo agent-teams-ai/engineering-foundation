@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "source": {
-    "runId": 31747078919,
-    "headSha": "f10180fa568f6f82faf4efe5f44964cf7cd5a9e8",
-    "strategy": "Longest observed suites distributed across four sequential shards"
+    "runId": 37032382026,
+    "headSha": "9843822e6c10c4b805cf2bb95fc0f43e5211edeb",
+    "strategy": "Reviewed bounded redistribution of six independently attributable suites using successful CI top-level TAP body duration_ms mapped only to unique AST-decoded static titles or unique most-specific AST templates with >=15 literal characters (88.17% of body duration mapped; unmatched/ambiguous records omitted). Unmeasured files and Linux-only managed suites stay fixed; exact inventory, coverage-only assignments, mandatory identities and serial concurrency remain unchanged. Whole-file/startup, raw coverage and OS timing impacts remain unproven; final exact-head Linux/Windows/macOS CI must qualify the partition."
   },
   "shards": [
     {
@@ -17,7 +17,6 @@
         "packages/repository-mutation/tests/public-api-contract.test.mjs",
         "packages/repository-mutation/tests/known-file-mutation-boundaries.test.mjs",
         "packages/repository-mutation/tests/known-file-node-api.test.mjs",
-        "tests/capability-public-api.test.mjs",
         "tests/public-api-default-type-equivalence.test.mjs",
         "tests/contract-json-schema-releases.test.mjs",
         "tests/json-schema-releases-dogfood.test.mjs",
@@ -68,7 +67,6 @@
         "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",
         "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
         "tests/source-dependency-loader-edges.test.mjs",
-        "tests/source-dependency-loader-cli.test.mjs",
         "tests/feature-module-conformance.test.mjs",
         "tests/production-quality-scope.test.mjs",
         "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
@@ -76,8 +74,6 @@
         "packages/engineering-foundation/tests/docs-protocol-public-api.test.mjs",
         "packages/engineering-foundation/tests/managed-public-api.test.mjs",
         "packages/engineering-foundation/tests/public-api-audit-projection.test.mjs",
-        "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
-        "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
         "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
         "packages/engineering-foundation/tests/public-api-audit-policy.test.mjs",
         "tests/features/quality-coverage/policy.test.mjs",
@@ -150,10 +146,8 @@
         "tests/scaffolding-adversarial.test.mjs",
         "tests/source-dependency-development-mode.test.mjs",
         "tests/source-dependency-export-authority.test.mjs",
-        "tests/source-dependency-root-package.test.mjs",
         "tests/source-dependency-v3-observation.test.mjs",
         "tests/source-dependency-v3-review-regressions.test.mjs",
-        "tests/source-dependency-source-coverage.test.mjs",
         "tests/source-dependency-topology-ports.test.mjs",
         "tests/source-dependency-workspace-discovery.test.mjs",
         "tests/source-dependency-workspace-topology.test.mjs",
@@ -198,7 +192,9 @@
         "tests/strict-json.test.mjs",
         "tests/tooling.test.mjs",
         "tests/windows-managed-process-nested.test.mjs",
-        "tests/windows-managed-process.test.mjs"
+        "tests/windows-managed-process.test.mjs",
+        "tests/source-dependency-loader-cli.test.mjs",
+        "tests/source-dependency-source-coverage.test.mjs"
       ]
     },
     {
@@ -212,6 +208,7 @@
         "tests/cli.test.mjs",
         "tests/coverage-evidence.test.mjs",
         "tests/coverage-workflow.test.mjs",
+        "tests/test-timing.test.mjs",
         "tests/document-authoring-application-spine.test.mjs",
         "tests/document-authoring-contracts.test.mjs",
         "tests/document-authoring-coordinator-adapter.test.mjs",
@@ -256,7 +253,11 @@
         "packages/docs-protocol-agent-teams/tests/runtime-policy-checkout.test.mjs",
         "tests/managed-layer-ownership.test.mjs",
         "packages/docs-protocol/tests/qualification-application.test.mjs",
-        "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs"
+        "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs",
+        "tests/capability-public-api.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-command.test.mjs",
+        "tests/source-dependency-root-package.test.mjs"
       ]
     }
   ]

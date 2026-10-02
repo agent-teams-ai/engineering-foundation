@@ -1,4 +1,4 @@
-export { readNodeProcessInputs } from "./node-process-inputs.js";
+export { isolateNodeTestCliContext, readNodeProcessInputs } from "./node-process-inputs.js";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FoundationCommandServices } from "../../../application/command-services.js";

@@ -121,6 +121,12 @@ attestation. Its evidence applies only to selected entry files in that
 invocation. The public QGR remains a task exit aggregator, so adoption requires
 putting this command in the consumer's selected package script and QGR profile.
 Foundation never infers a mandatory identity inventory from advisory tests.
+When spawned by a Node test parent, the public CLI starts an independent runner:
+it removes only the inherited Node-private `NODE_TEST_CONTEXT=child-v8` marker
+before importing `node:test`. Other environment inputs, including `NODE_OPTIONS`,
+are preserved. This startup isolation belongs to the CLI; the in-process helper
+retains Node's native recursive-run behavior. Selected entries, required identity
+coverage, and exact platform exceptions keep the same contract.
 The ordinary focused test exercises the built public gate. The existing
 registry-install qualification separately exercises the same fixture against
 its actual isolated registry-installed Foundation candidate and installed

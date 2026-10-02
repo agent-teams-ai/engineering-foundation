@@ -296,6 +296,96 @@ test('public gate run built route propagates mandatory outcomes', async () => fi
     assert.equal(skipped.status, 0, `${skipped.stdout}\n${skipped.stderr}`);
 }));
 
+test('public mandatory CLI boots independently under a real Node test parent', async () => fixture(async (root) => {
+  const child = identity(testFile, ['parent', 'child']);
+  const secondFile = 'second.test.mjs';
+  const second = identity(secondFile, ['second required']);
+  const unselectedFile = 'unselected.test.mjs';
+  const required = [child, second, identity(unselectedFile, ['unselected'])];
+  const passing = `import assert from 'node:assert/strict'; import test from 'node:test';
+test('parent', async t => { await t.test('child', () => {
+  assert.equal(process.env.EF_NODE_TEST_CLI_INPUT, 'retained input');
+  assert.equal(process.env.NODE_OPTIONS, process.env.EF_NODE_TEST_CLI_EXPECTED_NODE_OPTIONS);
+  assert.equal(process.env.EF_NODE_TEST_CLI_PRELOAD_COUNT, process.env.EF_NODE_TEST_CLI_EXPECTED_PRELOAD_COUNT);
+  assert.equal(process.env.NODE_TEST_CONTEXT, 'child-v8');
+}); });`;
+  const skipped = "import test from 'node:test'; test('parent', async t => { await t.test('child', { skip: true }, () => {}); });";
+  const omitted = "import test from 'node:test'; test('parent', async t => { await t.test('other', () => {}); });";
+  const scenarios = [
+    { label: 'completed selected identities', source: passing, status: 0 },
+    { label: 'unexcepted skip', source: skipped, status: 1, diagnostic: 'skipped' },
+    { label: 'unexcepted omission', source: omitted, status: 1, diagnostic: 'omitted' },
+    { label: 'missing identity in second selected file', source: passing,
+      secondSource: "import test from 'node:test'; test('other', () => {});", status: 1, diagnostic: 'omitted' },
+    { label: 'exact applicable skip exception', source: skipped, status: 0,
+      exceptions: [exception(child, 'skipped')] },
+    { label: 'exception for another OS', source: skipped, status: 1, diagnostic: 'skipped',
+      exceptions: [exception(child, 'skipped', process.platform === 'win32' ? 'linux' : 'win32')] },
+    { label: 'omission exception cannot excuse skip', source: skipped, status: 1, diagnostic: 'skipped',
+      exceptions: [exception(child, 'omitted')] },
+    { label: 'skip exception cannot excuse omission', source: omitted, status: 1, diagnostic: 'omitted',
+      exceptions: [exception(child, 'skipped')] },
+    { label: 'exception for another identity', source: skipped, status: 1, diagnostic: 'skipped',
+      exceptions: [exception(second, 'skipped')] },
+  ];
+  await writeFile(join(root, unselectedFile), "throw new Error('unselected entry must not execute');");
+  await writeFile(join(root, 'ordinary.test.mjs'), `import test from 'node:test';
+import { writeFileSync } from 'node:fs';
+test('ordinary selected entry', () => writeFileSync('ordinary-ran', 'completed'));`);
+  const preload = join(root, 'preload.mjs');
+  await writeFile(preload, `process.env.EF_NODE_TEST_CLI_PRELOAD_COUNT =
+String(Number(process.env.EF_NODE_TEST_CLI_PRELOAD_COUNT ?? 0) + 1);`);
+  await writeFile(join(root, 'parent.test.mjs'), `import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { readFile, rm, writeFile } from 'node:fs/promises';
+import test from 'node:test';
+const required = ${JSON.stringify(required)};
+const scenarios = ${JSON.stringify(scenarios)};
+for (const scenario of scenarios) {
+  test(scenario.label, async () => {
+    assert.equal(process.env.NODE_TEST_CONTEXT, 'child-v8');
+    await rm('ordinary-ran', { force: true });
+    await writeFile(${JSON.stringify(testFile)}, scenario.source);
+    await writeFile(${JSON.stringify(secondFile)}, scenario.secondSource ??
+      "import test from 'node:test'; test('second required', () => {});");
+    await writeFile('contract.json', JSON.stringify({ schemaVersion: 1, required,
+      exceptions: scenario.exceptions ?? [] }));
+    process.env.EF_NODE_TEST_CLI_EXPECTED_PRELOAD_COUNT =
+      String(Number(process.env.EF_NODE_TEST_CLI_PRELOAD_COUNT) + 2);
+    const result = spawnSync(process.execPath,
+      [${JSON.stringify(builtCli)}, '--contract', 'contract.json', '--',
+        ${JSON.stringify(testFile)}, ${JSON.stringify(secondFile)}, 'ordinary.test.mjs'],
+      { cwd: process.cwd(), env: process.env, encoding: 'utf8', timeout: 30000 });
+    console.log(JSON.stringify({ label: scenario.label, context: process.env.NODE_TEST_CONTEXT,
+      status: result.status, stdout: result.stdout, stderr: result.stderr }));
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, scenario.status, result.stdout + result.stderr);
+    assert.doesNotMatch(result.stderr, /recursively|missing final or file summary/);
+    assert.equal(await readFile('ordinary-ran', 'utf8'), 'completed');
+    if (scenario.status === 0) {
+      assert.equal(result.stdout, 'Mandatory Node tests: 2 required identities completed or exactly excepted\\n');
+      assert.equal(result.stderr, '');
+    } else {
+      assert.match(result.stderr, /Node test execution contract: required execution failed:/);
+      assert.ok(result.stderr.includes(scenario.diagnostic), result.stderr);
+      assert.doesNotMatch(result.stdout, /Mandatory Node tests:/);
+    }
+    assert.equal(process.env.NODE_TEST_CONTEXT, 'child-v8');
+  });
+}
+`);
+  const nodeOptions = `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(preload).href}`;
+  const parent = spawnSync(process.execPath, ['--test', '--test-concurrency=1', join(root, 'parent.test.mjs')], {
+    cwd: root, encoding: 'utf8', timeout: 120000,
+    env: { ...childEnvironment, EF_NODE_TEST_CLI_INPUT: 'retained input', EF_NODE_TEST_CLI_PRELOAD_COUNT: '0',
+      NODE_OPTIONS: nodeOptions, EF_NODE_TEST_CLI_EXPECTED_NODE_OPTIONS: nodeOptions },
+  });
+  assert.equal(parent.error, undefined);
+  assert.equal(parent.signal, null);
+  assert.equal(parent.status, 0, `${parent.stdout}\n${parent.stderr}`);
+}));
+
 test('Foundation mandatory selection rejects unexecuted cases and preserves unadopted tests', async (t) => fixture(async (root) => {
   const contractPath = join(root, 'architecture/foundation/node-test-execution.json');
   await mkdir(join(root, 'architecture/foundation'), { recursive: true });

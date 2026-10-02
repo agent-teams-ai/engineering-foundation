@@ -1,6 +1,7 @@
 import { readContainedRegularFile } from "../source-inventory/node.js";
 import { AjvJsonSchemaReleaseInspector } from "../capabilities/contract-json-schema-releases/module.js";
 import { createFoundationCommandHost } from "../features/command-host/node.js";
+export { isolateNodeTestCliContext } from "../features/command-host/node.js";
 import { scaffoldingApi } from "./scaffolding-api.js";
 import { FoundationLocalModeService } from "./local-mode-service.js";
 import { inspectFoundationPackage } from "./local-package-inspection.js";

@@ -155,10 +155,6 @@ coverage. The timing observer remains passive: it does not select a partition
 or change serial test concurrency. Redistribution requires a separately reviewed
 manifest change.
 
-Linux registry qualification builds and prepares packages before invoking
-`registry-install-e2e:built`. The full pack and publishable-package checks remain
-in `linux-package`; registry qualification does not repeat that package lane.
-
 The required macOS qualification runs the real packaging containment tests via
 `node scripts/run-selected-tests.mjs tests/tooling.test.mjs`. Its transient and
 persistent retained-zombie cases are mandatory identities in

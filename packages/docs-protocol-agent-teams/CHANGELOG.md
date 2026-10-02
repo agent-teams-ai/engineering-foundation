@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+### Patch Changes
+
+- [#358](https://github.com/agent-teams-ai/engineering-foundation/pull/358) [`9843822`](https://github.com/agent-teams-ai/engineering-foundation/commit/9843822e6c10c4b805cf2bb95fc0f43e5211edeb) Thanks [@777genius](https://github.com/777genius)! - Add an unselected private Node/pnpm runtime observation scope with explicit provisioned identities, bounded cooperative child execution, and refusal/debt evidence. This does not activate the managed Node 26 lane.
+
 ## 0.3.0
 
 ### Minor Changes

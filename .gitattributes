@@ -1,3 +1,7 @@
+# Language statistics describe implementation code rather than the test corpus.
+tests/** -linguist-detectable
+packages/*/tests/** -linguist-detectable
+
 architecture/public-api/*.json text eol=lf
 docs/reference/sdk-growth-c0.md text eol=lf
 docs/reference/sdk-growth-c0/*.json text eol=lf

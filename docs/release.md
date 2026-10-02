@@ -254,7 +254,36 @@ A Changesets PR created by `github-actions[bot]` is an **automation staging PR**
 not an external human contribution and never a merge candidate. The freshness
 guard rejects it even when its source commit has the owner identity. Binding
 fails and the dependent attester cannot publish successful required statuses.
-Owner adoption uses the same generated branch and bytes:
+The organization disables `GITHUB_TOKEN` pull-request creation and approval.
+Changesets pushes `changeset-release/main` before attempting to create a PR, so
+the expected creation-denied run may leave a generated branch with **no PR**.
+Inspect the complete generated diff, raw author/committer identity and exact
+head through `gh`. Open a fresh owner PR on that branch, with a reviewed body
+file that explicitly says release metadata is awaiting the current-input rerun:
+
+```bash
+repo=agent-teams-ai/engineering-foundation
+release_run=<failed-release-run-id>
+generated_head=$(gh api "repos/$repo/git/ref/heads/changeset-release/main" --jq '.object.sha')
+gh api "repos/$repo/compare/main...$generated_head" > release-generated-diff.json
+# Inspect every changed file and the complete diff; API patches can be truncated.
+gh api "repos/$repo/commits/$generated_head" --jq '{sha, author: .commit.author, committer: .commit.committer}'
+test "$(gh api "repos/$repo/git/ref/heads/changeset-release/main" --jq '.object.sha')" = "$generated_head"
+gh pr create --repo "$repo" --base main --head changeset-release/main \
+  --title 'chore: version packages' --body-file release-body.md
+test "$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')" = \
+  "$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha')"
+gh run rerun "$release_run" --repo "$repo" --failed
+```
+
+The pinned Changesets action selects and updates an existing owner PR rather
+than creating another. Binding and attestation must use its current number and
+head. If `main` advanced, do not rerun stale generation; use the next
+push-triggered Release run. If the generated branch is absent, fix generation
+before opening any PR. A denied creation is not publication success.
+
+If an older Bot staging PR exists, close it and retain its branch. Owner adoption
+uses the same generated branch and bytes:
 
 ```bash
 repo=agent-teams-ai/engineering-foundation

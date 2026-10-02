@@ -176,7 +176,7 @@ void (async () => {
 `;
   await writeFile(join(root, filename), `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
-const { writeFileSync } = require("node:fs");
+const { renameSync, writeFileSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
 const { connect } = require("./fixture-boundary-client.cjs");
 
@@ -195,10 +195,12 @@ descendant = spawn(process.execPath, ["--eval", ${JSON.stringify(descendantSourc
   stdio: ["ignore", "ignore", "ignore", "ipc"]
 });
 await once(descendant, "message");
-writeFileSync(${JSON.stringify(effectPath)}, JSON.stringify({
+const readinessPath = ${JSON.stringify(effectPath)} + ".tmp";
+writeFileSync(readinessPath, JSON.stringify({
   evidenceId: process.env.QGR_FIXTURE_BOUNDARY_ID,
   roles: ${JSON.stringify(readinessRoles)}
 }) + "\\n", { flag: "wx" });
+renameSync(readinessPath, ${JSON.stringify(effectPath)});
 setInterval(() => {}, 60000);
 })().catch((error) => { throw error; });
 `, "utf8");
@@ -475,7 +477,7 @@ profiles:
     });
     await writeFile(join(root, "recursion-fixture.cjs"), `const { spawn } = require("node:child_process");
 const { once } = require("node:events");
-const { writeFileSync } = require("node:fs");
+const { renameSync, writeFileSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
 const { connect } = require("./fixture-boundary-client.cjs");
 
@@ -488,10 +490,12 @@ await connect(async () => {
   if (!closed && nested.exitCode === null && nested.signalCode === null) nested.kill("SIGKILL");
   if (!closed) await once(nested, "close");
 });
-writeFileSync(${JSON.stringify(effectPath)}, JSON.stringify({
+const readinessPath = ${JSON.stringify(effectPath)} + ".tmp";
+writeFileSync(readinessPath, JSON.stringify({
   evidenceId: process.env.QGR_FIXTURE_BOUNDARY_ID,
   roles: ["package-manager", "recursion"]
 }) + "\\n", { flag: "wx" });
+renameSync(readinessPath, ${JSON.stringify(effectPath)});
 nested = spawn(process.execPath, [
   process.env.GATE_CLI, "gate", "run", "verify", "--consumer", process.cwd()
 ], { stdio: "inherit" });

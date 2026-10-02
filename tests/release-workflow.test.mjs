@@ -2179,16 +2179,16 @@ test("release publishing requires real Buf and hermetic registry qualification",
   const windowsTestB = ci.jobs["windows-test-b"];
   const windowsTestC = ci.jobs["windows-test-c"];
   assert.deepEqual(
-    [windowsTestA.name, windowsTestA.steps.at(-1).run],
-    ["windows-test-a", "pnpm test:shard:built -- --shards 1,4"],
+    [windowsTestA.name, windowsTestA.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
+    ["windows-test-a", 'pnpm test:shard:built -- --shards 1,4 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"'],
   );
   assert.deepEqual(
-    [windowsTestB.name, windowsTestB.steps.at(-1).run],
-    ["windows-test-b", "pnpm test:shard:built -- --shards 2"],
+    [windowsTestB.name, windowsTestB.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
+    ["windows-test-b", 'pnpm test:shard:built -- --shards 2 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"'],
   );
   assert.deepEqual(
-    [windowsTestC.name, windowsTestC.steps.at(-1).run],
-    ["windows-test-c", "pnpm test:shard:built -- --shards 3"],
+    [windowsTestC.name, windowsTestC.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
+    ["windows-test-c", 'pnpm test:shard:built -- --shards 3 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"'],
   );
   for (const job of [ci.jobs["linux-test-2"], windowsTestB]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));

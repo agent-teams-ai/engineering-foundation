@@ -180,7 +180,7 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm build
       - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 1 --coverage-evidence-dir .coverage-evidence/shard-1 --head-sha "${{ github.sha }}"
+        run: pnpm test:shard:built -- --shards 1 --coverage-evidence-dir .coverage-evidence/shard-1 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-1"
       - name: Upload raw coverage evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -190,6 +190,15 @@ jobs:
           include-hidden-files: true
           overwrite: true
           retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-1
+          path: ${{ runner.temp }}/test-timing/linux-test-1
+          if-no-files-found: warn
+          retention-days: 14
 
   linux-test-2:
     name: linux-test-2
@@ -208,7 +217,7 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm build
       - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 2 --coverage-evidence-dir .coverage-evidence/shard-2 --head-sha "${{ github.sha }}"
+        run: pnpm test:shard:built -- --shards 2 --coverage-evidence-dir .coverage-evidence/shard-2 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-2"
       - name: Upload raw coverage evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -218,13 +227,22 @@ jobs:
           include-hidden-files: true
           overwrite: true
           retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-2
+          path: ${{ runner.temp }}/test-timing/linux-test-2
+          if-no-files-found: warn
+          retention-days: 14
 
   linux-test-3:
     name: linux-test-3
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -236,7 +254,7 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm build
       - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 3 --coverage-evidence-dir .coverage-evidence/shard-3 --head-sha "${{ github.sha }}"
+        run: pnpm test:shard:built -- --shards 3 --coverage-evidence-dir .coverage-evidence/shard-3 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-3"
       - name: Upload raw coverage evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -246,13 +264,22 @@ jobs:
           include-hidden-files: true
           overwrite: true
           retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-3
+          path: ${{ runner.temp }}/test-timing/linux-test-3
+          if-no-files-found: warn
+          retention-days: 14
 
   linux-test-4:
     name: linux-test-4
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -270,7 +297,7 @@ jobs:
       - name: Qualify public pinned managed runtime test tools
         run: node scripts/provision-managed-test-tools.mjs
       - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 4 --coverage-evidence-dir .coverage-evidence/shard-4 --head-sha "${{ github.sha }}"
+        run: pnpm test:shard:built -- --shards 4 --coverage-evidence-dir .coverage-evidence/shard-4 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-4"
       - name: Upload raw coverage evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -280,6 +307,15 @@ jobs:
           include-hidden-files: true
           overwrite: true
           retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-4
+          path: ${{ runner.temp }}/test-timing/linux-test-4
+          if-no-files-found: warn
+          retention-days: 14
 
   linux-coverage:
     name: linux-coverage
@@ -437,6 +473,13 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - name: Compile Windows managed-process helpers
@@ -467,13 +510,29 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
       # Keep shards 1 and 4 together. The larger 2+3 lane is split below after
       # two exact-head runs hit its 65-minute timeout with tests still passing.
       - name: Qualify Windows portable shards and managed runtime refusal
-        run: pnpm test:shard:built -- --shards 1,4
+        run: pnpm test:shard:built -- --shards 1,4 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-a
+          path: ${{ runner.temp }}/test-timing/windows-test-a
+          if-no-files-found: warn
+          retention-days: 14
 
   windows-test-b:
     name: windows-test-b
@@ -488,10 +547,26 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 2
+      - run: pnpm test:shard:built -- --shards 2 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-b
+          path: ${{ runner.temp }}/test-timing/windows-test-b
+          if-no-files-found: warn
+          retention-days: 14
 
   windows-test-c:
     name: windows-test-c
@@ -506,10 +581,26 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 3
+      - run: pnpm test:shard:built -- --shards 3 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-c
+          path: ${{ runner.temp }}/test-timing/windows-test-c
+          if-no-files-found: warn
+          retention-days: 14
 
   windows-package:
     name: windows-package
@@ -524,6 +615,13 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm package:check
@@ -544,6 +642,13 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: node scripts/prepare-package.mjs
@@ -562,6 +667,13 @@ jobs:
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm published-compatibility:e2e

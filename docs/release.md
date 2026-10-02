@@ -254,7 +254,40 @@ A Changesets PR created by `github-actions[bot]` is an **automation staging PR**
 not an external human contribution and never a merge candidate. The freshness
 guard rejects it even when its source commit has the owner identity. Binding
 fails and the dependent attester cannot publish successful required statuses.
-Owner adoption uses the same generated branch and bytes:
+The organization disables `GITHUB_TOKEN` pull-request creation and approval.
+Changesets pushes `changeset-release/main` before attempting to create a PR, so
+the expected creation-denied run may leave a generated branch with **no PR**.
+Inspect the complete generated diff, raw author/committer identity and exact
+head through `gh`. Open a fresh owner PR on that branch, with a reviewed body
+file that explicitly says release metadata is awaiting the current-input rerun:
+
+```bash
+repo=agent-teams-ai/engineering-foundation
+release_run=<failed-release-run-id>
+generated_head=$(gh api "repos/$repo/git/ref/heads/changeset-release/main" --jq '.object.sha')
+gh api "repos/$repo/compare/main...$generated_head" > release-generated-diff.json
+# Inspect every changed file and the complete diff; API patches can be truncated.
+gh api "repos/$repo/commits/$generated_head" --jq '{sha, author: .commit.author, committer: .commit.committer}'
+test "$(gh api "repos/$repo/git/ref/heads/changeset-release/main" --jq '.object.sha')" = "$generated_head"
+gh pr create --repo "$repo" --base main --head changeset-release/main \
+  --title 'chore: version packages' --body-file release-body.md
+# Each read must succeed; an API error must not compare as two empty strings.
+current_main=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') &&
+processed_head=$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha') &&
+printf '%s\n%s\n' "$current_main" "$processed_head" | \
+  awk 'length($0) != 40 || $0 !~ /^[0-9a-f]+$/ { exit 1 } END { if (NR != 2) exit 1 }' &&
+test "$current_main" = "$processed_head" &&
+gh run rerun "$release_run" --repo "$repo" --failed
+```
+
+The pinned Changesets action selects and updates an existing owner PR rather
+than creating another. Binding and attestation must use its current number and
+head. If `main` advanced, do not rerun stale generation; use the next
+push-triggered Release run. If the generated branch is absent, fix generation
+before opening any PR. A denied creation is not publication success.
+
+If an older Bot staging PR exists, close it and retain its branch. Owner adoption
+uses the same generated branch and bytes:
 
 ```bash
 repo=agent-teams-ai/engineering-foundation
@@ -272,8 +305,12 @@ gh pr create --repo "$repo" --base main --head changeset-release/main \
   --title "$(jq -r '.title' release-staging.json)" --body-file release-body.md
 # Rerun only while the processed run still matches main. Otherwise use the
 # next push-triggered Release run to regenerate and bind current inputs.
-test "$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')" = \
-  "$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha')"
+# Each read must succeed; an API error must not compare as two empty strings.
+current_main=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') &&
+processed_head=$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha') &&
+printf '%s\n%s\n' "$current_main" "$processed_head" | \
+  awk 'length($0) != 40 || $0 !~ /^[0-9a-f]+$/ { exit 1 } END { if (NR != 2) exit 1 }' &&
+test "$current_main" = "$processed_head" &&
 gh run rerun "$release_run" --repo "$repo" --failed
 ```
 
@@ -333,10 +370,10 @@ for any later version fail closed. Multi-package promotion is validation-first
 and replay-safe after a partial process failure: an unchanged already-promoted
 package is skipped, while same-version API drift fails closed.
 
-Automatic Changesets pull requests require the organization setting that permits
-GitHub Actions to create pull requests. The organization allows this capability,
-but it is enabled at repository level only for `engineering-foundation`; other
-repositories keep it disabled unless they acquire an approved release workflow.
+The organization and Foundation disable GitHub Actions pull-request creation
+and approval. Changesets may push the generated branch and update an existing
+owner PR. When no PR exists, the owner follows the inspected-branch procedure
+above; do not enable Bot PR creation or add an impersonating credential.
 All workflows still receive read-only permissions by default, and the foundation
 release workflow requests only the permissions it needs. Pull requests created
 with `GITHUB_TOKEN` are not guaranteed to emit another workflow event. The

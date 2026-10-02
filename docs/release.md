@@ -243,6 +243,55 @@ the pull request's exact base commit. Repository-only tests, CI configuration,
 and internal documentation remain release-neutral unless they change a
 published contract or package artifact.
 
+The release owner is `@777genius` (the repository's CODEOWNERS identity).
+Generated release commits must have both raw Git author and committer exactly
+`iliya <iliyazelenkog@gmail.com>`. The Release job configures and verifies local
+Git identity, supplies those four identity variables only to Changesets, and
+sets `setupGitUser: false`; the pinned action retains its default `git-cli` mode.
+This changes neither the publishing credential nor external human authorship.
+
+A Changesets PR created by `github-actions[bot]` is an **automation staging PR**,
+not an external human contribution and never a merge candidate. The freshness
+guard rejects it even when its source commit has the owner identity. Binding
+fails and the dependent attester cannot publish successful required statuses.
+Owner adoption uses the same generated branch and bytes:
+
+```bash
+repo=agent-teams-ai/engineering-foundation
+staging_pr=<staging-number>
+release_run=<failed-release-run-id>
+gh api "repos/$repo/pulls/$staging_pr" > release-staging.json
+jq '{number, user, title, body, base, head}' release-staging.json
+gh pr diff "$staging_pr" --repo "$repo"
+jq -er '.base.ref == "main" and .head.ref == "changeset-release/main"' release-staging.json
+jq -r '.body' release-staging.json > release-body.md
+test "$(gh api "repos/$repo/pulls/$staging_pr" --jq '.head.sha')" = "$(jq -r '.head.sha' release-staging.json)"
+# After reviewing body, base, exact head and complete generated diff as the owner:
+gh pr close "$staging_pr" --repo "$repo" # retain the generated branch
+gh pr create --repo "$repo" --base main --head changeset-release/main \
+  --title "$(jq -r '.title' release-staging.json)" --body-file release-body.md
+gh run rerun "$release_run" --repo "$repo" --failed
+```
+
+Use the owner's authenticated `gh` session, never a PAT or App secret in the
+workflow to impersonate the owner. Do not hand-edit versions or changelogs.
+Rerunning failed jobs repeats the release phase; Changesets must select the
+open owner replacement, and binding must revalidate its current generated head.
+If regeneration updates that head, review its new diff and wait for fresh checks.
+An attester rerun carrying the old staging PR number cannot adopt a replacement.
+Leave external contributor PRs untouched. Already published release #355 and
+its artifacts are immutable; this procedure applies to future releases.
+
+The separate trusted premerge policy requires `commit-author-identity` on the
+observed PR head from GitHub Actions (integration `15368`). It must reject Bot
+PR authors, inspect the complete current-head commit list through read-only APIs,
+reject bot/GitHub commit authors and incorrect owner identity, preserve external
+human authors, and re-read the head before success without executing PR code.
+Its central reusable workflow and pinned consumer callers require separate
+qualification and activation; this release guard does not establish that gate.
+Native metadata restrictions failed an actual TEST rebase merge and are only
+supplementary, unproven posture, never proof of identity enforcement.
+
 The generated release pull request is accepted only when its single release
 commit is based directly on the exact `main` revision processed by the Release
 workflow. Every package Changeset present at that revision must be consumed, its
@@ -260,7 +309,7 @@ then installs the frozen lockfile with dependency lifecycle scripts disabled
 before running its local evidence validators. A dependency bootstrap failure is
 therefore an attestation failure and retains the same fail-closed status path.
 After Changesets creates or updates the release pull request, the release job
-polls for a bounded period until the remote release branch, pull request number,
+polls for a bounded period until the owner PR, remote release branch, PR number,
 base, head, current `main`, generated-file allowlist, and freshness proof agree.
 It rechecks that tuple before exposing it to the attestation job. The attester
 then binds both its initial and final checks to that exact number, base, and head.
@@ -310,11 +359,11 @@ from ReviewRouter OAuth. The stable required contexts remain `CodeQL`, `analyze`
 `check`, `windows-check`, and `macos-qualification`; each applies to the exact
 pull-request head. The Changesets action does not receive status or Actions write
 permission, and no release-branch code runs with write credentials. If automatic
-pull request creation is unavailable, prepare the same
-version commit on a short `chore/release-*` branch, open a normal pull request,
-and let the unchanged release workflow publish its merge through npm Trusted
-Publishing. Never weaken branch protection or publish from a workstation to work
-around the policy.
+pull request creation is unavailable but the generated branch exists, the owner
+opens the replacement on `changeset-release/main` using the same review procedure.
+If generation failed, restore that release phase before creating a replacement.
+Never weaken branch protection or publish from a workstation to work around the
+policy.
 
 Before every publication:
 

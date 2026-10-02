@@ -46,9 +46,19 @@ jobs:
       - run: pnpm dependencies:peers:check
       - name: Guard public package bootstrap baselines
         run: node scripts/npm-package-bootstrap-cli.mjs check-release
+      - name: Configure and verify release Git identity
+        run: |
+          set -Eeuo pipefail
+          git config --local user.name iliya
+          git config --local user.email iliyazelenkog@gmail.com
+          for role in AUTHOR COMMITTER; do
+            identity="$(git var "GIT_${role}_IDENT")"
+            [[ "${identity% * *}" == 'iliya <iliyazelenkog@gmail.com>' ]]
+          done
       - id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
+          setupGitUser: false
           createGithubReleases: false
           publish: pnpm release:publish
           version: pnpm release:version
@@ -56,6 +66,10 @@ jobs:
           commit: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: iliya
+          GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
+          GIT_COMMITTER_NAME: iliya
+          GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
 
       - name: Bind release pull request revision
         id: release-pr

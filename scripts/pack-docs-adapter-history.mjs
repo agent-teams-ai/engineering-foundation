@@ -8,7 +8,8 @@ function assertCompleteOrderedHistory(transitionCatalog) {
     "docs-2026-08-28-stable8", "docs-2026-08-28-stable9.1", "docs-2026-08-31-stable10",
     "docs-2026-09-10-stable18", "docs-2026-09-10-stable19", "docs-2026-09-11-stable20",
     "docs-2026-09-12-stable21", "docs-2026-09-15-stable23",
-    "docs-2026-09-21-stable26", "docs-2026-09-16-stable25"
+    "docs-2026-09-21-stable26", "docs-2026-09-16-stable25",
+    "docs-2026-09-15-stable24", "docs-2026-09-24-stable28"
   ];
   const actualIds = transitionCatalog.directTargetBundles.map(({ cohort }) => cohort.cohortId);
   if (transitionCatalog.currentSourceExecutors.length !== 0 ||
@@ -93,6 +94,18 @@ export function assertPackedDocsAdapterHistory(transitionCatalog) {
     .update(JSON.stringify(bundles.slice(0, 19))).digest("hex");
   if (historicalDigest !== "526c85314900cc53fd27bebf6a2b802506dab3d0f4f18ea9201d7fa72d571cf8") {
     throw new Error("Packed adapter historical projection differs from released bytes.");
+  }
+  // Complete projections independently derived from Central .github at 5a66a8,
+  // using its immutable records and QUALIFIED events plus digest-bound asset templates.
+  for (const [cohortId, expectedDigest] of [
+    ["docs-2026-09-15-stable24", "1a3c58ccd673b50709d6b44e30f259e8edb449e9cbd7cd643989431bc0b70727"],
+    ["docs-2026-09-24-stable28", "c47effc4dfec49ce2c4c1c6ce32f920d3a744ac8e1797094983361d77a8fd75d"]
+  ]) {
+    const bundle = bundles.find(({ cohort }) => cohort.cohortId === cohortId);
+    const projectionDigest = createHash("sha256").update(JSON.stringify(bundle)).digest("hex");
+    if (projectionDigest !== expectedDigest) {
+      throw new Error(`Packed adapter ${cohortId} projection differs from central authority.`);
+    }
   }
   return stable23;
 }

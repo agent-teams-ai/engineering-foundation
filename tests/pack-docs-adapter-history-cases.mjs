@@ -122,6 +122,7 @@ export function registerPackedDocsAdapterHistoryTests() {
           });
           assert.throws(() => assertPackedDocsAdapterHistory(changed),
             `${cohortId}: ${remove ? "missing" : "changed"} ${path.join(".")}`);
+          assertPackedDocsAdapterHistory(catalog);
         }
       }
     });

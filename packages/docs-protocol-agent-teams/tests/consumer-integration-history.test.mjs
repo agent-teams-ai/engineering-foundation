@@ -197,6 +197,8 @@ test("package loader rejects malformed or corrupted generation2 history before l
     );
     assert.ok(stable23);
     const catalogPath = join(sandbox, "assets/transition-catalog.json");
+    await writeFile(catalogPath, CANONICAL_TRANSITION_CATALOG);
+    load();
     for (const mutate of [
       (bundle) => { bundle.cohort.recordDigest = "invalid"; },
       (bundle) => { bundle.cohort.qualificationEventDigest = "invalid"; },

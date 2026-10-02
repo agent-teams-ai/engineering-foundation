@@ -73,7 +73,7 @@ test("stable18 through stable26 history bind exact generation2 authority and imm
     PRIOR_DIRECT_TARGET_BUNDLES_DIGEST,
     "The 17 previously published direct-target bundles must remain byte-for-byte unchanged"
   );
-  assert.equal(digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, -1)))),
+  assert.equal(digest(Buffer.from(JSON.stringify(catalog.directTargetBundles.slice(0, 18)))),
     PUBLISHED_DIRECT_TARGET_BUNDLES_DIGEST,
     "All 18 published bundles, including stable26, must remain byte-for-byte unchanged");
   for (const [cohortId, recordDigest, eventDigest, version] of [
@@ -175,7 +175,7 @@ test("stable18 through stable26 history bind exact generation2 authority and imm
   assert.deepEqual(legacy.historicalV2Bundles.map(({ cohort }) => cohort.cohortId), [
     "docs-2026-09-10-stable18", "docs-2026-09-10-stable19", "docs-2026-09-11-stable20",
     "docs-2026-09-12-stable21", "docs-2026-09-15-stable23", "docs-2026-09-21-stable26",
-    "docs-2026-09-16-stable25"
+    "docs-2026-09-16-stable25", "docs-2026-09-15-stable24", "docs-2026-09-24-stable28"
   ]);
 });
 

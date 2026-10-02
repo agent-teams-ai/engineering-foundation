@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 function assertCompleteOrderedHistory(transitionCatalog) {
   const expectedIds = [
     "docs-2026-08-17-rc1", "docs-2026-08-17-rc7", "docs-2026-08-17-rc9",
@@ -86,5 +88,11 @@ export function assertPackedDocsAdapterHistory(transitionCatalog) {
   assertStable26Projection(stable26, stable23);
   const stable25 = bundles.find(({ cohort }) => cohort.cohortId === "docs-2026-09-16-stable25");
   assertStable25Projection(stable25, stable23, stable26);
+  // Exact 19-bundle projection at release base 28b403274dfb797ccd65e00bcfe58ce6bdbfc05b.
+  const historicalDigest = createHash("sha256")
+    .update(JSON.stringify(bundles.slice(0, 19))).digest("hex");
+  if (historicalDigest !== "526c85314900cc53fd27bebf6a2b802506dab3d0f4f18ea9201d7fa72d571cf8") {
+    throw new Error("Packed adapter historical projection differs from released bytes.");
+  }
   return stable23;
 }

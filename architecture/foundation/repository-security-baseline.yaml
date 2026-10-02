@@ -9,8 +9,13 @@ dependencyReview:
 sbomWorkflow: .github/workflows/ci.yml
 allowedContainerImages: []
 allowedPullRequestTargetWorkflows:
+  - .github/workflows/commit-author-identity.yml
   - .github/workflows/reviewrouter-codex.yml
 allowedUses:
+  - uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@aaea1fc197926d95679f9d5e1f4ee99dcaec8924
+    transitiveUses:
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        transitiveUses: []
   - uses: 777genius/review-router/.github/workflows/reviewrouter-t0-reusable.yml@75cbecab131d74021677fcd1fb21962994d306b8
     transitiveUses: []
   - uses: 777genius/review-router@75cbecab131d74021677fcd1fb21962994d306b8
@@ -46,6 +51,12 @@ allowedUses:
   - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
     transitiveUses: []
 privilegedJobs:
+  - workflowPath: .github/workflows/commit-author-identity.yml
+    jobId: identity
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
   - workflowPath: .github/workflows/npm-package-bootstrap.yml
     jobId: bootstrap
     permissions:

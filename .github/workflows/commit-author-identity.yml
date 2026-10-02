@@ -5,7 +5,10 @@ on:
 permissions:
   contents: read
   pull-requests: read
-  statuses: write
 jobs:
   identity:
-    uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@8248d96aae24d296e5f70e018d5e75eb292d6a75
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@aaea1fc197926d95679f9d5e1f4ee99dcaec8924

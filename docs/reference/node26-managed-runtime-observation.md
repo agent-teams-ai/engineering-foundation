@@ -102,9 +102,14 @@ Linux only, through the finite policy in `scripts/check-test-manifests.mjs`.
 They remain in the complete 275-file inventory and Linux coverage. Windows and
 Darwin retain every portable suite, including actual unsupported-platform refusal
 in `managed-portable-profile.test.mjs`; refusal does not qualify Linux effects.
-Linux shard 4 provisions the public pinned tools using the existing Actions setup
-and `scripts/provision-managed-test-tools.mjs`, with Node 24 restored as default
-before provisioning and testing.
+Linux shard 4 retains the pinned Nodes from the existing Actions setup and
+restores Node 24 as default before provisioning and testing.
+`scripts/provision-managed-test-tools.mjs` downloads the exact declared JavaScript
+pnpm package from the public npm registry, verifies its metadata and SHA-512
+integrity, and extracts it into runner-private TEST storage. The self-contained
+`pnpm/setup` executable has no package manifest and cannot supply the direct-Node
+positive tuple. Both Node versions and both Node-plus-pnpm versions must pass
+before the script exports the TEST paths.
 Tests require actual supplied tools through `MANAGED_TEST_TOOLS_ROOT` and fresh
 TEST roots through `MANAGED_TEST_ROOT`. Synthetic packages exercise rejecting
 or process-mechanics cases; real positive observations use actual pnpm. UID-0

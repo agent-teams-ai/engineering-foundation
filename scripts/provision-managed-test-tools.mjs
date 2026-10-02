@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { appendFile, cp, copyFile, mkdir, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { appendFile, copyFile, mkdir, mkdtemp, readFile, realpath, unlink, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Reuse the pinned setup-node and pnpm/setup installations. No package downloads.
+// Reuse setup-node's pinned Nodes. pnpm/setup installs a self-contained executable,
+// so fetch the exact declared JavaScript package separately for direct-Node tests.
 const workspace = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const policy = JSON.parse(await readFile(join(workspace,
   'architecture/foundation/docs-protocol-current-policy.json'), 'utf8'));
@@ -13,26 +15,60 @@ assert.equal(process.platform, 'linux');
 assert.equal(process.arch, 'x64');
 assert.equal(process.versions.node, policy.runtime.productionDefault.qualificationVersion);
 assert.ok(process.env.MANAGED_TEST_NODE26_SOURCE);
-assert.ok(process.env.PNPM_HOME);
 assert.ok(process.env.RUNNER_TEMP);
+assert.ok(!/[\r\n]/u.test(process.env.RUNNER_TEMP));
 assert.ok(process.env.GITHUB_ENV);
 const source26 = await realpath(process.env.MANAGED_TEST_NODE26_SOURCE);
-const pnpmEntry = await realpath(join(process.env.PNPM_HOME, 'pnpm'));
-const pnpmRoot = dirname(dirname(pnpmEntry));
-const pnpmManifest = JSON.parse(await readFile(join(pnpmRoot, 'package.json'), 'utf8'));
+const versionMatch = /^pnpm@(\d+\.\d+\.\d+)$/u.exec(manifest.packageManager);
+assert.ok(versionMatch, 'packageManager must declare an exact pnpm version');
+const pnpmVersion = versionMatch[1];
+
+async function download(url, limit) {
+  const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(30_000) });
+  assert.ok(response.ok, `Public pnpm download failed: ${response.status}`);
+  assert.ok(response.body);
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body) {
+    size += chunk.length;
+    assert.ok(size <= limit, 'Public pnpm download exceeds its byte limit');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+const registry = 'https://registry.npmjs.org';
+const metadata = JSON.parse(await download(`${registry}/pnpm/${pnpmVersion}`, 64 * 1024));
+assert.equal(metadata.name, 'pnpm');
+assert.equal(metadata.version, pnpmVersion);
+const tarballUrl = `${registry}/pnpm/-/pnpm-${pnpmVersion}.tgz`;
+assert.equal(metadata.dist.tarball, tarballUrl);
+const archive = await download(tarballUrl, 20 * 1024 * 1024);
+assert.equal(metadata.dist.integrity, `sha512-${createHash('sha512').update(archive).digest('base64')}`);
+
+const tools = await mkdtemp(join(process.env.RUNNER_TEMP, 'managed-test-tools-'));
+const env = { CI: 'true', LANG: 'C', HOME: tools };
+const packageRoot = join(tools, 'pnpm/node_modules/pnpm');
+await mkdir(packageRoot, { recursive: true });
+const archivePath = join(tools, 'pnpm.tgz');
+await writeFile(archivePath, archive);
+const extraction = spawnSync('/usr/bin/tar', [
+  '-xzf', archivePath, '-C', packageRoot, '--strip-components=1',
+  '--no-same-owner', '--no-same-permissions'
+], { env, cwd: tools, encoding: 'utf8', timeout: 30_000 });
+assert.equal(extraction.error, undefined);
+assert.equal(extraction.status, 0, extraction.stderr);
+await unlink(archivePath);
+const pnpmManifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
 assert.equal(pnpmManifest.name, 'pnpm');
 assert.equal(manifest.packageManager, `pnpm@${pnpmManifest.version}`);
 assert.equal(pnpmManifest.bin.pnpm, 'bin/pnpm.mjs');
-assert.equal(pnpmEntry, join(pnpmRoot, pnpmManifest.bin.pnpm));
+assert.equal(await realpath(join(packageRoot, pnpmManifest.bin.pnpm)), join(packageRoot, pnpmManifest.bin.pnpm));
 
-const tools = await mkdtemp(join(process.env.RUNNER_TEMP, 'managed-test-tools-'));
 for (const [lane, source] of [['node24', process.execPath], ['node26', source26]]) {
   await mkdir(join(tools, lane, 'bin'), { recursive: true });
   await copyFile(source, join(tools, lane, 'bin/node'));
 }
-const packageRoot = join(tools, 'pnpm/node_modules/pnpm');
-await cp(pnpmRoot, packageRoot, { recursive: true, dereference: false });
-const env = { CI: 'true', LANG: 'C', HOME: tools };
 function requireVersion(node, args, version) {
   const result = spawnSync(node, args, { env, cwd: tools, encoding: 'utf8', timeout: 30_000 });
   assert.equal(result.error, undefined);

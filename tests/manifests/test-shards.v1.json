@@ -212,6 +212,7 @@
         "tests/cli.test.mjs",
         "tests/coverage-evidence.test.mjs",
         "tests/coverage-workflow.test.mjs",
+        "tests/test-timing.test.mjs",
         "tests/document-authoring-application-spine.test.mjs",
         "tests/document-authoring-contracts.test.mjs",
         "tests/document-authoring-coordinator-adapter.test.mjs",

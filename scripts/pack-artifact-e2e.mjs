@@ -4,7 +4,7 @@ import { observePackageWildcardExports } from "../packages/engineering-foundatio
 import { assertPackedWildcardMembers } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/module.js";
 import { readContainedRegularFile, pathTraversesSymbolicLink } from "../packages/engineering-foundation/dist/source-inventory/node.js";
 
-import { assertSecretCanaryAbsent } from "./pack-test-support.mjs";
+import { assertSecretCanaryAbsent, measurePrepPhase } from "./pack-test-support.mjs";
 import { projectMarkdownPublication } from "./markdown-publication.mjs";
 import {
   assertArchiveSafety, inspectCompressedTarArchive, portableEntryIdentity, readRegularArchive, sha256,
@@ -170,6 +170,10 @@ async function expectedPackedEntries(packageRoot, manifest, requiredArtifactPath
 }
 
 export async function createCleanBuildStage(input, label) {
+  return measurePrepPhase("stage", { stage: label }, () => createMeasuredCleanBuildStage(input, label));
+}
+
+async function createMeasuredCleanBuildStage(input, label) {
   if (!Array.isArray(input.stagePackages) || input.stagePackages.length === 0) {
     throw new Error("Clean package staging requires a manifest-derived stagePackages closure.");
   }
@@ -198,12 +202,12 @@ export async function createCleanBuildStage(input, label) {
     manifestsByName.set(entry.name, sourceManifest);
     const stagedRoot = stagedPackagesByName.get(entry.name);
     await mkdir(dirname(stagedRoot), { recursive: true });
-    await materializeStableTree(sourceRoot, stagedRoot, {
+    await measurePrepPhase("source-materialization", { supportPackageName: entry.name }, () => materializeStableTree(sourceRoot, stagedRoot, {
       allowLinks: false,
       excludedEntries: generatedPackageEntries,
       label: "Package source tree",
       state: { bytes: 0, entries: 0 },
-    });
+    }));
     const stagedManifest = await readBoundedStableJson(join(stagedRoot, "package.json"), "Staged package manifest");
     if (releaseManifestIdentity(stagedManifest) !== releaseManifestIdentity(sourceManifest)) {
       throw new Error(`Authoritative package manifest changed while staging ${entry.name}.`);
@@ -214,7 +218,7 @@ export async function createCleanBuildStage(input, label) {
     await writeFile(join(stagedRoot, "LICENSE"), license.bytes, { mode: license.mode });
   }
   for (const entry of input.stagePackages) {
-    await wireStagedPackageDependencies({
+    await measurePrepPhase("dependency-materialization", { supportPackageName: entry.name }, () => wireStagedPackageDependencies({
       dependencyDeclarations,
       catalogVersions,
       internalPackageNames,
@@ -224,20 +228,22 @@ export async function createCleanBuildStage(input, label) {
       sourceRoot: entry.sourceRoot ?? join(input.repositoryRoot, entry.root),
       stagedPackagesByName,
       stagedRoot: stagedPackagesByName.get(entry.name),
-    });
+    }));
   }
   const packageRoot = stagedPackagesByName.get(input.packageName);
   if (packageRoot === undefined) {
     throw new Error(`Clean stage has no target package ${input.packageName}.`);
   }
   await writeFile(join(stageRoot, "pnpm-workspace.yaml"), workspace.bytes, { flag: "wx", mode: workspace.mode });
-  await stageManagedPolicyBuildInputs(input.repositoryRoot, stageRoot, stagedPackagesByName);
+  await measurePrepPhase("managed-input-materialization", {}, () =>
+    stageManagedPolicyBuildInputs(input.repositoryRoot, stageRoot, stagedPackagesByName));
   for (const packageName of input.buildPackageNames ?? [input.packageName]) {
     const buildRoot = stagedPackagesByName.get(packageName);
     if (buildRoot === undefined) {
       throw new Error(`Clean stage build order names unstaged package ${packageName}.`);
     }
-    await input.runBuild(buildRoot, Object.freeze({ packageName, stageRoot, stagedPackagesByName }));
+    await measurePrepPhase("build", { buildPackageName: packageName }, () =>
+      input.runBuild(buildRoot, Object.freeze({ packageName, stageRoot, stagedPackagesByName })));
   }
   const sourceManifest = manifestsByName.get(input.packageName);
   const packedManifest = await readBoundedStableJson(join(packageRoot, "package.json"), "Post-build package manifest");
@@ -248,11 +254,12 @@ export async function createCleanBuildStage(input, label) {
     catalogVersions,
     internalPackageVersions: new Map([...manifestsByName].map(([name, manifest]) => [name, manifest.version])),
   });
-  const publishManifest = await projectMarkdownPublication({
+  const publishManifest = await measurePrepPhase("markdown-publication", {}, () => projectMarkdownPublication({
     ...input.markdownPublication, packageRoot, manifest: canonicalManifest, receiptPath: join(stageRoot, "markdown-build-receipt.json"),
-  });
+  }));
   await writeFile(join(packageRoot, "package.json"), `${JSON.stringify(npmPackManifest(publishManifest), null, 2)}\n`);
-  const expectedEntries = await expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths);
+  const expectedEntries = await measurePrepPhase("payload-authority-inspect", {}, () =>
+    expectedPackedEntries(packageRoot, sourceManifest, input.requiredArtifactPaths));
   return Object.freeze({ expectedEntries, packageRoot, publishManifest, sourceManifest, stageRoot });
 }
 
@@ -353,13 +360,21 @@ async function extractVerifiedArchive(inspection, extractedRoot) {
 }
 
 export async function packAndInspectArtifact(input) {
+  return measurePrepPhase("package", { packageName: input.packageName }, () => packAndInspectMeasuredArtifact(input));
+}
+
+async function packAndInspectMeasuredArtifact(input) {
   const firstStage = await createCleanBuildStage(input, "a");
   const secondStage = await createCleanBuildStage(input, "b");
   if (releaseManifestIdentity(firstStage.sourceManifest) !== releaseManifestIdentity(secondStage.sourceManifest)) {
     throw new Error("Authoritative package manifest changed between clean builds.");
   }
-  const first = await createArtifact(input, firstStage);
-  const second = await createArtifact(input, secondStage);
+  const first = await measurePrepPhase("pack", { stage: "a" }, () => createArtifact(input, firstStage));
+  const second = await measurePrepPhase("pack", { stage: "b" }, () => createArtifact(input, secondStage));
+  return measurePrepPhase("inspect-extract-validate-seal", {}, () => inspectAndSealArtifact(input, firstStage, first, second));
+}
+
+async function inspectAndSealArtifact(input, firstStage, first, second) {
   const authoritativeArchiveName = expectedArchiveName(firstStage.sourceManifest);
   if (first.archiveName !== authoritativeArchiveName || second.archiveName !== authoritativeArchiveName) {
     throw new Error(`pnpm pack archive identity must be exactly ${authoritativeArchiveName}.`);

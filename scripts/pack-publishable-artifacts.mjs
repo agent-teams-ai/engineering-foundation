@@ -8,7 +8,7 @@ import {
   PUBLISHABLE_PACKAGES,
   PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS,
 } from "./publishable-packages.mjs";
-import { createPnpmRunner } from "./pack-test-support.mjs";
+import { createPnpmRunner, measurePrepPhase } from "./pack-test-support.mjs";
 import { prepareMarkdownPublication } from "./markdown-publication.mjs";
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
@@ -341,7 +341,7 @@ export async function packPublishableArtifacts(input) {
   const runPnpm = createPnpmRunner();
   const runBuild = async (stagedPackageRoot) => runPnpm(["run", "build"], stagedPackageRoot);
   const pending = [];
-  const markdownPublication = await prepareMarkdownPublication(repositoryRoot);
+  const markdownPublication = await measurePrepPhase("markdown-acquisition", {}, () => prepareMarkdownPublication(repositoryRoot));
   for (const item of plan) {
     const entry = item.package;
     const artifact = await packAndInspectArtifact({
@@ -370,6 +370,10 @@ export async function packPublishableArtifacts(input) {
   // archive with O_NOFOLLOW and verify its digest before creating the immutable
   // downstream snapshots, so a later package build cannot replace an earlier
   // qualified path between verification and use.
+  return measurePrepPhase("final-integrity-snapshots", {}, () => createFinalSnapshots(input, pending, manifests));
+}
+
+async function createFinalSnapshots(input, pending, manifests) {
   const finalRoot = await mkdtemp(join(input.temporaryRoot, "qualified-package-artifacts-"));
   const records = {};
   for (const { artifact, entry, item } of pending) {

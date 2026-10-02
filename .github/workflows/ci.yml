@@ -5,6 +5,12 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   merge_group: {}
   workflow_dispatch:
+    inputs:
+      prep_measurement:
+        description: "Disposable EF-M Windows preparation experiment (discard branch after review)"
+        type: boolean
+        default: false
+        required: false
   push:
     branches:
       - main
@@ -37,6 +43,7 @@ jobs:
 
   dependency-review:
     name: dependency-review
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.prep_measurement == true) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -408,7 +415,7 @@ jobs:
       - linux-registry
       - linux-bootstrap-evidence
       - linux-published
-    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.prep_measurement == true) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     permissions: {}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -573,7 +580,7 @@ jobs:
       - windows-package
       - windows-registry
       - windows-published
-    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.prep_measurement == true) && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
     permissions: {}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -625,3 +632,102 @@ jobs:
         run: pnpm package:check:built
       - name: Qualify registry-installed document authoring
         run: pnpm registry-install-e2e:built
+
+  # Temporary measurement lane; never merge this branch. Normal CI dispatch,
+  # PR, push and merge-group obligations retain the complete existing graph.
+  windows-prep-measure:
+    name: EF-M preparation (${{ matrix.variant }})
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.prep_measurement == true }}
+    runs-on: windows-2022
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        variant: [baseline, temp-runner]
+    env:
+      EF_PREP_VARIANT: ${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }
+      - name: Observe the disposable hosted runner and select distinct TEMP placement
+        id: runner-config
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:EF_PREP_EVIDENCE = Join-Path $env:RUNNER_TEMP "ef-prep-$env:EF_PREP_VARIANT"
+          "EF_PREP_EVIDENCE=$env:EF_PREP_EVIDENCE" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          New-Item -ItemType Directory -Path $env:EF_PREP_EVIDENCE | Out-Null
+          $prepState = @{ variant = $env:EF_PREP_VARIANT; runnerEnvironment = $env:RUNNER_ENVIRONMENT
+            sourceCommit = $env:GITHUB_SHA; imageVersion = $env:ImageVersion
+            originalTEMP = $env:TEMP; originalTMP = $env:TMP; runnerTemp = $env:RUNNER_TEMP
+            measurementDecision = 'measure'; defender = @{} }
+          # Read actual state only. Official runner-image evidence supplied by
+          # the controller already shows broad exclusions and disabled scans.
+          try {
+            $prepState.defender.preference = @{ status = 'observed'; value = Get-MpPreference -ErrorAction Stop |
+              Select-Object DisableRealtimeMonitoring, DisableArchiveScanning, DisableBehaviorMonitoring,
+                DisableScriptScanning, DisableIOAVProtection, ExclusionPath, ExclusionProcess, ExclusionExtension }
+          } catch { $prepState.defender.preference = @{ status = 'failed'; failure = $_ | Out-String } }
+          try {
+            $prepState.defender.computerStatus = @{ status = 'observed'; value = Get-MpComputerStatus -ErrorAction Stop |
+              Select-Object AntivirusEnabled, RealTimeProtectionEnabled, BehaviorMonitorEnabled,
+                IoavProtectionEnabled, AMRunningMode, AMProductVersion, AntivirusSignatureVersion }
+          } catch { $prepState.defender.computerStatus = @{ status = 'failed'; failure = $_ | Out-String } }
+          $prepState | ConvertTo-Json -Depth 8 | Set-Content "$env:EF_PREP_EVIDENCE/runner.json"
+          if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'Hosted disposable runners only' }
+          function Get-PrepPathIdentity([string]$Path) {
+            return [IO.Path]::GetFullPath($Path).TrimEnd([char[]]@('\', '/')).ToUpperInvariant()
+          }
+          $prepBaselineAtRunner = (Get-PrepPathIdentity $env:TEMP) -eq (Get-PrepPathIdentity $env:RUNNER_TEMP) -and
+            (Get-PrepPathIdentity $env:TMP) -eq (Get-PrepPathIdentity $env:RUNNER_TEMP)
+          $prepState.baselineAlreadyAtRunnerTemp = $prepBaselineAtRunner
+          if ($env:EF_PREP_VARIANT -eq 'temp-runner') {
+            if ($prepBaselineAtRunner) {
+              $prepState.measurementDecision = 'redundant-skipped'
+              $prepState.reason = 'Both baseline TEMP and TMP already equal RUNNER_TEMP; use the baseline timings.'
+            } else {
+              "TEMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+              "TMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+            }
+          }
+          $prepState.effectiveTEMP = if ($prepState.measurementDecision -eq 'measure' -and $env:EF_PREP_VARIANT -eq 'temp-runner') { $env:RUNNER_TEMP } else { $env:TEMP }
+          $prepState.effectiveTMP = if ($prepState.measurementDecision -eq 'measure' -and $env:EF_PREP_VARIANT -eq 'temp-runner') { $env:RUNNER_TEMP } else { $env:TMP }
+          "measure=$($prepState.measurementDecision -eq 'measure')".ToLowerInvariant() | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $prepState | ConvertTo-Json -Depth 8 | Set-Content "$env:EF_PREP_EVIDENCE/runner.json"
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        if: ${{ steps.runner-config.outputs.measure == 'true' }}
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ steps.runner-config.outputs.measure == 'true' }}
+        with: { node-version-file: .node-version }
+      - name: Bootstrap exact toolchain and source imports (separate from preparation)
+        if: ${{ steps.runner-config.outputs.measure == 'true' }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          function Invoke-PrepBootstrap([string[]]$Arguments) {
+            & pnpm @Arguments 2>&1 | Tee-Object -FilePath "$env:EF_PREP_EVIDENCE/bootstrap.log" -Append
+            if ($LASTEXITCODE -ne 0) { throw "Bootstrap failed: pnpm $Arguments (exit $LASTEXITCODE)" }
+          }
+          Invoke-PrepBootstrap -Arguments @('install', '--frozen-lockfile', '--ignore-scripts')
+          Invoke-PrepBootstrap -Arguments @('rebuild')
+          Invoke-PrepBootstrap -Arguments @('build')
+      - name: Measure the same authoritative six-archive clean preparation
+        if: ${{ steps.runner-config.outputs.measure == 'true' }}
+        timeout-minutes: 75
+        shell: pwsh
+        run: |
+          node scripts/ci-prep-measure.mjs "$env:EF_PREP_EVIDENCE" "$env:EF_PREP_VARIANT" 2>&1 |
+            Tee-Object -FilePath "$env:EF_PREP_EVIDENCE/measurement.log"
+          if ($LASTEXITCODE -ne 0) { throw "Preparation failed (exit $LASTEXITCODE)" }
+      - name: Retain timing, command logs, configuration evidence and six archive hashes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ef-prep-${{ github.sha }}-${{ matrix.variant }}-${{ github.run_attempt }}
+          path: ${{ env.EF_PREP_EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 7

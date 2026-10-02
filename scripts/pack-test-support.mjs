@@ -1,8 +1,50 @@
 import { spawn } from "node:child_process";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
+
+// Private, opt-in observation for the disposable EF-M experiment. No input or
+// process policy changes; observer failures are raised only after containment.
+const prepMeasurement = new AsyncLocalStorage();
+export async function withPrepMeasurement(observer, action) {
+  const state = { observer, sequence: 0, errors: [] };
+  let result;
+  let failure;
+  let rejected = false;
+  try { result = await prepMeasurement.run({ state, parentId: null, fields: {} }, action); }
+  catch (error) { failure = error; rejected = true; }
+  if (state.errors.length > 0) {
+    throw new AggregateError([...state.errors, ...(rejected ? [failure] : [])], "Preparation evidence could not be retained.");
+  }
+  if (rejected) { throw failure; }
+  return result;
+}
+
+export async function measurePrepPhase(phase, fields, action) {
+  const context = prepMeasurement.getStore();
+  if (context === undefined) { return action(); }
+  const id = ++context.state.sequence;
+  const metadata = { ...context.fields, ...fields };
+  const started = performance.now();
+  const emit = event => {
+    try { context.state.observer({ id, parentId: context.parentId, phase, ...metadata, ...event }); }
+    catch (error) { context.state.errors.push(error); }
+  };
+  emit({ event: "start", startedMs: started });
+  try {
+    const result = await prepMeasurement.run({ ...context, parentId: id, fields: metadata }, action);
+    emit({ event: "end", durationMs: performance.now() - started, outcome: "passed",
+      ...(phase === "command" ? { stdout: result.stdout, stderr: result.stderr } : {}) });
+    return result;
+  } catch (error) {
+    emit({ event: "end", durationMs: performance.now() - started, outcome: "failed",
+      error: error.message, code: error.code, stdout: error.stdout, stderr: error.stderr,
+      terminationConfirmed: error.terminationConfirmed });
+    throw error;
+  }
+}
 
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;
@@ -261,6 +303,11 @@ async function cleanUpCommandTree(child, windowsManagedProcess, forced, requestT
 }
 
 export async function runCommand(command, args, cwd, options = {}) {
+  return measurePrepPhase("command", { command, args, cwd }, () =>
+    runMeasuredCommand(command, args, cwd, options));
+}
+
+async function runMeasuredCommand(command, args, cwd, options) {
   const timeoutMs = options.timeoutMs ?? commandDefaultTimeoutMs;
   if (
     !Number.isSafeInteger(timeoutMs) ||
@@ -353,9 +400,9 @@ export async function runCommand(command, args, cwd, options = {}) {
       const result = await Promise.race([exit, forcedTermination]);
       clearTimeout(timeout);
       options.signal?.removeEventListener("abort", onAbort);
-      const cleanup = await cleanUpCommandTree(
+      const cleanup = await measurePrepPhase("command-containment", {}, () => cleanUpCommandTree(
         child, windowsManagedProcess, forceTerminationRequested, requestTermination
-      );
+      ));
       containmentConfirmed = cleanup.confirmed && !terminationFailed;
       if (!cleanup.confirmed) {
         terminationFailed = true;
@@ -363,7 +410,7 @@ export async function runCommand(command, args, cwd, options = {}) {
       }
       let streamsClosed = false;
       try {
-        await waitForBoundedClose(close);
+        await measurePrepPhase("command-stream-close", {}, () => waitForBoundedClose(close));
         streamsClosed = true;
       } catch (error) {
         cause ??= error;

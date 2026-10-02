@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -203,6 +203,68 @@ process.exitCode = await runTestShardTests(['cases.test.mjs'],
     assert.equal(result.status, expected, result.stderr);
     assert.match(result.stderr, /Test timing is advisory/u);
   }
+}));
+
+test("timing replaces a leaf hardlink without corrupting coverage evidence", async () => fixture(async (root) => {
+  await writeFile(join(root, "cases.test.mjs"), "import test from 'node:test'; test('required', () => {});");
+  await contract(root, "cases.test.mjs", ["required"]);
+  const evidenceDirectory = join(root, ".coverage-evidence");
+  const rawDirectory = join(evidenceDirectory, "raw");
+  const timingDirectory = join(root, "timings");
+  await mkdir(rawDirectory, { recursive: true });
+  await mkdir(timingDirectory);
+  const protectedFile = join(rawDirectory, "protected.json");
+  const sentinel = Buffer.from("SENTINEL");
+  await writeFile(protectedFile, sentinel);
+  await link(protectedFile, join(timingDirectory, "events.jsonl"));
+  const baseline = await invoke(root, `
+import { runTestShardTests } from ${moduleUrl("scripts/run-test-shard.mjs")};
+process.exitCode = await runTestShardTests(['cases.test.mjs'], {}, ${JSON.stringify(root)});`);
+  const result = await invoke(root, `
+import { runTestShardTests } from ${moduleUrl("scripts/run-test-shard.mjs")};
+process.exitCode = await runTestShardTests(['cases.test.mjs'],
+  ${JSON.stringify({ timingDirectory, evidenceDirectory })}, ${JSON.stringify(root)});`);
+  assert.equal(baseline.status, 0, baseline.stderr);
+  assert.equal(result.status, baseline.status, result.stderr);
+  assert.match(result.stdout, /Mandatory Node tests: 1 required identities/u);
+  assert.deepEqual(await readFile(protectedFile), sentinel, "timing must not truncate linked raw coverage");
+  const rows = (await readFile(join(timingDirectory, "events.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
+  assert.equal(rows.filter((row) => row.kind === "test" && row.name === "required" && row.outcome === "pass").length, 1);
+  assert.equal(rows.filter((row) => row.kind === "file" && row.outcome === "pass").length, 1);
+  assert.deepEqual(await readdir(timingDirectory), ["events.jsonl"], "owned temporary file must be cleaned up");
+}));
+
+test("timing rechecks coverage containment after async setup swaps the directory", async () => fixture(async (root) => {
+  await writeFile(join(root, "cases.test.mjs"), "import test from 'node:test'; test('required', () => {});");
+  await contract(root, "cases.test.mjs", ["required"]);
+  const evidenceDirectory = join(root, ".coverage-evidence");
+  const rawDirectory = join(evidenceDirectory, "raw");
+  const timingDirectory = join(root, "timings");
+  await mkdir(rawDirectory, { recursive: true });
+  await mkdir(timingDirectory);
+  const protectedFile = join(rawDirectory, "events.jsonl");
+  const sentinel = Buffer.from("SENTINEL");
+  await writeFile(protectedFile, sentinel);
+  const baseline = await invoke(root, `
+import { runTestShardTests } from ${moduleUrl("scripts/run-test-shard.mjs")};
+process.exitCode = await runTestShardTests(['cases.test.mjs'], {}, ${JSON.stringify(root)});`);
+  const result = await invoke(root, `
+import { rm, symlink } from 'node:fs/promises';
+import { runTestShardTests } from ${moduleUrl("scripts/run-test-shard.mjs")};
+process.exitCode = await runTestShardTests(['cases.test.mjs'], {
+  ...${JSON.stringify({ timingDirectory, evidenceDirectory })},
+  runOptions: { setup: async () => {
+    await rm(${JSON.stringify(timingDirectory)}, { recursive: true });
+    await symlink(${JSON.stringify(rawDirectory)}, ${JSON.stringify(timingDirectory)},
+      process.platform === 'win32' ? 'junction' : 'dir');
+  } },
+}, ${JSON.stringify(root)});`);
+  assert.equal(baseline.status, 0, baseline.stderr);
+  assert.equal(result.status, baseline.status, result.stderr);
+  assert.match(result.stdout, /Mandatory Node tests: 1 required identities/u);
+  assert.deepEqual(await readFile(protectedFile), sentinel, "post-validation alias must not change raw coverage");
+  assert.match(result.stderr, /Test timing is advisory: .*outside the coverage/u);
+  assert.deepEqual(await readdir(rawDirectory), ["events.jsonl"], "no timing files may be created in coverage");
 }));
 
 test("timing rejects coverage descendants, equality and directory aliases", async () => {

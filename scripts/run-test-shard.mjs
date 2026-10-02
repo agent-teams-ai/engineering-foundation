@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { mkdir, realpath, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, open, realpath, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -29,6 +30,14 @@ async function realDirectoryAncestor(path) {
     if (error.code !== "ENOENT" || dirname(path) === path) { return path; }
     return resolvePath(await realDirectoryAncestor(dirname(path)), relative(dirname(path), path));
   }
+}
+
+async function requireTimingOutsideCoverage(timingDirectory, evidenceDirectory, root) {
+  const directory = await realDirectoryAncestor(timingDirectory);
+  rejectCoverageTiming(directory,
+    evidenceDirectory === undefined ? undefined : await realDirectoryAncestor(evidenceDirectory),
+    await realDirectoryAncestor(resolvePath(root, ".coverage-evidence")));
+  return directory;
 }
 
 export function parseTestShardArguments(arguments_) {
@@ -108,9 +117,7 @@ async function main() {
 
 export async function runTestShardTests(tests, { runOptions = {}, timingDirectory, evidenceDirectory } = {}, root = repositoryRoot) {
   if (timingDirectory !== undefined) {
-    rejectCoverageTiming(await realDirectoryAncestor(timingDirectory),
-      evidenceDirectory === undefined ? undefined : await realDirectoryAncestor(evidenceDirectory),
-      await realDirectoryAncestor(resolvePath(root, ".coverage-evidence")));
+    await requireTimingOutsideCoverage(timingDirectory, evidenceDirectory, root);
   }
   const records = [];
   const options = timingDirectory === undefined ? runOptions : {
@@ -125,9 +132,24 @@ export async function runTestShardTests(tests, { runOptions = {}, timingDirector
   const exitCode = mandatoryExit ?? await spawnTestShard(tests, runOptions, timingDirectory, records, root);
   if (timingDirectory !== undefined) {
     try {
-      await mkdir(timingDirectory, { recursive: true });
-      await writeFile(resolvePath(timingDirectory, "events.jsonl"),
-        records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+      // Tests and async setup may have replaced a previously qualified directory.
+      const prospectiveDirectory = await requireTimingOutsideCoverage(timingDirectory, evidenceDirectory, root);
+      await mkdir(prospectiveDirectory, { recursive: true });
+      const directory = await realpath(prospectiveDirectory);
+      await requireTimingOutsideCoverage(directory, evidenceDirectory, root);
+      // A new inode prevents existing leaf hardlinks or symlinks from being truncated.
+      const temporaryPath = resolvePath(directory, `.events-${randomUUID()}.tmp`);
+      const file = await open(temporaryPath, "wx");
+      try {
+        try {
+          await file.writeFile(records.map((record) => JSON.stringify(record)).join("\n") + "\n");
+        } finally {
+          await file.close();
+        }
+        await rename(temporaryPath, resolvePath(directory, "events.jsonl"));
+      } finally {
+        await rm(temporaryPath, { force: true });
+      }
     } catch (error) {
       process.stderr.write(`Test timing is advisory: ${String(error)}\n`);
     }

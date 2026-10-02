@@ -287,9 +287,10 @@ await runTestShardTests([], { timingDirectory: ${JSON.stringify(join(alias, "tim
 test("CI retains registry and package obligations and isolated advisory timing uploads", async () => {
   const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
   assert.deepEqual(ci.jobs["linux-registry"].steps.filter((step) => step.run).map((step) => step.run),
-    ["pnpm install --frozen-lockfile", "pnpm build", "node scripts/prepare-package.mjs", "pnpm registry-install-e2e:built"]);
+    ["pnpm install --frozen-lockfile", "pnpm registry-install-e2e"]);
   assert.ok(ci.jobs["linux-package"].steps.some((step) => step.run === "pnpm package:check:built"));
   const scripts = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")).scripts;
+  assert.equal(scripts["registry-install-e2e"], "pnpm package:check && pnpm registry-install-e2e:built");
   assert.equal(scripts["package:check:built"], "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs");
   const paths = new Set();
   for (const jobId of ["linux-test-1", "linux-test-2", "linux-test-3", "linux-test-4", "windows-test-a", "windows-test-b", "windows-test-c"]) {

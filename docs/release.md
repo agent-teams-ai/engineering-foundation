@@ -270,6 +270,10 @@ test "$(gh api "repos/$repo/pulls/$staging_pr" --jq '.head.sha')" = "$(jq -r '.h
 gh pr close "$staging_pr" --repo "$repo" # retain the generated branch
 gh pr create --repo "$repo" --base main --head changeset-release/main \
   --title "$(jq -r '.title' release-staging.json)" --body-file release-body.md
+# Rerun only while the processed run still matches main. Otherwise use the
+# next push-triggered Release run to regenerate and bind current inputs.
+test "$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')" = \
+  "$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha')"
 gh run rerun "$release_run" --repo "$repo" --failed
 ```
 

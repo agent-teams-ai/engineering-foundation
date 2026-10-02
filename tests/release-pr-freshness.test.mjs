@@ -459,11 +459,12 @@ test("release identity rejects staging bots and binds both raw Git identities", 
       ["GitHub", "noreply@github.com", "iliya", "iliyazelenkog@gmail.com"],
       ["iliya", "iliyazelenkog@gmail.com", "GitHub", "noreply@github.com"],
     ]) {
-      await execFileAsync("git", ["commit", "--amend", "--no-edit", "--reset-author"], {
-        cwd: root, env: { ...process.env, GIT_AUTHOR_NAME: authorName,
-          GIT_AUTHOR_EMAIL: authorEmail, GIT_COMMITTER_NAME: committerName,
+      await execFileAsync("git", ["commit", "--amend", "--no-edit", `--author=${authorName} <${authorEmail}>`], {
+        cwd: root, env: { ...process.env, GIT_COMMITTER_NAME: committerName,
           GIT_COMMITTER_EMAIL: committerEmail },
       });
+      assert.equal(await git(root, "show", "--no-patch", "--format=%an <%ae>|%cn <%ce>", "HEAD"),
+        `${authorName} <${authorEmail}>|${committerName} <${committerEmail}>`);
       const result = await releasePullRequestFreshnessViolations({ ...evidence,
         pullRequest: { ...evidence.pullRequest, headSha: await git(root, "rev-parse", "HEAD") } }, { cwd: root });
       assert.equal(result.length, 1);

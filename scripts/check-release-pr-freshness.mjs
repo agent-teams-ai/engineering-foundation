@@ -73,6 +73,8 @@ function normalizePullRequest(pullRequest) {
     baseRef: pullRequestField(pullRequest, "baseRef", "base", "ref"),
     baseSha: pullRequestField(pullRequest, "baseSha", "base", "sha"),
     body: pullRequest?.body,
+    authorLogin: pullRequest?.user?.login,
+    authorType: pullRequest?.user?.type,
   };
   const { number, ...textFields } = normalized;
   for (const [name, value] of Object.entries(textFields)) {
@@ -272,6 +274,9 @@ function pullRequestShapeViolations(
   { currentMainSha, processedMainSha, baseSha },
 ) {
   const violations = [];
+  if (pullRequest.authorType !== "User" || pullRequest.authorLogin.toLowerCase() !== "777genius") {
+    violations.push("release pull request must be authored by the repository owner @777genius; automation staging PRs cannot be attested");
+  }
   if (pullRequest.state !== "open") {
     violations.push("release pull request must be open");
   }
@@ -459,6 +464,12 @@ export async function releasePullRequestFreshnessViolations(
   const [, ...parents] = parentLine.trim().split(/\s+/u);
   if (parents.length !== 1 || parents[0] !== processedMainSha) {
     violations.push("release head must have exactly the processed main revision as its parent");
+  }
+  const { stdout: identity } = await git(cwd, [
+    "show", "--no-patch", "--format=%an <%ae>%n%cn <%ce>", headSha,
+  ]);
+  if (identity.trimEnd() !== "iliya <iliyazelenkog@gmail.com>\niliya <iliyazelenkog@gmail.com>") {
+    violations.push("release commit author and committer must both be exactly iliya <iliyazelenkog@gmail.com>");
   }
 
   const [basePrerelease, headPrerelease] = await Promise.all([

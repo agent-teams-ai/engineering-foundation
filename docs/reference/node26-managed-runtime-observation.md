@@ -97,6 +97,14 @@ unintroduced here, not deleted to green P2a. P2b owns durable root exclusion,
 disposable install/store, strict engine/peer enforcement and late-sibling repairs.
 No P2b enforcement or installation qualification follows from this checkpoint.
 
+Repository test selection assigns the two private observation/process suites to
+Linux only, through the finite policy in `scripts/check-test-manifests.mjs`.
+They remain in the complete 275-file inventory and Linux coverage. Windows and
+Darwin retain every portable suite, including actual unsupported-platform refusal
+in `managed-portable-profile.test.mjs`; refusal does not qualify Linux effects.
+Linux shard 4 provisions the public pinned tools using the existing Actions setup
+and `scripts/provision-managed-test-tools.mjs`, with Node 24 restored as default
+before provisioning and testing.
 Tests require actual supplied tools through `MANAGED_TEST_TOOLS_ROOT` and fresh
 TEST roots through `MANAGED_TEST_ROOT`. Synthetic packages exercise rejecting
 or process-mechanics cases; real positive observations use actual pnpm. UID-0

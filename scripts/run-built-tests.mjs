@@ -3,7 +3,7 @@ import { constants as osConstants } from "node:os";
 import { resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
+import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } from "./check-test-manifests.mjs";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
 export function builtTestArguments(manifest) {
@@ -15,9 +15,10 @@ export function builtTestArguments(manifest) {
 
 export async function runBuiltTests({ spawnChild = spawn } = {}) {
   const manifest = await validateTestManifests();
-  const mandatoryExit = await maybeRunMandatoryNodeTests(manifest.tests);
+  const tests = selectTestPathsForPlatform(manifest, manifest.tests);
+  const mandatoryExit = await maybeRunMandatoryNodeTests(tests);
   if (mandatoryExit !== null) { return mandatoryExit; }
-  const child = spawnChild(process.execPath, builtTestArguments(manifest), {
+  const child = spawnChild(process.execPath, builtTestArguments({ tests }), {
     cwd: repositoryRoot,
     stdio: "inherit",
   });

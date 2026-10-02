@@ -14,6 +14,40 @@ const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
 const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.mjs$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
+// Repository qualification policy for the two feature-private linux/x64 suites.
+// Support authority: docs/reference/node26-managed-runtime-observation.md.
+// This finite selection does not change the global inventory or mandatory contract.
+const linuxManagedTests = Object.freeze([
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
+]);
+
+export function validateManagedTestPlatforms(manifest) {
+  const actual = manifest.tests.filter((path) =>
+    path.startsWith("packages/docs-protocol-agent-teams/tests/managed-runtime-")).toSorted();
+  if (actual.join("\0") !== linuxManagedTests.join("\0")) {
+    fail("managed runtime suite inventory requires an explicit platform policy review");
+  }
+}
+
+export function selectTestPathsForPlatform(manifest, files, platform = process.platform) {
+  validateManagedTestPlatforms(manifest);
+  if (!["linux", "win32", "darwin"].includes(platform)) {
+    fail(`unsupported test platform: ${platform}`);
+  }
+  if (files.length === 0 || new Set(files).size !== files.length ||
+      files.some((path) => !manifest.tests.includes(path))) {
+    fail("platform selection requires unique inventoried test paths");
+  }
+  const selected = files.filter((path) => platform === "linux" || !linuxManagedTests.includes(path));
+  if (selected.length === 0) {
+    fail("platform selection cannot dispatch an empty qualification");
+  }
+  const routed = files.filter((path) => !selected.includes(path));
+  process.stdout.write(`Test platform ${platform}: inventory=${manifest.testCount}, requested=${files.length}, selected=${selected.length}; Linux qualification only=[${routed.join(", ")}]\n`);
+  return Object.freeze(selected);
+}
+
 function validTestRelativePath(path) {
   const segments = path.split("/");
   if (segments.length === 1) { return portableTestFilename.test(path); }
@@ -290,6 +324,9 @@ export function validateMandatoryShardSelection(contract, manifest) {
   const { required } = validateNodeTestContract(contract);
   const shardByFile = new Map([...manifest.shards].flatMap(([id, files]) => files.map((file) => [file, id])));
   for (const item of required.values()) {
+    if (linuxManagedTests.includes(item.file)) {
+      fail(`mandatory identity needs a reviewed platform contract: ${item.file}`);
+    }
     if (!shardByFile.has(item.file)) {
       fail(`mandatory identity file is not selected by a required shard: ${item.file}`);
     }
@@ -345,6 +382,7 @@ export async function validateTestManifests() {
     packages: PUBLISHABLE_PACKAGES,
   });
   validateMandatoryShardSelection(await readJson(mandatoryContractPath), result);
+  validateManagedTestPlatforms(result);
   return result;
 }
 

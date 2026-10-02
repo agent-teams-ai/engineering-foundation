@@ -75,13 +75,14 @@ function sameMetadata(a: import("node:fs").BigIntStats, b: import("node:fs").Big
   return JSON.stringify(metadata(a)) === JSON.stringify(metadata(b));
 }
 export async function hashRuntimeFile(path: string, maxBytes: number, executable: boolean): Promise<RuntimeFileIdentity> {
-  const beforePath = await lstat(path, { bigint: true });
-  if (!beforePath.isFile() || beforePath.nlink !== 1n || beforePath.size > BigInt(maxBytes) ||
-      (executable && (beforePath.mode & 0o111n) === 0n)) {throw new Error("unsafe-runtime-file");}
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  // The opened descriptor is the authority. Nonblocking open also bounds a FIFO substitution.
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || !sameMetadata(before, beforePath)) {throw new Error("runtime-file-changed");}
+    if (!before.isFile() || before.nlink !== 1n || before.size > BigInt(maxBytes) ||
+        (executable && (before.mode & 0o111n) === 0n)) {throw new Error("unsafe-runtime-file");}
+    const beforePath = await lstat(path, { bigint: true });
+    if (beforePath.nlink !== 1n || !sameMetadata(before, beforePath)) {throw new Error("runtime-file-changed");}
     const hash = createHash("sha256");
     const buffer = Buffer.allocUnsafe(64 * 1024);
     let offset = 0;
@@ -93,7 +94,8 @@ export async function hashRuntimeFile(path: string, maxBytes: number, executable
     }
     const after = await handle.stat({ bigint: true });
     const afterPath = await lstat(path, { bigint: true });
-    if (!sameMetadata(before, after) || !sameMetadata(before, afterPath)) {throw new Error("runtime-file-changed");}
+    if (after.nlink !== 1n || afterPath.nlink !== 1n ||
+        !sameMetadata(before, after) || !sameMetadata(before, afterPath)) {throw new Error("runtime-file-changed");}
     return { realpath: path, sha256: hash.digest("hex"), ...metadata(before) };
   } finally { await handle.close(); }
 }
@@ -106,13 +108,12 @@ async function pnpmTree(root: string): Promise<{ digest: string; witness: string
   let manifest: RuntimeFileIdentity | undefined, entry: RuntimeFileIdentity | undefined;
   async function visit(dir: string, depth: number): Promise<void> {
     if (depth > 32) {throw new Error("runtime-tree-depth");}
-    for (const name of (await readdir(dir)).toSorted()) {
-      const path = join(dir, name);
+    for (const item of (await readdir(dir, { withFileTypes: true })).toSorted((a, b) => a.name.localeCompare(b.name, "en"))) {
+      const path = join(dir, item.name);
       const rel = relative(root, path).split(sep).join("/");
       if (!rel || rel.startsWith("../") || rel.includes("\0")) {throw new Error("runtime-tree-path");}
-      const stat = await lstat(path, { bigint: true });
-      if (stat.isDirectory()) { await visit(path, depth + 1); continue; }
-      if (!stat.isFile() || stat.nlink !== 1n || ++total > 10_000) {throw new Error("unsafe-runtime-tree");}
+      if (item.isDirectory()) { await visit(path, depth + 1); continue; }
+      if (!item.isFile() || ++total > 10_000) {throw new Error("unsafe-runtime-tree");}
       const file = await hashRuntimeFile(path, 128 * 1024 * 1024, false);
       totalBytes += file.byteLength;
       if (totalBytes > 128 * 1024 * 1024) {throw new Error("runtime-tree-too-large");}
@@ -129,13 +130,33 @@ async function pnpmTree(root: string): Promise<{ digest: string; witness: string
   return { digest: digest(`agent-teams.managed-pnpm-tree/v1\n${JSON.stringify(records)}`),
     witness: digest(JSON.stringify(witnesses)), manifest, entry };
 }
+async function readManifestBytes(rootPath: string, manifest: RuntimeFileIdentity): Promise<Buffer> {
+  const path = join(rootPath, "package.json");
+  const manifestHandle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  let manifestBytes: Buffer;
+  try {
+    const before = await manifestHandle.stat({ bigint: true });
+    if (!before.isFile() || before.nlink !== 1n || before.size > 1024n * 1024n ||
+        Object.entries(metadata(before)).some(([key, value]) => manifest[key as keyof RuntimeFileIdentity] !== value))
+      {throw new Error("runtime-manifest-changed");}
+    manifestBytes = Buffer.alloc(Number(before.size));
+    let offset = 0;
+    while (offset < manifestBytes.length) {
+      const { bytesRead } = await manifestHandle.read(manifestBytes, offset, manifestBytes.length - offset, offset);
+      if (bytesRead === 0) {throw new Error("runtime-file-short-read");}
+      offset += bytesRead;
+    }
+    const after = await manifestHandle.stat({ bigint: true });
+    const afterPath = await lstat(path, { bigint: true });
+    if (after.nlink !== 1n || afterPath.nlink !== 1n ||
+        !sameMetadata(before, after) || !sameMetadata(before, afterPath)) {throw new Error("runtime-manifest-changed");}
+  } finally { await manifestHandle.close(); }
+  return manifestBytes;
+}
 async function verifyPackageManifest(selection: TrustedRuntimeSelection, rootPath: string,
   manifest: RuntimeFileIdentity): Promise<void> {
   if (manifest.byteLength > 1024 * 1024) {throw new Error("runtime-manifest-too-large");}
-  const manifestHandle = await open(join(rootPath, "package.json"), constants.O_RDONLY | constants.O_NOFOLLOW);
-  let manifestBytes: Buffer;
-  try { manifestBytes = await manifestHandle.readFile(); } finally { await manifestHandle.close(); }
-  if (manifestBytes.length > 1024 * 1024) {throw new Error("runtime-manifest-too-large");}
+  const manifestBytes = await readManifestBytes(rootPath, manifest);
   if (digest(manifestBytes) !== manifest.sha256) {throw new Error("runtime-manifest-changed");}
   const parsed: unknown = parseStrictJson(new TextDecoder("utf-8", { fatal: true }).decode(manifestBytes));
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {throw new Error("runtime-manifest-invalid");}

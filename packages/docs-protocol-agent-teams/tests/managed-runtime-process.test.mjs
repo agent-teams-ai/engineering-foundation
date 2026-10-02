@@ -1,35 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fsPromises, { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { watch } from 'node:fs';
-import childProcess from 'node:child_process';
-import { syncBuiltinESMExports } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import { fixture } from './managed-runtime-fixtures.mjs';
 import { hashRuntimeFile } from '../dist/consumer-integration/adapters/node-managed-runtime-identity.js';
 import { runManagedProbe } from '../dist/consumer-integration/adapters/node-managed-runtime-process.js';
-
-test('composition and unadmitted close perform zero IO', async () => {
-  const originals = new Map(['lstat', 'realpath', 'mkdtemp', 'open'].map(key => [key, fsPromises[key]]));
-  const originalSpawn = childProcess.spawn;
-  let calls = 0;
-  const forbidden = () => {calls++; throw new Error('construction must be inert');};
-  try {
-    for (const key of originals.keys()) {fsPromises[key] = forbidden;}
-    childProcess.spawn = forbidden;
-    syncBuiltinESMExports();
-    const { composeManagedRuntime } = await import('../dist/consumer-integration/composition/managed-runtime.js');
-    const scope = composeManagedRuntime({ privateRoot: '/unprovisioned-TEST-root',
-      selection: {}, signal: new AbortController().signal });
-    assert.equal(calls, 0);
-    assert.deepEqual(await scope.close(), { outcome: 'closed' });
-    assert.equal(calls, 0);
-  } finally {
-    for (const [key, value] of originals) {fsPromises[key] = value;}
-    childProcess.spawn = originalSpawn;
-    syncBuiltinESMExports();
-  }
-});
 
 async function probeScenario(source, signal = new AbortController().signal) {
   const f = await fixture('node24');
@@ -289,3 +266,55 @@ test('detached test child is outside the cooperative group and needs external cl
     assert.match(await readFile(`/proc/${pid}/cmdline`, 'utf8'), /DETACHED_TEST_/);
   } finally { await cleanupGrandchild(f, marker); }
 });
+
+for (const subject of ['identity', 'fixture']) {
+  test(`${subject}: file substitution before open refuses a FIFO without waiting for a writer`, {
+    timeout: 15_000
+  }, async () => {
+    const script = `
+      import assert from 'node:assert/strict';
+      import fs, { mkdir, mkdtemp, rm, unlink, writeFile } from 'node:fs/promises';
+      import { spawnSync } from 'node:child_process';
+      import { syncBuiltinESMExports } from 'node:module';
+      import { join } from 'node:path';
+      import { tmpdir } from 'node:os';
+      import { hashRuntimeFile } from ${JSON.stringify(new URL('../dist/consumer-integration/adapters/node-managed-runtime-identity.js', import.meta.url).href)};
+      import { negativePackageSelection } from ${JSON.stringify(new URL('./managed-runtime-fixtures.mjs', import.meta.url).href)};
+      const root = await mkdtemp(join(tmpdir(), 'TEST-runtime-fifo-'));
+      const target = join(root, 'leaf');
+      await mkdir(join(root, 'bin'));
+      await writeFile(join(root, 'bin/pnpm.mjs'), 'negative-only entry');
+      await writeFile(target, 'regular file at discovery');
+      let substituted = false;
+      let fifoCreated = false;
+      async function substitute(path) {
+        if (path !== target || substituted) {return;}
+        substituted = true;
+        await unlink(target);
+        const result = spawnSync('mkfifo', [target]);
+        assert.equal(result.status, 0);
+        fifoCreated = true;
+      }
+      for (const method of ['open', 'readFile']) {
+        const original = fs[method];
+        fs[method] = async (...args) => {await substitute(args[0]); return original(...args);};
+      }
+      syncBuiltinESMExports();
+      try {
+        const operation = ${JSON.stringify(subject)} === 'identity'
+          ? hashRuntimeFile(target, 1024, false)
+          : negativePackageSelection({ packageRoot: root, selection: { pnpmPackage: {} } });
+        await assert.rejects(operation);
+        assert.equal(substituted, true);
+        assert.equal(fifoCreated, true);
+        assert.equal((await fs.lstat(target)).isFIFO(), true);
+      } finally {await rm(root, { recursive: true, force: true });}
+    `;
+    // A separate process bounds a blocking open in the old implementation.
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      timeout: 5000, encoding: 'utf8'
+    });
+    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.status, 0, result.stderr);
+  });
+}

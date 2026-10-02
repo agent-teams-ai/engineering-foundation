@@ -259,10 +259,16 @@ jobs:
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "26.10.0" }
+      - name: Retain pinned Node 26 test source
+        run: node --input-type=module -e "import { appendFileSync } from 'node:fs'; appendFileSync(process.env.GITHUB_ENV, 'MANAGED_TEST_NODE26_SOURCE=' + process.execPath + '\n');"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
+      - name: Qualify public pinned managed runtime test tools
+        run: node scripts/provision-managed-test-tools.mjs
       - name: Run isolated test shard
         run: pnpm test:shard:built -- --shards 4 --coverage-evidence-dir .coverage-evidence/shard-4 --head-sha "${{ github.sha }}"
       - name: Upload raw coverage evidence
@@ -466,7 +472,8 @@ jobs:
       - run: pnpm build
       # Keep shards 1 and 4 together. The larger 2+3 lane is split below after
       # two exact-head runs hit its 65-minute timeout with tests still passing.
-      - run: pnpm test:shard:built -- --shards 1,4
+      - name: Qualify Windows portable shards and managed runtime refusal
+        run: pnpm test:shard:built -- --shards 1,4
 
   windows-test-b:
     name: windows-test-b

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { cp, copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm } from 'node:fs/promises';
 import { resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,15 +13,18 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 async function tree(root) {
   const records = [];
   async function visit(dir) {
-    for (const name of (await readdir(dir)).toSorted()) {
-      const path = join(dir, name);
-      const info = await stat(path);
-      if (info.isDirectory()) {await visit(path);}
-      else {
-        if (!info.isFile()) {throw new Error('fixture package contains non-file');}
+    for (const item of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, item.name);
+      if (item.isDirectory()) {await visit(path); continue;}
+      const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+      try {
+        const info = await handle.stat();
+        if (!info.isFile() || info.nlink !== 1) {throw new Error('fixture package contains non-file or link');}
+        const bytes = await handle.readFile();
+        if (bytes.length !== info.size) {throw new Error('fixture package changed while reading');}
         records.push([relative(root, path).replaceAll('\\', '/'), info.mode,
-          info.size, sha(await readFile(path))]);
-      }
+          bytes.length, sha(bytes)]);
+      } finally {await handle.close();}
     }
   }
   await visit(root);

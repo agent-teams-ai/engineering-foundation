@@ -12,6 +12,8 @@ import {
   validateTestManifests,
 } from "../scripts/check-test-manifests.mjs";
 import { builtTestArguments } from "../scripts/run-built-tests.mjs";
+import * as manifestTools from "../scripts/check-test-manifests.mjs";
+import { selectTestShardPaths } from "../scripts/run-test-shard.mjs";
 
 const examplePackages = Object.freeze([
   Object.freeze({ root: "packages/example" }),
@@ -242,4 +244,59 @@ test("test manifests reject numeric shard ids", () => {
     id: Number(shard.id),
   }));
   assert.throws(() => validateTestManifestData(data), /id must be a string/u);
+});
+
+
+test("managed platform routing preserves complete Linux qualification and every portable identity", async () => {
+  const manifest = await validateTestManifests();
+  const linuxOnly = [
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
+  ];
+  const ids = ["1", "2", "3", "4"];
+  const globalInventory = [...manifest.tests];
+  const requiredShardFiles = [...manifest.shards.values()].flat();
+  assert.equal(manifest.testCount, 275);
+  assert.deepEqual(selectTestShardPaths(manifest, ids, true, "linux").toSorted(), globalInventory.toSorted());
+  assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux"), requiredShardFiles);
+  for (const platform of ["win32", "darwin"]) {
+    const selected = selectTestShardPaths(manifest, ids, false, platform);
+    assert.deepEqual(selected, requiredShardFiles.filter((path) => !linuxOnly.includes(path)));
+    assert.equal(selected.length, requiredShardFiles.length - 2);
+    assert.ok(selected.includes("packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"));
+    assert.throws(() => selectTestShardPaths(manifest, ids, true, platform), /complete Linux selection/u);
+    const built = manifestTools.selectTestPathsForPlatform(manifest, manifest.tests, platform);
+    assert.deepEqual(built, globalInventory.filter((path) => !linuxOnly.includes(path)));
+    assert.equal(built.length, 273);
+    const contract = JSON.parse(await readFile(join(repositoryRoot,
+      "architecture/foundation/node-test-execution.json"), "utf8"));
+    for (const identity of contract.required) {
+      assert.ok(selected.includes(identity.file), JSON.stringify(identity));
+    }
+  }
+  assert.deepEqual(manifest.tests, globalInventory);
+});
+
+test("managed platform policy rejects inventory drift, empty dispatch and mandatory authority loss", async () => {
+  const manifest = await validateTestManifests();
+  const linuxFile = "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs";
+  for (const tests of [
+    manifest.tests.filter((path) => path !== linuxFile),
+    [...manifest.tests, "packages/docs-protocol-agent-teams/tests/managed-runtime-extra.test.mjs"],
+    manifest.tests.map((path) => path === linuxFile ? `${path}.renamed` : path),
+  ]) {
+    assert.throws(() => manifestTools.validateManagedTestPlatforms({ ...manifest, tests }), /platform policy review/u);
+  }
+  for (const [files, platform, message] of [
+    [[linuxFile], "win32", /empty qualification/u],
+    [[linuxFile, linuxFile], "linux", /unique inventoried/u],
+    [["tests/uninventoried.test.mjs"], "linux", /unique inventoried/u],
+    [[linuxFile], "freebsd", /unsupported test platform/u],
+  ]) {
+    assert.throws(() => manifestTools.selectTestPathsForPlatform(manifest, files, platform), message);
+  }
+  const contract = JSON.parse(await readFile(join(repositoryRoot,
+    "architecture/foundation/node-test-execution.json"), "utf8"));
+  contract.required.push({ file: linuxFile, names: ["new mandatory runtime identity"], kind: "test" });
+  assert.throws(() => validateMandatoryShardSelection(contract, manifest), /reviewed platform contract/u);
 });

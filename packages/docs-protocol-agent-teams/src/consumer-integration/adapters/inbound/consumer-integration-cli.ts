@@ -69,8 +69,12 @@ function failure(command: string, error: unknown): ConsumerExecution {
     : "DOCS_CONSUMER_EXECUTION_FAILURE";
   const rawMessage = error instanceof Error ? error.message : "Consumer integration failed.";
   let safeMessage = "";
-  for (const character of rawMessage
-    .replace(/(?:[A-Za-z]:\\|\/(?:Users|home|tmp|private|var|Volumes)\/)[^\s'"`]+/gu, "<local-path>")) {
+  // Temporary and store paths can use any mount root, including siblings of TMPDIR.
+  // Consume complete HTTP(S) URLs before path alternatives, including query values.
+  for (const character of rawMessage.replace(
+    /https?:\/\/[^\s'"`]+|(?:[A-Za-z]:\\|\/(?:Users|home|tmp|private|var|Volumes)\/)[^\s'"`]+|(^|[\s('"`=])\/[^\s'"`]+/giu,
+    (token, prefix: string | undefined) => /^https?:\/\//iu.test(token) ? token : `${prefix ?? ""}<local-path>`
+  )) {
     const codePoint = character.codePointAt(0) ?? 0;
     safeMessage += (codePoint < 32 && ![9, 10, 13].includes(codePoint)) || codePoint === 127
       ? "?"

@@ -39,7 +39,28 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
   const adapterRoot = "packages/docs-protocol-agent-teams/src/consumer-integration/adapters";
   assert.deepEqual(adapterBoundary, {
     id: "docs-protocol-agent-teams.adapters",
-    roots: [adapterRoot],
+    roots: [
+      "agents-route-adapter-v1.ts", "bounded-repository-topology.ts",
+      "cohort-v2-authority-validator.ts", "consumer-integration-node-error.ts",
+      "consumer-integration-schema-validator.ts", "consumer-upgrade-file-projectors.ts",
+      "foundation-known-file-transaction.ts", "github-cohort-authority-reader.ts",
+      "managed-qualification-input.ts", "node-consumer-clock.ts",
+      "node-consumer-environment.ts", "node-consumer-integration-repository.ts",
+      "node-consumer-repository-files.ts", "node-consumer-restoration-evidence.ts",
+      "node-consumer-restoration-finalization.ts", "node-consumer-restoration-lock.ts",
+      "node-consumer-restoration-scope.ts", "node-consumer-restoration-selection.ts",
+      "node-consumer-restoration.ts", "node-consumer-target-lockfile.ts",
+      "node-consumer-upgrade-archive.ts", "node-consumer-upgrade-sandbox.ts",
+      "node-consumer-upgrade-source-proof.ts", "node-consumer-upgrade-target.ts",
+      "node-managed-runtime-identity.ts", "node-managed-runtime-process.ts",
+      "node-managed-runtime.ts", "package-consumer-asset-catalog.ts",
+      "pnpm-lockfile-policy-v1.ts", "pnpm-lockfile-validator-v1.ts",
+      "pnpm-lockfile-validator-v2.ts", "pnpm-manifest-adapter-v1.ts",
+      "pnpm-manifest-adapter-v2.ts", "pnpm-manifest-planner.ts",
+      "pnpm-runtime-closure-v1.ts", "pnpm-runtime-closure-v2.ts",
+      "strict-json-record.ts", "unselected-cohort-v3-loader.ts",
+      "unselected-managed-profile-v4-loader.ts", "inbound",
+    ].map((name) => `${adapterRoot}/${name}`),
     allow: {
       boundaries: [
         "docs-protocol-agent-teams.application",
@@ -58,6 +79,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
         "node:fs/promises",
         "node:os",
         "node:path",
+        "node:stream",
+        "node:timers/promises",
         "node:url",
       ],
       runtimeReferences: [],
@@ -75,7 +98,22 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       "pnpm-manifest-adapter-v1.ts", "pnpm-manifest-adapter-v2.ts",
       "pnpm-manifest-planner.ts", "pnpm-runtime-closure-v1.ts",
       "pnpm-runtime-closure-v2.ts",
+      "node-managed-runtime.ts", "node-managed-runtime-identity.ts",
+      "node-managed-runtime-process.ts",
     ].map((name) => `${adapterRoot}/${name}`),
+  });
+  assert.deepEqual(policy.boundaries.find(
+    ({ id }) => id === "docs-protocol-agent-teams.managed-runtime-probe",
+  ), {
+    id: "docs-protocol-agent-teams.managed-runtime-probe",
+    roots: [`${adapterRoot}/managed-runtime-probe.ts`],
+    allow: {
+      boundaries: [],
+      packages: [],
+      builtins: ["node:fs"],
+      runtimeReferences: ["dynamic"],
+    },
+    entrypoints: [],
   });
 
   const applicationSources = await sourceFiles(join(

@@ -34,6 +34,7 @@ not repeat their rules.
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
 | Node compatibility | [Node 24 default and Node 26 lane](development/node-26-compatibility.md) | Implemented compatibility policy; Node 24 remains production/default |
+| Managed runtime observation | [Private Node/pnpm observation](reference/node26-managed-runtime-observation.md) | Unselected P2a source; installation and qualification remain separate |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Hardening migration preparation | [Seven-consumer migration packets](development/docs-new-package-migration.md) | Draft; exact artifacts, recovery and consumer qualification pending |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |

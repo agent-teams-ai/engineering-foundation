@@ -390,6 +390,14 @@
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
             {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-cohort-v3-loader.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
@@ -871,6 +879,8 @@
             "packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",

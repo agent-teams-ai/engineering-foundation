@@ -37,6 +37,7 @@
     "2": [
       "packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs",
@@ -78,6 +79,7 @@
     "packages/repository-mutation/tests/mutation-lease.test.mjs",
     "packages/document-authoring/tests/package-boundary.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
+    "packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs",
     "packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs",

@@ -523,10 +523,6 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
         temporaryRoot,
         "packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/new-use-case.ts",
       ),
-      adapter: join(
-        temporaryRoot,
-        "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
-      ),
       domain: join(
         temporaryRoot,
         "packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts",
@@ -536,10 +532,16 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
         "packages/docs-protocol-agent-teams/src/consumer-integration/generated",
       ),
     };
+    const adapterRoots = fixturePolicy.boundaries.find(
+      ({ id }) => id === "docs-protocol-agent-teams.adapters",
+    ).roots;
     await Promise.all([
       mkdir(join(temporaryRoot, "architecture/foundation"), { recursive: true }),
       mkdir(dirname(paths.application), { recursive: true }),
-      mkdir(dirname(paths.adapter), { recursive: true }),
+      ...adapterRoots.map((root) => mkdir(join(
+        temporaryRoot,
+        root.endsWith(".ts") ? dirname(root) : root,
+      ), { recursive: true })),
       mkdir(dirname(paths.domain), { recursive: true }),
       mkdir(paths.generated, { recursive: true }),
     ]);
@@ -562,7 +564,9 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
         join(temporaryRoot, "architecture/foundation/source-dependencies.yaml"),
         stringifyYaml(fixturePolicy, { lineWidth: 0 }),
       ),
-      writeFile(paths.adapter, "export const nodeAdapter = true;\n"),
+      ...adapterRoots.filter((root) => root.endsWith(".ts")).map((root) => writeFile(
+        join(temporaryRoot, root), "export const nodeAdapter = true;\n",
+      )),
       writeFile(paths.applicationApi, "export type { DomainMarker } from './domain/model.js';\n"),
       writeFile(paths.domain, "export interface DomainMarker { readonly id: string; }\n"),
       writeFile(

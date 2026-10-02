@@ -271,8 +271,12 @@ gh api "repos/$repo/commits/$generated_head" --jq '{sha, author: .commit.author,
 test "$(gh api "repos/$repo/git/ref/heads/changeset-release/main" --jq '.object.sha')" = "$generated_head"
 gh pr create --repo "$repo" --base main --head changeset-release/main \
   --title 'chore: version packages' --body-file release-body.md
-test "$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')" = \
-  "$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha')"
+# Each read must succeed; an API error must not compare as two empty strings.
+current_main=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') &&
+processed_head=$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha') &&
+printf '%s\n%s\n' "$current_main" "$processed_head" | \
+  awk 'length($0) != 40 || $0 !~ /^[0-9a-f]+$/ { exit 1 } END { if (NR != 2) exit 1 }' &&
+test "$current_main" = "$processed_head" &&
 gh run rerun "$release_run" --repo "$repo" --failed
 ```
 
@@ -301,8 +305,12 @@ gh pr create --repo "$repo" --base main --head changeset-release/main \
   --title "$(jq -r '.title' release-staging.json)" --body-file release-body.md
 # Rerun only while the processed run still matches main. Otherwise use the
 # next push-triggered Release run to regenerate and bind current inputs.
-test "$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha')" = \
-  "$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha')"
+# Each read must succeed; an API error must not compare as two empty strings.
+current_main=$(gh api "repos/$repo/git/ref/heads/main" --jq '.object.sha') &&
+processed_head=$(gh run view "$release_run" --repo "$repo" --json headSha --jq '.headSha') &&
+printf '%s\n%s\n' "$current_main" "$processed_head" | \
+  awk 'length($0) != 40 || $0 !~ /^[0-9a-f]+$/ { exit 1 } END { if (NR != 2) exit 1 }' &&
+test "$current_main" = "$processed_head" &&
 gh run rerun "$release_run" --repo "$repo" --failed
 ```
 
@@ -362,19 +370,10 @@ for any later version fail closed. Multi-package promotion is validation-first
 and replay-safe after a partial process failure: an unchanged already-promoted
 package is skipped, while same-version API drift fails closed.
 
-Automatic Changesets pull requests require the organization setting that permits
-GitHub Actions to create pull requests. The organization allows this capability,
-but it is enabled at repository level only for `engineering-foundation`; other
-repositories keep it disabled unless they acquire an approved release workflow.
-All workflows still receive read-only permissions by default, and the foundation
-release workflow requests only the permissions it needs. Pull requests created
-with `GITHUB_TOKEN` are not guaranteed to emit another workflow event. The
-attester therefore waits briefly for one unique attempt-1 `pull_request` CI run
-bound to the exact repository, PR number, base, head, branch, workflow path, and
-Actions URL. It reuses that run when present instead of launching a duplicate
-full suite; otherwise it explicitly dispatches read-only CI against the generated
-release branch. Pull request and dispatched CI use event-separated concurrency
-groups, so the fallback cannot cancel required PR CheckRuns.
+The organization and Foundation disable GitHub Actions pull-request creation
+and approval. Changesets may push the generated branch and update an existing
+owner PR. When no PR exists, the owner follows the inspected-branch procedure
+above; do not enable Bot PR creation or add an impersonating credential.
 
 GitHub does not attach manually dispatched checks to the pull request's
 required-check rollup. The attester verifies the selected run again while waiting

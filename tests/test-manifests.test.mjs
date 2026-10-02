@@ -257,15 +257,16 @@ test("managed platform routing preserves complete Linux qualification and every 
   const globalInventory = [...manifest.tests];
   const requiredShardFiles = [...manifest.shards.values()].flat();
   assert.equal(manifest.testCount, 275);
-  assert.deepEqual(selectTestShardPaths(manifest, ids, true, "linux").toSorted(), globalInventory.toSorted());
-  assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux"), requiredShardFiles);
-  for (const platform of ["win32", "darwin"]) {
-    const selected = selectTestShardPaths(manifest, ids, false, platform);
+  assert.deepEqual(selectTestShardPaths(manifest, ids, true, "linux", "x64").toSorted(), globalInventory.toSorted());
+  assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux", "x64"), requiredShardFiles);
+  // Linux on another architecture is outside the linux/x64 runtime support contract.
+  for (const [platform, architecture] of [["win32", "x64"], ["darwin", "arm64"], ["linux", "arm64"]]) {
+    const selected = selectTestShardPaths(manifest, ids, false, platform, architecture);
     assert.deepEqual(selected, requiredShardFiles.filter((path) => !linuxOnly.includes(path)));
     assert.equal(selected.length, requiredShardFiles.length - 2);
     assert.ok(selected.includes("packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"));
-    assert.throws(() => selectTestShardPaths(manifest, ids, true, platform), /complete Linux selection/u);
-    const built = manifestTools.selectTestPathsForPlatform(manifest, manifest.tests, platform);
+    assert.throws(() => selectTestShardPaths(manifest, ids, true, platform, architecture), /complete Linux selection/u);
+    const built = manifestTools.selectTestPathsForPlatform(manifest, manifest.tests, platform, architecture);
     assert.deepEqual(built, globalInventory.filter((path) => !linuxOnly.includes(path)));
     assert.equal(built.length, 273);
     const contract = JSON.parse(await readFile(join(repositoryRoot,
@@ -295,6 +296,8 @@ test("managed platform policy rejects inventory drift, empty dispatch and mandat
   ]) {
     assert.throws(() => manifestTools.selectTestPathsForPlatform(manifest, files, platform), message);
   }
+  assert.throws(() => manifestTools.selectTestPathsForPlatform(manifest, [linuxFile], "linux", "arm64"),
+    /empty qualification/u);
   const contract = JSON.parse(await readFile(join(repositoryRoot,
     "architecture/foundation/node-test-execution.json"), "utf8"));
   contract.required.push({ file: linuxFile, names: ["new mandatory runtime identity"], kind: "test" });

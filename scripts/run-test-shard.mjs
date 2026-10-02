@@ -48,12 +48,14 @@ export function parseTestShardArguments(arguments_) {
   return Object.freeze({ evidenceDirectory, headSha, ids });
 }
 
-export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled, platform = process.platform) {
-  if (coverageEvidenceEnabled && platform !== "linux") {
-    throw new Error("Raw coverage qualification requires the complete Linux selection");
+export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled, platform = process.platform,
+  architecture = process.arch) {
+  if (coverageEvidenceEnabled && (platform !== "linux" || architecture !== "x64")) {
+    throw new Error("Raw coverage qualification requires the complete Linux selection on linux/x64");
   }
   const selectedShards = coverageEvidenceEnabled ? manifest.coverageShards : manifest.shards;
-  return selectTestPathsForPlatform(manifest, ids.flatMap((id) => selectedShards.get(id) ?? []), platform);
+  return selectTestPathsForPlatform(manifest, ids.flatMap((id) => selectedShards.get(id) ?? []),
+    platform, architecture);
 }
 
 async function main() {

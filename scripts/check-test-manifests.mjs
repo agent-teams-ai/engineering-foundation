@@ -30,7 +30,8 @@ export function validateManagedTestPlatforms(manifest) {
   }
 }
 
-export function selectTestPathsForPlatform(manifest, files, platform = process.platform) {
+export function selectTestPathsForPlatform(manifest, files, platform = process.platform,
+  architecture = process.arch) {
   validateManagedTestPlatforms(manifest);
   if (!["linux", "win32", "darwin"].includes(platform)) {
     fail(`unsupported test platform: ${platform}`);
@@ -39,12 +40,13 @@ export function selectTestPathsForPlatform(manifest, files, platform = process.p
       files.some((path) => !manifest.tests.includes(path))) {
     fail("platform selection requires unique inventoried test paths");
   }
-  const selected = files.filter((path) => platform === "linux" || !linuxManagedTests.includes(path));
+  const managedHost = platform === "linux" && architecture === "x64";
+  const selected = files.filter((path) => managedHost || !linuxManagedTests.includes(path));
   if (selected.length === 0) {
     fail("platform selection cannot dispatch an empty qualification");
   }
   const routed = files.filter((path) => !selected.includes(path));
-  process.stdout.write(`Test platform ${platform}: inventory=${manifest.testCount}, requested=${files.length}, selected=${selected.length}; Linux qualification only=[${routed.join(", ")}]\n`);
+  process.stdout.write(`Test platform ${platform}/${architecture}: inventory=${manifest.testCount}, requested=${files.length}, selected=${selected.length}; Linux x64 qualification only=[${routed.join(", ")}]\n`);
   return Object.freeze(selected);
 }
 

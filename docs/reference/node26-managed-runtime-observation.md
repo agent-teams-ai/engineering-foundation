@@ -98,10 +98,11 @@ disposable install/store, strict engine/peer enforcement and late-sibling repair
 No P2b enforcement or installation qualification follows from this checkpoint.
 
 Repository test selection assigns the two private observation/process suites to
-Linux only, through the finite policy in `scripts/check-test-manifests.mjs`.
-They remain in the complete 275-file inventory and Linux coverage. Windows and
-Darwin retain every portable suite, including actual unsupported-platform refusal
-in `managed-portable-profile.test.mjs`; refusal does not qualify Linux effects.
+Linux x64 only, through the finite policy in `scripts/check-test-manifests.mjs`.
+They remain in the complete 275-file inventory and Linux x64 coverage. Windows,
+Darwin and other Linux architectures retain every portable suite, including actual
+unsupported-platform refusal in `managed-portable-profile.test.mjs`; refusal does
+not qualify Linux effects.
 Linux shard 4 retains the pinned Nodes from the existing Actions setup and
 restores Node 24 as default before provisioning and testing.
 `scripts/provision-managed-test-tools.mjs` downloads the exact declared JavaScript
@@ -117,9 +118,12 @@ runs explicitly skip denied cleanup; that skip proves no permission guarantee.
 Compiled source must be rebuilt before any gate. Full `pnpm verify` remains
 required before opening a PR; focused and fast evidence does not replace it.
 
-Hash-before/hash-after is not atomic protection against transient same-UID
-swaps. Host must keep provisioned artifacts cooperatively quiescent. Detached
-sessions remain outside cooperative process-group containment. Provisioned
-TEST bytes prove neither vendor authenticity nor central authorization.
+Hash-before/hash-after checks and directory-identity fences are not atomic
+protection against transient same-UID swaps of the selected Node, pnpm tree,
+owned workspace or its parent between a check and the later spawn, working
+directory resolution or recursive removal. Host must keep provisioned artifacts
+and the private root cooperatively quiescent. Detached sessions remain outside
+cooperative process-group containment. Provisioned TEST bytes prove neither
+vendor authenticity nor central authorization.
 Artifact provenance, managed behavioral receipts, canary, release, consumer
 adoption, activation, backup and recovery belong to later checkpoints/owners.

@@ -159,13 +159,13 @@ duplicate, nested, non-portable, or symlinked test entries and malformed
 coverage configuration. Add or rename a test and update the shard manifest in
 the same change. Each shard's `tests` remain in the required inventory;
 repository selection routes only the two private managed-runtime observation/process
-suites to Linux, matching their [linux/x64 support contract](../reference/node26-managed-runtime-observation.md).
+suites to Linux x64, matching their [linux/x64 support contract](../reference/node26-managed-runtime-observation.md).
 `check-test-manifests.mjs` owns this finite two-path policy and rejects missing,
 renamed or additional managed-runtime suites until their platform policy is reviewed.
-Built, shard and legacy coverage runners apply the same selection. They report
-requested/selected counts and exact Linux-only paths; an empty dispatch refuses.
-The global inventory remains 275 files: Linux admits all 275, Windows and Darwin
-admit 273. Required shard counts exclude the unchanged coverage-only additions;
+Built, shard and legacy coverage runners apply the same platform/architecture selection.
+They report requested/selected counts and exact Linux x64-only paths; an empty dispatch refuses.
+The global inventory remains 275 files: Linux x64 admits all 275; Windows, Darwin and
+other Linux architectures admit 273. Required shard counts exclude the unchanged coverage-only additions;
 every portable required file and every declared mandatory identity remains selected.
 The portable managed-profile suite checks unsupported-platform refusal before IO,
 including Linux selections on actual unsupported hosts. The existing inert construction
@@ -173,7 +173,7 @@ and unadmitted-close case lives in that portable suite as well. Such refusal is 
 evidence, never a positive Linux runtime observation. Mandatory adoption of either
 Linux-only file requires a reviewed platform contract; the existing versioned
 mandatory contract and its exact identities remain unchanged.
-Raw coverage selection requires Linux and retains all 275 files across four shards.
+Raw coverage selection requires Linux x64 and retains all 275 files across four shards.
 The coverage manifest's `additionalTestsByShard` extends only the Linux
 raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep

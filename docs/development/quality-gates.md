@@ -123,6 +123,8 @@ Body-duration projections do not prove whole-file duration, startup cost, raw
 coverage overhead, Windows impact, or other OS-specific timings. Final exact-head
 Linux, Windows, and macOS CI must qualify the partition; actual CI and performance
 proof remain with the root controller. Estimates are not measured speedup results.
+Linux shards 3 and 4 have 30-minute job budgets to accommodate the projected
+20- and 17-minute loads plus preparation, coverage and artifact uploads.
 
 All seven Windows static, test, package, registry, and published-version jobs
 set `TEMP` and `TMP` to the trusted runtime `RUNNER_TEMP` value through

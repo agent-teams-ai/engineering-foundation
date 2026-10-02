@@ -374,6 +374,15 @@ The organization and Foundation disable GitHub Actions pull-request creation
 and approval. Changesets may push the generated branch and update an existing
 owner PR. When no PR exists, the owner follows the inspected-branch procedure
 above; do not enable Bot PR creation or add an impersonating credential.
+All workflows still receive read-only permissions by default, and the foundation
+release workflow requests only the permissions it needs. Pull requests created
+with `GITHUB_TOKEN` are not guaranteed to emit another workflow event. The
+attester therefore waits briefly for one unique attempt-1 `pull_request` CI run
+bound to the exact repository, PR number, base, head, branch, workflow path, and
+Actions URL. It reuses that run when present instead of launching a duplicate
+full suite; otherwise it explicitly dispatches read-only CI against the generated
+release branch. Pull request and dispatched CI use event-separated concurrency
+groups, so the fallback cannot cancel required PR CheckRuns.
 
 GitHub does not attach manually dispatched checks to the pull request's
 required-check rollup. The attester verifies the selected run again while waiting

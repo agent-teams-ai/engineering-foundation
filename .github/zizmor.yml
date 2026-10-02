@@ -1,5 +1,7 @@
 rules:
   dangerous-triggers:
     ignore:
+      # Immutable metadata-only caller: no checkout, PR execution or secrets.
+      - commit-author-identity.yml:2
       # ReviewRouter's exact v4 template is the reviewed hosted-review entrypoint.
       - reviewrouter-codex.yml:5

@@ -342,10 +342,10 @@ test("coverage shard arguments enforce one isolated shard and repository contain
   );
 });
 
-test("coverage keeps cross-platform shards complete and adds package evidence", () => {
+test("coverage keeps Linux shards complete and adds package evidence", () => {
   const ids = ["1", "2", "3", "4"];
-  const crossPlatformTests = selectTestShardPaths(testManifest, ids, false);
-  const coverageTests = selectTestShardPaths(testManifest, ids, true);
+  const crossPlatformTests = selectTestShardPaths(testManifest, ids, false, "linux", "x64");
+  const coverageTests = selectTestShardPaths(testManifest, ids, true, "linux", "x64");
   const coverageOnlyCount = Object.values(
     testManifest.coverageConfig.additionalTestsByShard,
   ).flat().length;

@@ -461,13 +461,54 @@ boundaries:
     entrypoints:
       - packages/docs-protocol-agent-teams/src/consumer-integration/application-api.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/managed-runtime-observation.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/managed-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-upgrade.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/upgrade-consumer-integration.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/domain/model.ts
   - id: docs-protocol-agent-teams.adapters
     roots:
-      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/bounded-repository-topology.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v2-authority-validator.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-node-error.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-qualification-input.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-clock.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-environment.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-repository-files.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-evidence.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-finalization.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-lock.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-scope.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration-selection.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-restoration.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-target-lockfile.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-archive.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/package-consumer-asset-catalog.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-policy-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-lockfile-validator-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-adapter-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-planner.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/strict-json-record.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-cohort-v3-loader.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-managed-profile-v4-loader.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/inbound
     allow:
       boundaries:
         - docs-protocol-agent-teams.application
@@ -484,6 +525,8 @@ boundaries:
         - node:fs/promises
         - node:os
         - node:path
+        - node:stream
+        - node:timers/promises
         - node:url
       runtimeReferences: []
     entrypoints:
@@ -508,6 +551,21 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-planner.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts
+  # Only this fixed private bootstrap may import a runtime-selected ESM entry.
+  - id: docs-protocol-agent-teams.managed-runtime-probe
+    roots:
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-runtime-probe.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins:
+        - node:fs
+      runtimeReferences:
+        - dynamic
+    entrypoints: []
   - id: docs-protocol-agent-teams.consumer-integration.composition
     roots:
       - packages/docs-protocol-agent-teams/src/consumer-integration/composition
@@ -604,6 +662,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-execution-schema-fixtures.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-authority-response-streaming.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs
+      - packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs
@@ -613,6 +672,9 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-fixtures.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-reconciliation-authority-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs

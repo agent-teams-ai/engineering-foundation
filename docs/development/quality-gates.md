@@ -135,7 +135,7 @@ Repository protection requires the stable exact-head contexts `CodeQL`,
 hosted-review evidence belongs in pull-request comments; it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 
-`tests/manifests/test-shards.v1.json` owns the cross-platform shards.
+`tests/manifests/test-shards.v1.json` owns the complete shard inventory.
 `architecture/foundation/node-test-execution.json` declares Foundation's
 mandatory Node case identities. Built, shard, coverage, and focused QGR scripts
 fail when the contract is missing or invalid. Selected files with adopted
@@ -157,8 +157,24 @@ identically. Together the manifests are the closed inventory of
 repository and Docs Protocol test files. `pnpm test:manifests:check` rejects missing, extra,
 duplicate, nested, non-portable, or symlinked test entries and malformed
 coverage configuration. Add or rename a test and update the shard manifest in
-the same change. Each shard's `tests` remain the cross-platform required suite;
-the coverage manifest's `additionalTestsByShard` extends only the Linux
+the same change. Each shard's `tests` remain in the required inventory;
+repository selection routes only the two private managed-runtime observation/process
+suites to Linux x64, matching their [linux/x64 support contract](../reference/node26-managed-runtime-observation.md).
+`check-test-manifests.mjs` owns this finite two-path policy and rejects missing,
+renamed or additional managed-runtime suites until their platform policy is reviewed.
+Built, shard and legacy coverage runners apply the same platform/architecture selection.
+They report requested/selected counts and exact Linux x64-only paths; an empty dispatch refuses.
+The global inventory remains 275 files: Linux x64 admits all 275; Windows, Darwin and
+other Linux architectures admit 273. Required shard counts exclude the unchanged coverage-only additions;
+every portable required file and every declared mandatory identity remains selected.
+The portable managed-profile suite checks unsupported-platform refusal before IO,
+including Linux selections on actual unsupported hosts. The existing inert construction
+and unadmitted-close case lives in that portable suite as well. Such refusal is rejecting
+evidence, never a positive Linux runtime observation. Mandatory adoption of either
+Linux-only file requires a reviewed platform contract; the existing versioned
+mandatory contract and its exact identities remain unchanged.
+Raw coverage selection requires Linux x64 and retains all 275 files across four shards.
+The coverage manifest's `additionalTestsByShard` extends only the Linux
 raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep
 `--test-concurrency=1` inside a shard because recovery tests intentionally share

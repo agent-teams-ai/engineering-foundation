@@ -96,6 +96,7 @@ function assertNativeMissing(result, fixture) {
   const message = result.execution.issues[0].message;
   assert.match(message, /ERR_PNPM_NO_OFFLINE_TARBALL/u);
   assert.ok(message.includes(`/@agent-teams/docs-protocol-agent-teams/-/docs-protocol-agent-teams-${fixture.target.packages.docsProtocolAgentTeams.version}.tgz`), message);
+  assert.equal(message.includes(fixture.disposable), false, message);
   assert.doesNotMatch(result.stderr, /real target activation passed/u);
 }
 

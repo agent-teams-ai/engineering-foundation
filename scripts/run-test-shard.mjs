@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, resolve as resolvePath, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
+import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } from "./check-test-manifests.mjs";
 import { requireContainedRealDirectory, writeShardEvidence } from "./coverage-evidence.mjs";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
@@ -48,9 +48,14 @@ export function parseTestShardArguments(arguments_) {
   return Object.freeze({ evidenceDirectory, headSha, ids });
 }
 
-export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled) {
+export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled, platform = process.platform,
+  architecture = process.arch) {
+  if (coverageEvidenceEnabled && (platform !== "linux" || architecture !== "x64")) {
+    throw new Error("Raw coverage qualification requires the complete Linux selection on linux/x64");
+  }
   const selectedShards = coverageEvidenceEnabled ? manifest.coverageShards : manifest.shards;
-  return ids.flatMap((id) => selectedShards.get(id) ?? []);
+  return selectTestPathsForPlatform(manifest, ids.flatMap((id) => selectedShards.get(id) ?? []),
+    platform, architecture);
 }
 
 async function main() {

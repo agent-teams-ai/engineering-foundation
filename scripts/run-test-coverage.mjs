@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 
-import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
+import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } from "./check-test-manifests.mjs";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
 const manifest = await validateTestManifests();
 const config = manifest.coverageConfig;
-const mandatoryExit = await maybeRunMandatoryNodeTests(manifest.coverageTests, {
+const tests = selectTestPathsForPlatform(manifest, manifest.coverageTests);
+const mandatoryExit = await maybeRunMandatoryNodeTests(tests, {
   coverage: true,
   coverageIncludeGlobs: config.include,
   coverageExcludeGlobs: config.exclude,
@@ -25,7 +26,7 @@ if (mandatoryExit !== null) {
     `--test-coverage-lines=${config.thresholds.lines}`,
     `--test-coverage-branches=${config.thresholds.branches}`,
     `--test-coverage-functions=${config.thresholds.functions}`,
-    ...manifest.coverageTests,
+    ...tests,
   ], {
     cwd: repositoryRoot,
     stdio: "inherit",

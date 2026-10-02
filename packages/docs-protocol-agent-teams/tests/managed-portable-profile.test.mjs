@@ -131,3 +131,68 @@ test("portable v4 consumer enforces concrete managed vocabulary through preview,
     await rm(root, { recursive: true, force: true });
   }
 });
+
+
+test("managed runtime refuses unsupported platforms before filesystem or child effects", async () => {
+  const { default: fs } = await import("node:fs/promises");
+  const { default: children } = await import("node:child_process");
+  const { syncBuiltinESMExports } = await import("node:module");
+  const { resolve } = await import("node:path");
+  const original = new Map(["lstat", "realpath", "mkdtemp", "open", "rm"].map((key) => [key, fs[key]]));
+  const originalSpawn = children.spawn;
+  let effects = 0;
+  const forbidden = () => { effects++; throw new Error("Unsupported platform must refuse before IO"); };
+  try {
+    for (const key of original.keys()) { fs[key] = forbidden; }
+    children.spawn = forbidden;
+    syncBuiltinESMExports();
+    const { composeManagedRuntime } = await import("../dist/consumer-integration/composition/managed-runtime.js");
+    // These are rejecting selections, never positive runtime qualification.
+    const unsupported = [{ platform: "windows", architecture: "x64" },
+      { platform: "macos", architecture: "x64" }, { platform: "linux", architecture: "arm64" }];
+    if (process.platform !== "linux" || process.arch !== "x64") {
+      unsupported.push({ platform: "linux", architecture: "x64" });
+    }
+    for (const tuple of unsupported) {
+      const scope = composeManagedRuntime({ privateRoot: resolve("unprovisioned-TEST-root"),
+        signal: new AbortController().signal, selection: {
+          selectedNode: { path: resolve("unprovisioned-node"), expectedSha256: "1".repeat(64) },
+          pnpmPackage: { root: resolve("unprovisioned-pnpm"), expectedManifestSha256: "2".repeat(64),
+            expectedEntrySha256: "3".repeat(64), expectedTreeDigest: "4".repeat(64), entryRelativePath: "bin/pnpm.mjs" },
+          launcher: "direct-node", expected: { nodeVersion: "24.21.0", pnpmVersion: "11.20.0", ...tuple },
+        } });
+      assert.deepEqual(await scope.admit(), { outcome: "refused", code: "unsupported-platform", debt: null });
+      assert.deepEqual(await scope.close(), { outcome: "closed" });
+      assert.equal(effects, 0, JSON.stringify({ host: process.platform, tuple }));
+    }
+  } finally {
+    for (const [key, value] of original) { fs[key] = value; }
+    children.spawn = originalSpawn;
+    syncBuiltinESMExports();
+  }
+});
+
+test('composition and unadmitted close perform zero IO', async () => {
+  const { default: fsPromises } = await import('node:fs/promises');
+  const { default: childProcess } = await import('node:child_process');
+  const { syncBuiltinESMExports } = await import('node:module');
+  const originals = new Map(['lstat', 'realpath', 'mkdtemp', 'open'].map(key => [key, fsPromises[key]]));
+  const originalSpawn = childProcess.spawn;
+  let calls = 0;
+  const forbidden = () => {calls++; throw new Error('construction must be inert');};
+  try {
+    for (const key of originals.keys()) {fsPromises[key] = forbidden;}
+    childProcess.spawn = forbidden;
+    syncBuiltinESMExports();
+    const { composeManagedRuntime } = await import('../dist/consumer-integration/composition/managed-runtime.js');
+    const scope = composeManagedRuntime({ privateRoot: '/unprovisioned-TEST-root',
+      selection: {}, signal: new AbortController().signal });
+    assert.equal(calls, 0);
+    assert.deepEqual(await scope.close(), { outcome: 'closed' });
+    assert.equal(calls, 0);
+  } finally {
+    for (const [key, value] of originals) {fsPromises[key] = value;}
+    childProcess.spawn = originalSpawn;
+    syncBuiltinESMExports();
+  }
+});

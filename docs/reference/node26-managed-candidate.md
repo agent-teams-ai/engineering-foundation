@@ -13,5 +13,9 @@ Profile v4 strictly loads unselected Cohort v3 bindings; State v3 projects their
 authority and assets. There is no cutover authorization, Node 26 managed dispatch,
 qualification, activation, or JSON Schema family support claim.
 
+The [private P2a observation seam](node26-managed-runtime-observation.md) binds
+explicit provisioned Node/pnpm identities and bounded owned process cleanup.
+It provides source-private observation only; installation is retained for P2b.
+
 Historical v1 policy, Cohort v2, profile v3, state v2 and receipt v3 bytes remain
 unchanged; `assets:check` rejects projection drift.

@@ -80,6 +80,30 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm check:changed
 
+  pr-feedback:
+    name: pr-feedback
+    needs: dependency-review
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - name: Check the complete pull-request delta
+        env:
+          FOUNDATION_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: pnpm check:changed --base "$FOUNDATION_PR_BASE_SHA"
+
   node26-compatibility:
     name: node-compatibility (${{ matrix.lane }})
     needs: dependency-review

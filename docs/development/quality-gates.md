@@ -193,6 +193,15 @@ becomes ready without another push. Every synchronization of a ready pull
 request takes the same fail-closed path; there is no elapsed-time admission,
 artifact reuse from another SHA, or weaker ready-update route.
 
+Ready pull requests also run `pr-feedback` after Dependency Review, in parallel
+with full qualification. This preliminary lane runs `check:changed` with the
+explicit pull-request base SHA and complete Git history, so a clean checkout
+cannot hide committed changes. It targets early lint/typecheck feedback within
+7-10 minutes; control-file changes still escalate to `check:fast`. Its ten-minute
+timeout bounds this preliminary check, not the duration of the full CI graph.
+No full qualification job depends on this lane, and repository protection keeps
+the same required contexts. A passing `pr-feedback` result does not authorize merge.
+
 Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. Independent
 hosted-review evidence belongs in pull-request comments; it is not converted

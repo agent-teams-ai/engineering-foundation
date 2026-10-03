@@ -163,6 +163,10 @@ function assertSupportedTarMetadata(type, data) {
   }
 }
 
+/**
+ * @returns {Readonly<{ aggregateBytes: number, entryCount: number, uncompressedBytes: number,
+ *   entries: ReadonlyArray<Readonly<{ data: Buffer, name: string, size: number, type: string }>> }>}
+ */
 export function inspectCompressedTarArchive(archiveBytes, packageName) {
   if (!Buffer.isBuffer(archiveBytes) || archiveBytes.length > MAX_ARCHIVE_BYTES) {
     throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);

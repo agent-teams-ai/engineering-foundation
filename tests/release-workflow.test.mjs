@@ -2160,12 +2160,12 @@ test("release publishing requires real Buf and hermetic registry qualification",
     ci.jobs["windows-package"].steps.at(-1).run,
     'pnpm package:group:built packed "$env:QUALIFICATION_GROUP"',
   );
-  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 60);
   for (const [jobId, groups] of [
     ["windows-package", ["integration", "sdk-growth", "quality-coverage"]],
     ["windows-registry", ["npm-docs", "pnpm-docs", "foundation"]],
   ]) {
     const job = ci.jobs[jobId];
+    assert.equal(job["timeout-minutes"], 50);
     assert.deepEqual(job.strategy, { "fail-fast": false, matrix: { group: groups } });
     assert.equal(job["runs-on"], "windows-2022");
     assert.equal(job["continue-on-error"], undefined);

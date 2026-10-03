@@ -419,6 +419,8 @@ Linux/macOS qualification paths still execute the full consumer inventory.
 Package and registry jobs wait for their platform's short static job. Long test
 lanes can claim shared hosted runner capacity first; each qualification still
 runs its own fresh installation and complete required consumer scope.
+Windows consumer groups have a 50-minute bound, preserving the existing release
+attester's maximum CI path when combined with the 15-minute static gate.
 
 Each fresh production prepares at most two independent package targets at once.
 Their staging trees are separate, both clean builds remain required per target,

@@ -55,9 +55,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     if (jobId === "draft-fast") {
       expectedCondition =
         "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}";
-    } else if (jobId === "pr-feedback") {
-      expectedCondition =
-        "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}";
+
     } else if (jobId === "check" || jobId === "windows-check") {
       expectedCondition =
         "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}";
@@ -104,11 +102,25 @@ test("Ready PR feedback checks the committed delta independently of full qualifi
   const ci = parseYaml(
     await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
   );
-  const feedback = ci.jobs["pr-feedback"];
+  const preliminary = parseYaml(
+    await readFile(join(repositoryRoot, ".github", "workflows", "pr-feedback.yml"), "utf8"),
+  );
+  assert.notEqual(preliminary.name, ci.name, "Feedback must not change the full CI run conclusion");
+  assert.equal(ci.jobs["pr-feedback"], undefined);
+  assert.deepEqual(preliminary.permissions, { contents: "read" });
+  assert.deepEqual(preliminary.on.pull_request.types, ci.on.pull_request.types);
+  const feedback = preliminary.jobs["pr-feedback"];
   assert.ok(feedback, "Ready pull requests need a preliminary feedback lane");
   assert.equal(feedback.if,
     "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}");
-  assert.equal(feedback.needs, "dependency-review");
+  const securityIndex = feedback.steps.findIndex(({ uses }) =>
+    uses?.startsWith("actions/dependency-review-action@"));
+  const installIndex = feedback.steps.findIndex(({ run }) =>
+    run === "pnpm install --frozen-lockfile --ignore-scripts");
+  assert.ok(securityIndex > 0 && securityIndex < installIndex,
+    "Dependency Review must reject vulnerable changes before executing dependencies");
+  assert.equal(feedback.steps[securityIndex].with["warn-only"], false);
+  assert.equal(feedback.steps[securityIndex]["continue-on-error"], undefined);
   assert.equal(feedback["timeout-minutes"], 10);
   const checkout = feedback.steps.find(({ uses }) => uses?.startsWith("actions/checkout@"));
   assert.equal(checkout.with["fetch-depth"], 0, "PR base and merge-base history must be available");

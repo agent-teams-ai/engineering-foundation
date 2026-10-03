@@ -48,7 +48,7 @@
     "package:check": "pnpm build && pnpm package:check:built",
     "package:check:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs",
     "parser-spike:check": "pnpm --filter @agent-teams/source-dependency-parser-spike run check",
-    "registry-install-e2e": "pnpm package:check && pnpm registry-install-e2e:built",
+    "registry-install-e2e": "pnpm build && pnpm package:qualification:built",
     "registry-install-e2e:built": "node scripts/registry-install-e2e.mjs",
     "release:publish": "pnpm build && pnpm buf-qualification:e2e:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e && node scripts/release-publish.mjs && pnpm public-docs-release:e2e",
     "release-owned-files:check": "node scripts/check-release-owned-files.mjs",
@@ -65,11 +65,13 @@
     "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
     "test:qgr:lifecycle:built": "node scripts/run-selected-tests.mjs tests/quality-gate-runner.test.mjs tests/quality-gate-runner-lifecycle.test.mjs tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs tests/quality-gate-runner-remediation.test.mjs",
     "test:shard:built": "node scripts/run-test-shard.mjs",
-    "typecheck": "tsc --build tsconfig.json --pretty false",
+    "typecheck": "tsc --build tsconfig.json --pretty false && pnpm typecheck:ci-tooling",
+    "typecheck:ci-tooling": "tsc --project tsconfig.ci-tooling.json",
     "quality:scope:check": "node scripts/check-production-quality.mjs",
     "architecture:features:check": "pnpm build && node scripts/check-feature-modules.mjs",
     "architecture:features:plan": "node scripts/check-feature-modules.mjs plan",
-    "quality:coverage:scope": "node packages/engineering-foundation/dist/cli.js quality check --consumer . --scope-only"
+    "quality:coverage:scope": "node packages/engineering-foundation/dist/cli.js quality check --consumer . --scope-only",
+    "package:qualification:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-artifacts.mts"
   },
   "devDependencies": {
     "@ast-grep/cli": "catalog:",

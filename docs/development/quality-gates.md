@@ -193,6 +193,22 @@ becomes ready without another push. Every synchronization of a ready pull
 request takes the same fail-closed path; there is no elapsed-time admission,
 artifact reuse from another SHA, or weaker ready-update route.
 
+Ready pull requests also run `pr-feedback` in the separate `PR Feedback`
+workflow, in parallel with full qualification. Its own Dependency Review and
+SBOM steps precede dependency execution. This preliminary lane runs `check:changed` with the
+explicit pull-request base SHA and complete Git history, so a clean checkout
+cannot hide committed changes. It targets early lint/typecheck feedback within
+7-10 minutes; control-file changes still escalate to `check:fast`. Its ten-minute
+timeout bounds this preliminary check, not the duration of the full CI graph.
+A failure remains visible in `PR Feedback` without changing the full `CI` run
+conclusion used by release attestation. Repository protection keeps the same
+required contexts. A passing `pr-feedback` result does not authorize merge.
+
+New CI tooling and test harnesses use `.mts` and run with the pinned Node's native
+TypeScript stripping. `typecheck:ci-tooling` checks their contracts with the pinned
+compiler as part of `typecheck`; stripping alone is not a typecheck. The blocking
+test inventory admits `.test.mts` with the same exact-once shard requirements.
+
 Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. Independent
 hosted-review evidence belongs in pull-request comments; it is not converted
@@ -375,3 +391,31 @@ and exact source identity, complete the interrupted file and remaining files,
 and rerun only failed scopes when diagnosing environment-specific failures.
 Record each resumed command separately; platform skips and partial reruns do not
 establish full-suite, supported-platform or release qualification.
+
+## Private combined artifact qualification
+
+`pnpm package:qualification:built` prepares and checks publishable manifests,
+then runs the full packed and hermetic-registry consumers sequentially against
+one process-local qualified artifact set. The Linux registry wrapper and macOS
+combined lane use it; standalone `package:check:built` and
+`registry-install-e2e:built` each produce a fresh set. Windows jobs retain their
+independent qualification scopes.
+
+Every target still requires two independent clean builds and the existing
+artifact conformance checks. Reuse preserves the producer's retained verified
+bytes, exact package membership, names, versions, SHA-256 and SHA-512 integrity.
+Physical custody rejects symlink traversal, hardlink aliases, inode replacement,
+missing and extra snapshots. It accepts neither caller archive paths nor
+serialized or copied handles, and cannot share authority across CI jobs.
+Source and toolchain identity is freshly checked before and after production,
+at each whole consumer stage boundary, and before final acceptance. Inner phase
+checkpoints verify snapshot custody without repeating the entire source walk.
+Source drift during packed qualification rejects before registry effects;
+drift during registry qualification rejects its final acceptance. No stage may
+start after owner completion or failure; admitted child work drains before
+cleanup, and consumer or cleanup failures prevent PASS.
+
+This is a private repository qualification mechanism within the existing
+artifact boundary, not a public module contract or general reusable runtime.
+The deliberate packed rollback mutation uses a separate TEST archive; it never
+changes the qualified snapshot passed to the registry consumer.

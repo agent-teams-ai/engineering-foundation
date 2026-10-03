@@ -163,6 +163,10 @@ function assertSupportedTarMetadata(type, data) {
   }
 }
 
+/**
+ * @returns {Readonly<{ aggregateBytes: number, entryCount: number, uncompressedBytes: number,
+ *   entries: ReadonlyArray<Readonly<{ data: Buffer, name: string, size: number, type: string }>> }>}
+ */
 export function inspectCompressedTarArchive(archiveBytes, packageName) {
   if (!Buffer.isBuffer(archiveBytes) || archiveBytes.length > MAX_ARCHIVE_BYTES) {
     throw new Error(`Package archive exceeds ${MAX_ARCHIVE_BYTES} bytes.`);
@@ -288,6 +292,25 @@ export async function readVerifiedArchive(path, expectedSha256) {
     throw new Error(`Verified package archive digest changed: ${path}.`);
   }
   return bytes;
+}
+
+export async function readQualifiedReleaseArtifact(artifact, packageInfo) {
+  if (artifact === undefined || artifact.packageName !== packageInfo.name ||
+      artifact.packageVersion !== packageInfo.version) {
+    throw new Error(`Qualified archive identity differs from release state for ${packageInfo.name}.`);
+  }
+  const { archivePath, sha256: digest } = artifact;
+  const bytes = await readVerifiedArchive(archivePath, digest);
+  const inspection = inspectCompressedTarArchive(bytes, packageInfo.name);
+  const manifests = inspection.entries.filter(entry => entry.name === "package/package.json" && entry.type === "0");
+  if (manifests.length !== 1 || inspection.entries.some(entry => !["0", "5"].includes(entry.type))) {
+    throw new Error("Qualified package archive has an unsafe manifest or special entry.");
+  }
+  const manifest = JSON.parse(manifests[0].data.toString("utf8"));
+  if (manifest.name !== packageInfo.name || manifest.version !== packageInfo.version) {
+    throw new Error(`Qualified manifest identity differs from release state for ${packageInfo.name}.`);
+  }
+  return { archivePath, sha256: digest, integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`, manifest };
 }
 
 export function assertNoSpecialTarEntries(verboseListing) {

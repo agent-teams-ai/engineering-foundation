@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { lstat, mkdir, mkdtemp, open, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, open, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,9 +9,17 @@ import { packAndInspectArtifact, snapshotVerifiedArtifact } from "./pack-artifac
 import {
   PUBLISHABLE_PACKAGES,
   PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS,
+  PUBLISHABLE_PACKAGE_CATALOG,
+  derivePublishablePackageProjection,
 } from "./publishable-packages.mjs";
 import { createPnpmRunner } from "./pack-test-support.mjs";
 import { prepareMarkdownPublication } from "./markdown-publication.mjs";
+import {
+  assertPhysicalPath, capturePackageArtifactInputs, retainArchiveCustody, verifyArchiveCustody,
+} from "./package-artifact-custody.mts";
+
+const qualifiedProductions = new WeakMap();
+const invocations = new WeakMap();
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
 const PORTABLE_ARTIFACT_PATH = /^(?!\/)(?!.*\\)(?!.*\/\/)(?!.*\/$)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@/-]+$/u;
@@ -326,9 +336,23 @@ export async function packPublishableArtifacts(input) {
   if (typeof input.temporaryRoot !== "string" || !isAbsolute(input.temporaryRoot)) {
     fail("temporaryRoot must be an absolute path");
   }
+  await mkdir(input.temporaryRoot, { recursive: true });
+  const temporaryRoot = await realpath(input.temporaryRoot);
   const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
   const { allowedArtifactPaths, manifestFilePolicies, manifests, requiredArtifactPaths } =
     await loadPublishableManifestPolicies(repositoryRoot);
+  const projection = derivePublishablePackageProjection({ catalog: PUBLISHABLE_PACKAGE_CATALOG, manifestsByName: manifests });
+  if (JSON.stringify(projection.packages) !== JSON.stringify(PUBLISHABLE_PACKAGES) ||
+      JSON.stringify(projection.declarations) !== JSON.stringify(PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS)) {
+    fail("manifest-derived package projection changed since script loading");
+  }
+  const additionalPaths = [];
+  if (PUBLISHABLE_PACKAGES.some(entry => entry.name === "@agent-teams/docs-protocol-agent-teams")) {
+    const { runtimePolicyBuildInputPaths } = await import("../packages/docs-protocol-agent-teams/scripts/runtime-policy-input-paths.mjs");
+    additionalPaths.push(...runtimePolicyBuildInputPaths);
+  }
+  const inputIdentity = await capturePackageArtifactInputs(repositoryRoot, PUBLISHABLE_PACKAGES,
+    PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS, additionalPaths);
   const plan = derivePublishableArtifactPlan({
     dependencyDeclarations: PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS,
     packages: PUBLISHABLE_PACKAGES,
@@ -339,9 +363,16 @@ export async function packPublishableArtifacts(input) {
   await assertPhysicalPublishablePackageRoots(repositoryRoot, PUBLISHABLE_PACKAGES);
   const authoritativePackageRoots = PUBLISHABLE_PACKAGES.map((entry) => resolve(repositoryRoot, entry.root));
   const runPnpm = createPnpmRunner();
-  const runBuild = async (stagedPackageRoot) => runPnpm(["run", "build"], stagedPackageRoot);
+  const manager = await readBoundedManifest(join(repositoryRoot, "package.json"), "Repository manifest");
+  const observedPnpm = (await runPnpm(["--version"], repositoryRoot)).stdout.trim();
+  if (manager.packageManager !== `pnpm@${observedPnpm}`) { fail("actual pnpm differs from the pinned toolchain"); }
+  const runBuild = async (stagedPackageRoot, { packageName, stageRoot }) => {
+    process.stderr.write(`Qualified artifact build: ${packageName}; stage=${stageRoot}\n`);
+    await runPnpm(["run", "build"], stagedPackageRoot);
+  };
   const pending = [];
-  const markdownPublication = await prepareMarkdownPublication(repositoryRoot);
+  const markdownPublication = PUBLISHABLE_PACKAGES.some(entry => entry.name === "@agent-teams/document-authoring")
+    ? await prepareMarkdownPublication(repositoryRoot) : undefined;
   for (const item of plan) {
     const entry = item.package;
     const artifact = await packAndInspectArtifact({
@@ -362,15 +393,15 @@ export async function packPublishableArtifacts(input) {
         ...manifests.get(support.name),
         sourceRoot: resolve(repositoryRoot, support.root),
       })),
-      temporaryRoot: input.temporaryRoot,
+      temporaryRoot,
     });
     pending.push({ artifact, entry, item });
   }
-  // No package-controlled process runs after this point. Re-open every earlier
-  // archive with O_NOFOLLOW and verify its digest before creating the immutable
-  // downstream snapshots, so a later package build cannot replace an earlier
-  // qualified path between verification and use.
-  const finalRoot = await mkdtemp(join(input.temporaryRoot, "qualified-package-artifacts-"));
+  // Every production process has settled. Use the producer's retained verified
+  // bytes: later builds may mutate original staging paths without changing these
+  // snapshots. Downstream snapshots acquire separate physical custody below;
+  // they must never be silently repaired from the retained bytes after tampering.
+  const finalRoot = await mkdtemp(join(temporaryRoot, "qualified-package-artifacts-"));
   const records = {};
   for (const { artifact, entry, item } of pending) {
     const bytes = snapshotVerifiedArtifact(artifact);
@@ -387,7 +418,126 @@ export async function packPublishableArtifacts(input) {
       packageVersion: manifests.get(entry.name).version,
       requiredArtifactPaths: item.requiredArtifactPaths,
       sha256: artifact.sha256,
+      integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
     });
   }
-  return Object.freeze(records);
+  Object.freeze(records);
+  const custody = await retainArchiveCustody(finalRoot, records);
+  qualifiedProductions.set(records, { custody, repositoryRoot, inputIdentity, additionalPaths });
+  await assertQualifiedPackageArtifacts(records);
+  return records;
+}
+
+function qualifiedProduction(records) {
+  const production = qualifiedProductions.get(records);
+  if (production === undefined) { fail("records are not an original process-local qualified production"); }
+  if (Object.keys(records).join("\0") !== PUBLISHABLE_PACKAGES.map(entry => entry.name).join("\0")) {
+    fail("qualified package membership changed");
+  }
+  return production;
+}
+
+async function assertQualifiedArtifactCustody(records) {
+  await verifyArchiveCustody(qualifiedProduction(records).custody, records);
+}
+
+export async function assertQualifiedPackageArtifacts(records) {
+  const production = qualifiedProduction(records);
+  const current = await capturePackageArtifactInputs(production.repositoryRoot, PUBLISHABLE_PACKAGES,
+    PUBLISHABLE_PACKAGE_DEPENDENCY_DECLARATIONS, production.additionalPaths);
+  if (current !== production.inputIdentity) { fail("qualification inputs or runtime/toolchain changed"); }
+  await verifyArchiveCustody(production.custody, records);
+}
+
+// Closed local lifetimes; there is no serialized carrier or path-based reuse.
+/**
+ * @param {import("./package-artifact-custody.mts").QualificationMode} mode
+ * @param {(handle: import("./package-artifact-custody.mts").QualificationHandle) => unknown | Promise<unknown>} action
+ * @returns {Promise<import("./package-artifact-custody.mts").QualificationEvidence>}
+ */
+export async function withQualifiedPackageArtifacts(mode, action) {
+  const stageModes = { combined: ["packed", "registry"], packed: ["packed"], registry: ["registry"] };
+  const stages = Object.hasOwn(stageModes, mode) ? stageModes[mode] : undefined;
+  if (stages === undefined || typeof action !== "function") { fail("unknown qualification invocation"); }
+  const parent = await realpath(tmpdir());
+  const temporaryRoot = await mkdtemp(join(parent, "ef-qualified-"));
+  const identity = await assertPhysicalPath(temporaryRoot, true);
+  const handle = Object.freeze(Object.create(null));
+  const state = { temporaryRoot, stages, next: 0, accepting: true, closed: false,
+    pending: undefined, failed: false, failure: undefined };
+  invocations.set(handle, state);
+  const errors = [];
+  let evidence;
+  try {
+    state.records = await packPublishableArtifacts({ temporaryRoot });
+    await action(handle);
+    state.accepting = false;
+    if (state.pending !== undefined) { await state.pending; }
+    if (state.failed) { throw state.failure; }
+    if (state.next !== stages.length) { fail("invocation did not complete every required consumer stage"); }
+    await assertQualifiedPackageArtifacts(state.records);
+    evidence = Object.freeze(Object.values(state.records).map(record => Object.freeze({
+      name: record.packageName, version: record.packageVersion, sha256: record.sha256, integrity: record.integrity,
+    })));
+  } catch (error) {
+    errors.push(error);
+  } finally {
+    // Close admission before draining; accepted work can still finish its checks.
+    state.accepting = false;
+    // Drain an admitted stage even when its caller returns or rejects early.
+    if (state.pending !== undefined) {
+      try { await state.pending; } catch (error) { if (!errors.includes(error)) { errors.push(error); } }
+    }
+    state.closed = true;
+    if (state.records !== undefined) { qualifiedProductions.delete(state.records); }
+    const keep = mode !== "combined" && process.env[mode === "packed"
+      ? "AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS" : "AGENT_TEAMS_KEEP_REGISTRY_E2E_ARTIFACTS"] === "1";
+    try {
+      const current = await assertPhysicalPath(temporaryRoot, true);
+      if (current.dev !== identity.dev || current.ino !== identity.ino) { fail("invocation root was replaced before cleanup"); }
+      if (keep) { process.stderr.write(`Closed qualification debug artifacts: ${temporaryRoot}\n`); }
+      else { await rm(temporaryRoot, { recursive: true, force: false }); }
+    } catch (error) { errors.push(error); }
+  }
+  if (errors.length === 1) { throw errors[0]; }
+  if (errors.length > 1) { throw new AggregateError(errors, "Package qualification and/or cleanup failed"); }
+  return evidence;
+}
+
+/**
+ * @param {object | undefined} handle
+ * @param {import("./package-artifact-custody.mts").QualificationStage} stage
+ * @param {(context: import("./package-artifact-custody.mts").QualificationContext) => unknown | Promise<unknown>} action
+ * @returns {Promise<unknown>}
+ */
+export function runQualifiedArtifactConsumer(handle, stage, action) {
+  const state = invocations.get(handle);
+  if (state === undefined || !state.accepting || state.closed || state.failed || state.pending !== undefined ||
+      stage !== state.stages[state.next] || typeof action !== "function") {
+    return Promise.reject(new Error("Qualified artifact invocation is forged, closed, failed or out of sequence"));
+  }
+  const checkpoint = async () => {
+    if (state.closed || state.failed) { fail("consumer invocation is closed or failed"); }
+    await assertQualifiedArtifactCustody(state.records);
+  };
+  // Fresh source/toolchain identity brackets each complete consumer stage. Inner
+  // checkpoints preserve archive custody without repeating the whole source walk.
+  const stageCheckpoint = async () => {
+    if (state.closed || state.failed) { fail("consumer invocation is closed or failed"); }
+    await assertQualifiedPackageArtifacts(state.records);
+  };
+  const pending = (async () => {
+    try {
+      await stageCheckpoint();
+      const result = await action({ artifacts: state.records, temporaryRoot: state.temporaryRoot, checkpoint });
+      await stageCheckpoint();
+      state.next += 1;
+      return result;
+    } catch (error) { state.failed = true; state.failure = error; throw error; }
+    finally { state.pending = undefined; }
+  })();
+  state.pending = pending;
+  // Observe rejection immediately; the lifetime owner still propagates it.
+  void pending.catch(() => {});
+  return pending;
 }

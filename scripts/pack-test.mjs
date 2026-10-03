@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -11,7 +10,7 @@ import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
 import { testPackedSdkGrowth } from "./pack-sdk-growth-test.mjs";
 import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
-import { packPublishableArtifacts } from "./pack-publishable-artifacts.mjs";
+import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./pack-publishable-artifacts.mjs";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
@@ -23,23 +22,18 @@ import {
 } from "./pack-test-support.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const temporaryRoot = await mkdtemp(join(tmpdir(), "agent-teams-foundation-pack-"));
-process.stderr.write(`Pack test temporary root: ${temporaryRoot}\n`);
-const keepTemporaryRoot = process.env.AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS === "1";
 const requireFromRepository = createRequire(import.meta.url);
-const runPnpm = createPnpmRunner();
-const repositoryManifest = JSON.parse(
-  await readFile(join(repositoryRoot, "package.json"), "utf8")
-);
 function phaseElapsed(start) {
   return `${((performance.now() - start) / 1000).toFixed(1)}s`;
 }
 
-async function timedPhase(name, run) {
+async function runPackedPhase(name, run, checkpoint) {
   const start = performance.now();
   process.stderr.write(`Pack test phase started: ${name}.\n`);
   try {
+    await checkpoint();
     const result = await run();
+    await checkpoint();
     process.stderr.write(`Pack test phase completed: ${name} (${phaseElapsed(start)}).\n`);
     return result;
   } catch (error) {
@@ -61,7 +55,7 @@ async function toolingVersions() {
   };
 }
 
-function packageManagerVersion() {
+function packageManagerVersion(repositoryManifest) {
   const packageManager = repositoryManifest.packageManager;
   if (typeof packageManager !== "string" || !/^pnpm@\d+\.\d+\.\d+$/u.test(packageManager)) {
     throw new Error("Repository packageManager must pin an exact pnpm version.");
@@ -73,7 +67,7 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-async function verifyPackedDocsAdapterHistory(adapterArtifact) {
+async function verifyPackedDocsAdapterHistory(adapterArtifact, temporaryRoot) {
   const root = join(temporaryRoot, "docs-adapter-history-inspection");
   await mkdir(root, { recursive: true });
   await runCommand("tar", ["-xzf", adapterArtifact.archivePath, "-C", root], temporaryRoot);
@@ -142,7 +136,8 @@ async function createRollbackFixturePackage(
   adapterArtifact,
   docsArtifact,
   foundationArtifact,
-  mutationArtifact
+  mutationArtifact,
+  temporaryRoot
 ) {
   const root = join(temporaryRoot, "docs-rollback-package-fixture");
   await mkdir(root, { recursive: true });
@@ -315,13 +310,14 @@ async function createRollbackFixturePackage(
 }
 
 async function verifyPackedDocsConsumerIntegration(input) {
+  const { temporaryRoot, runPnpm, packageManager } = input;
   const consumerRoot = join(temporaryRoot, "docs-consumer-tarball-e2e");
   await mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true });
   await runCommand("git", ["init", "-q"], consumerRoot);
   const installedManifest = {
     name: "docs-consumer-tarball-e2e",
     private: true,
-    packageManager: packageManagerVersion(),
+    packageManager,
     devDependencies: {
       "@agent-teams/document-authoring": input.authoring.archiveFileSpecifier,
       "@agent-teams/docs-protocol-agent-teams": input.adapter.archiveFileSpecifier,
@@ -529,80 +525,92 @@ snapshots:
   }
 }
 
-try {
-  const artifacts = await timedPhase("artifact preparation", () =>
-    packPublishableArtifacts({ temporaryRoot })
-  );
-  const artifact = artifacts["@agent-teams/engineering-foundation"];
-  const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
-  const documentAuthoringArtifact = artifacts["@agent-teams/document-authoring"];
-  const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
-  const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
-  const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
-  await timedPhase("Docs integration", async () => {
-    await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact);
-    const rollbackFixtureArtifact = await createRollbackFixturePackage(
-      docsProtocolAdapterArtifact,
-      docsProtocolArtifact,
-      artifact,
-      mutationArtifact
-    );
-    await verifyPackedDocsConsumerIntegration({
-      adapter: rollbackFixtureArtifact,
-      authoring: documentAuthoringArtifact,
-      docs: docsProtocolArtifact,
-      foundation: artifact,
-      mutation: mutationArtifact
+
+export function qualifyPackedConsumers(handle) {
+  return runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts, temporaryRoot, checkpoint }) => {
+    const runPnpm = createPnpmRunner();
+    const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+    const packageManager = packageManagerVersion(repositoryManifest);
+    const timedPhase = (name, run) => runPackedPhase(name, run, checkpoint);
+    const artifact = artifacts["@agent-teams/engineering-foundation"];
+    const mutationArtifact = artifacts["@agent-teams/repository-mutation"];
+    const documentAuthoringArtifact = artifacts["@agent-teams/document-authoring"];
+    const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
+    const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
+    const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
+    await timedPhase("Docs integration", async () => {
+      await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact, temporaryRoot);
+      const rollbackFixtureArtifact = await createRollbackFixturePackage(
+        docsProtocolAdapterArtifact,
+        docsProtocolArtifact,
+        artifact,
+        mutationArtifact,
+        temporaryRoot
+      );
+      process.stdout.write(`Packed TEST rollback fixture (deliberately modified): ${rollbackFixtureArtifact.archiveFileSpecifier}\n`);
+      await verifyPackedDocsConsumerIntegration({
+        temporaryRoot, runPnpm, packageManager,
+        adapter: rollbackFixtureArtifact,
+        authoring: documentAuthoringArtifact,
+        docs: docsProtocolArtifact,
+        foundation: artifact,
+        mutation: mutationArtifact
+      });
     });
+    process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
+    const fixture = await timedPhase("packed consumer fixture", async () => createPackedConsumerFixture({
+      archiveFileSpecifier: artifact.archiveFileSpecifier,
+      consumerRoot: join(temporaryRoot, "consumer"),
+      documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+      mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
+      packageManager,
+      runPnpm,
+      toolingVersions: await toolingVersions()
+    }));
+    await timedPhase("packed consumer E2E", () => verifyPackedConsumer({ fixture }));
+    await timedPhase("SDK growth qualification", () =>
+      testPackedSdkGrowth({ consumerRoot: fixture.consumerRoot, artifact })
+    );
+    await timedPhase("authority scaffolding", () =>
+      verifyPackedAuthorityScaffolding({ fixture, repositoryRoot })
+    );
+    await timedPhase("local-mode lifecycle", () => verifyPackedLocalMode({
+      ...artifact,
+      packageVersion: fixture.packedManifest.version,
+      packageManager,
+      repositoryRoot,
+      runPnpm,
+      documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+      mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
+      temporaryRoot
+    }));
+    await timedPhase("agent-workflow fixture", () => testPackedAgentWorkflow({
+      consumerRoot: fixture.consumerRoot,
+      runPnpm
+    }));
+    await timedPhase("quality coverage", () =>
+      testPackedQualityCoverage({ consumerRoot: fixture.consumerRoot, artifact })
+    );
+    await timedPhase("quality gate runner", () => testPackedQualityGateRunner({
+      consumerRoot: fixture.consumerRoot,
+      runPnpm
+    }));
+    process.stdout.write(
+      `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`
+    );
+    process.stdout.write(
+      `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`
+    );
   });
-  process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
-  const fixture = await timedPhase("packed consumer fixture", async () => createPackedConsumerFixture({
-    archiveFileSpecifier: artifact.archiveFileSpecifier,
-    consumerRoot: join(temporaryRoot, "consumer"),
-    documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-    mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
-    packageManager: packageManagerVersion(),
-    runPnpm,
-    toolingVersions: await toolingVersions()
-  }));
-  await timedPhase("packed consumer E2E", () => verifyPackedConsumer({ fixture }));
-  await timedPhase("SDK growth qualification", () =>
-    testPackedSdkGrowth({ consumerRoot: fixture.consumerRoot, artifact })
-  );
-  await timedPhase("authority scaffolding", () =>
-    verifyPackedAuthorityScaffolding({ fixture, repositoryRoot })
-  );
-  await timedPhase("local-mode lifecycle", () => verifyPackedLocalMode({
-    ...artifact,
-    packageVersion: fixture.packedManifest.version,
-    packageManager: packageManagerVersion(),
-    repositoryRoot,
-    runPnpm,
-    documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-    mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
-    temporaryRoot
-  }));
-  await timedPhase("agent-workflow fixture", () => testPackedAgentWorkflow({
-    consumerRoot: fixture.consumerRoot,
-    runPnpm
-  }));
-  await timedPhase("quality coverage", () =>
-    testPackedQualityCoverage({ consumerRoot: fixture.consumerRoot, artifact })
-  );
-  await timedPhase("quality gate runner", () => testPackedQualityGateRunner({
-    consumerRoot: fixture.consumerRoot,
-    runPnpm
-  }));
-  process.stdout.write(
-    `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`
-  );
-  process.stdout.write(
-    `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`
-  );
-} finally {
-  if (keepTemporaryRoot) {
-    process.stderr.write(`Pack test artifacts: ${temporaryRoot}\n`);
-  } else {
-    await rm(temporaryRoot, { force: true, recursive: true });
-  }
+}
+
+export async function runPackTest() {
+  const evidence = await withQualifiedPackageArtifacts("packed", qualifyPackedConsumers);
+  process.stdout.write(`Packed qualification PASS: ${JSON.stringify(evidence)}\n`);
+  return evidence;
+}
+
+if (import.meta.main) {
+  if (process.argv.length !== 2) { throw new Error("Pack qualification accepts no archive overrides or arguments."); }
+  await runPackTest();
 }

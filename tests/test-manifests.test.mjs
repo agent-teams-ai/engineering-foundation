@@ -256,7 +256,7 @@ test("managed platform routing preserves complete Linux qualification and every 
   const ids = ["1", "2", "3", "4"];
   const globalInventory = [...manifest.tests];
   const requiredShardFiles = [...manifest.shards.values()].flat();
-  assert.equal(manifest.testCount, 276);
+  assert.equal(manifest.testCount, globalInventory.length);
   assert.deepEqual(selectTestShardPaths(manifest, ids, true, "linux", "x64").toSorted(), globalInventory.toSorted());
   assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux", "x64"), requiredShardFiles);
   // Linux on another architecture is outside the linux/x64 runtime support contract.
@@ -268,7 +268,7 @@ test("managed platform routing preserves complete Linux qualification and every 
     assert.throws(() => selectTestShardPaths(manifest, ids, true, platform, architecture), /complete Linux selection/u);
     const built = manifestTools.selectTestPathsForPlatform(manifest, manifest.tests, platform, architecture);
     assert.deepEqual(built, globalInventory.filter((path) => !linuxOnly.includes(path)));
-    assert.equal(built.length, 274);
+    assert.equal(built.length, globalInventory.length - linuxOnly.length);
     const contract = JSON.parse(await readFile(join(repositoryRoot,
       "architecture/foundation/node-test-execution.json"), "utf8"));
     for (const identity of contract.required) {

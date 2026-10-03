@@ -1,10 +1,20 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignoreBinaries": ["mkfifo"],
-  "ignoreDependencies": ["@arethetypeswrong/cli", "@openai/codex", "c8", "publint", "vfile"],
+  "ignoreBinaries": [
+    "mkfifo"
+  ],
+  "ignoreDependencies": [
+    "@arethetypeswrong/cli",
+    "@openai/codex",
+    "c8",
+    "publint",
+    "vfile"
+  ],
   "workspaces": {
     ".": {
       "entry": [
+        "scripts/*.mts",
+        "tests/**/*.test.mts",
         "scripts/*.mjs",
         "tests/**/*.test.mjs",
         "tests/fixtures/coverage-process-tree.fixture.mjs",
@@ -14,6 +24,8 @@
         "tests/fixtures/**/scripts/*.mjs"
       ],
       "project": [
+        "scripts/*.mts",
+        "tests/**/*.mts",
         "scripts/*.mjs",
         "scripts/feature-modules/commands.mjs",
         "tests/**/*.mjs"
@@ -28,26 +40,43 @@
         "src/foundation-state-contract.ts",
         "src/schema-ids.ts"
       ],
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     },
     "packages/document-authoring": {
-      "entry": ["tests/fixtures/public-api/crash-worker.mjs"],
-      "project": ["src/**/*.ts", "tests/**/*.mjs"]
+      "entry": [
+        "tests/fixtures/public-api/crash-worker.mjs"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "tests/**/*.mjs"
+      ]
     },
     "packages/docs-protocol": {
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     },
     "packages/docs-protocol-agent-teams": {
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     },
     "packages/docs-protocol-mcp": {
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     },
     "packages/repository-mutation": {
-      "project": ["src/**/*.ts"]
+      "project": [
+        "src/**/*.ts"
+      ]
     },
     "spikes/source-dependency-parser": {
-      "project": ["*.mjs"]
+      "project": [
+        "*.mjs"
+      ]
     }
   }
 }

@@ -740,7 +740,5 @@ jobs:
           tests/document-authoring-public-writer.test.mjs
           tests/document-authoring-writer-*.test.mjs
           tests/document-authoring-scaffolding-race.test.mjs
-      - name: Qualify packed package boundary
-        run: pnpm package:check:built
-      - name: Qualify registry-installed document authoring
-        run: pnpm registry-install-e2e:built
+      - name: Qualify packed and registry-installed package boundaries
+        run: pnpm package:qualification:built

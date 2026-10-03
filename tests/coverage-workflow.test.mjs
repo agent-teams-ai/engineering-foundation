@@ -55,6 +55,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     if (jobId === "draft-fast") {
       expectedCondition =
         "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}";
+
     } else if (jobId === "check" || jobId === "windows-check") {
       expectedCondition =
         "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}";
@@ -94,5 +95,54 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     assert.equal(upload.with["if-no-files-found"], "error");
     assert.equal(upload.with["include-hidden-files"], true);
     assert.equal(upload.with.overwrite, true);
+  }
+});
+
+test("Ready PR feedback checks the committed delta independently of full qualification", async () => {
+  const ci = parseYaml(
+    await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
+  );
+  const preliminary = parseYaml(
+    await readFile(join(repositoryRoot, ".github", "workflows", "pr-feedback.yml"), "utf8"),
+  );
+  assert.notEqual(preliminary.name, ci.name, "Feedback must not change the full CI run conclusion");
+  assert.equal(ci.jobs["pr-feedback"], undefined);
+  assert.deepEqual(preliminary.permissions, { contents: "read" });
+  assert.deepEqual(preliminary.on.pull_request.types, ci.on.pull_request.types);
+  const feedback = preliminary.jobs["pr-feedback"];
+  assert.ok(feedback, "Ready pull requests need a preliminary feedback lane");
+  assert.equal(feedback.if,
+    "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}");
+  const security = preliminary.jobs["dependency-review"];
+  assert.ok(security, "Feedback needs its own declared blocking Dependency Review job");
+  assert.equal(security.if, undefined);
+  assert.equal(security["continue-on-error"], undefined);
+  assert.equal(feedback.needs, "dependency-review");
+  const review = security.steps.find(({ uses }) =>
+    uses?.startsWith("actions/dependency-review-action@"));
+  const declaredReview = ci.jobs["dependency-review"].steps.find(({ uses }) =>
+    uses?.startsWith("actions/dependency-review-action@"));
+  assert.deepEqual(review, declaredReview,
+    "Feedback Dependency Review must preserve the declared blocking security semantics");
+  const installIndex = feedback.steps.findIndex(({ run }) =>
+    run === "pnpm install --frozen-lockfile --ignore-scripts");
+  assert.ok(installIndex > 0, "Feedback must install pinned dependencies after checkout");
+  assert.equal(feedback["timeout-minutes"], 10);
+  const checkout = feedback.steps.find(({ uses }) => uses?.startsWith("actions/checkout@"));
+  assert.equal(checkout.with["fetch-depth"], 0, "PR base and merge-base history must be available");
+  assert.equal(checkout.with["persist-credentials"], false);
+  const changed = feedback.steps.find(({ name }) => name === "Check the complete pull-request delta");
+  assert.deepEqual(changed.env, {
+    FOUNDATION_PR_BASE_SHA: "${{ github.event.pull_request.base.sha }}",
+  });
+  assert.equal(changed.run, 'pnpm check:changed --base "$FOUNDATION_PR_BASE_SHA"');
+  assert.equal(changed["continue-on-error"], undefined);
+  for (const [jobId, job] of Object.entries(ci.jobs)) {
+    const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
+    assert.equal(needs.includes("pr-feedback"), false,
+      `${jobId} must not make preliminary feedback a full-qualification prerequisite`);
+  }
+  for (const requiredJob of ["check", "windows-check", "macos-qualification"]) {
+    assert.ok(ci.jobs[requiredJob], `${requiredJob} remains a full qualification authority`);
   }
 });

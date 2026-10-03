@@ -168,11 +168,19 @@ test("release and registry targets invoke the concrete qualified pack gate", asy
       assert.match(script, /const \{ packPublishableArtifacts \} = await import\("\.\/pack-publishable-artifacts\.mjs"\)/u);
       assert.doesNotMatch(script, /import \{ packPublishableArtifacts \} from/u);
     } else {
-      assert.match(script, /import \{ packPublishableArtifacts \} from "\.\/pack-publishable-artifacts\.mjs"/u);
+      assert.match(script, /import \{ runQualifiedArtifactConsumer, withQualifiedPackageArtifacts \} from "\.\/pack-publishable-artifacts\.mjs"/u);
+      assert.match(script, /withQualifiedPackageArtifacts\("registry", qualifyRegistryConsumers\)/u);
+      assert.match(script, /runQualifiedArtifactConsumer\(handle, "registry",/u);
     }
-    assert.match(script, /const qualified = await packPublishableArtifacts\(\{ temporaryRoot(?:: destination)? \}\)/u);
-    assert.match(script, /readQualifiedReleaseArtifact\(qualified\[/u);
-    assert.match(script, /await readVerifiedArchive\((?:artifact|target)\.archivePath, (?:artifact|target)\.sha256\)/u);
+    if (path === "release-publish-ordered-runtime.mjs") {
+      assert.match(script, /const qualified = await packPublishableArtifacts\(\{ temporaryRoot(?:: destination)? \}\)/u);
+      assert.match(script, /readQualifiedReleaseArtifact\(qualified\[/u);
+      assert.match(script, /await readVerifiedArchive\(artifact\.archivePath, artifact\.sha256\)/u);
+    } else {
+      assert.match(script, /readQualifiedReleaseArtifact\(artifacts\[/u);
+      assert.match(script, /await checkpoint\(\);\s+await publishArchive\(/u);
+      assert.doesNotMatch(script, /packPublishableArtifacts\(/u);
+    }
     assert.doesNotMatch(script, /stageBuiltMarkdownPublication|createTargetArchive\(/u);
   }
 });

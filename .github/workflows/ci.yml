@@ -349,7 +349,8 @@ jobs:
 
   linux-package:
     name: linux-package
-    needs: dependency-review
+    # Give the long test lanes first access to shared hosted runner capacity.
+    needs: [dependency-review, linux-static]
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -377,7 +378,7 @@ jobs:
 
   linux-registry:
     name: linux-registry
-    needs: dependency-review
+    needs: [dependency-review, linux-static]
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -675,7 +676,7 @@ jobs:
 
   windows-package:
     name: windows-package (${{ matrix.group }})
-    needs: dependency-review
+    needs: [dependency-review, windows-static]
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: windows-2022
     timeout-minutes: 60
@@ -708,7 +709,7 @@ jobs:
 
   windows-registry:
     name: windows-registry (${{ matrix.group }})
-    needs: dependency-review
+    needs: [dependency-review, windows-static]
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: windows-2022
     timeout-minutes: 60

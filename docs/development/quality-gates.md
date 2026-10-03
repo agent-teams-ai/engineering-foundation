@@ -416,6 +416,10 @@ for each package manager and the installed Foundation consumer. All matrix
 members remain required by `windows-check`; default local commands and the
 Linux/macOS qualification paths still execute the full consumer inventory.
 
+Package and registry jobs wait for their platform's short static job. Long test
+lanes can claim shared hosted runner capacity first; each qualification still
+runs its own fresh installation and complete required consumer scope.
+
 Each fresh production prepares at most two independent package targets at once.
 Their staging trees are separate, both clean builds remain required per target,
 and returned records retain catalog order. Failure stops new target admission

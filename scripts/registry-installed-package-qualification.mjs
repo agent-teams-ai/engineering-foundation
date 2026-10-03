@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { parse } from "yaml";
 import { inspectCompressedTarArchive, readVerifiedArchive } from "./pack-artifact-archive.mjs";
-import { assertPhysicalPath } from "./package-artifact-custody.mjs";
+import { assertPhysicalPath } from "./package-artifact-custody.mts";
 import { containsPhysicalPath, readStableRegularFile } from "./pack-artifact-stage-support.mjs";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";

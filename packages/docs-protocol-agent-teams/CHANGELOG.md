@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+### Patch Changes
+
+- [#366](https://github.com/agent-teams-ai/engineering-foundation/pull/366) [`dc43bb9`](https://github.com/agent-teams-ai/engineering-foundation/commit/dc43bb99cffb76db8bed8e6698a46e822daa6000) Thanks [@777genius](https://github.com/777genius)! - Retain authentic stable24 and stable28 origin bundles so the managed adapter can recognize existing Orchestrator and Agent Runtime sources during same-generation upgrades.
+
 ## 0.3.1
 
 ### Patch Changes

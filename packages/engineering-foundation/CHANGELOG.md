@@ -1,5 +1,11 @@
 # @agent-teams/engineering-foundation
 
+## 1.7.2
+
+### Patch Changes
+
+- [#365](https://github.com/agent-teams-ai/engineering-foundation/pull/365) [`d2225de`](https://github.com/agent-teams-ai/engineering-foundation/commit/d2225de1ab47a894cfaeea1f073b9c32426b176b) Thanks [@777genius](https://github.com/777genius)! - Fix mandatory Node-test CLI startup when invoked by a Node test parent, preserving required completion and exact exception checks.
+
 ## 1.7.1
 
 ### Patch Changes

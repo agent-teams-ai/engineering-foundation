@@ -161,7 +161,7 @@ export async function observeFoundationFeatureGraph(root = repositoryRoot) {
   const base = join(root, "packages/engineering-foundation/src");
   const files = await sources(base);
   const known = new Set(files);
-  const contents = new Array(files.length);
+  const contents = Array.from({ length: files.length });
   let nextFile = 0;
   // Read every source afresh, with bounded I/O; parse in inventory order below.
   const readers = Array.from({ length: Math.min(8, files.length) }, async () => {

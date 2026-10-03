@@ -113,14 +113,20 @@ test("Ready PR feedback checks the committed delta independently of full qualifi
   assert.ok(feedback, "Ready pull requests need a preliminary feedback lane");
   assert.equal(feedback.if,
     "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}");
-  const securityIndex = feedback.steps.findIndex(({ uses }) =>
+  const security = preliminary.jobs["dependency-review"];
+  assert.ok(security, "Feedback needs its own declared blocking Dependency Review job");
+  assert.equal(security.if, undefined);
+  assert.equal(security["continue-on-error"], undefined);
+  assert.equal(feedback.needs, "dependency-review");
+  const review = security.steps.find(({ uses }) =>
     uses?.startsWith("actions/dependency-review-action@"));
+  const declaredReview = ci.jobs["dependency-review"].steps.find(({ uses }) =>
+    uses?.startsWith("actions/dependency-review-action@"));
+  assert.deepEqual(review, declaredReview,
+    "Feedback Dependency Review must preserve the declared blocking security semantics");
   const installIndex = feedback.steps.findIndex(({ run }) =>
     run === "pnpm install --frozen-lockfile --ignore-scripts");
-  assert.ok(securityIndex > 0 && securityIndex < installIndex,
-    "Dependency Review must reject vulnerable changes before executing dependencies");
-  assert.equal(feedback.steps[securityIndex].with["warn-only"], false);
-  assert.equal(feedback.steps[securityIndex]["continue-on-error"], undefined);
+  assert.ok(installIndex > 0, "Feedback must install pinned dependencies after checkout");
   assert.equal(feedback["timeout-minutes"], 10);
   const checkout = feedback.steps.find(({ uses }) => uses?.startsWith("actions/checkout@"));
   assert.equal(checkout.with["fetch-depth"], 0, "PR base and merge-base history must be available");

@@ -64,6 +64,9 @@ test("same bytes do not authorize inode replacement, hardlinks or symlink ancest
       const outside = join(fixture.parent, "outside.tgz");
       if (mutation === "replacement") {
         await writeFile(outside, fixture.bytes);
+        // Windows refuses replacing the fixture's read-only file. Permit the
+        // rename so this case actually reaches the custody rejection boundary.
+        await chmod(fixture.archivePath, 0o644);
         await rename(outside, fixture.archivePath);
       } else if (mutation === "hardlink") { await link(fixture.archivePath, outside); }
       else if (mutation === "leaf-symlink") {

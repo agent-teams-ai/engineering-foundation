@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { observeFoundationFeatureGraph, stronglyConnectedComponents } from "./helpers/local-mode-boundaries.mjs";
 
-const edgesOf = (pairs) => pairs.map(([from, to]) => ({ from, to }));
+type Edge = { from: string; to: string };
+const edgesOf = (pairs: ReadonlyArray<readonly [string, string]>): Edge[] => pairs.map(([from, to]) => ({ from, to }));
 
 // Duplicate edges do not create a cycle; singleton self-loops retain the old meaning.
 test("SCC oracle omits empty graphs, duplicate DAG edges and singleton self-loops", () => {
@@ -40,7 +41,7 @@ test("SCC oracle includes a branch pointing back into an active sibling", () => 
 test("SCC oracle matches independent reachability for all three-vertex directed graphs", () => {
   const names = ["z", "a", "m"];
   for (let mask = 0; mask < 512; mask += 1) {
-    const edges = [];
+    const edges: Edge[] = [];
     const reachable = names.map((_, from) => names.map((__, to) => from === to));
     for (let from = 0; from < 3; from += 1) {
       for (let to = 0; to < 3; to += 1) {
@@ -58,8 +59,8 @@ test("SCC oracle matches independent reachability for all three-vertex directed 
       }
     }
     const vertices = [...new Set(edges.flatMap(({ from, to }) => [from, to]))];
-    const assigned = new Set();
-    const expected = [];
+    const assigned = new Set<string>();
+    const expected: string[][] = [];
     for (const vertex of vertices) {
       if (assigned.has(vertex)) { continue; }
       const from = names.indexOf(vertex);
@@ -87,24 +88,24 @@ test("SCC oracle reports every member of a deep cycle without stack overflow", (
   assert.deepEqual(stronglyConnectedComponents(edges), [members.toSorted()]);
 });
 
-async function writeSource(root, path, source) {
+async function writeSource(root: string, path: string, source: string): Promise<void> {
   const file = join(root, "packages/engineering-foundation/src", path);
   await mkdir(dirname(file), { recursive: true });
   await writeFile(file, source);
 }
 
-async function fixture(t, files) {
+async function fixture(t: TestContext, files: Readonly<Record<string, string>>): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "ef-g-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const [path, source] of Object.entries(files)) { await writeSource(root, path, source); }
   return root;
 }
 
-function observedEdge(from, to, file, target, specifier, typeOnly = false) {
+function observedEdge(from: string, to: string, file: string, target: string, specifier: string, typeOnly = false) {
   return { from, to, file: join(...file.split("/")), target: join(...target.split("/")), specifier, typeOnly };
 }
 
-const normalizedEdges = (edges) => edges.toSorted((left, right) =>
+const normalizedEdges = (edges: ReadonlyArray<ReturnType<typeof observedEdge>>) => edges.toSorted((left, right) =>
   JSON.stringify(left).localeCompare(JSON.stringify(right)));
 
 // Settled parallel reads must surface the actual I/O failure, never a partial graph.

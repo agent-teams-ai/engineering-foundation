@@ -204,6 +204,11 @@ A failure remains visible in `PR Feedback` without changing the full `CI` run
 conclusion used by release attestation. Repository protection keeps the same
 required contexts. A passing `pr-feedback` result does not authorize merge.
 
+New CI tooling and test harnesses use `.mts` and run with the pinned Node's native
+TypeScript stripping. `typecheck:ci-tooling` checks their contracts with the pinned
+compiler as part of `typecheck`; stripping alone is not a typecheck. The blocking
+test inventory admits `.test.mts` with the same exact-once shard requirements.
+
 Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. Independent
 hosted-review evidence belongs in pull-request comments; it is not converted

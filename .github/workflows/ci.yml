@@ -520,10 +520,10 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      # Keep shards 1 and 4 together. The larger 2+3 lane is split below after
-      # two exact-head runs hit its 65-minute timeout with tests still passing.
-      - name: Qualify Windows portable shards and managed runtime refusal
-        run: pnpm test:shard:built -- --shards 1,4 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"
+      # Windows partitions retain the complete canonical inventory in five isolated
+      # jobs. Serial execution inside each job preserves fixture ownership.
+      - name: Run isolated Windows test partition
+        run: pnpm test:shard:built -- --windows-lane a --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -557,7 +557,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 2 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"
+      - run: pnpm test:shard:built -- --windows-lane b --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -591,7 +591,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - run: pnpm test:shard:built -- --shards 3 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
+      - run: pnpm test:shard:built -- --windows-lane c --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -602,8 +602,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  windows-package:
-    name: windows-package
+  windows-test-d:
+    name: windows-test-d
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: windows-2022
@@ -624,17 +624,98 @@ jobs:
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
-      - run: pnpm package:check
-        env:
-          # Disposable hosted runner owns final fixture-tree cleanup.
-          AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS: "1"
+      - run: pnpm build
+      # Windows partitions retain the complete canonical inventory in five isolated
+      # jobs. Serial execution inside each job preserves fixture ownership.
+      - name: Run isolated Windows test partition
+        run: pnpm test:shard:built -- --windows-lane d --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-d"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-d
+          path: ${{ runner.temp }}/test-timing/windows-test-d
+          if-no-files-found: warn
+          retention-days: 14
 
-  windows-registry:
-    name: windows-registry
+  windows-test-e:
+    name: windows-test-e
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm test:shard:built -- --windows-lane e --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-e"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-e
+          path: ${{ runner.temp }}/test-timing/windows-test-e
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-package:
+    name: windows-package (${{ matrix.group }})
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: windows-2022
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [integration, sdk-growth, quality-coverage]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm package:group:built packed "$env:QUALIFICATION_GROUP"
+        env:
+          QUALIFICATION_GROUP: ${{ matrix.group }}
+          # Disposable hosted runner owns final fixture-tree cleanup.
+          AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS: "1"
+
+  windows-registry:
+    name: windows-registry (${{ matrix.group }})
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [npm-docs, pnpm-docs, foundation]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -651,8 +732,9 @@ jobs:
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: node scripts/prepare-package.mjs
-      - run: pnpm registry-install-e2e:built
+      - run: pnpm package:group:built registry "$env:QUALIFICATION_GROUP"
+        env:
+          QUALIFICATION_GROUP: ${{ matrix.group }}
 
   windows-published:
     name: windows-published
@@ -689,6 +771,8 @@ jobs:
       - windows-test-a
       - windows-test-b
       - windows-test-c
+      - windows-test-d
+      - windows-test-e
       - windows-package
       - windows-registry
       - windows-published

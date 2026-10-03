@@ -32,6 +32,12 @@ Observed run 37131683860: shard 1 approximately 993 seconds; shard 4 approximate
 803; shard 2 approximately 856; shard 3 loader CLI file 825; remaining shard 3 769.
 These are planning evidence, not latency guarantees.
 
+The later main run `37136363590` passed in 30:25, with Windows package 29:59
+and Windows tests A/C 28:38/28:05. Its unchanged Linux shard 3 took 19:32,
+followed by 0:32 coverage aggregation. That observation puts the full-run
+forecast near 20 minutes even if the Windows split reaches 15-18 minutes;
+the original 16-minute lower estimate is not established by this baseline.
+
 ## Package lane contract
 
 The package writer owns the private archive producer, packed/registry qualification
@@ -53,6 +59,14 @@ all existing phases, npm/pnpm profiles, rollback, installed bytes, lock/archive
 metadata and Buf obligations. Each group can retain the full six-target producer;
 bounded target concurrency reduces that preparation's wall time. No arbitrary
 package/path override or caller-supplied registry authority is introduced.
+
+The Windows package matrix contains `integration`, `sdk-growth` and
+`quality-coverage`; the registry matrix contains `npm-docs`, `pnpm-docs` and
+`foundation`. Both retain `fail-fast: false` so an independent failure cannot
+cancel the remaining evidence. The mandatory Windows aggregate depends on both
+matrix job IDs as well as all five test jobs. Each matrix member starts with its
+own fresh all-six-target archive production; a group's name does not authorize
+an archive subset or access to another member's temporary files.
 
 ## Verification and classification
 

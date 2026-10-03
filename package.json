@@ -47,6 +47,7 @@
     "check:affected": "nx affected -t build --exclude=@agent-teams/engineering-foundation-repository",
     "package:check": "pnpm build && pnpm package:check:built",
     "package:check:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs",
+    "package:group:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-group.mts",
     "parser-spike:check": "pnpm --filter @agent-teams/source-dependency-parser-spike run check",
     "registry-install-e2e": "pnpm build && pnpm package:qualification:built",
     "registry-install-e2e:built": "node scripts/registry-install-e2e.mjs",

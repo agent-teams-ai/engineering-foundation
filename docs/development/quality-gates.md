@@ -85,8 +85,13 @@ thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses four
-checked-in sequential test shards; Windows runs shards 1 and 4 together and shards
-2 and 3 in separate lanes. Package, registry, published-version, coverage, and static
+checked-in sequential test shards. Windows uses five isolated lanes: A selects
+shard 1, B shard 2, C the installed loader CLI suite from shard 3, D shard 4,
+and E the remaining shard 3 files. The closed Windows dispatch validates the
+complete canonical shard inventory before platform filtering. Missing pinned
+entries, duplicate assignments and incomplete partitions reject dispatch; future
+canonical files remain selected exactly once. Linux coverage-only additions
+retain their existing four-shard ownership. Package, registry, published-version, coverage, and static
 capability qualifications run in parallel checkouts. The stable required contexts `check`
 and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
 missing prerequisite fails the required context. Every executable pull request
@@ -126,7 +131,7 @@ proof remain with the root controller. Estimates are not measured speedup result
 Linux shards 3 and 4 have 30-minute job budgets to accommodate the projected
 20- and 17-minute loads plus preparation, coverage and artifact uploads.
 
-All seven Windows static, test, package, registry, and published-version jobs
+All Windows static, test, package, registry, and published-version jobs
 set `TEMP` and `TMP` to the trusted runtime `RUNNER_TEMP` value through
 `GITHUB_ENV` after Node setup and before install, rebuild, build, or test
 subprocesses. A missing value fails the setup step. Linux and macOS retain their
@@ -243,8 +248,9 @@ suites to Linux x64, matching their [linux/x64 support contract](../reference/no
 renamed or additional managed-runtime suites until their platform policy is reviewed.
 Built, shard and legacy coverage runners apply the same platform/architecture selection.
 They report requested/selected counts and exact Linux x64-only paths; an empty dispatch refuses.
-The global inventory contains 276 files: Linux x64 admits all 276; Windows, Darwin and
-other Linux architectures admit 274. Required shard counts exclude the unchanged coverage-only additions;
+The global inventory is validated against both manifests: Linux x64 admits every
+inventoried file; Windows, Darwin and other Linux architectures route only the
+two private managed suites to Linux x64. Required shard counts exclude the unchanged coverage-only additions;
 every portable required file and every declared mandatory identity remains selected.
 The portable managed-profile suite checks unsupported-platform refusal before IO,
 including Linux selections on actual unsupported hosts. The existing inert construction
@@ -252,7 +258,7 @@ and unadmitted-close case lives in that portable suite as well. Such refusal is 
 evidence, never a positive Linux runtime observation. Mandatory adoption of either
 Linux-only file requires a reviewed platform contract; the existing versioned
 mandatory contract and its exact identities remain unchanged.
-Raw coverage selection requires Linux x64 and retains all 276 files across four shards.
+Raw coverage selection requires Linux x64 and retains the complete inventory across four shards.
 The coverage manifest's `additionalTestsByShard` extends only the Linux
 raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep
@@ -400,6 +406,21 @@ one process-local qualified artifact set. The Linux registry wrapper and macOS
 combined lane use it; standalone `package:check:built` and
 `registry-install-e2e:built` each produce a fresh set. Windows jobs retain their
 independent qualification scopes.
+
+Windows packed qualification uses three fresh groups: `integration` retains
+documentation rollback/history, consumer E2E, authority, local mode, agent and
+quality-gate reporting; `sdk-growth` retains SDK growth qualification;
+`quality-coverage` retains coverage qualification. Registry qualification uses
+`npm-docs`, `pnpm-docs` and `foundation`, retaining both documentation profiles
+for each package manager and the installed Foundation consumer. All matrix
+members remain required by `windows-check`; default local commands and the
+Linux/macOS qualification paths still execute the full consumer inventory.
+
+Each fresh production prepares at most two independent package targets at once.
+Their staging trees are separate, both clean builds remain required per target,
+and returned records retain catalog order. Failure stops new target admission
+and drains every started target before cleanup; no archive authority is shared
+between matrix jobs. Every group produces the complete six-package set.
 
 Every target still requires two independent clean builds and the existing
 artifact conformance checks. Reuse preserves the producer's retained verified

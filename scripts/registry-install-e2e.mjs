@@ -43,6 +43,9 @@ import {
 } from "./registry-seed-scheduler.mjs";
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./pack-publishable-artifacts.mjs";
+import {
+  packageQualificationPhaseIds, runPackageQualificationPhases,
+} from "./package-qualification-groups.mts";
 import { readQualifiedReleaseArtifact } from "./pack-artifact-archive.mjs";
 import {
   DOCS_PROTOCOL_PACKAGE_NAME,
@@ -512,7 +515,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
 }
 
 
-async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint) {
+async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint, group) {
   const matrix = registryInstallMatrix({
     docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
     mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
@@ -525,20 +528,28 @@ async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint)
     mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
   });
   const lockDigests = [];
-  for (const matrixEntry of [...matrix, foundationEntry]) {
-    await checkpoint();
-    lockDigests.push([matrixEntry.id, await runRegistryPhase(
-      `consumer-qualification-${matrixEntry.id}`,
-      () => verifyConsumer(targets, registryUrl, matrixEntry, commands),
-    )]);
-    await checkpoint();
-  }
+  await runPackageQualificationPhases("registry", group, [...matrix, foundationEntry].map(matrixEntry => ({
+    id: matrixEntry.id,
+    run: async () => {
+      await checkpoint();
+      lockDigests.push([matrixEntry.id, await runRegistryPhase(
+        `consumer-qualification-${matrixEntry.id}`,
+        () => verifyConsumer(targets, registryUrl, matrixEntry, commands),
+      )]);
+      await checkpoint();
+    }
+  })));
   process.stdout.write(
     `Registry consumers verified: ${targets.map((target) => `${target.manifest.name}@${target.manifest.version}`).join(", ")}; ${lockDigests.map(([id, digest]) => `${id}=sha256:${digest}`).join(", ")}.\n`,
   );
 }
 
-export function qualifyRegistryConsumers(handle) {
+/**
+ * @param {import("./package-artifact-custody.mts").QualificationHandle} handle
+ * @param {import("./package-qualification-groups.mts").RegistryQualificationGroup | undefined} [group]
+ */
+export function qualifyRegistryConsumers(handle, group) {
+  packageQualificationPhaseIds("registry", group);
   return runQualifiedArtifactConsumer(handle, "registry", async ({ artifacts, temporaryRoot, checkpoint }) => {
     const runPnpm = createPnpmRunner();
     const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
@@ -578,7 +589,7 @@ export function qualifyRegistryConsumers(handle) {
         await verifyRegistryTargetDownload(target, registry.registryUrl);
       }
       await checkpoint();
-      await qualifyRegistryMatrix(targets, registry.registryUrl, commands, checkpoint);
+      await qualifyRegistryMatrix(targets, registry.registryUrl, commands, checkpoint, group);
     } finally {
       if (previousRegistryToken === undefined) {
         delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
@@ -598,9 +609,11 @@ export function qualifyRegistryConsumers(handle) {
   });
 }
 
-export async function runRegistryInstallTest() {
-  const evidence = await withQualifiedPackageArtifacts("registry", qualifyRegistryConsumers);
-  process.stdout.write(`Registry-install qualification PASS: ${JSON.stringify(evidence)}\n`);
+/** @param {import("./package-qualification-groups.mts").RegistryQualificationGroup | undefined} [group] */
+export async function runRegistryInstallTest(group) {
+  packageQualificationPhaseIds("registry", group);
+  const evidence = await withQualifiedPackageArtifacts("registry", handle => qualifyRegistryConsumers(handle, group));
+  process.stdout.write(`Registry-install${group === undefined ? "" : ` group ${group}`} qualification PASS: ${JSON.stringify(evidence)}\n`);
   return evidence;
 }
 

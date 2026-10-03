@@ -337,7 +337,7 @@ test("owner failure closes next-stage admission before accepted work drains", as
 
 test("imports of the producer, consumers and combined entrypoint have no qualification effects", async t => {
   const root = await directory(t, "qi-");
-  const modules = ["pack-publishable-artifacts.mjs", "pack-test.mjs", "registry-install-e2e.mjs", "qualify-package-artifacts.mts"];
+  const modules = ["pack-publishable-artifacts.mjs", "pack-test.mjs", "registry-install-e2e.mjs", "qualify-package-artifacts.mts", "package-qualification-groups.mts", "qualify-package-group.mts"];
   const script = `
 import assert from 'node:assert/strict';
 import { readdir } from 'node:fs/promises';

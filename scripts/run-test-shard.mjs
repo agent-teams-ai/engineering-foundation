@@ -8,8 +8,9 @@ import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } fro
 import { requireContainedRealDirectory, writeShardEvidence } from "./coverage-evidence.mjs";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 import { attachTestTiming } from "./test-timing.mjs";
+import { requireWindowsTestLane, selectWindowsTestLanePaths } from "./windows-test-partitions.mts";
 
-const usage = "Usage: node scripts/run-test-shard.mjs --shards <ids> [--coverage-evidence-dir <path> --head-sha <sha>] [--timing-output <dir>]";
+const usage = "Usage: node scripts/run-test-shard.mjs (--shards <ids> | --windows-lane <a|b|c|d|e>) [--coverage-evidence-dir <path> --head-sha <sha>] [--timing-output <dir>]";
 
 function inside(directory, root) {
   const path = relative(root, directory);
@@ -40,13 +41,29 @@ async function requireTimingOutsideCoverage(timingDirectory, evidenceDirectory, 
   return directory;
 }
 
+function parseDispatchSelection(values) {
+  const shardValue = values.get("--shards");
+  const windowsLane = values.get("--windows-lane");
+  if ((shardValue === undefined) === (windowsLane === undefined)) {
+    throw new Error(usage);
+  }
+  const ids = shardValue === undefined ? [] : shardValue.split(",");
+  if (shardValue !== undefined && (ids.some((id) => !/^[1-4]$/u.test(id)) || new Set(ids).size !== ids.length)) {
+    throw new Error("Shard ids must be unique values from 1 through 4");
+  }
+  if (windowsLane !== undefined) {
+    requireWindowsTestLane(windowsLane);
+  }
+  return { ids, windowsLane };
+}
+
 export function parseTestShardArguments(arguments_) {
   const normalizedArguments = arguments_[0] === "--" ? arguments_.slice(1) : arguments_;
   const values = new Map();
   for (let index = 0; index < normalizedArguments.length; index += 2) {
     const key = normalizedArguments[index];
     const value = normalizedArguments[index + 1];
-    if (!new Set(["--shards", "--coverage-evidence-dir", "--head-sha", "--timing-output"]).has(key) || value === undefined) {
+    if (!new Set(["--shards", "--windows-lane", "--coverage-evidence-dir", "--head-sha", "--timing-output"]).has(key) || value === undefined) {
       throw new Error(usage);
     }
     if (values.has(key)) {
@@ -54,18 +71,14 @@ export function parseTestShardArguments(arguments_) {
     }
     values.set(key, value);
   }
-  const shardValue = values.get("--shards");
-  if (shardValue === undefined) {
-    throw new Error(usage);
-  }
-  const ids = shardValue.split(",");
-  if (ids.some((id) => !/^[1-4]$/u.test(id)) || new Set(ids).size !== ids.length) {
-    throw new Error("Shard ids must be unique values from 1 through 4");
-  }
+  const { ids, windowsLane } = parseDispatchSelection(values);
   const evidencePath = values.get("--coverage-evidence-dir");
   const headSha = values.get("--head-sha");
   if ((evidencePath === undefined) !== (headSha === undefined)) {
     throw new Error("Coverage evidence directory and head SHA must be supplied together");
+  }
+  if (windowsLane !== undefined && evidencePath !== undefined) {
+    throw new Error("Windows lanes cannot collect raw coverage evidence");
   }
   if (evidencePath !== undefined && ids.length !== 1) {
     throw new Error("Coverage evidence requires exactly one shard");
@@ -81,7 +94,8 @@ export function parseTestShardArguments(arguments_) {
   const timingPath = values.get("--timing-output");
   const timingDirectory = timingPath === undefined ? undefined : resolvePath(repositoryRoot, timingPath);
   rejectCoverageTiming(timingDirectory, evidenceDirectory);
-  return Object.freeze({ evidenceDirectory, headSha, ids, timingDirectory });
+  return Object.freeze({ evidenceDirectory, headSha, ids, timingDirectory,
+    ...(windowsLane === undefined ? {} : { windowsLane }) });
 }
 
 export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled, platform = process.platform,
@@ -96,8 +110,10 @@ export function selectTestShardPaths(manifest, ids, coverageEvidenceEnabled, pla
 
 async function main() {
   const manifest = await validateTestManifests();
-  const { evidenceDirectory, headSha, ids, timingDirectory } = parseTestShardArguments(process.argv.slice(2));
-  const tests = selectTestShardPaths(manifest, ids, evidenceDirectory !== undefined);
+  const { evidenceDirectory, headSha, ids, timingDirectory, windowsLane } = parseTestShardArguments(process.argv.slice(2));
+  const tests = windowsLane === undefined
+    ? selectTestShardPaths(manifest, ids, evidenceDirectory !== undefined)
+    : selectWindowsTestLanePaths(manifest, windowsLane, evidenceDirectory !== undefined);
   const activeEvidenceDirectory = await prepareEvidenceDirectory(evidenceDirectory);
   const bootstrapUrl = new URL("./coverage-process-bootstrap.mjs", import.meta.url).href;
   const mandatoryOptions = activeEvidenceDirectory === undefined ? {} : {

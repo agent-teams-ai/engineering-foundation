@@ -17,6 +17,7 @@ import { prepareMarkdownPublication } from "./markdown-publication.mjs";
 import {
   assertPhysicalPath, capturePackageArtifactInputs, retainArchiveCustody, verifyArchiveCustody,
 } from "./package-artifact-custody.mts";
+import { mapIndependentPackageTargets } from "./package-qualification-groups.mts";
 
 const qualifiedProductions = new WeakMap();
 const invocations = new WeakMap();
@@ -370,10 +371,9 @@ export async function packPublishableArtifacts(input) {
     process.stderr.write(`Qualified artifact build: ${packageName}; stage=${stageRoot}\n`);
     await runPnpm(["run", "build"], stagedPackageRoot);
   };
-  const pending = [];
   const markdownPublication = PUBLISHABLE_PACKAGES.some(entry => entry.name === "@agent-teams/document-authoring")
     ? await prepareMarkdownPublication(repositoryRoot) : undefined;
-  for (const item of plan) {
+  const pending = await mapIndependentPackageTargets(plan, async (item) => {
     const entry = item.package;
     const artifact = await packAndInspectArtifact({
       artifactLabel: `package-${Buffer.from(entry.name, "utf8").toString("hex")}`,
@@ -395,8 +395,8 @@ export async function packPublishableArtifacts(input) {
       })),
       temporaryRoot,
     });
-    pending.push({ artifact, entry, item });
-  }
+    return { artifact, entry, item };
+  });
   // Every production process has settled. Use the producer's retained verified
   // bytes: later builds may mutate original staging paths without changing these
   // snapshots. Downstream snapshots acquire separate physical custody below;

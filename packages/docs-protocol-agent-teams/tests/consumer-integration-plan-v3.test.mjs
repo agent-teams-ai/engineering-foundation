@@ -179,25 +179,30 @@ test("profile v3 plans only canonical new assets and accepts exact managed-state
   );
 });
 
-test("exact stable21 and stable25 profile v3 sources remain current for a future direct upgrade", async () => {
-  const assetCatalog = await loadPackageConsumerAssetCatalog();
-  const history = JSON.parse(CANONICAL_TRANSITION_CATALOG).directTargetBundles;
-  for (const cohortId of ["docs-2026-09-12-stable21", "docs-2026-09-16-stable25"]) {
-    const binding = history.find(({ cohort }) => cohort.cohortId === cohortId)?.cohort;
-    assert.ok(binding, `${cohortId} requires a bundled source`);
-    const source = { ...desired(), cohort: binding };
-    const current = snapshot();
-    current.skill = file(CANONICAL_DOCS_SKILL_V2);
-    current.callerWorkflow = file(canonicalCallerWorkflow(binding));
-    current.managedState = file(canonicalManagedState(source, {
-      ...binding.assets,
-      agentsRouteDigest: digest(Buffer.from(canonicalManagedRoute(source.skillPath))),
-      docsScriptsDigest: canonicalDocsScriptsDigest(source.profilePath)
-    }));
-    const plan = compileConsumerIntegration({ desired: source, snapshot: current, assetCatalog }, ports([])).plan;
-    assert.equal(plan.outcome, "current", `${cohortId}: ${JSON.stringify(plan.issues)}`);
-  }
-});
+for (const [name, origins] of [
+  ["exact stable21 and stable25 profile v3 sources remain current for a future direct upgrade", ["docs-2026-09-12-stable21", "docs-2026-09-16-stable25"]],
+  ["exact stable24 and stable28 profile v3 sources remain current for a future direct upgrade", ["docs-2026-09-15-stable24", "docs-2026-09-24-stable28"]]
+]) {
+  test(name, async () => {
+    const assetCatalog = await loadPackageConsumerAssetCatalog();
+    const history = JSON.parse(CANONICAL_TRANSITION_CATALOG).directTargetBundles;
+    for (const cohortId of origins) {
+      const binding = history.find(({ cohort }) => cohort.cohortId === cohortId)?.cohort;
+      assert.ok(binding, `${cohortId} requires a bundled source`);
+      const source = { ...desired(), cohort: binding };
+      const current = snapshot();
+      current.skill = file(CANONICAL_DOCS_SKILL_V2);
+      current.callerWorkflow = file(canonicalCallerWorkflow(binding));
+      current.managedState = file(canonicalManagedState(source, {
+        ...binding.assets,
+        agentsRouteDigest: digest(Buffer.from(canonicalManagedRoute(source.skillPath))),
+        docsScriptsDigest: canonicalDocsScriptsDigest(source.profilePath)
+      }));
+      const plan = compileConsumerIntegration({ desired: source, snapshot: current, assetCatalog }, ports([])).plan;
+      assert.equal(plan.outcome, "current", `${cohortId}: ${JSON.stringify(plan.issues)}`);
+    }
+  });
+}
 
 test("profile v3 blocks modified managed bytes, forged asset digests, and V1 catalogs", () => {
   const target = desired();

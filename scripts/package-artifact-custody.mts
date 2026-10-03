@@ -172,7 +172,7 @@ export async function capturePackageArtifactInputs(repositoryRoot: string, packa
       add(path, [mode, sha256(bytes)]);
     } else { fail(`qualification input is a special file: ${path}`); }
   }
-  for (const path of [...new Set(["package.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", "LICENSE", "scripts",
+  for (const path of [...new Set(["package.json", ".node-version", "pnpm-workspace.yaml", "pnpm-lock.yaml", "LICENSE", "scripts",
     ...packages.map(entry => entry.root), ...additionalPaths])].toSorted()) { await visit(path); }
   return digest.digest("hex");
 }

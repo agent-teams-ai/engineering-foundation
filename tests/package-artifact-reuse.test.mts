@@ -130,7 +130,7 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
     join(source, "packages", "engineering-foundation"),
     process.platform === "win32" ? "junction" : "dir");
   await symlink(join(repositoryRoot, "node_modules"), join(source, "node_modules"), process.platform === "win32" ? "junction" : "dir");
-  for (const name of ["LICENSE", "pnpm-lock.yaml", "package.json"]) {
+  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
   }
   await writeFile(join(source, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
@@ -235,14 +235,16 @@ test("producer failure admits zero consumers", async t => {
 
 test("packed failure, downstream tampering and source drift prevent registry effects", async t => {
   const fixture = await producerFixture(t);
-  for (const failure of ["consumer", "tamper", "drift"]) {
+  for (const failure of ["consumer", "tamper", "drift", "toolchain-pin"]) {
     let registryCalls = 0;
-    const source = join(fixture.source, "packages", "a", "README.md");
+    const source = failure === "toolchain-pin"
+      ? join(fixture.source, ".node-version")
+      : join(fixture.source, "packages", "a", "README.md");
     const original = await readFile(source);
     await assert.rejects(fixture.api.withQualifiedPackageArtifacts("combined", async handle => {
       await fixture.api.runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts }) => {
         if (failure === "consumer") { throw new Error("TEST packed failure"); }
-        if (failure === "drift") { await writeFile(source, "TEST changed relevant input"); }
+        if (failure === "drift" || failure === "toolchain-pin") { await writeFile(source, "TEST changed relevant input"); }
         else {
           const record = Object.values(artifacts)[0];
           await chmod(record.archivePath, 0o644);

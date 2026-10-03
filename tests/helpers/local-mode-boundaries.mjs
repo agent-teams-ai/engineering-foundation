@@ -161,10 +161,29 @@ export async function observeFoundationFeatureGraph(root = repositoryRoot) {
   const base = join(root, "packages/engineering-foundation/src");
   const files = await sources(base);
   const known = new Set(files);
+  const contents = new Array(files.length);
+  let nextFile = 0;
+  // Read every source afresh, with bounded I/O; parse in inventory order below.
+  const readers = Array.from({ length: Math.min(8, files.length) }, async () => {
+    while (nextFile < files.length) {
+      const index = nextFile++;
+      try {
+        contents[index] = { source: await readFile(files[index], "utf8") };
+      } catch (error) {
+        contents[index] = { error };
+      }
+    }
+  });
+  // Drain all reads before surfacing a failure, so fixture cleanup cannot race them.
+  for (const result of await Promise.allSettled(readers)) {
+    if (result.status === "rejected") { throw result.reason; }
+  }
   const edges = [];
   const missing = [];
-  for (const file of files) {
-    const tree = ts.createSourceFile(file, await readFile(file, "utf8"), ts.ScriptTarget.Latest, true);
+  for (const [index, file] of files.entries()) {
+    // Keep the first inventory-ordered read or syntax failure, not completion order.
+    if (Object.hasOwn(contents[index], "error")) { throw contents[index].error; }
+    const tree = ts.createSourceFile(file, contents[index].source, ts.ScriptTarget.Latest, true);
     assert.equal(tree.parseDiagnostics.length, 0, file);
     for (const reference of references(tree)) {
       if (!reference.specifier.startsWith(".")) {

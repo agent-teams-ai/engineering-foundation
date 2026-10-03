@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -106,6 +106,43 @@ function observedEdge(from, to, file, target, specifier, typeOnly = false) {
 
 const normalizedEdges = (edges) => edges.toSorted((left, right) =>
   JSON.stringify(left).localeCompare(JSON.stringify(right)));
+
+// Settled parallel reads must surface the actual I/O failure, never a partial graph.
+test("feature observer rejects unreadable source before accepting a partial inventory", {
+  skip: process.platform === "win32" || process.getuid?.() === 0,
+}, async (t) => {
+  const root = await fixture(t, {
+    "features/a/entry.ts": "export const a = 1;",
+    "features/b/entry.ts": "export const b = 2;",
+  });
+  const unreadable = join(root, "packages/engineering-foundation/src/features/b/entry.ts");
+  await chmod(unreadable, 0o000);
+  try {
+    await assert.rejects(observeFoundationFeatureGraph(root), { code: "EACCES" });
+  } finally {
+    await chmod(unreadable, 0o600);
+  }
+});
+
+// A late read error must not replace the earlier syntax diagnostic after prefetch.
+test("feature observer retains the first inventory-ordered syntax or read failure", {
+  skip: process.platform === "win32" || process.getuid?.() === 0,
+}, async (t) => {
+  const root = await fixture(t, {
+    "features/a/entry.ts": "export const = ;",
+    "features/z/entry.ts": "export const z = 1;",
+  });
+  const unreadable = join(root, "packages/engineering-foundation/src/features/z/entry.ts");
+  await chmod(unreadable, 0o000);
+  try {
+    await assert.rejects(observeFoundationFeatureGraph(root), {
+      code: "ERR_ASSERTION",
+      message: /features[/\\]a[/\\]entry\.ts/u,
+    });
+  } finally {
+    await chmod(unreadable, 0o600);
+  }
+});
 
 // Actual TS parsing must distinguish value edges from all supported type forms,
 // while counting glue sources and retaining lifecycle/reporting feature ownership.

@@ -28,6 +28,7 @@ export function actualSourceDependenciesCLI(consumerRoot) {
 }
 
 function feature(path) {
+  path = path.replaceAll("\\", "/");
   if (path.startsWith("local-mode/") || path === "package-self-check.ts") {
     return "local-package-lifecycle";
   }

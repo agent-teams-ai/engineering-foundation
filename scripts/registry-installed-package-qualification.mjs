@@ -1,5 +1,10 @@
-import { lstat, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { createHash } from "node:crypto";
+import { parse } from "yaml";
+import { inspectCompressedTarArchive, readVerifiedArchive } from "./pack-artifact-archive.mjs";
+import { assertPhysicalPath } from "./package-artifact-custody.mjs";
+import { containsPhysicalPath, readStableRegularFile } from "./pack-artifact-stage-support.mjs";
+import { lstat, readFile, realpath } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 import { writeMandatoryGateFixture, mandatoryTestFile } from "./mandatory-node-test-gate-fixture.mjs";
 import { captureFailure, runCommand } from "./pack-test-support.mjs";
@@ -95,15 +100,16 @@ export async function verifyRegistryPackage({
   if (
     !targetEntry.isDirectory() ||
     targetEntry.isSymbolicLink() ||
+    targetManifest.name !== target.manifest.name ||
     targetManifest.version !== target.manifest.version ||
     lockedTarget?.version !== target.manifest.version ||
-    typeof lockedTarget.integrity !== "string" ||
-    !lockedTarget.integrity.startsWith("sha512-") ||
+    lockedTarget.integrity !== target.integrity ||
     typeof lockedTarget.resolved !== "string" ||
     !lockedTarget.resolved.startsWith(registryUrl)
   ) {
     throw new Error(`Registry evidence is incomplete for ${target.manifest.name}.`);
   }
+  await verifyInstalledTargetPayload(targetRoot, target);
   await runCommand(
     process.execPath,
     [
@@ -190,4 +196,71 @@ export async function verifyFoundationFeatures({
     installedDocsRoot,
     version: authoringVersion,
   });
+}
+
+// These checks compare to the original producer's independently computed bytes,
+// not to a registry's assertion about itself or the mere presence of a lock.
+export async function verifyRegistryTargetDownload(target, registryUrl) {
+  const response = await fetch(`${registryUrl}/${encodeURIComponent(target.manifest.name)}/${target.manifest.version}`);
+  if (!response.ok) { throw new Error("Registry target metadata is unavailable."); }
+  const metadata = await response.json();
+  const url = new URL(metadata.dist?.tarball);
+  if (metadata.name !== target.manifest.name || metadata.version !== target.manifest.version ||
+      metadata.dist?.integrity !== target.integrity || url.origin !== new URL(registryUrl).origin) {
+    throw new Error("Registry metadata differs from original qualified target integrity.");
+  }
+  const downloaded = await fetch(url);
+  if (!downloaded.ok || downloaded.body === null) { throw new Error("Registry target download failed."); }
+  const reader = downloaded.body.getReader();
+  const digest = createHash("sha256");
+  const integrity = createHash("sha512");
+  let bytes = 0;
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) { break; }
+      bytes += chunk.value.byteLength;
+      if (bytes > 8 * 1024 * 1024) { throw new Error("Registry target download exceeds the archive bound."); }
+      digest.update(chunk.value);
+      integrity.update(chunk.value);
+    }
+  } finally {
+    await reader.cancel();
+    reader.releaseLock();
+  }
+  if (digest.digest("hex") !== target.sha256 || `sha512-${integrity.digest("base64")}` !== target.integrity) {
+    throw new Error("Registry download differs from original qualified archive bytes.");
+  }
+}
+
+export async function verifyInstalledTargetPayload(targetRoot, target) {
+  const root = await realpath(targetRoot);
+  const bytes = await readVerifiedArchive(target.archivePath, target.sha256);
+  const inspection = inspectCompressedTarArchive(bytes, target.manifest.name);
+  const state = { bytes: 0 };
+  for (const entry of inspection.entries) {
+    if (entry.type !== "0") { continue; }
+    const path = resolve(root, entry.name.slice("package/".length));
+    if (!entry.name.startsWith("package/") || !containsPhysicalPath(root, path)) {
+      throw new Error("Installed target payload escapes its package root.");
+    }
+    await assertPhysicalPath(path);
+    const actual = await readStableRegularFile(path, state, "Installed qualified payload");
+    if (!actual.bytes.equals(entry.data)) {
+      throw new Error(`Installed target payload differs from original qualified bytes: ${entry.name}.`);
+    }
+  }
+}
+
+export async function verifyPnpmTargetIntegrity(consumerRoot, target) {
+  const locator = `${target.manifest.name}@${target.manifest.version}`;
+  for (const relativePath of ["pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml"]) {
+    const lock = parse((await readStableRegularFile(join(consumerRoot, relativePath), { bytes: 0 }, "Installed pnpm lock")).bytes.toString("utf8"));
+    const direct = lock.importers?.["."]?.devDependencies?.[target.manifest.name];
+    if (direct?.specifier !== target.manifest.version || typeof direct.version !== "string" ||
+        direct.version.split("(")[0] !== target.manifest.version ||
+        lock.packages?.[locator]?.resolution?.integrity !== target.integrity) {
+      throw new Error(`pnpm target integrity differs from original qualified bytes: ${target.manifest.name}.`);
+    }
+  }
 }

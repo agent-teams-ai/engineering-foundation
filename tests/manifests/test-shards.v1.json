@@ -52,6 +52,7 @@
         "tests/pack-quality-coverage-fixture.test.mjs",
         "tests/package-archive-entry-budget.test.mjs",
         "tests/pack-publishable-artifacts.test.mjs",
+        "tests/package-artifact-reuse.test.mts",
         "tests/repository-mutation-qualification-api.test.mjs",
         "tests/public-api-bootstrap.test.mjs",
         "tests/public-api-prerelease-promotion.test.mjs",

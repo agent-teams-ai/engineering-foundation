@@ -18,7 +18,8 @@ import {
   reconcileGithubTagRelease,
 } from "./github-release-reconciliation.mjs";
 import { publishablePackageByName } from "./publishable-packages.mjs";
-import { readVerifiedArchive } from "./pack-artifact-archive.mjs";
+import { readQualifiedReleaseArtifact, readVerifiedArchive } from "./pack-artifact-archive.mjs";
+export { readQualifiedReleaseArtifact } from "./pack-artifact-archive.mjs";
 
 const EXPECTED_NPM_VERSION = "11.19.0";
 export { GITHUB_RECONCILIATION_ATTEMPTS, GITHUB_RECONCILIATION_RETRY_MILLISECONDS };
@@ -332,19 +333,6 @@ function releaseNotes(changelog, version) {
   return content;
 }
 
-export async function readQualifiedReleaseArtifact(artifact, packageInfo) {
-  if (artifact === undefined || artifact.packageName !== packageInfo.name ||
-      artifact.packageVersion !== packageInfo.version) {
-    throw new Error(`Qualified archive identity differs from release state for ${packageInfo.name}.`);
-  }
-  const { archivePath, sha256 } = artifact;
-  const bytes = await readVerifiedArchive(archivePath, sha256);
-  const manifest = packedManifestFromBytes(bytes);
-  if (manifest.name !== packageInfo.name || manifest.version !== packageInfo.version) {
-    throw new Error(`Qualified manifest identity differs from release state for ${packageInfo.name}.`);
-  }
-  return { archivePath, sha256, integrity: tarballIntegrity(bytes), manifest };
-}
 
 async function packArtifacts(cwd, state, destination) {
   if (resolve(cwd) !== resolve(fileURLToPath(new URL("..", import.meta.url)))) {

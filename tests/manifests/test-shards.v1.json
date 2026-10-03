@@ -212,6 +212,8 @@
         "tests/coverage-evidence.test.mjs",
         "tests/coverage-workflow.test.mjs",
         "tests/test-timing.test.mjs",
+        "tests/windows-test-partitions.test.mts",
+        "tests/package-qualification-groups.test.mts",
         "tests/document-authoring-application-spine.test.mjs",
         "tests/document-authoring-contracts.test.mjs",
         "tests/document-authoring-coordinator-adapter.test.mjs",

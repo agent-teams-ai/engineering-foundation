@@ -169,7 +169,8 @@ test("release and registry targets invoke the concrete qualified pack gate", asy
       assert.doesNotMatch(script, /import \{ packPublishableArtifacts \} from/u);
     } else {
       assert.match(script, /import \{ runQualifiedArtifactConsumer, withQualifiedPackageArtifacts \} from "\.\/pack-publishable-artifacts\.mjs"/u);
-      assert.match(script, /withQualifiedPackageArtifacts\("registry", qualifyRegistryConsumers\)/u);
+      assert.match(script, /withQualifiedPackageArtifacts\("registry", handle => qualifyRegistryConsumers\(handle, group\)\)/u);
+      assert.match(script, /await runRegistryInstallTest\(\);/u);
       assert.match(script, /runQualifiedArtifactConsumer\(handle, "registry",/u);
     }
     if (path === "release-publish-ordered-runtime.mjs") {

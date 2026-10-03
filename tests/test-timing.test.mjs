@@ -295,13 +295,13 @@ test("CI retains registry and package obligations and isolated advisory timing u
   assert.ok(ci.jobs["macos-qualification"].steps.some((step) => step.run === "pnpm package:qualification:built"));
   assert.equal(scripts["package:check:built"], "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs");
   const paths = new Set();
-  for (const jobId of ["linux-test-1", "linux-test-2", "linux-test-3", "linux-test-4", "windows-test-a", "windows-test-b", "windows-test-c"]) {
+  for (const jobId of ["linux-test-1", "linux-test-2", "linux-test-3", "linux-test-4", "windows-test-a", "windows-test-b", "windows-test-c", "windows-test-d", "windows-test-e"]) {
     const job = ci.jobs[jobId];
     const run = job.steps.find((step) => jobId === "windows-test-a"
-      ? step.name === "Qualify Windows portable shards and managed runtime refusal"
+      ? step.name === "Run isolated Windows test partition"
       : step.run?.includes("test:shard:built"));
     assert.match(run.run, /--timing-output/u);
-    if (jobId === "windows-test-a") { assert.match(run.run, /--shards 1,4 /u); }
+    if (jobId.startsWith("windows-test-")) { assert.match(run.run, /--windows-lane [abcde] /u); }
     const upload = job.steps.find((step) => step.name === "Upload advisory test timings");
     assert.equal(upload.if, "${{ always() }}");
     assert.equal(upload.with["if-no-files-found"], "warn");

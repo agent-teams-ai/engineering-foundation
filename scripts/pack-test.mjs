@@ -11,6 +11,9 @@ import { testPackedSdkGrowth } from "./pack-sdk-growth-test.mjs";
 import { testPackedQualityGateRunner } from "./pack-quality-gate-runner-test.mjs";
 import { verifyPackedAuthorityScaffolding } from "./pack-scaffolding-test.mjs";
 import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./pack-publishable-artifacts.mjs";
+import {
+  packageQualificationPhaseIds, runPackageQualificationPhases,
+} from "./package-qualification-groups.mts";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
@@ -526,7 +529,12 @@ snapshots:
 }
 
 
-export function qualifyPackedConsumers(handle) {
+/**
+ * @param {import("./package-artifact-custody.mts").QualificationHandle} handle
+ * @param {import("./package-qualification-groups.mts").PackedQualificationGroup | undefined} [group]
+ */
+export function qualifyPackedConsumers(handle, group) {
+  packageQualificationPhaseIds("packed", group);
   return runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts, temporaryRoot, checkpoint }) => {
     const runPnpm = createPnpmRunner();
     const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
@@ -538,75 +546,93 @@ export function qualifyPackedConsumers(handle) {
     const docsProtocolArtifact = artifacts["@agent-teams/docs-protocol"];
     const docsProtocolAdapterArtifact = artifacts["@agent-teams/docs-protocol-agent-teams"];
     const docsProtocolMcpArtifact = artifacts["@agent-teams/docs-protocol-mcp"];
-    await timedPhase("Docs integration", async () => {
-      await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact, temporaryRoot);
-      const rollbackFixtureArtifact = await createRollbackFixturePackage(
-        docsProtocolAdapterArtifact,
-        docsProtocolArtifact,
-        artifact,
-        mutationArtifact,
-        temporaryRoot
-      );
-      process.stdout.write(`Packed TEST rollback fixture (deliberately modified): ${rollbackFixtureArtifact.archiveFileSpecifier}\n`);
-      await verifyPackedDocsConsumerIntegration({
-        temporaryRoot, runPnpm, packageManager,
-        adapter: rollbackFixtureArtifact,
-        authoring: documentAuthoringArtifact,
-        docs: docsProtocolArtifact,
-        foundation: artifact,
-        mutation: mutationArtifact
-      });
+    let fixture;
+    const getFixture = async () => {
+      fixture ??= await timedPhase("packed consumer fixture", async () => createPackedConsumerFixture({
+        archiveFileSpecifier: artifact.archiveFileSpecifier,
+        consumerRoot: join(temporaryRoot, "consumer"),
+        documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+        mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
+        packageManager,
+        runPnpm,
+        toolingVersions: await toolingVersions()
+      }));
+      return fixture;
+    };
+    const consumerPhase = (id, run) => ({
+      id, run: async () => {
+        const current = await getFixture();
+        return timedPhase(id, () => run(current));
+      }
     });
-    process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
-    const fixture = await timedPhase("packed consumer fixture", async () => createPackedConsumerFixture({
-      archiveFileSpecifier: artifact.archiveFileSpecifier,
-      consumerRoot: join(temporaryRoot, "consumer"),
-      documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-      mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
-      packageManager,
-      runPnpm,
-      toolingVersions: await toolingVersions()
-    }));
-    await timedPhase("packed consumer E2E", () => verifyPackedConsumer({ fixture }));
-    await timedPhase("SDK growth qualification", () =>
-      testPackedSdkGrowth({ consumerRoot: fixture.consumerRoot, artifact })
-    );
-    await timedPhase("authority scaffolding", () =>
-      verifyPackedAuthorityScaffolding({ fixture, repositoryRoot })
-    );
-    await timedPhase("local-mode lifecycle", () => verifyPackedLocalMode({
-      ...artifact,
-      packageVersion: fixture.packedManifest.version,
-      packageManager,
-      repositoryRoot,
-      runPnpm,
-      documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
-      mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
-      temporaryRoot
-    }));
-    await timedPhase("agent-workflow fixture", () => testPackedAgentWorkflow({
-      consumerRoot: fixture.consumerRoot,
-      runPnpm
-    }));
-    await timedPhase("quality coverage", () =>
-      testPackedQualityCoverage({ consumerRoot: fixture.consumerRoot, artifact })
-    );
-    await timedPhase("quality gate runner", () => testPackedQualityGateRunner({
-      consumerRoot: fixture.consumerRoot,
-      runPnpm
-    }));
-    process.stdout.write(
-      `Package and local-mode lifecycle verified: ${artifact.archiveName} (${fixture.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`
-    );
+    await runPackageQualificationPhases("packed", group, [
+      { id: "Docs integration", run: async () => {
+        await timedPhase("Docs integration", async () => {
+          await verifyPackedDocsAdapterHistory(docsProtocolAdapterArtifact, temporaryRoot);
+          const rollbackFixtureArtifact = await createRollbackFixturePackage(
+            docsProtocolAdapterArtifact,
+            docsProtocolArtifact,
+            artifact,
+            mutationArtifact,
+            temporaryRoot
+          );
+          process.stdout.write(`Packed TEST rollback fixture (deliberately modified): ${rollbackFixtureArtifact.archiveFileSpecifier}\n`);
+          await verifyPackedDocsConsumerIntegration({
+            temporaryRoot, runPnpm, packageManager,
+            adapter: rollbackFixtureArtifact,
+            authoring: documentAuthoringArtifact,
+            docs: docsProtocolArtifact,
+            foundation: artifact,
+            mutation: mutationArtifact
+          });
+        });
+        process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
+      } },
+      consumerPhase("packed consumer E2E", current => verifyPackedConsumer({ fixture: current })),
+      consumerPhase("SDK growth qualification", current =>
+        testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact })),
+      consumerPhase("authority scaffolding", current =>
+        verifyPackedAuthorityScaffolding({ fixture: current, repositoryRoot })),
+      consumerPhase("local-mode lifecycle", current => verifyPackedLocalMode({
+        ...artifact,
+        packageVersion: current.packedManifest.version,
+        packageManager,
+        repositoryRoot,
+        runPnpm,
+        documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
+        mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
+        temporaryRoot
+      })),
+      consumerPhase("agent-workflow fixture", current => testPackedAgentWorkflow({
+        consumerRoot: current.consumerRoot,
+        runPnpm
+      })),
+      consumerPhase("quality coverage", current =>
+        testPackedQualityCoverage({ consumerRoot: current.consumerRoot, artifact })),
+      consumerPhase("quality gate runner", current => testPackedQualityGateRunner({
+        consumerRoot: current.consumerRoot,
+        runPnpm
+      }))
+    ]);
+    const current = await getFixture();
+    if (group === undefined || group === "integration") {
+      process.stdout.write(
+        `Package and local-mode lifecycle verified: ${artifact.archiveName} (${current.packedManifest.version}); ${docsProtocolArtifact.archiveName}; ${docsProtocolMcpArtifact.archiveName}.\n`
+      );
+    } else {
+      process.stdout.write(`Packed consumer group verified: ${group}; ${artifact.archiveName}.\n`);
+    }
     process.stdout.write(
       `Registry-install qualification: ${localRegistryInstallQualification.status}. ${localRegistryInstallQualification.summary}\n`
     );
   });
 }
 
-export async function runPackTest() {
-  const evidence = await withQualifiedPackageArtifacts("packed", qualifyPackedConsumers);
-  process.stdout.write(`Packed qualification PASS: ${JSON.stringify(evidence)}\n`);
+/** @param {import("./package-qualification-groups.mts").PackedQualificationGroup | undefined} [group] */
+export async function runPackTest(group) {
+  packageQualificationPhaseIds("packed", group);
+  const evidence = await withQualifiedPackageArtifacts("packed", handle => qualifyPackedConsumers(handle, group));
+  process.stdout.write(`Packed${group === undefined ? "" : ` group ${group}`} qualification PASS: ${JSON.stringify(evidence)}\n`);
   return evidence;
 }
 

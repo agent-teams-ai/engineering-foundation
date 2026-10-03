@@ -2152,16 +2152,28 @@ test("release publishing requires real Buf and hermetic registry qualification",
   const windowsRegistryCommands = ci.jobs["windows-registry"].steps
     .map((step) => step.run)
     .filter((command) => command !== undefined);
-  assert.deepEqual(windowsRegistryCommands.slice(-3), [
+  assert.deepEqual(windowsRegistryCommands.slice(-2), [
     "pnpm build",
-    "node scripts/prepare-package.mjs",
-    "pnpm registry-install-e2e:built",
+    'pnpm package:group:built registry "$env:QUALIFICATION_GROUP"',
   ]);
   assert.equal(
     ci.jobs["windows-package"].steps.at(-1).run,
-    "pnpm package:check",
+    'pnpm package:group:built packed "$env:QUALIFICATION_GROUP"',
   );
-  assert.equal(ci.jobs["windows-package"]["timeout-minutes"], 60);
+  for (const [jobId, groups] of [
+    ["windows-package", ["integration", "sdk-growth", "quality-coverage"]],
+    ["windows-registry", ["npm-docs", "pnpm-docs", "foundation"]],
+  ]) {
+    const job = ci.jobs[jobId];
+    assert.equal(job["timeout-minutes"], 50);
+    assert.deepEqual(job.strategy, { "fail-fast": false, matrix: { group: groups } });
+    assert.equal(job["runs-on"], "windows-2022");
+    assert.equal(job["continue-on-error"], undefined);
+    assert.equal(job.steps.at(-1).env.QUALIFICATION_GROUP, "${{ matrix.group }}");
+    assert.ok(ci.jobs["windows-check"].needs.includes(jobId));
+  }
+  assert.equal(manifest.scripts["package:group:built"],
+    "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-group.mts");
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));
@@ -2175,21 +2187,19 @@ test("release publishing requires real Buf and hermetic registry qualification",
       "pnpm published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
     ]);
   }
-  const windowsTestA = ci.jobs["windows-test-a"];
   const windowsTestB = ci.jobs["windows-test-b"];
-  const windowsTestC = ci.jobs["windows-test-c"];
-  assert.deepEqual(
-    [windowsTestA.name, windowsTestA.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
-    ["windows-test-a", 'pnpm test:shard:built -- --shards 1,4 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"'],
-  );
-  assert.deepEqual(
-    [windowsTestB.name, windowsTestB.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
-    ["windows-test-b", 'pnpm test:shard:built -- --shards 2 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"'],
-  );
-  assert.deepEqual(
-    [windowsTestC.name, windowsTestC.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
-    ["windows-test-c", 'pnpm test:shard:built -- --shards 3 --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"'],
-  );
+  for (const lane of ["a", "b", "c", "d", "e"]) {
+    const id = `windows-test-${lane}`;
+    const job = ci.jobs[id];
+    assert.deepEqual(
+      [job.name, job.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
+      [id, `pnpm test:shard:built -- --windows-lane ${lane} --timing-output "$env:RUNNER_TEMP/test-timing/${id}"`],
+    );
+    assert.ok(ci.jobs["windows-check"].needs.includes(id));
+    assert.equal(job["runs-on"], "windows-2022");
+    assert.equal(job["continue-on-error"], undefined);
+    assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}");
+  }
   for (const job of [ci.jobs["linux-test-2"], windowsTestB]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
     assert.equal(checkout.with["fetch-depth"], 0);

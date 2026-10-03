@@ -81,30 +81,77 @@ function references(tree) {
   return imports;
 }
 
-function stronglyConnectedComponents(edges) {
-  const vertices = [...new Set(edges.flatMap(({ from, to }) => [from, to]))];
-  function reachable(from, to, visited = new Set()) {
-    if (from === to) {
-      return true;
-    }
-    if (visited.has(from)) {
-      return false;
-    }
-    visited.add(from);
-    return edges.some((edge) => edge.from === from && reachable(edge.to, to, visited));
+export function stronglyConnectedComponents(edges) {
+  // Iterative Tarjan keeps this test oracle independent of production Kosaraju.
+  const adjacency = new Map();
+  for (const { from, to } of edges) {
+    if (!adjacency.has(from)) { adjacency.set(from, []); }
+    if (!adjacency.has(to)) { adjacency.set(to, []); }
+    adjacency.get(from).push(to);
   }
-  const assigned = new Set();
+  const indices = new Map();
+  const lowLinks = new Map();
+  const active = [];
+  const onStack = new Set();
+  const componentByMember = new Map();
+  let nextIndex = 0;
+
+  function enter(vertex) {
+    indices.set(vertex, nextIndex);
+    lowLinks.set(vertex, nextIndex);
+    nextIndex += 1;
+    active.push(vertex);
+    onStack.add(vertex);
+    return { vertex, next: 0 };
+  }
+
+  for (const vertex of adjacency.keys()) {
+    if (indices.has(vertex)) { continue; }
+    const frames = [enter(vertex)];
+    while (frames.length > 0) {
+      const frame = frames.at(-1);
+      const targets = adjacency.get(frame.vertex);
+      if (frame.next < targets.length) {
+        const target = targets[frame.next];
+        frame.next += 1;
+        if (!indices.has(target)) {
+          frames.push(enter(target));
+        } else if (onStack.has(target)) {
+          lowLinks.set(frame.vertex, Math.min(lowLinks.get(frame.vertex), indices.get(target)));
+        }
+        continue;
+      }
+
+      frames.pop();
+      if (lowLinks.get(frame.vertex) === indices.get(frame.vertex)) {
+        const component = [];
+        let member;
+        do {
+          member = active.pop();
+          onStack.delete(member);
+          component.push(member);
+        } while (member !== frame.vertex);
+        // A single self-loop remains outside the oracle's nontrivial cycles.
+        if (component.length > 1) {
+          const normalized = component.toSorted();
+          for (const item of component) { componentByMember.set(item, normalized); }
+        }
+      }
+      if (frames.length > 0) {
+        const parent = frames.at(-1).vertex;
+        lowLinks.set(parent, Math.min(lowLinks.get(parent), lowLinks.get(frame.vertex)));
+      }
+    }
+  }
+
+  // Tarjan finishes sinks first; retain the old first-observed-vertex order.
   const cycles = [];
-  for (const vertex of vertices) {
-    if (assigned.has(vertex)) {
-      continue;
-    }
-    const component = vertices.filter((other) => reachable(vertex, other) && reachable(other, vertex));
-    for (const member of component) {
-      assigned.add(member);
-    }
-    if (component.length > 1) {
-      cycles.push(component.toSorted());
+  const emitted = new Set();
+  for (const vertex of adjacency.keys()) {
+    const component = componentByMember.get(vertex);
+    if (component && !emitted.has(component)) {
+      emitted.add(component);
+      cycles.push(component);
     }
   }
   return cycles;

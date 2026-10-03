@@ -36,6 +36,7 @@
         "tests/foundation-legacy-scaffolding-refusal.test.mjs",
         "tests/foundation-transaction-observation.test.mjs",
         "tests/local-mode.test.mjs",
+        "tests/local-mode-boundaries-graph.test.mjs",
         "tests/markdown-bundle-evidence.test.mjs",
         "tests/markdown-checkout.test.mjs",
         "tests/markdown-distribution.test.mjs",

@@ -16,8 +16,7 @@ import { join, relative, resolve as resolvePath, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
-import { createCoverageSourceLayout } from "./coverage-source-layout.mts";
-import { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
+import { createCoverageSourceLayout, materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 
 export { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 

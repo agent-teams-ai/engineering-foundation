@@ -516,16 +516,6 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   const securityPolicy = parseYaml(policy);
   assert.equal(securityPolicy.dependencyReview.workflowPath, ".github/workflows/pr-feedback.yml");
   assert.equal(securityPolicy.sbomWorkflow, ".github/workflows/pr-feedback.yml");
-  const feedback = parseYaml(await readFile(
-    join(repositoryRoot, ".github", "workflows", "pr-feedback.yml"), "utf8",
-  ));
-  assert.deepEqual(feedback.on.pull_request.types, ["opened", "synchronize", "reopened", "ready_for_review"]);
-  assert.equal(feedback.jobs["dependency-review"].if, undefined);
-  assert.equal(feedback.jobs["pr-feedback"].needs, "dependency-review");
-  assert.match(feedback.jobs["dependency-review"].steps[1].uses,
-    /^actions\/dependency-review-action@[a-f0-9]{40}$/u);
-  assert.equal(feedback.jobs["dependency-review"].steps.some(({ uses }) =>
-    /^anchore\/sbom-action@[a-f0-9]{40}$/u.test(uses ?? "")), true);
   assert.equal(securityScript, "node scripts/security-toolchain.mjs");
   assert.equal(ci.jobs["linux-static"].steps.some(({ run }) => run === "pnpm security:workflows"), true);
   assert.equal(

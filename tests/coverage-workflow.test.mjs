@@ -56,7 +56,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
       expectedCondition =
         "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}";
 
-    } else if (jobId === "check" || jobId === "windows-check") {
+    } else if (["check", "windows-check", "macos-qualification"].includes(jobId)) {
       expectedCondition =
         "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}";
     }
@@ -153,15 +153,11 @@ test("Ready PR feedback checks the committed delta independently of full qualifi
 });
 
 // Enabling cache in raw producers can silently reduce precise V8 coverage.
-test("compile cache stays confined to the isolated Windows loader lane", async () => {
+test("CI cannot enable an unqualified compile cache and raw coverage disables it", async () => {
   const ci = parseYaml(await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
   const enabled = Object.entries(ci.jobs).flatMap(([id, job]) =>
     job.steps.flatMap(step => step.env?.NODE_COMPILE_CACHE === undefined ? [] : [{ id, step }]));
-  assert.equal(enabled.length, 1);
-  assert.equal(enabled[0].id, "windows-test-c");
-  assert.equal(enabled[0].step.env.NODE_COMPILE_CACHE, "${{ runner.temp }}/loader-compile-cache");
-  assert.match(enabled[0].step.run, /--windows-lane c /u);
-  assert.doesNotMatch(enabled[0].step.run, /--coverage-evidence-dir/u);
+  assert.deepEqual(enabled, []);
   for (const [id, job] of Object.entries(ci.jobs)) {
     assert.equal(job.env?.NODE_COMPILE_CACHE, undefined, `${id} cannot enable cache for unqualified suites`);
   }

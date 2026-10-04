@@ -366,7 +366,7 @@ if (new URL(import.meta.url).searchParams.get("fixture-build") !== "1") {
     for (const args of [[], ["packed"], ["packed", "unknown"], ["packed", "integration", "integration"],
       ["registry", "npm-docs", "--archive", "/tmp/forged.tgz"]]) {
       await assert.rejects(runPnpm(["package:group:built", ...args], repositoryRoot, {
-        environment: { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
+        environment: { ...process.env, TMPDIR: root, TMP: root, TEMP: root, NODE_DISABLE_COMPILE_CACHE: "1" },
       }), error => {
         assert.ok(error instanceof Error && "stderr" in error && typeof error.stderr === "string");
         assert.match(error.stderr, /Package qualification groups/u);

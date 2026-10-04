@@ -193,7 +193,8 @@ function projectPairedCoverage(bytes, sourceRoot) {
         return fileURLToPath(projectedUrl);
       }
       const url = new URL(value);
-      return `${projectedUrl}${url.search}${url.hash}`;
+      url.pathname = new URL(projectedUrl).pathname;
+      return url.href;
     }
     return value;
   }

@@ -265,13 +265,13 @@ test("paired evidence materializes canonical URLs and source maps without changi
     names: [], mappings: "AAAA",
   };
   const foreignEntry = { data: { ...data, sources: [productionUrl] }, lineLengths: [40], url: foreignUrl };
-  const cacheBuster = "?instance=%2f#module";
+  const cacheBusters = ["?instance=%2f#module", "?", "#", "?#"];
   await rewriteRawArtifact(root, "1", (report, record) => {
     if (record.test !== testManifest.coverageShards.get("1")[0]) {
       return;
     }
     report.result.push({ url: productionUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] },
-      { url: `${report.result[0].url}${cacheBuster}`, functions: [] });
+      ...cacheBusters.map((suffix) => ({ url: `${report.result[0].url}${suffix}`, functions: [] })));
     report["source-map-cache"] = {
       [productionUrl]: { data, lineLengths: [40], url: `${productionUrl}.map` },
       [foreignUrl]: foreignEntry,
@@ -307,7 +307,9 @@ test("paired evidence materializes canonical URLs and source maps without changi
   assert.equal(projected.result[0].url, pathToFileURL(join(repositoryRoot, testManifest.coverageShards.get("1")[0])).href);
   assert.deepEqual(projected.result.slice(1), [
     { url: canonicalUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] },
-    { url: `${pathToFileURL(join(repositoryRoot, testManifest.coverageShards.get("1")[0])).href}${cacheBuster}`, functions: [] },
+    ...cacheBusters.map((suffix) => ({
+      url: `${pathToFileURL(join(repositoryRoot, testManifest.coverageShards.get("1")[0])).href}${suffix}`, functions: [],
+    })),
   ]);
   assert.deepEqual(projected["source-map-cache"][canonicalUrl], {
     data: {

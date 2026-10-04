@@ -78,7 +78,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(coverage.steps.some(({ run }) => /test:coverage:built/u.test(run ?? "")), false);
 
   const producer = ci.jobs["linux-tests"];
-  assert.deepEqual(producer.strategy, { "fail-fast": false, "max-parallel": 4,
+  assert.deepEqual(producer.strategy, { "fail-fast": false, "max-parallel": 8,
     matrix: { shard: ["1", "2", "3", "4", "5", "6", "7", "8"] } });
   assert.equal(producer.name, "linux-test-${{ matrix.shard }}");
   assert.equal(producer["continue-on-error"], undefined);

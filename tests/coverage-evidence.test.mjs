@@ -348,7 +348,7 @@ test("coverage evidence rejects mixed layouts, wrong producers and arbitrary sou
   };
   for (const scenario of ["mixed-set", "mixed-artifact", "mixed-script", "mixed-map-source", "wrong-producer", "arbitrary-root", ...Object.keys(aliases)]) {
     await context.test(scenario, async (subcontext) => {
-      const root = await evidenceSet();
+      const root = Object.hasOwn(aliases, scenario) ? await pairedEvidenceSet() : await evidenceSet();
       subcontext.after(() => rm(root, { force: true, recursive: true }));
       await rewriteRawArtifact(root, "1", (report, record) => {
         if (scenario === "mixed-artifact" && record.test !== testManifest.coverageShards.get("1")[0]) {

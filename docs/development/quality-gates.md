@@ -222,21 +222,38 @@ PRs. It adds `ci:full` in the base repository. The actual `pull_request: labeled
 event admits every existing Linux, Windows, macOS and Node 24/26 lane. A label
 left on a PR does not request full CI on later pushes; synchronize receives fast
 feedback and cancels obsolete full work through the shared PR concurrency group.
-Other labels use independent run groups and cannot create or overwrite the
-`full-ci` check. Removal is not a trigger. A distinct `ci-not-requested` job name
-prevents skipped checks on unrelated label events from satisfying the full gate.
+Opened, reopened and ready-for-review feedback use a separate group, so delayed
+metadata events do not cancel an explicitly requested same-head qualification.
+Other labels use independent run groups and cannot create or overwrite any of
+`full-ci`, `check`, `windows-check` or `macos-qualification`. Removal is not a
+trigger. Distinct `ci-not-requested` job names prevent skipped checks on unrelated
+label events from satisfying these required gates.
 The shadow classifier remains advisory and cannot select or omit a native lane.
 
-`full-ci` requires successful Dependency Review and all three stable native
-aggregates using pinned alls-green, with no skipped/neutral allowance. Its run
+`full-ci` runs in parallel with the three stable native aggregates. It requires
+successful Dependency Review and the complete union of their mandatory native
+jobs using pinned alls-green, with no skipped/neutral allowance. A regression
+checks that union so future lanes cannot be omitted. Its run
 name binds PR number, head SHA and base SHA. The helper reuses successful or
-in-progress runs only after checking that binding, workflow path, event,
-repository and PR association; success additionally requires the actual bound
-`full-ci` job. A label alone is never evidence. Failed/cancelled work or an old
+in-progress runs only after checking that binding, canonical workflow ID/name/path,
+event, source repository/ref, PR association, run ID and attempt. Fork runs can
+omit GitHub's PR association array: those require a distinct fork repository,
+its exact branch and the frozen PR/head/base title; contradictory associations
+are rejected. Empty same-repository associations cannot qualify. Fork approvals
+remain prerequisites. GitHub's run name carries
+the immutable request title; workflow metadata separately identifies `CI`.
+Success additionally requires one actual successful bound job for each of
+`full-ci`, `check`, `windows-check` and `macos-qualification`. A label alone is
+never evidence. Failed/cancelled work or an old
 snapshot requires a new request, removing/re-adding an existing label when
 necessary. An uncertain write is reconciled through reads, never blindly retried.
 Discovery is limited to three 100-entry pages per collection and twelve request
 observations five seconds apart, with a 20-second bound per CLI metadata call.
+Transport reads retry at most three times with 250/500ms backoff; malformed JSON
+is rejected immediately. One agent owns label mutations per repository/PR; the
+static label is not a distributed lock. GitHub concurrency does not guarantee
+event ordering: a delayed synchronize can cancel a fresh request, requiring a
+new request after inspecting that cancellation.
 `--wait` uses a bounded 90-minute watch, then rereads the run, native gate and PR.
 A head/base change or unsuccessful result fails closed; rerun the command for
 the final snapshot. `ready` describes observed full qualification; independent
@@ -245,14 +262,16 @@ current-head review and all other required checks remain separate obligations.
 Main pushes, merge groups and workflow dispatch still run the complete native
 matrix. Dispatch checks do not satisfy ordinary PR rulesets. Generated release
 PRs retain the existing trusted exact-head/base attester: it prefers one bound
-attempt-1 PR run, otherwise dispatches CI, and now attests `full-ci` alongside
+attempt-1 PR run with the immutable admitted full-request title, otherwise
+dispatches CI, and now attests `full-ci` alongside
 `check`, `windows-check`, `macos-qualification` and separate CodeQL `analyze`.
 Every pending, terminal and recovery pass includes the new context. Five status
 contexts reserve 570 seconds, up from 456, requiring a 92-minute attester bound
 (up from 90); the 75-minute CI deadline and raw/native budgets are unchanged.
-The Windows metadata aggregate takes one minute and the new full aggregate one
-minute, preserving the 72-minute configured critical path plus three-minute
-attestation margin. Queue time remains outside job timeout arithmetic.
+The original native and aggregate timeouts remain intact. The new parallel
+metadata gate takes one minute, preserving the 72-minute configured critical
+path plus three-minute attestation margin. Queue time remains outside job timeout
+arithmetic. Strict up-to-date branch protection remains required.
 
 The label/gate delivery contract can be shared through the organization `.github`
 standard; concrete GitHub orchestration and this product's native matrix belong

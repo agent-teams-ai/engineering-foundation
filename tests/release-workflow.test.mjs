@@ -786,6 +786,8 @@ function exactPullRequestRun(overrides = {}) {
   const headSha = "b".repeat(40);
   return {
     id: 123,
+    name: `Full CI #127 @${headSha} on ${baseSha}`,
+    display_title: `Full CI #127 @${headSha} on ${baseSha}`,
     path: ".github/workflows/ci.yml",
     event: "pull_request",
     head_branch: "changeset-release/main",
@@ -1805,6 +1807,8 @@ test("release CI selection reuses only one exact attempt-1 pull request run", ()
   );
   for (const incompatible of [
     { run_attempt: 2 },
+    { display_title: "CI pull_request run 123", name: "CI pull_request run 123" },
+    { display_title: `Full CI #127 @${"b".repeat(40)} on ${"c".repeat(40)}` },
     { status: "completed", conclusion: "action_required" },
     { event: "workflow_dispatch" },
     { head_repository: { full_name: "attacker/fork" } },
@@ -1845,6 +1849,20 @@ test("release CI selection reuses only one exact attempt-1 pull request run", ()
       ),
     /Multiple exact attempt-1/u,
   );
+});
+
+// A same-snapshot unrelated labeled event emits CI metadata too. It must never
+// displace or make ambiguous the actual admitted full request used by release.
+test("release selection excludes unrelated label runs beside one actual full request", () => {
+  const unrelated = exactPullRequestRun({
+    id: 124, name: "CI pull_request run 124", display_title: "CI pull_request run 124",
+    status: "completed", conclusion: "success",
+    html_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/124",
+  });
+  assert.equal(selectReleaseCiRun({ workflow_runs: [unrelated] }, exactRunExpectation), null);
+  for (const runs of [[unrelated, exactPullRequestRun()], [exactPullRequestRun(), unrelated]]) {
+    assert.equal(selectReleaseCiRun({ workflow_runs: runs }, exactRunExpectation).id, 123);
+  }
 });
 
 test("CI concurrency isolates pull request checks from attester dispatches", async () => {

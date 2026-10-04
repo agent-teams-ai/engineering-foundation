@@ -8,7 +8,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: foundation-pr-${{ github.event.pull_request.number }}
+  group: >-
+    ${{ github.event.action == 'synchronize' && format('foundation-pr-{0}', github.event.pull_request.number)
+        || format('foundation-feedback-{0}', github.event.pull_request.number) }}
   cancel-in-progress: true
 
 jobs:

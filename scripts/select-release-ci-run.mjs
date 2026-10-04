@@ -30,6 +30,7 @@ function matchesReleaseCiRun(run, expected) {
   const runMatches = [
     run.path === ".github/workflows/ci.yml",
     run.event === "pull_request",
+    run.display_title === `Full CI #${expected.pullRequestNumber} @${expected.headSha} on ${expected.baseSha}`,
     run.head_branch === expected.branch,
     run.head_sha === expected.headSha,
     run.run_attempt === 1,

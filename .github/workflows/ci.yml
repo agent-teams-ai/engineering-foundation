@@ -362,7 +362,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   check:
-    name: check
+    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'check' || 'ci-not-requested-check' }}
     needs:
       - dependency-review
       - node26-compatibility
@@ -686,7 +686,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   windows-check:
-    name: windows-check
+    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'windows-check' || 'ci-not-requested-windows-check' }}
     needs:
       - dependency-review
       - node26-compatibility
@@ -702,7 +702,7 @@ jobs:
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}
     permissions: {}
     runs-on: ubuntu-24.04
-    timeout-minutes: 1
+    timeout-minutes: 2
     steps:
       - name: Require every Windows and Node compatibility lane
         uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030 # post-v1.2.2 injection fix, exact reviewed commit
@@ -778,7 +778,7 @@ jobs:
           QUALIFICATION_PROFILE: ${{ matrix.profile }}
 
   macos-qualification:
-    name: macos-qualification
+    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'macos-qualification' || 'ci-not-requested-macos-qualification' }}
     needs: [dependency-review, macos-native, macos-package]
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}
     runs-on: ubuntu-latest
@@ -790,10 +790,30 @@ jobs:
           jobs: ${{ toJSON(needs) }}
 
   full-ci:
-    # A skipped/neutral full-ci check would satisfy GitHub required checks.
-    # Unrelated labels therefore use a distinct name, including skipped steps.
+    # All required contexts isolate unrelated labels, even when GitHub skips jobs.
+    # Run alongside the native aggregates, preserving their original timeouts.
     name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'full-ci' || 'ci-not-requested' }}
-    needs: [dependency-review, check, windows-check, macos-qualification]
+    needs:
+      - dependency-review
+      - node26-compatibility
+      - linux-static
+      - linux-tests
+      - linux-coverage
+      - linux-package
+      - linux-registry
+      - linux-bootstrap-evidence
+      - linux-published
+      - windows-static
+      - windows-test-a
+      - windows-test-b
+      - windows-test-c
+      - windows-test-d
+      - windows-test-e
+      - windows-package
+      - windows-registry
+      - windows-published
+      - macos-native
+      - macos-package
     if: ${{ always() }}
     permissions: {}
     runs-on: ubuntu-24.04

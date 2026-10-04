@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 const label = "ci:full";
 const workflowPath = ".github/workflows/ci.yml";
+const repositoryName = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 const readTimeout = 20_000;
 const watchTimeout = 90 * 60_000;
 
@@ -13,10 +14,11 @@ export interface FullCiPort {
   delay(milliseconds: number): Promise<void>;
 }
 interface Options { readonly pr: number; readonly wait: boolean }
-interface Repository { readonly name: string; readonly id: number }
+interface Repository { readonly name: string; readonly id: number; readonly workflowId: number }
 interface Snapshot {
   readonly number: number; readonly head: string; readonly base: string;
-  readonly headRepo: number; readonly baseRepo: number; readonly labels: readonly string[];
+  readonly headRepo: number; readonly headRepoName: string; readonly headRef: string; readonly baseRepo: number;
+  readonly labels: readonly string[];
 }
 interface BoundRun { readonly id: number; readonly attempt: number; readonly status: string; readonly conclusion: unknown; readonly url: string }
 export interface FullCiResult { readonly outcome: "ready" | "requested"; readonly url: string; readonly head: string; readonly base: string }
@@ -48,7 +50,19 @@ export function parseFullCiArguments(input: readonly string[]): Options {
 }
 
 async function json(port: FullCiPort, args: readonly string[]): Promise<unknown> {
-  return JSON.parse(await port.gh(args, readTimeout)) as unknown;
+  // Retry transport reads only. Parsing failures and uncertain writes are final.
+  let failures = 0;
+  while (true) {
+    let output: string;
+    try { output = await port.gh(args, readTimeout); }
+    catch (error) {
+      failures += 1;
+      if (failures === 3) { throw error; }
+      await port.delay(failures * 250);
+      continue;
+    }
+    return JSON.parse(output) as unknown;
+  }
 }
 async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise<Snapshot> {
   const data = object(await json(port, ["api", `repos/${repo.name}/pulls/${pr}`]));
@@ -57,8 +71,12 @@ async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise
   if (data.number !== pr || data.state !== "open" || baseRepo.id !== repo.id || baseRepo.full_name !== repo.name) {
     throw new Error("PR is not open in the canonical repository");
   }
+  const headRepoName = headRepo.full_name;
+  if (typeof headRepoName !== "string" || !repositoryName.test(headRepoName)) { throw new Error("Malformed PR source repository"); }
+  const headRef = head.ref;
+  if (typeof headRef !== "string" || headRef.length === 0) { throw new Error("Malformed PR source branch"); }
   return { number: pr, head: sha(head.sha), base: sha(base.sha), headRepo: positive(headRepo.id),
-    baseRepo: repo.id, labels: array(data.labels).map(entry => {
+    headRepoName, headRef, baseRepo: repo.id, labels: array(data.labels).map(entry => {
       const name = object(entry).name;
       if (typeof name !== "string") { throw new Error("Malformed PR label"); }
       return name;
@@ -66,7 +84,8 @@ async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise
 }
 async function unchanged(port: FullCiPort, repo: Repository, expected: Snapshot): Promise<Snapshot> {
   const current = await snapshot(port, repo, expected.number);
-  if (current.head !== expected.head || current.base !== expected.base || current.headRepo !== expected.headRepo) {
+  if (current.head !== expected.head || current.base !== expected.base || current.headRepo !== expected.headRepo ||
+      current.headRepoName !== expected.headRepoName || current.headRef !== expected.headRef) {
     throw new Error("PR head/base changed; request full CI for the new snapshot");
   }
   return current;
@@ -74,15 +93,26 @@ async function unchanged(port: FullCiPort, repo: Repository, expected: Snapshot)
 
 function boundRun(value: unknown, repo: Repository, pr: Snapshot): BoundRun | undefined {
   const data = object(value);
-  if (data.name !== "CI" || data.path !== workflowPath || data.event !== "pull_request" ||
-      data.head_sha !== pr.head || data.display_title !== `Full CI #${pr.number} @${pr.head} on ${pr.base}`) { return undefined; }
+  const title = `Full CI #${pr.number} @${pr.head} on ${pr.base}`;
+  // GitHub's run.name is the custom run-name, not the canonical workflow name.
+  if (data.workflow_id !== repo.workflowId || data.path !== workflowPath || data.event !== "pull_request" ||
+      data.head_sha !== pr.head || data.name !== title || data.display_title !== title) { return undefined; }
   const repository = object(data.repository);
+  const source = object(data.head_repository);
   const associations = array(data.pull_requests);
-  if (repository.id !== repo.id || repository.full_name !== repo.name || associations.length !== 1) { return undefined; }
-  const association = object(associations[0]);
-  const head = object(association.head); const base = object(association.base);
-  if (association.number !== pr.number || head.sha !== pr.head || base.sha !== pr.base ||
-      object(head.repo).id !== pr.headRepo || object(base.repo).id !== pr.baseRepo) { return undefined; }
+  if (repository.id !== repo.id || repository.full_name !== repo.name ||
+      source.id !== pr.headRepo || source.full_name !== pr.headRepoName || data.head_branch !== pr.headRef) { return undefined; }
+  // GitHub omits this array for forks. The frozen PR/head/base title, canonical
+  // workflow and exact source repository/ref still bind those runs uniquely.
+  if (associations.length === 0) {
+    if (pr.headRepo === pr.baseRepo) { return undefined; }
+  } else {
+    if (associations.length !== 1) { return undefined; }
+    const association = object(associations[0]);
+    const head = object(association.head); const base = object(association.base);
+    if (association.number !== pr.number || head.sha !== pr.head || base.sha !== pr.base || head.ref !== pr.headRef ||
+        object(head.repo).id !== pr.headRepo || object(base.repo).id !== pr.baseRepo) { return undefined; }
+  }
   const id = positive(data.id); const attempt = positive(data.run_attempt);
   const url = `https://github.com/${repo.name}/actions/runs/${id}`;
   if (data.html_url !== url || typeof data.status !== "string" ||
@@ -117,8 +147,12 @@ async function rereadRun(port: FullCiPort, repo: Repository, pr: Snapshot, expec
 async function successful(port: FullCiPort, repo: Repository, run: BoundRun): Promise<boolean> {
   if (run.status !== "completed" || run.conclusion !== "success") { return false; }
   const jobs = await collection(port, `repos/${repo.name}/actions/runs/${run.id}/attempts/${run.attempt}/jobs`, "jobs");
-  const gates = jobs.map(object).filter(job => job.name === "full-ci");
-  return gates.length === 1 && gates[0]!.run_id === run.id && gates[0]!.status === "completed" && gates[0]!.conclusion === "success";
+  const records = jobs.map(object);
+  return ["full-ci", "check", "windows-check", "macos-qualification"].every(name => {
+    const gates = records.filter(job => job.name === name);
+    return gates.length === 1 && gates[0]!.run_id === run.id &&
+      gates[0]!.status === "completed" && gates[0]!.conclusion === "success";
+  });
 }
 async function finish(port: FullCiPort, repo: Repository, pr: Snapshot, run: BoundRun, wait: boolean): Promise<FullCiResult> {
   if (wait && run.status !== "completed") {
@@ -152,10 +186,12 @@ async function ensureLabel(port: FullCiPort, repo: Repository): Promise<void> {
 export async function requestFullPrCi(args: readonly string[], port: FullCiPort): Promise<FullCiResult> {
   const options = parseFullCiArguments(args); // Validate before any IO or mutation.
   const name = object(await json(port, ["repo", "view", "--json", "nameWithOwner"])).nameWithOwner;
-  if (typeof name !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(name)) { throw new Error("Malformed repository name"); }
+  if (typeof name !== "string" || !repositoryName.test(name)) { throw new Error("Malformed repository name"); }
   const metadata = object(await json(port, ["api", `repos/${name}`]));
   if (metadata.full_name !== name) { throw new Error("Repository identity changed"); }
-  const repo: Repository = { name, id: positive(metadata.id) };
+  const workflow = object(await json(port, ["api", `repos/${name}/actions/workflows/ci.yml`]));
+  if (workflow.name !== "CI" || workflow.path !== workflowPath) { throw new Error("Canonical CI workflow identity changed"); }
+  const repo: Repository = { name, id: positive(metadata.id), workflowId: positive(workflow.id) };
   const pr = await snapshot(port, repo, options.pr);
   const existing = await latestRun(port, repo, pr);
   if (existing && (existing.status !== "completed" || await successful(port, repo, existing))) {

@@ -9,23 +9,29 @@ const base = "b".repeat(40);
 const url = "https://github.com/example/tooling/actions/runs/101";
 const prMetadata = {
   number: 7, state: "open", labels: [] as { name: string }[],
-  head: { sha: head, repo: { id: 22, full_name: "fork/tooling" } },
+  head: { sha: head, ref: "test/fork-pr", repo: { id: 22, full_name: "fork/tooling" } },
   base: { sha: base, repo: { id: 11, full_name: "example/tooling" } },
 };
 function runMetadata() {
+  // Shape observed by root in TEST run 37226486275: both names carry run-name;
+  // workflow_id identifies the workflow. Repository/PR values are fixture-local.
   return {
-    id: 101, run_attempt: 1, name: "CI", path: ".github/workflows/ci.yml", event: "pull_request",
-    head_sha: head, display_title: `Full CI #7 @${head} on ${base}`,
+    id: 101, run_attempt: 1, workflow_id: 55,
+    name: `Full CI #7 @${head} on ${base}`, path: ".github/workflows/ci.yml", event: "pull_request",
+    head_sha: head, head_branch: "test/fork-pr", display_title: `Full CI #7 @${head} on ${base}`,
     repository: { id: 11, full_name: "example/tooling" }, html_url: url,
+    head_repository: { id: 22, full_name: "fork/tooling" },
     status: "completed", conclusion: "success",
-    pull_requests: [{ number: 7, head: { sha: head, repo: { id: 22 } }, base: { sha: base, repo: { id: 11 } } }],
+    pull_requests: [{ number: 7, head: { sha: head, ref: "test/fork-pr", repo: { id: 22 } }, base: { sha: base, repo: { id: 11 } } }],
   };
 }
 function fixture() {
   const pr = structuredClone(prMetadata);
   const state = {
     pr, runs: [] as ReturnType<typeof runMetadata>[],
-    jobs: [{ run_id: 101, name: "full-ci", status: "completed", conclusion: "success" }],
+    workflow: { id: 55, name: "CI", path: ".github/workflows/ci.yml" },
+    jobs: ["full-ci", "check", "windows-check", "macos-qualification"].map(name =>
+      ({ run_id: 101, name, status: "completed", conclusion: "success" })),
     effects: [] as string[][], reads: [] as string[][], waits: [] as number[],
     repositoryLabel: true, discover: true, losePost: false, loseDelete: false,
     watch: () => {}, beforePost: () => {}, beforeReadRun: () => {},
@@ -54,6 +60,7 @@ function fixture() {
       }
       if (endpoint === "repos/example/tooling") { return JSON.stringify({ id: 11, full_name: "example/tooling" }); }
       if (endpoint === "repos/example/tooling/pulls/7") { return JSON.stringify(state.pr); }
+      if (endpoint === "repos/example/tooling/actions/workflows/ci.yml") { return JSON.stringify(state.workflow); }
       if (endpoint.startsWith("repos/example/tooling/labels?")) { return JSON.stringify(state.repositoryLabel ? [{ name: "ci:full" }] : []); }
       if (endpoint.includes("/workflows/")) { return JSON.stringify({ workflow_runs: state.runs }); }
       if (endpoint.includes("/jobs?")) { return JSON.stringify({ jobs: state.jobs }); }
@@ -78,18 +85,61 @@ test("malformed requests reject before GitHub IO", async () => {
   }
 });
 
-test("successful bound native gate is reused without any mutation, including forks", async () => {
+test("GitHub custom run-name and four successful native gates reuse a fork run without mutation", async () => {
   const { state, port } = fixture(); state.runs = [runMetadata()];
   assert.deepEqual(await requestFullPrCi(["--", "--pr", "7", "--wait"], port), { outcome: "ready", url, head, base });
   assert.deepEqual(state.effects, []); assert.deepEqual(state.waits, []);
   assert.ok(state.reads.some(args => args[1]?.includes("/attempts/1/jobs")));
+  assert.ok(state.reads.some(args => args[1] === "repos/example/tooling/actions/workflows/ci.yml"));
+});
+
+// Real fork run 37227989632 has no pull_requests entries. Source repository,
+// branch and the frozen event title remain independently available from GitHub.
+test("real-shaped empty fork associations reuse exact source evidence but never same-repository evidence", async () => {
+  const { state, port } = fixture(); const run = runMetadata(); run.pull_requests = []; state.runs = [run];
+  assert.equal((await requestFullPrCi(["--pr", "7", "--wait"], port)).outcome, "ready");
+  assert.deepEqual(state.effects, []);
+
+  const other = fixture(); const unassociated = runMetadata(); unassociated.pull_requests = [];
+  other.state.pr.head.repo = { id: 11, full_name: "example/tooling" };
+  unassociated.head_repository = { id: 11, full_name: "example/tooling" };
+  other.state.runs = [unassociated]; other.state.discover = false;
+  await assert.rejects(requestFullPrCi(["--pr", "7"], other.port), /effect uncertain/u);
+  assert.deepEqual(other.state.effects.map(args => args[2]), ["POST"]);
+});
+
+test("transient reads retry boundedly while malformed JSON is never retried", async () => {
+  const { state, port } = fixture(); state.runs = [runMetadata()]; const original = port.gh;
+  let reads = 0; const delays: number[] = [];
+  port.gh = async (args, timeout) => {
+    if (args[0] === "repo" && ++reads <= 2) { throw new Error("transient read response lost"); }
+    return original(args, timeout);
+  };
+  port.delay = async milliseconds => { delays.push(milliseconds); };
+  assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, "ready");
+  assert.equal(reads, 3); assert.deepEqual(delays, [250, 500]); assert.deepEqual(state.effects, []);
+
+  const malformed = fixture(); let malformedReads = 0;
+  malformed.port.gh = async () => { malformedReads += 1; return "{"; };
+  await assert.rejects(requestFullPrCi(["--pr", "7"], malformed.port), SyntaxError);
+  assert.equal(malformedReads, 1); assert.deepEqual(malformed.state.effects, []);
+});
+
+test("canonical workflow metadata must identify CI before a label mutation", async () => {
+  for (const workflow of [{ id: 55, name: "PR Feedback", path: ".github/workflows/ci.yml" },
+    { id: 55, name: "CI", path: ".github/workflows/pr-feedback.yml" },
+    { id: 0, name: "CI", path: ".github/workflows/ci.yml" }]) {
+    const { state, port } = fixture(); state.workflow = workflow;
+    await assert.rejects(requestFullPrCi(["--pr", "7"], port), /workflow identity|identifier/u);
+    assert.deepEqual(state.effects, []);
+  }
 });
 
 test("a fresh fork request creates the repository label and waits for its emitted native run", async () => {
   const { state, port } = fixture(); state.repositoryLabel = false;
   state.watch = () => {
     state.runs[0]!.status = "completed"; state.runs[0]!.conclusion = "success";
-    state.jobs[0]!.run_id = 102;
+    for (const job of state.jobs) { job.run_id = 102; }
   };
   assert.deepEqual(await requestFullPrCi(["--pr", "7", "--wait"], port),
     { outcome: "ready", url: url.replace("101", "102"), head, base });
@@ -107,12 +157,20 @@ test("dispatch, unrequested, wrong workflow/repo/PR/head/base runs cannot bless 
     (r: ReturnType<typeof runMetadata>) => { r.event = "workflow_dispatch"; },
     (r: ReturnType<typeof runMetadata>) => { r.display_title = "CI pull_request run 101"; },
     (r: ReturnType<typeof runMetadata>) => { r.path = ".github/workflows/pr-feedback.yml"; },
+    (r: ReturnType<typeof runMetadata>) => { r.workflow_id = 56; },
+    (r: ReturnType<typeof runMetadata>) => { r.name = "CI"; },
     (r: ReturnType<typeof runMetadata>) => { r.repository.id = 12; },
+    (r: ReturnType<typeof runMetadata>) => { r.repository.full_name = "other/tooling"; },
+    (r: ReturnType<typeof runMetadata>) => { r.head_repository.id = 23; },
+    (r: ReturnType<typeof runMetadata>) => { r.head_repository.full_name = "other/tooling"; },
+    (r: ReturnType<typeof runMetadata>) => { r.head_branch = "other-branch"; },
     (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.number = 8; },
     (r: ReturnType<typeof runMetadata>) => { r.head_sha = "c".repeat(40); },
     (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.base.sha = "c".repeat(40); },
+    (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.head.repo.id = 23; },
+    (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.head.ref = "other-branch"; },
+    (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.base.repo.id = 12; },
     (r: ReturnType<typeof runMetadata>) => { r.display_title = `Full CI #7 @${head} on ${"c".repeat(40)}`; },
-    (r: ReturnType<typeof runMetadata>) => { r.pull_requests = []; },
   ]) {
     const { state, port } = fixture(); const run = runMetadata(); change(run); state.runs = [run];
     const result = await requestFullPrCi(["--pr", "7"], port);
@@ -132,6 +190,24 @@ test("skipped, neutral, absent or duplicate gates and unsuccessful runs require 
     if (defect === "newer-failed") { await assert.rejects(requestFullPrCi(["--pr", "7"], port), /uncertain/u); }
     else { assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, "requested"); }
     assert.deepEqual(state.effects.map(args => args[2]), ["DELETE", "POST"]);
+  }
+});
+
+// The parallel full-ci job may succeed while a legacy aggregate fails to start.
+// Checking only full-ci would wrongly report ready for each fixture below.
+test("each of the four gates must have one actual successful job in the bound run", async () => {
+  for (const name of ["full-ci", "check", "windows-check", "macos-qualification"]) {
+    for (const defect of ["missing", "duplicate", "skipped", "neutral", "failure", "cancelled", "wrong-run", "pending"]) {
+      const { state, port } = fixture(); state.runs = [runMetadata()];
+      const job = state.jobs.find(entry => entry.name === name)!;
+      if (defect === "missing") { state.jobs = state.jobs.filter(entry => entry !== job); }
+      else if (defect === "duplicate") { state.jobs.push({ ...job }); }
+      else if (defect === "wrong-run") { job.run_id = 99; }
+      else if (defect === "pending") { job.status = "in_progress"; }
+      else { job.conclusion = defect; }
+      assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, "requested", `${name}: ${defect}`);
+      assert.equal(state.effects.length, 1, `${name}: ${defect} must not reuse invalid evidence`);
+    }
   }
 });
 
@@ -173,6 +249,19 @@ test("head/base changes before effects, during request and during wait fail clos
   };
   await assert.rejects(requestFullPrCi(["--pr", "7"], port), /head\/base changed/u);
   assert.equal(state.effects.filter(args => args[3]?.includes("/issues/")).length, 0);
+});
+
+test("changed PR source repository or branch cannot reuse success from the same head/base", async () => {
+  for (const field of ["id", "full_name", "ref"] as const) {
+    const { state, port } = fixture(); state.runs = [runMetadata()];
+    state.beforeReadRun = () => {
+      if (field === "id") { state.pr.head.repo.id = 23; }
+      else if (field === "full_name") { state.pr.head.repo.full_name = "other/tooling"; }
+      else { state.pr.head.ref = "other-branch"; }
+    };
+    await assert.rejects(requestFullPrCi(["--pr", "7", "--wait"], port), /head\/base changed/u);
+    assert.deepEqual(state.effects, []);
+  }
 });
 
 test("lost label responses reconcile once without repeating a POST or DELETE", async () => {

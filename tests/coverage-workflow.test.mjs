@@ -207,10 +207,27 @@ test("Automatic PR feedback checks the committed delta independently of full qua
   });
   assert.equal(changed.run, 'pnpm check:changed --base "$FOUNDATION_PR_BASE_SHA"');
   assert.equal(changed["continue-on-error"], undefined);
-  assert.equal(preliminary.concurrency.group, "foundation-pr-${{ github.event.pull_request.number }}");
+  assert.equal(preliminary.concurrency.group.replace(/\s+/gu, " "),
+    "${{ github.event.action == 'synchronize' && format('foundation-pr-{0}', github.event.pull_request.number) || format('foundation-feedback-{0}', github.event.pull_request.number) }}",
+    "Only source synchronization should cancel a full request; metadata lifecycle events use a separate group");
   assert.equal(preliminary.concurrency["cancel-in-progress"], true);
   const full = ci.jobs["full-ci"];
-  assert.deepEqual(full.needs, ["dependency-review", "check", "windows-check", "macos-qualification"]);
+  const nativeAggregates = ["check", "windows-check", "macos-qualification"];
+  const mandatoryUnion = new Set(nativeAggregates.flatMap(id => ci.jobs[id].needs));
+  assert.deepEqual([...full.needs].toSorted(), [...mandatoryUnion].toSorted(),
+    "The parallel gate must require the entire mandatory native union, including future lanes");
+  assert.equal(new Set(full.needs).size, full.needs.length);
+  for (const id of nativeAggregates) {
+    assert.equal(full.needs.includes(id), false, "full-ci must not extend the aggregate critical path");
+    assert.equal(ci.jobs[id].name,
+      "${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && '" + id + "' || 'ci-not-requested-" + id + "' }}",
+      `${id}: unrelated labels must not emit skipped original required contexts`);
+    assert.equal(ci.jobs[id]["timeout-minutes"], id === "macos-qualification" ? 5 : 2,
+      `${id}: preserve the original native aggregate timeout`);
+    assert.equal(ci.jobs[id].steps[0].uses,
+      "re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030");
+    assert.deepEqual(ci.jobs[id].steps[0].with, { jobs: "${{ toJSON(needs) }}" });
+  }
   assert.equal(full.if, "${{ always() }}");
   assert.equal(full.name,
     "${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'full-ci' || 'ci-not-requested' }}",

@@ -13,11 +13,10 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, resolve as resolvePath, sep } from "node:path";
-import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
-import { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
+import { createCoverageSourceLayout, materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 
 export { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 
@@ -228,7 +227,7 @@ export async function requireContainedRealDirectory(path, root, label) {
   }
 }
 
-async function rawFileRecords(rawDirectory, expectedTests) {
+async function rawFileRecords(rawDirectory, expectedTests, pairedSourceRoot) {
   await requireDirectory(rawDirectory, "raw coverage directory");
   const entries = await readdir(rawDirectory, { withFileTypes: true });
   if (entries.length === 0) {
@@ -262,33 +261,21 @@ async function rawFileRecords(rawDirectory, expectedTests) {
     readEntries.push({ bytes, entry });
   }
   const records = [];
-  const expectedTestByUrl = new Map(
-    expectedTests.map((testPath) => [
-      pathToFileURL(join(repositoryRoot, ...testPath.split("/"))).href,
-      testPath,
-    ]),
-  );
+  const identifyTestSource = createCoverageSourceLayout(expectedTests, pairedSourceRoot);
+  let sourceRoot;
   for (const { bytes, entry } of readEntries) {
     const parsed = JSON.parse(bytes.toString("utf8"));
     if (!Array.isArray(parsed.result)) {
       fail(`raw coverage file ${entry.name} has no result array`);
     }
-    const matchedTests = [
-      ...new Set(
-        parsed.result
-          .map((script) => expectedTestByUrl.get(script.url))
-          .filter((testPath) => testPath !== undefined),
-      ),
-    ];
-    if (matchedTests.length !== 1) {
-      fail(`raw coverage file ${entry.name} does not contain exactly one expected shard test`);
-    }
+    const matchedTest = identifyTestSource(parsed, entry.name);
+    sourceRoot ??= matchedTest.sourceRoot;
     records.push(
       Object.freeze({
         path: `raw/${entry.name}`,
         sha256: sha256(bytes),
         size: bytes.byteLength,
-        test: matchedTests[0],
+        test: matchedTest.testPath,
       }),
     );
   }
@@ -297,6 +284,7 @@ async function rawFileRecords(rawDirectory, expectedTests) {
     fail("raw coverage test union differs from the shard manifest");
   }
   return Object.freeze({
+    sourceRoot,
     records: Object.freeze(records),
     validatedFiles: Object.freeze(
       readEntries.map(({ bytes, entry }) => Object.freeze({
@@ -403,11 +391,15 @@ async function validateArtifactDirectory({ artifactDirectory, identity, shardId,
   );
   const evidence = JSON.parse(evidenceBytes.toString("utf8"));
   validateEvidenceShape(evidence, { identity, shardId, tests });
-  const actualRaw = await rawFileRecords(join(artifactDirectory, "raw"), tests);
+  const pairedSourceRoot = join(repositoryRoot, Number(shardId) % 2 === 1 ? "a" : "b");
+  const actualRaw = await rawFileRecords(join(artifactDirectory, "raw"), tests, pairedSourceRoot);
   if (canonicalJson(actualRaw.records) !== canonicalJson(evidence.rawFiles)) {
     fail(`shard ${shardId} raw files differ from the sidecar`);
   }
-  return { artifactDirectory, evidence, validatedFiles: actualRaw.validatedFiles };
+  return Object.freeze({
+    artifactDirectory, evidence, sourceRoot: actualRaw.sourceRoot,
+    validatedFiles: actualRaw.validatedFiles,
+  });
 }
 
 export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
@@ -435,6 +427,7 @@ export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
   }
   const artifacts = [];
   const rawDigests = new Set();
+  let pairedLayout;
   let totalRawBytes = 0;
   for (const shardId of shardIds) {
     const artifact = await validateArtifactDirectory({
@@ -446,6 +439,11 @@ export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
         shardId,
         tests: protocol.manifest.coverageShards.get(shardId),
       });
+    const artifactIsPaired = artifact.sourceRoot !== repositoryRoot;
+    pairedLayout ??= artifactIsPaired;
+    if (pairedLayout !== artifactIsPaired) {
+      fail("complete evidence set mixes canonical and paired source roots");
+    }
     totalRawBytes += artifact.evidence.rawFiles.reduce(
       (total, record) => total + record.size,
       0,
@@ -461,7 +459,7 @@ export async function validateCoverageEvidenceSet({ headSha, inputDirectory }) {
     }
     artifacts.push(artifact);
   }
-  return Object.freeze({ artifacts, identity, protocol });
+  return Object.freeze({ artifacts: Object.freeze(artifacts), identity, protocol });
 }
 
 export async function mergeCoverageEvidence({ headSha, inputDirectory }) {

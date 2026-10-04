@@ -294,8 +294,19 @@ test("CI retains registry and package obligations and isolated advisory timing u
   assert.equal(scripts["package:qualification:built"], "node scripts/qualify-package-artifacts.mts");
   assert.ok(ci.jobs["macos-package"].steps.some((step) => step.run === 'pnpm package:qualification:built "$QUALIFICATION_PROFILE"'));
   assert.equal(scripts["package:check:built"], "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs");
+  const producers = ci.jobs["linux-tests"];
+  for (const key of ["first", "second"]) {
+    const identity = "${{ matrix.pair." + key + " }}";
+    const upload = producers.steps.find(step => step.name === `Upload ${key} advisory test timings`);
+    assert.equal(upload.if, "${{ always() }}");
+    assert.equal(upload.with.path, "${{ runner.temp }}/producer-" + identity + "/test-timing/linux-test-" + identity);
+    assert.equal(upload.with.name, "test-timing-${{ github.sha }}-linux-test-" + identity);
+    assert.equal(upload.with["if-no-files-found"], "warn");
+    assert.equal(upload.with["retention-days"], 14);
+    assert.equal(upload["continue-on-error"], true);
+  }
   const paths = new Set();
-  for (const jobId of ["linux-tests", "windows-test-a", "windows-test-b", "windows-test-c", "windows-test-d", "windows-test-e"]) {
+  for (const jobId of ["windows-test-a", "windows-test-b", "windows-test-c", "windows-test-d", "windows-test-e"]) {
     const job = ci.jobs[jobId];
     const run = job.steps.find((step) => jobId === "windows-test-a"
       ? step.name === "Run isolated Windows test partition"

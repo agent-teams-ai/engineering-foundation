@@ -85,15 +85,26 @@ thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses eight
-checked-in serial test shards. All eight run in isolated matrix checkouts,
-with at most five running concurrently. Native trials rejected both four
-producers (a delayed second wave) and eight (late Windows qualifications).
-The five-producer cap balances the two waves against the shared runner limit. Every shard remains mandatory and uploads
-its own exact-head raw evidence; fail-fast is disabled, and the coverage aggregate
-requires the entire matrix. This limits concurrency, not evidence or test scope. Each instance has a
-25-minute bound; release admission accounts for any configured matrix batches, keeping the
-configured Linux path below the unchanged 72-minute Windows bound. Queue delay
-remains outside job timeout arithmetic.
+checked-in serial test shards in four fixed pairs. Each pair runs two producers
+concurrently, with separate Git checkouts, dependency installs, builds, test
+processes and temporary directories. All eight producers remain mandatory and
+upload their own exact-head raw evidence; fail-fast is disabled, and the coverage
+aggregate requires the entire matrix. Only producer 4 receives the declared
+managed consumer tools. A producer failure drains the other started producer,
+retains both exit statuses and fails the job.
+
+Each pair has a 25-minute bound. Release admission accounts for any configured
+matrix batches, keeping the configured Linux path below the unchanged 72-minute
+Windows bound. Queue delay remains outside job timeout arithmetic. Pairing
+reduces runner slots from eight jobs to four; performance is measured on native
+CI, rather than inferred from job counts.
+
+The evidence aggregator accepts only the canonical checkout layout or the
+complete fixed paired layout (odd shards in `a`, even shards in
+`b`). Mixed layouts and unexpected roots fail. After validating the
+original bounded bytes and their sidecars, it projects the trusted producer
+paths in derived c8 input copies onto its checkout. Original raw evidence,
+function ranges and execution counts remain unchanged.
 Windows uses five isolated lanes: C contains only
 the installed loader CLI suite; A, B, D and E use the independently balanced
 checked-in Windows partition. Its closed dispatch validates the complete canonical

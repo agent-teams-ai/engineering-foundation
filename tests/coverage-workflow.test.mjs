@@ -101,7 +101,8 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     const expected = jobId === "full-ci" ? "${{ always() }}" : aggregate
       ? "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}"
       : fullRequestCondition;
-    assert.equal(job.if, expected, `${jobId} must require an explicit PR full request`);
+    assert.equal(job.if, jobId === "dependency-review" ? undefined : expected,
+      `${jobId} must preserve unconditional dependency review or explicit full admission`);
   }
   assert.deepEqual(coverage.needs, [
     "dependency-review",

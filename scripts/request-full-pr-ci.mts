@@ -163,8 +163,9 @@ async function finish(port: FullCiPort, repo: Repository, pr: Snapshot, run: Bou
   const current = await rereadRun(port, repo, pr, run);
   const ready = await successful(port, repo, current);
   const newest = await latestRun(port, repo, pr);
-  if (!newest || newest.id !== current.id || newest.attempt !== current.attempt ||
-      newest.status !== current.status || newest.conclusion !== current.conclusion) {
+  // The run-list endpoint can lag behind run detail during ordinary lifecycle
+  // transitions. Detail and actual jobs prove success; the list binds newest identity.
+  if (!newest || newest.id !== current.id || newest.attempt !== current.attempt) {
     throw new Error("Latest bound CI request changed; inspect Actions before retrying");
   }
   await unchanged(port, repo, pr);

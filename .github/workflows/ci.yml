@@ -45,7 +45,6 @@ jobs:
         run: node scripts/ci-shadow-classifier.mjs --github-event
 
   dependency-review:
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
     name: dependency-review
     runs-on: ubuntu-24.04
     timeout-minutes: 5

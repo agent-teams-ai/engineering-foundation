@@ -219,6 +219,25 @@ test("in-progress requests are reused and bounded watch rereads the actual gate"
   assert.deepEqual(state.effects, []); assert.deepEqual(state.waits, [90 * 60_000]);
 });
 
+// A queued list snapshot can lag fresh detail during a legitimate transition.
+// It must not cause a duplicate request or discard successful job evidence.
+test("stale run-list lifecycle state does not invalidate the same current attempt", async () => {
+  for (const status of ["in_progress", "completed"] as const) {
+    const { state, port } = fixture();
+    state.runs = [{ ...runMetadata(), status, conclusion: status === "completed" ? "success" : "" }];
+    const gh = port.gh;
+    port.gh = async (args, timeout) => {
+      if (args[1]?.includes("/actions/workflows/ci.yml/runs?")) {
+        return JSON.stringify({ workflow_runs: state.runs.map(run => ({ ...run, status: "queued", conclusion: "" })) });
+      }
+      return gh(args, timeout);
+    };
+    assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome,
+      status === "completed" ? "ready" : "requested");
+    assert.deepEqual(state.effects, []);
+  }
+});
+
 test("failed or skipped watched work never reports ready", async () => {
   for (const conclusion of ["failure", "cancelled", "skipped"]) {
     const { state, port } = fixture(); state.runs = [{ ...runMetadata(), status: "queued", conclusion: "" }];

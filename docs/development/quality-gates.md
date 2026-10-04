@@ -86,11 +86,11 @@ differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses eight
 checked-in serial test shards. All eight run in isolated matrix checkouts,
-with at most four running concurrently so long Windows and Darwin qualifications
-can acquire shared runner capacity. Every shard remains mandatory and uploads
+with all eight eligible to run concurrently. A four-job cap was rejected after
+a native trial delayed the final shard and increased total CI time. Every shard remains mandatory and uploads
 its own exact-head raw evidence; fail-fast is disabled, and the coverage aggregate
 requires the entire matrix. This limits concurrency, not evidence or test scope. Each instance has a
-25-minute bound; release admission accounts for both matrix batches, keeping the
+25-minute bound; release admission accounts for any configured matrix batches, keeping the
 configured Linux path below the unchanged 72-minute Windows bound. Queue delay
 remains outside job timeout arithmetic.
 Windows uses five isolated lanes: C contains only
@@ -446,8 +446,10 @@ aggregate includes every profile and the separate native controls, QGR lifecycle
 repository mutation, scaffolding and document-writing job. No archive authority
 crosses jobs. Zero-argument local qualification retains its complete sequence.
 
-Package and registry jobs wait for their platform's short static job. Long test
-lanes can claim shared hosted runner capacity first; each qualification still
+Linux registry qualification starts directly after Dependency Review; its
+independent fresh consumer does not depend on the repository static check. Other
+package and Windows registry jobs wait for their platform's short static job.
+Each qualification still
 runs its own fresh installation and complete required consumer scope.
 Windows consumer groups have a 50-minute bound, preserving the existing release
 attester's maximum CI path when combined with the 15-minute static gate.

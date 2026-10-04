@@ -170,7 +170,7 @@ jobs:
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 8
       matrix:
         shard: ["1", "2", "3", "4", "5", "6", "7", "8"]
     env:
@@ -278,7 +278,8 @@ jobs:
 
   linux-registry:
     name: linux-registry
-    needs: [dependency-review, linux-static]
+    # Independent qualification can start as soon as Dependency Review succeeds.
+    needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30

@@ -100,8 +100,8 @@ reduces runner slots from eight jobs to four; performance is measured on native
 CI, rather than inferred from job counts.
 
 The evidence aggregator accepts only the canonical checkout layout or the
-complete fixed paired layout (odd shards in `producer-a`, even shards in
-`producer-b`). Mixed layouts and unexpected roots fail. After validating the
+complete fixed paired layout (odd shards in `a`, even shards in
+`b`). Mixed layouts and unexpected roots fail. After validating the
 original bounded bytes and their sidecars, it projects the trusted producer
 paths in derived c8 input copies onto its checkout. Original raw evidence,
 function ranges and execution counts remain unchanged.

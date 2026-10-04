@@ -23,7 +23,7 @@ if (process.platform === "linux") {
       const bin = join(root, "bin");
       const output = join(root, "output");
       const log = join(root, "commands.jsonl");
-      await Promise.all(["producer-a", "producer-b", "temporary", "bin"].map(name => mkdir(join(root, name))));
+      await Promise.all(["a", "b", "temporary", "bin"].map(name => mkdir(join(root, name))));
       await writeFile(join(bin, "pnpm"), `#!${process.execPath}\n${String.raw`
 const fs = require("node:fs");
 const record = { cwd: process.cwd(), args: process.argv.slice(2),
@@ -31,7 +31,7 @@ const record = { cwd: process.cwd(), args: process.argv.slice(2),
   tools: process.env.MANAGED_TEST_TOOLS_ROOT, managed: process.env.MANAGED_TEST_ROOT,
   node26: process.env.MANAGED_TEST_NODE26_SOURCE };
 fs.appendFileSync(process.env.PAIR_TEST_LOG, JSON.stringify(record) + "\n");
-if (process.cwd().endsWith("producer-a")) process.exit(7);
+if (process.cwd().endsWith("/a")) process.exit(7);
 setTimeout(() => {
   fs.writeFileSync(process.env.RUNNER_TEMP + "/sibling-finished", "done");
 }, 80);
@@ -46,10 +46,10 @@ setTimeout(() => {
       assert.equal(await readFile(output, "utf8"), "first-status=7\nsecond-status=0\n");
       assert.equal(await readFile(join(temporary, "producer-4", "sibling-finished"), "utf8"), "done");
       const records = (await readFile(log, "utf8")).trim().split("\n").map(line => JSON.parse(line));
-      assert.equal(records.filter(record => record.cwd === join(root, "producer-a")).length, 1);
-      assert.equal(records.filter(record => record.cwd === join(root, "producer-b")).length, phase === "build" ? 3 : 1);
+      assert.equal(records.filter(record => record.cwd === join(root, "a")).length, 1);
+      assert.equal(records.filter(record => record.cwd === join(root, "b")).length, phase === "build" ? 3 : 1);
       for (const record of records) {
-        const first = record.cwd === join(root, "producer-a");
+        const first = record.cwd === join(root, "a");
         assert.equal(record.temporary, join(temporary, first ? "producer-3" : "producer-4"));
         assert.equal(record.tmpdir, record.temporary);
         assert.equal(record.tools, first ? undefined : "/declared-tools");
@@ -150,20 +150,20 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(producer.env.FIRST_SHARD, "${{ matrix.pair.first }}");
   assert.equal(producer.env.SECOND_SHARD, "${{ matrix.pair.second }}");
   const checkouts = producer.steps.filter(step => step.uses?.startsWith("actions/checkout@"));
-  assert.deepEqual(checkouts.map(step => step.with.path), ["producer-a", "producer-b"]);
+  assert.deepEqual(checkouts.map(step => step.with.path), ["a", "b"]);
   for (const checkout of checkouts) {
     assert.equal(checkout.with["fetch-depth"], 0);
     assert.equal(checkout.with["persist-credentials"], false);
   }
   const setup = producer.steps.find(step => step.uses?.startsWith("pnpm/setup@"));
-  assert.equal(setup.with["working-directory"], "producer-a");
+  assert.equal(setup.with["working-directory"], "a");
   assert.equal(setup.with.install, false);
   const build = producer.steps.find(step => step.name === "Build both isolated producers");
-  assert.equal(build.run, 'node producer-a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"');
+  assert.equal(build.run, 'node a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"');
   const run = producer.steps.find(step => step.id === "test-pair");
-  assert.equal(run.run, 'node producer-a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"');
+  assert.equal(run.run, 'node a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"');
   assert.equal(run["continue-on-error"], undefined);
-  for (const [key, root] of [["first", "producer-a"], ["second", "producer-b"]]) {
+  for (const [key, root] of [["first", "a"], ["second", "b"]]) {
     const identity = "${{ matrix.pair." + key + " }}";
     const upload = producer.steps.find(step => step.name === `Upload ${key} raw coverage evidence`);
     assert.match(upload.uses, /^actions\/upload-artifact@[a-f0-9]{40}$/u);
@@ -179,13 +179,13 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(managed.length, 2);
   for (const step of managed) { assert.equal(step.if, "${{ matrix.pair.second == '4' }}"); }
   const provision = managed.find(step => step.run?.includes("provision-managed-test-tools"));
-  assert.equal(provision["working-directory"], "producer-b");
+  assert.equal(provision["working-directory"], "b");
   assert.equal(provision.env.RUNNER_TEMP, "${{ runner.temp }}/producer-4");
   const node26 = producer.steps.find(step => step.with?.["node-version"] === "26.10.0");
   assert.equal(node26.if, "${{ matrix.pair.second == '4' }}");
   const node24 = producer.steps.find(step => step.with?.["node-version-file"]);
-  assert.equal(node24.with["node-version-file"], "producer-a/.node-version");
-  assert.equal(node24.with["cache-dependency-path"], "producer-a/pnpm-lock.yaml");
+  assert.equal(node24.with["node-version-file"], "a/.node-version");
+  assert.equal(node24.with["cache-dependency-path"], "a/pnpm-lock.yaml");
   assert.ok(producer.steps.indexOf(node26) < producer.steps.indexOf(node24));
 
 

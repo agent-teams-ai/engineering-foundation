@@ -97,7 +97,7 @@ async function rewriteRawArtifact(root, shardId, mutate) {
 async function pairedEvidenceSet() {
   const root = await evidenceSet();
   for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
-    const producer = Number(shardId) % 2 === 1 ? "producer-a" : "producer-b";
+    const producer = Number(shardId) % 2 === 1 ? "a" : "b";
     await rewriteRawArtifact(root, shardId, (report, record) => {
       report.result[0].url = pathToFileURL(join(repositoryRoot, producer, record.test)).href;
     });
@@ -250,7 +250,7 @@ test("paired evidence materializes canonical URLs and source maps without changi
   context.after(() => Promise.all([
     rm(root, { force: true, recursive: true }), rm(merged, { force: true, recursive: true }),
   ]));
-  const sourceRoot = join(repositoryRoot, "producer-a");
+  const sourceRoot = join(repositoryRoot, "a");
   const productionPath = "scripts/coverage-evidence.mjs";
   const productionUrl = pathToFileURL(join(sourceRoot, productionPath)).href;
   const foreignUrl = pathToFileURL(join(dirname(repositoryRoot), "outside-coverage", "foreign.mjs")).href;
@@ -279,7 +279,7 @@ test("paired evidence materializes canonical URLs and source maps without changi
     if (record.test !== testManifest.coverageShards.get("2")[0]) {
       return;
     }
-    const url = pathToFileURL(join(repositoryRoot, "producer-b", productionPath)).href;
+    const url = pathToFileURL(join(repositoryRoot, "b", productionPath)).href;
     report.result.push({ url, functions: [{
       functionName: "paired-counts", isBlockCoverage: true,
       ranges: [{ startOffset: 0, endOffset: 40, count: 7 }],
@@ -292,7 +292,7 @@ test("paired evidence materializes canonical URLs and source maps without changi
   const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
   const originals = new Map();
   for (const artifact of validated.artifacts) {
-    assert.equal(artifact.sourceRoot, join(repositoryRoot, Number(artifact.evidence.shard.id) % 2 === 1 ? "producer-a" : "producer-b"));
+    assert.equal(artifact.sourceRoot, join(repositoryRoot, Number(artifact.evidence.shard.id) % 2 === 1 ? "a" : "b"));
     const sidecar = join(artifact.artifactDirectory, "evidence.json");
     originals.set(sidecar, await readFile(sidecar));
     for (const file of artifact.validatedFiles) {
@@ -341,8 +341,8 @@ test("coverage evidence rejects mixed layouts, wrong producers and arbitrary sou
         if (scenario === "mixed-artifact" && record.test !== testManifest.coverageShards.get("1")[0]) {
           return;
         }
-        const producerRoot = scenario === "wrong-producer" ? join(repositoryRoot, "producer-b") :
-          scenario === "arbitrary-root" ? join(dirname(repositoryRoot), "untrusted-producer") : join(repositoryRoot, "producer-a");
+        const producerRoot = scenario === "wrong-producer" ? join(repositoryRoot, "b") :
+          scenario === "arbitrary-root" ? join(dirname(repositoryRoot), "untrusted-producer") : join(repositoryRoot, "a");
         report.result[0].url = pathToFileURL(join(producerRoot, record.test)).href;
         if (scenario === "mixed-script") {
           report.result.push({ url: join(repositoryRoot, "scripts", "coverage-evidence.mjs"), functions: [] });
@@ -368,7 +368,7 @@ test("paired materialization rejects source map relocation ambiguity and key col
       subcontext.after(() => Promise.all([
         rm(root, { force: true, recursive: true }), rm(merged, { force: true, recursive: true }),
       ]));
-      const url = pathToFileURL(join(repositoryRoot, "producer-a", "scripts", "compiled.mjs")).href;
+      const url = pathToFileURL(join(repositoryRoot, "a", "scripts", "compiled.mjs")).href;
       await rewriteRawArtifact(root, "1", (report, record) => {
         if (record.test !== testManifest.coverageShards.get("1")[0]) {
           return;
@@ -385,7 +385,7 @@ test("paired materialization rejects source map relocation ambiguity and key col
           report["source-map-cache"][`${url}?duplicate`] = entry;
         }
         if (scenario === "escaping-url") {
-          report.result.push({ url: `${pathToFileURL(join(repositoryRoot, "producer-a")).href}/../scripts/coverage-evidence.mjs`, functions: [] });
+          report.result.push({ url: `${pathToFileURL(join(repositoryRoot, "a")).href}/../scripts/coverage-evidence.mjs`, functions: [] });
         }
       });
       const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });

@@ -183,16 +183,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: producer-a
+          path: a
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: producer-b
+          path: b
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false, working-directory: producer-a }
+        with: { install: false, working-directory: a }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: ${{ matrix.pair.second == '4' }}
         with: { node-version: "26.10.0" }
@@ -201,27 +201,27 @@ jobs:
         run: printf 'MANAGED_TEST_NODE26_SOURCE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version-file: producer-a/.node-version
+          node-version-file: a/.node-version
           cache: pnpm
-          cache-dependency-path: producer-a/pnpm-lock.yaml
+          cache-dependency-path: a/pnpm-lock.yaml
       - name: Build both isolated producers
-        run: node producer-a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"
+        run: node a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"
       - name: Provision public pinned managed test copies
         if: ${{ matrix.pair.second == '4' }}
-        working-directory: producer-b
+        working-directory: b
         env:
           RUNNER_TEMP: ${{ runner.temp }}/producer-4
           TMPDIR: ${{ runner.temp }}/producer-4
         run: node scripts/provision-managed-test-tools.mjs
       - name: Run both isolated test shards
         id: test-pair
-        run: node producer-a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"
+        run: node a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"
       - name: Upload first raw coverage evidence
         if: ${{ always() && steps.test-pair.outputs.first-status == '0' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-evidence-${{ github.sha }}-shard-${{ matrix.pair.first }}
-          path: producer-a/.coverage-evidence/shard-${{ matrix.pair.first }}
+          path: a/.coverage-evidence/shard-${{ matrix.pair.first }}
           if-no-files-found: error
           include-hidden-files: true
           overwrite: true
@@ -240,7 +240,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-evidence-${{ github.sha }}-shard-${{ matrix.pair.second }}
-          path: producer-b/.coverage-evidence/shard-${{ matrix.pair.second }}
+          path: b/.coverage-evidence/shard-${{ matrix.pair.second }}
           if-no-files-found: error
           include-hidden-files: true
           overwrite: true

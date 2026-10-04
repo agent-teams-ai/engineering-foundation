@@ -38,7 +38,7 @@ export function createCoverageSourceLayout(expectedTests, pairedSourceRoot) {
       ]))),
   );
   const knownRoots = (pairedSourceRoot === undefined ? sourceRoots : [
-    join(repositoryRoot, "producer-a"), join(repositoryRoot, "producer-b"), repositoryRoot,
+    join(repositoryRoot, "a"), join(repositoryRoot, "b"), repositoryRoot,
   ]).map((sourceRoot) => ({
     sourceRoot, prefix: pathToFileURL(`${sourceRoot}${sep}`).href,
   }));
@@ -170,7 +170,7 @@ function projectPairedCoverage(bytes, sourceRoot) {
 export async function materializeValidatedRawCoverage(validated, outputDirectory, faultInjector) {
   await faultInjector?.({ phase: "after-validation" });
   for (const { evidence, sourceRoot, validatedFiles } of validated.artifacts) {
-    const pairedSourceRoot = join(repositoryRoot, Number(evidence.shard.id) % 2 === 1 ? "producer-a" : "producer-b");
+    const pairedSourceRoot = join(repositoryRoot, Number(evidence.shard.id) % 2 === 1 ? "a" : "b");
     if (sourceRoot !== repositoryRoot && sourceRoot !== pairedSourceRoot) {
       throw new Error("Coverage evidence is invalid: retained source root is not a fixed shard producer");
     }

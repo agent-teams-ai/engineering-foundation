@@ -41,7 +41,7 @@ export async function runCiTestPair(args: readonly string[]): Promise<void> {
     throw new Error("Usage: run-ci-test-pair.mts build|test 1 2|3 4|5 6|7 8");
   }
   const { head, temporary, output } = await ciContext();
-  const roots = [resolvePath("producer-a"), resolvePath("producer-b")];
+  const roots = [resolvePath("a"), resolvePath("b")];
   const entries = await Promise.all(roots.map(root => lstat(root)));
   const physical = await Promise.all(roots.map(root => realpath(root)));
   if (entries.some(entry => !entry.isDirectory()) ||

@@ -391,7 +391,7 @@ async function validateArtifactDirectory({ artifactDirectory, identity, shardId,
   );
   const evidence = JSON.parse(evidenceBytes.toString("utf8"));
   validateEvidenceShape(evidence, { identity, shardId, tests });
-  const pairedSourceRoot = join(repositoryRoot, Number(shardId) % 2 === 1 ? "producer-a" : "producer-b");
+  const pairedSourceRoot = join(repositoryRoot, Number(shardId) % 2 === 1 ? "a" : "b");
   const actualRaw = await rawFileRecords(join(artifactDirectory, "raw"), tests, pairedSourceRoot);
   if (canonicalJson(actualRaw.records) !== canonicalJson(evidence.rawFiles)) {
     fail(`shard ${shardId} raw files differ from the sidecar`);

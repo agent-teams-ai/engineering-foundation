@@ -524,7 +524,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      # Windows partitions retain the complete canonical inventory in nine isolated
+      # Windows partitions retain the complete canonical inventory in five isolated
       # jobs. Serial execution inside each job preserves fixture ownership.
       - name: Run isolated Windows test partition
         run: pnpm test:shard:built -- --windows-lane d --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-d"

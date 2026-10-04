@@ -155,6 +155,8 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     if (strategy?.["max-parallel"] !== undefined) {
       const parallel = strategy["max-parallel"];
       assert.ok(Number.isInteger(parallel) && parallel > 0);
+      assert.ok(!Object.hasOwn(strategy.matrix, "include") && !Object.hasOwn(strategy.matrix, "exclude"),
+        "bounded matrices require explicit finite axes without include/exclude overrides");
       const axes = Object.values(strategy.matrix);
       assert.ok(axes.length > 0 && axes.every(axis => Array.isArray(axis) && axis.length > 0),
         "bounded matrices require explicit finite axes without include/exclude overrides");
@@ -2078,6 +2080,12 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   delayedMatrix.jobs["linux-tests"].strategy["max-parallel"] = 2;
   assert.throws(() => assertExactReleaseRunBinding(attestation, release, delayedMatrix),
     { code: "ERR_ASSERTION" }, "release budget must account for every matrix batch");
+  for (const override of ["include", "exclude"]) {
+    const ambiguousMatrix = structuredClone(ci);
+    ambiguousMatrix.jobs["linux-tests"].strategy.matrix[override] = [{ shard: "1" }];
+    assert.throws(() => assertExactReleaseRunBinding(attestation, release, ambiguousMatrix),
+      /bounded matrices require explicit finite axes without include\/exclude overrides/u);
+  }
   assert.match(attestation.run, /for context in "\$\{ci_contexts\[@\]\}"/u);
   assert.deepEqual(release.jobs["attest-release-pr"].permissions, {
     actions: "write",

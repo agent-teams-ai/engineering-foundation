@@ -21,7 +21,7 @@ function fail(message) {
 /** @param {unknown} value @returns {string | undefined} */
 function coverageFileUrl(value) {
   if (typeof value !== "string") {
-    return undefined;
+    return;
   }
   if (isAbsolute(value)) {
     return pathToFileURL(resolve(value)).href;
@@ -33,10 +33,10 @@ function coverageFileUrl(value) {
     if (/^file:/iu.test(value)) {
       fail("invalid local coverage address");
     }
-    return undefined;
+    return;
   }
   if (url.protocol !== "file:") {
-    return undefined;
+    return;
   }
   try {
     if (/%(?:2f|5c)/iu.test(url.pathname)) {

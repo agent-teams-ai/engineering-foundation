@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setImmediate } from "node:timers/promises";
 import test from "node:test";
 import { mapStageIo, MAX_STAGE_BYTES, type StageByteState } from "../scripts/pack-stage-io.mts";
 import { materializeStableTree, readStableRegularFile } from "../scripts/pack-artifact-stage-support.mjs";
@@ -23,8 +24,8 @@ test("stage I/O stops admission on undefined rejection and drains all started jo
   void task.then(() => { settled = true; return settled; }, () => { settled = true; return settled; });
   await admitted.promise;
   rejectFirst.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  // Drain the microtask queue before checking that held writers still block return.
+  await setImmediate();
   assert.equal(settled, false);
   assert.deepEqual(started, [0, 1, 2, 3]);
   finishOthers.resolve();

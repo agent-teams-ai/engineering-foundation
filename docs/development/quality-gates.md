@@ -86,8 +86,9 @@ differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses eight
 checked-in serial test shards. All eight run in isolated matrix checkouts,
-with all eight eligible to run concurrently. A four-job cap was rejected after
-a native trial delayed the final shard and increased total CI time. Every shard remains mandatory and uploads
+with at most five running concurrently. Native trials rejected both four
+producers (a delayed second wave) and eight (late Windows qualifications).
+The five-producer cap balances the two waves against the shared runner limit. Every shard remains mandatory and uploads
 its own exact-head raw evidence; fail-fast is disabled, and the coverage aggregate
 requires the entire matrix. This limits concurrency, not evidence or test scope. Each instance has a
 25-minute bound; release admission accounts for any configured matrix batches, keeping the

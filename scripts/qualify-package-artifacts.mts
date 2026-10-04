@@ -5,7 +5,7 @@ import { combinedPackageQualificationGroups, parseCombinedQualificationArguments
 
 // One fixed, sequential local composition. The owner produces two independent
 // clean builds per target once and closes custody after both complete consumers.
-export async function qualifyPackageArtifacts(profile: unknown = undefined) {
+export async function qualifyPackageArtifacts(profile?: unknown) {
   const groups = combinedPackageQualificationGroups(profile);
   const evidence = await withQualifiedPackageArtifacts("combined", async handle => {
     await qualifyPackedConsumers(handle, groups.packed);

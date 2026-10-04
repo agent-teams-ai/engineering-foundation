@@ -90,7 +90,7 @@ function fixturePolicy() {
 function selectFixtureLanePaths(manifest: WindowsTestManifest, lane: string,
   coverageEvidenceEnabled = false, platform: NodeJS.Platform = "win32",
   architecture: typeof process.arch = "x64", policy: unknown = fixturePolicy()): readonly string[] {
-  return selectWindowsTestLanePaths(manifest, lane, coverageEvidenceEnabled, platform, architecture, policy);
+  return selectWindowsTestLanePaths(manifest, lane, coverageEvidenceEnabled, { platform, architecture, policy });
 }
 
 test("five fixed Windows lanes retain exact real canonical inventory and mandatory files", async () => {
@@ -102,7 +102,7 @@ test("five fixed Windows lanes retain exact real canonical inventory and mandato
   const byLane = new Map<string, readonly string[]>();
   assert.deepEqual(WINDOWS_TEST_LANES, lanes);
   for (const lane of lanes) {
-    byLane.set(lane, selectWindowsTestLanePaths(manifest, lane, false, "win32", "x64"));
+    byLane.set(lane, selectWindowsTestLanePaths(manifest, lane, false, { platform: "win32", architecture: "x64" }));
   }
   const selected = [...byLane.values()].flat();
   assert.equal(new Set(selected).size, selected.length);

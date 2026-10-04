@@ -120,9 +120,9 @@ export function selectWindowsTestLanePaths(
   manifest: WindowsTestManifest,
   lane: string,
   coverageEvidenceEnabled = false,
-  platform: NodeJS.Platform = process.platform,
-  architecture: typeof process.arch = process.arch,
-  policy: unknown = defaultWindowsLanePolicy,
+  {
+    platform = process.platform, architecture = process.arch, policy = defaultWindowsLanePolicy,
+  }: Readonly<{ platform?: NodeJS.Platform; architecture?: typeof process.arch; policy?: unknown }> = {},
 ): readonly string[] {
   requireWindowsTestLane(lane);
   if (coverageEvidenceEnabled) {

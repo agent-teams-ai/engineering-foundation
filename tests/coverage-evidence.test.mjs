@@ -329,7 +329,7 @@ test("paired evidence materializes canonical URLs and source maps without changi
     "--reports-dir", reports, "--reporter=json", "--include", productionPath], { cwd: repositoryRoot });
   const coverage = JSON.parse(await readFile(join(reports, "coverage-final.json"), "utf8"));
   assert.equal(coverage[join(repositoryRoot, productionPath)].f["0"], 11);
-  assert.equal(Object.keys(coverage).some((path) => path.includes("producer-a") || path.includes("producer-b")), false);
+  assert.deepEqual(Object.keys(coverage), [join(repositoryRoot, productionPath)]);
 });
 
 test("coverage evidence rejects mixed layouts, wrong producers and arbitrary source roots", async (context) => {

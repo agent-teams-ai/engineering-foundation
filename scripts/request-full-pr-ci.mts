@@ -91,6 +91,17 @@ async function unchanged(port: FullCiPort, repo: Repository, expected: Snapshot)
   return current;
 }
 
+function associatedWithSnapshot(associations: unknown[], pr: Snapshot): boolean {
+  // GitHub omits this array for forks. The frozen PR/head/base title, canonical
+  // workflow and exact source repository/ref still bind those runs uniquely.
+  if (associations.length === 0) { return pr.headRepo !== pr.baseRepo; }
+  if (associations.length !== 1) { return false; }
+  const association = object(associations[0]);
+  const head = object(association.head); const base = object(association.base);
+  return association.number === pr.number && head.sha === pr.head && base.sha === pr.base && head.ref === pr.headRef &&
+    object(head.repo).id === pr.headRepo && object(base.repo).id === pr.baseRepo;
+}
+
 function boundRun(value: unknown, repo: Repository, pr: Snapshot): BoundRun | undefined {
   const data = object(value);
   const title = `Full CI #${pr.number} @${pr.head} on ${pr.base}`;
@@ -102,17 +113,7 @@ function boundRun(value: unknown, repo: Repository, pr: Snapshot): BoundRun | un
   const associations = array(data.pull_requests);
   if (repository.id !== repo.id || repository.full_name !== repo.name ||
       source.id !== pr.headRepo || source.full_name !== pr.headRepoName || data.head_branch !== pr.headRef) { return undefined; }
-  // GitHub omits this array for forks. The frozen PR/head/base title, canonical
-  // workflow and exact source repository/ref still bind those runs uniquely.
-  if (associations.length === 0) {
-    if (pr.headRepo === pr.baseRepo) { return undefined; }
-  } else {
-    if (associations.length !== 1) { return undefined; }
-    const association = object(associations[0]);
-    const head = object(association.head); const base = object(association.base);
-    if (association.number !== pr.number || head.sha !== pr.head || base.sha !== pr.base || head.ref !== pr.headRef ||
-        object(head.repo).id !== pr.headRepo || object(base.repo).id !== pr.baseRepo) { return undefined; }
-  }
+  if (!associatedWithSnapshot(associations, pr)) { return undefined; }
   const id = positive(data.id); const attempt = positive(data.run_attempt);
   const url = `https://github.com/${repo.name}/actions/runs/${id}`;
   if (data.html_url !== url || typeof data.status !== "string" ||

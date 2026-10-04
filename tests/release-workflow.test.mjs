@@ -1881,7 +1881,7 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   assert.equal(codeql.on.workflow_dispatch, null);
   const fullRequestCondition =
     "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}";
-  assert.equal(ci.jobs["dependency-review"].if, fullRequestCondition);
+  assert.equal(ci.jobs["dependency-review"].if, undefined);
   assert.equal(ci.jobs["linux-static"].if, fullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   const codeqlAnalyze = codeql.jobs.analyze.steps.find(

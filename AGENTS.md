@@ -21,7 +21,16 @@ Hard rules:
   never become documentation sources of truth;
 - use conventional commits and short feature branches;
 - run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
-- run `pnpm verify` before opening a pull request;
+- before opening a pull request, run `pnpm check:changed`, `pnpm check:fast`,
+  `pnpm security:workflows`, and focused checks for the changed behavior;
+- before merging, require independent technical review and the complete
+  successful CI matrix for the current code, including native qualification,
+  complete inventories, and the adopted coverage authority. Reuse that evidence
+  instead of also requiring a sequential local `pnpm verify`;
+- keep `pnpm verify` as the full local diagnostic path when full CI cannot run
+  or does not cover the changed risk; retain any uncovered check. Pending CI
+  alone does not require a duplicate local full run. Never relabel evidence
+  from an older SHA as current-head CI;
 - a JSON Schema family support claim requires `contract.json-schema-releases`
   plus corpus and consumer evidence; exported schema bytes without that claim
   stay artifact-protected;

@@ -117,6 +117,16 @@ The resulting projections are about 439 seconds per Linux shard and at most
 are estimates from one run, excluding setup, queueing and future variance.
 Final exact-head Linux, Windows and macOS CI must establish actual behavior.
 
+Before opening a PR, run the changed and fast gates, workflow security and
+focused checks for the changed behavior. Merge still requires independent
+technical review and the complete current-code CI matrix, including all native
+qualifications and the partitioned coverage authority. A second sequential local
+`pnpm verify` is not an additional merge prerequisite when CI supplies that
+evidence. Keep the full local diagnostic command when full CI cannot run or a
+changed risk is not covered; retain any uncovered check. Pending CI alone does
+not require a duplicate local full run. Older-SHA results cannot be relabeled as
+current-head CI.
+
 Only the Windows loader step enables Node's compile cache, in a private
 runner-temp directory. Its complete CLI and native witnesses still execute;
 no compiled cache is uploaded or reused between jobs. Raw V8 producers explicitly

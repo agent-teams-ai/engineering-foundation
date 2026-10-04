@@ -11,7 +11,7 @@ import {
   COMBINED_PACKAGE_PROFILES, assertCompleteCombinedPackageProfiles,
   combinedPackageQualificationGroups, parseCombinedQualificationArguments,
 } from "../scripts/package-qualification-groups.mts";
-import { createPnpmRunner, runCommand } from "../scripts/pack-test-support.mjs";
+import { createPnpmRunner } from "../scripts/pack-test-support.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const pause = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms); });

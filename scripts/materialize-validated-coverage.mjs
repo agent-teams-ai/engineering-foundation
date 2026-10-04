@@ -9,6 +9,32 @@ function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+function isAbsoluteSource(source) {
+  return typeof source === "string" &&
+    (isAbsolute(source) || /^[a-z][a-z\d+.-]*:/iu.test(source));
+}
+
+function projectSourceMapEntry(entry, project) {
+  if (entry === null || typeof entry !== "object") {
+    return;
+  }
+  entry.url = project(entry.url);
+  const data = entry.data;
+  if (data === null || data === undefined) {
+    return;
+  }
+  // Node resolves sources to absolute URLs and clears sourceRoot before
+  // persisting this cache. Fail closed rather than moving a relative
+  // source into governed production code when its generated URL moves.
+  if ((data.sourceRoot !== undefined && data.sourceRoot !== "") || !Array.isArray(data.sources) ||
+      data.sources.some((source) => !isAbsoluteSource(source)) ||
+      (data.sources.length === 0 && data.file !== undefined && !isAbsoluteSource(data.file))) {
+    throw new Error("Coverage evidence is invalid: paired source map sources must be absolute with an empty sourceRoot");
+  }
+  data.sources = data.sources.map(project);
+  data.file = project(data.file);
+}
+
 function projectPairedCoverage(bytes, sourceRoot) {
   const sourcePrefix = pathToFileURL(`${sourceRoot}${sep}`).href;
   const canonicalPrefix = pathToFileURL(`${repositoryRoot}${sep}`).href;
@@ -48,23 +74,8 @@ function projectPairedCoverage(bytes, sourceRoot) {
         throw new Error("Coverage evidence is invalid: paired source map key projection collides");
       }
       cacheIdentities.add(keyIdentity);
-      if (projectedKey !== key && entry !== null && typeof entry === "object") {
-        entry.url = project(entry.url);
-        if (entry.data !== null && entry.data !== undefined) {
-          const data = entry.data;
-          // Node resolves sources to absolute URLs and clears sourceRoot before
-          // persisting this cache. Fail closed rather than moving a relative
-          // source into governed production code when its generated URL moves.
-          const isAbsoluteSource = (source) => typeof source === "string" &&
-            (isAbsolute(source) || /^[a-z][a-z\d+.-]*:/iu.test(source));
-          if ((data.sourceRoot !== undefined && data.sourceRoot !== "") || !Array.isArray(data.sources) ||
-              data.sources.some((source) => !isAbsoluteSource(source)) ||
-              (data.sources.length === 0 && data.file !== undefined && !isAbsoluteSource(data.file))) {
-            throw new Error("Coverage evidence is invalid: paired source map sources must be absolute with an empty sourceRoot");
-          }
-          data.sources = data.sources.map(project);
-          data.file = project(data.file);
-        }
+      if (projectedKey !== key) {
+        projectSourceMapEntry(entry, project);
       }
       cache.set(projectedKey, entry);
     }

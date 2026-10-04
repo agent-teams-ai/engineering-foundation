@@ -142,7 +142,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   const pairs = producer.strategy.matrix.pair;
   assert.deepEqual(pairs.map(pair => [pair.first, pair.second]),
     [["1", "2"], ["3", "4"], ["5", "6"], ["7", "8"]]);
-  assert.deepEqual(pairs.flatMap(pair => [pair.first, pair.second]).sort(),
+  assert.deepEqual(pairs.flatMap(pair => [pair.first, pair.second]).toSorted(),
     ["1", "2", "3", "4", "5", "6", "7", "8"]);
   assert.equal(producer.name, "linux-tests-${{ matrix.pair.first }}-${{ matrix.pair.second }}");
   assert.equal(producer["continue-on-error"], undefined);

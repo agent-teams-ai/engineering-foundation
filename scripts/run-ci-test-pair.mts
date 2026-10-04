@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
 import { appendFile, lstat, mkdir, realpath } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve as resolvePath } from "node:path";
 
 const pairs = [["1", "2"], ["3", "4"], ["5", "6"], ["7", "8"]] as const;
 
 function run(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<number> {
-  return new Promise((resolveStatus, reject) => {
+  return new Promise((resolve, reject) => {
     const child = spawn("pnpm", [...args], {
       cwd, stdio: "inherit",
       env,
@@ -13,9 +13,23 @@ function run(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Prom
     child.once("error", reject);
     child.once("close", (status, signal) => {
       if (status === null) { reject(new Error(`Producer terminated by ${signal}.`)); }
-      else { resolveStatus(status); }
+      else { resolve(status); }
     });
   });
+}
+
+async function ciContext() {
+  if (process.platform !== "linux") { throw new Error("Linux CI producers require Linux."); }
+  const head = process.env.GITHUB_SHA;
+  const temporary = process.env.RUNNER_TEMP;
+  const output = process.env.GITHUB_OUTPUT;
+  if (!head || !/^[a-f0-9]{40}$/u.test(head) || !temporary || !isAbsolute(temporary) || !output) {
+    throw new Error("CI producers require the declared head and runner paths.");
+  }
+  if (await realpath(temporary) !== resolvePath(temporary) || !(await lstat(temporary)).isDirectory()) {
+    throw new Error("CI producers require a physical runner temporary directory.");
+  }
+  return { head, temporary, output };
 }
 
 // Two fixed producers, with separate Git trees, builds and raw evidence. There
@@ -26,17 +40,8 @@ export async function runCiTestPair(args: readonly string[]): Promise<void> {
   if (args.length !== 3 || (phase !== "build" && phase !== "test") || !pair) {
     throw new Error("Usage: run-ci-test-pair.mts build|test 1 2|3 4|5 6|7 8");
   }
-  if (process.platform !== "linux") { throw new Error("Linux CI producers require Linux."); }
-  const head = process.env.GITHUB_SHA;
-  const temporary = process.env.RUNNER_TEMP;
-  const output = process.env.GITHUB_OUTPUT;
-  if (!head || !/^[a-f0-9]{40}$/u.test(head) || !temporary || !isAbsolute(temporary) || !output) {
-    throw new Error("CI producers require the declared head and runner paths.");
-  }
-  if (await realpath(temporary) !== resolve(temporary) || !(await lstat(temporary)).isDirectory()) {
-    throw new Error("CI producers require a physical runner temporary directory.");
-  }
-  const roots = [resolve("producer-a"), resolve("producer-b")];
+  const { head, temporary, output } = await ciContext();
+  const roots = [resolvePath("producer-a"), resolvePath("producer-b")];
   const entries = await Promise.all(roots.map(root => lstat(root)));
   const physical = await Promise.all(roots.map(root => realpath(root)));
   if (entries.some(entry => !entry.isDirectory()) ||

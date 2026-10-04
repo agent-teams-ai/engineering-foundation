@@ -266,7 +266,9 @@ test("paired evidence materializes canonical URLs and source maps without changi
   };
   const foreignEntry = { data: { ...data, sources: [productionUrl] }, lineLengths: [40], url: foreignUrl };
   await rewriteRawArtifact(root, "1", (report, record) => {
-    if (record.test !== testManifest.coverageShards.get("1")[0]) return;
+    if (record.test !== testManifest.coverageShards.get("1")[0]) {
+      return;
+    }
     report.result.push({ url: productionUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] });
     report["source-map-cache"] = {
       [productionUrl]: { data, lineLengths: [40], url: `${productionUrl}.map` },
@@ -274,7 +276,9 @@ test("paired evidence materializes canonical URLs and source maps without changi
     };
   });
   await rewriteRawArtifact(root, "2", (report, record) => {
-    if (record.test !== testManifest.coverageShards.get("2")[0]) return;
+    if (record.test !== testManifest.coverageShards.get("2")[0]) {
+      return;
+    }
     const url = pathToFileURL(join(repositoryRoot, "producer-b", productionPath)).href;
     report.result.push({ url, functions: [{
       functionName: "paired-counts", isBlockCoverage: true,
@@ -311,7 +315,9 @@ test("paired evidence materializes canonical URLs and source maps without changi
   });
   assert.deepEqual(projected["source-map-cache"][foreignUrl], foreignEntry);
   assert.equal(Object.hasOwn(projected["source-map-cache"], productionUrl), false);
-  for (const [path, bytes] of originals) assert.deepEqual(await readFile(path), bytes);
+  for (const [path, bytes] of originals) {
+    assert.deepEqual(await readFile(path), bytes);
+  }
   for (const artifact of validated.artifacts) {
     for (const file of artifact.validatedFiles) {
       assert.deepEqual(file.bytes, originals.get(join(artifact.artifactDirectory, "raw", file.name)));
@@ -332,7 +338,9 @@ test("coverage evidence rejects mixed layouts, wrong producers and arbitrary sou
       const root = await evidenceSet();
       subcontext.after(() => rm(root, { force: true, recursive: true }));
       await rewriteRawArtifact(root, "1", (report, record) => {
-        if (scenario === "mixed-artifact" && record.test !== testManifest.coverageShards.get("1")[0]) return;
+        if (scenario === "mixed-artifact" && record.test !== testManifest.coverageShards.get("1")[0]) {
+          return;
+        }
         const producerRoot = scenario === "wrong-producer" ? join(repositoryRoot, "producer-b") :
           scenario === "arbitrary-root" ? join(dirname(repositoryRoot), "untrusted-producer") : join(repositoryRoot, "producer-a");
         report.result[0].url = pathToFileURL(join(producerRoot, record.test)).href;
@@ -362,12 +370,20 @@ test("paired materialization rejects source map relocation ambiguity and key col
       ]));
       const url = pathToFileURL(join(repositoryRoot, "producer-a", "scripts", "compiled.mjs")).href;
       await rewriteRawArtifact(root, "1", (report, record) => {
-        if (record.test !== testManifest.coverageShards.get("1")[0]) return;
+        if (record.test !== testManifest.coverageShards.get("1")[0]) {
+          return;
+        }
         const entry = { data: { sources: [url], sourceRoot: "" }, url: null };
-        if (scenario === "relative-source") entry.data.sources = ["../../scripts/coverage-evidence.mjs"];
-        if (scenario === "nonempty-source-root") entry.data.sourceRoot = "../";
+        if (scenario === "relative-source") {
+          entry.data.sources = ["../../scripts/coverage-evidence.mjs"];
+        }
+        if (scenario === "nonempty-source-root") {
+          entry.data.sourceRoot = "../";
+        }
         report["source-map-cache"] = { [url]: entry };
-        if (scenario === "key-collision") report["source-map-cache"][`${url}?duplicate`] = entry;
+        if (scenario === "key-collision") {
+          report["source-map-cache"][`${url}?duplicate`] = entry;
+        }
         if (scenario === "escaping-url") {
           report.result.push({ url: `${pathToFileURL(join(repositoryRoot, "producer-a")).href}/../scripts/coverage-evidence.mjs`, functions: [] });
         }

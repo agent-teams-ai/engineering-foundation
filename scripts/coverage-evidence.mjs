@@ -12,11 +12,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, resolve as resolvePath, sep } from "node:path";
-import { pathToFileURL } from "node:url";
+import { join, relative, resolve as resolvePath, sep } from "node:path";
 import { promisify } from "node:util";
 
 import { repositoryRoot, validateTestManifests } from "./check-test-manifests.mjs";
+import { createCoverageSourceLayout } from "./coverage-source-layout.mts";
 import { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
 
 export { materializeValidatedRawCoverage } from "./materialize-validated-coverage.mjs";
@@ -262,54 +262,17 @@ async function rawFileRecords(rawDirectory, expectedTests, pairedSourceRoot) {
     readEntries.push({ bytes, entry });
   }
   const records = [];
-  const sourceRoots = pairedSourceRoot === undefined
-    ? [repositoryRoot]
-    : [repositoryRoot, pairedSourceRoot];
-  const expectedTestByUrl = new Map(
-    sourceRoots.flatMap((sourceRoot) => expectedTests.map((testPath) => [
-      pathToFileURL(join(sourceRoot, ...testPath.split("/"))).href,
-      { sourceRoot, testPath },
-    ])),
-  );
-  const knownRoots = (pairedSourceRoot === undefined ? sourceRoots : [
-    join(repositoryRoot, "producer-a"), join(repositoryRoot, "producer-b"), repositoryRoot,
-  ]).map((sourceRoot) => ({
-    sourceRoot, prefix: pathToFileURL(`${sourceRoot}${sep}`).href,
-  }));
+  const identifyTestSource = createCoverageSourceLayout(expectedTests, pairedSourceRoot);
   let sourceRoot;
   for (const { bytes, entry } of readEntries) {
     const parsed = JSON.parse(bytes.toString("utf8"));
     if (!Array.isArray(parsed.result)) {
       fail(`raw coverage file ${entry.name} has no result array`);
     }
-    const matchedUrls = [
-      ...new Set(
-        parsed.result
-          .map((script) => script.url)
-          .filter((url) => expectedTestByUrl.has(url)),
-      ),
-    ];
-    if (matchedUrls.length !== 1) {
-      fail(`raw coverage file ${entry.name} does not contain exactly one expected shard test`);
-    }
-    const matchedTest = expectedTestByUrl.get(matchedUrls[0]);
+    const matchedTest = identifyTestSource(parsed, entry.name);
     sourceRoot ??= matchedTest.sourceRoot;
     if (sourceRoot !== matchedTest.sourceRoot) {
       fail(`raw coverage artifact mixes source roots`);
-    }
-    const urls = [
-      ...parsed.result.map((script) => script.url),
-      ...Object.entries(parsed["source-map-cache"] ?? {}).flatMap(([key, cache]) => [
-        key, cache?.url, cache?.data?.file,
-        ...(Array.isArray(cache?.data?.sources) ? cache.data.sources : []),
-      ]),
-    ];
-    for (const url of urls) {
-      const fileUrl = typeof url === "string" && isAbsolute(url) ? pathToFileURL(url).href : url;
-      const knownRoot = knownRoots.find(({ prefix }) => typeof fileUrl === "string" && fileUrl.startsWith(prefix));
-      if (knownRoot !== undefined && knownRoot.sourceRoot !== sourceRoot) {
-        fail(`raw coverage artifact mixes source roots`);
-      }
     }
     records.push(
       Object.freeze({

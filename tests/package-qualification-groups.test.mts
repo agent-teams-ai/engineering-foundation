@@ -11,7 +11,7 @@ import {
   COMBINED_PACKAGE_PROFILES, assertCompleteCombinedPackageProfiles,
   combinedPackageQualificationGroups, parseCombinedQualificationArguments,
 } from "../scripts/package-qualification-groups.mts";
-import { runCommand } from "../scripts/pack-test-support.mjs";
+import { createPnpmRunner, runCommand } from "../scripts/pack-test-support.mjs";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const pause = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms); });
@@ -357,11 +357,15 @@ if (new URL(import.meta.url).searchParams.get("fixture-build") !== "1") {
     }
   });
 
-  test("group CLI rejects missing, duplicate, unknown and override arguments without allocating", async t => {
+  test("actual pnpm group wrapper rejects invalid arguments before allocating", async t => {
     const root = await directory(t, "ga-");
+    const sentinel = join(repositoryRoot, "packages/engineering-foundation/dist/group-refusal-TEST.js");
+    await writeFile(sentinel, "TEST stale distribution sentinel\n", { flag: "wx" });
+    t.after(() => rm(sentinel, { force: true }));
+    const runPnpm = createPnpmRunner();
     for (const args of [[], ["packed"], ["packed", "unknown"], ["packed", "integration", "integration"],
       ["registry", "npm-docs", "--archive", "/tmp/forged.tgz"]]) {
-      await assert.rejects(runCommand(process.execPath, [join(repositoryRoot, "scripts", "qualify-package-group.mts"), ...args], root, {
+      await assert.rejects(runPnpm(["package:group:built", ...args], repositoryRoot, {
         environment: { ...process.env, TMPDIR: root, TMP: root, TEMP: root },
       }), error => {
         assert.ok(error instanceof Error && "stderr" in error && typeof error.stderr === "string");
@@ -369,6 +373,7 @@ if (new URL(import.meta.url).searchParams.get("fixture-build") !== "1") {
         return true;
       });
       assert.deepEqual(await readdir(root), []);
+      assert.equal(await readFile(sentinel, "utf8"), "TEST stale distribution sentinel\n");
     }
   });
 }

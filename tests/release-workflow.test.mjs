@@ -2203,7 +2203,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.ok(nativeCommands.includes("node scripts/run-selected-tests.mjs tests/tooling.test.mjs"));
   assert.ok(nativeCommands.some(command => command.includes("tests/document-authoring-scaffolding-race.test.mjs")));
   assert.equal(manifest.scripts["package:group:built"],
-    "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-group.mts");
+    "node scripts/qualify-package-group.mts");
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));

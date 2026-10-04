@@ -160,14 +160,20 @@ jobs:
       - run: pnpm security:workflows
       - run: pnpm dead-code:check
       - run: pnpm parser-spike:check
-  linux-test-1:
-    name: linux-test-1
+  linux-tests:
+    name: linux-test-${{ matrix.shard }}
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: ["1", "2", "3", "4", "5", "6", "7", "8"]
     env:
       NODE_DISABLE_COMPILE_CACHE: "1"
+      TEST_SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -176,142 +182,28 @@ jobs:
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ matrix.shard == '4' }}
+        with: { node-version: "26.10.0" }
+      - name: Retain pinned Node 26 test source
+        if: ${{ matrix.shard == '4' }}
+        run: node --input-type=module -e "import { appendFileSync } from 'node:fs'; appendFileSync(process.env.GITHUB_ENV, 'MANAGED_TEST_NODE26_SOURCE=' + process.execPath + '\n');"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 1 --coverage-evidence-dir .coverage-evidence/shard-1 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-1"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-1
-          path: .coverage-evidence/shard-1
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-1
-          path: ${{ runner.temp }}/test-timing/linux-test-1
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-2:
-    name: linux-test-2
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 2 --coverage-evidence-dir .coverage-evidence/shard-2 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-2"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-2
-          path: .coverage-evidence/shard-2
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-2
-          path: ${{ runner.temp }}/test-timing/linux-test-2
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-3:
-    name: linux-test-3
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 3 --coverage-evidence-dir .coverage-evidence/shard-3 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-3"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-3
-          path: .coverage-evidence/shard-3
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-3
-          path: ${{ runner.temp }}/test-timing/linux-test-3
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-4:
-    name: linux-test-4
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: "26.10.0" }
-      - name: Retain pinned Node 26 test source
-        run: node --input-type=module -e "import { appendFileSync } from 'node:fs'; appendFileSync(process.env.GITHUB_ENV, 'MANAGED_TEST_NODE26_SOURCE=' + process.execPath + '\n');"
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
       - name: Qualify public pinned managed runtime test tools
+        if: ${{ matrix.shard == '4' }}
         run: node scripts/provision-managed-test-tools.mjs
       - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 4 --coverage-evidence-dir .coverage-evidence/shard-4 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-4"
+        run: pnpm test:shard:built -- --shards "$TEST_SHARD" --coverage-evidence-dir ".coverage-evidence/shard-$TEST_SHARD" --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-$TEST_SHARD"
       - name: Upload raw coverage evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: coverage-evidence-${{ github.sha }}-shard-4
-          path: .coverage-evidence/shard-4
+          name: coverage-evidence-${{ github.sha }}-shard-${{ matrix.shard }}
+          path: .coverage-evidence/shard-${{ matrix.shard }}
           if-no-files-found: error
           include-hidden-files: true
           overwrite: true
@@ -321,164 +213,8 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-timing-${{ github.sha }}-linux-test-4
-          path: ${{ runner.temp }}/test-timing/linux-test-4
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-5:
-    name: linux-test-5
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 5 --coverage-evidence-dir .coverage-evidence/shard-5 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-5"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-5
-          path: .coverage-evidence/shard-5
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-5
-          path: ${{ runner.temp }}/test-timing/linux-test-5
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-6:
-    name: linux-test-6
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 6 --coverage-evidence-dir .coverage-evidence/shard-6 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-6"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-6
-          path: .coverage-evidence/shard-6
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-6
-          path: ${{ runner.temp }}/test-timing/linux-test-6
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-7:
-    name: linux-test-7
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 7 --coverage-evidence-dir .coverage-evidence/shard-7 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-7"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-7
-          path: .coverage-evidence/shard-7
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-7
-          path: ${{ runner.temp }}/test-timing/linux-test-7
-          if-no-files-found: warn
-          retention-days: 14
-
-  linux-test-8:
-    name: linux-test-8
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NODE_DISABLE_COMPILE_CACHE: "1"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards 8 --coverage-evidence-dir .coverage-evidence/shard-8 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-8"
-      - name: Upload raw coverage evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-evidence-${{ github.sha }}-shard-8
-          path: .coverage-evidence/shard-8
-          if-no-files-found: error
-          include-hidden-files: true
-          overwrite: true
-          retention-days: 1
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-linux-test-8
-          path: ${{ runner.temp }}/test-timing/linux-test-8
+          name: test-timing-${{ github.sha }}-linux-test-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-timing/linux-test-${{ matrix.shard }}
           if-no-files-found: warn
           retention-days: 14
 
@@ -486,14 +222,7 @@ jobs:
     name: linux-coverage
     needs:
       - dependency-review
-      - linux-test-1
-      - linux-test-2
-      - linux-test-3
-      - linux-test-4
-      - linux-test-5
-      - linux-test-6
-      - linux-test-7
-      - linux-test-8
+      - linux-tests
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -611,14 +340,7 @@ jobs:
       - dependency-review
       - node26-compatibility
       - linux-static
-      - linux-test-1
-      - linux-test-2
-      - linux-test-3
-      - linux-test-4
-      - linux-test-5
-      - linux-test-6
-      - linux-test-7
-      - linux-test-8
+      - linux-tests
       - linux-coverage
       - linux-package
       - linux-registry

@@ -149,9 +149,19 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
   const requiredContexts = attestation.run.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
   const criticalPathMinutes = (jobId) => {
-    const { needs = [], "timeout-minutes": timeout } = ci.jobs[jobId] ?? {};
+    const { needs = [], "timeout-minutes": timeout, strategy } = ci.jobs[jobId] ?? {};
     assert.ok(Number.isInteger(timeout), `${jobId} must be bounded`);
-    return timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
+    let batches = 1;
+    if (strategy?.["max-parallel"] !== undefined) {
+      const parallel = strategy["max-parallel"];
+      assert.ok(Number.isInteger(parallel) && parallel > 0);
+      const axes = Object.values(strategy.matrix);
+      assert.ok(axes.length > 0 && axes.every(axis => Array.isArray(axis) && axis.length > 0),
+        "bounded matrices require explicit finite axes without include/exclude overrides");
+      const count = axes.reduce((product, axis) => product * axis.length, 1);
+      batches = Math.ceil(count / parallel);
+    }
+    return batches * timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
   };
   const longestRequiredCiPathSeconds = Math.max(...requiredContexts.map(criticalPathMinutes)) * 60;
   const deadlineEntries = [...attestation.run.matchAll(
@@ -2064,6 +2074,10 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     /ci_contexts=\(check windows-check macos-qualification\)/u,
   );
   assertExactReleaseRunBinding(attestation, release, ci);
+  const delayedMatrix = structuredClone(ci);
+  delayedMatrix.jobs["linux-tests"].strategy["max-parallel"] = 2;
+  assert.throws(() => assertExactReleaseRunBinding(attestation, release, delayedMatrix),
+    { code: "ERR_ASSERTION" }, "release budget must account for every matrix batch");
   assert.match(attestation.run, /for context in "\$\{ci_contexts\[@\]\}"/u);
   assert.deepEqual(release.jobs["attest-release-pr"].permissions, {
     actions: "write",
@@ -2216,7 +2230,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}");
   }
   for (const job of [
-    ...["1", "2", "3", "4", "5", "6", "7", "8"].map(id => ci.jobs[`linux-test-${id}`]),
+    ci.jobs["linux-tests"],
     ...["a", "b", "c", "d", "e"].map(lane => ci.jobs[`windows-test-${lane}`]),
   ]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
@@ -2227,14 +2241,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     "dependency-review",
     "node26-compatibility",
     "linux-static",
-    "linux-test-1",
-    "linux-test-2",
-    "linux-test-3",
-    "linux-test-4",
-    "linux-test-5",
-    "linux-test-6",
-    "linux-test-7",
-    "linux-test-8",
+    "linux-tests",
     "linux-coverage",
     "linux-package",
     "linux-registry",

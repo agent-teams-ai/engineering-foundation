@@ -68,14 +68,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   }
   assert.deepEqual(coverage.needs, [
     "dependency-review",
-    "linux-test-1",
-    "linux-test-2",
-    "linux-test-3",
-    "linux-test-4",
-    "linux-test-5",
-    "linux-test-6",
-    "linux-test-7",
-    "linux-test-8",
+    "linux-tests",
   ]);
   const download = coverage.steps.find(({ name }) => name === "Download exact-head shard evidence");
   assert.match(download.uses, /^actions\/download-artifact@[a-f0-9]{40}$/u);
@@ -84,23 +77,30 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.match(coverage.steps.at(-1).run, /--head-sha "\$\{\{ github\.sha \}\}"/u);
   assert.equal(coverage.steps.some(({ run }) => /test:coverage:built/u.test(run ?? "")), false);
 
-  for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
-    const job = ci.jobs[`linux-test-${shardId}`];
-    assert.equal(job.env.NODE_DISABLE_COMPILE_CACHE, "1", "raw V8 coverage cannot use compiled functions");
-    const run = job.steps.find(({ name }) => name === "Run isolated test shard");
-    const upload = job.steps.find(({ name }) => name === "Upload raw coverage evidence");
-    assert.match(run.run, new RegExp(`--shards ${shardId} `, "u"));
-    assert.match(
-      run.run,
-      new RegExp(`--coverage-evidence-dir \\.coverage-evidence/shard-${shardId}`, "u"),
-    );
-    assert.match(upload.uses, /^actions\/upload-artifact@[a-f0-9]{40}$/u);
-    assert.equal(upload["continue-on-error"], undefined);
-    assert.equal(upload.with.name, `coverage-evidence-${"${{ github.sha }}"}-shard-${shardId}`);
-    assert.equal(upload.with["if-no-files-found"], "error");
-    assert.equal(upload.with["include-hidden-files"], true);
-    assert.equal(upload.with.overwrite, true);
-  }
+  const producer = ci.jobs["linux-tests"];
+  assert.deepEqual(producer.strategy, { "fail-fast": false, "max-parallel": 4,
+    matrix: { shard: ["1", "2", "3", "4", "5", "6", "7", "8"] } });
+  assert.equal(producer.name, "linux-test-${{ matrix.shard }}");
+  assert.equal(producer["continue-on-error"], undefined);
+  assert.equal(producer.env.NODE_DISABLE_COMPILE_CACHE, "1");
+  assert.equal(producer.env.TEST_SHARD, "${{ matrix.shard }}");
+  const run = producer.steps.find(({ name }) => name === "Run isolated test shard");
+  assert.match(run.run, /--shards "\$TEST_SHARD" /u);
+  assert.match(run.run, /--coverage-evidence-dir "\.coverage-evidence\/shard-\$TEST_SHARD"/u);
+  const upload = producer.steps.find(({ name }) => name === "Upload raw coverage evidence");
+  assert.match(upload.uses, /^actions\/upload-artifact@[a-f0-9]{40}$/u);
+  assert.equal(upload["continue-on-error"], undefined);
+  assert.equal(upload.with.name, "coverage-evidence-${{ github.sha }}-shard-${{ matrix.shard }}");
+  assert.equal(upload.with.path, ".coverage-evidence/shard-${{ matrix.shard }}");
+  assert.equal(upload.with["if-no-files-found"], "error");
+  assert.equal(upload.with["include-hidden-files"], true);
+  assert.equal(upload.with.overwrite, true);
+  const managed = producer.steps.filter(step => step.name?.includes("pinned"));
+  assert.equal(managed.length, 2);
+  for (const step of managed) { assert.equal(step.if, "${{ matrix.shard == '4' }}"); }
+  const node26 = producer.steps.find(step => step.with?.["node-version"] === "26.10.0");
+  assert.equal(node26.if, "${{ matrix.shard == '4' }}");
+
 });
 
 test("Ready PR feedback checks the committed delta independently of full qualification", async () => {

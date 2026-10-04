@@ -85,7 +85,15 @@ thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
 Required CI executes the same evidence as independent jobs. Linux uses eight
-checked-in serial test shards. Windows uses five isolated lanes: C contains only
+checked-in serial test shards. All eight run in isolated matrix checkouts,
+with at most four running concurrently so long Windows and Darwin qualifications
+can acquire shared runner capacity. Every shard remains mandatory and uploads
+its own exact-head raw evidence; fail-fast is disabled, and the coverage aggregate
+requires the entire matrix. This limits concurrency, not evidence or test scope. Each instance has a
+25-minute bound; release admission accounts for both matrix batches, keeping the
+configured Linux path below the unchanged 72-minute Windows bound. Queue delay
+remains outside job timeout arithmetic.
+Windows uses five isolated lanes: C contains only
 the installed loader CLI suite; A, B, D and E use the independently balanced
 checked-in Windows partition. Its closed dispatch validates the complete canonical
 inventory before platform filtering and requires the exact portable union once.

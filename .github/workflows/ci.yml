@@ -163,60 +163,95 @@ jobs:
       - run: pnpm dead-code:check
       - run: pnpm parser-spike:check
   linux-tests:
-    name: linux-test-${{ matrix.shard }}
+    name: linux-tests-${{ matrix.pair.first }}-${{ matrix.pair.second }}
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      max-parallel: 5
       matrix:
-        shard: ["1", "2", "3", "4", "5", "6", "7", "8"]
+        pair:
+          - { first: "1", second: "2" }
+          - { first: "3", second: "4" }
+          - { first: "5", second: "6" }
+          - { first: "7", second: "8" }
     env:
       NODE_DISABLE_COMPILE_CACHE: "1"
-      TEST_SHARD: ${{ matrix.shard }}
+      FIRST_SHARD: ${{ matrix.pair.first }}
+      SECOND_SHARD: ${{ matrix.pair.second }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          path: producer-a
           fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: producer-b
+          fetch-depth: 0
+          persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { install: false, working-directory: producer-a }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ matrix.shard == '4' }}
+        if: ${{ matrix.pair.second == '4' }}
         with: { node-version: "26.10.0" }
       - name: Retain pinned Node 26 test source
-        if: ${{ matrix.shard == '4' }}
-        run: node --input-type=module -e "import { appendFileSync } from 'node:fs'; appendFileSync(process.env.GITHUB_ENV, 'MANAGED_TEST_NODE26_SOURCE=' + process.execPath + '\n');"
+        if: ${{ matrix.pair.second == '4' }}
+        run: printf 'MANAGED_TEST_NODE26_SOURCE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version-file: .node-version
+          node-version-file: producer-a/.node-version
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - name: Qualify public pinned managed runtime test tools
-        if: ${{ matrix.shard == '4' }}
+          cache-dependency-path: producer-a/pnpm-lock.yaml
+      - name: Build both isolated producers
+        run: node producer-a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"
+      - name: Provision public pinned managed test copies
+        if: ${{ matrix.pair.second == '4' }}
+        working-directory: producer-b
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}/producer-4
+          TMPDIR: ${{ runner.temp }}/producer-4
         run: node scripts/provision-managed-test-tools.mjs
-      - name: Run isolated test shard
-        run: pnpm test:shard:built -- --shards "$TEST_SHARD" --coverage-evidence-dir ".coverage-evidence/shard-$TEST_SHARD" --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-$TEST_SHARD"
-      - name: Upload raw coverage evidence
+      - name: Run both isolated test shards
+        id: test-pair
+        run: node producer-a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"
+      - name: Upload first raw coverage evidence
+        if: ${{ always() && steps.test-pair.outputs.first-status == '0' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: coverage-evidence-${{ github.sha }}-shard-${{ matrix.shard }}
-          path: .coverage-evidence/shard-${{ matrix.shard }}
+          name: coverage-evidence-${{ github.sha }}-shard-${{ matrix.pair.first }}
+          path: producer-a/.coverage-evidence/shard-${{ matrix.pair.first }}
           if-no-files-found: error
           include-hidden-files: true
           overwrite: true
           retention-days: 1
-      - name: Upload advisory test timings
+      - name: Upload first advisory test timings
         if: ${{ always() }}
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-timing-${{ github.sha }}-linux-test-${{ matrix.shard }}
-          path: ${{ runner.temp }}/test-timing/linux-test-${{ matrix.shard }}
+          name: test-timing-${{ github.sha }}-linux-test-${{ matrix.pair.first }}
+          path: ${{ runner.temp }}/producer-${{ matrix.pair.first }}/test-timing/linux-test-${{ matrix.pair.first }}
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload second raw coverage evidence
+        if: ${{ always() && steps.test-pair.outputs.second-status == '0' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-${{ matrix.pair.second }}
+          path: producer-b/.coverage-evidence/shard-${{ matrix.pair.second }}
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
+          retention-days: 1
+      - name: Upload second advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-${{ matrix.pair.second }}
+          path: ${{ runner.temp }}/producer-${{ matrix.pair.second }}/test-timing/linux-test-${{ matrix.pair.second }}
           if-no-files-found: warn
           retention-days: 14
 

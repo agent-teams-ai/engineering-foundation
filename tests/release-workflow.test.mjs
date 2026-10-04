@@ -2077,11 +2077,12 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assertExactReleaseRunBinding(attestation, release, ci);
   const delayedMatrix = structuredClone(ci);
-  delayedMatrix.jobs["linux-tests"].strategy["max-parallel"] = 2;
+  delayedMatrix.jobs["linux-tests"].strategy["max-parallel"] = 1;
   assert.throws(() => assertExactReleaseRunBinding(attestation, release, delayedMatrix),
     { code: "ERR_ASSERTION" }, "release budget must account for every matrix batch");
   for (const override of ["include", "exclude"]) {
     const ambiguousMatrix = structuredClone(ci);
+    ambiguousMatrix.jobs["linux-tests"].strategy["max-parallel"] = 4;
     ambiguousMatrix.jobs["linux-tests"].strategy.matrix[override] = [{ shard: "1" }];
     assert.throws(() => assertExactReleaseRunBinding(attestation, release, ambiguousMatrix),
       /bounded matrices require explicit finite axes without include\/exclude overrides/u);

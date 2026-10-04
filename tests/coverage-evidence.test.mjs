@@ -74,6 +74,37 @@ async function rewriteEvidence(path, mutate) {
   await writeFile(path, `${JSON.stringify(evidence, null, 2)}\n`);
 }
 
+async function rewriteRawArtifact(root, shardId, mutate) {
+  const artifact = join(root, `coverage-evidence-${headSha}-shard-${shardId}`);
+  const evidencePath = join(artifact, "evidence.json");
+  const evidence = JSON.parse(await readFile(evidencePath, "utf8"));
+  const digests = new Map();
+  for (const record of evidence.rawFiles) {
+    const path = join(artifact, record.path);
+    const report = JSON.parse(await readFile(path, "utf8"));
+    mutate(report, record);
+    const bytes = Buffer.from(`${JSON.stringify(report)}\n`);
+    await writeFile(path, bytes);
+    digests.set(record.path, { sha256: sha256(bytes), size: bytes.byteLength });
+  }
+  await rewriteEvidence(evidencePath, (sidecar) => {
+    for (const record of sidecar.rawFiles) {
+      Object.assign(record, digests.get(record.path));
+    }
+  });
+}
+
+async function pairedEvidenceSet() {
+  const root = await evidenceSet();
+  for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
+    const producer = Number(shardId) % 2 === 1 ? "producer-a" : "producer-b";
+    await rewriteRawArtifact(root, shardId, (report, record) => {
+      report.result[0].url = pathToFileURL(join(repositoryRoot, producer, record.test)).href;
+    });
+  }
+  return root;
+}
+
 test("coverage identity is deterministic across object insertion order", () => {
   const values = {
     configDigest: `sha256:${"b".repeat(64)}`,
@@ -211,6 +242,142 @@ test("coverage merger uses retained validated bytes after a source file is repla
 
   assert.deepEqual(await readFile(join(merged, "1-coverage-1-1-0.json")), validatedBytes);
   assert.equal(await readFile(rawPath, "utf8"), "hostile replacement");
+});
+
+test("paired evidence materializes canonical URLs and source maps without changing counts or custody", async (context) => {
+  const root = await pairedEvidenceSet();
+  const merged = await mkdtemp(join(tmpdir(), "foundation-coverage-paired-merge-"));
+  context.after(() => Promise.all([
+    rm(root, { force: true, recursive: true }), rm(merged, { force: true, recursive: true }),
+  ]));
+  const sourceRoot = join(repositoryRoot, "producer-a");
+  const productionPath = "scripts/coverage-evidence.mjs";
+  const productionUrl = pathToFileURL(join(sourceRoot, productionPath)).href;
+  const foreignUrl = pathToFileURL(join(dirname(repositoryRoot), "outside-coverage", "foreign.mjs")).href;
+  const functions = [{
+    functionName: "paired-counts", isBlockCoverage: true,
+    ranges: [{ startOffset: 0, endOffset: 40, count: 4 }],
+  }];
+  const data = {
+    version: 3, sourceRoot: "", file: join(sourceRoot, "scripts", "compiled.mjs"),
+    sources: [productionUrl, join(sourceRoot, "scripts", "materialize-validated-coverage.mjs"), foreignUrl],
+    sourcesContent: ["export const covered = 1;\n", "export const other = 2;\n", "export const foreign = 3;\n"],
+    names: [], mappings: "AAAA",
+  };
+  const foreignEntry = { data: { ...data, sources: [productionUrl] }, lineLengths: [40], url: foreignUrl };
+  await rewriteRawArtifact(root, "1", (report, record) => {
+    if (record.test !== testManifest.coverageShards.get("1")[0]) return;
+    report.result.push({ url: productionUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] });
+    report["source-map-cache"] = {
+      [productionUrl]: { data, lineLengths: [40], url: `${productionUrl}.map` },
+      [foreignUrl]: foreignEntry,
+    };
+  });
+  await rewriteRawArtifact(root, "2", (report, record) => {
+    if (record.test !== testManifest.coverageShards.get("2")[0]) return;
+    const url = pathToFileURL(join(repositoryRoot, "producer-b", productionPath)).href;
+    report.result.push({ url, functions: [{
+      functionName: "paired-counts", isBlockCoverage: true,
+      ranges: [{ startOffset: 0, endOffset: 40, count: 7 }],
+    }] });
+    report["source-map-cache"] = {
+      [url]: { data: { version: 3, sourceRoot: "", sources: [url],
+        sourcesContent: ["export const covered = 1;\n"], names: [], mappings: "AAAA" }, lineLengths: [40], url: null },
+    };
+  });
+  const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
+  const originals = new Map();
+  for (const artifact of validated.artifacts) {
+    assert.equal(artifact.sourceRoot, join(repositoryRoot, Number(artifact.evidence.shard.id) % 2 === 1 ? "producer-a" : "producer-b"));
+    const sidecar = join(artifact.artifactDirectory, "evidence.json");
+    originals.set(sidecar, await readFile(sidecar));
+    for (const file of artifact.validatedFiles) {
+      originals.set(join(artifact.artifactDirectory, "raw", file.name), Buffer.from(file.bytes));
+    }
+  }
+  await materializeValidatedRawCoverage(validated, merged);
+  const projected = JSON.parse(await readFile(join(merged, "1-coverage-1-1-0.json"), "utf8"));
+  const canonicalUrl = pathToFileURL(join(repositoryRoot, productionPath)).href;
+  assert.equal(projected.result[0].url, pathToFileURL(join(repositoryRoot, testManifest.coverageShards.get("1")[0])).href);
+  assert.deepEqual(projected.result.slice(1), [
+    { url: canonicalUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] },
+  ]);
+  assert.deepEqual(projected["source-map-cache"][canonicalUrl], {
+    data: {
+      ...data, file: join(repositoryRoot, "scripts", "compiled.mjs"),
+      sources: [canonicalUrl, join(repositoryRoot, "scripts", "materialize-validated-coverage.mjs"), foreignUrl],
+    },
+    lineLengths: [40], url: `${canonicalUrl}.map`,
+  });
+  assert.deepEqual(projected["source-map-cache"][foreignUrl], foreignEntry);
+  assert.equal(Object.hasOwn(projected["source-map-cache"], productionUrl), false);
+  for (const [path, bytes] of originals) assert.deepEqual(await readFile(path), bytes);
+  for (const artifact of validated.artifacts) {
+    for (const file of artifact.validatedFiles) {
+      assert.deepEqual(file.bytes, originals.get(join(artifact.artifactDirectory, "raw", file.name)));
+    }
+  }
+
+  const reports = join(merged, "reports");
+  await executeFile("pnpm", ["exec", "c8", "report", "--temp-directory", merged,
+    "--reports-dir", reports, "--reporter=json", "--include", productionPath], { cwd: repositoryRoot });
+  const coverage = JSON.parse(await readFile(join(reports, "coverage-final.json"), "utf8"));
+  assert.equal(coverage[join(repositoryRoot, productionPath)].f["0"], 11);
+  assert.equal(Object.keys(coverage).some((path) => path.includes("producer-a") || path.includes("producer-b")), false);
+});
+
+test("coverage evidence rejects mixed layouts, wrong producers and arbitrary source roots", async (context) => {
+  for (const scenario of ["mixed-set", "mixed-artifact", "mixed-script", "mixed-map-source", "wrong-producer", "arbitrary-root"]) {
+    await context.test(scenario, async (subcontext) => {
+      const root = await evidenceSet();
+      subcontext.after(() => rm(root, { force: true, recursive: true }));
+      await rewriteRawArtifact(root, "1", (report, record) => {
+        if (scenario === "mixed-artifact" && record.test !== testManifest.coverageShards.get("1")[0]) return;
+        const producerRoot = scenario === "wrong-producer" ? join(repositoryRoot, "producer-b") :
+          scenario === "arbitrary-root" ? join(dirname(repositoryRoot), "untrusted-producer") : join(repositoryRoot, "producer-a");
+        report.result[0].url = pathToFileURL(join(producerRoot, record.test)).href;
+        if (scenario === "mixed-script") {
+          report.result.push({ url: join(repositoryRoot, "scripts", "coverage-evidence.mjs"), functions: [] });
+        }
+        if (scenario === "mixed-map-source") {
+          report["source-map-cache"] = {
+            [report.result[0].url]: { data: { sources: [pathToFileURL(join(repositoryRoot, "scripts", "coverage-evidence.mjs")).href] } },
+          };
+        }
+      });
+      await assert.rejects(validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
+        scenario === "wrong-producer" || scenario === "arbitrary-root"
+          ? /does not contain exactly one expected shard test/u : /mixes.*source roots/u);
+    });
+  }
+});
+
+test("paired materialization rejects source map relocation ambiguity and key collisions", async (context) => {
+  for (const scenario of ["relative-source", "nonempty-source-root", "key-collision", "escaping-url"]) {
+    await context.test(scenario, async (subcontext) => {
+      const root = await pairedEvidenceSet();
+      const merged = await mkdtemp(join(tmpdir(), "foundation-coverage-paired-rejection-"));
+      subcontext.after(() => Promise.all([
+        rm(root, { force: true, recursive: true }), rm(merged, { force: true, recursive: true }),
+      ]));
+      const url = pathToFileURL(join(repositoryRoot, "producer-a", "scripts", "compiled.mjs")).href;
+      await rewriteRawArtifact(root, "1", (report, record) => {
+        if (record.test !== testManifest.coverageShards.get("1")[0]) return;
+        const entry = { data: { sources: [url], sourceRoot: "" }, url: null };
+        if (scenario === "relative-source") entry.data.sources = ["../../scripts/coverage-evidence.mjs"];
+        if (scenario === "nonempty-source-root") entry.data.sourceRoot = "../";
+        report["source-map-cache"] = { [url]: entry };
+        if (scenario === "key-collision") report["source-map-cache"][`${url}?duplicate`] = entry;
+        if (scenario === "escaping-url") {
+          report.result.push({ url: `${pathToFileURL(join(repositoryRoot, "producer-a")).href}/../scripts/coverage-evidence.mjs`, functions: [] });
+        }
+      });
+      const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
+      await assert.rejects(materializeValidatedRawCoverage(validated, merged),
+        scenario === "key-collision" ? /key projection collides/u :
+          scenario === "escaping-url" ? /escapes its source root/u : /sources must be absolute/u);
+    });
+  }
 });
 
 test("coverage evidence rejects an oversized sidecar before parsing", async (context) => {

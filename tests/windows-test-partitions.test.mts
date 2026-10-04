@@ -9,7 +9,7 @@ import {
   type WindowsTestManifest,
 } from "../scripts/windows-test-partitions.mts";
 
-const lanes = ["a", "b", "c", "d", "e"] as const;
+const lanes = ["a", "b", "c", "d", "e", "f", "g", "h", "i"] as const;
 const loader = "tests/source-dependency-loader-cli.test.mjs";
 const linuxOnly = [
   "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
@@ -54,9 +54,14 @@ function fixture() {
     ["2", ["tests/b.test.mjs"]],
     ["3", [loader, "tests/remainder.test.mjs"]],
     ["4", ["tests/d.test.mjs", ...linuxOnly]],
+    ["5", ["tests/e.test.mjs"]],
+    ["6", ["tests/f.test.mjs"]],
+    ["7", ["tests/g.test.mjs"]],
+    ["8", ["tests/h.test.mjs"]],
   ]);
   const additionalTestsByShard: Record<string, string[]> = {
     "1": [], "2": ["tests/coverage-only.test.mjs"], "3": [], "4": [],
+    "5": [], "6": [], "7": [], "8": [],
   };
   const coverageShards = new Map<string, string[]>();
   for (const [id, files] of shards) {
@@ -67,10 +72,10 @@ function fixture() {
     coverageConfig: { additionalTestsByShard } };
 }
 
-test("five Windows lanes retain exact real canonical inventory and mandatory files", async () => {
+test("nine Windows lanes retain exact real canonical inventory and mandatory files", async () => {
   const manifest = await repositoryManifest();
   const before = structuredClone(manifest);
-  const ids = ["1", "2", "3", "4"];
+  const ids = ["1", "2", "3", "4", "5", "6", "7", "8"];
   const canonical = [...manifest.shards.values()].flat();
   const admitted = canonical.filter((file) => !linuxOnly.includes(file));
   const byLane = new Map<string, readonly string[]>();
@@ -81,7 +86,7 @@ test("five Windows lanes retain exact real canonical inventory and mandatory fil
   assert.equal(new Set(selected).size, selected.length);
   assert.deepEqual(selected.toSorted(), admitted.toSorted());
   assert.deepEqual(byLane.get("c"), [loader]);
-  for (const [lane, id] of [["a", "1"], ["b", "2"], ["d", "4"]] as const) {
+  for (const [lane, id] of [["a", "1"], ["b", "2"], ["d", "4"], ["f", "5"], ["g", "6"], ["h", "7"], ["i", "8"]] as const) {
     assert.deepEqual(byLane.get(lane), selectTestShardPaths(manifest, [id], false, "win32", "x64"));
   }
   assert.deepEqual(byLane.get("e"), manifest.shards.get("3")!
@@ -98,7 +103,7 @@ test("five Windows lanes retain exact real canonical inventory and mandatory fil
 });
 
 test("new canonical files retain total Windows coverage without admitting coverage-only suites", () => {
-  for (const id of ["1", "2", "3", "4"]) {
+  for (const id of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
     const manifest = fixture();
     const added = `tests/future-shard-${id}.test.mts`;
     manifest.shards.get(id)!.push(added);
@@ -115,10 +120,10 @@ test("new canonical files retain total Windows coverage without admitting covera
 test("Windows selection rejects partial, unknown and duplicated inventory before dispatch", () => {
   const mutations: readonly [string, (manifest: ReturnType<typeof fixture>) => void][] = [
     ["missing canonical id", (manifest) => { manifest.shards.delete("4"); }],
-    ["unknown canonical id", (manifest) => { manifest.shards.set("5", ["tests/alien.test.mjs"]); }],
+    ["unknown canonical id", (manifest) => { manifest.shards.set("9", ["tests/alien.test.mjs"]); }],
     ["missing coverage id", (manifest) => { manifest.coverageShards.delete("2"); }],
-    ["unknown coverage id", (manifest) => { manifest.coverageShards.set("5", ["tests/alien.test.mjs"]); }],
-    ["unknown addition id", (manifest) => { manifest.coverageConfig.additionalTestsByShard["5"] = []; }],
+    ["unknown coverage id", (manifest) => { manifest.coverageShards.set("9", ["tests/alien.test.mjs"]); }],
+    ["unknown addition id", (manifest) => { manifest.coverageConfig.additionalTestsByShard["9"] = []; }],
     ["partial canonical projection", (manifest) => { manifest.shards.get("3")!.pop(); }],
     ["partial full inventory", (manifest) => {
       manifest.shards.get("3")!.pop();
@@ -189,7 +194,7 @@ test("closed Windows CLI preserves shard mode and rejects invalid dispatch and c
   assert.deepEqual(parsed.ids, []);
   assert.equal(parsed.evidenceDirectory, undefined);
   assert.deepEqual(parseTestShardArguments(["--shards", "1,3"]).ids, ["1", "3"]);
-  for (const lane of ["", "A", "f", "1", "a,b", "a,a"]) {
+  for (const lane of ["", "A", "j", "1", "a,b", "a,a"]) {
     assert.throws(() => parseTestShardArguments(["--windows-lane", lane]), /Windows lane must be exactly one/u);
     assert.throws(() => selectWindowsTestLanePaths(manifest, lane, false, "win32", "x64"), /Windows lane must be exactly one/u);
   }
@@ -204,7 +209,7 @@ test("closed Windows CLI preserves shard mode and rejects invalid dispatch and c
   ]) {
     assert.throws(() => parseTestShardArguments(args));
   }
-  for (const ids of ["", "0", "5", "1,1", "1,2,3,4,5"]) {
+  for (const ids of ["", "0", "9", "1,1", "1,2,3,4,5,6,7,8,9"]) {
     assert.throws(() => parseTestShardArguments(["--shards", ids]), /Shard ids must be unique/u);
   }
   for (const platform of ["linux", "darwin"] as const) {

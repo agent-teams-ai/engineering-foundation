@@ -1,6 +1,7 @@
 import { constants as fsConstants } from "node:fs";
 import { lstat, mkdir, open, opendir, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { mapStageIo, reserveStageBytes } from "./pack-stage-io.mts";
 
 // A clean stage includes the full isolated dependency closure needed to build
 // each package. Keep traversal bounded while allowing the current workspace
@@ -8,7 +9,6 @@ import { dirname, isAbsolute, join, relative, sep } from "node:path";
 const MAX_STAGE_ENTRIES = 50_000;
 // Toolchain dependencies are part of the disposable build stage, not the
 // published archive. Keep this aggregate bound separate from archive limits.
-const MAX_STAGE_BYTES = 256 * 1024 * 1024;
 // Clean build stages may materialize compiler toolchains such as TypeScript's
 // native binary, which is larger than the final package-member limit. Keep the
 // stage bounded while allowing that supported build-time dependency.
@@ -119,6 +119,7 @@ export async function readStableRegularFile(path, state, label, expected, maximu
     physical,
     fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0) | (fsConstants.O_NONBLOCK ?? 0),
   );
+  let reservation;
   try {
     if (expected !== undefined && expected.physical !== physical) {
       throw new Error(`${label} changed before its proved identity was read: ${path}.`);
@@ -134,9 +135,10 @@ export async function readStableRegularFile(path, state, label, expected, maximu
     if (!sameFileState(physicalBefore, opened)) {
       throw new Error(`${label} changed before staging: ${path}.`);
     }
-    if (!opened.isFile() || opened.size > maximumBytes || state.bytes + opened.size > MAX_STAGE_BYTES) {
+    if (!opened.isFile() || opened.size > maximumBytes) {
       throw new Error(`${label} contains a non-regular or oversized file: ${path}.`);
     }
+    reservation = reserveStageBytes(state, opened.size, label);
     const bytes = Buffer.alloc(opened.size);
     const { bytesRead } = await handle.read(bytes, 0, bytes.length, 0);
     const overflow = Buffer.alloc(1);
@@ -149,12 +151,10 @@ export async function readStableRegularFile(path, state, label, expected, maximu
         resolvedAfter !== physical) {
       throw new Error(`${label} changed during staging: ${path}.`);
     }
-    state.bytes += bytes.length;
-    if (state.bytes > MAX_STAGE_BYTES) {
-      throw new Error(`${label} exceeds its bounded byte limit.`);
-    }
+    reservation.commit();
     return { bytes, mode: opened.mode & 0o777 };
   } finally {
+    reservation?.release();
     await handle.close();
   }
 }
@@ -185,7 +185,7 @@ export async function boundedDirectoryEntries(path, label, state) {
 }
 
 export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, excludedEntries, label, state, validatePhysical }) {
-  async function visit(source, destination, depth, countSelf = true) {
+  async function visit(source, destination, depth, countSelf = true, leafOnly = false) {
     if (depth > 64) {
       throw new Error(`${label} exceeds its bounded traversal depth.`);
     }
@@ -196,6 +196,9 @@ export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks
     const physical = await realpath(source);
     const metadataBefore = await lstat(physical);
     await validatePhysical?.(physical, source, metadataBefore);
+    if (leafOnly && !metadataBefore.isFile()) {
+      throw new Error(`${label} scheduled leaf is no longer a regular file: ${source}.`);
+    }
     if (countSelf) {
       state.entries += 1;
     }
@@ -206,7 +209,8 @@ export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks
       const { bytes, mode } = await readStableRegularFile(source, state, label, {
         metadata: metadataBefore, pathname: pathnameBefore, physical,
       });
-      await mkdir(dirname(destination), { recursive: true });
+      // The directory owner already created every child parent.
+      if (depth === 0) { await mkdir(dirname(destination), { recursive: true }); }
       await writeFile(destination, bytes, { flag: "wx", mode });
       return;
     }
@@ -215,10 +219,12 @@ export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks
     }
     await mkdir(destination, { mode: metadataBefore.mode & 0o777, recursive: false });
     const entries = await boundedDirectoryEntries(physical, label, state);
-    for (const entry of entries) {
-      if (excludedEntries.has(entry.name)) {
-        continue;
-      }
+    const selected = entries.filter(entry => !excludedEntries.has(entry.name));
+    // Only leaf jobs can enter this pool. Directories and links stay serial,
+    // so recursive depth cannot multiply independent worker pools.
+    await mapStageIo(selected.filter(entry => entry.isFile()), entry =>
+      visit(join(source, entry.name), join(destination, entry.name), depth + 1, false, true));
+    for (const entry of selected.filter(candidate => !candidate.isFile())) {
       await visit(join(source, entry.name), join(destination, entry.name), depth + 1, false);
     }
     const [pathnameAfter, metadataAfter, physicalAfter] = await Promise.all([
@@ -250,14 +256,14 @@ async function assertNoInternalResolutionFromAncestors(physicalRoot, internalPac
   let installationBoundarySeen = false;
   while (true) {
     const candidateNodeModules = join(current, "node_modules");
-    for (const packageName of internalPackageNames) {
+    await mapStageIo([...internalPackageNames], async (packageName) => {
       const candidate = join(candidateNodeModules, ...packageName.split("/"));
       if (await pathExists(candidate)) {
         throw new Error(
           `External dependency tree can resolve internal source-workspace package ${packageName} through ${candidate}.`,
         );
       }
-    }
+    });
     if (installationBoundarySeen) {
       break;
     }

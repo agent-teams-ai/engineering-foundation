@@ -1,8 +1,8 @@
 import { selectTestPathsForPlatform } from "./check-test-manifests.mjs";
 
-export const WINDOWS_TEST_LANES = Object.freeze(["a", "b", "c", "d", "e"] as const);
+export const WINDOWS_TEST_LANES = Object.freeze(["a", "b", "c", "d", "e", "f", "g", "h", "i"] as const);
 export type WindowsTestLane = (typeof WINDOWS_TEST_LANES)[number];
-const shardIds = ["1", "2", "3", "4"] as const;
+const shardIds = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
 const loaderTest = "tests/source-dependency-loader-cli.test.mjs";
 
 export interface WindowsTestManifest {
@@ -17,7 +17,7 @@ export interface WindowsTestManifest {
 
 export function requireWindowsTestLane(lane: string): asserts lane is WindowsTestLane {
   if (!(WINDOWS_TEST_LANES as readonly string[]).includes(lane)) {
-    throw new Error("Windows lane must be exactly one of a, b, c, d, e");
+    throw new Error("Windows lane must be exactly one of a, b, c, d, e, f, g, h, i");
   }
 }
 
@@ -27,7 +27,7 @@ function fail(message: string): never {
 
 function requireShardIds(ids: readonly string[], label: string): void {
   if (ids.length !== shardIds.length || shardIds.some((id) => !ids.includes(id))) {
-    fail(`${label} ids must be exactly 1, 2, 3, and 4`);
+    fail(`${label} ids must be exactly 1 through 8`);
   }
 }
 
@@ -105,6 +105,10 @@ export function selectWindowsTestLanePaths(
     ["c", [loaderTest]],
     ["d", manifest.shards.get("4")!],
     ["e", manifest.shards.get("3")!.filter((file) => file !== loaderTest)],
+    ["f", manifest.shards.get("5")!],
+    ["g", manifest.shards.get("6")!],
+    ["h", manifest.shards.get("7")!],
+    ["i", manifest.shards.get("8")!],
   ]);
   const partitions = new Map<WindowsTestLane, readonly string[]>();
   const assigned: string[] = [];

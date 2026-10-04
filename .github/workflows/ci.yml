@@ -166,10 +166,13 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -206,6 +209,8 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
@@ -243,9 +248,11 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -280,9 +287,11 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -317,6 +326,162 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  linux-test-5:
+    name: linux-test-5
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - name: Run isolated test shard
+        run: pnpm test:shard:built -- --shards 5 --coverage-evidence-dir .coverage-evidence/shard-5 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-5"
+      - name: Upload raw coverage evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-5
+          path: .coverage-evidence/shard-5
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
+          retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-5
+          path: ${{ runner.temp }}/test-timing/linux-test-5
+          if-no-files-found: warn
+          retention-days: 14
+
+  linux-test-6:
+    name: linux-test-6
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - name: Run isolated test shard
+        run: pnpm test:shard:built -- --shards 6 --coverage-evidence-dir .coverage-evidence/shard-6 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-6"
+      - name: Upload raw coverage evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-6
+          path: .coverage-evidence/shard-6
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
+          retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-6
+          path: ${{ runner.temp }}/test-timing/linux-test-6
+          if-no-files-found: warn
+          retention-days: 14
+
+  linux-test-7:
+    name: linux-test-7
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - name: Run isolated test shard
+        run: pnpm test:shard:built -- --shards 7 --coverage-evidence-dir .coverage-evidence/shard-7 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-7"
+      - name: Upload raw coverage evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-7
+          path: .coverage-evidence/shard-7
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
+          retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-7
+          path: ${{ runner.temp }}/test-timing/linux-test-7
+          if-no-files-found: warn
+          retention-days: 14
+
+  linux-test-8:
+    name: linux-test-8
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      NODE_DISABLE_COMPILE_CACHE: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - name: Run isolated test shard
+        run: pnpm test:shard:built -- --shards 8 --coverage-evidence-dir .coverage-evidence/shard-8 --head-sha "${{ github.sha }}" --timing-output "$RUNNER_TEMP/test-timing/linux-test-8"
+      - name: Upload raw coverage evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-evidence-${{ github.sha }}-shard-8
+          path: .coverage-evidence/shard-8
+          if-no-files-found: error
+          include-hidden-files: true
+          overwrite: true
+          retention-days: 1
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-linux-test-8
+          path: ${{ runner.temp }}/test-timing/linux-test-8
+          if-no-files-found: warn
+          retention-days: 14
+
   linux-coverage:
     name: linux-coverage
     needs:
@@ -325,6 +490,10 @@ jobs:
       - linux-test-2
       - linux-test-3
       - linux-test-4
+      - linux-test-5
+      - linux-test-6
+      - linux-test-7
+      - linux-test-8
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 12
@@ -446,6 +615,10 @@ jobs:
       - linux-test-2
       - linux-test-3
       - linux-test-4
+      - linux-test-5
+      - linux-test-6
+      - linux-test-7
+      - linux-test-8
       - linux-coverage
       - linux-package
       - linux-registry
@@ -506,7 +679,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -521,7 +694,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      # Windows partitions retain the complete canonical inventory in five isolated
+      # Windows partitions retain the complete canonical inventory in nine isolated
       # jobs. Serial execution inside each job preserves fixture ownership.
       - name: Run isolated Windows test partition
         run: pnpm test:shard:built -- --windows-lane a --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"
@@ -593,6 +766,8 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm build
       - run: pnpm test:shard:built -- --windows-lane c --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
+        env:
+          NODE_COMPILE_CACHE: ${{ runner.temp }}/loader-compile-cache
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -611,7 +786,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -626,7 +801,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm rebuild
       - run: pnpm build
-      # Windows partitions retain the complete canonical inventory in five isolated
+      # Windows partitions retain the complete canonical inventory in nine isolated
       # jobs. Serial execution inside each job preserves fixture ownership.
       - name: Run isolated Windows test partition
         run: pnpm test:shard:built -- --windows-lane d --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-d"
@@ -671,6 +846,142 @@ jobs:
         with:
           name: test-timing-${{ github.sha }}-windows-test-e
           path: ${{ runner.temp }}/test-timing/windows-test-e
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-test-f:
+    name: windows-test-f
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm test:shard:built -- --windows-lane f --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-f"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-f
+          path: ${{ runner.temp }}/test-timing/windows-test-f
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-test-g:
+    name: windows-test-g
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm test:shard:built -- --windows-lane g --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-g"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-g
+          path: ${{ runner.temp }}/test-timing/windows-test-g
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-test-h:
+    name: windows-test-h
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm test:shard:built -- --windows-lane h --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-h"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-h
+          path: ${{ runner.temp }}/test-timing/windows-test-h
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-test-i:
+    name: windows-test-i
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: windows-2022
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version, cache: pnpm }
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
+            throw "RUNNER_TEMP must be set"
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - run: pnpm test:shard:built -- --windows-lane i --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-i"
+      - name: Upload advisory test timings
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-timing-${{ github.sha }}-windows-test-i
+          path: ${{ runner.temp }}/test-timing/windows-test-i
           if-no-files-found: warn
           retention-days: 14
 
@@ -774,6 +1085,10 @@ jobs:
       - windows-test-c
       - windows-test-d
       - windows-test-e
+      - windows-test-f
+      - windows-test-g
+      - windows-test-h
+      - windows-test-i
       - windows-package
       - windows-registry
       - windows-published

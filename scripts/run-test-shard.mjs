@@ -10,7 +10,7 @@ import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 import { attachTestTiming } from "./test-timing.mjs";
 import { requireWindowsTestLane, selectWindowsTestLanePaths } from "./windows-test-partitions.mts";
 
-const usage = "Usage: node scripts/run-test-shard.mjs (--shards <ids> | --windows-lane <a|b|c|d|e>) [--coverage-evidence-dir <path> --head-sha <sha>] [--timing-output <dir>]";
+const usage = "Usage: node scripts/run-test-shard.mjs (--shards <ids> | --windows-lane <a|b|c|d|e|f|g|h|i>) [--coverage-evidence-dir <path> --head-sha <sha>] [--timing-output <dir>]";
 
 function inside(directory, root) {
   const path = relative(root, directory);
@@ -48,8 +48,8 @@ function parseDispatchSelection(values) {
     throw new Error(usage);
   }
   const ids = shardValue === undefined ? [] : shardValue.split(",");
-  if (shardValue !== undefined && (ids.some((id) => !/^[1-4]$/u.test(id)) || new Set(ids).size !== ids.length)) {
-    throw new Error("Shard ids must be unique values from 1 through 4");
+  if (shardValue !== undefined && (ids.some((id) => !/^[1-8]$/u.test(id)) || new Set(ids).size !== ids.length)) {
+    throw new Error("Shard ids must be unique values from 1 through 8");
   }
   if (windowsLane !== undefined) {
     requireWindowsTestLane(windowsLane);

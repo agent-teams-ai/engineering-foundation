@@ -21,7 +21,7 @@ weakening the merge gate.
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
 | Coverage | `pnpm test:coverage` | Local native Node coverage-threshold qualification for lines, branches, and functions |
-| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the four isolated Linux test shards |
+| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the eight isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
 Foundation's self-dogfood lifecycle is explicit and ordered:
@@ -72,7 +72,7 @@ These two files are explicit Knip entries because those generated imports are
 not visible in its static test graph. Other internal facades remain subject to
 unused-export checks.
 
-The shard's test result, all four artifact uploads, evidence aggregation, and the
+The shard's test result, all eight artifact uploads, evidence aggregation, and the
 stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
 finalization failure may preserve the original shard test result, but the
 required upload or merger then fails. Raw instrumentation still shares each
@@ -84,52 +84,47 @@ switch are removed. Native Node coverage remains available locally through
 thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
-Required CI executes the same evidence as independent jobs. Linux uses four
-checked-in sequential test shards. Windows uses five isolated lanes: A selects
-shard 1, B shard 2, C the installed loader CLI suite from shard 3, D shard 4,
-and E the remaining shard 3 files. The closed Windows dispatch validates the
-complete canonical shard inventory before platform filtering. Missing pinned
+Required CI executes the same evidence as independent jobs. Linux uses eight
+checked-in serial test shards. Windows uses nine isolated lanes: A selects shard
+1, B shard 2, C the installed loader CLI suite from shard 3, D shard 4, E the
+remaining shard 3 files, and F-I shards 5-8. The closed Windows dispatch validates
+the complete canonical inventory before platform filtering. Missing pinned
 entries, duplicate assignments and incomplete partitions reject dispatch; future
-canonical files remain selected exactly once. Linux coverage-only additions
-retain their existing four-shard ownership. Package, registry, published-version, coverage, and static
-capability qualifications run in parallel checkouts. The stable required contexts `check`
-and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
-missing prerequisite fails the required context. Every executable pull request
-job depends directly on Dependency Review.
-Both required aggregates include the complete Node 24 default and Node 26
-compatibility matrix as a direct prerequisite.
+canonical files remain selected exactly once. Raw coverage-only suites stay
+Linux-only and are distributed across the same eight exact-head producers.
+Package, registry, published-version, coverage and static qualifications run in
+parallel checkouts. The stable required contexts `check` and `windows-check`
+reject a failed, cancelled, skipped or missing prerequisite, including every
+new test job. Every executable pull request job depends directly on Dependency
+Review. Both aggregates retain the complete Node 24/26 compatibility matrix.
 
-The reviewed bounded redistribution moves only these six suites:
+The static partition uses all 281 whole-file timing records from successful
+[CI run 37154414643](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/37154414643)
+at `331e97758fd83e6a0da69a3400b3bfe8aa8d0aee`. Paths match the most-specific
+inventory suffix, so a package test cannot inherit a same-named root test's
+measurement. A longest-first assignment minimizes the larger normalized Linux
+raw-coverage (440 seconds) and portable Windows (450 seconds) load; ties use
+Linux load, then numeric shard ID. Loader stays in shard 3; both Linux-only
+managed suites stay in shard 4 with its pinned Node 26 tools. Original relative
+order is retained inside each resulting canonical and raw-only list. All existing 239
+canonical and 42 raw-only files, exact mandatory identities, no-skip enforcement
+and `--test-concurrency=1` remain intact. The new materialization regression suite joins shard 5, bringing
+the current inventory to 282 files. Every test checkout retains Git history
+for committed-delta checks.
 
-| Suite | Previous shard | Current shard |
-| --- | --- | --- |
-| `tests/capability-public-api.test.mjs` | 1 | 4 |
-| `tests/source-dependency-loader-cli.test.mjs` | 1 | 3 |
-| `packages/engineering-foundation/tests/public-api-audit-observer.test.mjs` | 1 | 4 |
-| `packages/engineering-foundation/tests/public-api-audit-command.test.mjs` | 1 | 4 |
-| `tests/source-dependency-root-package.test.mjs` | 2 | 4 |
-| `tests/source-dependency-source-coverage.test.mjs` | 2 | 3 |
+The resulting projections are about 439 seconds per Linux shard and at most
+448 seconds per Windows lane, except for the separately isolated loader. These
+are estimates from one run, excluding setup, queueing and future variance.
+Final exact-head Linux, Windows and macOS CI must establish actual behavior.
 
-Its basis is the root-extracted proposal from successful
-[CI run 37032382026](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/37032382026)
-at `9843822e6c10c4b805cf2bb95fc0f43e5211edeb`. Top-level TAP `duration_ms`
-records mapped only to unique AST-decoded static test titles or the unique
-most-specific AST template with at least 15 literal characters. Mapping covered
-88.17% of observed test-body duration; unmatched and ambiguous records were
-omitted. The six moved files have independently attributable body durations.
-This is a conservative bounded distribution, not a universal balancing solver.
-All other files, including unmeasured files and the two Linux-only managed suites,
-retain their shards and relative order. Moved files append in their existing
-source order. Raw coverage-only assignments, exact mandatory identities,
-no-skip enforcement, serial `--test-concurrency=1`, and shard 4's Node 26 tools
-remain unchanged.
-
-Body-duration projections do not prove whole-file duration, startup cost, raw
-coverage overhead, Windows impact, or other OS-specific timings. Final exact-head
-Linux, Windows, and macOS CI must qualify the partition; actual CI and performance
-proof remain with the root controller. Estimates are not measured speedup results.
-Linux shards 3 and 4 have 30-minute job budgets to accommodate the projected
-20- and 17-minute loads plus preparation, coverage and artifact uploads.
+Only the Windows loader step enables Node's compile cache, in a private
+runner-temp directory. Its complete CLI and native witnesses still execute;
+no compiled cache is uploaded or reused between jobs. Raw V8 producers explicitly
+set `NODE_DISABLE_COMPILE_CACHE=1`, since compiled functions can yield less precise
+coverage. Other suites retain their prior cache behavior. A paired Linux TEST
+measurement at the baseline source completed the same full loader suite in
+479.25 seconds without cache and 382.15 seconds with cache; this is diagnostic
+evidence, not a claim of measured Windows or full-CI speedup.
 
 All Windows static, test, package, registry, and published-version jobs
 set `TEMP` and `TMP` to the trusted runtime `RUNNER_TEMP` value through
@@ -258,7 +253,7 @@ and unadmitted-close case lives in that portable suite as well. Such refusal is 
 evidence, never a positive Linux runtime observation. Mandatory adoption of either
 Linux-only file requires a reviewed platform contract; the existing versioned
 mandatory contract and its exact identities remain unchanged.
-Raw coverage selection requires Linux x64 and retains the complete inventory across four shards.
+Raw coverage selection requires Linux x64 and retains the complete inventory across eight shards.
 The coverage manifest's `additionalTestsByShard` extends only the Linux
 raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep
@@ -446,3 +441,15 @@ This is a private repository qualification mechanism within the existing
 artifact boundary, not a public module contract or general reusable runtime.
 The deliberate packed rollback mutation uses a separate TEST archive; it never
 changes the qualified snapshot passed to the registry consumer.
+
+Clean-stage materialization admits up to four regular-file leaf jobs and drains
+all admitted jobs before reporting failure. Directories, symlinks, build order
+and each target's independent A/B stages remain serial within their owners;
+two package targets can still prepare independently. Stable reads reserve
+outstanding bytes before allocation, commit successful bytes synchronously and
+release failed reservations. Existing per-state 256 MiB and entry/depth/member
+bounds, source identity brackets, external ancestor probes, nearest dependency
+resolution, archive equality and downstream custody checks remain enforced.
+Ancestor package-name probes are bounded independent I/O, with no cached
+absence or source/dependency tree reuse. This private scripts concern introduces
+no product module boundary, capability contract or CMS adoption change.

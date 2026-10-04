@@ -72,6 +72,10 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     "linux-test-2",
     "linux-test-3",
     "linux-test-4",
+    "linux-test-5",
+    "linux-test-6",
+    "linux-test-7",
+    "linux-test-8",
   ]);
   const download = coverage.steps.find(({ name }) => name === "Download exact-head shard evidence");
   assert.match(download.uses, /^actions\/download-artifact@[a-f0-9]{40}$/u);
@@ -80,8 +84,9 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.match(coverage.steps.at(-1).run, /--head-sha "\$\{\{ github\.sha \}\}"/u);
   assert.equal(coverage.steps.some(({ run }) => /test:coverage:built/u.test(run ?? "")), false);
 
-  for (const shardId of ["1", "2", "3", "4"]) {
+  for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
     const job = ci.jobs[`linux-test-${shardId}`];
+    assert.equal(job.env.NODE_DISABLE_COMPILE_CACHE, "1", "raw V8 coverage cannot use compiled functions");
     const run = job.steps.find(({ name }) => name === "Run isolated test shard");
     const upload = job.steps.find(({ name }) => name === "Upload raw coverage evidence");
     assert.match(run.run, new RegExp(`--shards ${shardId} `, "u"));
@@ -144,5 +149,20 @@ test("Ready PR feedback checks the committed delta independently of full qualifi
   }
   for (const requiredJob of ["check", "windows-check", "macos-qualification"]) {
     assert.ok(ci.jobs[requiredJob], `${requiredJob} remains a full qualification authority`);
+  }
+});
+
+// Enabling cache in raw producers can silently reduce precise V8 coverage.
+test("compile cache stays confined to the isolated Windows loader lane", async () => {
+  const ci = parseYaml(await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
+  const enabled = Object.entries(ci.jobs).flatMap(([id, job]) =>
+    job.steps.flatMap(step => step.env?.NODE_COMPILE_CACHE === undefined ? [] : [{ id, step }]));
+  assert.equal(enabled.length, 1);
+  assert.equal(enabled[0].id, "windows-test-c");
+  assert.equal(enabled[0].step.env.NODE_COMPILE_CACHE, "${{ runner.temp }}/loader-compile-cache");
+  assert.match(enabled[0].step.run, /--windows-lane c /u);
+  assert.doesNotMatch(enabled[0].step.run, /--coverage-evidence-dir/u);
+  for (const [id, job] of Object.entries(ci.jobs)) {
+    assert.equal(job.env?.NODE_COMPILE_CACHE, undefined, `${id} cannot enable cache for unqualified suites`);
   }
 });

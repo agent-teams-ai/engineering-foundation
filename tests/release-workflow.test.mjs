@@ -2187,8 +2187,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
       "pnpm published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
     ]);
   }
-  const windowsTestB = ci.jobs["windows-test-b"];
-  for (const lane of ["a", "b", "c", "d", "e"]) {
+  for (const lane of ["a", "b", "c", "d", "e", "f", "g", "h", "i"]) {
     const id = `windows-test-${lane}`;
     const job = ci.jobs[id];
     assert.deepEqual(
@@ -2200,7 +2199,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.equal(job["continue-on-error"], undefined);
     assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}");
   }
-  for (const job of [ci.jobs["linux-test-2"], windowsTestB]) {
+  for (const job of [
+    ...["1", "2", "3", "4", "5", "6", "7", "8"].map(id => ci.jobs[`linux-test-${id}`]),
+    ...["a", "b", "c", "d", "e", "f", "g", "h", "i"].map(lane => ci.jobs[`windows-test-${lane}`]),
+  ]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
     assert.equal(checkout.with["fetch-depth"], 0);
     assert.equal(checkout.with["persist-credentials"], false);
@@ -2213,6 +2215,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     "linux-test-2",
     "linux-test-3",
     "linux-test-4",
+    "linux-test-5",
+    "linux-test-6",
+    "linux-test-7",
+    "linux-test-8",
     "linux-coverage",
     "linux-package",
     "linux-registry",

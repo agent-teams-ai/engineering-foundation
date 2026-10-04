@@ -61,7 +61,7 @@ export function combinedPackageQualificationGroups(profile: unknown = undefined)
 
 export function parseCombinedQualificationArguments(args: readonly unknown[]): CombinedPackageProfile | undefined {
   if (!Array.isArray(args) || args.length > 1 || (args.length === 1 && typeof args[0] !== "string")) {
-    fail("expected zero arguments or one combined profile; no overrides are accepted");
+    fail("combined qualification accepts no archive overrides; expected zero arguments or one combined profile");
   }
   combinedPackageQualificationGroups(args[0]);
   return args[0] as CombinedPackageProfile | undefined;
@@ -133,6 +133,12 @@ export async function runPackageQualificationPhases(
   }
   for (const phase of phases) {
     if (selected.includes(phase.id)) { await phase.run(); }
+  }
+}
+
+export function assertPackageQualificationPhaseIds(mode: QualificationStage, ids: readonly string[]): void {
+  if (!Array.isArray(ids) || ids.join("\0") !== packageQualificationPhaseIds(mode).join("\0")) {
+    fail("dispatch must contain the complete ordered phase inventory");
   }
 }
 

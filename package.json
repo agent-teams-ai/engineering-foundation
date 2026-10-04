@@ -72,7 +72,7 @@
     "architecture:features:check": "pnpm build && node scripts/check-feature-modules.mjs",
     "architecture:features:plan": "node scripts/check-feature-modules.mjs plan",
     "quality:coverage:scope": "node packages/engineering-foundation/dist/cli.js quality check --consumer . --scope-only",
-    "package:qualification:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-artifacts.mts"
+    "package:qualification:built": "node scripts/qualify-package-artifacts.mts"
   },
   "devDependencies": {
     "@ast-grep/cli": "catalog:",

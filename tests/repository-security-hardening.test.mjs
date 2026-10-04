@@ -470,8 +470,9 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   );
   assert.equal(ci.jobs.check.needs.includes("dependency-review"), true);
   assert.equal(ci.jobs["windows-check"].needs.includes("dependency-review"), true);
-  assert.equal(ci.jobs["macos-qualification"].needs, "dependency-review");
-  const macosSteps = ci.jobs["macos-qualification"].steps;
+  assert.deepEqual(ci.jobs["macos-qualification"].needs,
+    ["dependency-review", "macos-native", "macos-package"]);
+  const macosSteps = ci.jobs["macos-native"].steps;
   assert.equal(
     macosSteps.some(({ run }) => run === "pnpm test:qgr:lifecycle:built"),
     true,

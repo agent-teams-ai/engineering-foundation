@@ -205,7 +205,9 @@ available on macOS; a missing interpreter fails the tests.
 
 Ordinary and Draft PRs receive automatic `PR Feedback` on opened, synchronize,
 reopened and ready-for-review events. Its blocking Dependency Review and SBOM
-precede dependency execution, followed by `check:changed --base <PR.base.sha>`
+precede dependency execution. The repository security baseline names this automatic
+workflow as its Dependency Review and SBOM authority. They are followed by
+`check:changed --base <PR.base.sha>`
 with complete history. CodeQL and identity retain their existing automatic
 triggers. Fast feedback can be green while a required `full-ci` remains
 Expected and blocks merge; passing feedback never qualifies the native matrix.
@@ -216,6 +218,9 @@ human approval for each PR:
 ```bash
 pnpm ci:full -- --pr 123 --wait
 ```
+
+Run this private helper from a trusted checkout of the base repository. Do not
+execute a fork-provided helper with a maintainer write credential.
 
 The private helper resolves the canonical repository and open PR, including fork
 PRs. It adds `ci:full` in the base repository. The actual `pull_request: labeled`

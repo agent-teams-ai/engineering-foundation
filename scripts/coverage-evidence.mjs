@@ -271,9 +271,6 @@ async function rawFileRecords(rawDirectory, expectedTests, pairedSourceRoot) {
     }
     const matchedTest = identifyTestSource(parsed, entry.name);
     sourceRoot ??= matchedTest.sourceRoot;
-    if (sourceRoot !== matchedTest.sourceRoot) {
-      fail(`raw coverage artifact mixes source roots`);
-    }
     records.push(
       Object.freeze({
         path: `raw/${entry.name}`,

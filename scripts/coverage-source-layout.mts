@@ -39,6 +39,7 @@ export function createCoverageSourceLayout(expectedTests: readonly string[], pai
   ]).map((sourceRoot) => ({
     sourceRoot, prefix: pathToFileURL(`${sourceRoot}${sep}`).href,
   }));
+  let observedSourceRoot: string | undefined;
 
   return (report: CoverageReport, filename: string): CoverageTestSource => {
     const matchedUrls = [...new Set(report.result.map((script) => script.url))]
@@ -46,6 +47,10 @@ export function createCoverageSourceLayout(expectedTests: readonly string[], pai
     const matchedTest = expectedTestByUrl.get(matchedUrls[0]);
     if (matchedUrls.length !== 1 || matchedTest === undefined) {
       fail(`raw coverage file ${filename} does not contain exactly one expected shard test`);
+    }
+    observedSourceRoot ??= matchedTest.sourceRoot;
+    if (observedSourceRoot !== matchedTest.sourceRoot) {
+      fail("raw coverage artifact mixes source roots");
     }
     const urls = [
       ...report.result.map((script) => script.url),

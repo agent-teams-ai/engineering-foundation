@@ -291,11 +291,11 @@ test("CI retains registry and package obligations and isolated advisory timing u
   assert.ok(ci.jobs["linux-package"].steps.some((step) => step.run === "pnpm package:check:built"));
   const scripts = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")).scripts;
   assert.equal(scripts["registry-install-e2e"], "pnpm build && pnpm package:qualification:built");
-  assert.equal(scripts["package:qualification:built"], "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-artifacts.mts");
-  assert.ok(ci.jobs["macos-qualification"].steps.some((step) => step.run === "pnpm package:qualification:built"));
+  assert.equal(scripts["package:qualification:built"], "node scripts/qualify-package-artifacts.mts");
+  assert.ok(ci.jobs["macos-package"].steps.some((step) => step.run === 'pnpm package:qualification:built "$QUALIFICATION_PROFILE"'));
   assert.equal(scripts["package:check:built"], "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs");
   const paths = new Set();
-  for (const jobId of ["linux-test-1", "linux-test-2", "linux-test-3", "linux-test-4", "windows-test-a", "windows-test-b", "windows-test-c", "windows-test-d", "windows-test-e"]) {
+  for (const jobId of ["linux-tests", "windows-test-a", "windows-test-b", "windows-test-c", "windows-test-d", "windows-test-e"]) {
     const job = ci.jobs[jobId];
     const run = job.steps.find((step) => jobId === "windows-test-a"
       ? step.name === "Run isolated Windows test partition"

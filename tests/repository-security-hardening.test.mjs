@@ -385,6 +385,21 @@ test("requires Dependency Review in the declared required CI workflow", async ()
         securityDiagnostics(report).map(({ ruleId }) => ruleId),
         ["repository.security-baseline.dependency-review-missing"],
       );
+      // The Linux CI pipeline must relay a real non-SDK capability failure through tee.
+      if (process.platform === "linux") {
+        const ci = parseYaml(await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
+        const step = ci.jobs["linux-static"].steps.find(candidate => candidate.id === "foundation-check");
+        const pipeline = spawnSync("bash", ["-e", "-c",
+          step.run.replace("--consumer .", '--consumer "$FOUNDATION_TEST_CONSUMER"')], {
+          cwd: repositoryRoot, encoding: "utf8", timeout: 30_000,
+          env: { ...process.env, RUNNER_TEMP: consumerRoot, FOUNDATION_TEST_CONSUMER: consumerRoot },
+        });
+        assert.equal(pipeline.error, undefined);
+        assert.equal(pipeline.status, 1);
+        const retained = JSON.parse(await readFile(join(consumerRoot, "foundation-check.json"), "utf8"));
+        assert.deepEqual(securityDiagnostics(retained).map(({ ruleId }) => ruleId),
+          ["repository.security-baseline.dependency-review-missing"]);
+      }
     },
   );
 });
@@ -470,8 +485,9 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   );
   assert.equal(ci.jobs.check.needs.includes("dependency-review"), true);
   assert.equal(ci.jobs["windows-check"].needs.includes("dependency-review"), true);
-  assert.equal(ci.jobs["macos-qualification"].needs, "dependency-review");
-  const macosSteps = ci.jobs["macos-qualification"].steps;
+  assert.deepEqual(ci.jobs["macos-qualification"].needs,
+    ["dependency-review", "macos-native", "macos-package"]);
+  const macosSteps = ci.jobs["macos-native"].steps;
   assert.equal(
     macosSteps.some(({ run }) => run === "pnpm test:qgr:lifecycle:built"),
     true,

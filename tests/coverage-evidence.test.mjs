@@ -42,7 +42,7 @@ const testManifest = await validateTestManifests();
 
 async function evidenceSet() {
   const root = await mkdtemp(join(tmpdir(), "foundation-coverage-evidence-test-"));
-  for (const shardId of ["1", "2", "3", "4"]) {
+  for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
     const artifact = join(root, `coverage-evidence-${headSha}-shard-${shardId}`);
     const raw = join(artifact, "raw");
     await mkdir(raw, { recursive: true });
@@ -97,9 +97,9 @@ test("coverage evidence requires the complete exact shard set", async (context) 
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
   const valid = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
-  assert.equal(valid.artifacts.length, 4);
+  assert.equal(valid.artifacts.length, 8);
 
-  await rm(join(root, `coverage-evidence-${headSha}-shard-4`), {
+  await rm(join(root, `coverage-evidence-${headSha}-shard-8`), {
     force: true,
     recursive: true,
   });
@@ -286,7 +286,7 @@ test("coverage evidence finalizes a shard at the observed CI scale", async (cont
   await rm(join(artifact, "evidence.json"));
   await writeShardEvidence({ directory: artifact, headSha, shardId: "2" });
   const result = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
-  assert.equal(result.artifacts.length, 4);
+  assert.equal(result.artifacts.length, 8);
 });
 
 test("coverage evidence checks the aggregate raw byte budget using bounded reads", async (context) => {
@@ -344,7 +344,7 @@ test("coverage shard arguments enforce one isolated shard and repository contain
 });
 
 test("coverage keeps Linux shards complete and adds package evidence", () => {
-  const ids = ["1", "2", "3", "4"];
+  const ids = ["1", "2", "3", "4", "5", "6", "7", "8"];
   const crossPlatformTests = selectTestShardPaths(testManifest, ids, false, "linux", "x64");
   const coverageTests = selectTestShardPaths(testManifest, ids, true, "linux", "x64");
   const coverageOnlyCount = Object.values(

@@ -21,7 +21,7 @@ weakening the merge gate.
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
 | Coverage | `pnpm test:coverage` | Local native Node coverage-threshold qualification for lines, branches, and functions |
-| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the four isolated Linux test shards |
+| Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the eight isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
 Foundation's self-dogfood lifecycle is explicit and ordered:
@@ -53,7 +53,7 @@ existing Linux test shard writes raw V8 coverage without rerunning its tests. It
 sidecar binds the full Git SHA, exact Node and c8 versions, coverage-config
 digest, test-manifest digest, shard identity, test list, and every raw-file
 digest. The aggregator accepts exactly one artifact for each of shards 1 through
-4, rejects missing, unexpected, mixed, duplicate-claim, or modified evidence,
+8, rejects missing, unexpected, mixed, duplicate-claim, or modified evidence,
 retains the exact bounded bytes it validated, merges once, and applies the
 separate c8 floors of 70% lines, 77% branches, and 78% functions. The promoted
 floors are below the observed exact-head CI result of 71.88%, 78.97%, and 79.86%
@@ -72,7 +72,7 @@ These two files are explicit Knip entries because those generated imports are
 not visible in its static test graph. Other internal facades remain subject to
 unused-export checks.
 
-The shard's test result, all four artifact uploads, evidence aggregation, and the
+The shard's test result, all eight artifact uploads, evidence aggregation, and the
 stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
 finalization failure may preserve the original shard test result, but the
 required upload or merger then fails. Raw instrumentation still shares each
@@ -84,52 +84,71 @@ switch are removed. Native Node coverage remains available locally through
 thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
-Required CI executes the same evidence as independent jobs. Linux uses four
-checked-in sequential test shards. Windows uses five isolated lanes: A selects
-shard 1, B shard 2, C the installed loader CLI suite from shard 3, D shard 4,
-and E the remaining shard 3 files. The closed Windows dispatch validates the
-complete canonical shard inventory before platform filtering. Missing pinned
-entries, duplicate assignments and incomplete partitions reject dispatch; future
-canonical files remain selected exactly once. Linux coverage-only additions
-retain their existing four-shard ownership. Package, registry, published-version, coverage, and static
-capability qualifications run in parallel checkouts. The stable required contexts `check`
-and `windows-check` are fail-closed aggregators: a failed, cancelled, skipped, or
-missing prerequisite fails the required context. Every executable pull request
-job depends directly on Dependency Review.
-Both required aggregates include the complete Node 24 default and Node 26
-compatibility matrix as a direct prerequisite.
+Required CI executes the same evidence as independent jobs. Linux uses eight
+checked-in serial test shards. All eight run in isolated matrix checkouts,
+with at most five running concurrently. Native trials rejected both four
+producers (a delayed second wave) and eight (late Windows qualifications).
+The five-producer cap balances the two waves against the shared runner limit. Every shard remains mandatory and uploads
+its own exact-head raw evidence; fail-fast is disabled, and the coverage aggregate
+requires the entire matrix. This limits concurrency, not evidence or test scope. Each instance has a
+25-minute bound; release admission accounts for any configured matrix batches, keeping the
+configured Linux path below the unchanged 72-minute Windows bound. Queue delay
+remains outside job timeout arithmetic.
+Windows uses five isolated lanes: C contains only
+the installed loader CLI suite; A, B, D and E use the independently balanced
+checked-in Windows partition. Its closed dispatch validates the complete canonical
+inventory before platform filtering and requires the exact portable union once.
+Missing pinned entries, duplicate assignments, incomplete partitions and new
+unassigned files reject dispatch until the Windows policy is updated explicitly.
+Raw coverage-only suites stay
+Linux-only and are distributed across the same eight exact-head producers.
+Package, registry, published-version, coverage and static qualifications run in
+parallel checkouts. The stable required contexts `check` and `windows-check`
+reject a failed, cancelled, skipped or missing prerequisite, including every
+new test job. Every executable pull request job depends directly on Dependency
+Review. Both aggregates retain the complete Node 24/26 compatibility matrix.
 
-The reviewed bounded redistribution moves only these six suites:
+The static partition uses all 281 whole-file timing records from successful
+[CI run 37154414643](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/37154414643)
+at `331e97758fd83e6a0da69a3400b3bfe8aa8d0aee`. Paths match the most-specific
+inventory suffix, so a package test cannot inherit a same-named root test's
+measurement. A longest-first assignment minimizes the larger normalized Linux
+raw-coverage (440 seconds) and portable Windows (450 seconds) load; ties use
+Linux load, then numeric shard ID. Loader stays in shard 3; both Linux-only
+managed suites stay in shard 4 with its pinned Node 26 tools. Original relative
+order is retained inside each resulting canonical and raw-only list. All existing 239
+canonical and 42 raw-only files, exact mandatory identities, no-skip enforcement
+and `--test-concurrency=1` remain intact. The new materialization regression suite joins shard 5, bringing
+the current inventory to 282 files. Every test checkout retains Git history
+for committed-delta checks.
 
-| Suite | Previous shard | Current shard |
-| --- | --- | --- |
-| `tests/capability-public-api.test.mjs` | 1 | 4 |
-| `tests/source-dependency-loader-cli.test.mjs` | 1 | 3 |
-| `packages/engineering-foundation/tests/public-api-audit-observer.test.mjs` | 1 | 4 |
-| `packages/engineering-foundation/tests/public-api-audit-command.test.mjs` | 1 | 4 |
-| `tests/source-dependency-root-package.test.mjs` | 2 | 4 |
-| `tests/source-dependency-source-coverage.test.mjs` | 2 | 3 |
+The resulting projections are about 439 seconds per Linux shard and at most
+448 seconds per former Windows lane, except for the isolated loader. That
+nine-lane candidate increased runner contention. The independent five-lane
+Windows partition projects about 734 seconds per residual lane and retains the
+loader as its own lane. These
+are estimates from one run, excluding setup, queueing and future variance.
+The Windows policy uses longest-processing-time-first assignment across A, B, D
+and E using Windows timings alone, with canonical traversal order and then lane
+ID as tie-breakers. It preserves that traversal order inside each resulting lane.
+The new materialization suite is unmeasured and contributes zero only to this
+advisory projection; it remains mandatory at execution.
+Final exact-head Linux, Windows and macOS CI must establish actual behavior.
 
-Its basis is the root-extracted proposal from successful
-[CI run 37032382026](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/37032382026)
-at `9843822e6c10c4b805cf2bb95fc0f43e5211edeb`. Top-level TAP `duration_ms`
-records mapped only to unique AST-decoded static test titles or the unique
-most-specific AST template with at least 15 literal characters. Mapping covered
-88.17% of observed test-body duration; unmatched and ambiguous records were
-omitted. The six moved files have independently attributable body durations.
-This is a conservative bounded distribution, not a universal balancing solver.
-All other files, including unmeasured files and the two Linux-only managed suites,
-retain their shards and relative order. Moved files append in their existing
-source order. Raw coverage-only assignments, exact mandatory identities,
-no-skip enforcement, serial `--test-concurrency=1`, and shard 4's Node 26 tools
-remain unchanged.
+Before opening a PR, run the changed and fast gates, workflow security and
+focused checks for the changed behavior. Merge still requires independent
+technical review and the complete current-code CI matrix, including all native
+qualifications and the partitioned coverage authority. A second sequential local
+`pnpm verify` is not an additional merge prerequisite when CI supplies that
+evidence. Keep the full local diagnostic command when full CI cannot run or a
+changed risk is not covered; retain any uncovered check. Pending CI alone does
+not require a duplicate local full run. Older-SHA results cannot be relabeled as
+current-head CI.
 
-Body-duration projections do not prove whole-file duration, startup cost, raw
-coverage overhead, Windows impact, or other OS-specific timings. Final exact-head
-Linux, Windows, and macOS CI must qualify the partition; actual CI and performance
-proof remain with the root controller. Estimates are not measured speedup results.
-Linux shards 3 and 4 have 30-minute job budgets to accommodate the projected
-20- and 17-minute loads plus preparation, coverage and artifact uploads.
+The Windows loader remains isolated. A candidate compile-cache experiment did
+not shorten its native Windows job and is not enabled. All Linux raw coverage
+producers explicitly set `NODE_DISABLE_COMPILE_CACHE=1`, since compiled functions
+can yield less precise V8 coverage. No cache substitutes for native qualification.
 
 All Windows static, test, package, registry, and published-version jobs
 set `TEMP` and `TMP` to the trusted runtime `RUNNER_TEMP` value through
@@ -229,8 +248,9 @@ including selections that also contain a canonical adopted file.
 The test manifest check requires every adopted file to belong to a required
 shard. Platform skips outside the declared identities retain their ordinary
 Node behavior. See [mandatory Node test execution](../reference/quality-gate-runner.md#mandatory-node-test-execution).
-QGR synthetic and real-pnpm lifecycle capability qualification is assigned to shard 3.
-The required `macos-qualification` adapter-qualification lane deliberately reruns the focused QGR
+QGR synthetic and real-pnpm lifecycle capability qualification retains exact-once
+placement in the checked-in shard manifests.
+The native Darwin job required by `macos-qualification` deliberately reruns the focused QGR
 lifecycle command after its Darwin build, including entrypoint cancellation and
 POSIX containment evidence; it does not rerun the complete shard.
 `tests/manifests/coverage.v1.json` pins their coverage-only additions, the
@@ -258,7 +278,7 @@ and unadmitted-close case lives in that portable suite as well. Such refusal is 
 evidence, never a positive Linux runtime observation. Mandatory adoption of either
 Linux-only file requires a reviewed platform contract; the existing versioned
 mandatory contract and its exact identities remain unchanged.
-Raw coverage selection requires Linux x64 and retains the complete inventory across four shards.
+Raw coverage selection requires Linux x64 and retains the complete inventory across eight shards.
 The coverage manifest's `additionalTestsByShard` extends only the Linux
 raw-evidence run with suites that passed capability qualification elsewhere but are needed
 for the complete coverage universe. Keep
@@ -270,8 +290,10 @@ Summary, but has no absolute blocking threshold. The separate read-only `CI
 feedback` observer reads completed-run metadata from the GitHub API, reports the
 slowest lanes, and retains a source-bound JSON artifact for 30 days. It checks
 out only the protected default-branch observer code, never pull request code.
-Cancelled obsolete runs remain normal: agents should use `check:changed`, then
-`check:fast`, and run `verify` once before handoff rather than after every edit.
+Cancelled obsolete runs remain normal: agents use `check:changed`, `check:fast`,
+workflow security and focused risk checks before PR handoff. Merge requires
+independent review and complete successful current-code CI; the sequential local
+`verify` diagnostic is needed only for unavailable CI or a risk CI does not cover.
 
 Knip is blocking in the Linux CI job but is not repeated by Windows or the fast
 local loop. Nx supplies project discovery, affected builds, and caching; it does
@@ -402,8 +424,7 @@ establish full-suite, supported-platform or release qualification.
 
 `pnpm package:qualification:built` prepares and checks publishable manifests,
 then runs the full packed and hermetic-registry consumers sequentially against
-one process-local qualified artifact set. The Linux registry wrapper and macOS
-combined lane use it; standalone `package:check:built` and
+one process-local qualified artifact set. The Linux registry wrapper uses it; standalone `package:check:built` and
 `registry-install-e2e:built` each produce a fresh set. Windows jobs retain their
 independent qualification scopes.
 
@@ -414,10 +435,22 @@ quality-gate reporting; `sdk-growth` retains SDK growth qualification;
 `npm-docs`, `pnpm-docs` and `foundation`, retaining both documentation profiles
 for each package manager and the installed Foundation consumer. All matrix
 members remain required by `windows-check`; default local commands and the
-Linux/macOS qualification paths still execute the full consumer inventory.
+Linux qualification paths still execute the full consumer inventory.
 
-Package and registry jobs wait for their platform's short static job. Long test
-lanes can claim shared hosted runner capacity first; each qualification still
+Darwin uses three closed paired profiles: `foundation` runs packed `integration`
+then registry `foundation`; `npm-docs` runs packed `sdk-growth` then registry
+`npm-docs`; `pnpm-docs` runs packed `quality-coverage` then registry `pnpm-docs`.
+Each profile produces its own complete six-package A/B set and consumes it in the
+same guarded packed-before-registry lifetime. Their union retains every original
+consumer phase exactly once. The fail-closed required `macos-qualification`
+aggregate includes every profile and the separate native controls, QGR lifecycle,
+repository mutation, scaffolding and document-writing job. No archive authority
+crosses jobs. Zero-argument local qualification retains its complete sequence.
+
+Linux registry qualification starts directly after Dependency Review; its
+independent fresh consumer does not depend on the repository static check. Other
+package and Windows registry jobs wait for their platform's short static job.
+Each qualification still
 runs its own fresh installation and complete required consumer scope.
 Windows consumer groups have a 50-minute bound, preserving the existing release
 attester's maximum CI path when combined with the 15-minute static gate.
@@ -446,3 +479,15 @@ This is a private repository qualification mechanism within the existing
 artifact boundary, not a public module contract or general reusable runtime.
 The deliberate packed rollback mutation uses a separate TEST archive; it never
 changes the qualified snapshot passed to the registry consumer.
+
+Clean-stage materialization admits up to four regular-file leaf jobs and drains
+all admitted jobs before reporting failure. Directories, symlinks, build order
+and each target's independent A/B stages remain serial within their owners;
+two package targets can still prepare independently. Stable reads reserve
+outstanding bytes before allocation, commit successful bytes synchronously and
+release failed reservations. Existing per-state 256 MiB and entry/depth/member
+bounds, source identity brackets, external ancestor probes, nearest dependency
+resolution, archive equality and downstream custody checks remain enforced.
+Ancestor package-name probes are bounded independent I/O, with no cached
+absence or source/dependency tree reuse. This private scripts concern introduces
+no product module boundary, capability contract or CMS adoption change.

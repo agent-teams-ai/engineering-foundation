@@ -48,8 +48,8 @@ function parseDispatchSelection(values) {
     throw new Error(usage);
   }
   const ids = shardValue === undefined ? [] : shardValue.split(",");
-  if (shardValue !== undefined && (ids.some((id) => !/^[1-4]$/u.test(id)) || new Set(ids).size !== ids.length)) {
-    throw new Error("Shard ids must be unique values from 1 through 4");
+  if (shardValue !== undefined && (ids.some((id) => !/^[1-8]$/u.test(id)) || new Set(ids).size !== ids.length)) {
+    throw new Error("Shard ids must be unique values from 1 through 8");
   }
   if (windowsLane !== undefined) {
     requireWindowsTestLane(windowsLane);

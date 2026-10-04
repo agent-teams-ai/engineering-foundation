@@ -44,7 +44,7 @@ import {
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./pack-publishable-artifacts.mjs";
 import {
-  packageQualificationPhaseIds, runPackageQualificationPhases,
+  assertPackageQualificationPhaseIds, packageQualificationPhaseIds, runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
 import { readQualifiedReleaseArtifact } from "./pack-artifact-archive.mjs";
 import {
@@ -515,7 +515,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
 }
 
 
-async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint, group) {
+function registryQualificationMatrix() {
   const matrix = registryInstallMatrix({
     docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
     mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
@@ -527,8 +527,12 @@ async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint,
     foundationPackageName: FOUNDATION_PACKAGE_NAME,
     mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
   });
+  return [...matrix, foundationEntry];
+}
+
+async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint, { group, matrix }) {
   const lockDigests = [];
-  await runPackageQualificationPhases("registry", group, [...matrix, foundationEntry].map(matrixEntry => ({
+  await runPackageQualificationPhases("registry", group, matrix.map(matrixEntry => ({
     id: matrixEntry.id,
     run: async () => {
       await checkpoint();
@@ -550,6 +554,8 @@ async function qualifyRegistryMatrix(targets, registryUrl, commands, checkpoint,
  */
 export function qualifyRegistryConsumers(handle, group) {
   packageQualificationPhaseIds("registry", group);
+  const matrix = registryQualificationMatrix();
+  assertPackageQualificationPhaseIds("registry", matrix.map(entry => entry.id));
   return runQualifiedArtifactConsumer(handle, "registry", async ({ artifacts, temporaryRoot, checkpoint }) => {
     const runPnpm = createPnpmRunner();
     const previousRegistryToken = process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];
@@ -589,7 +595,7 @@ export function qualifyRegistryConsumers(handle, group) {
         await verifyRegistryTargetDownload(target, registry.registryUrl);
       }
       await checkpoint();
-      await qualifyRegistryMatrix(targets, registry.registryUrl, commands, checkpoint, group);
+      await qualifyRegistryMatrix(targets, registry.registryUrl, commands, checkpoint, { group, matrix });
     } finally {
       if (previousRegistryToken === undefined) {
         delete process.env[REGISTRY_TOKEN_ENVIRONMENT_KEY];

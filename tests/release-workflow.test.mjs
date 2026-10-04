@@ -149,9 +149,21 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
     release.jobs["attest-release-pr"]["timeout-minutes"] * 60;
   const requiredContexts = attestation.run.match(/^\s*ci_contexts=\(([^)]+)\)$/mu)[1].split(" ");
   const criticalPathMinutes = (jobId) => {
-    const { needs = [], "timeout-minutes": timeout } = ci.jobs[jobId] ?? {};
+    const { needs = [], "timeout-minutes": timeout, strategy } = ci.jobs[jobId] ?? {};
     assert.ok(Number.isInteger(timeout), `${jobId} must be bounded`);
-    return timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
+    let batches = 1;
+    if (strategy?.["max-parallel"] !== undefined) {
+      const parallel = strategy["max-parallel"];
+      assert.ok(Number.isInteger(parallel) && parallel > 0);
+      assert.ok(!Object.hasOwn(strategy.matrix, "include") && !Object.hasOwn(strategy.matrix, "exclude"),
+        "bounded matrices require explicit finite axes without include/exclude overrides");
+      const axes = Object.values(strategy.matrix);
+      assert.ok(axes.length > 0 && axes.every(axis => Array.isArray(axis) && axis.length > 0),
+        "bounded matrices require explicit finite axes without include/exclude overrides");
+      const count = axes.reduce((product, axis) => product * axis.length, 1);
+      batches = Math.ceil(count / parallel);
+    }
+    return batches * timeout + Math.max(0, ...[needs].flat().map(criticalPathMinutes));
   };
   const longestRequiredCiPathSeconds = Math.max(...requiredContexts.map(criticalPathMinutes)) * 60;
   const deadlineEntries = [...attestation.run.matchAll(
@@ -168,7 +180,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.equal(primaryDeadlineSeconds, 75 * 60);
   assert.equal(finalVerificationSeconds, 60);
   assert.ok(
-    ci.jobs["macos-qualification"]["timeout-minutes"] >= 30,
+    ci.jobs["macos-package"]["timeout-minutes"] >= 30,
     "macOS package and hermetic registry qualification needs at least 30 minutes",
   );
   assert.equal(primaryDeadlineSeconds - longestRequiredCiPathSeconds, 3 * 60);
@@ -2064,6 +2076,16 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     /ci_contexts=\(check windows-check macos-qualification\)/u,
   );
   assertExactReleaseRunBinding(attestation, release, ci);
+  const delayedMatrix = structuredClone(ci);
+  delayedMatrix.jobs["linux-tests"].strategy["max-parallel"] = 2;
+  assert.throws(() => assertExactReleaseRunBinding(attestation, release, delayedMatrix),
+    { code: "ERR_ASSERTION" }, "release budget must account for every matrix batch");
+  for (const override of ["include", "exclude"]) {
+    const ambiguousMatrix = structuredClone(ci);
+    ambiguousMatrix.jobs["linux-tests"].strategy.matrix[override] = [{ shard: "1" }];
+    assert.throws(() => assertExactReleaseRunBinding(attestation, release, ambiguousMatrix),
+      /bounded matrices require explicit finite axes without include\/exclude overrides/u);
+  }
   assert.match(attestation.run, /for context in "\$\{ci_contexts\[@\]\}"/u);
   assert.deepEqual(release.jobs["attest-release-pr"].permissions, {
     actions: "write",
@@ -2172,8 +2194,24 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.equal(job.steps.at(-1).env.QUALIFICATION_GROUP, "${{ matrix.group }}");
     assert.ok(ci.jobs["windows-check"].needs.includes(jobId));
   }
+  const macos = ci.jobs["macos-package"];
+  assert.deepEqual(macos.strategy, { "fail-fast": false,
+    matrix: { profile: ["foundation", "npm-docs", "pnpm-docs"] } });
+  assert.equal(macos["runs-on"], "macos-15");
+  assert.equal(macos["continue-on-error"], undefined);
+  assert.equal(macos.steps.at(-1).run, 'pnpm package:qualification:built "$QUALIFICATION_PROFILE"');
+  assert.deepEqual(macos.steps.at(-1).env, { QUALIFICATION_PROFILE: "${{ matrix.profile }}" });
+  assert.deepEqual(ci.jobs["macos-qualification"].needs,
+    ["dependency-review", "macos-native", "macos-package"]);
+  assert.equal(ci.jobs["macos-qualification"].if,
+    "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}");
+  assert.match(ci.jobs["macos-qualification"].steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
+  const nativeCommands = ci.jobs["macos-native"].steps.flatMap(step => step.run ?? []);
+  assert.ok(nativeCommands.includes("pnpm test:qgr:lifecycle:built"));
+  assert.ok(nativeCommands.includes("node scripts/run-selected-tests.mjs tests/tooling.test.mjs"));
+  assert.ok(nativeCommands.some(command => command.includes("tests/document-authoring-scaffolding-race.test.mjs")));
   assert.equal(manifest.scripts["package:group:built"],
-    "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-group.mts");
+    "node scripts/qualify-package-group.mts");
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-registry"));
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));
@@ -2187,7 +2225,6 @@ test("release publishing requires real Buf and hermetic registry qualification",
       "pnpm published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
     ]);
   }
-  const windowsTestB = ci.jobs["windows-test-b"];
   for (const lane of ["a", "b", "c", "d", "e"]) {
     const id = `windows-test-${lane}`;
     const job = ci.jobs[id];
@@ -2200,7 +2237,10 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.equal(job["continue-on-error"], undefined);
     assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}");
   }
-  for (const job of [ci.jobs["linux-test-2"], windowsTestB]) {
+  for (const job of [
+    ci.jobs["linux-tests"],
+    ...["a", "b", "c", "d", "e"].map(lane => ci.jobs[`windows-test-${lane}`]),
+  ]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
     assert.equal(checkout.with["fetch-depth"], 0);
     assert.equal(checkout.with["persist-credentials"], false);
@@ -2209,10 +2249,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     "dependency-review",
     "node26-compatibility",
     "linux-static",
-    "linux-test-1",
-    "linux-test-2",
-    "linux-test-3",
-    "linux-test-4",
+    "linux-tests",
     "linux-coverage",
     "linux-package",
     "linux-registry",

@@ -23,54 +23,62 @@
   ],
   "additionalTestsByShard": {
     "1": [
+      "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",
+      "packages/docs-protocol/tests/docs-new-completion.test.mjs",
+      "packages/docs-protocol/tests/profile-policy.test.mjs",
+      "packages/docs-protocol-mcp/tests/mcp-e2e.test.mjs"
+    ],
+    "2": [
+      "packages/docs-protocol/tests/cli-contract.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs",
+      "packages/docs-protocol/tests/envelope-schema.test.mjs",
+      "packages/docs-protocol/tests/qualification.test.mjs"
+    ],
+    "3": [
       "packages/repository-mutation/tests/mutation-lease.test.mjs",
       "packages/document-authoring/tests/package-boundary.test.mjs",
       "packages/docs-protocol-agent-teams/tests/direct-split-structure.test.mjs",
-      "packages/docs-protocol/tests/adoption.test.mjs",
-      "packages/docs-protocol/tests/authority-handshake.test.mjs",
-      "packages/docs-protocol/tests/cli-contract.test.mjs",
-      "packages/docs-protocol/tests/code-anchor.test.mjs",
-      "packages/docs-protocol/tests/community-bootstrap.test.mjs",
-      "packages/docs-protocol/tests/direct-split-structure.test.mjs",
-      "packages/docs-protocol-mcp/tests/cli-input.test.mjs"
-    ],
-    "2": [
-      "packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-integration-history.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-lockfile-snapshot-selection.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-lockfile-v2-policy.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-restoration-retrieval-fixture.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs",
-      "packages/docs-protocol/tests/community-context.test.mjs",
-      "packages/docs-protocol-mcp/tests/tools.test.mjs"
-    ],
-    "3": [
-      "packages/docs-protocol/tests/docs-new-completion.test.mjs",
-      "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs",
-      "packages/docs-protocol/tests/docs-protocol.test.mjs",
-      "packages/docs-protocol/tests/envelope-schema.test.mjs",
-      "packages/docs-protocol/tests/profile-policy.test.mjs",
-      "packages/docs-protocol/tests/portable-e2e.test.mjs"
+      "packages/docs-protocol/tests/adoption.test.mjs"
     ],
     "4": [
-      "packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs",
+      "packages/docs-protocol-mcp/tests/cli-input.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-integration-plan.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-restoration-retrieval-fixture.test.mjs",
+      "packages/docs-protocol/tests/community-context.test.mjs",
+      "packages/docs-protocol-mcp/tests/tools.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs"
+    ],
+    "5": [
+      "packages/docs-protocol/tests/authority-handshake.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/canonical-managed-state-v2.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-restoration-cli.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-lockfile-snapshot-selection.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-lockfile-v2-policy.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs",
+      "packages/docs-protocol/tests/public-surface.test.mjs"
+    ],
+    "6": [
+      "packages/docs-protocol/tests/community-bootstrap.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",
+      "packages/docs-protocol/tests/portable-e2e.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/qualification.test.mjs"
+    ],
+    "7": [
+      "packages/docs-protocol/tests/code-anchor.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
+      "packages/docs-protocol/tests/docs-protocol.test.mjs",
       "packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/qualification.test.mjs",
-      "packages/docs-protocol/tests/public-surface.test.mjs",
-      "packages/docs-protocol/tests/public-type-contract.test.mjs",
-      "packages/docs-protocol/tests/qualification.test.mjs",
-      "packages/docs-protocol-mcp/tests/mcp-e2e.test.mjs"
+      "packages/docs-protocol/tests/public-type-contract.test.mjs"
+    ],
+    "8": [
+      "packages/docs-protocol/tests/direct-split-structure.test.mjs",
+      "packages/docs-protocol-agent-teams/tests/consumer-integration-plan-v3.test.mjs",
+      "packages/docs-protocol/tests/docs-protocol-recovery.test.mjs"
     ]
   },
   "legacyTests": [

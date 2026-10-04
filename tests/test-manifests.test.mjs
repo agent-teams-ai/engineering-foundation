@@ -34,6 +34,10 @@ function fixture(packages = examplePackages) {
         { id: "2", tests: ["tests/b.test.mjs"] },
         { id: "3", tests: ["tests/c.test.mjs"] },
         { id: "4", tests: ["tests/d.test.mjs"] },
+        { id: "5", tests: ["tests/e.test.mjs"] },
+        { id: "6", tests: ["tests/f.test.mjs"] },
+        { id: "7", tests: ["tests/g.test.mjs"] },
+        { id: "8", tests: ["tests/h.test.mjs"] },
       ],
     },
     coverageManifest: {
@@ -42,7 +46,7 @@ function fixture(packages = examplePackages) {
       processBootstrap: "scripts/coverage-process-bootstrap.mjs",
       include: ["packages/example/dist/**/*.js"],
       exclude: ["packages/example/dist/**/*.d.ts"],
-      additionalTestsByShard: { 1: [], 2: [], 3: [], 4: [] },
+      additionalTestsByShard: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] },
       legacyTests: ["tests/a.test.mjs"],
       thresholds: { branches: 1, functions: 1, lines: 1 },
       evidenceThresholds: { branches: 1, functions: 1, lines: 1 },
@@ -52,6 +56,10 @@ function fixture(packages = examplePackages) {
       "tests/b.test.mjs",
       "tests/c.test.mjs",
       "tests/d.test.mjs",
+      "tests/e.test.mjs",
+      "tests/f.test.mjs",
+      "tests/g.test.mjs",
+      "tests/h.test.mjs",
     ],
   };
 }
@@ -61,7 +69,7 @@ test("repository test manifests cover every top-level test exactly once", async 
   assert.equal(result.tests.length, result.testCount);
   assert.ok(result.tests.includes("packages/docs-protocol-agent-teams/tests/qualification.test.mjs"));
   assert.ok(testRoots.includes("packages/docs-protocol-agent-teams/tests"));
-  assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4"]);
+  assert.deepEqual([...result.shards.keys()], ["1", "2", "3", "4", "5", "6", "7", "8"]);
   assert.equal([...result.coverageShards.values()].flat().length, result.testCount);
   assert.ok(result.coverageConfig.include.includes(
     "packages/docs-protocol-agent-teams/dist/**/*.js",
@@ -102,10 +110,10 @@ test("feature tests retain closed manifest coverage and a bounded portable path"
   const path = "tests/features/quality-coverage/policy.test.mjs";
   input.testPaths.push(path);
   input.shardManifest.shards[0].tests.push(path);
-  assert.equal(validateTestManifestData(input).testCount, 5);
+  assert.equal(validateTestManifestData(input).testCount, 9);
   for (const invalid of ["tests/features/con/policy.test.mjs", "tests/features/quality/deep/policy.test.mjs", "tests/arbitrary/policy.test.mjs"]) {
     const bad = structuredClone(input);
-    bad.testPaths[4] = invalid;
+    bad.testPaths[8] = invalid;
     bad.shardManifest.shards[0].tests[1] = invalid;
     assert.throws(() => validateTestManifestData(bad), /portable top-level test path/u);
   }
@@ -253,7 +261,7 @@ test("managed platform routing preserves complete Linux qualification and every 
     "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
   ];
-  const ids = ["1", "2", "3", "4"];
+  const ids = ["1", "2", "3", "4", "5", "6", "7", "8"];
   const globalInventory = [...manifest.tests];
   const requiredShardFiles = [...manifest.shards.values()].flat();
   assert.equal(manifest.testCount, globalInventory.length);
@@ -302,4 +310,18 @@ test("managed platform policy rejects inventory drift, empty dispatch and mandat
     "architecture/foundation/node-test-execution.json"), "utf8"));
   contract.required.push({ file: linuxFile, names: ["new mandatory runtime identity"], kind: "test" });
   assert.throws(() => validateMandatoryShardSelection(contract, manifest), /reviewed platform contract/u);
+});
+
+test("repository shard placement rejects loss of loader isolation or managed runtime tooling", async () => {
+  const manifest = await validateTestManifests();
+  for (const [source, file, expected] of [
+    ["3", "tests/source-dependency-loader-cli.test.mjs", /pinned loader/u],
+    ["4", "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs", /Node 26 tooling/u],
+    ["4", "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs", /Node 26 tooling/u],
+  ]) {
+    const shards = new Map([...manifest.shards].map(([id, files]) => [id, [...files]]));
+    shards.set(source, shards.get(source).filter((path) => path !== file));
+    shards.get("1").push(file);
+    assert.throws(() => manifestTools.validateRepositoryShardPins({ ...manifest, shards }), expected);
+  }
 });

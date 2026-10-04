@@ -30,6 +30,16 @@ export function validateManagedTestPlatforms(manifest) {
   }
 }
 
+export function validateRepositoryShardPins(manifest) {
+  validateManagedTestPlatforms(manifest);
+  if (!manifest.shards.get("3")?.includes("tests/source-dependency-loader-cli.test.mjs")) {
+    fail("pinned loader test must remain in canonical shard 3");
+  }
+  if (!linuxManagedTests.every((path) => manifest.shards.get("4")?.includes(path))) {
+    fail("managed runtime suites require the Node 26 tooling in canonical shard 4");
+  }
+}
+
 export function selectTestPathsForPlatform(manifest, files, platform = process.platform,
   architecture = process.arch) {
   validateManagedTestPlatforms(manifest);
@@ -137,8 +147,8 @@ function validateShardHeader(shardManifest) {
   if (typeof shardManifest.source.strategy !== "string" || shardManifest.source.strategy === "") {
     fail("source.strategy must be non-empty");
   }
-  if (!Array.isArray(shardManifest.shards) || shardManifest.shards.length !== 4) {
-    fail("exactly four shards are required");
+  if (!Array.isArray(shardManifest.shards) || shardManifest.shards.length !== 8) {
+    fail("exactly eight shards are required");
   }
 }
 
@@ -259,7 +269,7 @@ export function validateTestManifestData({
   const allowedTestRoots = testRootsForPackages(packages);
   validateShardHeader(shardManifest);
 
-  const expectedShardIds = ["1", "2", "3", "4"];
+  const expectedShardIds = ["1", "2", "3", "4", "5", "6", "7", "8"];
   const shardIds = [];
   const assigned = [];
   for (const [index, shard] of shardManifest.shards.entries()) {
@@ -277,7 +287,7 @@ export function validateTestManifestData({
     }
   }
   if (shardIds.toSorted().join("\0") !== expectedShardIds.join("\0")) {
-    fail("shard ids must be exactly 1, 2, 3, and 4");
+    fail("shard ids must be exactly 1 through 8");
   }
   const additionalTests = validateCoverageManifest(
     coverageManifest,
@@ -384,7 +394,7 @@ export async function validateTestManifests() {
     packages: PUBLISHABLE_PACKAGES,
   });
   validateMandatoryShardSelection(await readJson(mandatoryContractPath), result);
-  validateManagedTestPlatforms(result);
+  validateRepositoryShardPins(result);
   return result;
 }
 

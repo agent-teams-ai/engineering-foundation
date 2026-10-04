@@ -20,6 +20,7 @@
     "check:changed": "pnpm build && node packages/engineering-foundation/dist/cli.js agent-workflow changed --consumer .",
     "check:fast": "pnpm dependencies:peers:check && pnpm docs:terminology:check && pnpm release-graph:check && pnpm test:manifests:check && pnpm lint:fast && pnpm typecheck && pnpm quality:scope:check && pnpm architecture:features:check && pnpm quality:coverage:scope",
     "dependencies:peers:check": "pnpm peers check --lockfile-only",
+    "ci:full": "node scripts/request-full-pr-ci.mts",
     "changeset": "changeset",
     "changeset:coverage": "node scripts/check-changeset-coverage.mjs",
     "clean": "node scripts/clean.mjs",

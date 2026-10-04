@@ -19,7 +19,8 @@ weakening the merge gate.
 | Patterns | `pnpm architecture:patterns` | Consumer-owned deterministic AST prohibitions |
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
-| Merge-ready | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
+| Full PR request | `pnpm ci:full -- --pr N --wait` | Explicit complete native qualification bound to the final PR head and base |
+| Local diagnostic | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
 | Coverage | `pnpm test:coverage` | Local native Node coverage-threshold qualification for lines, branches, and functions |
 | Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the eight isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
@@ -130,7 +131,8 @@ managed suites stay in shard 4 with its pinned Node 26 tools. Original relative
 order is retained inside each resulting canonical and raw-only list. All existing 239
 canonical and 42 raw-only files, exact mandatory identities, no-skip enforcement
 and `--test-concurrency=1` remain intact. The new materialization regression suite joins shard 5, bringing
-the current inventory to 282 files. Every test checkout retains Git history
+the prior inventory to 282 files. The private full-CI request regression suite is
+pinned in canonical shard 5 and Windows lane B, bringing the inventory to 283 files. Every test checkout retains Git history
 for committed-delta checks.
 
 The resulting projections are about 439 seconds per Linux shard and at most
@@ -148,7 +150,8 @@ Final exact-head Linux, Windows and macOS CI must establish actual behavior.
 
 Before opening a PR, run the changed and fast gates, workflow security and
 focused checks for the changed behavior. Merge still requires independent
-technical review and the complete current-code CI matrix, including all native
+technical review and the explicitly requested complete `full-ci` matrix on the
+final PR head and base, including all native
 qualifications and the partitioned coverage authority. A second sequential local
 `pnpm verify` is not an additional merge prerequisite when CI supplies that
 evidence. Keep the full local diagnostic command when full CI cannot run or a
@@ -200,44 +203,60 @@ is admitted on Darwin. Exact `skipped` exceptions apply only on Linux and
 Windows, whose kernels do not supply these Darwin semantics. Python3 must be
 available on macOS; a missing interpreter fails the tests.
 
-The CI workflow also records a conservative shadow classification for future
-feedback experiments. It has no place in any job's `needs` or `if` expression
-and its effective plan is always `full`; ready pull requests and merge-queue
-groups therefore run the unchanged complete cross-platform graph. Unknown
-events, malformed paths, source, tests, workflows, authority, package-manager
-state, and other sensitive changes classify as full. A `ci:full` label is the
-explicit full-plan escape hatch. A docs-only result is observation data, not
-permission to omit a required lane.
+Ordinary and Draft PRs receive automatic `PR Feedback` on opened, synchronize,
+reopened and ready-for-review events. Its blocking Dependency Review and SBOM
+precede dependency execution, followed by `check:changed --base <PR.base.sha>`
+with complete history. CodeQL and identity retain their existing automatic
+triggers. Fast feedback can be green while a required `full-ci` remains
+Expected and blocks merge; passing feedback never qualifies the native matrix.
 
-CI concurrency is separated by event type and pull request or ref identity.
-Normal updates still cancel stale runs for the same pull request, while an
-exact-head release-attester dispatch cannot cancel the pull request run and leave
-failed required CheckRuns behind. For generated release pull requests, the
-attester prefers the single exact attempt-1 PR run and dispatches a second suite
-only when no such run appears during its bounded selection window.
+Near merge, the agent requests full qualification without a Draft transition or
+human approval for each PR:
 
-Draft pull-request pushes create no heavy CI or CodeQL work. The cheap,
-unconditional security lane still runs pinned Dependency Review and emits the
-repository SBOM for every pull-request update. A separate draft-only lane runs
-`check:changed`, which routes the exact Git delta through lint/typecheck and
-escalates control-file changes to `check:fast`. Every executable heavy job
-depends directly on the security lane and additionally requires a non-draft
-pull request. `ready_for_review` is an explicit CodeQL and CI trigger, so the
-full CI graph starts when an unchanged draft
-becomes ready without another push. Every synchronization of a ready pull
-request takes the same fail-closed path; there is no elapsed-time admission,
-artifact reuse from another SHA, or weaker ready-update route.
+```bash
+pnpm ci:full -- --pr 123 --wait
+```
 
-Ready pull requests also run `pr-feedback` in the separate `PR Feedback`
-workflow, in parallel with full qualification. Its own Dependency Review and
-SBOM steps precede dependency execution. This preliminary lane runs `check:changed` with the
-explicit pull-request base SHA and complete Git history, so a clean checkout
-cannot hide committed changes. It targets early lint/typecheck feedback within
-7-10 minutes; control-file changes still escalate to `check:fast`. Its ten-minute
-timeout bounds this preliminary check, not the duration of the full CI graph.
-A failure remains visible in `PR Feedback` without changing the full `CI` run
-conclusion used by release attestation. Repository protection keeps the same
-required contexts. A passing `pr-feedback` result does not authorize merge.
+The private helper resolves the canonical repository and open PR, including fork
+PRs. It adds `ci:full` in the base repository. The actual `pull_request: labeled`
+event admits every existing Linux, Windows, macOS and Node 24/26 lane. A label
+left on a PR does not request full CI on later pushes; synchronize receives fast
+feedback and cancels obsolete full work through the shared PR concurrency group.
+Other labels use independent run groups and cannot create or overwrite the
+`full-ci` check. Removal is not a trigger. A distinct `ci-not-requested` job name
+prevents skipped checks on unrelated label events from satisfying the full gate.
+The shadow classifier remains advisory and cannot select or omit a native lane.
+
+`full-ci` requires successful Dependency Review and all three stable native
+aggregates using pinned alls-green, with no skipped/neutral allowance. Its run
+name binds PR number, head SHA and base SHA. The helper reuses successful or
+in-progress runs only after checking that binding, workflow path, event,
+repository and PR association; success additionally requires the actual bound
+`full-ci` job. A label alone is never evidence. Failed/cancelled work or an old
+snapshot requires a new request, removing/re-adding an existing label when
+necessary. An uncertain write is reconciled through reads, never blindly retried.
+Discovery is limited to three 100-entry pages per collection and twelve request
+observations five seconds apart, with a 20-second bound per CLI metadata call.
+`--wait` uses a bounded 90-minute watch, then rereads the run, native gate and PR.
+A head/base change or unsuccessful result fails closed; rerun the command for
+the final snapshot. `ready` describes observed full qualification; independent
+current-head review and all other required checks remain separate obligations.
+
+Main pushes, merge groups and workflow dispatch still run the complete native
+matrix. Dispatch checks do not satisfy ordinary PR rulesets. Generated release
+PRs retain the existing trusted exact-head/base attester: it prefers one bound
+attempt-1 PR run, otherwise dispatches CI, and now attests `full-ci` alongside
+`check`, `windows-check`, `macos-qualification` and separate CodeQL `analyze`.
+Every pending, terminal and recovery pass includes the new context. Five status
+contexts reserve 570 seconds, up from 456, requiring a 92-minute attester bound
+(up from 90); the 75-minute CI deadline and raw/native budgets are unchanged.
+The Windows metadata aggregate takes one minute and the new full aggregate one
+minute, preserving the 72-minute configured critical path plus three-minute
+attestation margin. Queue time remains outside job timeout arithmetic.
+
+The label/gate delivery contract can be shared through the organization `.github`
+standard; concrete GitHub orchestration and this product's native matrix belong
+to the repository Host. This helper is private and declares no published API.
 
 New CI tooling and test harnesses use `.mts` and run with the pinned Node's native
 TypeScript stripping. `typecheck:ci-tooling` checks their contracts with the pinned
@@ -245,7 +264,9 @@ compiler as part of `typecheck`; stripping alone is not a typecheck. The blockin
 test inventory admits `.test.mts` with the same exact-once shard requirements.
 
 Repository protection requires the stable exact-head contexts `CodeQL`,
-`analyze`, `check`, `windows-check`, and `macos-qualification`. Independent
+`analyze`, `check`, `windows-check`, and `macos-qualification`. The integration
+owner must add required `full-ci` only after observing a successful actual PR
+request on the final implementation; each new head must then supply that check. Independent
 hosted-review evidence belongs in pull-request comments; it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 

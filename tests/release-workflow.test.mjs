@@ -344,7 +344,7 @@ function assertTerminalRecovery(result, contexts) {
 }
 
 function assertAttestationStatusContract(source) {
-  const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
+  const contexts = ["analyze", "check", "windows-check", "macos-qualification", "full-ci"];
   const block = (start, end) => {
     const from = source.indexOf(start);
     const to = source.indexOf(end, from);
@@ -356,7 +356,7 @@ function assertAttestationStatusContract(source) {
   assert.ok(source.indexOf(pending) < source.indexOf("git fetch --no-tags origin"));
   assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/ci.yml/dispatches"));
   assert.ok(source.indexOf(pending) < source.indexOf("actions/workflows/codeql.yml/dispatches"));
-  const ciSetup = 'conclusions=(success failure success); target_urls=(ci1 ci2 ci3)';
+  const ciSetup = 'conclusions=(success failure success success); target_urls=(ci1 ci2 ci3 ci4)';
   for (const [fragment, setup, state, exitCode] of [
     [pending, "", "pending", 0],
     ["false", "", "error", 1],
@@ -418,7 +418,7 @@ function assertAttestationStatusContract(source) {
     assert.throws(() => validateReleaseCodeqlEvidence(changed, expectation, receipt),
       /analyze check run identity differs/u);
   }
-  const setup = `conclusions=(success success success); target_urls=(ci1 ci2 ci3);
+  const setup = `conclusions=(success success success success); target_urls=(ci1 ci2 ci3 ci4);
     codeql_evidence_error=/dev/null;
     observed_codeql_analyze_check='${JSON.stringify(evidence.analyzeCheck)}'`;
   const success = runAttestationFragment(source, finalGate, `${setup}; final_run_verified=1`);
@@ -476,7 +476,7 @@ function assertStatusReconciliation(source) {
   // Keep explicit shape validation even though normalization also rejects
   // non-string contexts; removing this guard is now behaviorally redundant.
   assert.ok(source.includes('all(.[][]; type == "object" and (.context | type) == "string") and'));
-  const contexts = ["analyze", "check", "windows-check", "macos-qualification"];
+  const contexts = ["analyze", "check", "windows-check", "macos-qualification", "full-ci"];
   const publish = 'post_status analyze success "verified" "target"';
   for (const [setup, attempts] of [
     ["fault_context=analyze:success; fault_mode=reject", 2],
@@ -523,7 +523,7 @@ function assertStatusReconciliation(source) {
     const recovery = runAttestationFragment(source,
       'return_42() { return 42; }; return_42', setup);
     assert.equal(recovery.status, 42, recovery.stderr);
-    assert.equal(recovery.attempts.length, 6);
+    assert.equal(recovery.attempts.length, 7);
     assert.equal(recovery.attempts.filter((line) => line.startsWith("analyze|error|")).length, 3);
     for (const context of contexts.slice(1)) {
       assert.equal(recovery.latest.get(context), "error");
@@ -566,7 +566,7 @@ function assertStatusReconciliation(source) {
   // A terminal failure after all successes still retries every recovery context.
   const recovered = runAttestationFragment(source, `${seed}\nfalse`, "recovery_failures=1");
   assertTerminalRecovery(recovered, contexts);
-  assert.equal(recovered.attempts.length, 12, recovered.stderr);
+  assert.equal(recovered.attempts.length, 15, recovered.stderr);
   assert.doesNotMatch(recovered.stderr, /Recovery incomplete/u);
   // Reproduce the combined lost final response / failed recovery writes. The API
   // becomes available within the retry window, so authoritative states converge.
@@ -577,7 +577,7 @@ function assertStatusReconciliation(source) {
     ${publish}`;
   const result = runAttestationFragment(source, combined);
   assertTerminalRecovery(result, contexts);
-  assert.equal(result.attempts.length, 15);
+  assert.equal(result.attempts.length, 18);
   assert.doesNotMatch(result.stderr, /Recovery incomplete/u);
   // A total outage after an ambiguous write cannot be repaired locally. Keep the
   // original exit, try all contexts, and name every unreconciled context.
@@ -586,14 +586,14 @@ function assertStatusReconciliation(source) {
     fault_context=analyze:success; fault_mode=lost; fault_count=4
     ${publish}`);
   assert.equal(outage.status, 1, outage.stderr);
-  assert.equal(outage.attempts.length, 19);
-  assert.deepEqual([...outage.latest.values()], Array(4).fill("success"));
+  assert.equal(outage.attempts.length, 23);
+  assert.deepEqual([...outage.latest.values()], Array(5).fill("success"));
   assert.match(outage.stderr,
-    /Recovery incomplete; unreconciled contexts: analyze check windows-check macos-qualification/u);
+    /Recovery incomplete; unreconciled contexts: analyze check windows-check macos-qualification full-ci/u);
   const originalExit = runAttestationFragment(source,
     'return_42() { return 42; }; return_42', "recovery_failures=999");
   assert.equal(originalExit.status, 42, originalExit.stderr);
-  assert.equal(originalExit.attempts.length, 12);
+  assert.equal(originalExit.attempts.length, 15);
   assert.match(originalExit.stderr, /Recovery incomplete/u);
 }
 
@@ -1858,11 +1858,13 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   ];
   const readyPullRequestCondition =
     "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
-  assert.deepEqual(ci.on.pull_request.types, requiredLifecycleEvents);
+  assert.deepEqual(ci.on.pull_request.types, ["labeled"]);
   assert.deepEqual(codeql.on.pull_request.types, requiredLifecycleEvents);
   assert.equal(codeql.on.workflow_dispatch, null);
-  assert.equal(ci.jobs["dependency-review"].if, undefined);
-  assert.equal(ci.jobs["linux-static"].if, readyPullRequestCondition);
+  const fullRequestCondition =
+    "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}";
+  assert.equal(ci.jobs["dependency-review"].if, fullRequestCondition);
+  assert.equal(ci.jobs["linux-static"].if, fullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
   const codeqlAnalyze = codeql.jobs.analyze.steps.find(
     ({ uses }) => uses?.startsWith("github/codeql-action/analyze@"),
@@ -1874,7 +1876,7 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   );
   assert.equal(
     ci.concurrency.group,
-    "foundation-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}",
+    "${{ github.event_name == 'pull_request'\n    && (github.event.label.name == 'ci:full' && format('foundation-pr-{0}', github.event.pull_request.number)\n        || format('foundation-ci-unrequested-{0}', github.run_id))\n    || format('foundation-ci-{0}-{1}', github.event_name, github.ref) }}",
   );
   assert.equal(ci.concurrency["cancel-in-progress"], true);
 });
@@ -2073,7 +2075,7 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   assert.doesNotMatch(attestation.run, /post_status "ReviewRouter"/u);
   assert.match(
     attestation.run,
-    /ci_contexts=\(check windows-check macos-qualification\)/u,
+    /ci_contexts=\(check windows-check macos-qualification full-ci\)/u,
   );
   assertExactReleaseRunBinding(attestation, release, ci);
   const delayedMatrix = structuredClone(ci);
@@ -2205,7 +2207,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.deepEqual(ci.jobs["macos-qualification"].needs,
     ["dependency-review", "macos-native", "macos-package"]);
   assert.equal(ci.jobs["macos-qualification"].if,
-    "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}");
+    "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}");
   assert.match(ci.jobs["macos-qualification"].steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   const nativeCommands = ci.jobs["macos-native"].steps.flatMap(step => step.run ?? []);
   assert.ok(nativeCommands.includes("pnpm test:qgr:lifecycle:built"));
@@ -2236,7 +2238,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.ok(ci.jobs["windows-check"].needs.includes(id));
     assert.equal(job["runs-on"], "windows-2022");
     assert.equal(job["continue-on-error"], undefined);
-    assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}");
+    assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}");
   }
   for (const job of [
     ci.jobs["linux-tests"],
@@ -2259,7 +2261,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   ]);
   assert.equal(
     ci.jobs.check.if,
-    "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}",
+    "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}",
   );
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });

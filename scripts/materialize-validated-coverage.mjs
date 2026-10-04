@@ -18,6 +18,65 @@ function fail(message) {
   throw new Error(`Coverage evidence is invalid: ${message}`);
 }
 
+/** @param {unknown} value @returns {string | undefined} */
+function coverageFileUrl(value) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  if (isAbsolute(value)) {
+    return pathToFileURL(resolve(value)).href;
+  }
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    if (/^file:/iu.test(value)) {
+      fail("invalid local coverage address");
+    }
+    return undefined;
+  }
+  if (url.protocol !== "file:") {
+    return undefined;
+  }
+  try {
+    if (/%(?:2f|5c)/iu.test(url.pathname)) {
+      fail("invalid local coverage address");
+    }
+    return pathToFileURL(resolve(fileURLToPath(url))).href;
+  } catch {
+    fail("invalid local coverage address");
+  }
+}
+
+/** @param {unknown} value @param {{ sourceRoot: string; prefix: string }} root */
+function hasSourcePrefix(value, root) {
+  return typeof value === "string" && (value.startsWith(root.prefix) ||
+    (isAbsolute(value) && value.startsWith(`${root.sourceRoot}${sep}`)));
+}
+
+/**
+ * @param {unknown} value
+ * @param {readonly { sourceRoot: string; prefix: string }[]} knownRoots
+ * @param {string} expectedRoot
+ */
+function assertCoverageSourceAddress(value, knownRoots, expectedRoot) {
+  const fileUrl = coverageFileUrl(value);
+  if (fileUrl === undefined) {
+    return;
+  }
+  const rawRoot = knownRoots.find((root) => hasSourcePrefix(value, root));
+  const normalizedRoot = knownRoots.find(({ prefix }) => fileUrl.startsWith(prefix));
+  if (rawRoot !== undefined && rawRoot.sourceRoot !== normalizedRoot?.sourceRoot) {
+    fail("paired URL escapes its source root");
+  }
+  if (normalizedRoot !== undefined && rawRoot === undefined) {
+    fail("non-canonical coverage source alias");
+  }
+  if (normalizedRoot !== undefined && normalizedRoot.sourceRoot !== expectedRoot) {
+    fail("raw coverage artifact mixes source roots");
+  }
+}
+
 // Writers recognize only their checkout; aggregation additionally recognizes
 // the fixed producer for this shard. Keep this runtime in the existing .mjs
 // transport so covered workers do not initialize Node's TypeScript loader.
@@ -67,11 +126,7 @@ export function createCoverageSourceLayout(expectedTests, pairedSourceRoot) {
       ]),
     ];
     for (const url of urls) {
-      const fileUrl = typeof url === "string" && isAbsolute(url) ? pathToFileURL(url).href : url;
-      const knownRoot = knownRoots.find(({ prefix }) => typeof fileUrl === "string" && fileUrl.startsWith(prefix));
-      if (knownRoot !== undefined && knownRoot.sourceRoot !== matchedTest.sourceRoot) {
-        fail("raw coverage artifact mixes source roots");
-      }
+      assertCoverageSourceAddress(url, knownRoots, matchedTest.sourceRoot);
     }
     return matchedTest;
   };
@@ -115,24 +170,30 @@ function projectSourceMapEntry(entry, project) {
 function projectPairedCoverage(bytes, sourceRoot) {
   const sourcePrefix = pathToFileURL(`${sourceRoot}${sep}`).href;
   const canonicalPrefix = pathToFileURL(`${repositoryRoot}${sep}`).href;
+  const sourceAddress = { sourceRoot, prefix: sourcePrefix };
   /** @template Value @param {Value} value @returns {Value | string} */
   function project(value) {
     if (typeof value !== "string") {
       return value;
     }
-    if (value.startsWith(sourcePrefix)) {
-      const url = new URL(value);
-      if (!url.href.startsWith(sourcePrefix) || !fileURLToPath(url).startsWith(`${sourceRoot}${sep}`)) {
-        throw new Error("Coverage evidence is invalid: paired URL escapes its source root");
-      }
-      return `${canonicalPrefix}${url.href.slice(sourcePrefix.length)}`;
+    const fileUrl = coverageFileUrl(value);
+    if (fileUrl === undefined) {
+      return value;
     }
-    if (isAbsolute(value) && value.startsWith(`${sourceRoot}${sep}`)) {
-      const path = resolve(value);
-      if (!path.startsWith(`${sourceRoot}${sep}`)) {
-        throw new Error("Coverage evidence is invalid: paired source path escapes its source root");
+    const hasRawPrefix = hasSourcePrefix(value, sourceAddress);
+    if (hasRawPrefix && !fileUrl.startsWith(sourcePrefix)) {
+      fail("paired URL escapes its source root");
+    }
+    if (fileUrl.startsWith(sourcePrefix)) {
+      if (!hasRawPrefix) {
+        fail("non-canonical coverage source alias");
       }
-      return join(repositoryRoot, path.slice(sourceRoot.length + 1));
+      const projectedUrl = `${canonicalPrefix}${fileUrl.slice(sourcePrefix.length)}`;
+      if (isAbsolute(value)) {
+        return fileURLToPath(projectedUrl);
+      }
+      const url = new URL(value);
+      return `${projectedUrl}${url.search}${url.hash}`;
     }
     return value;
   }
@@ -145,9 +206,7 @@ function projectPairedCoverage(bytes, sourceRoot) {
     const cacheIdentities = new Set();
     for (const [key, entry] of Object.entries(report["source-map-cache"])) {
       const projectedKey = project(key);
-      const keyIdentity = projectedKey.startsWith("file:")
-        ? pathToFileURL(fileURLToPath(projectedKey)).href
-        : projectedKey;
+      const keyIdentity = coverageFileUrl(projectedKey) ?? projectedKey;
       if (cacheIdentities.has(keyIdentity)) {
         throw new Error("Coverage evidence is invalid: paired source map key projection collides");
       }

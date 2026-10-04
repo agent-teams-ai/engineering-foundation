@@ -12,7 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import { promisify } from "node:util";
@@ -265,11 +265,13 @@ test("paired evidence materializes canonical URLs and source maps without changi
     names: [], mappings: "AAAA",
   };
   const foreignEntry = { data: { ...data, sources: [productionUrl] }, lineLengths: [40], url: foreignUrl };
+  const cacheBuster = "?instance=%2f#module";
   await rewriteRawArtifact(root, "1", (report, record) => {
     if (record.test !== testManifest.coverageShards.get("1")[0]) {
       return;
     }
-    report.result.push({ url: productionUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] });
+    report.result.push({ url: productionUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] },
+      { url: `${report.result[0].url}${cacheBuster}`, functions: [] });
     report["source-map-cache"] = {
       [productionUrl]: { data, lineLengths: [40], url: `${productionUrl}.map` },
       [foreignUrl]: foreignEntry,
@@ -305,6 +307,7 @@ test("paired evidence materializes canonical URLs and source maps without changi
   assert.equal(projected.result[0].url, pathToFileURL(join(repositoryRoot, testManifest.coverageShards.get("1")[0])).href);
   assert.deepEqual(projected.result.slice(1), [
     { url: canonicalUrl, functions }, { url: foreignUrl, functions }, { url: "node:fs", functions: [] },
+    { url: `${pathToFileURL(join(repositoryRoot, testManifest.coverageShards.get("1")[0])).href}${cacheBuster}`, functions: [] },
   ]);
   assert.deepEqual(projected["source-map-cache"][canonicalUrl], {
     data: {
@@ -333,7 +336,17 @@ test("paired evidence materializes canonical URLs and source maps without changi
 });
 
 test("coverage evidence rejects mixed layouts, wrong producers and arbitrary source roots", async (context) => {
-  for (const scenario of ["mixed-set", "mixed-artifact", "mixed-script", "mixed-map-source", "wrong-producer", "arbitrary-root"]) {
+  const outsideUrl = pathToFileURL(join(dirname(repositoryRoot), "outside-coverage")).href;
+  const rootSegment = encodeURIComponent(basename(repositoryRoot));
+  const pairedUrl = pathToFileURL(join(repositoryRoot, "a", "scripts", "coverage-evidence.mjs")).href;
+  const aliases = {
+    "foreign-canonical-alias": `${outsideUrl}/../${rootSegment}/scripts/coverage-evidence.mjs`,
+    "encoded-dot-canonical-alias": `${outsideUrl}/%2e%2e/${rootSegment}/scripts/coverage-evidence.mjs`,
+    "foreign-paired-alias": `${outsideUrl}/../${rootSegment}/a/scripts/coverage-evidence.mjs`,
+    "protocol-file-alias": pairedUrl.replace(/^file:\/\//u, "FILE:"),
+    "encoded-separator": `${pathToFileURL(join(repositoryRoot, "a")).href}/scripts%2fcoverage-evidence.mjs`,
+  };
+  for (const scenario of ["mixed-set", "mixed-artifact", "mixed-script", "mixed-map-source", "wrong-producer", "arbitrary-root", ...Object.keys(aliases)]) {
     await context.test(scenario, async (subcontext) => {
       const root = await evidenceSet();
       subcontext.after(() => rm(root, { force: true, recursive: true }));
@@ -352,16 +365,20 @@ test("coverage evidence rejects mixed layouts, wrong producers and arbitrary sou
             [report.result[0].url]: { data: { sources: [pathToFileURL(join(repositoryRoot, "scripts", "coverage-evidence.mjs")).href] } },
           };
         }
+        if (Object.hasOwn(aliases, scenario)) {
+          report.result.push({ url: aliases[scenario], functions: [] });
+        }
       });
       await assert.rejects(validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
         scenario === "wrong-producer" || scenario === "arbitrary-root"
-          ? /does not contain exactly one expected shard test/u : /mixes.*source roots/u);
+          ? /does not contain exactly one expected shard test/u : Object.hasOwn(aliases, scenario)
+            ? /non-canonical coverage source alias|invalid local coverage address/u : /mixes.*source roots/u);
     });
   }
 });
 
-test("paired materialization rejects source map relocation ambiguity and key collisions", async (context) => {
-  for (const scenario of ["relative-source", "nonempty-source-root", "key-collision", "escaping-url"]) {
+test("paired coverage rejects source map relocation ambiguity and key collisions", async (context) => {
+  for (const scenario of ["relative-source", "nonempty-source-root", "key-collision", "absolute-key-collision", "escaping-url"]) {
     await context.test(scenario, async (subcontext) => {
       const root = await pairedEvidenceSet();
       const merged = await mkdtemp(join(tmpdir(), "foundation-coverage-paired-rejection-"));
@@ -384,14 +401,21 @@ test("paired materialization rejects source map relocation ambiguity and key col
         if (scenario === "key-collision") {
           report["source-map-cache"][`${url}?duplicate`] = entry;
         }
+        if (scenario === "absolute-key-collision") {
+          report["source-map-cache"][fileURLToPath(url)] = entry;
+        }
         if (scenario === "escaping-url") {
           report.result.push({ url: `${pathToFileURL(join(repositoryRoot, "a")).href}/../scripts/coverage-evidence.mjs`, functions: [] });
         }
       });
+      if (scenario === "escaping-url") {
+        await assert.rejects(validateCoverageEvidenceSet({ headSha, inputDirectory: root }), /escapes its source root/u);
+        return;
+      }
       const validated = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
       await assert.rejects(materializeValidatedRawCoverage(validated, merged),
-        scenario === "key-collision" ? /key projection collides/u :
-          scenario === "escaping-url" ? /escapes its source root/u : /sources must be absolute/u);
+        scenario === "key-collision" || scenario === "absolute-key-collision"
+          ? /key projection collides/u : /sources must be absolute/u);
     });
   }
 });

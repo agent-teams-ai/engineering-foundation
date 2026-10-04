@@ -8,6 +8,8 @@ import {
   PACKAGE_QUALIFICATION_GROUPS,
   assertCompletePackageQualificationGroups, mapIndependentPackageTargets,
   parsePackageQualificationGroupArguments, runPackageQualificationPhases,
+  COMBINED_PACKAGE_PROFILES, assertCompleteCombinedPackageProfiles,
+  combinedPackageQualificationGroups, parseCombinedQualificationArguments,
 } from "../scripts/package-qualification-groups.mts";
 import { runCommand } from "../scripts/pack-test-support.mjs";
 
@@ -122,6 +124,39 @@ async function producerFixture(t: TestContext, failureName?: string) {
 }
 
 if (new URL(import.meta.url).searchParams.get("fixture-build") !== "1") {
+  // Omitting, repeating or mispairing a profile must lose observable consumer evidence.
+  test("combined profiles retain every packed and registry phase exactly once", async () => {
+    assert.deepEqual(COMBINED_PACKAGE_PROFILES, ["foundation", "npm-docs", "pnpm-docs"]);
+    const completed = { packed: [] as string[], registry: [] as string[] };
+    const expected = {
+      foundation: { packed: "integration", registry: "foundation" },
+      "npm-docs": { packed: "sdk-growth", registry: "npm-docs" },
+      "pnpm-docs": { packed: "quality-coverage", registry: "pnpm-docs" },
+    };
+    assertCompleteCombinedPackageProfiles(COMBINED_PACKAGE_PROFILES);
+    for (const profile of COMBINED_PACKAGE_PROFILES) {
+      const groups = combinedPackageQualificationGroups(parseCombinedQualificationArguments([profile]));
+      assert.deepEqual(groups, expected[profile]);
+      for (const mode of ["packed", "registry"] as const) {
+        await runPackageQualificationPhases(mode, groups[mode], inventories[mode].map(id => ({
+          id, run: () => { completed[mode].push(id); },
+        })));
+      }
+    }
+    for (const mode of ["packed", "registry"] as const) {
+      assert.deepEqual(completed[mode].toSorted(), inventories[mode].toSorted());
+    }
+    assert.equal(parseCombinedQualificationArguments([]), undefined);
+    assert.deepEqual(combinedPackageQualificationGroups(), { packed: undefined, registry: undefined });
+    for (const profiles of [[], ["foundation", "npm-docs"],
+      ["foundation", "npm-docs", "npm-docs"], [...COMBINED_PACKAGE_PROFILES, "unknown"]]) {
+      assert.throws(() => assertCompleteCombinedPackageProfiles(profiles), /complete closed profile set/u);
+    }
+    for (const args of [["unknown"], [""], ["foundation", "npm-docs"], ["--archive", "file.tgz"], [undefined]]) {
+      assert.throws(() => parseCombinedQualificationArguments(args), /Package qualification groups/u);
+    }
+  });
+
   // Independent inventories and filesystem effects detect omitted/duplicated dispatch.
   test("closed group dispatch covers every original consumer exactly once", async t => {
     const scenarios = [

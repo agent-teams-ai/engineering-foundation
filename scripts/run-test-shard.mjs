@@ -10,7 +10,7 @@ import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 import { attachTestTiming } from "./test-timing.mjs";
 import { requireWindowsTestLane, selectWindowsTestLanePaths } from "./windows-test-partitions.mts";
 
-const usage = "Usage: node scripts/run-test-shard.mjs (--shards <ids> | --windows-lane <a|b|c|d|e|f|g|h|i>) [--coverage-evidence-dir <path> --head-sha <sha>] [--timing-output <dir>]";
+const usage = "Usage: node scripts/run-test-shard.mjs (--shards <ids> | --windows-lane <a|b|c|d|e>) [--coverage-evidence-dir <path> --head-sha <sha>] [--timing-output <dir>]";
 
 function inside(directory, root) {
   const path = relative(root, directory);

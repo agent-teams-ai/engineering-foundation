@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { Stats } from "node:fs";
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,6 +7,39 @@ import { setImmediate } from "node:timers/promises";
 import test from "node:test";
 import { mapStageIo, MAX_STAGE_BYTES, type StageByteState } from "../scripts/pack-stage-io.mts";
 import { materializeStableTree, readStableRegularFile } from "../scripts/pack-artifact-stage-support.mjs";
+
+// A stale regular-file hint must reject before directory validation can admit nested work.
+test("a replaced queued leaf rejects before invoking directory validation", async t => {
+  const root = await mkdtemp(join(tmpdir(), "stage-leaf-race-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = join(root, "source");
+  await mkdir(source);
+  const paths = Array.from({ length: 8 }, (_, index) => join(source, `${index}.txt`));
+  await Promise.all(paths.map(path => writeFile(path, "source")));
+  const admitted = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const started = new Set<string>();
+  const validatedDirectories: string[] = [];
+  const task = materializeStableTree(source, join(root, "destination"), {
+    allowLinks: false, excludedEntries: new Set(), label: "Queued leaf fixture", state: { bytes: 0, entries: 0 },
+    validatePhysical: async (_physical: string, pathname: string, metadata: Stats) => {
+      if (metadata.isDirectory()) { validatedDirectories.push(pathname); return; }
+      started.add(pathname);
+      if (started.size === 4) { admitted.resolve(); }
+      await release.promise;
+    },
+  });
+  void task.catch(() => {});
+  try {
+    await admitted.promise;
+    const queued = paths.find(path => !started.has(path));
+    assert.ok(queued);
+    await rm(queued);
+    await mkdir(queued);
+  } finally { release.resolve(); }
+  await assert.rejects(task, /scheduled leaf is no longer a regular file/u);
+  assert.deepEqual(validatedDirectories, [source]);
+});
 
 // An early rejection must not release the temporary-root owner while writers remain.
 test("stage I/O stops admission on undefined rejection and drains all started jobs", async () => {

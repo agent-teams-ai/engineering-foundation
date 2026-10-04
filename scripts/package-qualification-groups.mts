@@ -7,6 +7,13 @@ export const PACKAGE_QUALIFICATION_GROUPS = Object.freeze({
 });
 export type PackedQualificationGroup = typeof PACKAGE_QUALIFICATION_GROUPS.packed[number];
 export type RegistryQualificationGroup = typeof PACKAGE_QUALIFICATION_GROUPS.registry[number];
+const combinedProfiles = Object.freeze({
+  foundation: Object.freeze({ packed: "integration", registry: "foundation" }),
+  "npm-docs": Object.freeze({ packed: "sdk-growth", registry: "npm-docs" }),
+  "pnpm-docs": Object.freeze({ packed: "quality-coverage", registry: "pnpm-docs" }),
+} satisfies Record<string, Readonly<{ packed: PackedQualificationGroup; registry: RegistryQualificationGroup }>>);
+export const COMBINED_PACKAGE_PROFILES = Object.freeze(["foundation", "npm-docs", "pnpm-docs"] as const);
+export type CombinedPackageProfile = typeof COMBINED_PACKAGE_PROFILES[number];
 export type PackageQualificationRequest =
   | Readonly<{ mode: "packed"; group: PackedQualificationGroup }>
   | Readonly<{ mode: "registry"; group: RegistryQualificationGroup }>;
@@ -40,6 +47,35 @@ const groupPhases: Readonly<Record<QualificationStage, Readonly<Record<string, r
 
 function fail(message: string): never {
   throw new Error(`Package qualification groups: ${message}`);
+}
+
+export function combinedPackageQualificationGroups(profile: unknown = undefined): Readonly<{
+  packed: PackedQualificationGroup | undefined; registry: RegistryQualificationGroup | undefined;
+}> {
+  if (profile === undefined) { return Object.freeze({ packed: undefined, registry: undefined }); }
+  if (typeof profile !== "string" || !Object.hasOwn(combinedProfiles, profile)) {
+    fail("unknown combined profile");
+  }
+  return combinedProfiles[profile as CombinedPackageProfile];
+}
+
+export function parseCombinedQualificationArguments(args: readonly unknown[]): CombinedPackageProfile | undefined {
+  if (!Array.isArray(args) || args.length > 1 || (args.length === 1 && typeof args[0] !== "string")) {
+    fail("expected zero arguments or one combined profile; no overrides are accepted");
+  }
+  combinedPackageQualificationGroups(args[0]);
+  return args[0] as CombinedPackageProfile | undefined;
+}
+
+export function assertCompleteCombinedPackageProfiles(profiles: readonly unknown[]): void {
+  if (!Array.isArray(profiles) || profiles.length !== COMBINED_PACKAGE_PROFILES.length ||
+      new Set(profiles).size !== profiles.length ||
+      COMBINED_PACKAGE_PROFILES.some(profile => !profiles.includes(profile))) {
+    fail("combined profiles must cover the complete closed profile set exactly once");
+  }
+  const selected = profiles.map(profile => combinedPackageQualificationGroups(profile));
+  assertCompletePackageQualificationGroups("packed", selected.map(profile => profile.packed));
+  assertCompletePackageQualificationGroups("registry", selected.map(profile => profile.registry));
 }
 
 // Undefined selects the original complete sequence; named groups are closed.
@@ -136,3 +172,4 @@ export async function mapIndependentPackageTargets<T, R>(
 
 assertCompletePackageQualificationGroups("packed", PACKAGE_QUALIFICATION_GROUPS.packed);
 assertCompletePackageQualificationGroups("registry", PACKAGE_QUALIFICATION_GROUPS.registry);
+assertCompleteCombinedPackageProfiles(COMBINED_PACKAGE_PROFILES);

@@ -1,9 +1,13 @@
+import { readFileSync } from "node:fs";
+
 import { selectTestPathsForPlatform } from "./check-test-manifests.mjs";
 
-export const WINDOWS_TEST_LANES = Object.freeze(["a", "b", "c", "d", "e", "f", "g", "h", "i"] as const);
+export const WINDOWS_TEST_LANES = Object.freeze(["a", "b", "c", "d", "e"] as const);
 export type WindowsTestLane = (typeof WINDOWS_TEST_LANES)[number];
 const shardIds = ["1", "2", "3", "4", "5", "6", "7", "8"] as const;
 const loaderTest = "tests/source-dependency-loader-cli.test.mjs";
+const defaultWindowsLanePolicy: unknown = JSON.parse(readFileSync(
+  new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"));
 
 export interface WindowsTestManifest {
   readonly tests: readonly string[];
@@ -17,12 +21,42 @@ export interface WindowsTestManifest {
 
 export function requireWindowsTestLane(lane: string): asserts lane is WindowsTestLane {
   if (!(WINDOWS_TEST_LANES as readonly string[]).includes(lane)) {
-    throw new Error("Windows lane must be exactly one of a, b, c, d, e, f, g, h, i");
+    throw new Error("Windows lane must be exactly one of a, b, c, d, e");
   }
 }
 
 function fail(message: string): never {
   throw new Error(`Windows test partition is invalid: ${message}`);
+}
+
+function exactObject(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value) ||
+      Object.keys(value).toSorted().join("\0") !== [...keys].toSorted().join("\0")) {
+    fail(`${label} keys must be exactly ${keys.join(", ")}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function parseWindowsLanePolicy(input: unknown): ReadonlyMap<WindowsTestLane, readonly string[]> {
+  const policy = exactObject(input, ["schemaVersion", "source", "lanes"], "lane policy");
+  if (policy.schemaVersion !== 1) { fail("lane policy schemaVersion must be 1"); }
+  const source = exactObject(policy.source, ["runId", "headSha", "strategy"], "lane policy source");
+  if (typeof source.runId !== "number" || !Number.isSafeInteger(source.runId) || source.runId <= 0 ||
+      typeof source.headSha !== "string" || !/^[a-f0-9]{40}$/u.test(source.headSha) ||
+      typeof source.strategy !== "string" || source.strategy.trim() === "") {
+    fail("lane policy source requires a run ID, full head SHA and strategy");
+  }
+  const lanes = exactObject(policy.lanes, WINDOWS_TEST_LANES, "lane policy lanes");
+  const parsed = new Map<WindowsTestLane, readonly string[]>();
+  for (const lane of WINDOWS_TEST_LANES) {
+    const files = lanes[lane];
+    requirePaths(files, `lane ${lane}`);
+    parsed.set(lane, files);
+  }
+  if (parsed.get("c")!.length !== 1 || parsed.get("c")![0] !== loaderTest) {
+    fail("lane c must contain only the pinned loader test");
+  }
+  return parsed;
 }
 
 function requireShardIds(ids: readonly string[], label: string): void {
@@ -31,7 +65,7 @@ function requireShardIds(ids: readonly string[], label: string): void {
   }
 }
 
-function requirePaths(files: readonly string[], label: string, allowEmpty = false): void {
+function requirePaths(files: unknown, label: string, allowEmpty = false): asserts files is readonly string[] {
   if (!Array.isArray(files) || (!allowEmpty && files.length === 0) ||
       files.some((file) => typeof file !== "string" || file === "") ||
       new Set(files).size !== files.length) {
@@ -88,6 +122,7 @@ export function selectWindowsTestLanePaths(
   coverageEvidenceEnabled = false,
   platform: NodeJS.Platform = process.platform,
   architecture: typeof process.arch = process.arch,
+  policy: unknown = defaultWindowsLanePolicy,
 ): readonly string[] {
   requireWindowsTestLane(lane);
   if (coverageEvidenceEnabled) {
@@ -99,26 +134,17 @@ export function selectWindowsTestLanePaths(
   const canonical = canonicalInventory(manifest);
   const admitted = selectTestPathsForPlatform(manifest, canonical, platform, architecture);
   const admittedSet = new Set<string>(admitted);
-  const candidates = new Map<WindowsTestLane, readonly string[]>([
-    ["a", manifest.shards.get("1")!],
-    ["b", manifest.shards.get("2")!],
-    ["c", [loaderTest]],
-    ["d", manifest.shards.get("4")!],
-    ["e", manifest.shards.get("3")!.filter((file) => file !== loaderTest)],
-    ["f", manifest.shards.get("5")!],
-    ["g", manifest.shards.get("6")!],
-    ["h", manifest.shards.get("7")!],
-    ["i", manifest.shards.get("8")!],
-  ]);
+  // Parse runtime configuration without admitting paths by filtering: stale or
+  // incomplete policies must fail before any lane can dispatch.
+  const candidates = parseWindowsLanePolicy(policy);
   const partitions = new Map<WindowsTestLane, readonly string[]>();
   const assigned: string[] = [];
   for (const [id, files] of candidates) {
-    const selected = files.filter((file) => admittedSet.has(file));
-    if (selected.length === 0) {
-      fail(`lane ${id} cannot dispatch an empty qualification`);
+    if (files.some((file) => !admittedSet.has(file))) {
+      fail(`lane ${id} contains a path outside admitted canonical inventory`);
     }
-    partitions.set(id, Object.freeze(selected));
-    assigned.push(...selected);
+    partitions.set(id, Object.freeze([...files]));
+    assigned.push(...files);
   }
   requirePaths(assigned, "Windows lane union");
   if (assigned.length !== admitted.length || assigned.some((file) => !admittedSet.has(file))) {

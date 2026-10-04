@@ -195,10 +195,10 @@ export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks
     }
     const physical = await realpath(source);
     const metadataBefore = await lstat(physical);
-    await validatePhysical?.(physical, source, metadataBefore);
     if (leafOnly && !metadataBefore.isFile()) {
       throw new Error(`${label} scheduled leaf is no longer a regular file: ${source}.`);
     }
+    await validatePhysical?.(physical, source, metadataBefore);
     if (countSelf) {
       state.entries += 1;
     }

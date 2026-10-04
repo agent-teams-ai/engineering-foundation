@@ -766,8 +766,6 @@ jobs:
       - run: pnpm rebuild
       - run: pnpm build
       - run: pnpm test:shard:built -- --windows-lane c --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
-        env:
-          NODE_COMPILE_CACHE: ${{ runner.temp }}/loader-compile-cache
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -846,142 +844,6 @@ jobs:
         with:
           name: test-timing-${{ github.sha }}-windows-test-e
           path: ${{ runner.temp }}/test-timing/windows-test-e
-          if-no-files-found: warn
-          retention-days: 14
-
-  windows-test-f:
-    name: windows-test-f
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: windows-2022
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - name: Use runner temporary directory
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane f --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-f"
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-windows-test-f
-          path: ${{ runner.temp }}/test-timing/windows-test-f
-          if-no-files-found: warn
-          retention-days: 14
-
-  windows-test-g:
-    name: windows-test-g
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: windows-2022
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - name: Use runner temporary directory
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane g --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-g"
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-windows-test-g
-          path: ${{ runner.temp }}/test-timing/windows-test-g
-          if-no-files-found: warn
-          retention-days: 14
-
-  windows-test-h:
-    name: windows-test-h
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: windows-2022
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - name: Use runner temporary directory
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane h --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-h"
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-windows-test-h
-          path: ${{ runner.temp }}/test-timing/windows-test-h
-          if-no-files-found: warn
-          retention-days: 14
-
-  windows-test-i:
-    name: windows-test-i
-    needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: windows-2022
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, fetch-depth: 0 }
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - name: Use runner temporary directory
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane i --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-i"
-      - name: Upload advisory test timings
-        if: ${{ always() }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: test-timing-${{ github.sha }}-windows-test-i
-          path: ${{ runner.temp }}/test-timing/windows-test-i
           if-no-files-found: warn
           retention-days: 14
 
@@ -1085,10 +947,6 @@ jobs:
       - windows-test-c
       - windows-test-d
       - windows-test-e
-      - windows-test-f
-      - windows-test-g
-      - windows-test-h
-      - windows-test-i
       - windows-package
       - windows-registry
       - windows-published
@@ -1102,8 +960,8 @@ jobs:
         with:
           jobs: ${{ toJSON(needs) }}
 
-  macos-qualification:
-    name: macos-qualification
+  macos-native:
+    name: macos-native
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: macos-15
@@ -1140,5 +998,44 @@ jobs:
           tests/document-authoring-public-writer.test.mjs
           tests/document-authoring-writer-*.test.mjs
           tests/document-authoring-scaffolding-race.test.mjs
-      - name: Qualify packed and registry-installed package boundaries
-        run: pnpm package:qualification:built
+
+  macos-package:
+    name: macos-package (${{ matrix.profile }})
+    needs: dependency-review
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: macos-15
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [foundation, npm-docs, pnpm-docs]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        with: { install: false }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm rebuild
+      - run: pnpm build
+      - name: Qualify paired packed and registry-installed boundaries
+        run: pnpm package:qualification:built "$QUALIFICATION_PROFILE"
+        env:
+          QUALIFICATION_PROFILE: ${{ matrix.profile }}
+
+  macos-qualification:
+    name: macos-qualification
+    needs: [dependency-review, macos-native, macos-package]
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every native Darwin witness and package profile
+        uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030 # post-v1.2.2 injection fix, exact reviewed commit
+        with:
+          jobs: ${{ toJSON(needs) }}

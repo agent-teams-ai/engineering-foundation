@@ -168,7 +168,7 @@ function assertExactReleaseRunBinding(attestation, release, ci) {
   assert.equal(primaryDeadlineSeconds, 75 * 60);
   assert.equal(finalVerificationSeconds, 60);
   assert.ok(
-    ci.jobs["macos-qualification"]["timeout-minutes"] >= 30,
+    ci.jobs["macos-package"]["timeout-minutes"] >= 30,
     "macOS package and hermetic registry qualification needs at least 30 minutes",
   );
   assert.equal(primaryDeadlineSeconds - longestRequiredCiPathSeconds, 3 * 60);
@@ -2172,6 +2172,22 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.equal(job.steps.at(-1).env.QUALIFICATION_GROUP, "${{ matrix.group }}");
     assert.ok(ci.jobs["windows-check"].needs.includes(jobId));
   }
+  const macos = ci.jobs["macos-package"];
+  assert.deepEqual(macos.strategy, { "fail-fast": false,
+    matrix: { profile: ["foundation", "npm-docs", "pnpm-docs"] } });
+  assert.equal(macos["runs-on"], "macos-15");
+  assert.equal(macos["continue-on-error"], undefined);
+  assert.equal(macos.steps.at(-1).run, 'pnpm package:qualification:built "$QUALIFICATION_PROFILE"');
+  assert.deepEqual(macos.steps.at(-1).env, { QUALIFICATION_PROFILE: "${{ matrix.profile }}" });
+  assert.deepEqual(ci.jobs["macos-qualification"].needs,
+    ["dependency-review", "macos-native", "macos-package"]);
+  assert.equal(ci.jobs["macos-qualification"].if,
+    "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}");
+  assert.match(ci.jobs["macos-qualification"].steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
+  const nativeCommands = ci.jobs["macos-native"].steps.flatMap(step => step.run ?? []);
+  assert.ok(nativeCommands.includes("pnpm test:qgr:lifecycle:built"));
+  assert.ok(nativeCommands.includes("node scripts/run-selected-tests.mjs tests/tooling.test.mjs"));
+  assert.ok(nativeCommands.some(command => command.includes("tests/document-authoring-scaffolding-race.test.mjs")));
   assert.equal(manifest.scripts["package:group:built"],
     "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/qualify-package-group.mts");
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-package"));
@@ -2187,7 +2203,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
       "pnpm published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
     ]);
   }
-  for (const lane of ["a", "b", "c", "d", "e", "f", "g", "h", "i"]) {
+  for (const lane of ["a", "b", "c", "d", "e"]) {
     const id = `windows-test-${lane}`;
     const job = ci.jobs[id];
     assert.deepEqual(
@@ -2201,7 +2217,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   }
   for (const job of [
     ...["1", "2", "3", "4", "5", "6", "7", "8"].map(id => ci.jobs[`linux-test-${id}`]),
-    ...["a", "b", "c", "d", "e", "f", "g", "h", "i"].map(lane => ci.jobs[`windows-test-${lane}`]),
+    ...["a", "b", "c", "d", "e"].map(lane => ci.jobs[`windows-test-${lane}`]),
   ]) {
     const checkout = job.steps.find(step => step.uses?.startsWith("actions/checkout@"));
     assert.equal(checkout.with["fetch-depth"], 0);

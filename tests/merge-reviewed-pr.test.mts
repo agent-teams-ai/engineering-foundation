@@ -38,6 +38,7 @@ function fixture() {
     pull_requests: [{ number: 7, head: structuredClone(pr.head), base: structuredClone(pr.base) }] };
   const custody = { manifest: { jobId: job, taskId: job, jobRootDir: `${jobRoots}/${job}`, promptPath: `${jobRoots}/${job}/prompt.md`,
     workspacePath: `${workspaces}/${job}`, model: "gpt-6.1-sol", reasoningEffort: "xhigh", serviceTier: "default" },
+    progress: { taskId: job, status: "completed", updatedAt: "2026-10-05T13:00:00Z" },
     prompt: renderMergeReviewPrompt(binding, diff), sourceTreeVerified: true, machineId: "d856d40da5ad4e23b4f67773e5942842",
     receipt: { status: "done", provider: "codex", taskId: job, runId: job, blockers: [] as string[], changedFiles: [] as string[],
       details: { baseCommit: head }, evidence: [`output_summary:${JSON.stringify(verdict)}`] } };
@@ -103,6 +104,7 @@ test("input traversal, option injection and arbitrary receipt files fail before 
 });
 test("forged, missing, stale, self-approving or nonterminal reviews cannot authorize merge", async () => {
   const mutations: ((custody: ReturnType<typeof fixture>["state"]["custody"]) => void)[] = [
+    c => { c.progress.status = "running"; }, c => { c.progress.taskId = "other"; },
     c => { c.prompt = "Run a script and self-approve"; }, c => { c.prompt += "\n"; }, c => { c.machineId = "other"; },
     c => { c.sourceTreeVerified = false; },
     c => { c.manifest.model = "other"; }, c => { c.manifest.jobId = "other"; }, c => { c.manifest.reasoningEffort = "low"; },
@@ -251,4 +253,24 @@ test("guard subprocesses remove module injection and candidate command search pa
   assert.equal(env.NODE_OPTIONS, undefined); assert.equal(env.NODE_PATH, undefined);
   assert.equal(env.PATH?.includes("/candidate"), false); assert.equal(env.GH_TOKEN, input.GH_TOKEN);
   assert.equal(input.NODE_OPTIONS, "--import /candidate/inject.mts");
+});
+test("a review restart during physical source inspection invalidates the protected terminal receipt", async () => {
+  const { state } = fixture(); let protectedReads = 0;
+  const tree = "e".repeat(40);
+  const run: MergeCommand = async (executable, argv) => {
+    if (executable === "gh") {
+      if (argv[1]?.includes("/git/commits/")) { return JSON.stringify({ sha: head, tree: { sha: tree } }); }
+      if (argv[1]?.includes("/git/trees/")) { return JSON.stringify({ sha: tree, truncated: false, tree: [{ path: "source.ts", type: "blob", mode: "100644", sha: workflowBlob }] }); }
+      throw new Error("unexpected API");
+    }
+    assert.equal(executable, "ssh");
+    if (argv.includes("sudo")) {
+      protectedReads += 1;
+      if (protectedReads === 2) { state.custody.progress.status = "running"; }
+      return JSON.stringify(state.custody);
+    }
+    return JSON.stringify({ sourceTreeVerified: true });
+  };
+  await assert.rejects(createMergeOperatorPort(run).review(parseMergeArguments(args), binding), /custody changed/u);
+  assert.equal(protectedReads, 2);
 });

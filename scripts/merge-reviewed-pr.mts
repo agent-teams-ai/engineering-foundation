@@ -145,6 +145,8 @@ export function renderMergeReviewPrompt(binding: MergeBinding, diff: string): st
 }
 function verifyCustody(value: unknown, options: MergeOptions, binding: MergeBinding, prompt: string, profile: MergeProfile): void {
   const custody = object(value); const manifest = object(custody.manifest); const receipt = object(custody.receipt);
+  const progress = object(custody.progress);
+  demand(progress.taskId === options.reviewJob && progress.status === "completed", "Review job is not currently terminal");
   const jobRoot = `${jobRoots}/${options.reviewJob}`; const workspace = `${profile.workspaces}/${options.reviewJob}`;
   demand(manifest.jobId === options.reviewJob && manifest.taskId === options.reviewJob &&
     manifest.jobRootDir === jobRoot && manifest.promptPath === `${jobRoot}/prompt.md` && manifest.workspacePath === workspace,
@@ -277,11 +279,15 @@ def read(p):
 def load(p): return json.loads(read(p))
 m = load(registry / job / "job.json")
 if m["jobRootDir"] != str(root) or m["promptPath"] != str(root / "prompt.md") or m["workspacePath"] != str(workspace): raise ValueError("job namespace")
+progress = load(root / (job + ".progress.json"))
+if progress.get("taskId") != job or progress.get("status") != "completed": raise ValueError("review job not terminal")
 r = load(root / (job + ".latest-result.json"))
 result = {"manifest": {k: m.get(k) for k in ["jobId", "taskId", "jobRootDir", "promptPath", "workspacePath", "model", "reasoningEffort", "serviceTier"]},
+ "progress": {k: progress.get(k) for k in ["taskId", "status", "updatedAt"]},
  "receipt": {k: r.get(k) for k in ["status", "provider", "taskId", "runId", "blockers", "changedFiles", "evidence"]},
  "prompt": read(root / "prompt.md").decode("utf-8"), "machineId": pathlib.Path("/etc/machine-id").read_text().strip()}
 result["receipt"]["details"] = {"baseCommit": r.get("details", {}).get("baseCommit")}
+if load(root / (job + ".progress.json")) != progress: raise ValueError("review progress changed during collection")
 print(json.dumps(result))
 `;
 // Runs unprivileged. Candidate Git configuration, index and hooks are never executed.
@@ -382,6 +388,9 @@ export function createMergeOperatorPort(run: MergeCommand): MergePort {
       demand(tree.sha === treeSha && tree.truncated === false, "Review tree is truncated or unbound");
       const inspected = object(JSON.parse(await remote(reviewHost, reviewTreeInspector,
         { workspace: `${workspaces}/${review.reviewJob}`, entries: array(tree.tree) }, false)) as unknown);
+      const reconfirmed = object(JSON.parse(await remote(reviewHost, reviewCollector,
+        { registry, jobs: jobRoots, workspaces, job: review.reviewJob }, true)) as unknown);
+      demand(JSON.stringify(reconfirmed) === JSON.stringify(custody), "Review custody changed during source inspection");
       return { ...custody, sourceTreeVerified: inspected.sourceTreeVerified === true };
     } };
 }

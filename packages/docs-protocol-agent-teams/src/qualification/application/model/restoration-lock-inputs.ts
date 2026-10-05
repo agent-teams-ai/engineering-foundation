@@ -3,7 +3,7 @@ export type JsonValue = null | boolean | number | string | JsonObject | readonly
 export interface JsonObject {
   readonly [key: string]: JsonValue;
 }
-export type ByteInput = Readonly<Uint8Array>;
+type ByteInput = Readonly<Uint8Array>;
 export interface ArchiveInputBinding {
   readonly sha256: string;
   readonly manifestSha256: string;

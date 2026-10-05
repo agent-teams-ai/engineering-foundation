@@ -306,7 +306,9 @@ for entry in q["entries"]:
     expected[name] = (mode, digest)
 if not expected or len(expected) > 20000: raise ValueError("bounded tree inventory")
 seen, total = set(), 0
-for root, dirs, files in os.walk(workspace, followlinks=False):
+def traversal_error(error): raise error
+def identity(info): return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_mode)
+for root, dirs, files in os.walk(workspace, followlinks=False, onerror=traversal_error):
     if pathlib.Path(root) == workspace and ".git" in dirs: dirs.remove(".git")
     for name in list(dirs):
         path = pathlib.Path(root) / name
@@ -324,11 +326,15 @@ for root, dirs, files in os.walk(workspace, followlinks=False):
         else:
             if not stat.S_ISREG(before.st_mode) or bool(before.st_mode & 0o111) != (mode == "100755"): raise ValueError("file mode")
             fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-            with os.fdopen(fd, "rb") as f: data = f.read(8 * 1024 * 1024 + 1)
+            with os.fdopen(fd, "rb") as f:
+                opened = os.fstat(f.fileno())
+                if identity(opened) != identity(before): raise ValueError("source descriptor mismatch")
+                data = f.read(8 * 1024 * 1024 + 1)
+                if identity(os.fstat(f.fileno())) != identity(opened): raise ValueError("source descriptor changed during read")
         total += len(data)
         if len(data) > 8 * 1024 * 1024 or total > 128 * 1024 * 1024: raise ValueError("bounded tree bytes")
         after = path.lstat()
-        if (before.st_ino, before.st_size, before.st_mtime_ns, before.st_mode) != (after.st_ino, after.st_size, after.st_mtime_ns, after.st_mode): raise ValueError("source changed during read")
+        if identity(before) != identity(after): raise ValueError("source changed during read")
         actual = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
         if actual != digest: raise ValueError("source blob mismatch: " + rel)
         seen.add(rel)

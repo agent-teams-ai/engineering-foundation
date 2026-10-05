@@ -42,3 +42,34 @@ test("protected receipt collector rejects group-writable or symlinked custody be
     assert.throws(collect); await rm(manifest); await symlink("/etc/passwd", manifest); assert.throws(collect);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+for (const fault of ["enumeration", "descriptor"] as const) {
+  test(`physical source verification rejects ${fault === "enumeration" ? "unreadable unexpected subtrees" : "substituted file descriptors"}`, async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), "review-race-TEST-")));
+    const canonical = Buffer.from("reviewed canonical bytes\n");
+    const sha = createHash("sha1").update(`blob ${canonical.length}\0`).update(canonical).digest("hex");
+    try {
+      await mkdir(join(root, ".git"));
+      await writeFile(join(root, "source.ts"), fault === "descriptor" ? "unreviewed physical bytes\n" : canonical, { mode: 0o600 });
+      await writeFile(join(root, ".git", "canonical"), canonical);
+      await mkdir(join(root, "opaque")); await writeFile(join(root, "opaque", "unexpected.ts"), "unreviewed");
+      if (fault === "descriptor") { await rm(join(root, "opaque"), { recursive: true }); }
+      const prefix = fault === "enumeration" ? String.raw`import os, errno
+real_scandir = os.scandir
+def probe_scandir(path):
+    if os.path.basename(os.fspath(path)) == "opaque": raise PermissionError(errno.EACCES, "TEST denied subtree", os.fspath(path))
+    return real_scandir(path)
+os.scandir = probe_scandir
+` : String.raw`import os
+real_open = os.open
+def probe_open(path, flags):
+    if os.path.basename(os.fspath(path)) == "source.ts": return real_open(os.path.join(os.path.dirname(path), ".git", "canonical"), flags)
+    return real_open(path, flags)
+os.open = probe_open
+`;
+      assert.throws(() => execFileSync("python3", ["-c", prefix + reviewTreeInspector], {
+        input: JSON.stringify({ workspace: root, entries: [{ path: "source.ts", mode: "100644", type: "blob", sha }] }),
+        encoding: "utf8", stdio: ["pipe", "pipe", "pipe"],
+      }), fault === "enumeration" ? /TEST denied subtree/u : /source descriptor mismatch/u);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}

@@ -58,7 +58,11 @@ digest. The aggregator accepts exactly one artifact for each of shards 1 through
 retains the exact bounded bytes it validated, merges once, and applies the
 separate c8 floors of 70% lines, 77% branches, and 78% functions. The promoted
 floors are below the observed exact-head CI result of 71.88%, 78.97%, and 79.86%
-respectively. `c8` is used only for merge/report because the Node test runner can
+respectively. Raw evidence is capped at 16 MiB per file, 512 files and 128 MiB per
+shard, and 384 MiB across all eight shards. CI run `37323732047` exceeded the
+former 288 MiB aggregate cap after edge tests were added; the 384 MiB cap admits
+the approximately 336 MiB eight-shard regression without omitting raw files.
+`c8` is used only for merge/report because the Node test runner can
 emit raw V8 JSON but cannot consume coverage from completed processes.
 
 The evidence merger owns `c8` as a pinned CLI-only dependency, so Knip excludes

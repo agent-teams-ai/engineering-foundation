@@ -132,10 +132,11 @@ export function renderMergeReviewPrompt(binding: MergeBinding, diff: string): st
   const verdict = { verdict: "PASS", repositoryId: binding.repositoryId, pr: binding.pr, head: binding.head,
     baseRef: binding.baseRef, base: binding.base, workflowBlobSha: binding.workflowBlobSha };
   const canonical = Object.fromEntries(Object.entries(binding).toSorted(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
-  return `Engineering Foundation independent owner merge review v2\nBinding: ${JSON.stringify(canonical)}\n` +
+  return `Engineering Foundation independent owner merge review v3\nBinding: ${JSON.stringify(canonical)}\n` +
     "Perform a genuinely independent read-only full-source technical and adversarial review of this exact whole source tree and current PR diff. " +
     "Read applicable AGENTS.md and the Engineering Quality Standard. The root operator independently proves the physical source tree against the canonical GitHub commit; linked Git metadata may be unavailable inside the provider sandbox. Review the actual complete source without treating unavailable Git metadata alone as a defect. " +
     "Do not modify files, self-approve by running a verdict-producing script, merge, or use a status/context or ReviewRouter as review authority. " +
+    "Your verdict assesses source correctness and the review custody contract. Native CI may run concurrently; an incomplete or failed run alone is not a source finding. The operator independently requires successful complete current-head native CI before merge, even when this review passes. Report actual source defects that cause CI failures. " +
     "Preserve all 283 existing tests, 35 native jobs (including advisory), eight coverage shards and c8 floors, five Windows test lanes, " +
     "three Mac package lanes, Node 24 default and Node 26 qualification. Review actual behavior and every changed file plus relevant full source. " +
     "A no-op aggregate or missing native lane is not qualification. Reject custody gaps, stale bindings, forged reviews, post-ready pushes and retargets. " +

@@ -83,47 +83,26 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(coverage.steps.every((step) => step["continue-on-error"] === undefined), true);
   assert.ok(ci.jobs.check.needs.includes("linux-coverage"));
   assert.equal(JSON.stringify(ci).includes("FOUNDATION_PARTITIONED_COVERAGE"), false);
-  const readyPullRequestCondition =
-    "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}";
-  assert.deepEqual(ci.on.pull_request.types, [
-    "opened",
-    "synchronize",
-    "reopened",
-    "ready_for_review",
-  ]);
+  const fullRequestCondition =
+    "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}";
+  assert.deepEqual(ci.on.pull_request.types, ["labeled"]);
   assert.deepEqual(codeql.on.pull_request.types, [
-    "opened",
-    "synchronize",
-    "reopened",
-    "ready_for_review",
+    "opened", "synchronize", "reopened", "ready_for_review",
   ]);
-  assert.equal(ci.jobs["dependency-review"].if, undefined);
-  assert.equal(
-    ci.jobs["draft-fast"].if,
-    "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}",
-  );
-  assert.equal(ci.jobs["draft-fast"].steps.at(-1).run, "pnpm check:changed");
-  assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
+  assert.equal(ci.jobs["draft-fast"], undefined);
+  assert.equal(codeql.jobs.analyze.if,
+    "${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}");
   for (const [jobId, job] of Object.entries(ci.jobs)) {
-    if (jobId === "dependency-review" || jobId === "shadow-classifier") {
-      continue;
+    if (jobId !== "dependency-review") {
+      const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
+      assert.ok(needs.includes("dependency-review"), `${jobId} bypasses dependency review`);
     }
-    const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
-    assert.ok(needs.includes("dependency-review"), `${jobId} bypasses ready gating`);
-    let expectedCondition = readyPullRequestCondition;
-    if (jobId === "draft-fast") {
-      expectedCondition =
-        "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true }}";
-
-    } else if (["check", "windows-check", "macos-qualification"].includes(jobId)) {
-      expectedCondition =
-        "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}";
-    }
-    assert.equal(
-      job.if,
-      expectedCondition,
-      `${jobId} must skip heavy work for draft pull requests`,
-    );
+    const aggregate = ["check", "windows-check", "macos-qualification"].includes(jobId);
+    const expected = jobId === "full-ci" ? "${{ always() }}" : aggregate
+      ? "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}"
+      : fullRequestCondition;
+    assert.equal(job.if, jobId === "dependency-review" ? undefined : expected,
+      `${jobId} must preserve unconditional dependency review or explicit full admission`);
   }
   assert.deepEqual(coverage.needs, [
     "dependency-review",
@@ -191,7 +170,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
 
 });
 
-test("Ready PR feedback checks the committed delta independently of full qualification", async () => {
+test("Automatic PR feedback checks the committed delta independently of full qualification", async () => {
   const ci = parseYaml(
     await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
   );
@@ -201,11 +180,10 @@ test("Ready PR feedback checks the committed delta independently of full qualifi
   assert.notEqual(preliminary.name, ci.name, "Feedback must not change the full CI run conclusion");
   assert.equal(ci.jobs["pr-feedback"], undefined);
   assert.deepEqual(preliminary.permissions, { contents: "read" });
-  assert.deepEqual(preliminary.on.pull_request.types, ci.on.pull_request.types);
+  assert.deepEqual(preliminary.on.pull_request.types, ["opened", "synchronize", "reopened", "ready_for_review"]);
   const feedback = preliminary.jobs["pr-feedback"];
-  assert.ok(feedback, "Ready pull requests need a preliminary feedback lane");
-  assert.equal(feedback.if,
-    "${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}");
+  assert.ok(feedback, "All pull requests need a preliminary feedback lane");
+  assert.equal(feedback.if, undefined, "Draft and ordinary updates receive fast feedback");
   const security = preliminary.jobs["dependency-review"];
   assert.ok(security, "Feedback needs its own declared blocking Dependency Review job");
   assert.equal(security.if, undefined);
@@ -230,6 +208,43 @@ test("Ready PR feedback checks the committed delta independently of full qualifi
   });
   assert.equal(changed.run, 'pnpm check:changed --base "$FOUNDATION_PR_BASE_SHA"');
   assert.equal(changed["continue-on-error"], undefined);
+  assert.equal(preliminary.concurrency.group.replace(/\s+/gu, " "),
+    "${{ github.event.action == 'synchronize' && format('foundation-pr-{0}', github.event.pull_request.number) || format('foundation-feedback-{0}', github.event.pull_request.number) }}",
+    "Only source synchronization should cancel a full request; metadata lifecycle events use a separate group");
+  assert.equal(preliminary.concurrency["cancel-in-progress"], true);
+  const full = ci.jobs["full-ci"];
+  const nativeAggregates = ["check", "windows-check", "macos-qualification"];
+  const mandatoryUnion = new Set(nativeAggregates.flatMap(id => ci.jobs[id].needs));
+  assert.deepEqual([...full.needs].toSorted(), [...mandatoryUnion].toSorted(),
+    "The parallel gate must require the entire mandatory native union, including future lanes");
+  assert.equal(new Set(full.needs).size, full.needs.length);
+  for (const id of nativeAggregates) {
+    assert.equal(full.needs.includes(id), false, "full-ci must not extend the aggregate critical path");
+    assert.equal(ci.jobs[id].name,
+      "${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && '" + id + "' || 'ci-not-requested-" + id + "' }}",
+      `${id}: unrelated labels must not emit skipped original required contexts`);
+    assert.equal(ci.jobs[id]["timeout-minutes"], id === "macos-qualification" ? 5 : 2,
+      `${id}: preserve the original native aggregate timeout`);
+    assert.equal(ci.jobs[id].steps[0].uses,
+      "re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030");
+    assert.deepEqual(ci.jobs[id].steps[0].with, { jobs: "${{ toJSON(needs) }}" });
+  }
+  assert.equal(full.if, "${{ always() }}");
+  assert.equal(full.name,
+    "${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'full-ci' || 'ci-not-requested' }}",
+    "Unrelated labels must never emit a skipped/neutral check named full-ci");
+  assert.deepEqual(full.permissions, {});
+  assert.equal(full["timeout-minutes"], 1);
+  assert.equal(full.steps[0].if,
+    "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}");
+  assert.equal(full.steps[0].uses, "re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030");
+  assert.deepEqual(full.steps[0].with, { jobs: "${{ toJSON(needs) }}" },
+    "No skipped, neutral or failed prerequisite is allowed");
+  assert.match(ci["run-name"], /format\('Full CI #\{0\} @\{1\} on \{2\}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha\)/u);
+  assert.match(ci.concurrency.group, /ci:full.*format\('foundation-pr-\{0\}'/su);
+  assert.match(ci.concurrency.group, /format\('foundation-ci-unrequested-\{0\}', github.run_id\)/u);
+  assert.equal(ci.on.pull_request_target, undefined);
+  assert.equal(ci.on.workflow_run, undefined);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
     const needs = Array.isArray(job.needs) ? job.needs : [job.needs];
     assert.equal(needs.includes("pr-feedback"), false,

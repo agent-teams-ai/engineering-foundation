@@ -24,7 +24,8 @@ Hard rules:
 - before opening a pull request, run `pnpm check:changed`, `pnpm check:fast`,
   `pnpm security:workflows`, and focused checks for the changed behavior;
 - before merging, require independent technical review and the complete
-  successful CI matrix for the current code, including native qualification,
+  successful explicitly requested `full-ci` matrix on the final PR head/base
+  (`pnpm ci:full -- --pr N --wait`), including native qualification,
   complete inventories, and the adopted coverage authority. Reuse that evidence
   instead of also requiring a sequential local `pnpm verify`;
 - keep `pnpm verify` as the full local diagnostic path when full CI cannot run

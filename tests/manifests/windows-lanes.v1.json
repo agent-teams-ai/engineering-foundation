@@ -3,7 +3,7 @@
   "source": {
     "runId": 37154414643,
     "headSha": "331e97758fd83e6a0da69a3400b3bfe8aa8d0aee",
-    "strategy": "Static five-lane Windows policy from advisory whole-file Windows timings of successful exact-source CI. The loader remains alone in lane c and canonical shard 3. All other admitted canonical files use longest-processing-time-first assignment across a, b, d, e; ties use canonical manifest traversal order and then lane ID. Original relative order in canonical manifest traversal is retained within each resulting lane. The two existing Linux-only managed suites are omitted under the existing platform authority; all raw-coverage-only files remain excluded. Residual projected serial loads: a=734.082s, b=734.078s, d=734.077s, e=734.077s; the isolated loader projects 651.632s. Unmeasured test(s) receive 0s solely for balancing: tests/pack-stage-materialization.test.mts, tests/features/managed-qualification/restoration-lock-inputs.test.mts. The restoration lock input suite is assigned to lane d. These advisory projections exclude setup, queue, cache effects and unobserved runtime variance and are not execution or qualification proof; final exact-head CI qualifies actual behavior. A new admitted canonical file requires an explicit policy assignment before Windows dispatch."
+    "strategy": "Static five-lane Windows policy from advisory whole-file Windows timings of successful exact-source CI. The loader remains alone in lane c and canonical shard 3. All other admitted canonical files use longest-processing-time-first assignment across a, b, d, e; ties use canonical manifest traversal order and then lane ID. Original relative order in canonical manifest traversal is retained within each resulting lane. The two existing Linux-only managed suites are omitted under the existing platform authority; all raw-coverage-only files remain excluded. Residual projected serial loads: a=734.082s, b=734.078s, d=734.077s, e=734.077s; the isolated loader projects 651.632s. Unmeasured test(s) receive 0s solely for balancing: tests/pack-stage-materialization.test.mts, tests/features/managed-qualification/restoration-lock-inputs.test.mts. The restoration lock input suite is assigned to lane d. These advisory projections exclude setup, queue, cache effects and unobserved runtime variance and are not execution or qualification proof; final exact-head CI qualifies actual behavior. A new admitted canonical file requires an explicit policy assignment before Windows dispatch. The private full-PR-CI request regression suite is explicitly assigned to light lane b without a measured timing."
   },
   "lanes": {
     "a": [
@@ -98,6 +98,7 @@
       "tests/scaffolding-frozen-baseline.test.mjs",
       "tests/source-dependency-source-coverage.test.mjs",
       "packages/docs-protocol/tests/qualification-application.test.mjs",
+      "tests/request-full-pr-ci.test.mts",
       "packages/repository-mutation/tests/known-file-node-api.test.mjs",
       "tests/document-authoring-observation-boundary.test.mjs",
       "tests/document-catalog-semantic-transition.test.mjs",

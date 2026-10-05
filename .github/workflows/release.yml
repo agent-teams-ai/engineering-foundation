@@ -180,10 +180,10 @@ jobs:
       statuses: write
     runs-on: ubuntu-24.04
     # 75m CI + 60s final + 30s selection + 15s polling overshoot;
-    # 3 passes x 4 contexts x (3 attempts x 3 requests x (3s + 1s kill grace)
-    # + 2 x 1s backoff) = 456s for pending, terminal publication and recovery.
-    # Reserve 180s for setup/other work and at least 120s margin (5361s total).
-    timeout-minutes: 90
+    # 3 passes x 5 contexts x (3 attempts x 3 requests x (3s + 1s kill grace)
+    # + 2 x 1s backoff) = 570s for pending, terminal publication and recovery.
+    # Reserve 180s for setup/other work and at least 120s margin (5475s total).
+    timeout-minutes: 92
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -208,7 +208,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          ci_contexts=(check windows-check macos-qualification)
+          ci_contexts=(check windows-check macos-qualification full-ci)
           attestation_contexts=(analyze "${ci_contexts[@]}")
           head_sha="${EXPECTED_RELEASE_HEAD_SHA}"
           status_finalized=0

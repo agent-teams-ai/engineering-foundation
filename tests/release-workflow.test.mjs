@@ -697,7 +697,7 @@ function assertFinalCodeqlReadsFailClosed(attestationSource) {
 function assertPaginatedEvidenceFailClosed(attestationSource) {
   assert.equal(
     (attestationSource.match(/paginated_object_collection jobs/gu) ?? []).length,
-    2,
+    3,
   );
   assert.equal(
     (attestationSource.match(/paginated_object_collection check_runs/gu) ?? [])
@@ -1880,7 +1880,7 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   assert.deepEqual(codeql.on.pull_request.types, requiredLifecycleEvents);
   assert.equal(codeql.on.workflow_dispatch, null);
   const fullRequestCondition =
-    "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}";
+    "${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}";
   assert.equal(ci.jobs["dependency-review"].if, undefined);
   assert.equal(ci.jobs["linux-static"].if, fullRequestCondition);
   assert.equal(codeql.jobs.analyze.if, readyPullRequestCondition);
@@ -1894,7 +1894,7 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   );
   assert.equal(
     ci.concurrency.group,
-    "${{ github.event_name == 'pull_request'\n    && (github.event.label.name == 'ci:full' && format('foundation-pr-{0}', github.event.pull_request.number)\n        || format('foundation-ci-unrequested-{0}', github.run_id))\n    || format('foundation-ci-{0}-{1}', github.event_name, github.ref) }}",
+    "${{ github.event_name == 'pull_request'\n    && ((github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) && format('foundation-pr-{0}-{1}-{2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha)\n        || format('foundation-ci-unrequested-{0}', github.run_id))\n    || format('foundation-ci-{0}-{1}', github.event_name, github.ref) }}",
   );
   assert.equal(ci.concurrency["cancel-in-progress"], true);
 });
@@ -2225,7 +2225,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.deepEqual(ci.jobs["macos-qualification"].needs,
     ["dependency-review", "macos-native", "macos-package"]);
   assert.equal(ci.jobs["macos-qualification"].if,
-    "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}");
+    "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}");
   assert.match(ci.jobs["macos-qualification"].steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   const nativeCommands = ci.jobs["macos-native"].steps.flatMap(step => step.run ?? []);
   assert.ok(nativeCommands.includes("pnpm test:qgr:lifecycle:built"));
@@ -2256,7 +2256,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.ok(ci.jobs["windows-check"].needs.includes(id));
     assert.equal(job["runs-on"], "windows-2022");
     assert.equal(job["continue-on-error"], undefined);
-    assert.equal(job.if, "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}");
+    assert.equal(job.if, "${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}");
   }
   for (const job of [
     ci.jobs["linux-tests"],
@@ -2279,7 +2279,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
   ]);
   assert.equal(
     ci.jobs.check.if,
-    "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}",
+    "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}",
   );
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
 });

@@ -8,9 +8,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: >-
-    ${{ github.event.action == 'synchronize' && format('foundation-pr-{0}', github.event.pull_request.number)
-        || format('foundation-feedback-{0}', github.event.pull_request.number) }}
+  # Feedback only supersedes feedback. Full CI binds its own frozen head/base.
+  group: ${{ format('foundation-feedback-{0}', github.event.pull_request.number) }}
   cancel-in-progress: true
 
 jobs:

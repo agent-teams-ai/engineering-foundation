@@ -1,6 +1,7 @@
 name: CI
+# Both label forms request the original matrix; neither label grants authority.
 run-name: >-
-  ${{ github.event_name == 'pull_request' && github.event.label.name == 'ci:full'
+  ${{ github.event_name == 'pull_request' && (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))
       && format('Full CI #{0} @{1} on {2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha)
       || format('CI {0} run {1}', github.event_name, github.run_id) }}
 
@@ -17,16 +18,17 @@ permissions:
   contents: read
 
 concurrency:
+  # Different snapshots cannot cancel each other; required checks bind the head.
   group: >-
     ${{ github.event_name == 'pull_request'
-        && (github.event.label.name == 'ci:full' && format('foundation-pr-{0}', github.event.pull_request.number)
+        && ((github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) && format('foundation-pr-{0}-{1}-{2}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha)
             || format('foundation-ci-unrequested-{0}', github.run_id))
         || format('foundation-ci-{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: true
 
 jobs:
   shadow-classifier:
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     name: advisory-shadow-classifier
     needs: dependency-review
     permissions:
@@ -71,7 +73,7 @@ jobs:
   node26-compatibility:
     name: node-compatibility (${{ matrix.lane }})
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     permissions:
       contents: read
     runs-on: ubuntu-24.04
@@ -108,7 +110,7 @@ jobs:
   linux-static:
     name: linux-static
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -153,7 +155,7 @@ jobs:
   linux-tests:
     name: linux-tests-${{ matrix.pair.first }}-${{ matrix.pair.second }}
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
@@ -248,7 +250,7 @@ jobs:
     needs:
       - dependency-review
       - linux-tests
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -274,7 +276,7 @@ jobs:
     name: linux-package
     # Give the long test lanes first access to shared hosted runner capacity.
     needs: [dependency-review, linux-static]
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -303,7 +305,7 @@ jobs:
     name: linux-registry
     # Independent qualification can start as soon as Dependency Review succeeds.
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -319,7 +321,7 @@ jobs:
   linux-bootstrap-evidence:
     name: linux-bootstrap-evidence
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -344,7 +346,7 @@ jobs:
   linux-published:
     name: linux-published
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -361,7 +363,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   check:
-    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'check' || 'ci-not-requested-check' }}
+    name: ${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && 'check' || 'ci-not-requested-check' }}
     needs:
       - dependency-review
       - node26-compatibility
@@ -372,7 +374,7 @@ jobs:
       - linux-registry
       - linux-bootstrap-evidence
       - linux-published
-    if: ${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}
     permissions: {}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -385,7 +387,7 @@ jobs:
   windows-static:
     name: windows-static
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
@@ -422,7 +424,7 @@ jobs:
   windows-test-a:
     name: windows-test-a
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
@@ -459,7 +461,7 @@ jobs:
   windows-test-b:
     name: windows-test-b
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 65
     steps:
@@ -493,7 +495,7 @@ jobs:
   windows-test-c:
     name: windows-test-c
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 65
     steps:
@@ -527,7 +529,7 @@ jobs:
   windows-test-d:
     name: windows-test-d
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
@@ -564,7 +566,7 @@ jobs:
   windows-test-e:
     name: windows-test-e
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 65
     steps:
@@ -598,7 +600,7 @@ jobs:
   windows-package:
     name: windows-package (${{ matrix.group }})
     needs: [dependency-review, windows-static]
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 50
     strategy:
@@ -631,7 +633,7 @@ jobs:
   windows-registry:
     name: windows-registry (${{ matrix.group }})
     needs: [dependency-review, windows-static]
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 50
     strategy:
@@ -661,7 +663,7 @@ jobs:
   windows-published:
     name: windows-published
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
@@ -685,7 +687,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   windows-check:
-    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'windows-check' || 'ci-not-requested-windows-check' }}
+    name: ${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && 'windows-check' || 'ci-not-requested-windows-check' }}
     needs:
       - dependency-review
       - node26-compatibility
@@ -698,7 +700,7 @@ jobs:
       - windows-package
       - windows-registry
       - windows-published
-    if: ${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}
     permissions: {}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -711,7 +713,7 @@ jobs:
   macos-native:
     name: macos-native
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -750,7 +752,7 @@ jobs:
   macos-package:
     name: macos-package (${{ matrix.profile }})
     needs: dependency-review
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+    if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: macos-15
     timeout-minutes: 45
     strategy:
@@ -777,9 +779,9 @@ jobs:
           QUALIFICATION_PROFILE: ${{ matrix.profile }}
 
   macos-qualification:
-    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'macos-qualification' || 'ci-not-requested-macos-qualification' }}
+    name: ${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && 'macos-qualification' || 'ci-not-requested-macos-qualification' }}
     needs: [dependency-review, macos-native, macos-package]
-    if: ${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}
+    if: ${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -791,7 +793,7 @@ jobs:
   full-ci:
     # All required contexts isolate unrelated labels, even when GitHub skips jobs.
     # Run alongside the native aggregates, preserving their original timeouts.
-    name: ${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'full-ci' || 'ci-not-requested' }}
+    name: ${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && 'full-ci' || 'ci-not-requested' }}
     needs:
       - dependency-review
       - node26-compatibility
@@ -819,7 +821,7 @@ jobs:
     timeout-minutes: 1
     steps:
       - name: Require the complete native qualification
-        if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}
+        if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
         uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030 # post-v1.2.2 injection fix, exact reviewed commit
         with:
           jobs: ${{ toJSON(needs) }}

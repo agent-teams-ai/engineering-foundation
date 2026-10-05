@@ -58,7 +58,11 @@ digest. The aggregator accepts exactly one artifact for each of shards 1 through
 retains the exact bounded bytes it validated, merges once, and applies the
 separate c8 floors of 70% lines, 77% branches, and 78% functions. The promoted
 floors are below the observed exact-head CI result of 71.88%, 78.97%, and 79.86%
-respectively. `c8` is used only for merge/report because the Node test runner can
+respectively. Raw evidence is capped at 16 MiB per file, 512 files and 128 MiB per
+shard, and 384 MiB across all eight shards. CI run `37323732047` exceeded the
+former 288 MiB aggregate cap after edge tests were added; the 384 MiB cap admits
+the approximately 336 MiB eight-shard regression without omitting raw files.
+`c8` is used only for merge/report because the Node test runner can
 emit raw V8 JSON but cannot consume coverage from completed processes.
 
 The evidence merger owns `c8` as a pinned CLI-only dependency, so Knip excludes
@@ -212,8 +216,8 @@ with complete history. CodeQL and identity retain their existing automatic
 triggers. Fast feedback can be green while a required `full-ci` remains
 Expected and blocks merge; passing feedback never qualifies the native matrix.
 
-Near merge, the agent requests full qualification without a Draft transition or
-human approval for each PR:
+Near merge, the agent explicitly requests full qualification without changing
+Draft state:
 
 ```bash
 pnpm ci:full -- --pr 123 --wait
@@ -223,12 +227,20 @@ Run this private helper from a trusted checkout of the base repository. Do not
 execute a fork-provided helper with a maintainer write credential.
 
 The private helper resolves the canonical repository and open PR, including fork
-PRs. It adds `ci:full` in the base repository. The actual `pull_request: labeled`
-event admits every existing Linux, Windows, macOS and Node 24/26 lane. A label
-left on a PR does not request full CI on later pushes; synchronize receives fast
-feedback and cancels obsolete full work through the shared PR concurrency group.
-Opened, reopened and ready-for-review feedback use a separate group, so delayed
-metadata events do not cancel an explicitly requested same-head qualification.
+PRs. CI accepts an actual `pull_request: labeled` event for legacy `ci:full` or
+any label starting with `ci:full:`. Either form admits the same complete Linux,
+Windows, macOS and Node 24/26 matrix and freezes the run name exactly as
+`Full CI #<PR> @<HEAD> on <BASE>`. The prefix is a request, not qualification or
+trusted workflow-source authority; its digest cannot select or omit jobs.
+A label left on a PR does not request full CI on later pushes. All opened,
+synchronize, reopened and ready-for-review feedback uses only
+`foundation-feedback-<PR>`, independent of full qualification. Full PR CI uses
+`foundation-pr-<PR>-<HEAD>-<BASE>` from the frozen event snapshot. A delayed
+synchronize or different head/base request cannot cancel current full work.
+Duplicate manual requests for the same snapshot may supersede normally.
+Old-source work may finish; only evidence bound to the current head and base
+can qualify the PR. Safety depends on that binding, current required checks and
+strict up-to-date protection, rather than promising cancellation of old runs.
 Other labels use independent run groups and cannot create or overwrite any of
 `full-ci`, `check`, `windows-check` or `macos-qualification`. Removal is not a
 trigger. Distinct `ci-not-requested` job names prevent skipped checks on unrelated
@@ -249,20 +261,64 @@ remain prerequisites. GitHub's run name carries
 the immutable request title; workflow metadata separately identifies `CI`.
 Success additionally requires one actual successful bound job for each of
 `full-ci`, `check`, `windows-check` and `macos-qualification`. A label alone is
-never evidence. Failed/cancelled work or an old
-snapshot requires a new request, removing/re-adding an existing label when
-necessary. An uncertain write is reconciled through reads, never blindly retried.
+never evidence. A changed head/base requires qualification for the new snapshot.
 Discovery is limited to three 100-entry pages per collection and twelve request
 observations five seconds apart, with a 20-second bound per CLI metadata call.
 Transport reads retry at most three times with 250/500ms backoff; malformed JSON
-is rejected immediately. One agent owns label mutations per repository/PR; the
-static label is not a distributed lock. GitHub concurrency does not guarantee
-event ordering: a delayed synchronize can cancel a fresh request, requiring a
-new request after inspecting that cancellation.
+is rejected immediately.
 `--wait` uses a bounded 90-minute watch, then rereads the run, native gate and PR.
 A head/base change or unsuccessful result fails closed; rerun the command for
 the final snapshot. `ready` describes observed full qualification; independent
 current-head review and all other required checks remain separate obligations.
+
+The new request protocol reserves `ci:full:<40 hexadecimal characters derived
+from the SHA-256 snapshot digest>` by creating that unique repository label
+before attaching it to the PR. Its description carries a per-caller owner UUID.
+Only the successful reservation owner attaches the label; losing callers
+observe/reuse the bound run, rather than issuing another attachment POST.
+The reservation binds the canonical repository, PR and frozen source snapshot;
+it neither attests workflow integrity nor authorizes a merge. The existing
+run-name remains unchanged, independent of the reservation label bytes.
+The integration owner's live TEST of repository-label creation with distinct
+owner nonces admitted one writer and one event. That creation is the admission
+primitive; an already attached label is not proof that only one request was made.
+
+A failed or timed-out creation can have taken effect. Reconcile through bounded
+reads of the exact repository label and owner UUID, PR attachment and bound run;
+do not attach without established reservation ownership, overwrite another
+owner's description, or blindly retry creation/attachment writes. Missing reads
+alone do not prove that a write did not occur. A reservation whose owner stopped
+before attachment can remain without a run and requires explicit inspection;
+this protocol claims no automatic expiry or safe delete/recreate takeover.
+Retrying failed jobs on an existing snapshot is a separate operation and must
+be serialized independently; a request reservation does not serialize reruns.
+
+The labeled request requires the user's existing authorized credential with
+base-repository label permissions. `GITHUB_TOKEN` label additions suppress the
+`labeled` workflow event. GitHub's `opened`/`synchronize` exceptions and their
+approval requirements do not supply a labeled-request exception. Required fork
+workflow approvals still apply. No write credential runs candidate PR code.
+
+For an unsuccessful completed bound run the helper reserves a separate key
+containing that run ID and attempt, and only its owner invokes `gh run rerun ID
+--failed` once. This retry label is never attached to the PR. Lost responses are
+reconciled by bounded reads of the next attempt, without repeating the write.
+GitHub's attempt-specific jobs endpoint includes inherited successful clones in
+our live qualification. Verify that complete current attempt; do not union
+historical successes. An explicit conflicting attempt, missing lane, skipped or
+neutral gate rejects qualification. A successful run with invalid gates is not
+blindly rerun. After an orphan reservation, inspect effects before making an
+explicit legacy `ci:full` request; automatic takeover is intentionally absent.
+
+Raw coverage evidence retains its existing one-day retention. Before rerunning
+coverage, inspect availability of all eight required raw artifacts. If artifacts
+are expired or missing, rerun only the Linux producer pairs containing the
+missing producers, then coverage aggregation and the affected aggregate gates.
+Each selected fixed pair regenerates both of its producers' evidence. Successful
+Windows, macOS and other Linux lanes remain effective for the same snapshot;
+artifact recovery does not require an all-OS rerun. Do not infer artifact expiry
+solely from run age, change retention on an unproven cost claim, or accept an
+incomplete evidence set.
 
 Main pushes, merge groups and workflow dispatch still run the complete native
 matrix. Dispatch checks do not satisfy ordinary PR rulesets. Generated release
@@ -293,6 +349,28 @@ owner must add required `full-ci` only after observing a successful actual PR
 request on the final implementation; each new head must then supply that check. Independent
 hosted-review evidence belongs in pull-request comments; it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
+
+The current GitHub Free organization cannot configure the required-workflow
+control: the integration owner's actual configuration attempt returned HTTP
+403. Requiring GitHub
+Actions integration `15368` authenticates the issuer, not the workflow's source;
+a candidate-controlled workflow can spoof a required check name from that same
+integration. Prefix admission and exact-head check success do not close this
+trust gap. No workflow-source tamper solver is introduced inside the privileged
+candidate. Independently protected workflow authority remains an unavailable
+capability under the current plan and requires separate owner action; this
+delivery must not be described as establishing it.
+
+Independent hosted technical review remains mandatory for the current head,
+alongside complete native evidence and all required checks. Immediately before
+an owner squash, revalidate the live PR head/base, intended target and reviewed
+change, native qualification and independent review. Use the canonical
+organization
+[`scripts/merge-owner-pr.mjs`](https://github.com/agent-teams-ai/.github/blob/main/scripts/merge-owner-pr.mjs)
+with the reviewed `--expected-head`, explicit repository/PR, Conventional Commit
+subject and complete body file. That actor/head guard does not itself establish
+independent review or trusted workflow-source authority. The project controller
+owns commits and merge; patch workers do not write GitHub state.
 
 `tests/manifests/test-shards.v1.json` owns the complete shard inventory.
 `architecture/foundation/node-test-execution.json` declares Foundation's
@@ -547,3 +625,38 @@ resolution, archive equality and downstream custody checks remain enforced.
 Ancestor package-name probes are bounded independent I/O, with no cached
 absence or source/dependency tree reuse. This private scripts concern introduces
 no product module boundary, capability contract or CMS adoption change.
+
+
+### Trusted owner merge operation
+
+Invoke the reviewed, pinned operator tool from outside the candidate checkout,
+with a trusted Node binary and without `NODE_OPTIONS` or `NODE_PATH` injection:
+
+```bash
+node /trusted/pinned/scripts/merge-reviewed-pr.mts \
+  --pr 123 --review-job REVIEW_JOB --review-host workers-fsn1-01 \
+  --review-registry /srv/worker-state/jobs/engineering-foundation/hardening-20261001/registry \
+  --expected-head HEAD_SHA --expected-base-ref main --expected-base BASE_SHA \
+  --subject 'fix(ci): qualify final source' --body-file /trusted/intent.txt
+```
+
+`ci:merge` requires one independently produced hosted GPT-6.1/xhigh/default
+terminal PASS bound to the exact source, base ref/SHA and workflow blob. Construct
+its job prompt with `readMergeReviewInput` and `renderMergeReviewPrompt`; a caller
+supplied JSON file, ReviewRouter context or candidate Actions status cannot
+replace that receipt. The protected collector reads only the admitted host's
+root-owned manifest, prompt and result. A separate unprivileged collector hashes
+actual source files against the GitHub commit's complete tree, without executing
+candidate Git configuration. Extra files, missing bytes, changed modes and
+unbound metadata reject admission. Review jobs must keep a clean physical source
+tree and run no build or dependency bootstrap there.
+
+The operation also checks all 34 mandatory current native jobs, not just the
+four aggregate names; the shadow classifier remains advisory. It then invokes
+the organization owner guard pinned at
+`05b30bcc00cdf07cfde9ba60a1136bb9df7f7571`, preserving owner identity and the
+expected-head merge comparison. Body bytes are frozen before external IO.
+GitHub required checks still apply. This is an admitted operator path, not a
+GitHub-wide prohibition on another merge client. GitHub Free cannot require our
+trusted workflow, and GitHub exposes no atomic expected-base/ref comparison:
+retargeting after the final read can only be detected after merge.

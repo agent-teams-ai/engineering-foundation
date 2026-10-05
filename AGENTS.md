@@ -28,6 +28,22 @@ Hard rules:
   (`pnpm ci:full -- --pr N --wait`), including native qualification,
   complete inventories, and the adopted coverage authority. Reuse that evidence
   instead of also requiring a sequential local `pnpm verify`;
+- treat `ci:full` and `ci:full:`-prefixed labels only as requests, never as
+  qualification or trusted workflow-source authority. Feedback and full CI have
+  separate concurrency groups; old snapshots may finish but cannot qualify a
+  new head/base. Preserve the complete native matrix and strict aggregate union;
+- reconcile uncertain label reservation/attachment effects through reads; never
+  blindly retry writes. Use the user's authorized credential for a labeled
+  request; `GITHUB_TOKEN` labeling suppresses that workflow event. Follow the
+  [request and recovery contract](docs/development/quality-gates.md);
+- retain independent hosted technical review in PR comments; `ReviewGate` is
+  retired and review must not become a self-attested Actions status. Before an
+  owner squash, revalidate the current PR head/base, merge intent, complete native
+  evidence and independent review, then use the canonical organization
+  [`scripts/merge-owner-pr.mjs`](https://github.com/agent-teams-ai/.github/blob/main/scripts/merge-owner-pr.mjs)
+  with `--expected-head`. Required-workflow authority is currently unavailable
+  on GitHub Free; Actions integration `15368` alone does not authenticate
+  workflow source. Keep this trust limitation explicit;
 - keep `pnpm verify` as the full local diagnostic path when full CI cannot run
   or does not cover the changed risk; retain any uncovered check. Pending CI
   alone does not require a duplicate local full run. Never relabel evidence

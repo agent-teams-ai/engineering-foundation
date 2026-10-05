@@ -26,7 +26,7 @@ const lanes = ["dependency-review", "windows-static", "linux-static", "linux-reg
   "windows-published", "macos-package (npm-docs)", "windows-test-e", "macos-package (foundation)", "windows-test-c", "windows-registry (pnpm-docs)",
   "windows-package (integration)", "windows-registry (foundation)", "windows-registry (npm-docs)", "windows-package (quality-coverage)",
   "windows-package (sdk-growth)", "linux-package", "macos-qualification", "linux-coverage", "check", "windows-check", "full-ci"];
-const verdict = { verdict: "PASS", repositoryId, pr: 7, head, baseRef: "main", base, workflowBlobSha: workflowBlob };
+const verdict = { verdict: "PASS", repositoryId, pr: 7, head, baseRef: "main", base, workflowBlobSha: workflowBlob, findings: [] };
 function fixture() {
   const pr = { number: 7, state: "open", merged: false, merge_commit_sha: merged,
     head: { sha: head, ref: "ci/edge", repo: { id: repositoryId, full_name: repository } },
@@ -111,7 +111,9 @@ test("forged, missing, stale, self-approving or nonterminal reviews cannot autho
     c => { c.manifest.jobRootDir = `${registry}/other-job`; }, c => { c.receipt.status = "running"; },
     c => { c.receipt.provider = "reviewrouter"; }, c => { c.receipt.taskId = "other"; }, c => { c.receipt.runId = "other"; },
     c => { c.receipt.details.baseCommit = base; }, c => { c.receipt.blockers = ["rejected"]; }, c => { c.receipt.changedFiles = ["script.mts"]; },
-    c => { c.receipt.evidence = []; }, c => { c.receipt.evidence.push(c.receipt.evidence[0]!); },
+    c => { c.receipt.evidence = []; },
+    c => { c.receipt.evidence = [`output_summary:${JSON.stringify({ ...verdict, findings: [{ severity: "P1", path: "scripts/operator.mts", line: 1, message: "unresolved" }] })}`]; },
+    c => { const { findings: _findings, ...missing } = verdict; c.receipt.evidence = [`output_summary:${JSON.stringify(missing)}`]; }, c => { c.receipt.evidence.push(c.receipt.evidence[0]!); },
     c => { c.receipt.evidence = ["output_summary:```json\n{}\n```"] ; },
     c => { c.receipt.evidence = [`output_summary:${JSON.stringify({ ...verdict, verdict: "REJECT" })}`]; },
     ...["repositoryId", "pr", "head", "baseRef", "base", "workflowBlobSha"].map(key =>

@@ -238,7 +238,7 @@ test("unrelated PR associations and failed advisory do not invalidate mandatory 
   const { state, port } = fixture();
   state.run.pull_requests.unshift({ ...structuredClone(state.run.pull_requests[0]!), number: 99 });
   delete (state.run.pull_requests[1]!.base as { ref?: string }).ref;
-  state.jobs.push({ id: 500, name: "shadow-classifier", run_id: 101, head_sha: head, status: "completed", conclusion: "failure" });
+  state.jobs.push({ id: 500, name: "advisory-shadow-classifier", run_id: 101, head_sha: head, status: "completed", conclusion: "failure" });
   assert.deepEqual(await verifyReviewedPr(args, port), binding);
   state.run.pull_requests.push(structuredClone(state.run.pull_requests[1]!));
   await assert.rejects(verifyReviewedPr(args, port));

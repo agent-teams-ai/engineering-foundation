@@ -202,7 +202,7 @@ async function verifyNativeCi(port: MergeGithubPort, binding: MergeBinding, prof
   demand(new Set(jobs.map(job => positive(job.id))).size === jobs.length, "Duplicate CI job identifiers");
   demand(new Set(jobs.map(job => job.name)).size === jobs.length, "Duplicate CI job names");
   demand(jobs.every(job => typeof job.name === "string" && job.run_id === run.id && job.head_sha === binding.head &&
-    (!Object.hasOwn(job, "run_attempt") || job.run_attempt === run.run_attempt) && job.status === "completed" && (profile.jobs.includes(job.name) ? job.conclusion === "success" : job.name === "shadow-classifier")),
+    (!Object.hasOwn(job, "run_attempt") || job.run_attempt === run.run_attempt) && job.status === "completed" && (profile.jobs.includes(job.name) ? job.conclusion === "success" : job.name === "advisory-shadow-classifier")),
   "Native CI job metadata is stale or unsuccessful");
   for (const name of profile.jobs) {
     // GitHub binds jobs through the attempt-specific endpoint.

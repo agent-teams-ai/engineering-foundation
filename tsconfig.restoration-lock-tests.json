@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.restoration-lock-inputs-tests.json",
+  "compilerOptions": {
+    "skipLibCheck": false
+  },
+  "include": ["tests/features/managed-qualification/restoration-lock.test.mts"]
+}

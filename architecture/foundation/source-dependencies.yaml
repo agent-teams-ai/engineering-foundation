@@ -607,16 +607,22 @@ boundaries:
       packages:
         - "@agent-teams/docs-protocol"
         - ajv
+        - jsonc-parser
+        - yaml
       builtins:
+        - node:crypto
         - node:fs
         - node:fs/promises
         - node:os
         - node:path
         - node:url
+        - node:util
+        - node:zlib
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol-agent-teams/src/qualification/adapters/inbound/qualification-cli.ts
       - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-managed-qualification.ts
+      - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/restoration-lock-graph.ts
   - id: docs-protocol-agent-teams.qualification.composition
     roots:
       - packages/docs-protocol-agent-teams/src/qualification/composition/qualification.ts
@@ -698,6 +704,8 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification.test.mjs
       - packages/docs-protocol-agent-teams/tests/runtime-policy-checkout.test.mjs
+      - tests/features/managed-qualification/restoration-lock-inputs.test.mts
+      - tests/features/managed-qualification/restoration-lock.test.mts
     allow:
       boundaries:
         - docs-protocol-agent-teams.adapters
@@ -705,6 +713,7 @@ boundaries:
         - docs-protocol-agent-teams.composition
         - docs-protocol-agent-teams.consumer-integration.composition
         - docs-protocol-agent-teams.qualification.adapters
+        - docs-protocol-agent-teams.qualification.application
       packages:
         - ajv
         - yaml

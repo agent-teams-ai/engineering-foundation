@@ -33,7 +33,8 @@
     "assets:generate": "node scripts/generate-consumer-assets.mjs --write && node scripts/generate-runtime-policy.mjs --write",
     "assets:check": "node scripts/generate-consumer-assets.mjs && node scripts/generate-runtime-policy.mjs",
     "build": "pnpm assets:check && tsc --build tsconfig.json --pretty false",
-    "test": "pnpm build && node --test tests/*.test.mjs"
+    "test": "pnpm build && node --test tests/*.test.mjs",
+    "test:restoration-lock": "pnpm build && pnpm --dir ../.. typecheck:restoration-lock && node --test ../../tests/features/managed-qualification/restoration-lock.test.mts"
   },
   "engines": {
     "node": "^24.18.0 || ^26.0.0",

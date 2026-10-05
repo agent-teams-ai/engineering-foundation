@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "original": {
+    "file": "original-closure.json",
+    "sha256": "87cb5e3495848f453c1ac0e4dc8caa7d66828f0cab270cefd46d73dee2ea341a"
+  },
+  "source": {
+    "file": "source-lock.yaml",
+    "sha256": "83a30e0d504b90ded54cfbf1b1c7a7bcdd4d78950876cf0d7dd352983c628916",
+    "gitBlob": "56b39f74f7c0e4e311b970aea1ea719caac61358"
+  },
+  "actual": {
+    "file": "actual-lock.yaml",
+    "sha256": "d35092ff74098bfdf9a95cb9a5534ff7ee0aa828e9a5eba9e4114baf167c3332"
+  },
+  "archives": [
+    {
+      "coordinate": "@agent-teams/engineering-foundation@1.4.0",
+      "file": "archives/agent-teams_engineering-foundation-1.4.0.registry.tgz",
+      "sha256": "1ff6aa418a78e69c08a9951d736c78884727f5a46b98a04d20ac811d2b52f5de",
+      "integrity": "sha512-m8rLOvctyXu+kqN4LyCW4LIz303a7p+ZIvx+oieYIwst6DNBpsWUu/Ux7UZM3fZH5JTYhB4eSEBEfi5lUTt4vQ==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "3c9d329f290efd54fcc630a7ebbedf3737be5bf0a2d58aa5e0c003f01be190f0"
+    },
+    {
+      "coordinate": "@microsoft/api-extractor@7.58.12",
+      "file": "archives/microsoft_api-extractor-7.58.12.registry.tgz",
+      "sha256": "05735a6c78a8f426e23bcc8e445a5029e6bb54f2cbab557b59e4695cee756695",
+      "integrity": "sha512-VNpgC/1LaroLbn+UKmwDYspq+9r3EHyj4vJ3qUy/g8vB0rKt+1Wgs7WFj/JGpgxhG8SNyXs1XwYwe7nqkk8IDg==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "98e880cb2394bff5b743b554502fadf3a29a7651fef058a29b7a4b68518db04d"
+    },
+    {
+      "coordinate": "@microsoft/api-extractor-model@7.33.10",
+      "file": "archives/microsoft_api-extractor-model-7.33.10.registry.tgz",
+      "sha256": "f74963e75cc014010d1c287d49571c3e0c5b422fd1c5ddc050d7e1dee984c8db",
+      "integrity": "sha512-uPUK17xGxeQ3av6TN7awp+dTTSTvx8fZC0XFL1gyt7hFapYuxND3XLXH8vkmI7UjfW92oogzFAFqHSifmJROaw==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "5675d1df8baa9ff8c20580c3b247c64ec5d7d5287ec469af4d8aca05b39dbe18"
+    },
+    {
+      "coordinate": "@rushstack/node-core-library@5.23.3",
+      "file": "archives/rushstack_node-core-library-5.23.3.registry.tgz",
+      "sha256": "a374d404329e64646f619f1897517d8b03898912bb1b176c626f7a28d91b3999",
+      "integrity": "sha512-f6uuza7Um65bwsIJgf0MRs7IPA5IG+A+zs1AYGQvpZmLjtTGdfHowhQw4kwF0pPhJCrU4UHNhK8Qa6tLygYZCA==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "9ec292568bb720847169d27969fab99ef94d5edb1db08fe09b247843cf9ac3cb"
+    },
+    {
+      "coordinate": "@rushstack/problem-matcher@0.2.1",
+      "file": "archives/rushstack_problem-matcher-0.2.1.registry.tgz",
+      "sha256": "ef8e060cc6f098913c8c818276d3469fc5f7ebf9d1ef8c94bf83f107e5bc5f22",
+      "integrity": "sha512-gulfhBs6n+I5b7DvjKRfhMGyUejtSgOHTclF/eONr8hcgF1APEDjhxIsfdUYYMzC3rvLwGluqLjbwCFZ8nxrog==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "61be559a49194c576855f6cda78a344048e27b031f8b3a1cb75a24d95ced00a4"
+    },
+    {
+      "coordinate": "@rushstack/terminal@0.24.2",
+      "file": "archives/rushstack_terminal-0.24.2.registry.tgz",
+      "sha256": "4cf9c1aac37fc2ec25e87d3c552be779763be46d8b0b1497da332bafd36b8565",
+      "integrity": "sha512-KB7PpvzDyKMw/RGU3TxOwxTs3OwZ4gq6+WHlTJN/JfQH4ezliNtWIqver78jTaAJyz/ZAAlJGH7a/M1WyFLFSw==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "0a24f537b5c597f5e0ab6c7c4b07230dbbe3b707a8d184b83bf815bd691bc09d"
+    },
+    {
+      "coordinate": "@rushstack/ts-command-line@5.3.12",
+      "file": "archives/rushstack_ts-command-line-5.3.12.registry.tgz",
+      "sha256": "dda93e8c6f7633b43db4a8bcd2ca97c60b485d92367c5cc1e16d2213f3c394e5",
+      "integrity": "sha512-Vg2n24arSf7JvUNga2DMHYTbxnVq9L5OtVCp4Gfr8YC/kmL/bmdR8FQhGcpMzMYNY9Vdw3+TaimG11Sf+z1Tpw==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "1360466824a72a6eaf74ed1775c5ed20106259307519951cb22ad98c9b8e076a"
+    },
+    {
+      "coordinate": "@types/node@24.13.3",
+      "file": "archives/types_node-24.13.3.registry.tgz",
+      "sha256": "14200e662b222ab262da7ac16f60565f353a8be6ddc98d9d34b1a97e66c5bebc",
+      "integrity": "sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==",
+      "manifestPath": "node v24.13/package.json",
+      "manifestSha256": "a4d29a0f9a3b45be30a130591091ea1f7707d4193489960ef4ee98f35375a4e9"
+    },
+    {
+      "coordinate": "undici-types@7.18.2",
+      "file": "archives/undici-types-7.18.2.registry.tgz",
+      "sha256": "4d92799b0e619468a30f70eff033c1a27e713134a4ff353e1a6794f67e425497",
+      "integrity": "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "01701286a0441eddf1cd47d488047d363ce7d75466e7b6c89f1c605fba1c3957"
+    },
+    {
+      "coordinate": "ajv@8.20.0",
+      "file": "archives/ajv-8.20.0.registry.tgz",
+      "sha256": "b2f0b3a893bbb8cc5efb6814f08b1499e19e31d5dd73683f5893382f48f6e7b3",
+      "integrity": "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "1f9033ee5a6515e7d76938b7072941862d1ed228a6879cc7fe10cdeb75107989"
+    },
+    {
+      "coordinate": "ajv-formats@3.0.1",
+      "file": "archives/ajv-formats-3.0.1.registry.tgz",
+      "sha256": "f4d6980fd367381fd29199066911e863db8d97496613b6c2c5b91563a150acc5",
+      "integrity": "sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "402fb4bcfa457f0226813f3976ac42839dd619907c075c108efba8600d7edb69"
+    },
+    {
+      "coordinate": "ajv-draft-04@1.0.0",
+      "file": "archives/ajv-draft-04-1.0.0.registry.tgz",
+      "sha256": "b2328acf9b3a5b1b3a098789770c2dd34ed86b5913c904c056091ec10319c2e7",
+      "integrity": "sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==",
+      "manifestPath": "package/package.json",
+      "manifestSha256": "2d46745cb4880e7e4754b333245056604b60ddb3105bd7cc22d660e3563676e4"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.restoration-lock-inputs-tests.json",
+  "compilerOptions": {
+    "skipLibCheck": false
+  },
+  "include": ["packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts"]
+}

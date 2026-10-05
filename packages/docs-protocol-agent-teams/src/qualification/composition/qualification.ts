@@ -6,7 +6,10 @@ import {
   projectQualificationAuthorityV2
 } from "../../consumer-integration/composition/qualification-v3-boundary.js";
 import { createNodeManagedQualificationEnvironment } from "../adapters/outbound/node-managed-qualification.js";
+import { evaluateManagedRestorationLockV1 } from "../adapters/outbound/restoration-lock-graph.js";
 import {
+  type ManagedRestorationLockV1Request,
+  type ManagedRestorationLockV1Result,
   createDocsProtocolQualificationV2,
   createDocsProtocolQualificationV3Observer,
   createDocsProtocolQualificationV3,
@@ -57,4 +60,10 @@ export function runDocsProtocolQualificationV3(
   request: DocsProtocolQualificationV3Request
 ): DocsProtocolQualificationReceiptV3 {
   return qualification.runDocsProtocolQualificationV3(request);
+}
+
+export function checkManagedRestorationLockV1(
+  request: ManagedRestorationLockV1Request
+): ManagedRestorationLockV1Result {
+  return evaluateManagedRestorationLockV1(request);
 }

@@ -1,4 +1,13 @@
 export type {
+  ManagedRestorationArchiveBindingV1,
+  ManagedRestorationLockV1,
+  ManagedRestorationLockV1Diagnostic,
+  ManagedRestorationLockV1Provenance,
+  ManagedRestorationLockV1Request,
+  ManagedRestorationLockV1Result,
+  ManagedRestorationSelectionV1
+} from "./application/model/restoration-lock.js";
+export type {
   DocsProtocolQualificationAuthorityV3,
   DocsProtocolQualificationAuthorityV3Request
 } from "./application/model/qualification-authority-v3.js";

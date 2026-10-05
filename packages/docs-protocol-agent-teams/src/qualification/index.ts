@@ -1,3 +1,13 @@
+export { checkManagedRestorationLockV1 } from "./composition/qualification.js";
+export type {
+  ManagedRestorationArchiveBindingV1,
+  ManagedRestorationLockV1,
+  ManagedRestorationLockV1Diagnostic,
+  ManagedRestorationLockV1Provenance,
+  ManagedRestorationLockV1Request,
+  ManagedRestorationLockV1Result,
+  ManagedRestorationSelectionV1
+} from "./application-api.js";
 export { runDocsProtocolQualificationV2 } from "./composition/qualification.js";
 export { runDocsProtocolQualificationV3 } from "./composition/qualification.js";
 export { projectDocsProtocolQualificationV3Authority } from

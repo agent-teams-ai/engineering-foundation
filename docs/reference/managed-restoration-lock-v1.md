@@ -43,3 +43,5 @@ builds, strictly typechecks contracts and runs the retained public-byte suite.
 That suite belongs once to canonical shard 7, portable Windows lane d and its
 coverage selection. StageA archive rejection tests remain separate and unchanged
 apart from retaining the validated coordinates array across the helper call.
+
+The private restoration-lock boundary validates requests from an `unknown` boundary and rejects every `schemaVersion` other than numeric `1`. It derives the complete expected typed graph E exclusively from the authenticated original83 closure, Source952, and the twelve SRI-authenticated archives; actual lock bytes supply comparison data only. Comparison covers the entire typed graph, foreign-entry preservation, and YAML comments, with tagged namespaces for comments and protected spelling. Source and actual annotation paths share an aggregate 8 MiB preflight budget, and both preflights must pass before either annotation map or serialized path is materialized.

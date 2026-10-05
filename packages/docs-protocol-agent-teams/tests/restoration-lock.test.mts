@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { isMap, parseDocument, type Document } from 'yaml';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { isMap, isScalar, parseDocument, type Document } from 'yaml';
 import {
   checkManagedRestorationLockV1,
   type ManagedRestorationArchiveBindingV1,
@@ -208,3 +211,157 @@ function publicTypes(request: ManagedRestorationLockV1Request, result: ManagedRe
   void facts; void callback; void authority;
 }
 void publicTypes;
+
+test('adversarial foreign annotation paths reject before expansion', async context => {
+  const name = 'adversarial foreign annotation paths reject before expansion';
+  const completion = 'restoration-lock annotation budget probe completed';
+  if (process.env.RESTORATION_LOCK_ANNOTATION_PROBE !== '1') {
+    const childEnv: NodeJS.ProcessEnv = {
+      ...process.env, RESTORATION_LOCK_ANNOTATION_PROBE: '1',
+    };
+    delete childEnv.NODE_TEST_CONTEXT;
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      '--max-old-space-size=192', '--test', '--test-reporter=tap',
+      '--test-name-pattern=^' + name + '$',
+      fileURLToPath(import.meta.url),
+    ], {
+      env: childEnv, encoding: 'utf8',
+      timeout: 10_000, maxBuffer: 64 * 1024,
+    }).catch(() => {
+      assert.fail('annotation subprocess failed, timed out, or exceeded its output limit');
+    });
+    assert.ok(typeof stdout === 'string');
+    const lines = stdout.split(/\r?\n/u);
+    assert.equal(lines.filter(line => line === 'ok 1 - ' + name).length, 1,
+      'the child must report success for the selected test');
+    assert.equal(lines.filter(line => /^ok \d+ -/u.test(line)).length, 1,
+      'the child must report exactly one successful test');
+    assert.equal(lines.filter(line => /^not ok \d+ -/u.test(line)).length, 0,
+      'the child must report no failed tests');
+    for (const footer of ['1..1', '# tests 1', '# suites 0', '# pass 1', '# fail 0',
+      '# cancelled 0', '# skipped 0', '# todo 0']) {
+      assert.equal(lines.filter(line => line === footer).length, 1,
+        'the child must report exactly one completed test with no failures or skips');
+    }
+    assert.equal(lines.filter(line => line.trim() === '# ' + completion).length, 1,
+      'the child must reach the assertion completion marker');
+    return;
+  }
+  const request = await retained();
+  const extension = Buffer.from(
+    '\n? ' + 'x'.repeat(256 * 1024) + '\n: [' + 'null,'.repeat(19_999) + 'null]\n');
+  const source = Buffer.concat([Buffer.from(request.sourceLockBytes), extension]);
+  const actual = Buffer.concat([Buffer.from(request.actualLockBytes), extension]);
+  const sourceSha256 = digest(source), actualSha256 = digest(actual);
+  const augmented = { ...withSource(request, source), actualLockBytes: actual };
+  const selection = canonical(augmented.selection);
+  const result = checkManagedRestorationLockV1(augmented);
+  assert.equal(result.conformance, 'nonconformant');
+  assert.deepEqual(result.diagnostics, [{
+    code: 'derivation', path: [], message: 'annotation path expansion budget exceeded',
+  }]);
+  assert.equal(digest(augmented.sourceLockBytes), sourceSha256);
+  assert.equal(augmented.selection.sourceLockSha256, sourceSha256);
+  assert.equal(digest(augmented.actualLockBytes), actualSha256);
+  assert.equal(canonical(augmented.selection), selection);
+  assert.equal(digest(request.originalClosureBytes), request.selection.originalClosureSha256);
+  assert.equal(digest(request.sourceLockBytes), '83a30e0d504b90ded54cfbf1b1c7a7bcdd4d78950876cf0d7dd352983c628916');
+  assert.equal(digest(request.actualLockBytes), 'd35092ff74098bfdf9a95cb9a5534ff7ee0aa828e9a5eba9e4114baf167c3332');
+  context.diagnostic(completion);
+});
+
+test('foreign dollar-key fields cannot mask parent key spelling or comments', async () => {
+  const request = await retained();
+  const extension = Buffer.from(
+    '\n# parent key witness\nretainedExtension:\n'
+    + '  ? $key # child value witness\n  : witness\n'
+    + '  $document: {comment: document, commentBefore: before}\n'
+    + '  comment: slot\n  commentBefore: before\n'
+    + '$document: {comment: root, commentBefore: before}\n');
+  const source = Buffer.concat([Buffer.from(request.sourceLockBytes), extension]);
+  const actual = Buffer.concat([Buffer.from(request.actualLockBytes), extension]);
+  for (const bytes of [source, actual]) {
+    const document = parseDocument(bytes.toString('utf8'));
+    assert.deepEqual(document.errors, []);
+    assert.ok(isMap(document.contents));
+    const pair = document.contents.items.find(row =>
+      isScalar(row.key) && row.key.value === 'retainedExtension');
+    assert.ok(pair && isScalar(pair.key));
+    assert.equal(pair.key.type, 'PLAIN');
+    assert.equal(pair.key.commentBefore, ' parent key witness');
+    const witness = document.getIn(['retainedExtension', '$key'], true);
+    assert.ok(isScalar(witness));
+    assert.equal(witness.value, 'witness');
+    assert.equal(witness.commentBefore, ' child value witness');
+  }
+  const retainedGraph: unknown = parseDocument(Buffer.from(request.actualLockBytes).toString('utf8')).toJSON();
+  assert.ok(record(retainedGraph));
+  assert.ok(!Object.hasOwn(retainedGraph, 'retainedExtension'));
+  assert.ok(!Object.hasOwn(retainedGraph, '$document'));
+  const graph: unknown = parseDocument(actual.toString('utf8')).toJSON();
+  assert.equal(canonical(graph), canonical({
+    ...retainedGraph,
+    retainedExtension: {
+      $key: 'witness', $document: { comment: 'document', commentBefore: 'before' },
+      comment: 'slot', commentBefore: 'before',
+    },
+    $document: { comment: 'root', commentBefore: 'before' },
+  }));
+  const augmented = { ...withSource(request, source), actualLockBytes: actual };
+  const sourceSha256 = digest(source), actualSha256 = digest(actual);
+  const selection = canonical(augmented.selection);
+  const baseline = accepted(checkManagedRestorationLockV1(augmented));
+  assert.deepEqual(baseline.diagnostics, []);
+  assert.equal(baseline.expectedLockDigest,
+    'sha256:' + createHash('sha256').update('managed-restoration-lock/v1\n').update(canonical(graph)).digest('hex'));
+  const edits: readonly {
+    readonly before: string;
+    readonly after: string;
+    readonly keyType: 'PLAIN' | 'QUOTE_DOUBLE';
+    readonly commentBefore: string;
+    readonly address: string;
+  }[] = [
+    {
+      before: '\nretainedExtension:', after: '\n"retainedExtension":',
+      keyType: 'QUOTE_DOUBLE', commentBefore: ' parent key witness',
+      address: JSON.stringify(['spelling', 'key', ['retainedExtension']]),
+    },
+    {
+      before: '# parent key witness\n', after: '# changed parent key witness\n',
+      keyType: 'PLAIN', commentBefore: ' changed parent key witness',
+      address: JSON.stringify(['comment', 'key', ['retainedExtension'], 'commentBefore']),
+    },
+  ];
+  for (const edit of edits) {
+    const text = actual.toString('utf8');
+    assert.equal(text.split(edit.before).length, 2, 'the annotation edit must have exactly one target');
+    const changed = Buffer.from(text.replace(edit.before, edit.after));
+    assert.notEqual(digest(changed), actualSha256);
+    const document = parseDocument(changed.toString('utf8'));
+    assert.deepEqual(document.errors, []);
+    assert.equal(canonical(document.toJSON()), canonical(graph), 'the entire actual graph must remain unchanged');
+    assert.ok(isMap(document.contents));
+    const pair = document.contents.items.find(row =>
+      isScalar(row.key) && row.key.value === 'retainedExtension');
+    assert.ok(pair && isScalar(pair.key));
+    assert.equal(pair.key.type, edit.keyType);
+    assert.equal(pair.key.commentBefore, edit.commentBefore);
+    const witness = document.getIn(['retainedExtension', '$key'], true);
+    assert.ok(isScalar(witness));
+    assert.equal(witness.value, 'witness');
+    assert.equal(witness.commentBefore, ' child value witness');
+    const result = checkManagedRestorationLockV1({ ...augmented, actualLockBytes: changed });
+    assert.equal(result.conformance, 'nonconformant');
+    assert.ok(result.diagnostics.length > 0);
+    assert.ok(result.diagnostics.every(row => row.code === 'preservation'));
+    assert.ok(result.diagnostics.some(row => row.path[2] === edit.address));
+    assert.equal(result.expectedLockDigest, baseline.expectedLockDigest, 'annotation edits to A must not change E');
+    assert.equal(digest(augmented.sourceLockBytes), sourceSha256);
+    assert.equal(augmented.selection.sourceLockSha256, sourceSha256);
+    assert.equal(digest(augmented.actualLockBytes), actualSha256);
+    assert.equal(canonical(augmented.selection), selection);
+    assert.equal(digest(request.originalClosureBytes), request.selection.originalClosureSha256);
+    assert.equal(digest(request.sourceLockBytes), '83a30e0d504b90ded54cfbf1b1c7a7bcdd4d78950876cf0d7dd352983c628916');
+    assert.equal(digest(request.actualLockBytes), 'd35092ff74098bfdf9a95cb9a5534ff7ee0aa828e9a5eba9e4114baf167c3332');
+  }
+});

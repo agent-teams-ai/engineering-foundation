@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
-import { isMap, isScalar, isSeq, parseDocument } from 'yaml';
 import type {
   JsonObject, JsonValue, ParsedRestorationLockInputs,
 } from '../../application/model/restoration-lock-inputs.js';
 import type {
-  ManagedRestorationLockV1Diagnostic, ManagedRestorationLockV1Request,
-  ManagedRestorationLockV1Result, ManagedRestorationLockV1Provenance,
+  ManagedRestorationLockV1Diagnostic, ManagedRestorationLockV1Result,
+  ManagedRestorationLockV1Provenance,
 } from '../../application-api.js';
+import { collectRestorationLockAnnotations } from './restoration-lock-annotations.js';
 import { admitsCoveredArchiveRange } from './restoration-lock-covered-ranges.js';
 import { admitRestorationLockInputs } from './restoration-lock-inputs.js';
 
@@ -53,7 +53,8 @@ class Refusal extends Error {
   constructor(message: string, path: Path) { super(message); this.path = path; }
 }
 function need(value: unknown, message: string, path: Path = []): asserts value {
-  if (!value) {throw new Refusal(message, path);}
+  const accepted = Boolean(value);
+  if (!accepted) {throw new Refusal(message, path);}
 }
 function isList(value: JsonValue | undefined): value is readonly JsonValue[] { return Array.isArray(value); }
 function isObject(value: JsonValue | undefined): value is JsonObject {
@@ -72,13 +73,14 @@ function names(actual: readonly string[], expected: readonly string[], message: 
   need(actual.length === expected.length && new Set(actual).size === actual.length &&
     actual.toSorted().join('\0') === expected.toSorted().join('\0'), message);
 }
-function exact(value: object, keys: readonly string[]): void {
+function exact(value: unknown, keys: readonly string[]): asserts value is Readonly<Record<string, unknown>> {
+  need(value !== null && typeof value === 'object', 'request records must be plain data');
   need(Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null,
     'request records must be plain data');
   names(Reflect.ownKeys(value).map(key => { need(typeof key === 'string', 'symbol request key'); return key; }), keys,
     'unexpected or missing request field');
   for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))) {
-    need(Object.hasOwn(descriptor, 'value') && descriptor.enumerable, 'request accessor or hidden field');
+    need(Object.hasOwn(descriptor, 'value') && descriptor.enumerable === true, 'request accessor or hidden field');
   }
 }
 
@@ -86,10 +88,12 @@ function locator(text: string) {
   const cut = text.indexOf('('), coordinate = cut < 0 ? text : text.slice(0, cut);
   const context = cut < 0 ? '' : text.slice(cut);
   const match = /^((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)@(\d+\.\d+\.\d+)$/.exec(coordinate);
-  need(match && match[1] && match[2], 'unsupported locator: ' + text);
+  need(match !== null && typeof match[1] === 'string' && match[1].length > 0 &&
+    typeof match[2] === 'string' && match[2].length > 0, 'unsupported locator: ' + text);
   let end = 0; const peers = new Set<string>();
   for (const peer of context.matchAll(/\(((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)@\d+\.\d+\.\d+\)/g)) {
-    need(peer.index === end && peer[1] && !peers.has(peer[1]), 'ambiguous context: ' + text);
+    need(peer.index === end && typeof peer[1] === 'string' && peer[1].length > 0 &&
+      !peers.has(peer[1]), 'ambiguous context: ' + text);
     peers.add(peer[1]); end += peer[0].length;
   }
   need(end === context.length, 'unsupported context: ' + text);
@@ -163,7 +167,7 @@ function managedStarts(tree: Lock): string[] {
 function reach(tree: Lock, initial: readonly string[]): Set<string> {
   const found = new Set<string>(), pending = [...initial];
   while (pending.length) {
-    const id = pending.pop(); need(id, 'reach cursor'); if (found.has(id)) {continue;}
+    const id = pending.pop(); need(id !== undefined && id.length > 0, 'reach cursor'); if (found.has(id)) {continue;}
     const row = tree.snapshots[id]; need(row, 'dangling locator', ['snapshots', id]); found.add(id);
     for (const [name, version] of edges(row)) {pending.push(edge(name, version));}
   }
@@ -220,7 +224,7 @@ function validateCoveredManifestDeclarations(coordinate: string, manifest: JsonO
   const optionalNode: string[] = [], overlaps: string[] = [];
   const tree = coordinate === nodeTypes || coordinate === undici ? source : original;
   const ids = Object.keys(tree.snapshots).filter(id => locator(id).coordinate === coordinate);
-  need(ids.length === 1 && ids[0], 'covered coordinate has ambiguous snapshots');
+  need(ids.length === 1 && ids[0] !== undefined && ids[0].length > 0, 'covered coordinate has ambiguous snapshots');
   const snapshot = tree.snapshots[ids[0]], pkg = tree.packages[coordinate]; need(snapshot && pkg, 'covered graph entry');
   const required = strings(manifest.dependencies ?? {});
   const optional = strings(manifest.optionalDependencies ?? {}), peers = strings(manifest.peerDependencies ?? {});
@@ -405,7 +409,7 @@ function derive(inputs: ParsedRestorationLockInputs) {
   const commentRename = new Map<string, string>();
   for (const id of removed) {
     const originalCoordinate = claims.find(candidate => locator(candidate).name === locator(id).name);
-    need(originalCoordinate, 'superseded comment owner');
+    need(originalCoordinate !== undefined && originalCoordinate.length > 0, 'superseded comment owner');
     commentRename.set('packages/' + locator(id).coordinate, originalCoordinate);
     commentRename.set('snapshots/' + id, rename.get(originalCoordinate) ?? originalCoordinate);
   }
@@ -414,40 +418,6 @@ function derive(inputs: ParsedRestorationLockInputs) {
     removedCoordinates: removedCoordinates.toSorted(), foreign, foreignPackages, commentRename };
 }
 
-function annotations(bytes: readonly number[], protectedPath: (path: Path) => boolean,
-  rename: ReadonlyMap<string, string>) {
-  const text = Buffer.from(bytes).toString('utf8');
-  const document = parseDocument(text, { schema: 'core', version: '1.2', keepSourceTokens: true });
-  const comments: Record<string, JsonValue> = {}, spelling: Record<string, JsonValue> = {};
-  const mapped = (path: Path): Path => {
-    const [section, id] = path;
-    const replacement = typeof section === 'string' && typeof id === 'string' ? rename.get(section + '/' + id) : undefined;
-    return replacement === undefined ? path : [section ?? '', replacement, ...path.slice(2)];
-  };
-  function comment(row: { commentBefore?: string | null; comment?: string | null }, path: Path): void {
-    for (const slot of ['commentBefore', 'comment'] as const) {
-      const value = row[slot];
-      if (typeof value === 'string') {comments[JSON.stringify([...mapped(path), slot])] = value;}
-    }
-  }
-  function visit(node: unknown, path: Path): void {
-    if (!isMap(node) && !isSeq(node) && !isScalar(node)) {return;}
-    comment(node, path);
-    if (protectedPath(path)) {
-      const authValue = isScalar(node) && node.range ? text.slice(node.range[0], node.range[1]) : null;
-      spelling[JSON.stringify(path)] = isScalar(node)
-        ? { tag: node.tag ?? null, spelling: authValue }
-        : { tag: node.tag ?? null, flow: node.flow === true };
-    }
-    if (isMap(node)) {for (const pair of node.items) {
-      need(isScalar(pair.key) && typeof pair.key.value === 'string', 'annotation key');
-      const child = [...path, pair.key.value]; visit(pair.key, [...child, '$key']); visit(pair.value, child);
-    }}
-    if (isSeq(node)) {node.items.forEach((item, index) => visit(item, [...path, index]));}
-  }
-  comment(document, ['$document']); visit(document.contents, []);
-  return { comments, spelling };
-}
 function protectedForeign(path: Path, foreign: ReadonlySet<string>, packages: ReadonlySet<string>): boolean {
   const [section, id, group, name] = path;
   if (section === undefined) {return false;}
@@ -456,40 +426,47 @@ function protectedForeign(path: Path, foreign: ReadonlySet<string>, packages: Re
   if (section !== 'importers') {return true;}
   if (id === undefined) {return false;}
   if (id !== '.') {return true;}
-  if (typeof group !== 'string' || group === '$key') {return false;}
+  if (typeof group !== 'string') {return false;}
   if (!sections.some(sectionName => sectionName === group)) {return true;}
   return typeof name === 'string' && !Object.hasOwn(roots, name);
 }
 
 /** Fixed managed-qualification helper. Actual bytes are never an expected-graph input. */
-export function evaluateManagedRestorationLockV1(request: ManagedRestorationLockV1Request): ManagedRestorationLockV1Result {
+export function evaluateManagedRestorationLockV1(request: unknown): ManagedRestorationLockV1Result {
   let phase: 'input' | 'derivation' = 'input';
   try {
     exact(request, ['schemaVersion', 'selection', 'originalClosureBytes', 'sourceLockBytes', 'actualLockBytes', 'archiveBytes']);
     need(request.schemaVersion === 1, 'request version');
     const selection = request.selection;
     exact(selection, ['originalClosureSha256', 'sourceLockSha256', 'sourceLockBlob', 'archives']);
-    exact(selection.archives, covered); exact(request.archiveBytes, covered);
-    for (const field of ['originalClosureSha256', 'sourceLockSha256', 'sourceLockBlob'] as const)
-      {need(typeof selection[field] === 'string', 'selection string');}
+    const archivePins = selection.archives, archiveBytes = request.archiveBytes;
+    exact(archivePins, covered); exact(archiveBytes, covered);
+    const { originalClosureSha256, sourceLockSha256, sourceLockBlob } = selection;
+    need(typeof originalClosureSha256 === 'string' && typeof sourceLockSha256 === 'string' &&
+      typeof sourceLockBlob === 'string', 'selection string');
+    const archives: Record<string, Uint8Array> = {};
     const pins = Object.fromEntries(covered.map(coordinate => {
-      const pin = selection.archives[coordinate]; need(pin, 'archive pin');
+      const pin = archivePins[coordinate];
       exact(pin, ['sha256', 'manifestSha256', 'manifestPath']);
       need(typeof pin.sha256 === 'string' && typeof pin.manifestSha256 === 'string' && typeof pin.manifestPath === 'string', 'archive pin strings');
-      return [coordinate, Object.freeze({ sha256: pin.sha256, manifestSha256: pin.manifestSha256, manifestPath: pin.manifestPath })];
+      const bytes = archiveBytes[coordinate]; need(bytes instanceof Uint8Array, 'archive bytes');
+      archives[coordinate] = bytes;
+      return [coordinate, Object.freeze({ sha256: pin.sha256, manifestSha256: pin.manifestSha256, manifestPath: pin.manifestPath })] as const;
     }));
-    need(request.actualLockBytes instanceof Uint8Array && request.actualLockBytes.byteLength <= 4 * 1024 * 1024, 'actual byte bound');
-    const actual = Buffer.from(request.actualLockBytes);
-    const bindings = { originalClosureSha256: selection.originalClosureSha256, sourceLockSha256: selection.sourceLockSha256,
-      sourceLockBlob: selection.sourceLockBlob, actualLockSha256: createHash('sha256').update(actual).digest('hex'), archives: pins };
-    const inputs = admitRestorationLockInputs({ original: request.originalClosureBytes, source: request.sourceLockBytes,
-      actual, archives: request.archiveBytes }, bindings);
+    const original = request.originalClosureBytes, source = request.sourceLockBytes;
+    need(original instanceof Uint8Array && source instanceof Uint8Array, 'graph bytes');
+    const actualBytes = request.actualLockBytes;
+    need(actualBytes instanceof Uint8Array && actualBytes.byteLength <= 4 * 1024 * 1024, 'actual byte bound');
+    const actual = Buffer.from(actualBytes);
+    const bindings = { originalClosureSha256, sourceLockSha256, sourceLockBlob,
+      actualLockSha256: createHash('sha256').update(actual).digest('hex'), archives: pins };
+    const inputs = admitRestorationLockInputs({ original, source, actual, archives }, bindings);
     phase = 'derivation'; const derived = derive(inputs);
     const diagnostics: ManagedRestorationLockV1Diagnostic[] = [];
     compare(derived.expected, inputs.actual.tree, [], diagnostics, 'mismatch');
     const protect = (path: Path) => protectedForeign(path, derived.foreign, derived.foreignPackages);
-    const sourceAnnotations = annotations(inputs.source.bytes, protect, derived.commentRename);
-    const actualAnnotations = annotations(inputs.actual.bytes, protect, new Map());
+    const { source: sourceAnnotations, actual: actualAnnotations } = collectRestorationLockAnnotations(
+      inputs.source.bytes, inputs.actual.bytes, protect, derived.commentRename, need);
     compare(sourceAnnotations.comments, actualAnnotations.comments, ['$yaml', 'comments'], diagnostics, 'preservation');
     compare(sourceAnnotations.spelling, actualAnnotations.spelling, ['$yaml', 'foreign'], diagnostics, 'preservation');
     const expectedLockDigest: `sha256:${string}` = `sha256:${createHash('sha256')

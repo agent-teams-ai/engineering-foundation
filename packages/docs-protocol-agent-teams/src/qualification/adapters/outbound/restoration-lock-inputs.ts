@@ -22,16 +22,18 @@ interface Budget { nodes: number; unpacked: number; members: number; manifests: 
 interface TreeBudget { nodes: number; shared: Budget; }
 
 function insist(value: unknown, message: string): asserts value {
-  if (!value) {throw new Error('restoration inputs: ' + message);}
+  const accepted = Boolean(value);
+  if (!accepted) {throw new Error('restoration inputs: ' + message);}
 }
+function isList(value: JsonValue | undefined): value is readonly JsonValue[] { return Array.isArray(value); }
 function record(value: JsonValue | undefined): JsonObject {
-  insist(value !== null && typeof value === 'object' && !Array.isArray(value), 'object');
-  return value as JsonObject;
+  insist(value !== null && typeof value === 'object' && !isList(value), 'object');
+  return value;
 }
 function atomic(value: unknown): JsonValue {
   insist(value === null || typeof value === 'string' || typeof value === 'boolean' ||
     typeof value === 'number' && Number.isFinite(value), 'JSON scalar');
-  return value as JsonValue;
+  return value;
 }
 function account(b: TreeBudget, depth: number, value?: unknown): void {
   insist(depth <= limits.depth && ++b.nodes <= limits.nodes && ++b.shared.nodes <= limits.allNodes, 'tree bound');
@@ -82,7 +84,8 @@ function yamlSyntax(text: string): void {
     while (stack.length) {
       const item = stack.pop(); insist(item, 'YAML syntax');
       insist(item.depth <= limits.depth * 3 && ++nodes <= limits.allNodes, 'YAML syntax bound');
-      for (const value of Object.values(item.value)) {
+      const values: readonly unknown[] = Object.values(item.value);
+      for (const value of values) {
         if (value !== null && typeof value === 'object') {stack.push({ value, depth: item.depth + 1 });}
       }
     }
@@ -109,7 +112,7 @@ function parseYaml(text: string, shared: Budget): JsonObject {
   yamlSyntax(text);
   const doc = parseDocument(text, { schema: 'core', version: '1.2', strict: true, uniqueKeys: true, prettyErrors: false });
   insist(doc.errors.length === 0 && doc.warnings.length === 0, 'YAML syntax');
-  insist(doc.directives?.yaml.version === '1.2', 'YAML version');
+  insist(doc.directives.yaml.version === '1.2', 'YAML version');
   return record(yamlNode(doc.contents, { nodes: 0, shared }, 0));
 }
 
@@ -143,7 +146,7 @@ function copyInputs(input: RestorationInputBytes) {
 function envelope(o: JsonObject): Readonly<Record<string, string>> {
   insist(o.domain === 'agent-teams.docs-runtime-closure/v2' && o.schemaVersion === 2, 'original envelope');
   insist(o.packageManager === 'pnpm@11.20.0', 'original package manager');
-  insist(Array.isArray(o.coordinates), 'original coordinates');
+  insist(isList(o.coordinates), 'original coordinates');
   insist(Object.hasOwn(o, 'managedEdges'), 'original managed edges');
   const lock = record(o.pnpmLock), packages = record(lock.packages), snapshots = record(lock.snapshots);
   insist(typeof o.packageCount === 'number' && Number.isSafeInteger(o.packageCount) &&

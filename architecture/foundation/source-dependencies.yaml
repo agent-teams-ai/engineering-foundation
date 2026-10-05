@@ -734,6 +734,7 @@ boundaries:
         - node:events
         - node:http
         - node:url
+        - node:util
         - node:zlib
       runtimeReferences: []
     entrypoints: []

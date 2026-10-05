@@ -14,5 +14,5 @@
     "types": ["node"],
     "verbatimModuleSyntax": true
   },
-  "include": ["tests/features/managed-qualification/restoration-lock-inputs.test.mts"]
+  "include": ["packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts"]
 }

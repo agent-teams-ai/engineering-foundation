@@ -8,7 +8,7 @@ import {
   type ManagedRestorationArchiveBindingV1,
   type ManagedRestorationLockV1Request,
   type ManagedRestorationLockV1Result,
-} from '../../../packages/docs-protocol-agent-teams/dist/qualification/index.js';
+} from '../dist/qualification/index.js';
 
 interface Fixture {
   readonly schemaVersion: 1;
@@ -39,12 +39,12 @@ function assertFixture(value: unknown): asserts value is Fixture {
 function digest(bytes: Readonly<Uint8Array>): string { return createHash('sha256').update(bytes).digest('hex'); }
 function canonical(value: unknown): string {
   if (Array.isArray(value)) {return '[' + value.map((item: unknown) => canonical(item)).join(',') + ']';}
-  if (record(value)) {return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}';}
+  if (record(value)) {return '{' + Object.keys(value).toSorted().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}';}
   assert.ok(value === null || typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number' && Number.isFinite(value));
   const encoded = JSON.stringify(value); assert.ok(typeof encoded === 'string'); return encoded;
 }
 async function retained(): Promise<ManagedRestorationLockV1Request> {
-  const root = new URL('../../../packages/docs-protocol-agent-teams/tests/fixtures/restoration-lock-v1/', import.meta.url);
+  const root = new URL('./fixtures/restoration-lock-v1/', import.meta.url);
   const fixture: unknown = JSON.parse(await readFile(new URL('manifest.json', root), 'utf8'));
   assertFixture(fixture);
   assert.equal(fixture.original.sha256, '87cb5e3495848f453c1ac0e4dc8caa7d66828f0cab270cefd46d73dee2ea341a');
@@ -77,7 +77,7 @@ const contextOracle = [
   '@agent-teams/engineering-foundation@1.4.0', '@microsoft/api-extractor@7.58.12',
   '@microsoft/api-extractor-model@7.33.10', '@rushstack/node-core-library@5.23.3',
   '@rushstack/problem-matcher@0.2.1', '@rushstack/terminal@0.24.2', '@rushstack/ts-command-line@5.3.12',
-].map(id => id + '(@types/node@24.13.3)').sort();
+].map(id => id + '(@types/node@24.13.3)').toSorted();
 const foundation = '@agent-teams/engineering-foundation@1.4.0(@types/node@24.13.3)';
 const core = '@rushstack/node-core-library@5.23.3(@types/node@24.13.3)';
 const terminal = '@rushstack/terminal@0.24.2(@types/node@24.13.3)';
@@ -92,7 +92,7 @@ test('retained external A proves whole managed-restoration lock conformance', as
   assert.deepEqual(result.provenance.removedSourceCoordinates, [
     '@agent-teams/docs-protocol-agent-teams@0.2.13', '@agent-teams/docs-protocol@0.6.2',
     '@agent-teams/document-authoring@0.3.2', '@agent-teams/engineering-foundation@1.7.0', '@agent-teams/repository-mutation@0.2.2',
-  ].sort());
+  ].toSorted());
   assert.deepEqual([result.provenance.originalSnapshotCount, result.provenance.managedSnapshotCount,
     result.provenance.foreignOnlySnapshotCount, result.provenance.wholeSnapshotCount], [83, 85, 42, 127]);
   assert.equal(result.provenance.originalPackageManager, 'pnpm@11.20.0');
@@ -204,7 +204,7 @@ function publicTypes(request: ManagedRestorationLockV1Request, result: ManagedRe
   const callback: ManagedRestorationLockV1Request = { ...request, evaluator: () => true };
   // @ts-expect-error Conformance results cannot be used as Cohort admission receipts.
   const authority: { readonly cohortAdmissible: true } = result;
-  if (result.conformance === 'conformant') { const digest: `sha256:${string}` = result.expectedLockDigest; void digest; }
+  if (result.conformance === 'conformant') { const lockDigest: `sha256:${string}` = result.expectedLockDigest; void lockDigest; }
   void facts; void callback; void authority;
 }
 void publicTypes;

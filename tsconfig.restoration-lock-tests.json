@@ -3,5 +3,5 @@
   "compilerOptions": {
     "skipLibCheck": false
   },
-  "include": ["tests/features/managed-qualification/restoration-lock.test.mts"]
+  "include": ["packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts"]
 }

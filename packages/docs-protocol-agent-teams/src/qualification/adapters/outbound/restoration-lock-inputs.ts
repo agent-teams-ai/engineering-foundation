@@ -90,7 +90,7 @@ function yamlSyntax(text: string): void {
 }
 function yamlNode(node: unknown, b: TreeBudget, depth: number): JsonValue {
   account(b, depth, isScalar(node) ? node.value : undefined);
-  if (node == null) {return null;}
+  if (node === null || node === undefined) {return null;}
   insist(!isAlias(node), 'YAML alias');
   insist(isMap(node) || isSeq(node) || isScalar(node), 'YAML value');
   insist(node.tag === undefined || coreTags.has(node.tag), 'YAML tag');
@@ -195,15 +195,7 @@ function tarString(field: Buffer): string {
   if (end >= 0) {insist(field.subarray(end).every(byte => byte === 0), 'tar string padding');}
   return utf8(end < 0 ? field : field.subarray(0, end));
 }
-function tarHeader(header: Buffer) {
-  const checksum = header.reduce((sum, byte, i) => sum + (i >= 148 && i < 156 ? 32 : byte), 0);
-  insist(octal(header.subarray(148, 156)) === checksum, 'tar checksum');
-  insist(header.subarray(257, 263).equals(Buffer.from('ustar\0')) && header.subarray(263, 265).equals(Buffer.from('00')), 'tar dialect');
-  for (const [offset, length] of [[100, 8], [108, 8], [116, 8], [136, 12], [329, 8], [337, 8]] as const) {octal(header.subarray(offset, offset + length));}
-  const size = octal(header.subarray(124, 136));
-  const kind = header[156] === 0 ? '0' : String.fromCharCode(header[156] ?? 0);
-  insist(kind === '0' || kind === '5', 'tar member type');
-  insist(header.subarray(157, 257).every(byte => byte === 0), 'tar link');
+function tarPrefix(header: Buffer): string {
   const prefixField = header.subarray(345, 500);
   const extendedPrefix = prefixField.subarray(0, 131);
   let prefix: string;
@@ -220,6 +212,19 @@ function tarHeader(header: Buffer) {
   } else {
     prefix = tarString(prefixField);
   }
+  return prefix;
+}
+
+function tarHeader(header: Buffer): { name: string; size: number; kind: string } {
+  const checksum = header.reduce((sum, byte, i) => sum + (i >= 148 && i < 156 ? 32 : byte), 0);
+  insist(octal(header.subarray(148, 156)) === checksum, 'tar checksum');
+  insist(header.subarray(257, 263).equals(Buffer.from('ustar\0')) && header.subarray(263, 265).equals(Buffer.from('00')), 'tar dialect');
+  for (const [offset, length] of [[100, 8], [108, 8], [116, 8], [136, 12], [329, 8], [337, 8]] as const) {octal(header.subarray(offset, offset + length));}
+  const size = octal(header.subarray(124, 136));
+  const kind = header[156] === 0 ? '0' : String.fromCharCode(header[156] ?? 0);
+  insist(kind === '0' || kind === '5', 'tar member type');
+  insist(header.subarray(157, 257).every(byte => byte === 0), 'tar link');
+  const prefix = tarPrefix(header);
   let name = (prefix ? prefix + '/' : '') + tarString(header.subarray(0, 100));
   if (kind === '5' && name.endsWith('/')) {name = name.slice(0, -1);}
   insist(!name.includes('\\') && name.split('/').every(part => part !== '' && part !== '.' && part !== '..'), 'tar path');

@@ -7,11 +7,9 @@ import {
 } from "../../consumer-integration/composition/qualification-v3-boundary.js";
 import { createNodeManagedQualificationEnvironment } from "../adapters/outbound/node-managed-qualification.js";
 import { evaluateManagedRestorationLockV1 } from "../adapters/outbound/restoration-lock-graph.js";
-import type {
-  ManagedRestorationLockV1Request,
-  ManagedRestorationLockV1Result
-} from "../application-api.js";
 import {
+  type ManagedRestorationLockV1Request,
+  type ManagedRestorationLockV1Result,
   createDocsProtocolQualificationV2,
   createDocsProtocolQualificationV3Observer,
   createDocsProtocolQualificationV3,

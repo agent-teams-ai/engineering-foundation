@@ -243,8 +243,8 @@
         "tests/quality-gate-runner-remediation.test.mjs",
         "packages/docs-protocol-agent-teams/tests/runtime-policy-checkout.test.mjs",
         "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs",
-        "tests/features/managed-qualification/restoration-lock-inputs.test.mts",
-        "tests/features/managed-qualification/restoration-lock.test.mts",
+        "packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts",
+        "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
         "packages/engineering-foundation/tests/public-api-audit-command.test.mjs"
       ]
     },

@@ -3,8 +3,13 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { gunzipSync, gzipSync } from 'node:zlib';
-import { admitRestorationLockInputs } from '../../../packages/docs-protocol-agent-teams/dist/qualification/adapters/outbound/restoration-lock-inputs.js';
-import type { ArchiveInputBinding, JsonObject, RestorationInputBindings, RestorationInputBytes } from '../../../packages/docs-protocol-agent-teams/dist/qualification/application/model/restoration-lock-inputs.js';
+const { admitRestorationLockInputs } = await import(
+  new URL('../dist/qualification/adapters/outbound/restoration-lock-inputs.js', import.meta.url).href
+) as typeof import('../src/qualification/adapters/outbound/restoration-lock-inputs.js');
+type RestorationInputBytes = Parameters<typeof admitRestorationLockInputs>[0];
+type RestorationInputBindings = Parameters<typeof admitRestorationLockInputs>[1];
+type ArchiveInputBinding = RestorationInputBindings['archives'][string];
+type JsonObject = ReturnType<typeof admitRestorationLockInputs>['original']['tree'];
 
 const key = 'demo@1.0.0';
 const manifest = Buffer.from('{"name":"demo","version":"1.0.0","array":["text",7,false,null],"empty":"","nil":null,"extensions":{"unknown":[{}]},"__proto__":{"safe":true}}');
@@ -113,7 +118,7 @@ interface Fixture {
   archives: readonly (ArchiveInputBinding & { coordinate: string; file: string; integrity: string })[];
 }
 test('retained three pinned documents and twelve actual SRI archives', async t => {
-  const root = new URL('../../../packages/docs-protocol-agent-teams/tests/fixtures/restoration-lock-v1/', import.meta.url);
+  const root = new URL('./fixtures/restoration-lock-v1/', import.meta.url);
   const fixture = JSON.parse(await readFile(new URL('manifest.json', root), 'utf8')) as Fixture;
   assert.equal(fixture.schemaVersion, 1);
   assert.equal(fixture.archives.length, 12);

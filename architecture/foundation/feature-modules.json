@@ -912,8 +912,8 @@
             "packages/docs-protocol-agent-teams/tests/qualification-application.test.mjs",
             "packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs",
             "packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs",
-            "tests/features/managed-qualification/restoration-lock-inputs.test.mts",
-            "tests/features/managed-qualification/restoration-lock.test.mts",
+            "packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts",
+            "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
             "packages/docs-protocol-agent-teams/tests/qualification.test.mjs"
           ]
         }

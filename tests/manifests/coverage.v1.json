@@ -171,8 +171,8 @@
     "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
     "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
     "packages/docs-protocol/tests/portable-dx.test.mjs",
-    "tests/features/managed-qualification/restoration-lock-inputs.test.mts",
-    "tests/features/managed-qualification/restoration-lock.test.mts",
+    "packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts",
+    "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
     "tests/sdk-growth-c0-contract.test.mjs"
   ],
   "thresholds": {

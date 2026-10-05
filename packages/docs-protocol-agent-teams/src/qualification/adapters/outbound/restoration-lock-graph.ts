@@ -7,7 +7,8 @@ import type {
 import type {
   ManagedRestorationLockV1Diagnostic, ManagedRestorationLockV1Request,
   ManagedRestorationLockV1Result, ManagedRestorationLockV1Provenance,
-} from '../../application/model/restoration-lock.js';
+} from '../../application-api.js';
+import { admitsCoveredArchiveRange } from './restoration-lock-covered-ranges.js';
 import { admitRestorationLockInputs } from './restoration-lock-inputs.js';
 
 type Path = readonly (string | number)[];
@@ -69,7 +70,7 @@ function strings(value: JsonValue | undefined): Edges {
 }
 function names(actual: readonly string[], expected: readonly string[], message: string): void {
   need(actual.length === expected.length && new Set(actual).size === actual.length &&
-    [...actual].sort().join('\0') === [...expected].sort().join('\0'), message);
+    actual.toSorted().join('\0') === expected.toSorted().join('\0'), message);
 }
 function exact(value: object, keys: readonly string[]): void {
   need(Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null,
@@ -140,7 +141,7 @@ function starts(tree: Lock, foreign: boolean): string[] {
   const result: string[] = [];
   for (const [id, importer] of Object.entries(tree.importers)) {
     for (const section of sections) {for (const [name, binding] of Object.entries(importer[section] ?? {})) {
-      if (foreign && id === '.' && Object.hasOwn(roots, name)) continue;
+      if (foreign && id === '.' && Object.hasOwn(roots, name)) {continue;}
       if (!binding.version.startsWith('link:')) { result.push(edge(name, binding.version)); continue; }
       const target = posix.normalize(posix.join(id === '.' ? '' : id, binding.version.slice(5)));
       need(!posix.isAbsolute(target) && target !== '..' && !target.startsWith('../') &&
@@ -177,7 +178,7 @@ function rooted(tree: Lock): Set<string> {
 
 function canonical(value: JsonValue): string {
   if (isList(value)) {return '[' + value.map(canonical).join(',') + ']';}
-  if (isObject(value)) {return '{' + Object.keys(value).sort().map(key => {
+  if (isObject(value)) {return '{' + Object.keys(value).toSorted().map(key => {
     const item = value[key]; need(item !== undefined, 'canonical own value');
     return JSON.stringify(key) + ':' + canonical(item);
   }).join(',') + '}';}
@@ -192,7 +193,7 @@ function kind(value: JsonValue | undefined): string {
 function compare(expected: JsonValue | undefined, actual: JsonValue | undefined, path: Path,
   diagnostics: ManagedRestorationLockV1Diagnostic[], code: 'mismatch' | 'preservation'): void {
   if (isObject(expected) && isObject(actual)) {
-    for (const key of [...new Set([...Object.keys(expected), ...Object.keys(actual)])].sort())
+    for (const key of [...new Set([...Object.keys(expected), ...Object.keys(actual)])].toSorted())
       {compare(expected[key], actual[key], [...path, key], diagnostics, code);}
   } else if (isList(expected) && isList(actual)) {
     for (let index = 0; index < Math.max(expected.length, actual.length); index++)
@@ -201,16 +202,43 @@ function compare(expected: JsonValue | undefined, actual: JsonValue | undefined,
     diagnostics.push({ code, path, message: `expected ${kind(expected)} differs from actual ${kind(actual)}` });
   }
 }
-function admits(range: string, version: string): boolean {
-  if (range === '*') {return true;}
-  const match = /^([~^]?)(\d+)\.(\d+)\.(\d+)$/.exec(range);
-  need(match && match[1] !== undefined && match[2] && match[3] && match[4], 'unsupported authenticated range: ' + range);
-  const [major = 0, minor = 0, patch = 0] = version.split('.').map(Number);
-  const loMajor = Number(match[2]), loMinor = Number(match[3]), loPatch = Number(match[4]);
-  const above = major > loMajor || major === loMajor && (minor > loMinor || minor === loMinor && patch >= loPatch);
-  if (match[1] === '') {return version === `${loMajor}.${loMinor}.${loPatch}`;}
-  if (match[1] === '~') {return above && major === loMajor && minor === loMinor;}
-  return above && major === loMajor && (loMajor > 0 || minor === loMinor && (loMinor > 0 || patch === loPatch));
+
+function validateCoveredDeclarationRanges(snapshot: Snapshot, resolved: Edges,
+  declared: { readonly required: Edges; readonly optional: Edges; readonly peers: Edges }): void {
+  const { required, optional, peers } = declared;
+  for (const [name, range] of [...Object.entries(required), ...Object.entries(optional), ...Object.entries(peers)]) {
+    const version = resolved[name]; if (version === undefined) {continue;}
+    need(admitsCoveredArchiveRange(range, locator(edge(name, version)).version, need), 'authenticated range does not admit edge');
+    if (Object.hasOwn(required, name) && !Object.hasOwn(peers, name))
+      {need(snapshot.dependencies?.[name] === version, 'required declaration became optional');}
+    if (Object.hasOwn(optional, name)) {need(snapshot.optionalDependencies?.[name] === version, 'optional declaration became required');}
+  }
+}
+
+function validateCoveredManifestDeclarations(coordinate: string, manifest: JsonObject, original: Lock,
+  source: Lock): { optionalNode: string[]; overlaps: string[] } {
+  const optionalNode: string[] = [], overlaps: string[] = [];
+  const tree = coordinate === nodeTypes || coordinate === undici ? source : original;
+  const ids = Object.keys(tree.snapshots).filter(id => locator(id).coordinate === coordinate);
+  need(ids.length === 1 && ids[0], 'covered coordinate has ambiguous snapshots');
+  const snapshot = tree.snapshots[ids[0]], pkg = tree.packages[coordinate]; need(snapshot && pkg, 'covered graph entry');
+  const required = strings(manifest.dependencies ?? {});
+  const optional = strings(manifest.optionalDependencies ?? {}), peers = strings(manifest.peerDependencies ?? {});
+  const metadata = object(manifest.peerDependenciesMeta ?? {});
+  same(pkg.peerDependencies ?? {}, manifest.peerDependencies ?? {}, 'authenticated package peers');
+  same(pkg.peerDependenciesMeta ?? {}, metadata, 'authenticated package peer metadata');
+  const resolved = Object.fromEntries(edges(snapshot)), expected = new Set([...Object.keys(required), ...Object.keys(optional)]);
+  for (const [name, range] of Object.entries(peers)) {
+    need(object(metadata[name]).optional === true, 'unsupported covered nonoptional peer');
+    if (name === '@types/node') {
+      need(range === '*' && resolved[name] === undefined && tree === original, 'original optional node peer');
+      optionalNode.push(ids[0]);
+    } else { need(resolved[name] !== undefined, 'missing covered peer'); expected.add(name); }
+    if (Object.hasOwn(required, name)) {overlaps.push(`${coordinate}/${name}`);}
+  }
+  names(Object.keys(resolved), [...expected], 'covered archive/graph edge agreement');
+  validateCoveredDeclarationRanges(snapshot, resolved, { required, optional, peers });
+  return { optionalNode, overlaps };
 }
 
 function declarations(inputs: ParsedRestorationLockInputs, original: Lock, source: Lock): string[] {
@@ -218,32 +246,9 @@ function declarations(inputs: ParsedRestorationLockInputs, original: Lock, sourc
   const optionalNode: string[] = [], overlaps: string[] = [];
   for (const coordinate of covered) {
     const archive = inputs.archives[coordinate]; need(archive, 'covered archive');
-    const tree = coordinate === nodeTypes || coordinate === undici ? source : original;
-    const ids = Object.keys(tree.snapshots).filter(id => locator(id).coordinate === coordinate);
-    need(ids.length === 1 && ids[0], 'covered coordinate has ambiguous snapshots');
-    const snapshot = tree.snapshots[ids[0]], pkg = tree.packages[coordinate]; need(snapshot && pkg, 'covered graph entry');
-    const manifest = archive.manifest, required = strings(manifest.dependencies ?? {});
-    const optional = strings(manifest.optionalDependencies ?? {}), peers = strings(manifest.peerDependencies ?? {});
-    const metadata = object(manifest.peerDependenciesMeta ?? {});
-    same(pkg.peerDependencies ?? {}, manifest.peerDependencies ?? {}, 'authenticated package peers');
-    same(pkg.peerDependenciesMeta ?? {}, metadata, 'authenticated package peer metadata');
-    const resolved = Object.fromEntries(edges(snapshot)), expected = new Set([...Object.keys(required), ...Object.keys(optional)]);
-    for (const [name, range] of Object.entries(peers)) {
-      need(object(metadata[name]).optional === true, 'unsupported covered nonoptional peer');
-      if (name === '@types/node') {
-        need(range === '*' && resolved[name] === undefined && tree === original, 'original optional node peer');
-        optionalNode.push(ids[0]);
-      } else { need(resolved[name] !== undefined, 'missing covered peer'); expected.add(name); }
-      if (Object.hasOwn(required, name)) {overlaps.push(`${coordinate}/${name}`);}
-    }
-    names(Object.keys(resolved), [...expected], 'covered archive/graph edge agreement');
-    for (const [name, range] of [...Object.entries(required), ...Object.entries(optional), ...Object.entries(peers)]) {
-      const version = resolved[name]; if (version === undefined) {continue;}
-      need(admits(range, locator(edge(name, version)).version), 'authenticated range does not admit edge');
-      if (Object.hasOwn(required, name) && !Object.hasOwn(peers, name))
-        {need(snapshot.dependencies?.[name] === version, 'required declaration became optional');}
-      if (Object.hasOwn(optional, name)) {need(snapshot.optionalDependencies?.[name] === version, 'optional declaration became required');}
-    }
+    const validated = validateCoveredManifestDeclarations(coordinate, archive.manifest, original, source);
+    optionalNode.push(...validated.optionalNode);
+    overlaps.push(...validated.overlaps);
   }
   names(optionalNode, seeds, 'exact three optional-node-peer seeds');
   names(overlaps, [formats + '/ajv'], 'exact covered dependency/optional-peer overlap');
@@ -275,9 +280,7 @@ function rewritten(row: Snapshot, rename: ReadonlyMap<string, string>): Snapshot
   return result;
 }
 
-function derive(inputs: ParsedRestorationLockInputs) {
-  const envelope = inputs.original.tree, original = lock(object(envelope.pnpmLock)), source = lock(inputs.source.tree);
-  const originalAll = rooted(original), sourceAll = rooted(source);
+function validatedOriginalManagedImporter(envelope: JsonObject, original: Lock, originalAll: ReadonlySet<string>): Importer {
   need(envelope.packageCount === 83 && originalAll.size === 83 && Object.keys(original.packages).length === 83, 'rooted original83');
   names(Object.keys(original.importers), ['.'], 'original root importer');
   const rootImporter = original.importers['.']; need(rootImporter, 'original importer');
@@ -306,7 +309,11 @@ function derive(inputs: ParsedRestorationLockInputs) {
     '@agent-teams/engineering-foundation->@agent-teams/repository-mutation',
   ], 'original managed edge envelope');
   names([...reach(original, managedStarts(original))], [...originalAll], 'original managed closure');
-  const selectedSeeds = declarations(inputs, original, source), affected = new Set(selectedSeeds);
+  return rootImporter;
+}
+
+function reverseNodePeerAncestors(original: Lock, originalAll: ReadonlySet<string>, selectedSeeds: readonly string[]): Set<string> {
+  const affected = new Set(selectedSeeds);
   let changed = true;
   while (changed) {
     changed = false;
@@ -318,10 +325,11 @@ function derive(inputs: ParsedRestorationLockInputs) {
     }
   }
   names([...affected], contexts, 'exact seven reverse dependency ancestors');
-  const rename = new Map([...affected].map(id => { need(locator(id).context === '', 'preexisting node context'); return [id, id + suffix]; }));
-  rename.set(formatsPeer, formats);
-  names([...new Set(rename.values())], [...rename.values()], 'injective locator substitution');
-  for (const destination of rename.values()) {need(!Object.hasOwn(original.snapshots, destination), 'locator collision');}
+  return affected;
+}
+
+function transformedManagedEntries(original: Lock, source: Lock, rename: ReadonlyMap<string, string>,
+  selectedSeeds: readonly string[]): { packages: Record<string, JsonValue>; transformed: Record<string, JsonValue> } {
   const packages: Record<string, JsonValue> = { ...original.packages }, transformed: Record<string, JsonValue> = {};
   for (const [id, row] of Object.entries(original.snapshots)) {
     const pkg = original.packages[locator(id).coordinate]; need(pkg, 'transform package');
@@ -349,6 +357,20 @@ function derive(inputs: ParsedRestorationLockInputs) {
     if (coordinate === nodeTypes) {need(row.dependencies?.['undici-types'] === '7.18.2', 'required node-to-undici edge');}
     packages[coordinate] = pkg; transformed[coordinate] = row;
   }
+  return { packages, transformed };
+}
+
+function derive(inputs: ParsedRestorationLockInputs) {
+  const envelope = inputs.original.tree, original = lock(object(envelope.pnpmLock)), source = lock(inputs.source.tree);
+  const originalAll = rooted(original), sourceAll = rooted(source);
+  const rootImporter = validatedOriginalManagedImporter(envelope, original, originalAll);
+  const selectedSeeds = declarations(inputs, original, source);
+  const affected = reverseNodePeerAncestors(original, originalAll, selectedSeeds);
+  const rename = new Map([...affected].map(id => { need(locator(id).context === '', 'preexisting node context'); return [id, id + suffix]; }));
+  rename.set(formatsPeer, formats);
+  names([...new Set(rename.values())], [...rename.values()], 'injective locator substitution');
+  for (const destination of rename.values()) {need(!Object.hasOwn(original.snapshots, destination), 'locator collision');}
+  const { packages, transformed } = transformedManagedEntries(original, source, rename, selectedSeeds);
   const sourceManaged = reach(source, managedStarts(source)), foreign = reach(source, starts(source, true));
   need(sourceManaged.size === 85 && sourceAll.size === 127, 'Source closure counts');
   const removed = [...sourceManaged].filter(id => !Object.hasOwn(transformed, id) && !foreign.has(id));
@@ -388,8 +410,8 @@ function derive(inputs: ParsedRestorationLockInputs) {
     commentRename.set('snapshots/' + id, rename.get(originalCoordinate) ?? originalCoordinate);
   }
   return { expected, originalCount: originalAll.size, managedCount: managed.size, foreignCount: foreignOnly.length,
-    wholeCount: whole.size, contextLocators: [...affected].map(id => id + suffix).sort(),
-    removedCoordinates: removedCoordinates.sort(), foreign, foreignPackages, commentRename };
+    wholeCount: whole.size, contextLocators: [...affected].map(id => id + suffix).toSorted(),
+    removedCoordinates: removedCoordinates.toSorted(), foreign, foreignPackages, commentRename };
 }
 
 function annotations(bytes: readonly number[], protectedPath: (path: Path) => boolean,

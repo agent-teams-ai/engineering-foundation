@@ -267,16 +267,6 @@ A head/base change or unsuccessful result fails closed; rerun the command for
 the final snapshot. `ready` describes observed full qualification; independent
 current-head review and all other required checks remain separate obligations.
 
-Workflow support for reservation labels is implemented here; the helper's
-reservation and partial-rerun behavior is a separate delivery and qualification.
-The helper at source `15acfeb162d5e1440cff8c7abfa377a2a8e5b365` still uses the
-legacy label, removing/re-adding it for a new request when needed. Until the
-reservation helper is integrated, one caller must own those mutations per PR.
-The legacy label is not a distributed lock: the integration owner's live TEST
-of concurrent identical label POSTs produced two events and runs, with one
-cancelled. Workflow concurrency alone does not serialize callers or guarantee
-event ordering.
-
 The new request protocol reserves `ci:full:<40 hexadecimal characters derived
 from the SHA-256 snapshot digest>` by creating that unique repository label
 before attaching it to the PR. Its description carries a per-caller owner UUID.
@@ -305,14 +295,16 @@ base-repository label permissions. `GITHUB_TOKEN` label additions suppress the
 approval requirements do not supply a labeled-request exception. Required fork
 workflow approvals still apply. No write credential runs candidate PR code.
 
-For a partial rerun, qualify the latest effective successful job for every
-mandatory lane in the original matrix, including successful jobs carried from
-earlier attempts of that same bound run. The latest-attempt-only job list can
-omit those carried jobs. Enumerate the complete job history and choose the
-latest effective result per logical matrix lane; an older success cannot hide a
-newer failure, cancellation, skip or missing job. Revalidate run identity,
-current head/base, the complete native union and all four aggregate gates.
-Partial reruns do not reduce the mandatory matrix.
+For an unsuccessful completed bound run the helper reserves a separate key
+containing that run ID and attempt, and only its owner invokes `gh run rerun ID
+--failed` once. This retry label is never attached to the PR. Lost responses are
+reconciled by bounded reads of the next attempt, without repeating the write.
+GitHub's attempt-specific jobs endpoint includes inherited successful clones in
+our live qualification. Verify that complete current attempt; do not union
+historical successes. An explicit conflicting attempt, missing lane, skipped or
+neutral gate rejects qualification. A successful run with invalid gates is not
+blindly rerun. After an orphan reservation, inspect effects before making an
+explicit legacy `ci:full` request; automatic takeover is intentionally absent.
 
 Raw coverage evidence retains its existing one-day retention. Before rerunning
 coverage, inspect availability of all eight required raw artifacts. If artifacts
@@ -629,3 +621,38 @@ resolution, archive equality and downstream custody checks remain enforced.
 Ancestor package-name probes are bounded independent I/O, with no cached
 absence or source/dependency tree reuse. This private scripts concern introduces
 no product module boundary, capability contract or CMS adoption change.
+
+
+### Trusted owner merge operation
+
+Invoke the reviewed, pinned operator tool from outside the candidate checkout,
+with a trusted Node binary and without `NODE_OPTIONS` or `NODE_PATH` injection:
+
+```bash
+node /trusted/pinned/scripts/merge-reviewed-pr.mts \
+  --pr 123 --review-job REVIEW_JOB --review-host workers-fsn1-01 \
+  --review-registry /srv/worker-state/jobs/engineering-foundation/hardening-20261001/registry \
+  --expected-head HEAD_SHA --expected-base-ref main --expected-base BASE_SHA \
+  --subject 'fix(ci): qualify final source' --body-file /trusted/intent.txt
+```
+
+`ci:merge` requires one independently produced hosted GPT-6.1/xhigh/default
+terminal PASS bound to the exact source, base ref/SHA and workflow blob. Construct
+its job prompt with `readMergeReviewInput` and `renderMergeReviewPrompt`; a caller
+supplied JSON file, ReviewRouter context or candidate Actions status cannot
+replace that receipt. The protected collector reads only the admitted host's
+root-owned manifest, prompt and result. A separate unprivileged collector hashes
+actual source files against the GitHub commit's complete tree, without executing
+candidate Git configuration. Extra files, missing bytes, changed modes and
+unbound metadata reject admission. Review jobs must keep a clean physical source
+tree and run no build or dependency bootstrap there.
+
+The operation also checks all 34 mandatory current native jobs, not just the
+four aggregate names; the shadow classifier remains advisory. It then invokes
+the organization owner guard pinned at
+`05b30bcc00cdf07cfde9ba60a1136bb9df7f7571`, preserving owner identity and the
+expected-head merge comparison. Body bytes are frozen before external IO.
+GitHub required checks still apply. This is an admitted operator path, not a
+GitHub-wide prohibition on another merge client. GitHub Free cannot require our
+trusted workflow, and GitHub exposes no atomic expected-base/ref comparison:
+retargeting after the final read can only be detected after merge.

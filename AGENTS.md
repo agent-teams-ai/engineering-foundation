@@ -36,6 +36,9 @@ Hard rules:
   blindly retry writes. Use the user's authorized credential for a labeled
   request; `GITHUB_TOKEN` labeling suppresses that workflow event. Follow the
   [request and recovery contract](docs/development/quality-gates.md);
+- use the reviewed pinned `ci:merge` operator path outside the candidate checkout,
+  binding the actual protected hosted receipt and complete source tree to the
+  final head/base/ref; do not substitute a caller-supplied review JSON;
 - retain independent hosted technical review in PR comments; `ReviewGate` is
   retired and review must not become a self-attested Actions status. Before an
   owner squash, revalidate the current PR head/base, merge intent, complete native

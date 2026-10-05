@@ -513,12 +513,14 @@ test("repository CI runs workflow qualification under pinned Node and scans the 
   assert.ok(workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts") > 0);
   assert.ok(workflow.indexOf("run: pnpm rebuild") > 0);
   assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40}/u);
-  assert.match(policy, /workflowPath: \.github\/workflows\/ci\.yml/u);
+  const securityPolicy = parseYaml(policy);
+  assert.equal(securityPolicy.dependencyReview.workflowPath, ".github/workflows/pr-feedback.yml");
+  assert.equal(securityPolicy.sbomWorkflow, ".github/workflows/pr-feedback.yml");
   assert.equal(securityScript, "node scripts/security-toolchain.mjs");
   assert.equal(ci.jobs["linux-static"].steps.some(({ run }) => run === "pnpm security:workflows"), true);
   assert.equal(
     ci.jobs.check.if,
-    "${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}",
+    "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}",
   );
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   assert.doesNotMatch(workflow, /aquaproj\/aqua-installer/u);

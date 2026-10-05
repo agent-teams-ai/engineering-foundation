@@ -8,7 +8,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: foundation-pr-feedback-${{ github.event.pull_request.number }}
+  group: >-
+    ${{ github.event.action == 'synchronize' && format('foundation-pr-{0}', github.event.pull_request.number)
+        || format('foundation-feedback-{0}', github.event.pull_request.number) }}
   cancel-in-progress: true
 
 jobs:
@@ -38,7 +40,6 @@ jobs:
   pr-feedback:
     name: pr-feedback
     needs: dependency-review
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

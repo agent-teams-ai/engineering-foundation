@@ -38,3 +38,4 @@ architecture/foundation/docs-protocol-current-policy-v2.json text eol=lf
 architecture/foundation/docs-protocol-current-policy.json text eol=lf
 architecture/contracts/docs-protocol-current-policy/v1.schema.json text eol=lf
 architecture/contracts/docs-protocol-current-policy/v2.schema.json text eol=lf
+packages/docs-protocol-agent-teams/tests/fixtures/restoration-lock-v1/** -text

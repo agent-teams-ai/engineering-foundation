@@ -65,7 +65,8 @@
       "packages/docs-protocol-agent-teams/tests/consumer-cli-json.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",
       "packages/docs-protocol/tests/portable-e2e.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/qualification.test.mjs"
+      "packages/docs-protocol-agent-teams/tests/qualification.test.mjs",
+      "tests/confirm-release-ci.test.mts"
     ],
     "7": [
       "packages/docs-protocol/tests/code-anchor.test.mjs",

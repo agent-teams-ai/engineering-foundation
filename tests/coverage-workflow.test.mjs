@@ -84,7 +84,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.ok(ci.jobs.check.needs.includes("linux-coverage"));
   assert.equal(JSON.stringify(ci).includes("FOUNDATION_PARTITIONED_COVERAGE"), false);
   const fullRequestCondition =
-    "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}";
+    "${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}";
   assert.deepEqual(ci.on.pull_request.types, ["labeled"]);
   assert.deepEqual(codeql.on.pull_request.types, [
     "opened", "synchronize", "reopened", "ready_for_review",
@@ -99,7 +99,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     }
     const aggregate = ["check", "windows-check", "macos-qualification"].includes(jobId);
     const expected = jobId === "full-ci" ? "${{ always() }}" : aggregate
-      ? "${{ always() && (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') }}"
+      ? "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}"
       : fullRequestCondition;
     assert.equal(job.if, jobId === "dependency-review" ? undefined : expected,
       `${jobId} must preserve unconditional dependency review or explicit full admission`);
@@ -209,8 +209,8 @@ test("Automatic PR feedback checks the committed delta independently of full qua
   assert.equal(changed.run, 'pnpm check:changed --base "$FOUNDATION_PR_BASE_SHA"');
   assert.equal(changed["continue-on-error"], undefined);
   assert.equal(preliminary.concurrency.group.replace(/\s+/gu, " "),
-    "${{ github.event.action == 'synchronize' && format('foundation-pr-{0}', github.event.pull_request.number) || format('foundation-feedback-{0}', github.event.pull_request.number) }}",
-    "Only source synchronization should cancel a full request; metadata lifecycle events use a separate group");
+    "${{ format('foundation-feedback-{0}', github.event.pull_request.number) }}",
+    "Feedback cancellation must stay separate from full qualification");
   assert.equal(preliminary.concurrency["cancel-in-progress"], true);
   const full = ci.jobs["full-ci"];
   const nativeAggregates = ["check", "windows-check", "macos-qualification"];
@@ -221,7 +221,7 @@ test("Automatic PR feedback checks the committed delta independently of full qua
   for (const id of nativeAggregates) {
     assert.equal(full.needs.includes(id), false, "full-ci must not extend the aggregate critical path");
     assert.equal(ci.jobs[id].name,
-      "${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && '" + id + "' || 'ci-not-requested-" + id + "' }}",
+      "${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && '" + id + "' || 'ci-not-requested-" + id + "' }}",
       `${id}: unrelated labels must not emit skipped original required contexts`);
     assert.equal(ci.jobs[id]["timeout-minutes"], id === "macos-qualification" ? 5 : 2,
       `${id}: preserve the original native aggregate timeout`);
@@ -231,17 +231,17 @@ test("Automatic PR feedback checks the committed delta independently of full qua
   }
   assert.equal(full.if, "${{ always() }}");
   assert.equal(full.name,
-    "${{ (github.event_name != 'pull_request' || github.event.label.name == 'ci:full') && 'full-ci' || 'ci-not-requested' }}",
+    "${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && 'full-ci' || 'ci-not-requested' }}",
     "Unrelated labels must never emit a skipped/neutral check named full-ci");
   assert.deepEqual(full.permissions, {});
   assert.equal(full["timeout-minutes"], 1);
   assert.equal(full.steps[0].if,
-    "${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:full' }}");
+    "${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}");
   assert.equal(full.steps[0].uses, "re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030");
   assert.deepEqual(full.steps[0].with, { jobs: "${{ toJSON(needs) }}" },
     "No skipped, neutral or failed prerequisite is allowed");
   assert.match(ci["run-name"], /format\('Full CI #\{0\} @\{1\} on \{2\}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha\)/u);
-  assert.match(ci.concurrency.group, /ci:full.*format\('foundation-pr-\{0\}'/su);
+  assert.match(ci.concurrency.group, /ci:full.*format\('foundation-pr-\{0\}-\{1\}-\{2\}', github.event.pull_request.number, github.event.pull_request.head.sha, github.event.pull_request.base.sha\)/su);
   assert.match(ci.concurrency.group, /format\('foundation-ci-unrequested-\{0\}', github.run_id\)/u);
   assert.equal(ci.on.pull_request_target, undefined);
   assert.equal(ci.on.workflow_run, undefined);

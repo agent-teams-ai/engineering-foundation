@@ -846,6 +846,25 @@ jobs:
             fi
           }
 
+          read_final_ci() {
+            local minimum_remaining="$1"
+            shift
+            local read_attempt response
+            # Idempotent GETs only. Leave time for the remaining reads and local
+            # validation; a transport retry must never extend the final window.
+            for read_attempt in 1 2 3; do
+              if (( SECONDS + minimum_remaining >= final_verification_deadline )); then
+                return 1
+              fi
+              if response="$(trap - ERR; timeout --kill-after=1s 3s gh api "$@")"; then
+                printf '%s\n' "${response}"
+                return 0
+              fi
+              if (( read_attempt < 3 )); then sleep 1; fi
+            done
+            return 1
+          }
+
           final_run_verified=0
           final_verification_deadline=$((SECONDS + 60))
           while (( SECONDS < final_verification_deadline )); do
@@ -986,6 +1005,50 @@ jobs:
               continue
             fi
             require_final_release_pr_snapshot "${post_current_main_sha}"
+            # CodeQL/PR/main collection can outlive the earlier CI observation.
+            # Fence CURRENT gate jobs with detail reads of the actual bound run.
+            if ! fresh_ci_before="$(read_final_ci 14 \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}")" || \
+              ! fresh_ci_job_pages="$(read_final_ci 10 --paginate --slurp \
+                "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}/jobs?filter=latest&per_page=100")" || \
+              ! fresh_ci_after="$(read_final_ci 6 \
+                "repos/${GITHUB_REPOSITORY}/actions/runs/${bound_run_id}")"; then
+              sleep 5
+              continue
+            fi
+            if ! fresh_ci_jobs="$(paginated_object_collection jobs <<<"${fresh_ci_job_pages}")"; then
+              fail_attestation "Final release PR CI jobs pagination is malformed"
+            fi
+            ci_contexts_json="$(printf '%s\n' "${ci_contexts[@]}" | jq -Rsc 'split("\n")[:-1]')"
+            if ! approved_gates="$(jq -ce \
+              --argjson expected "${final_bound_run}" \
+              --argjson before "${fresh_ci_before}" --argjson after "${fresh_ci_after}" \
+              --argjson contexts "${ci_contexts_json}" '
+              def identity: [.id, .path, .event, .head_branch, .head_sha, .run_attempt,
+                .html_url, .head_repository.full_name,
+                [.pull_requests[] | [.number, .head.ref, .head.sha, .base.ref, .base.sha]]];
+              [.jobs[] | select(.name as $name | $contexts | index($name))] as $gates |
+              if all([$before, $after][]; identity == ($expected | identity) and
+                .run_attempt == 1 and .status == "completed" and .conclusion == "success") and
+                ($gates | length) == ($contexts | length) and
+                ($gates | map(.name) | sort) == ($contexts | sort) and
+                ($gates | map(.id) | unique | length) == ($contexts | length) and
+                all($gates[]; .run_id == $expected.id and .head_sha == $expected.head_sha and
+                  .run_attempt == 1 and .status == "completed" and .conclusion == "success" and
+                  (.id | type) == "number" and .id > 0 and (.id | floor) == .id and
+                  .html_url == ($expected.html_url + "/job/" + (.id | tostring)))
+              then [$contexts[] as $context | $gates[] | select(.name == $context) |
+                {context: .name, conclusion: .conclusion, target_url: .html_url}]
+              else error("final bound CI run or gates changed") end' <<<"${fresh_ci_jobs}")"; then
+              fail_attestation "Final release PR CI run or gates changed"
+            fi
+            approved_conclusions="$(jq -er '.[].conclusion' <<<"${approved_gates}")"
+            approved_target_urls="$(jq -er '.[].target_url' <<<"${approved_gates}")"
+            mapfile -t conclusions <<<"${approved_conclusions}"
+            mapfile -t target_urls <<<"${approved_target_urls}"
+            if (( SECONDS >= final_verification_deadline )); then
+              fail_attestation "Final release PR CI observation exceeded its window"
+            fi
             final_run_verified=1
             break
           done

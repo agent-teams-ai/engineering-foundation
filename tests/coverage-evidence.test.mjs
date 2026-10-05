@@ -498,7 +498,7 @@ test("coverage evidence finalizes a shard at the observed CI scale", async (cont
   assert.equal(result.artifacts.length, 8);
 });
 
-test("coverage evidence checks the aggregate raw byte budget using bounded reads", async (context) => {
+test("coverage evidence checks the per-shard raw byte budget using bounded reads", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
   const raw = join(root, `coverage-evidence-${headSha}-shard-1`, "raw");
@@ -509,7 +509,51 @@ test("coverage evidence checks the aggregate raw byte budget using bounded reads
   }
   await assert.rejects(
     validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
-    /exceeds its total byte budget/u,
+    /raw coverage directory exceeds its total byte budget/u,
+  );
+});
+
+test("coverage evidence rejects a complete set above 320 MiB", async (context) => {
+  const root = await evidenceSet();
+  context.after(() => rm(root, { force: true, recursive: true }));
+  // Fixed fixture: alternating 32/48 MiB shards plus one byte total 320 MiB + 1.
+  const rawDigests = new Set();
+  let totalRawBytes = 0;
+  for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
+    const artifact = join(root, `coverage-evidence-${headSha}-shard-${shardId}`);
+    const evidencePath = join(artifact, "evidence.json");
+    const seed = JSON.parse(await readFile(evidencePath, "utf8"));
+    const targetShardBytes = (Number(shardId) % 2 === 0 ? 48 : 32) * 1024 * 1024 +
+      (shardId === "7" ? 1 : 0);
+    const perFileBytes = Math.floor(targetShardBytes / seed.rawFiles.length);
+    let shardBytes = 0;
+    for (const [index, record] of seed.rawFiles.entries()) {
+      const size = index === seed.rawFiles.length - 1
+        ? targetShardBytes - shardBytes : perFileBytes;
+      assert.ok(size <= 16 * 1024 * 1024);
+      const path = join(artifact, record.path);
+      const source = await readFile(path);
+      assert.ok(source.byteLength <= size);
+      const padded = Buffer.alloc(size, " ");
+      source.copy(padded);
+      await writeFile(path, padded);
+      shardBytes += size;
+    }
+    await rm(evidencePath);
+    const evidence = await writeShardEvidence({ directory: artifact, headSha, shardId });
+    const recordedBytes = evidence.rawFiles.reduce((total, record) => total + record.size, 0);
+    assert.equal(recordedBytes, targetShardBytes);
+    assert.ok(recordedBytes <= 128 * 1024 * 1024);
+    totalRawBytes += recordedBytes;
+    for (const record of evidence.rawFiles) {
+      assert.equal(rawDigests.has(record.sha256), false);
+      rawDigests.add(record.sha256);
+    }
+  }
+  assert.equal(totalRawBytes, 320 * 1024 * 1024 + 1);
+  await assert.rejects(
+    validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
+    /^Error: Coverage evidence is invalid: complete evidence set exceeds its total byte budget$/u,
   );
 });
 

@@ -27,10 +27,10 @@ const rawCoverageFilename = /^coverage-\d+-\d+-\d+\.json$/u;
 const maximumEvidenceBytes = 1024 * 1024;
 const maximumRawFileBytes = 16 * 1024 * 1024;
 const maximumRawFiles = 512;
-// Native CI shards reach about 93 MiB. Keep bounded headroom for additive tests
-// while retaining a strict aggregate cap below the per-shard maximum.
 const maximumRawShardBytes = 128 * 1024 * 1024;
-const maximumRawSetBytes = 288 * 1024 * 1024;
+// Measured native CI evidence: eight shards total 303,477,800 bytes (289.42 MiB).
+// Keep bounded headroom for growth of this complete eight-shard set.
+const maximumRawSetBytes = 320 * 1024 * 1024;
 
 function fail(message) {
   throw new Error(`Coverage evidence is invalid: ${message}`);

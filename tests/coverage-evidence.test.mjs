@@ -3,7 +3,6 @@ import { execFile } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
-  open,
   readFile,
   readdir,
   rename,
@@ -58,6 +57,20 @@ async function evidenceSet() {
     await writeShardEvidence({ directory: artifact, headSha, shardId });
   }
   return root;
+}
+
+async function padRawShard(root, shardId, fileCount) {
+  const artifact = join(root, `coverage-evidence-${headSha}-shard-${shardId}`);
+  const raw = join(artifact, "raw");
+  const names = (await readdir(raw)).toSorted().slice(0, fileCount);
+  assert.equal(names.length, fileCount);
+  for (const name of names) {
+    const path = join(raw, name);
+    const source = await readFile(path, "utf8");
+    // JSON whitespace preserves the existing worker report and test identity.
+    await writeFile(path, source.padEnd(14 * 1024 * 1024, " "));
+  }
+  return artifact;
 }
 
 async function rewriteEvidence(path, mutate) {
@@ -481,49 +494,50 @@ test(
   },
 );
 
-test("coverage evidence finalizes a shard at the observed CI scale", async (context) => {
+test("coverage evidence finalizes all eight shards at the observed CI scale", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
-  const artifact = join(root, `coverage-evidence-${headSha}-shard-2`);
-  const raw = join(artifact, "raw");
-  // CI shard 2 produces about 90 MiB; retain valid worker identities and JSON.
-  for (const name of (await readdir(raw)).slice(0, 7)) {
-    const path = join(raw, name);
-    const source = await readFile(path, "utf8");
-    await writeFile(path, source.padEnd(14 * 1024 * 1024, " "));
+  // 24 * 14 MiB exceeds the former aggregate cap and preserves shard 2's
+  // observed 98 MiB acceptance case, retaining every raw file.
+  for (const shardId of testManifest.coverageShards.keys()) {
+    const fileCount = shardId === "2" ? 7 : ["1", "3", "4", "5"].includes(shardId) ? 2 : 3;
+    const artifact = await padRawShard(root, shardId, fileCount);
+    await rm(join(artifact, "evidence.json"));
+    await writeShardEvidence({ directory: artifact, headSha, shardId });
   }
-  await rm(join(artifact, "evidence.json"));
-  await writeShardEvidence({ directory: artifact, headSha, shardId: "2" });
   const result = await validateCoverageEvidenceSet({ headSha, inputDirectory: root });
   assert.equal(result.artifacts.length, 8);
+  const totalRawBytes = result.artifacts.reduce((total, artifact) => {
+    assert.equal(artifact.validatedFiles.length,
+      testManifest.coverageShards.get(artifact.evidence.shard.id).length);
+    return total + artifact.validatedFiles.reduce((sum, file) => sum + file.bytes.byteLength, 0);
+  }, 0);
+  assert.ok(totalRawBytes >= 336 * 1024 * 1024);
+  assert.ok(totalRawBytes < 337 * 1024 * 1024);
 });
 
-test("coverage evidence checks the per-shard raw byte budget using bounded reads", async (context) => {
+test("coverage evidence rejects a shard above its raw byte budget using bounded reads", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
-  const raw = join(root, `coverage-evidence-${headSha}-shard-1`, "raw");
-  for (let index = 0; index < 17; index += 1) {
-    const handle = await open(join(raw, `coverage-${index + 9000}-1-0.json`), "w");
-    await handle.truncate(16 * 1024 * 1024);
-    await handle.close();
-  }
+  // Ten existing valid JSON reports total 140 MiB, each below the 16 MiB cap.
+  await padRawShard(root, "1", 10);
   await assert.rejects(
     validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
     /raw coverage directory exceeds its total byte budget/u,
   );
 });
 
-test("coverage evidence rejects a complete set above 320 MiB", async (context) => {
+test("coverage evidence rejects a complete set at 384 MiB plus one byte", async (context) => {
   const root = await evidenceSet();
   context.after(() => rm(root, { force: true, recursive: true }));
-  // Fixed fixture: alternating 32/48 MiB shards plus one byte total 320 MiB + 1.
+  // Fixed fixture: alternating 40/56 MiB shards plus one byte total 384 MiB + 1.
   const rawDigests = new Set();
   let totalRawBytes = 0;
   for (const shardId of ["1", "2", "3", "4", "5", "6", "7", "8"]) {
     const artifact = join(root, `coverage-evidence-${headSha}-shard-${shardId}`);
     const evidencePath = join(artifact, "evidence.json");
     const seed = JSON.parse(await readFile(evidencePath, "utf8"));
-    const targetShardBytes = (Number(shardId) % 2 === 0 ? 48 : 32) * 1024 * 1024 +
+    const targetShardBytes = (Number(shardId) % 2 === 0 ? 56 : 40) * 1024 * 1024 +
       (shardId === "7" ? 1 : 0);
     const perFileBytes = Math.floor(targetShardBytes / seed.rawFiles.length);
     let shardBytes = 0;
@@ -550,10 +564,30 @@ test("coverage evidence rejects a complete set above 320 MiB", async (context) =
       rawDigests.add(record.sha256);
     }
   }
-  assert.equal(totalRawBytes, 320 * 1024 * 1024 + 1);
+  assert.equal(totalRawBytes, 384 * 1024 * 1024 + 1);
   await assert.rejects(
     validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
     /^Error: Coverage evidence is invalid: complete evidence set exceeds its total byte budget$/u,
+  );
+});
+
+test("coverage evidence rejects a complete set above the aggregate raw byte budget", async (context) => {
+  const root = await evidenceSet();
+  context.after(() => rm(root, { force: true, recursive: true }));
+  let totalRawBytes = 0;
+  // 8 * 4 * 14 MiB = 448 MiB; every shard remains below its 128 MiB cap.
+  for (const shardId of testManifest.coverageShards.keys()) {
+    const artifact = await padRawShard(root, shardId, 4);
+    await rm(join(artifact, "evidence.json"));
+    const evidence = await writeShardEvidence({ directory: artifact, headSha, shardId });
+    const shardBytes = evidence.rawFiles.reduce((sum, record) => sum + record.size, 0);
+    assert.ok(shardBytes < 128 * 1024 * 1024);
+    totalRawBytes += shardBytes;
+  }
+  assert.ok(totalRawBytes > 384 * 1024 * 1024);
+  await assert.rejects(
+    validateCoverageEvidenceSet({ headSha, inputDirectory: root }),
+    /complete evidence set exceeds its total byte budget/u,
   );
 });
 

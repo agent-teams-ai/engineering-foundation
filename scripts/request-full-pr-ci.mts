@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import { resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 
-const label = "ci:full";
 const workflowPath = ".github/workflows/ci.yml";
 const repositoryName = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 const readTimeout = 20_000;
@@ -12,16 +12,20 @@ const watchTimeout = 90 * 60_000;
 export interface FullCiPort {
   gh(args: readonly string[], timeoutMs: number): Promise<string>;
   delay(milliseconds: number): Promise<void>;
+  // A fresh UUID per invocation; optional to preserve existing read-only ports.
+  nonce?(): string;
 }
 interface Options { readonly pr: number; readonly wait: boolean }
 interface Repository { readonly name: string; readonly id: number; readonly workflowId: number }
 interface Snapshot {
-  readonly number: number; readonly head: string; readonly base: string;
+  readonly number: number; readonly head: string; readonly base: string; readonly baseRef: string;
   readonly headRepo: number; readonly headRepoName: string; readonly headRef: string; readonly baseRepo: number;
   readonly labels: readonly string[];
 }
 interface BoundRun { readonly id: number; readonly attempt: number; readonly status: string; readonly conclusion: unknown; readonly url: string }
-export interface FullCiResult { readonly outcome: "ready" | "requested"; readonly url: string; readonly head: string; readonly base: string }
+export interface FullCiResult {
+  readonly outcome: "ready" | "requested"; readonly url: string; readonly head: string; readonly base: string; readonly baseRef: string;
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) { throw new Error("Malformed GitHub metadata"); }
@@ -75,8 +79,10 @@ async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise
   if (typeof headRepoName !== "string" || !repositoryName.test(headRepoName)) { throw new Error("Malformed PR source repository"); }
   const headRef = head.ref;
   if (typeof headRef !== "string" || headRef.length === 0) { throw new Error("Malformed PR source branch"); }
+  const baseRef = base.ref;
+  if (typeof baseRef !== "string" || baseRef.length === 0) { throw new Error("Malformed PR base branch"); }
   return { number: pr, head: sha(head.sha), base: sha(base.sha), headRepo: positive(headRepo.id),
-    headRepoName, headRef, baseRepo: repo.id, labels: array(data.labels).map(entry => {
+    headRepoName, headRef, baseRef, baseRepo: repo.id, labels: array(data.labels).map(entry => {
       const name = object(entry).name;
       if (typeof name !== "string") { throw new Error("Malformed PR label"); }
       return name;
@@ -85,7 +91,7 @@ async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise
 async function unchanged(port: FullCiPort, repo: Repository, expected: Snapshot): Promise<Snapshot> {
   const current = await snapshot(port, repo, expected.number);
   if (current.head !== expected.head || current.base !== expected.base || current.headRepo !== expected.headRepo ||
-      current.headRepoName !== expected.headRepoName || current.headRef !== expected.headRef) {
+      current.headRepoName !== expected.headRepoName || current.headRef !== expected.headRef || current.baseRef !== expected.baseRef) {
     throw new Error("PR head/base changed; request full CI for the new snapshot");
   }
   return current;
@@ -95,11 +101,13 @@ function associatedWithSnapshot(associations: unknown[], pr: Snapshot): boolean 
   // GitHub omits this array for forks. The frozen PR/head/base title, canonical
   // workflow and exact source repository/ref still bind those runs uniquely.
   if (associations.length === 0) { return pr.headRepo !== pr.baseRepo; }
-  if (associations.length !== 1) { return false; }
-  const association = object(associations[0]);
+  const requested = associations.map(object).filter(association => association.number === pr.number);
+  if (requested.length !== 1) { return false; }
+  const association = requested[0]!;
   const head = object(association.head); const base = object(association.base);
   return association.number === pr.number && head.sha === pr.head && base.sha === pr.base && head.ref === pr.headRef &&
-    object(head.repo).id === pr.headRepo && object(base.repo).id === pr.baseRepo;
+    object(head.repo).id === pr.headRepo && object(base.repo).id === pr.baseRepo &&
+    (base.ref === undefined || base.ref === pr.baseRef);
 }
 
 function boundRun(value: unknown, repo: Repository, pr: Snapshot): BoundRun | undefined {
@@ -145,47 +153,152 @@ async function rereadRun(port: FullCiPort, repo: Repository, pr: Snapshot, expec
   if (!run || run.id !== expected.id || run.attempt !== expected.attempt) { throw new Error("Bound CI run identity/attempt changed"); }
   return run;
 }
-async function successful(port: FullCiPort, repo: Repository, run: BoundRun): Promise<boolean> {
+async function successful(port: FullCiPort, repo: Repository, pr: Snapshot, run: BoundRun): Promise<boolean> {
   if (run.status !== "completed" || run.conclusion !== "success") { return false; }
-  const jobs = await collection(port, `repos/${repo.name}/actions/runs/${run.id}/attempts/${run.attempt}/jobs`, "jobs");
+  // Selective retries retain successful jobs from earlier attempts. The latest
+  // filter supplies each effective job; the run detail bounds its attempt.
+  const jobs = await collection(port, `repos/${repo.name}/actions/runs/${run.id}/jobs?filter=latest`, "jobs");
   const records = jobs.map(object);
   return ["full-ci", "check", "windows-check", "macos-qualification"].every(name => {
     const gates = records.filter(job => job.name === name);
-    return gates.length === 1 && gates[0]!.run_id === run.id &&
-      gates[0]!.status === "completed" && gates[0]!.conclusion === "success";
+    if (gates.length !== 1) { return false; }
+    const gate = gates[0]!;
+    return typeof gate.id === "number" && Number.isSafeInteger(gate.id) && gate.id > 0 &&
+      records.filter(job => job.id === gate.id).length === 1 &&
+      gate.run_id === run.id && gate.head_sha === pr.head &&
+      typeof gate.run_attempt === "number" && Number.isSafeInteger(gate.run_attempt) &&
+      gate.run_attempt > 0 && gate.run_attempt <= run.attempt &&
+      gate.status === "completed" && gate.conclusion === "success";
   });
 }
 async function finish(port: FullCiPort, repo: Repository, pr: Snapshot, run: BoundRun, wait: boolean): Promise<FullCiResult> {
-  if (wait && run.status !== "completed") {
+  let current = await rereadRun(port, repo, pr, run);
+  if (wait && current.status !== "completed") {
     // A failed watch may have lost its final response. Only fresh API evidence decides.
-    try { await port.gh(["run", "watch", String(run.id), "--repo", repo.name, "--exit-status", "--interval", "10"], watchTimeout); } catch { /* Reconcile below. */ }
+    try { await port.gh(["run", "watch", String(current.id), "--repo", repo.name, "--exit-status", "--interval", "10"], watchTimeout); } catch { /* Reconcile below. */ }
+    current = await rereadRun(port, repo, pr, current);
   }
-  const current = await rereadRun(port, repo, pr, run);
-  const ready = await successful(port, repo, current);
+  const ready = await successful(port, repo, pr, current);
   const newest = await latestRun(port, repo, pr);
   // The run-list endpoint can lag behind run detail during ordinary lifecycle
   // transitions. Detail and actual jobs prove success; the list binds newest identity.
   if (!newest || newest.id !== current.id || newest.attempt !== current.attempt) {
     throw new Error("Latest bound CI request changed; inspect Actions before retrying");
   }
+  const confirmed = await rereadRun(port, repo, pr, current);
+  if (confirmed.status !== current.status || confirmed.conclusion !== current.conclusion) {
+    throw new Error("Bound CI run status/conclusion changed; inspect Actions before retrying");
+  }
   await unchanged(port, repo, pr);
   if (!ready && (wait || current.status === "completed")) { throw new Error(`Full CI is not successful: ${current.url}`); }
-  return { outcome: ready ? "ready" : "requested", url: current.url, head: pr.head, base: pr.base };
+  return { outcome: ready ? "ready" : "requested", url: current.url, head: pr.head, base: pr.base, baseRef: pr.baseRef };
 }
 
-async function ensureLabel(port: FullCiPort, repo: Repository): Promise<void> {
-  const labels = await collection(port, `repos/${repo.name}/labels`);
-  if (labels.some(entry => object(entry).name === label)) { return; }
+async function requireUser(port: FullCiPort): Promise<void> {
   try {
-    await port.gh(["api", "--method", "POST", `repos/${repo.name}/labels`, "-f", `name=${label}`,
-      "-f", "color=0e8a16", "-f", "description=Request complete native PR qualification"], readTimeout);
+    const user = object(await json(port, ["api", "user"]));
+    positive(user.id);
+    if (user.type !== "User" || typeof user.login !== "string" || !/^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/u.test(user.login)) {
+      throw new Error("Not a user credential");
+    }
   } catch {
-    const observed = object(await json(port, ["api", `repos/${repo.name}/labels/${encodeURIComponent(label)}`]));
-    if (observed.name !== label) { throw new Error("Repository label creation was not reconciled"); }
+    throw new Error("Full CI writes require a user-authenticated gh credential (GET /user with a valid User identity); GITHUB_TOKEN labeled events are suppressed");
   }
 }
 
-export async function requestFullPrCi(args: readonly string[], port: FullCiPort): Promise<FullCiResult> {
+function reservationName(repo: Repository, pr: Snapshot, retry?: BoundRun): string {
+  // An ordered, versioned array avoids ambiguous concatenation. Labels and
+  // lifecycle status are observations, not part of the frozen source binding.
+  const binding = ["ci-full-v1", repo.id, repo.name, pr.number, pr.head, pr.base, pr.baseRef,
+    pr.headRepo, pr.headRepoName, pr.headRef, pr.baseRepo,
+    ...(retry ? ["rerun-failed", retry.id, retry.attempt] : ["request"])];
+  return `ci:full:${createHash("sha256").update(JSON.stringify(binding)).digest("hex").slice(0, 40)}`;
+}
+
+async function reserve(port: FullCiPort, repo: Repository, pr: Snapshot, retry?: BoundRun): Promise<{ name: string; owned: boolean }> {
+  const nonce = port.nonce?.() ?? randomUUID();
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(nonce)) {
+    throw new Error("Malformed reservation owner UUID; no write attempted");
+  }
+  const name = reservationName(repo, pr, retry);
+  const description = `ci-full:v1:pr:${pr.number}:owner:${nonce}`;
+  await unchanged(port, repo, pr);
+  try {
+    // Creation is the atomic admission primitive. Never retry this write or
+    // update/delete a label owned by another caller, even after a lost response.
+    await port.gh(["api", "--method", "POST", `repos/${repo.name}/labels`, "-f", `name=${name}`,
+      "-f", "color=0e8a16", "-f", `description=${description}`], readTimeout);
+  } catch { /* Every outcome, including success, is reconciled by an exact read. */ }
+  let observed: Record<string, unknown>;
+  try { observed = object(await json(port, ["api", `repos/${repo.name}/labels/${encodeURIComponent(name)}`])); }
+  catch {
+    throw new Error("Reservation creation effect uncertain: exact label ownership unavailable; inspect Actions and labels, then manually request ci:full if needed");
+  }
+  if (observed.name !== name || typeof observed.description !== "string") {
+    throw new Error("Reservation ownership malformed; inspect Actions and labels before a manual ci:full request");
+  }
+  return { name, owned: observed.description === description };
+}
+
+async function observeRequest(port: FullCiPort, repo: Repository, pr: Snapshot, wait: boolean): Promise<FullCiResult> {
+  for (let observation = 0; observation < 12; observation += 1) {
+    await unchanged(port, repo, pr);
+    const run = await latestRun(port, repo, pr);
+    if (run) { return finish(port, repo, pr, run, wait); }
+    if (observation < 11) { await port.delay(5_000); }
+  }
+  throw new Error("Request effect uncertain: reserved snapshot has no bound CI run; inspect Actions and labels before manually requesting ci:full; no automatic takeover or resubmission");
+}
+
+async function retryDetail(port: FullCiPort, repo: Repository, pr: Snapshot, previous: BoundRun): Promise<BoundRun> {
+  const current = boundRun(await json(port, ["api", `repos/${repo.name}/actions/runs/${previous.id}`]), repo, pr);
+  if (!current || current.id !== previous.id || current.attempt < previous.attempt || current.attempt > previous.attempt + 1) {
+    throw new Error("Bound CI retry identity/attempt changed beyond the expected next attempt; inspect Actions before retrying");
+  }
+  const latest = await latestRun(port, repo, pr);
+  if (!latest || latest.id !== current.id || latest.attempt < previous.attempt || latest.attempt > previous.attempt + 1) {
+    throw new Error("Latest bound CI request changed during retry; inspect Actions before retrying");
+  }
+  return current;
+}
+
+async function observeRetry(port: FullCiPort, repo: Repository, pr: Snapshot, previous: BoundRun, wait: boolean): Promise<FullCiResult> {
+  for (let observation = 0; observation < 12; observation += 1) {
+    await unchanged(port, repo, pr);
+    const current = await retryDetail(port, repo, pr, previous);
+    if (current.attempt === previous.attempt + 1) {
+      // finish pins this exact attempt before watch. A subsequent retry or
+      // superseding request must reject, rather than silently qualify new work.
+      const latest = await latestRun(port, repo, pr);
+      if (latest?.id === current.id && latest.attempt === current.attempt) {
+        return finish(port, repo, pr, current, wait);
+      }
+    }
+    if (observation < 11) { await port.delay(5_000); }
+  }
+  throw new Error("Retry effect uncertain: no bound next attempt observed; inspect Actions and retry reservation before manual recovery; no rerun resubmitted");
+}
+
+async function retryFailed(port: FullCiPort, repo: Repository, pr: Snapshot, run: BoundRun, wait: boolean): Promise<FullCiResult> {
+  await requireUser(port);
+  const reservation = await reserve(port, repo, pr, run);
+  if (reservation.owned) {
+    const current = await retryDetail(port, repo, pr, run);
+    await unchanged(port, repo, pr);
+    if (current.attempt === run.attempt) {
+      if (current.status !== run.status || current.conclusion !== run.conclusion) {
+        throw new Error("Bound CI run status/conclusion changed before retry; inspect Actions before retrying");
+      }
+      try { await port.gh(["run", "rerun", String(run.id), "--repo", repo.name, "--failed"], readTimeout); }
+      catch { /* An uncertain rerun is reconciled only by reading its next attempt. */ }
+    }
+  }
+  // Retry reservations are repository labels only: attaching one to the PR
+  // would emit a second full-matrix request.
+  return observeRetry(port, repo, pr, run, wait);
+}
+
+async function requestContext(args: readonly string[], port: FullCiPort): Promise<{ options: Options; repo: Repository; pr: Snapshot }> {
   const options = parseFullCiArguments(args); // Validate before any IO or mutation.
   const name = object(await json(port, ["repo", "view", "--json", "nameWithOwner"])).nameWithOwner;
   if (typeof name !== "string" || !repositoryName.test(name)) { throw new Error("Malformed repository name"); }
@@ -195,44 +308,62 @@ export async function requestFullPrCi(args: readonly string[], port: FullCiPort)
   if (workflow.name !== "CI" || workflow.path !== workflowPath) { throw new Error("Canonical CI workflow identity changed"); }
   const repo: Repository = { name, id: positive(metadata.id), workflowId: positive(workflow.id) };
   const pr = await snapshot(port, repo, options.pr);
-  const existing = await latestRun(port, repo, pr);
-  if (existing && (existing.status !== "completed" || await successful(port, repo, existing))) {
-    return finish(port, repo, pr, existing, options.wait);
+  return { options, repo, pr };
+}
+
+// Gate consumers can inspect the same evidence without any request/retry
+// admission, credential requirement, or label/rerun effect.
+export async function readFullPrCi(args: readonly string[], port: FullCiPort): Promise<FullCiResult> {
+  const { options, repo, pr } = await requestContext(args, port);
+  const run = await latestRun(port, repo, pr);
+  if (!run) { throw new Error("No exact bound full CI run; request qualification separately"); }
+  return finish(port, repo, pr, run, options.wait);
+}
+
+export async function requestFullPrCi(args: readonly string[], port: FullCiPort): Promise<FullCiResult> {
+  const { options, repo, pr } = await requestContext(args, port);
+  const discovered = await latestRun(port, repo, pr);
+  const existing = discovered === undefined ? undefined : await rereadRun(port, repo, pr, discovered);
+  if (existing) {
+    if (existing.status !== "completed" || await successful(port, repo, pr, existing)) {
+      return finish(port, repo, pr, existing, options.wait);
+    }
+    if (!["failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale"].includes(String(existing.conclusion))) {
+      throw new Error(`Full CI has unsuccessful or malformed gate evidence: ${existing.url}; inspect the complete matrix before manually requesting ci:full`);
+    }
+    return retryFailed(port, repo, pr, existing, options.wait);
   }
-  await ensureLabel(port, repo);
-  const current = await unchanged(port, repo, pr);
-  if (current.labels.includes(label)) {
-    // An existing label does not emit another labeled event. Re-request once.
-    try { await port.gh(["api", "--method", "DELETE", `repos/${repo.name}/issues/${pr.number}/labels/${encodeURIComponent(label)}`], readTimeout); }
-    catch { /* Verify the effect rather than repeat an uncertain DELETE. */ }
-    if ((await unchanged(port, repo, pr)).labels.includes(label)) { throw new Error("Label removal was not reconciled; no request posted"); }
-  }
+  await requireUser(port);
+  const reservation = await reserve(port, repo, pr);
+  if (!reservation.owned) { return observeRequest(port, repo, pr, options.wait); }
+  // Another explicit request may have become visible while reserving. Reuse its
+  // exact bound run before emitting any labeled event.
+  const appeared = await latestRun(port, repo, pr);
+  if (appeared) { return finish(port, repo, pr, appeared, options.wait); }
   await unchanged(port, repo, pr);
-  try { await port.gh(["api", "--method", "POST", `repos/${repo.name}/issues/${pr.number}/labels`, "-f", `labels[]=${label}`], readTimeout); }
+  try { await port.gh(["api", "--method", "POST", `repos/${repo.name}/issues/${pr.number}/labels`, "-f", `labels[]=${reservation.name}`], readTimeout); }
   catch { /* Never retry an uncertain POST; discover its bound run. */ }
-  for (let observation = 0; observation < 12; observation += 1) {
-    await unchanged(port, repo, pr);
-    const run = await latestRun(port, repo, pr);
-    if (run && (!existing || run.id > existing.id)) { return finish(port, repo, pr, run, options.wait); }
-    if (observation < 11) { await port.delay(5_000); }
-  }
-  throw new Error("Request effect uncertain: no new exact-head/base full CI run found; inspect Actions before retrying");
+  return observeRequest(port, repo, pr, options.wait);
+}
+
+export function createFullCiPort(gh: FullCiPort["gh"] = (args, timeoutMs) => new Promise((resolve, reject) => {
+  execFile("gh", [...args], { timeout: timeoutMs, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
+    if (error) { reject(new Error("GitHub CLI failed or timed out; effect may be uncertain")); }
+    else { resolve(stdout); }
+  });
+})): FullCiPort {
+  return {
+    gh,
+    nonce: randomUUID,
+    delay: milliseconds => new Promise(resolve => { setTimeout(resolve, milliseconds); }),
+  };
 }
 
 const invoked = process.argv[1] === undefined ? undefined : pathToFileURL(resolvePath(process.argv[1])).href;
 if (invoked === import.meta.url) {
-  const port: FullCiPort = {
-    gh: (args, timeoutMs) => new Promise((resolve, reject) => {
-      execFile("gh", [...args], { timeout: timeoutMs, killSignal: "SIGKILL", maxBuffer: 8 * 1024 * 1024 }, (error, stdout) => {
-        if (error) { reject(new Error("GitHub CLI failed or timed out; effect may be uncertain")); }
-        else { resolve(stdout); }
-      });
-    }),
-    delay: milliseconds => new Promise(resolve => { setTimeout(resolve, milliseconds); }),
-  };
   try {
-    const result = await requestFullPrCi(process.argv.slice(2), port);
-    process.stdout.write(`Full CI ${result.outcome}: ${result.url}\nHead ${result.head}; base ${result.base}\n`);
+    const result = await requestFullPrCi(process.argv.slice(2), createFullCiPort());
+    process.stdout.write(`Full CI ${result.outcome}: ${result.url}\nHead ${result.head}; base ${result.base} (${result.baseRef})\n`);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : "Full CI request failed"}\n`);
     process.exitCode = 1;

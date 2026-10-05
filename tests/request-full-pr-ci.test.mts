@@ -6,11 +6,12 @@ import type { FullCiPort } from "../scripts/request-full-pr-ci.mts";
 
 const head = "a".repeat(40);
 const base = "b".repeat(40);
+const baseRef = "main";
 const url = "https://github.com/example/tooling/actions/runs/101";
 const prMetadata = {
   number: 7, state: "open", labels: [] as { name: string }[],
   head: { sha: head, ref: "test/fork-pr", repo: { id: 22, full_name: "fork/tooling" } },
-  base: { sha: base, repo: { id: 11, full_name: "example/tooling" } },
+  base: { sha: base, ref: baseRef, repo: { id: 11, full_name: "example/tooling" } },
 };
 function runMetadata() {
   // Shape observed by root in TEST run 37226486275: both names carry run-name;
@@ -22,16 +23,20 @@ function runMetadata() {
     repository: { id: 11, full_name: "example/tooling" }, html_url: url,
     head_repository: { id: 22, full_name: "fork/tooling" },
     status: "completed", conclusion: "success",
-    pull_requests: [{ number: 7, head: { sha: head, ref: "test/fork-pr", repo: { id: 22 } }, base: { sha: base, repo: { id: 11 } } }],
+    pull_requests: [{ number: 7, head: { sha: head, ref: "test/fork-pr", repo: { id: 22 } }, base: { sha: base, ref: baseRef, repo: { id: 11 } } }],
   };
+}
+interface JobMetadata {
+  id?: number; run_id: number; run_attempt?: number; head_sha?: string;
+  name: string; status: string; conclusion: string;
 }
 function fixture() {
   const pr = structuredClone(prMetadata);
   const state = {
     pr, runs: [] as ReturnType<typeof runMetadata>[],
     workflow: { id: 55, name: "CI", path: ".github/workflows/ci.yml" },
-    jobs: ["full-ci", "check", "windows-check", "macos-qualification"].map(name =>
-      ({ run_id: 101, name, status: "completed", conclusion: "success" })),
+    jobs: ["full-ci", "check", "windows-check", "macos-qualification"].map((name, index): JobMetadata =>
+      ({ id: 1001 + index, run_id: 101, run_attempt: 1, head_sha: head, name, status: "completed", conclusion: "success" })),
     effects: [] as string[][], reads: [] as string[][], waits: [] as number[],
     repositoryLabel: true, discover: true, losePost: false, loseDelete: false,
     watch: () => {}, beforePost: () => {}, beforeReadRun: () => {},
@@ -63,7 +68,10 @@ function fixture() {
       if (endpoint === "repos/example/tooling/actions/workflows/ci.yml") { return JSON.stringify(state.workflow); }
       if (endpoint.startsWith("repos/example/tooling/labels?")) { return JSON.stringify(state.repositoryLabel ? [{ name: "ci:full" }] : []); }
       if (endpoint.includes("/workflows/")) { return JSON.stringify({ workflow_runs: state.runs }); }
-      if (endpoint.includes("/jobs?")) { return JSON.stringify({ jobs: state.jobs }); }
+      if (endpoint.includes("/jobs?")) {
+        const attempt = /\/attempts\/([0-9]+)\/jobs/u.exec(endpoint)?.[1];
+        return JSON.stringify({ jobs: attempt === undefined ? state.jobs : state.jobs.filter(job => job.run_attempt === Number(attempt)) });
+      }
       if (endpoint.includes("/actions/runs/")) {
         state.beforeReadRun();
         return JSON.stringify(state.runs.find(run => String(run.id) === endpoint.split("/").at(-1)));
@@ -87,9 +95,9 @@ test("malformed requests reject before GitHub IO", async () => {
 
 test("GitHub custom run-name and four successful native gates reuse a fork run without mutation", async () => {
   const { state, port } = fixture(); state.runs = [runMetadata()];
-  assert.deepEqual(await requestFullPrCi(["--", "--pr", "7", "--wait"], port), { outcome: "ready", url, head, base });
+  assert.deepEqual(await requestFullPrCi(["--", "--pr", "7", "--wait"], port), { outcome: "ready", url, head, base, baseRef });
   assert.deepEqual(state.effects, []); assert.deepEqual(state.waits, []);
-  assert.ok(state.reads.some(args => args[1]?.includes("/attempts/1/jobs")));
+  assert.ok(state.reads.some(args => args[1]?.includes("/actions/runs/101/jobs?filter=latest")));
   assert.ok(state.reads.some(args => args[1] === "repos/example/tooling/actions/workflows/ci.yml"));
 });
 
@@ -142,7 +150,7 @@ test("a fresh fork request creates the repository label and waits for its emitte
     for (const job of state.jobs) { job.run_id = 102; }
   };
   assert.deepEqual(await requestFullPrCi(["--pr", "7", "--wait"], port),
-    { outcome: "ready", url: url.replace("101", "102"), head, base });
+    { outcome: "ready", url: url.replace("101", "102"), head, base, baseRef });
   assert.deepEqual(state.effects, [
     ["api", "--method", "POST", "repos/example/tooling/labels", "-f", "name=ci:full",
       "-f", "color=0e8a16", "-f", "description=Request complete native PR qualification"],
@@ -170,6 +178,7 @@ test("dispatch, unrequested, wrong workflow/repo/PR/head/base runs cannot bless 
     (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.head.repo.id = 23; },
     (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.head.ref = "other-branch"; },
     (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.base.repo.id = 12; },
+    (r: ReturnType<typeof runMetadata>) => { r.pull_requests[0]!.base.ref = "canary"; },
     (r: ReturnType<typeof runMetadata>) => { r.display_title = `Full CI #7 @${head} on ${"c".repeat(40)}`; },
   ]) {
     const { state, port } = fixture(); const run = runMetadata(); change(run); state.runs = [run];
@@ -197,12 +206,22 @@ test("skipped, neutral, absent or duplicate gates and unsuccessful runs require 
 // Checking only full-ci would wrongly report ready for each fixture below.
 test("each of the four gates must have one actual successful job in the bound run", async () => {
   for (const name of ["full-ci", "check", "windows-check", "macos-qualification"]) {
-    for (const defect of ["missing", "duplicate", "skipped", "neutral", "failure", "cancelled", "wrong-run", "pending"]) {
+    for (const defect of ["missing", "duplicate", "skipped", "neutral", "failure", "cancelled", "wrong-run", "pending",
+      "wrong-head", "missing-head", "future-attempt", "zero-attempt", "fractional-attempt", "missing-attempt", "missing-id", "zero-id", "duplicate-id"]) {
       const { state, port } = fixture(); state.runs = [runMetadata()];
       const job = state.jobs.find(entry => entry.name === name)!;
       if (defect === "missing") { state.jobs = state.jobs.filter(entry => entry !== job); }
       else if (defect === "duplicate") { state.jobs.push({ ...job }); }
       else if (defect === "wrong-run") { job.run_id = 99; }
+      else if (defect === "wrong-head") { job.head_sha = "c".repeat(40); }
+      else if (defect === "missing-head") { delete job.head_sha; }
+      else if (defect === "future-attempt") { job.run_attempt = 2; }
+      else if (defect === "zero-attempt") { job.run_attempt = 0; }
+      else if (defect === "fractional-attempt") { job.run_attempt = 1.5; }
+      else if (defect === "missing-attempt") { delete job.run_attempt; }
+      else if (defect === "missing-id") { delete job.id; }
+      else if (defect === "zero-id") { job.id = 0; }
+      else if (defect === "duplicate-id") { job.id = state.jobs.find(entry => entry !== job)!.id; }
       else if (defect === "pending") { job.status = "in_progress"; }
       else { job.conclusion = defect; }
       assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, "requested", `${name}: ${defect}`);
@@ -312,5 +331,186 @@ test("a newer failing request observed during reuse cannot be hidden by older su
     state.runs.push({ ...runMetadata(), id: 103, html_url: url.replace("101", "103"), conclusion: "failure" });
   };
   await assert.rejects(requestFullPrCi(["--pr", "7"], port), /Latest bound CI request changed/u);
+  assert.deepEqual(state.effects, []);
+});
+
+// RED: a missing branch or a retarget to an equal-SHA branch used to pass the
+// SHA-only snapshot guard. Neither can authorize reuse or a PR label mutation.
+test("the actual PR base branch is required and returned without a main-only default", async () => {
+  for (const ref of [undefined, null, "", 17]) {
+    const { state, port } = fixture(); const gh = port.gh;
+    port.gh = async (args, timeout) => {
+      const response = await gh(args, timeout);
+      return args[1] === "repos/example/tooling/pulls/7"
+        ? JSON.stringify({ ...state.pr, base: { ...state.pr.base, ref } }) : response;
+    };
+    await assert.rejects(requestFullPrCi(["--pr", "7"], port), /base branch/u);
+    assert.deepEqual(state.effects, []);
+  }
+  const { state, port } = fixture(); const run = runMetadata();
+  state.pr.base.ref = "test/canary"; run.pull_requests[0]!.base.ref = "test/canary"; state.runs = [run];
+  assert.deepEqual(await requestFullPrCi(["--pr", "7", "--wait"], port),
+    { outcome: "ready", url, head, base, baseRef: "test/canary" });
+  assert.deepEqual(state.effects, []);
+});
+
+test("equal-SHA base branch retargets before effects, during request, reuse and watch fail closed", async () => {
+  for (const phase of ["before-effects", "request", "reuse", "watch"]) {
+    const { state, port } = fixture(); const retarget = () => { state.pr.base.ref = "test/canary"; };
+    if (phase === "before-effects") {
+      state.pr.labels = [{ name: "ci:full" }]; const gh = port.gh; let reads = 0;
+      port.gh = async (args, timeout) => {
+        if (args[1] === "repos/example/tooling/pulls/7" && ++reads === 2) { retarget(); }
+        return gh(args, timeout);
+      };
+    } else if (phase === "request") { state.beforePost = retarget; }
+    else {
+      state.runs = [runMetadata()];
+      if (phase === "reuse") { state.beforeReadRun = retarget; }
+      else { state.runs[0]!.status = "queued"; state.watch = retarget; }
+    }
+    await assert.rejects(requestFullPrCi(phase === "watch" ? ["--pr", "7", "--wait"] : ["--pr", "7"], port),
+      /head\/base changed/u, phase);
+    assert.equal(state.effects.length, phase === "request" ? 1 : 0, phase);
+  }
+});
+
+// RED: GitHub can associate the same commit with other PRs; rejecting the entire
+// collection used to emit a duplicate request despite one exact requested PR.
+test("one exact requested association permits unrelated PR entries in either order", async () => {
+  for (const reverse of [false, true]) {
+    const { state, port } = fixture(); const run = runMetadata();
+    run.pull_requests.push({ number: 8, head: { sha: "c".repeat(40), ref: "other", repo: { id: 23 } },
+      base: { sha: "d".repeat(40), ref: "other-base", repo: { id: 11 } } });
+    if (reverse) { run.pull_requests.reverse(); }
+    state.runs = [run];
+    assert.equal((await requestFullPrCi(["--pr", "7", "--wait"], port)).outcome, "ready");
+    assert.deepEqual(state.effects, []);
+  }
+});
+
+test("duplicate or contradictory requested associations cannot be rescued by one matching entry", async () => {
+  for (const defect of ["duplicate", "head", "base", "source", "head-ref", "base-ref"]) {
+    const { state, port } = fixture(); const run = runMetadata();
+    const extra = structuredClone(run.pull_requests[0]!);
+    if (defect === "head") { extra.head.sha = "c".repeat(40); }
+    else if (defect === "base") { extra.base.sha = "c".repeat(40); }
+    else if (defect === "source") { extra.head.repo.id = 23; }
+    else if (defect === "head-ref") { extra.head.ref = "other"; }
+    else if (defect === "base-ref") { extra.base.ref = "other"; }
+    run.pull_requests.push(extra); state.runs = [run];
+    assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, "requested", defect);
+    assert.equal(state.effects.length, 1, defect);
+  }
+});
+
+test("an association without an optional base ref retains its exact SHA/source binding", async () => {
+  const { state, port } = fixture(); state.runs = [runMetadata()]; const gh = port.gh;
+  port.gh = async (args, timeout) => {
+    const response = await gh(args, timeout);
+    if (!args[1]?.includes("/actions/")) { return response; }
+    // Omission in JSON matches the provider's older association shape.
+    return response.replaceAll(`,"ref":"${baseRef}"`, "");
+  };
+  assert.equal((await requestFullPrCi(["--pr", "7", "--wait"], port)).outcome, "ready");
+  assert.deepEqual(state.effects, []);
+});
+
+// RED: a stale failed list conclusion used to re-request a fresh successful run;
+// a stale success used to reject fresh failure instead of requesting new work.
+test("fresh run detail decides reuse when list conclusions lag success or failure", async () => {
+  for (const conclusion of ["success", "failure"]) {
+    const { state, port } = fixture(); state.runs = [{ ...runMetadata(), conclusion }]; const gh = port.gh;
+    port.gh = async (args, timeout) => {
+      const response = await gh(args, timeout);
+      if (args[1]?.includes("/workflows/ci.yml/runs?")) {
+        return JSON.stringify({ workflow_runs: state.runs.map(run => run.id === 101
+          ? { ...run, conclusion: conclusion === "success" ? "failure" : "success" } : run) });
+      }
+      return response;
+    };
+    assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, conclusion === "success" ? "ready" : "requested");
+    assert.equal(state.effects.length, conclusion === "success" ? 0 : 1);
+  }
+});
+
+// RED: a newly discovered run's cached list status used to decide whether to
+// watch. Fresh detail can require a watch or already prove completion.
+test("new request detail controls watching despite stale run-list completion", async () => {
+  for (const needsWatch of [true, false]) {
+    const { state, port } = fixture(); const gh = port.gh;
+    const complete = () => {
+      state.runs[0]!.status = "completed"; state.runs[0]!.conclusion = "success";
+      for (const job of state.jobs) { job.run_id = 102; }
+    };
+    state.watch = complete;
+    if (!needsWatch) { state.beforeReadRun = complete; }
+    port.gh = async (args, timeout) => {
+      const response = await gh(args, timeout);
+      if (needsWatch && args[1]?.includes("/workflows/ci.yml/runs?")) {
+        return JSON.stringify({ workflow_runs: state.runs.map(run => ({ ...run, status: "completed", conclusion: "success" })) });
+      }
+      return response;
+    };
+    assert.equal((await requestFullPrCi(["--pr", "7", "--wait"], port)).outcome, "ready");
+    assert.equal(state.waits.length, needsWatch ? 1 : 0);
+    assert.equal(state.effects.length, 1);
+  }
+});
+
+// RED: run-list identity remained unchanged while detail was requeued, failed or
+// rerun after job discovery. Cached success must not become a ready verdict.
+test("status, conclusion or attempt drift after jobs or latest discovery rejects readiness", async () => {
+  for (const phase of ["jobs", "latest"]) {
+    for (const field of ["status", "conclusion", "attempt"]) {
+      const { state, port } = fixture(); state.runs = [runMetadata()]; const gh = port.gh;
+      let jobReads = 0; let changed = false;
+      port.gh = async (args, timeout) => {
+        const response = await gh(args, timeout);
+        if (args[1]?.includes("/jobs?")) { jobReads += 1; }
+        const boundary = phase === "jobs" ? args[1]?.includes("/jobs?") : args[1]?.includes("/workflows/ci.yml/runs?");
+        if (boundary && jobReads >= 2 && !changed) {
+          changed = true;
+          if (field === "status") { state.runs[0]!.status = "in_progress"; }
+          else if (field === "conclusion") { state.runs[0]!.conclusion = "failure"; }
+          else { state.runs[0]!.run_attempt += 1; }
+        }
+        return response;
+      };
+      await assert.rejects(requestFullPrCi(["--pr", "7", "--wait"], port), /changed/u, `${phase}: ${field}`);
+      assert.ok(changed, `${phase}: ${field} crossed the observation boundary`);
+      assert.deepEqual(state.effects, []);
+    }
+  }
+});
+
+// RED: attempt-only jobs omit successful gates retained from earlier attempts
+// after selective retry, so the old helper posted another full request.
+test("selective retries qualify the latest effective gates across bounded job attempts", async () => {
+  const { state, port } = fixture(); state.runs = [{ ...runMetadata(), run_attempt: 3 }];
+  state.jobs.forEach((job, index) => { job.run_attempt = [1, 2, 2, 3][index]!; });
+  assert.equal((await requestFullPrCi(["--pr", "7", "--wait"], port)).outcome, "ready");
+  assert.deepEqual(state.effects, []);
+  assert.ok(state.reads.some(args => args[1]?.includes("/actions/runs/101/jobs?filter=latest")));
+  assert.ok(state.reads.every(args => !args[1]?.includes("/attempts/")));
+});
+
+// A historical success cannot mask a failed effective gate or make duplicate
+// gate entries from different attempts safe to accept.
+test("selective retries reject unsuccessful or ambiguous latest effective gate evidence", async () => {
+  for (const defect of ["failure", "skipped", "neutral", "duplicate-attempt"]) {
+    const { state, port } = fixture(); state.runs = [{ ...runMetadata(), run_attempt: 3 }];
+    const gate = state.jobs.find(job => job.name === "check")!; gate.run_attempt = 3;
+    if (defect === "duplicate-attempt") { state.jobs.push({ ...gate, id: 2001, run_attempt: 1 }); }
+    else { gate.conclusion = defect; }
+    assert.equal((await requestFullPrCi(["--pr", "7"], port)).outcome, "requested", defect);
+    assert.equal(state.effects.length, 1, defect);
+  }
+});
+
+test("truncated latest job discovery cannot reuse partial successful gates", async () => {
+  const { state, port } = fixture(); state.runs = [runMetadata()];
+  state.jobs.push(...Array.from({ length: 96 }, (_, index) => ({ ...state.jobs[0]!, id: 2001 + index, name: `producer-${index}` })));
+  await assert.rejects(requestFullPrCi(["--pr", "7"], port), /300-entry bound/u);
   assert.deepEqual(state.effects, []);
 });

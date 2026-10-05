@@ -16,12 +16,14 @@ export interface FullCiPort {
 interface Options { readonly pr: number; readonly wait: boolean }
 interface Repository { readonly name: string; readonly id: number; readonly workflowId: number }
 interface Snapshot {
-  readonly number: number; readonly head: string; readonly base: string;
+  readonly number: number; readonly head: string; readonly base: string; readonly baseRef: string;
   readonly headRepo: number; readonly headRepoName: string; readonly headRef: string; readonly baseRepo: number;
   readonly labels: readonly string[];
 }
 interface BoundRun { readonly id: number; readonly attempt: number; readonly status: string; readonly conclusion: unknown; readonly url: string }
-export interface FullCiResult { readonly outcome: "ready" | "requested"; readonly url: string; readonly head: string; readonly base: string }
+export interface FullCiResult {
+  readonly outcome: "ready" | "requested"; readonly url: string; readonly head: string; readonly base: string; readonly baseRef: string;
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) { throw new Error("Malformed GitHub metadata"); }
@@ -75,8 +77,10 @@ async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise
   if (typeof headRepoName !== "string" || !repositoryName.test(headRepoName)) { throw new Error("Malformed PR source repository"); }
   const headRef = head.ref;
   if (typeof headRef !== "string" || headRef.length === 0) { throw new Error("Malformed PR source branch"); }
+  const baseRef = base.ref;
+  if (typeof baseRef !== "string" || baseRef.length === 0) { throw new Error("Malformed PR base branch"); }
   return { number: pr, head: sha(head.sha), base: sha(base.sha), headRepo: positive(headRepo.id),
-    headRepoName, headRef, baseRepo: repo.id, labels: array(data.labels).map(entry => {
+    headRepoName, headRef, baseRef, baseRepo: repo.id, labels: array(data.labels).map(entry => {
       const name = object(entry).name;
       if (typeof name !== "string") { throw new Error("Malformed PR label"); }
       return name;
@@ -85,7 +89,7 @@ async function snapshot(port: FullCiPort, repo: Repository, pr: number): Promise
 async function unchanged(port: FullCiPort, repo: Repository, expected: Snapshot): Promise<Snapshot> {
   const current = await snapshot(port, repo, expected.number);
   if (current.head !== expected.head || current.base !== expected.base || current.headRepo !== expected.headRepo ||
-      current.headRepoName !== expected.headRepoName || current.headRef !== expected.headRef) {
+      current.headRepoName !== expected.headRepoName || current.headRef !== expected.headRef || current.baseRef !== expected.baseRef) {
     throw new Error("PR head/base changed; request full CI for the new snapshot");
   }
   return current;
@@ -95,11 +99,13 @@ function associatedWithSnapshot(associations: unknown[], pr: Snapshot): boolean 
   // GitHub omits this array for forks. The frozen PR/head/base title, canonical
   // workflow and exact source repository/ref still bind those runs uniquely.
   if (associations.length === 0) { return pr.headRepo !== pr.baseRepo; }
-  if (associations.length !== 1) { return false; }
-  const association = object(associations[0]);
+  const requested = associations.map(object).filter(association => association.number === pr.number);
+  if (requested.length !== 1) { return false; }
+  const association = requested[0]!;
   const head = object(association.head); const base = object(association.base);
   return association.number === pr.number && head.sha === pr.head && base.sha === pr.base && head.ref === pr.headRef &&
-    object(head.repo).id === pr.headRepo && object(base.repo).id === pr.baseRepo;
+    object(head.repo).id === pr.headRepo && object(base.repo).id === pr.baseRepo &&
+    (base.ref === undefined || base.ref === pr.baseRef);
 }
 
 function boundRun(value: unknown, repo: Repository, pr: Snapshot): BoundRun | undefined {
@@ -145,32 +151,45 @@ async function rereadRun(port: FullCiPort, repo: Repository, pr: Snapshot, expec
   if (!run || run.id !== expected.id || run.attempt !== expected.attempt) { throw new Error("Bound CI run identity/attempt changed"); }
   return run;
 }
-async function successful(port: FullCiPort, repo: Repository, run: BoundRun): Promise<boolean> {
+async function successful(port: FullCiPort, repo: Repository, pr: Snapshot, run: BoundRun): Promise<boolean> {
   if (run.status !== "completed" || run.conclusion !== "success") { return false; }
-  const jobs = await collection(port, `repos/${repo.name}/actions/runs/${run.id}/attempts/${run.attempt}/jobs`, "jobs");
+  // Selective retries retain successful jobs from earlier attempts. The latest
+  // filter supplies each effective job; the run detail bounds its attempt.
+  const jobs = await collection(port, `repos/${repo.name}/actions/runs/${run.id}/jobs?filter=latest`, "jobs");
   const records = jobs.map(object);
   return ["full-ci", "check", "windows-check", "macos-qualification"].every(name => {
     const gates = records.filter(job => job.name === name);
-    return gates.length === 1 && gates[0]!.run_id === run.id &&
-      gates[0]!.status === "completed" && gates[0]!.conclusion === "success";
+    if (gates.length !== 1) { return false; }
+    const gate = gates[0]!;
+    return typeof gate.id === "number" && Number.isSafeInteger(gate.id) && gate.id > 0 &&
+      records.filter(job => job.id === gate.id).length === 1 &&
+      gate.run_id === run.id && gate.head_sha === pr.head &&
+      typeof gate.run_attempt === "number" && Number.isSafeInteger(gate.run_attempt) &&
+      gate.run_attempt > 0 && gate.run_attempt <= run.attempt &&
+      gate.status === "completed" && gate.conclusion === "success";
   });
 }
 async function finish(port: FullCiPort, repo: Repository, pr: Snapshot, run: BoundRun, wait: boolean): Promise<FullCiResult> {
-  if (wait && run.status !== "completed") {
+  let current = await rereadRun(port, repo, pr, run);
+  if (wait && current.status !== "completed") {
     // A failed watch may have lost its final response. Only fresh API evidence decides.
-    try { await port.gh(["run", "watch", String(run.id), "--repo", repo.name, "--exit-status", "--interval", "10"], watchTimeout); } catch { /* Reconcile below. */ }
+    try { await port.gh(["run", "watch", String(current.id), "--repo", repo.name, "--exit-status", "--interval", "10"], watchTimeout); } catch { /* Reconcile below. */ }
+    current = await rereadRun(port, repo, pr, current);
   }
-  const current = await rereadRun(port, repo, pr, run);
-  const ready = await successful(port, repo, current);
+  const ready = await successful(port, repo, pr, current);
   const newest = await latestRun(port, repo, pr);
   // The run-list endpoint can lag behind run detail during ordinary lifecycle
   // transitions. Detail and actual jobs prove success; the list binds newest identity.
   if (!newest || newest.id !== current.id || newest.attempt !== current.attempt) {
     throw new Error("Latest bound CI request changed; inspect Actions before retrying");
   }
+  const confirmed = await rereadRun(port, repo, pr, current);
+  if (confirmed.status !== current.status || confirmed.conclusion !== current.conclusion) {
+    throw new Error("Bound CI run status/conclusion changed; inspect Actions before retrying");
+  }
   await unchanged(port, repo, pr);
   if (!ready && (wait || current.status === "completed")) { throw new Error(`Full CI is not successful: ${current.url}`); }
-  return { outcome: ready ? "ready" : "requested", url: current.url, head: pr.head, base: pr.base };
+  return { outcome: ready ? "ready" : "requested", url: current.url, head: pr.head, base: pr.base, baseRef: pr.baseRef };
 }
 
 async function ensureLabel(port: FullCiPort, repo: Repository): Promise<void> {
@@ -195,8 +214,9 @@ export async function requestFullPrCi(args: readonly string[], port: FullCiPort)
   if (workflow.name !== "CI" || workflow.path !== workflowPath) { throw new Error("Canonical CI workflow identity changed"); }
   const repo: Repository = { name, id: positive(metadata.id), workflowId: positive(workflow.id) };
   const pr = await snapshot(port, repo, options.pr);
-  const existing = await latestRun(port, repo, pr);
-  if (existing && (existing.status !== "completed" || await successful(port, repo, existing))) {
+  const discovered = await latestRun(port, repo, pr);
+  const existing = discovered === undefined ? undefined : await rereadRun(port, repo, pr, discovered);
+  if (existing && (existing.status !== "completed" || await successful(port, repo, pr, existing))) {
     return finish(port, repo, pr, existing, options.wait);
   }
   await ensureLabel(port, repo);
@@ -232,7 +252,7 @@ if (invoked === import.meta.url) {
   };
   try {
     const result = await requestFullPrCi(process.argv.slice(2), port);
-    process.stdout.write(`Full CI ${result.outcome}: ${result.url}\nHead ${result.head}; base ${result.base}\n`);
+    process.stdout.write(`Full CI ${result.outcome}: ${result.url}\nHead ${result.head}; base ${result.base} (${result.baseRef})\n`);
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : "Full CI request failed"}\n`);
     process.exitCode = 1;

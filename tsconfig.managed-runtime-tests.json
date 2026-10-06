@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": [
+      "ES2023"
+    ],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [
+      "node"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "files": [
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-fixtures.d.mts",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective-helpers.mts",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective-peer.mts",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-effective-environment-boundary.test.mts"
+  ]
+}

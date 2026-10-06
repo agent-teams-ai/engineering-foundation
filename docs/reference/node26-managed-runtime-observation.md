@@ -1,4 +1,4 @@
-# Private managed runtime observation (P2a)
+# Private managed runtime observation and disposable installation (P2a/P2b)
 
 Status: unselected, feature-private source checkpoint under proposed
 [ADR-0056](../decisions/0056-bounded-qualified-managed-node-26-transition.md).
@@ -9,14 +9,18 @@ upgrade/restoration contracts retain their bytes and behavior.
 port and pure supplied-tuple comparison. Its Node adapters own physical identity,
 child execution and cleanup. `composition/managed-runtime.ts` is a typed factory
 with explicit Host inputs. Construction performs no IO or runtime selection.
-The scope exposes only `admit`, `observe`, and `close`; package/application API
-exports and managed CLI routes do not expose this seam.
+The scope exposes `admit`, `observe`, `acquireAttempt`, `ownedInstallationRoot`,
+`install`, and `close`; package/application API exports and managed CLI routes
+do not expose this seam. P2b adds source-private contracts and inward transition,
+release-fact and disposable-project policy. Composition remains an inert typed factory.
 
 Host supplies an absolute provisioned Node executable, a complete physical pnpm
 package root, independently trusted pre-provisioning SHA-256 digests, a private
 non-consumer workspace, and cancellation. Admission snapshots data descriptors,
 creates one owned directory and issues a factory-local handle. Forged, foreign
-or closed handles refuse. This handle conveys observation authority only.
+or closed handles refuse. A runtime handle identifies its issuing scope;
+installation also requires a separate factory-local owned-root handle and a live
+exclusive attempt. Serialized or foreign handle copies convey no authority.
 
 The supported TEST tuples are linux/x64 Node 24.21.0 or 26.10.0 with pnpm
 11.20.0, launched by the absolute selected Node. Corepack and other platforms
@@ -24,9 +28,9 @@ refuse. Identity binds executable bytes and metadata, manifest/bin entry and the
 whole pnpm tree. Aliases, tree links, hardlinked/special files, oversized inputs,
 malformed manifest/bin selection and byte or physical identity changes refuse.
 
-Final repaired process and probe sources are retained together. The fixed
-compiled probe SHA-256 is
-`9f0c6946a07b9cd2e98727352768fb311e13ca4c08fa0f095d8f4b20c2eab671`.
+Process and fixed probe sources must remain paired. The process adapter's
+`PROBE_SHA256` must equal the SHA-256 of the rebuilt fixed probe; any probe
+argv change requires regenerating that exact pin before execution.
 Private fd 3 reports the child's identity; fd 4 blocks execution until Linux
 `/proc/<pid>/exe`, process-start identity and selected bytes agree. Actual pnpm
 then runs `--version` in that same Node process. Exact stdout and the final
@@ -52,26 +56,30 @@ Host owns concrete provisioning, processes, effects and resource lifetime.
 There is no demonstrated second conforming consumer for a generic process
 service, so extraction is not admitted by the extraction admission invariant.
 
-Current supplied CMS is Get Modular revision
+Historical supplied CMS consultation includes Get Modular revision
 `9c722ceff4ede307d06d7a4b63fdebe615f54c53`, full-document SHA-256
 `33b41d5babf0a431c97e8e596a56e6ec1557ba1a0b26d39bf23e13d9a19e1fbd`.
-Its current private-helper classification applies here: fixed static dependencies
-and typed factories within one cohesive feature, with consumer-owned ports and
-outer composition. These helpers are not independently assembled graph nodes.
-No Core, Assembly, SPI, platform service or lifecycle-kernel dependency is added.
+ADR-0056 separately records historical CMS 6b31f20/d555dfd4 with full-document
+SHA-256 `d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`;
+R207 authenticates that historical evidence. Accepted ADR bytes and pins remain immutable.
 
-ADR-0056 records historical CMS 6b31f20/d555dfd4 with full-document SHA-256
-`d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`.
-R207 authenticates those historical bytes; the now-supplied full document was
-hashed and compared to current full bytes. The only delta is ADR-0029 in the
-related list and the optional dynamic Host lifecycle section. Static private-helper
-classification and passive adoption obligations are unchanged.
-The historical ADR remains unchanged. The added section requires whole-graph
-rejection before imports, construction custody and authority rechecks after
-awaits; observer timeout does not release work. Those dynamic obligations do
-not migrate this fixed private seam or Runtime's retained passive consumer pin.
-Foundation has no active CMS adoption pin requiring migration for this seam;
-current classification and existing admissions ship together with full-byte evidence.
+The current supplied delta assessment identifies historical 9c722 to current 2ef.
+It includes ADR-0030 resources and cooperative cleanup, ADR-0031 per-run scope
+and declared inputs, ADR-0032 contract descriptors and authoring builder, and
+ADR-0033 conformance changes. Current consultation is distinct from historical
+adoption evidence; this checkpoint does not invent a new full-document digest
+or claim CMS adoption. The earlier assertion that the delta contained only
+ADR-0029 and optional dynamic lifecycle guidance is superseded by this assessment.
+
+Fixed static helpers and typed factories remain within one cohesive feature,
+with inward contracts and explicit outer Host composition. They are not Assembly
+graph nodes. Foundation's existing feature-module profile governs their exact
+admission. No resources, Core, Assembly, SPI, platform service or lifecycle-kernel
+dependency is added. Cooperative resource cleanup and the dynamic lifecycle
+candidate do not replace domain-specific physical custody, process attribution
+or durable exclusion. Authority is rechecked after custody awaits; an observer
+or process deadline does not itself release owned work. Runtime's retained
+passive consumer pin and historical accepted evidence are not migrated here.
 The supplied organization quality standard's complete bytes have SHA-256
 `e97a2d9f5ec7d05f9a515c28df38fb921c5048d4e2cab850561717f7dedff5d7`.
 
@@ -89,20 +97,66 @@ process owner replace them, preserving final identity, cancellation and cleanup 
 The process owner uses the existing consumer clock and explicit Node promise timers;
 owned timer cancellation releases waits when the child or operation settles.
 
-The preserved 505-line observation and 291-line process suites exercise P2a
-without attempts or installation, including the factory-inertness case.
-The final attempt, attempt-close and pnpm
-engine/peer enforcement suites remain in the exact retained P2 source for P2b,
-unintroduced here, not deleted to green P2a. P2b owns durable root exclusion,
-disposable install/store, strict engine/peer enforcement and late-sibling repairs.
-No P2b enforcement or installation qualification follows from this checkpoint.
+P2b ports the retained attempt, attempt-close and pnpm engine/peer enforcement
+suites and custody mechanisms onto supplied current source
+`5f9ac44ee95bba0ea6a6f9975f24edd3d46fd6ec`. Current P2a observation, identity,
+process and fixture hardening remain in place; old runtime/process/identity files
+are not restored wholesale. These source changes are an implementation proposal,
+not an executed installation or public managed Node 26 qualification.
 
-Repository test selection assigns the two private observation/process suites to
-Linux x64 only, through the finite policy in `scripts/check-test-manifests.mjs`.
-They remain in the complete 275-file inventory and Linux x64 coverage. Windows,
-Darwin and other Linux architectures retain every portable suite, including actual
-unsupported-platform refusal in `managed-portable-profile.test.mjs`; refusal does
-not qualify Linux effects.
+Host must supply one common physical external exclusion namespace to every
+contender for a physical consumer, including independent scopes and processes.
+Within that namespace, the O_EXCL record key uses the consumer directory's
+device and inode, so supported canonical spellings of the same physical directory
+share exclusion. Symlink spellings refuse. Controller/start/boot and runtime
+identities, serialized durable phases and an authenticated release sibling fence
+custody. This private helper cannot prevent Host from configuring disjoint external
+namespaces; enforcing the common namespace across all contenders remains a Host
+responsibility for future actual central E2E. No global namespace registry is added.
+Existing or uncertain records are never reclaimed automatically. A provisional
+reservation permits debt-free refusal only after authenticated removal, successful
+directory synchronization and descriptor close. Ownership, disposal, synchronization
+or descriptor-close uncertainty retains debt through repeated scope close and
+preserves substituted bytes. Issued close
+reserves synchronously, cancels installation and waits for active work. Unknown
+custody remains irreversible in that owner. A synced hard link survives uncertain
+primary unlink settlement; its identity and bytes are checked again after the
+primary sync and descriptor close. Foreign late siblings remain debt and are not deleted.
+
+Installation is limited to a disposable single-project TEST manifest with local
+relative tarballs and `packages: []`. Before either install mode spawns, every direct
+tarball must be a canonical in-root, single-link regular file read through a bounded,
+authenticated descriptor. The supported package format is gzip containing USTAR
+or short-name GNU ordinary file/directory headers, with checked framing, checksum,
+paths and one bounded `package/package.json`; links and extension records refuse.
+The package name must match its direct dependency key and its version must be a
+three-component numeric version. This checkpoint supports leaf packages with no
+`dependencies`, `optionalDependencies`, `devDependencies`, bundled-dependency,
+workspace or `pnpm` declarations. Peer declarations remain available to actual
+strict pnpm, with automatic peer installation disabled. Limits are 64 direct
+packages, 32 MiB compressed and 64 MiB expanded per archive, 64 MiB compressed
+and 128 MiB expanded in total, 4096 entries per archive and 1 MiB package manifests.
+Unsupported closure or archive admission returns `invalid-selection` before spawn.
+Project config/hooks, workspace overrides, remote dependency specifications,
+unowned modules and unowned stores refuse. The selected Node directly executes
+actual pinned JavaScript pnpm with scripts ignored, strict engines and peers,
+automatic peers and manager switching disabled, copy imports, verified store
+integrity and a private store. Prepare and frozen replay both pass `--offline`.
+Frozen replay additionally requires `--frozen-lockfile` and a separate actual
+`pnpm peers check --lockfile-only`;
+a failed peer preparation cannot become a positive frozen replay. Manifest,
+workspace, root and virtual locks, tarball integrity and runtime identity are
+rechecked. Root deletion remains contingent on finite settled process facts
+and independently checked physical custody; facts are not an external settlement service.
+
+Repository test selection explicitly assigns six private managed-runtime suites
+to Linux x64 through the finite policy in `scripts/check-test-manifests.mjs`.
+The three restored suites and typed custody suite join observation and process
+in canonical shard 4 and its coverage projection, without changing mandatory
+identities or shrinking the portable inventory. Historical inventory counts are
+not current qualification. Windows, Darwin and other Linux architectures retain
+every portable suite, including actual unsupported-platform refusal in
+`managed-portable-profile.test.mjs`; refusal does not qualify Linux effects.
 Linux shard 4 retains the pinned Nodes from the existing Actions setup and
 restores Node 24 as default before provisioning and testing.
 `scripts/provision-managed-test-tools.mjs` downloads the exact declared JavaScript
@@ -115,8 +169,15 @@ Tests require actual supplied tools through `MANAGED_TEST_TOOLS_ROOT` and fresh
 TEST roots through `MANAGED_TEST_ROOT`. Synthetic packages exercise rejecting
 or process-mechanics cases; real positive observations use actual pnpm. UID-0
 runs explicitly skip denied cleanup; that skip proves no permission guarantee.
-Compiled source must be rebuilt before any gate. Full `pnpm verify` remains
-required before opening a PR; focused and fast evidence does not replace it.
+Compiled source must be rebuilt before any gate. Root must typecheck the new
+production contracts and the `.mts` custody suite with TypeScript, not Node type
+stripping, then run the focused suites against genuine Node 24.21.0 and 26.10.0
+and JavaScript pnpm 11.20.0 in fresh disposable TEST roots. Source-only production
+of this checkpoint executes no gates. Required changed, fast, security and focused
+checks precede handoff; final independent review and the complete requested
+full-CI native matrix must bind the exact final head/base. `pnpm verify` remains
+the full local diagnostic path when hosted qualification cannot run or leaves a
+changed risk uncovered, according to current repository instructions.
 
 Hash-before/hash-after checks and directory-identity fences are not atomic
 protection against transient same-UID swaps of the selected Node, pnpm tree,

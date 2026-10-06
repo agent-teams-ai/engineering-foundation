@@ -153,3 +153,15 @@ packages:
     tsconfigPath: packages/docs-protocol-agent-teams/tsconfig.json
     releasedBaselinePath: architecture/public-api/docs-protocol-agent-teams.json
     approvedBreakingChanges: []
+  - packageName: "@agent-teams/ci-input-proof"
+    packageRoot: packages/ci-input-proof
+    manifestPath: packages/ci-input-proof/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/ci-input-proof/dist/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+    tsconfigPath: packages/ci-input-proof/tsconfig.json
+    releasedBaselinePath: architecture/public-api/ci-input-proof.json
+    approvedBreakingChanges: []

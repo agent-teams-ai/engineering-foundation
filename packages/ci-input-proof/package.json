@@ -1,0 +1,23 @@
+{
+  "name": "@agent-teams/ci-input-proof",
+  "version": "0.0.0",
+  "description": "Pure, bounded CI input-inventory comparison without execution or merge authority.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false"
+  },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "LICENSE", "README.md", "CHANGELOG.md"],
+  "engines": { "node": "^24.18.0 || ^26.0.0", "pnpm": ">=11.17.0 <12" },
+  "publishConfig": { "access": "public", "provenance": true, "registry": "https://registry.npmjs.org/" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/ci-input-proof"
+  }
+}

@@ -2,8 +2,8 @@
 
 Initial source checkpoint, not registry adoption or new check-omission policy.
 The package belongs to development/CI tooling only. The existing package catalog,
-source/quality profiles, build references and test manifests include it. Release,
-two real consumer conformance paths and exact-head qualification remain pending.
+source/quality profiles, build references and test manifests include it. Real Runtime and Central donor shared-subset conformance has passed in isolated
+TEST contexts. Release, production switching and exact-head qualification remain pending.
 
 ## Evidence and shared subset
 
@@ -36,6 +36,32 @@ and installed-input guards. A path outside the kernel grammar or a census above
 rejects drive prefixes that the retained central parser accepts. These differences
 must be covered in consumer conformance; kernel adoption is not wider eligibility.
 
+## Executed real-donor parity
+
+The [source-conformance receipt](evidence/ci-input-proof-donor-conformance-20261007.json)
+records seven shared cases executed against each actual pinned donor entry. The
+versioned common fixture is `tests/support/ci-input-proof-donor-cases.mts`;
+expectations do not call a production comparator. Both paths typecheck and pass.
+The installed file tarball has exactly the SHA256 from existing packed qualification.
+
+Runtime uses complete disposable Git snapshots of its real source tree and invokes
+`classifyPrRegressions`, preserving all five scope decisions, common closure,
+structure rejection and the nonempty-delta rule. Its admitted TEST environment and
+installation tuple match the donor's existing Git-fixture contract. They do not
+qualify a physical runner, `currentPrInput`, protected control source or FULL recovery.
+Central invokes its real `compareQualificationInputs` entry with independently
+written inert expectation/proof records. No copied donor comparator substitutes
+for either entry. TEST checkouts exercise two real consumer contracts; the TEST
+driver itself is not counted as a third or second consumer.
+
+This proves the named shared subset before package admission. It does not activate
+omission or claim every kernel grammar/leaf variant is eligible in Runtime. Existing
+unknown-input and independent-H limitations still block Central switching. Each
+production migration must retain its consumer-owned conformance gate and delete
+the superseded shared body; those steps remain S2/S3, not silently complete here.
+Exact harnesses, source checkouts, lock, logs and archive remain at the receipt's
+custodian path for independent inspection and replay without product agent actions.
+
 ## Consumer switching requirements
 
 Runtime must preserve its whole-tree guard before its five existing scope
@@ -57,7 +83,7 @@ not permission to copy submitted H or add a new materializer to this package.
 | Requirement | Current evidence / status |
 | --- | --- |
 | Pure kernel behavior | Focused typed behavior tests and existing packed integration qualification passed; required PR CI and final bound review pending |
-| Extraction | Two donor semantics identified; independent real-consumer parity/conformance not yet executed |
+| Extraction | Actual Runtime/Central shared-subset conformance passed: 7 cases each, exact pinned donor entries and matching qualified file archive; versioned fixture/receipt retained. Production adoption/deletion remains pending |
 | Runtime pre-import source binding | Current lane checks out H and invokes candidate code; its B/H guard runs after importing the collector. Independent admission remains pending; candidate-controlled declarations cannot admit themselves |
 | Independent FULL | Existing non-regression lane invokes `measure.ts`; regression command statically imports the collector. Recovery from unavailable optimizer still needs an independent TEST process proof |
 | GM distribution | Current Core/Assembly latest are 0.2.0; conformance package lookup returns E404. Exact compatible pair/kit qualification remains pending; retained source and published APIs differ |

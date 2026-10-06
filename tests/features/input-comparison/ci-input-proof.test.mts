@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { cases } from '../../support/ci-input-proof-donor-cases.mts';
 import { compareLeafInventories } from '../../../packages/ci-input-proof/dist/index.js';
 import type { InputLeaf, RejectionReason } from '../../../packages/ci-input-proof/dist/index.js';
 
@@ -14,10 +15,34 @@ const leaf = (path: string, membership: 'closed' | 'structural' = 'closed', cont
   ({ path, type: 'file', mode: '100644', membership, content });
 const inventory = (inputs: unknown = [leaf('package.json'), leaf('src/a.ts', 'structural')], scheme = 'git-object-sha1') =>
   ({ version: 1, digestScheme: scheme, inputs });
-const rejected = (before: unknown, after: unknown, permission: unknown, reason: RejectionReason) =>
+const rejected = (before: unknown, after: unknown, permission: unknown, reason: RejectionReason): void => {
   assert.deepEqual(compareLeafInventories(before, after, permission), { status: 'rejected', reason });
+};
 
-test('permutation is compatible; only actual permitted changes are reported in ordinal order', () => {
+
+// Independent common cases also execute against each real donor in TEST checkouts.
+// Failure: a shared fixture's advertised relation diverges from package behavior.
+void test('versioned real-donor corpus keeps its independently expected leaf relations', () => {
+  for (const entry of cases) {
+    const inputs: InputLeaf[] = [leaf('package.json'), leaf('src/a.ts', 'structural')];
+    switch (entry.id) {
+      case 'same': break;
+      case 'body-content': inputs[1] = leaf('src/a.ts', 'structural', newDigest); break;
+      case 'closed-content': inputs[0] = leaf('package.json', 'closed', newDigest); break;
+      case 'chmod': inputs[1] = { ...leaf('src/a.ts', 'structural'), mode: '100755' }; break;
+      case 'addition': inputs.push(leaf('src/extra.ts')); break;
+      case 'deletion': inputs.pop(); break;
+      case 'rename': inputs[1] = leaf('src/b.ts', 'structural'); break;
+    }
+    const result = compareLeafInventories(inventory(), inventory(inputs), ['src/a.ts']);
+    assert.equal(result.status === 'compatible-inputs', entry.compatible, entry.id);
+    if (result.status === 'compatible-inputs') {
+      assert.deepEqual(result.changedContentPaths, entry.id === 'body-content' ? ['src/a.ts'] : []);
+    }
+  }
+});
+
+void test('permutation is compatible; only actual permitted changes are reported in ordinal order', () => {
   const before = inventory([leaf('package.json'), leaf('src/z.ts', 'structural'), leaf('src/a.ts', 'structural')]);
   const after = inventory([leaf('src/a.ts', 'structural', newDigest), leaf('src/z.ts', 'structural', newDigest), leaf('package.json')]);
   assert.deepEqual(compareLeafInventories(before, after, ['src/z.ts', 'src/a.ts']),
@@ -26,7 +51,7 @@ test('permutation is compatible; only actual permitted changes are reported in o
     { status: 'compatible-inputs', changedContentPaths: [] });
 });
 
-test('closed drift and unpermitted structural drift reject; permissions never grant closed changes', () => {
+void test('closed drift and unpermitted structural drift reject; permissions never grant closed changes', () => {
   rejected(inventory(), inventory([leaf('package.json', 'closed', newDigest), leaf('src/a.ts', 'structural')]), [], 'closed-input-changed');
   rejected(inventory(), inventory([leaf('package.json'), leaf('src/a.ts', 'structural', newDigest)]), [], 'closed-input-changed');
   for (const permissions of [['package.json'], ['missing.ts'], ['src/a.ts', 'src/a.ts'], [1]]) {
@@ -34,7 +59,7 @@ test('closed drift and unpermitted structural drift reject; permissions never gr
   }
 });
 
-test('rename, addition, deletion, chmod, type and membership changes reject even with equal content', () => {
+void test('rename, addition, deletion, chmod, type and membership changes reject even with equal content', () => {
   const original = leaf('src/a.ts', 'structural');
   for (const inputs of [
     [leaf('package.json'), leaf('src/b.ts', 'structural')],
@@ -46,7 +71,7 @@ test('rename, addition, deletion, chmod, type and membership changes reject even
   ]) { rejected(inventory(), inventory(inputs), [], 'input-structure-changed'); }
 });
 
-test('original getters and custom array iterators are rejected without executing them', () => {
+void test('original getters and custom array iterators are rejected without executing them', () => {
   let effects = 0;
   const getter = () => { effects += 1; throw new Error('must not execute'); };
   for (const bad of [
@@ -59,7 +84,7 @@ test('original getters and custom array iterators are rejected without executing
   assert.equal(effects, 0);
 });
 
-test('extra own fields, symbols, holes and unsupported prototypes cannot disappear during projection', () => {
+void test('extra own fields, symbols, holes and unsupported prototypes cannot disappear during projection', () => {
   for (const bad of [
     { ...inventory(), extra: true },
     { ...inventory(), [Symbol('extra')]: true },
@@ -70,27 +95,27 @@ test('extra own fields, symbols, holes and unsupported prototypes cannot disappe
     inventory([Object.setPrototypeOf(leaf('package.json'), { inherited: true })]),
     inventory(Object.setPrototypeOf([leaf('package.json')], null)),
   ]) { rejected(bad, inventory(), [], 'malformed-inventory'); }
-  const plain = Object.assign(Object.create(null), inventory([Object.assign(Object.create(null), leaf('package.json'))]));
+  const plain: unknown = Object.assign(Object.create(null), inventory([Object.assign(Object.create(null), leaf('package.json'))]));
   assert.deepEqual(compareLeafInventories(plain, inventory([leaf('package.json')]), []),
     { status: 'compatible-inputs', changedContentPaths: [] });
 });
 
-test('empty/unclosed inventories and duplicate paths cannot qualify', () => {
+void test('empty/unclosed inventories and duplicate paths cannot qualify', () => {
   rejected(inventory([]), inventory(), [], 'incomplete-inputs');
   rejected(inventory([leaf('src/a.ts', 'structural')]), inventory(), [], 'incomplete-inputs');
   rejected(inventory([leaf('package.json'), leaf('package.json')]), inventory(), [], 'duplicate-input');
 });
 
-test('literal paths reject ambiguous/absolute forms and retain case and Unicode identity', () => {
+void test('literal paths reject ambiguous/absolute forms and retain case and Unicode identity', () => {
   for (const path of ['', '/a', 'C:/a', 'a//b', 'a/./b', 'a/../b', 'a\\b', 'a\u0000b', 'a\u007fb', 'a/']) {
     rejected(inventory([leaf(path)]), inventory(), [], 'malformed-inventory');
   }
   for (const [before, after] of [['A.ts', 'a.ts'], ['é.ts', 'e\u0301.ts']]) {
-    rejected(inventory([leaf(before!)]), inventory([leaf(after!)]), [], 'input-structure-changed');
+    rejected(inventory([leaf(before)]), inventory([leaf(after)]), [], 'input-structure-changed');
   }
 });
 
-test('schemes, canonical nonzero digests and type/mode pairings are checked', () => {
+void test('schemes, canonical nonzero digests and type/mode pairings are checked', () => {
   rejected({ ...inventory(), version: 2 }, inventory(), [], 'unsupported-version');
   rejected(inventory(undefined, 'unknown'), inventory(), [], 'unsupported-scheme');
   rejected(inventory([leaf('package.json')]), inventory([leaf('package.json', 'closed', '1'.repeat(64))], 'sha256'), [], 'scheme-mismatch');
@@ -104,7 +129,7 @@ test('schemes, canonical nonzero digests and type/mode pairings are checked', ()
   }
 });
 
-test('bounds reject before copying over-limit collections', () => {
+void test('bounds reject before copying over-limit collections', () => {
   rejected(inventory(sparse(65_537)), inventory(), [], 'exceeded-limit');
   rejected(inventory([leaf('a'.repeat(4097))]), inventory(), [], 'exceeded-limit');
   rejected(inventory(), inventory(), sparse(3), 'exceeded-limit');
@@ -113,7 +138,7 @@ test('bounds reject before copying over-limit collections', () => {
     { status: 'compatible-inputs', changedContentPaths: [] });
 });
 
-test('result owns immutable values; caller mutation cannot alter an earlier relation', () => {
+void test('result owns immutable values; caller mutation cannot alter an earlier relation', () => {
   const before = inventory();
   const callerLeaves = [leaf('package.json'), leaf('src/a.ts', 'structural', newDigest)];
   const after = inventory(callerLeaves);

@@ -153,7 +153,7 @@ test("bootstrap catalog is closed, data-only, and retires completed bootstrap au
   const authoring = bootstrapPackageById("document-authoring");
   const inputProof = bootstrapPackageById("ci-input-proof", { approved: true });
   assert.deepEqual(inputProof.approval, {
-    archiveIntegrity: "sha512-tO0ORstp9UimOJaGLE2J/jcaF6GgTJn5wWvjwWu0ZAEwcZ0smrdNN+/6inZAioeoYnaNIQ5pqORi6lG+vDLDjg==",
+    archiveIntegrity: "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",
     packageTree: "7f534b4e0323045535fd9024d70e7e1d2ac63b3c",
   });
   const candidate = structuredClone(NPM_PACKAGE_BOOTSTRAP);

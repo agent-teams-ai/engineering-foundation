@@ -123,7 +123,11 @@ pnpmfileChecksum: sha256-QaZoGkoapTRcxbf3tl10MVvcbpsQhOtkG4+cTPNGWeg=
 
 importers:
 
-  packages/ci-input-proof: {}
+  packages/ci-input-proof:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   .:
     devDependencies:

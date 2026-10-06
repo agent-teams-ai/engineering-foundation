@@ -60,6 +60,8 @@ data-only and cannot load consumer code. See the
 defines the implemented new-only package ownership boundary and is the sole
 authority for its dependency DAG:
 
+- `@agent-teams/ci-input-proof` owns pure CI leaf comparison; consumer Hosts retain
+  completeness, classification, source admission and execution/merge authority;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

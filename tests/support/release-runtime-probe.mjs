@@ -20,8 +20,12 @@ globalThis.readProbeFile = async (path, options) => {
   const heading = scenario === 'notes-level-three' ? '###' : '##';
   const version = scenario === 'notes-prefix' ? `${info.version}.1` : info.version;
   const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
+  // Model Changesets' staged release only in this child. The source package's
+  // unreleased changelog must remain unreleased outside the intercepted read.
+  const stagedNotes = info.name === '@agent-teams/ci-input-proof'
+    ? `# CI Input Proof\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
   const notes = scenario.startsWith('notes-')
-    ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : value;
+    ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : stagedNotes;
   return notes.replace(/\r?\n/gu, changelogEol === 'crlf' ? '\r\n' : '\n');
 };
 
@@ -34,6 +38,15 @@ const { PUBLISHABLE_PACKAGES, PUBLISHABLE_PACKAGE_DEPENDENCIES } = await import(
 const { qualifiedArchive } = await import(pathToFileURL(join(sourceRoot, 'tests/pack-publishable-artifacts-support.mjs')));
 const packages = PUBLISHABLE_PACKAGES.map(entry => ({ ...entry, ...JSON.parse(readFileSync(join(sourceRoot, entry.manifestPath))) }));
 const versions = new Map(packages.map(info => [info.name, info.version]));
+const expectedPublications = [
+  '@agent-teams/ci-input-proof',
+  '@agent-teams/repository-mutation',
+  '@agent-teams/document-authoring',
+  '@agent-teams/docs-protocol',
+  '@agent-teams/docs-protocol-agent-teams',
+  '@agent-teams/docs-protocol-mcp',
+  '@agent-teams/engineering-foundation',
+];
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
@@ -222,12 +235,12 @@ if (scenario === 'wrong-npm') {
   if (scenario === 'notes-exact') {
     assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
   }
-  assert.equal(attempts.length, PUBLISHABLE_PACKAGES.length);
-  assert.equal(publications.length, PUBLISHABLE_PACKAGES.length);
-  assert.equal(reconciliations.length, PUBLISHABLE_PACKAGES.length);
+  assert.equal(attempts.length, expectedPublications.length);
+  assert.equal(publications.length, expectedPublications.length);
+  assert.equal(reconciliations.length, expectedPublications.length);
   assert.equal(events.filter(event => event.operation === 'signature').length,
-    PUBLISHABLE_PACKAGES.length + (scenario === 'attestation-e404-then-valid' ? 1 : 0));
-  assert.deepEqual(publications.map(item => item.name), PUBLISHABLE_PACKAGES.map(info => info.name));
+    expectedPublications.length + (scenario === 'attestation-e404-then-valid' ? 1 : 0));
+  assert.deepEqual(publications.map(item => item.name), expectedPublications);
   assert.ok(publications.every(item => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));
 } else if (scenario.startsWith('notes-')) {

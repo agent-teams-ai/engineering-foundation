@@ -211,7 +211,7 @@ test("command unknown failures retain text, JSON, accessor and thenable behavior
 test("the seventeen remaining reporting adapters reach only their own application policy", async () => {
   const result = await validateFeatureModules();
   const owned = ["features/command-host/", "features/configuration-input/", "features/foundation-check/", "local-mode/", "process-execution/", "source-inventory/", "workspace-inventory/", "transaction-coordination/"];
-  assert.equal(result.modules, 6);
+  assert.equal(result.modules, 7);
   assert.deepEqual(result.problems.filter(({ code }) => ["input-error", "source-policy", "unowned-source", "unowned-edge"].includes(code)), []);
   assert.deepEqual(result.problems.filter(({ code, message }) => code === "layer-direction" && owned.some((root) => message.startsWith(`packages/engineering-foundation/src/${root}`)) && message.includes(" -> packages/engineering-foundation/src/features/validation-reporting/")), []);
 });

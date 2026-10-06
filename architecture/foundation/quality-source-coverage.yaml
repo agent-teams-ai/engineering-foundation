@@ -5,6 +5,7 @@ featureProfilePath: architecture/foundation/feature-modules.json
 lintConfigPath: .oxlintrc.type-aware.json
 bridgeAdmissionsPath: architecture/foundation/quality-explicit-unknown-bridges.json
 compilerProjects:
+  - packages/ci-input-proof/tsconfig.json
   - packages/repository-mutation/tsconfig.json
   - packages/document-authoring/tsconfig.json
   - packages/engineering-foundation/tsconfig.json

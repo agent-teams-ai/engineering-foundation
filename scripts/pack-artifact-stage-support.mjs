@@ -2,6 +2,7 @@ import { constants as fsConstants } from "node:fs";
 import { lstat, mkdir, open, opendir, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { mapStageIo, reserveStageBytes } from "./pack-stage-io.mts";
+import { materializeStagedCompiler } from "./pack-staged-compiler.mts";
 
 // A clean stage includes the full isolated dependency closure needed to build
 // each package. Keep traversal bounded while allowing the current workspace
@@ -106,6 +107,18 @@ export async function pathExists(path) {
     }
     throw error;
   }
+}
+
+export async function runStagedPackageBuild(runPnpm, stagedPackageRoot) {
+  await materializeStagedCompiler(stagedPackageRoot, readBoundedStableJson,
+    async path => (await readStableRegularFile(path, { bytes: 0 }, "Staged compiler entrypoint")).bytes,
+    containsPhysicalPath);
+  // Dependencies were already proved and materialized into independent files.
+  // pnpm 11's default pre-run install would replace that closure and add shared
+  // store hardlinks, changing source ctime while other stages retain its identity.
+  return runPnpm(["run", "build"], stagedPackageRoot, {
+    environment: { ...process.env, pnpm_config_verify_deps_before_run: "false" },
+  });
 }
 
 function sameFileState(left, right) {

@@ -9,7 +9,7 @@ const policy = "../packages/engineering-foundation/dist/scaffolding/application/
 
 test("scaffolding registry and public boundaries have one owner and adapters do not select composition", async () => {
   const report = await validateFeatureModules();
-  assert.equal(report.modules, 6);
+  assert.equal(report.modules, 7);
   assert.deepEqual(report.problems.filter(({ code }) => ["input-error", "source-policy"].includes(code)), []);
   assert.deepEqual(report.problems.filter(({ code, message }) =>
     code === "boundary-ownership" && /foundation\.scaffolding\.(canonical-composition|parameters)/u.test(message) ||

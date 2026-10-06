@@ -333,6 +333,47 @@
         "archiveIntegrity": "sha512-5RyzpWvGCJOJKx4fMWUY0PkayT0T+vbamk0veGbXzNISIvnl9EBUK7CaH8v+Te/lg7+4JVZsHCjTr2f81X/kbw==",
         "packageTree": "07708c6733536c9d1bad8a8d17e1c46f1e6bf3fe"
       }
+    },
+    {
+      "id": "ci-input-proof",
+      "state": "candidate",
+      "name": "@agent-teams/ci-input-proof",
+      "root": "packages/ci-input-proof",
+      "manifestPath": "packages/ci-input-proof/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ],
+        "prefixes": [
+          "dist/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/ci-input-proof release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": null
     }
   ]
 }

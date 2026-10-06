@@ -18,6 +18,9 @@
     },
     {
       "path": "./packages/docs-protocol-agent-teams"
+    },
+    {
+      "path": "./packages/ci-input-proof"
     }
   ]
 }

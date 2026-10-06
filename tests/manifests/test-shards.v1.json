@@ -37,7 +37,8 @@
         "tests/windows-test-partitions.test.mts",
         "tests/package-qualification-groups.test.mts",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
-        "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs"
+        "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs",
+        "tests/features/input-comparison/ci-input-proof.test.mts"
       ]
     },
     {

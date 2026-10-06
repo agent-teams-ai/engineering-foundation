@@ -21,6 +21,7 @@ not production exceptions. Qualification code shipped in `src` stays in scope.
 
 | Module | Role | Existing feature mappings |
 | --- | --- | --- |
+| CI Input Proof | platform | pure input comparison |
 | Repository Mutation | platform | known-file transactions (including qualification seams); mutation coordination |
 | Document Authoring | platform | document authoring (including qualification); documentation observation |
 | Docs Protocol | SDK | portable documentation; portable bootstrap; portable qualification |

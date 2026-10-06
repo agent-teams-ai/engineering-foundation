@@ -10,7 +10,7 @@ test("Mutation production boundaries have one layer owner and no outgoing violat
   assert.equal(invocation.error, undefined, invocation.error?.message);
   assert.ok(invocation.status === 0 || invocation.status === 1, invocation.stderr);
   const result = JSON.parse(invocation.stdout);
-  assert.equal(result.modules, 6);
+  assert.equal(result.modules, 7);
   const owned = result.problems.filter(({ code, message }) =>
     message.startsWith("packages/repository-mutation/") ||
     message.startsWith("repository-mutation.") ||

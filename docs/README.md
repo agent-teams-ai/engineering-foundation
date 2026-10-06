@@ -10,6 +10,7 @@ not repeat their rules.
 | --- | --- | --- |
 | Core terminology | [Foundation glossary](reference/glossary.md) | Active terminology contract for current documentation |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
+| CI input comparison | [Source admission](development/ci-input-proof-admission.md) | Initial source checkpoint; consumer conformance, package qualification and registry adoption pending |
 | Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Implemented and released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |

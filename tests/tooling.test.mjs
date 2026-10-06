@@ -495,6 +495,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
     packageConfig.references = [];
 
     const fixturePackages = [
+      ["ci-input-proof", "@agent-teams/ci-input-proof", {}],
       ["repository-mutation", "@agent-teams/repository-mutation", {}],
       ["document-authoring", "@agent-teams/document-authoring", {
         "@agent-teams/repository-mutation": "workspace:*",

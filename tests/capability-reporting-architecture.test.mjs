@@ -7,7 +7,7 @@ const load = (path) => import(`../packages/engineering-foundation/dist/${path}.j
 // Execute the unchanged repository owner/layer guard over the actual source.
 test("capability adapters mediate reporting through their own application policies", async () => {
   const result = await validateFeatureModules();
-  assert.equal(result.modules, 6);
+  assert.equal(result.modules, 7);
   assert.deepEqual(result.problems.filter(({ message }) =>
     message.startsWith("packages/engineering-foundation/src/composition/capability-modules.ts:")
   ), []);

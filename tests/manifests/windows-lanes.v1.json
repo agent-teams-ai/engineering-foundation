@@ -73,6 +73,7 @@
       "tests/quality-gate-runner-lifecycle.test.mjs",
       "tests/cli.test.mjs",
       "tests/windows-test-partitions.test.mts",
+      "tests/features/input-comparison/ci-input-proof.test.mts",
       "tests/document-authoring-profile-v2.test.mjs",
       "tests/pull-request-template.test.mjs",
       "tests/repository-mutation-paths.test.mjs",
@@ -128,8 +129,7 @@
       "tests/document-authoring-writer-adversarial.test.mjs",
       "tests/m4-disposable-lifecycle.test.mjs",
       "tests/package-release-inventory.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
-      "tests/features/input-comparison/ci-input-proof.test.mts"
+      "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
     ],
     "c": [
       "tests/source-dependency-loader-cli.test.mjs"

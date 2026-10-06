@@ -121,6 +121,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
   assert.deepEqual(
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
     [
+      "@agent-teams/ci-input-proof",
       repositoryMutationName,
       documentAuthoringName,
       docsProtocolName,

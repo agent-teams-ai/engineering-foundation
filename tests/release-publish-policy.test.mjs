@@ -24,6 +24,7 @@ import {
 } from "../scripts/release-publish.mjs";
 
 const foundation = { name: "@agent-teams/engineering-foundation", version: "0.16.0" };
+const ciInputProof = { name: "@agent-teams/ci-input-proof", version: "0.0.0" };
 const repositoryMutation = { name: publishablePackageByName("@agent-teams/repository-mutation").name, version: "0.0.0" };
 const documentAuthoring = { name: publishablePackageByName("@agent-teams/document-authoring").name, version: "0.0.0" };
 const privateSpike = { name: "@agent-teams/source-dependency-parser-spike", version: "0.0.0" };
@@ -380,6 +381,8 @@ async function fixture(root, registry) {
   await writeFile(join(root, ".npmrc"), "registry=https://registry.npmjs.org/\n");
   await writeFile(join(root, ".node-version"), "24.6.0\n");
   await writeFile(join(root, ".pnpmfile.cjs"), "module.exports = { hooks: {} };\n");
+  await json(join(root, "packages/ci-input-proof/package.json"), { ...ciInputProof, publishConfig: { registry } });
+  await writeFile(join(root, "packages/ci-input-proof/dist.js"), "export const proof = 1;\n");
   await json(join(root, "packages/document-authoring/package.json"), {
     ...documentAuthoring,
     dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[documentAuthoring.name]
@@ -395,19 +398,13 @@ async function fixture(root, registry) {
     version: docsBootstrap.dependencies[0].version,
   });
   await writeFile(join(root, "packages/engineering-foundation/dist.js"), "export const build = 1;\n");
-  await json(join(root, "packages/repository-mutation/package.json"), {
-    ...repositoryMutation, publishConfig: { registry },
-  });
+  await json(join(root, "packages/repository-mutation/package.json"), { ...repositoryMutation, publishConfig: { registry } });
   await writeFile(join(root, "packages/repository-mutation/dist.js"), "export const mutation = 1;\n");
   await json(join(root, "packages/docs-protocol/package.json"), {
     ...docsProtocol,
     dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[docsProtocol.name]
       .map((name) => [name, "workspace:*"])),
-    publishConfig: {
-      access: "public",
-      provenance: true,
-      registry: NPM_PACKAGE_BOOTSTRAP.registry,
-    },
+    publishConfig: { access: "public", provenance: true, registry: NPM_PACKAGE_BOOTSTRAP.registry },
   });
   await writeFile(join(root, "packages/docs-protocol/dist.js"), "export const docs = 1;\n");
   await json(join(root, "packages/docs-protocol-agent-teams/package.json"), {
@@ -431,6 +428,7 @@ async function fixture(root, registry) {
     changesets: ["consumed"],
     initialVersions: {
       ...freshPreState.initialVersions,
+      [ciInputProof.name]: ciInputProof.version,
       [docsProtocol.name]: docsProtocol.version,
       [docsProtocolAdapter.name]: docsProtocolAdapter.version,
       [docsProtocolMcp.name]: docsProtocolMcpBaselineVersion,
@@ -578,6 +576,7 @@ test("publish entrypoint independently rejects every publish-control drift bound
 
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
   const versions = new Map([
+    [ciInputProof.name, new Set([ciInputProof.version])],
     [docsProtocol.name, new Set([docsProtocol.version])],
     [docsProtocolAdapter.name, new Set([docsProtocolAdapter.version])],
     [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],

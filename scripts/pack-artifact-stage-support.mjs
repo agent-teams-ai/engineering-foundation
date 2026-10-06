@@ -2,6 +2,7 @@ import { constants as fsConstants } from "node:fs";
 import { lstat, mkdir, open, opendir, realpath, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { mapStageIo, reserveStageBytes } from "./pack-stage-io.mts";
+import { materializeStagedCompiler } from "./pack-staged-compiler.mts";
 
 // A clean stage includes the full isolated dependency closure needed to build
 // each package. Keep traversal bounded while allowing the current workspace
@@ -108,55 +109,10 @@ export async function pathExists(path) {
   }
 }
 
-function shellLiteral(value) {
-  return "'" + value.replaceAll("'", "'\"'\"'") + "'";
-}
-
-async function materializeStagedCompiler(stagedPackageRoot) {
-  const manifest = await readBoundedStableJson(join(stagedPackageRoot, "package.json"), "Staged build manifest");
-  if (typeof manifest.devDependencies?.typescript !== "string") { return; }
-  const physicalStage = await realpath(stagedPackageRoot);
-  const compilerRoot = await realpath(join(physicalStage, "node_modules", "typescript"));
-  if (!containsPhysicalPath(physicalStage, compilerRoot)) {
-    throw new Error("Staged compiler resolves outside its build stage.");
-  }
-  const compilerManifest = await readBoundedStableJson(join(compilerRoot, "package.json"), "Staged compiler manifest");
-  const entry = compilerManifest.bin?.tsc;
-  if (compilerManifest.name !== "typescript" || typeof entry !== "string") {
-    throw new Error("Staged TypeScript compiler has no declared tsc entrypoint.");
-  }
-  const parts = entry.replace(/^\.\//u, "").split("/");
-  if (parts.some(part => part === "" || part === "." || part === "..") ||
-      isAbsolute(entry) || /[\\\x00-\x1f\x7f:]/u.test(entry)) {
-    throw new Error("Staged compiler entrypoint escapes its package.");
-  }
-  const target = join(compilerRoot, ...parts);
-  if (await realpath(target) !== target || !(await lstat(target)).isFile()) {
-    throw new Error("Staged compiler entrypoint is not an independent regular file.");
-  }
-  const { bytes } = await readStableRegularFile(target, { bytes: 0 }, "Staged compiler entrypoint");
-  if (!bytes.toString("utf8").startsWith("#!/usr/bin/env node")) {
-    throw new Error("Staged compiler entrypoint is not a supported Node executable.");
-  }
-  const binRoot = join(physicalStage, "node_modules", ".bin");
-  await mkdir(binRoot, { recursive: true });
-  if (await realpath(binRoot) !== binRoot) {
-    throw new Error("Staged compiler shim directory is not physically contained.");
-  }
-  if (process.platform === "win32") {
-    if (/[\r\n%!"]/u.test(process.execPath + target)) {
-      throw new Error("Staged compiler path cannot be represented safely in a cmd shim.");
-    }
-    await writeFile(join(binRoot, "tsc.cmd"),
-      `@echo off\r\n"${process.execPath}" "${target}" %*\r\n`, { flag: "wx" });
-  } else {
-    await writeFile(join(binRoot, "tsc"),
-      `#!/bin/sh\nexec ${shellLiteral(process.execPath)} ${shellLiteral(target)} "$@"\n`, { flag: "wx", mode: 0o755 });
-  }
-}
-
 export async function runStagedPackageBuild(runPnpm, stagedPackageRoot) {
-  await materializeStagedCompiler(stagedPackageRoot);
+  await materializeStagedCompiler(stagedPackageRoot, readBoundedStableJson,
+    async path => (await readStableRegularFile(path, { bytes: 0 }, "Staged compiler entrypoint")).bytes,
+    containsPhysicalPath);
   // Dependencies were already proved and materialized into independent files.
   // pnpm 11's default pre-run install would replace that closure and add shared
   // store hardlinks, changing source ctime while other stages retain its identity.

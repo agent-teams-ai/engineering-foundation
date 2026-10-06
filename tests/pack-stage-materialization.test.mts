@@ -108,6 +108,18 @@ void test("staged TypeScript builds use the copied compiler rather than ambient 
   assert.match(await readFile(join(stage, "dist", "index.js"), "utf8"), /export const answer = 42/u);
 });
 
+void test("staged compiler entrypoints cannot escape their package before build execution", async t => {
+  const root = await mkdtemp(join(tmpdir(), "stage-compiler-escape-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const compiler = join(root, "node_modules", "typescript");
+  await mkdir(compiler, { recursive: true });
+  await writeFile(join(root, "package.json"), JSON.stringify({ devDependencies: { typescript: "7.0.2" } }));
+  await writeFile(join(compiler, "package.json"), JSON.stringify({ name: "typescript", bin: { tsc: "../outside.js" } }));
+  let calls = 0;
+  await assert.rejects(runStagedPackageBuild(async () => { calls += 1; }, root), /entrypoint escapes its package/u);
+  assert.equal(calls, 0);
+});
+
 // Dropping ctime or rebaselining a proved identity would accept this real drift
 // even though the pathname, inode, content, mode, size and mtime stay unchanged.
 void test("a ctime-only source mutation still rejects its proved identity", async t => {

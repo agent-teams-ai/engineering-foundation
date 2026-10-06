@@ -117,7 +117,7 @@ async function materializeStagedCompiler(stagedPackageRoot) {
   if (typeof manifest.devDependencies?.typescript !== "string") { return; }
   const physicalStage = await realpath(stagedPackageRoot);
   const compilerRoot = await realpath(join(physicalStage, "node_modules", "typescript"));
-  if (!isInternalSourcePath(physicalStage, compilerRoot)) {
+  if (!containsPhysicalPath(physicalStage, compilerRoot)) {
     throw new Error("Staged compiler resolves outside its build stage.");
   }
   const compilerManifest = await readBoundedStableJson(join(compilerRoot, "package.json"), "Staged compiler manifest");
@@ -138,8 +138,11 @@ async function materializeStagedCompiler(stagedPackageRoot) {
   if (!bytes.toString("utf8").startsWith("#!/usr/bin/env node")) {
     throw new Error("Staged compiler entrypoint is not a supported Node executable.");
   }
-  const binRoot = join(stagedPackageRoot, "node_modules", ".bin");
+  const binRoot = join(physicalStage, "node_modules", ".bin");
   await mkdir(binRoot, { recursive: true });
+  if (await realpath(binRoot) !== binRoot) {
+    throw new Error("Staged compiler shim directory is not physically contained.");
+  }
   if (process.platform === "win32") {
     if (/[\r\n%!"]/u.test(process.execPath + target)) {
       throw new Error("Staged compiler path cannot be represented safely in a cmd shim.");

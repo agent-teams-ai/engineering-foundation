@@ -149,7 +149,7 @@ generates managed-state v2 and validates it against the installed schema without
 running a real consumer or mutation flow. Cohort authority remains exactly these
 five packages and continues to reject MCP in its npm and pnpm closures.
 
-The six-package release claim has one separate supporting precondition:
+The documentation release claim covers the five Cohort packages and one separate supporting precondition:
 `@agent-teams/docs-protocol-mcp@0.2.2`. The canary selects its exact version from the release-owned package projection. A fresh npm consumer pins that package
 beside the Cohort's exact Docs Protocol coordinate. The gate requires the MCP
 version to own `latest`, captures and validates its registry lock and SHA-512
@@ -172,9 +172,13 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-six-package DAG owned solely by
-[ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md);
-no second hand-maintained package list or release order is authoritative.
+seven-package DAG owned solely by `scripts/publishable-packages.mjs`.
+[ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
+retains the documentation package boundaries; CI Input Proof is an independent
+source package outside that documentation Cohort. Its initial namespace approval
+and registry adoption remain pending as recorded in
+[CI Input Proof source admission](development/ci-input-proof-admission.md).
+No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version
 bundled by the pinned Node runtime. No npm token is stored. Immediately before

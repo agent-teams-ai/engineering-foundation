@@ -12,6 +12,8 @@ const source = {
 };
 const MUTATION_PACKAGE = "@agent-teams/repository-mutation";
 const DOCS_ADAPTER_PACKAGE = "@agent-teams/docs-protocol-agent-teams";
+const CI_INPUT_PROOF_PACKAGE = "@agent-teams/ci-input-proof";
+const ciInputProof = artifact(CI_INPUT_PROOF_PACKAGE, "0.1.0", {});
 const mutation = artifact(MUTATION_PACKAGE, "0.1.0", {});
 const authoring = artifact(DOCUMENT_AUTHORING_PACKAGE, "0.1.0", {
   [MUTATION_PACKAGE]: mutation.version,
@@ -30,6 +32,7 @@ const docsAdapter = artifact(DOCS_ADAPTER_PACKAGE, "0.1.0", {
 });
 const docsMcp = artifact(DOCS_MCP_PACKAGE, "0.1.0", { [DOCS_PACKAGE]: docs.version });
 const RELEASE_TIMESTAMPS = new Map([
+  [CI_INPUT_PROOF_PACKAGE, "2025-12-31T23:59:59.000Z"],
   [MUTATION_PACKAGE, "2026-01-01T00:00:00.000Z"],
   [DOCUMENT_AUTHORING_PACKAGE, "2026-01-01T00:00:01.000Z"],
   [FOUNDATION_PACKAGE, "2026-01-01T00:00:02.000Z"],
@@ -151,7 +154,7 @@ function harness(initial = {}) {
 
 async function run(runtime, overrides = {}) {
   return await orderedRelease({
-    artifacts: [docsMcp, docsAdapter, docs, foundation, authoring, mutation],
+    artifacts: [docsMcp, docsAdapter, docs, foundation, authoring, mutation, ciInputProof],
     attempts: 2,
     finalTag: "latest",
     retryDelayMilliseconds: 0,
@@ -161,4 +164,4 @@ async function run(runtime, overrides = {}) {
   });
 }
 
-export { source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run };
+export { source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run };

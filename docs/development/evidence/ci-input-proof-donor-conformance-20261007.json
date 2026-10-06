@@ -1,0 +1,99 @@
+{
+  "status": "source-shared-subset-parity-passed",
+  "observedAt": "2026-10-07",
+  "kernel": {
+    "sourceRevision": "4246285d32b77eb9eca137af488e02aeff0ef0aa",
+    "package": "@agent-teams/ci-input-proof",
+    "version": "0.0.0",
+    "archiveSha256": "9d5bb24a0eac8f03dcfa07208a8f41da4ad76a06fc70a1779b64197232e068d6",
+    "resolution": "public package root from a file-tarball installation, not a workspace/source alias"
+  },
+  "sharedFixture": {
+    "path": "tests/support/ci-input-proof-donor-cases.mts",
+    "sha256": "aa476f072e79ac9e6fa20f05bc254cb2f67dee7869b53958b847fb4fe623059f",
+    "cases": [
+      "same",
+      "body-content",
+      "closed-content",
+      "chmod",
+      "addition",
+      "deletion",
+      "rename"
+    ],
+    "expectations": "handwritten independently of both production comparators"
+  },
+  "consumers": [
+    {
+      "repository": "agent-teams-ai/agent-runtime",
+      "revision": "479fe48209869c8353cec9e010619cc62ba73b3e",
+      "entry": "scripts/ci/pr-regression-inputs.ts#classifyPrRegressions",
+      "entryGitBlob": "070d9985555686796430991393f187aebbd57809",
+      "harness": "runtime-conformance.test.mts",
+      "harnessSha256": "14820df6f570d7a97b4d9de51bc0e774efd4bbbd6cc5ff8374aae5f1e25238f5",
+      "caseCount": 7,
+      "execution": "actual unchanged donor entry over disposable real Git snapshots of the complete pinned consumer tree",
+      "preservedPolicy": "no-delta remains FULL; ordinary RC body selects affected-pr, all five scopes deferred; structure/common drift remains FULL",
+      "installationQualification": "not claimed; explicit TEST facts use the donor existing Git-fixture profile, not currentPrInput or physical runner admission"
+    },
+    {
+      "repository": "agent-teams-ai/.github",
+      "revision": "05b30bcc00cdf07cfde9ba60a1136bb9df7f7571",
+      "entry": "scripts/qualification-input-proof.mts#compareQualificationInputs",
+      "entryGitBlob": "78a5cbd9613324c6bfe5a1c22d98b9d80e7716e4",
+      "harness": "central-conformance.test.mts",
+      "harnessSha256": "fc22ace888bdf2c753da41172648f7f252fb9d5d0c001785a809d6883c6ea49d",
+      "caseCount": 7,
+      "execution": "actual unchanged donor wrapper with independently handwritten inert expectation and proof records",
+      "qualificationAuthority": "not claimed; independent production H materialization and unknown-envelope boundary migration remain pending"
+    }
+  ],
+  "verification": {
+    "typecheck": [
+      "pnpm",
+      "exec",
+      "tsc",
+      "--project",
+      "tsconfig.json"
+    ],
+    "tests": [
+      "node",
+      "--test",
+      "runtime-conformance.test.mts",
+      "central-conformance.test.mts"
+    ],
+    "typecheckExitCode": 0,
+    "testExitCode": 0,
+    "testsPassed": 2,
+    "casesPassed": 14,
+    "node": "24.21.0",
+    "pnpm": "11.20.0",
+    "typescript": "7.0.2",
+    "yaml": "2.9.0",
+    "nodeTypes": "24.19.1",
+    "driverLockSha256": "ce09b95e66cc671410dc888f5efd957e00db65b2d2c43dabde321e7f1d8ca69d",
+    "testLogSha256": "8b346f9ef4b2fa3e8e65274523c2d316c9628d4f5328ad3a29ce4b54de7a02ee"
+  },
+  "retainedEvidence": {
+    "host": "workers-fsn1-01",
+    "machineId": "d856d40da5ad4e23b4f67773e5942842",
+    "root": "/srv/workers/jobs/engineering-foundation/hardening-20261001/exports/shared-ci-input-proof-TEST-73eff28b5/donor-conformance-TEST-4246",
+    "files": [
+      "cases.mts",
+      "runtime-conformance.test.mts",
+      "central-conformance.test.mts",
+      "tsconfig.json",
+      "package.json",
+      "pnpm-lock.yaml",
+      "typecheck.log",
+      "conformance.log",
+      "agent-teams-ci-input-proof-0.0.0.tgz"
+    ]
+  },
+  "limits": [
+    "Source parity only; no consumer optimization switched, no live donor comparator deleted.",
+    "No authenticated historical success, protected source admission, independent production H oracle, Get Modular distribution or active consumer adoption proved.",
+    "Seven regular-file scenarios do not qualify every grammar ceiling or leaf type in each consumer; stricter kernel/eligibility differences retain FULL at switching.",
+    "Before production switching, retain each consumer own conformance command and remove only its superseded shared comparator.",
+    "Registry publication/installation, native Windows fix and current-head mandatory CI/review remain separate obligations."
+  ]
+}

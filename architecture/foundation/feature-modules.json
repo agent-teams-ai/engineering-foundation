@@ -1978,6 +1978,42 @@
         "tests",
         "packages/engineering-foundation/tests"
       ]
+    },
+    {
+      "id": "ci-input-proof",
+      "packageName": "@agent-teams/ci-input-proof",
+      "root": "packages/ci-input-proof",
+      "sourceRoot": "packages/ci-input-proof/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/ci-input-proof/src/features",
+      "publicEntrypoints": [
+        "packages/ci-input-proof/src/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/ci-input-proof/src/index.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "input-comparison",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/ci-input-proof/src/features/input-comparison/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/input-comparison/ci-input-proof.test.mts"
+          ]
+        }
+      ],
+      "testRoots": [
+        "tests/features/input-comparison/ci-input-proof.test.mts"
+      ]
     }
   ],
   "productionRoots": [

@@ -6,6 +6,7 @@ packageRoots:
   - packages
   - spikes
 governedRoots:
+  - packages/ci-input-proof/src
   - packages/repository-mutation/src
   - packages/repository-mutation/tests
   - packages/document-authoring/src
@@ -3977,6 +3978,30 @@ boundaries:
         - foundation.quality-coverage.application
         - foundation.quality-coverage.adapters
         - foundation.process-execution.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+
+  - id: ci-input-proof.application
+    roots:
+      - packages/ci-input-proof/src/features/input-comparison/application
+    entrypoints:
+      - packages/ci-input-proof/src/features/input-comparison/application/compare-leaf-inventories.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: ci-input-proof.public
+    roots:
+      - packages/ci-input-proof/src/index.ts
+    entrypoints:
+      - packages/ci-input-proof/src/index.ts
+    packageExports:
+      - .
+    allow:
+      boundaries:
+        - ci-input-proof.application
       packages: []
       builtins: []
       runtimeReferences: []

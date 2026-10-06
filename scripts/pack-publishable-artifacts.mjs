@@ -13,6 +13,7 @@ import {
   derivePublishablePackageProjection,
 } from "./publishable-packages.mjs";
 import { createPnpmRunner } from "./pack-test-support.mjs";
+import { runStagedPackageBuild } from "./pack-artifact-stage-support.mjs";
 import { prepareMarkdownPublication } from "./markdown-publication.mjs";
 import {
   assertPhysicalPath, capturePackageArtifactInputs, retainArchiveCustody, verifyArchiveCustody,
@@ -369,7 +370,7 @@ export async function packPublishableArtifacts(input) {
   if (manager.packageManager !== `pnpm@${observedPnpm}`) { fail("actual pnpm differs from the pinned toolchain"); }
   const runBuild = async (stagedPackageRoot, { packageName, stageRoot }) => {
     process.stderr.write(`Qualified artifact build: ${packageName}; stage=${stageRoot}\n`);
-    await runPnpm(["run", "build"], stagedPackageRoot);
+    await runStagedPackageBuild(runPnpm, stagedPackageRoot);
   };
   const markdownPublication = PUBLISHABLE_PACKAGES.some(entry => entry.name === "@agent-teams/document-authoring")
     ? await prepareMarkdownPublication(repositoryRoot) : undefined;

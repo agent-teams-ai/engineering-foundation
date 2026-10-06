@@ -17,6 +17,7 @@ import {
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
+import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
   createPnpmRunner,
@@ -588,7 +589,12 @@ export function qualifyPackedConsumers(handle, group) {
         });
         process.stdout.write(`Packed Docs consumer adoption and B-to-A source rollback verified: ${docsProtocolArtifact.archiveName}.\n`);
       } },
-      consumerPhase("packed consumer E2E", current => verifyPackedConsumer({ fixture: current })),
+      consumerPhase("packed consumer E2E", async current => {
+        await verifyPackedConsumer({ fixture: current });
+        await verifyPackedCiInputProof(
+          artifacts["@agent-teams/ci-input-proof"], temporaryRoot, repositoryRoot, runPnpm,
+        );
+      }),
       consumerPhase("SDK growth qualification", current =>
         testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact })),
       consumerPhase("authority scaffolding", current =>

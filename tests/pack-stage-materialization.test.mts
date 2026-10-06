@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import type { Stats } from "node:fs";
 import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, dirname, join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { setImmediate, setTimeout } from "node:timers/promises";
 import test from "node:test";
 import { mapStageIo, MAX_STAGE_BYTES, type StageByteState } from "../scripts/pack-stage-io.mts";
-import { materializeStableTree, readStableRegularFile, runStagedPackageBuild } from "../scripts/pack-artifact-stage-support.mjs";
-import { createPnpmRunner } from "../scripts/pack-test-support.mjs";
+import { materializeStableTree, readStableRegularFile, runStagedPackageBuild, wireStagedPackageDependencies } from "../scripts/pack-artifact-stage-support.mjs";
+import { createPnpmRunner, runCommand } from "../scripts/pack-test-support.mjs";
 import { tarArchive } from "./pack-publishable-artifacts-support.mjs";
 
 // pnpm 11's implicit pre-build install used to link shared-store inodes while
@@ -74,6 +75,37 @@ void test("staged pnpm builds preserve cached source custody during another stag
     assert.equal(staged.nlink, 1n);
     assert.notEqual(staged.ino, before.ino);
   } finally { await handle.close(); }
+});
+
+// Missing staged executable shims used to silently select a source/global tsc.
+void test("staged TypeScript builds use the copied compiler rather than ambient executables", async t => {
+  const root = await mkdtemp(join(tmpdir(), "stage-compiler-custody-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const stage = join(root, "stage");
+  const poison = join(root, "ambient-bin");
+  await mkdir(join(stage, "src"), { recursive: true });
+  await mkdir(poison);
+  const manifest = { name: "fixture-build", version: "1.0.0", private: true, type: "module",
+    devDependencies: { typescript: "7.0.2" }, scripts: { build: "tsc --project tsconfig.json" } };
+  await writeFile(join(stage, "package.json"), JSON.stringify(manifest));
+  await writeFile(join(stage, "pnpm-workspace.yaml"), 'packages: ["."]\nverifyDepsBeforeRun: install\noffline: true\n');
+  await writeFile(join(stage, "tsconfig.json"), JSON.stringify({ compilerOptions: {
+    strict: true, types: [], target: "ES2024", module: "NodeNext", moduleResolution: "NodeNext", rootDir: "src", outDir: "dist",
+  }, include: ["src/**/*.ts"] }));
+  await writeFile(join(stage, "src", "index.ts"), "export const answer: number = 42;\n");
+  const sourceRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  await wireStagedPackageDependencies({ sourceRoot, stagedRoot: stage, manifest,
+    catalogVersions: new Map<string, string>(), internalPackageNames: new Set<string>(), physicalInternalRoots: [],
+    packageName: manifest.name, dependencyDeclarations: {}, stagedPackagesByName: new Map<string, string>(),
+  });
+  await writeFile(join(poison, process.platform === "win32" ? "tsc.cmd" : "tsc"),
+    process.platform === "win32" ? "@echo off\r\nexit /b 79\r\n" : "#!/bin/sh\nexit 79\n", { mode: 0o755 });
+  const inherited = (process.env.PATH ?? "").split(delimiter)
+    .filter(path => !path.toLowerCase().startsWith((sourceRoot + sep).toLowerCase()));
+  await runCommand(process.execPath,
+    [fileURLToPath(new URL("./support/staged-compiler-build-probe.mts", import.meta.url)), stage], root,
+    { environment: { ...process.env, PATH: [poison, ...inherited].join(delimiter) } });
+  assert.match(await readFile(join(stage, "dist", "index.js"), "utf8"), /export const answer = 42/u);
 });
 
 // Dropping ctime or rebaselining a proved identity would accept this real drift

@@ -108,6 +108,15 @@ export async function pathExists(path) {
   }
 }
 
+export async function runStagedPackageBuild(runPnpm, stagedPackageRoot) {
+  // Dependencies were already proved and materialized into independent files.
+  // pnpm 11's default pre-run install would replace that closure and add shared
+  // store hardlinks, changing source ctime while other stages retain its identity.
+  return runPnpm(["run", "build"], stagedPackageRoot, {
+    environment: { ...process.env, pnpm_config_verify_deps_before_run: "false" },
+  });
+}
+
 function sameFileState(left, right) {
   return left.dev === right.dev && left.ino === right.ino && left.size === right.size &&
     left.mtimeMs === right.mtimeMs && left.ctimeMs === right.ctimeMs;

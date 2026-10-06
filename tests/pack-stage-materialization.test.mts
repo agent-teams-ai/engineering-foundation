@@ -1,15 +1,105 @@
 import assert from "node:assert/strict";
 import type { Stats } from "node:fs";
-import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, utimes, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, open, readFile, realpath, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setImmediate } from "node:timers/promises";
+import { setImmediate, setTimeout } from "node:timers/promises";
 import test from "node:test";
 import { mapStageIo, MAX_STAGE_BYTES, type StageByteState } from "../scripts/pack-stage-io.mts";
-import { materializeStableTree, readStableRegularFile } from "../scripts/pack-artifact-stage-support.mjs";
+import { materializeStableTree, readStableRegularFile, runStagedPackageBuild } from "../scripts/pack-artifact-stage-support.mjs";
+import { createPnpmRunner } from "../scripts/pack-test-support.mjs";
+import { tarArchive } from "./pack-publishable-artifacts-support.mjs";
+
+// pnpm 11's implicit pre-build install used to link shared-store inodes while
+// another stage held their proved identities, making the strict ctime guard red.
+void test("staged pnpm builds preserve cached source custody during another stage's read", async t => {
+  const root = await mkdtemp(join(tmpdir(), "stage-pnpm-custody-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const archive = join(root, "vfile-6.0.3.tgz");
+  const source = join(root, "source");
+  const buildStage = join(root, "build-stage");
+  const store = join(root, "shared-store");
+  const payload = "independent fixture bytes";
+  await writeFile(archive, tarArchive([
+    { name: "package/package.json", data: Buffer.from('{"name":"vfile","version":"6.0.3"}\n') },
+    { name: "package/lib/index.d.ts.map", data: Buffer.from(payload) },
+  ]));
+  for (const path of [source, buildStage]) {
+    await mkdir(path);
+    await writeFile(join(path, "pnpm-workspace.yaml"),
+      `packages: ["."]\nstoreDir: ${JSON.stringify(store)}\npackageImportMethod: hardlink\noffline: true\nverifyDepsBeforeRun: install\n`);
+    await writeFile(join(path, "package.json"), JSON.stringify({
+      name: "fixture-build", version: "1.0.0", private: true,
+      dependencies: { vfile: `file:${archive.replaceAll("\\", "/")}` }, scripts: { build: "node --version > built.txt" },
+    }));
+  }
+  const runPnpm = createPnpmRunner();
+  await runPnpm(["install", "--ignore-scripts", "--offline"], source);
+  const external = join(source, "node_modules", "vfile");
+  const path = join(external, "lib", "index.d.ts.map");
+  const physical = await realpath(path);
+  const before = await lstat(path, { bigint: true });
+  assert.ok(before.nlink > 1n, "fixture must share an inode with its disposable store");
+  await mkdir(join(buildStage, "node_modules"));
+  await materializeStableTree(external, join(buildStage, "node_modules", "vfile"), {
+    allowLinks: true, excludedEntries: new Set<string>(), label: "External dependency tree",
+    state: { bytes: 0, entries: 0 }, validatePhysical: undefined,
+  });
+  await writeFile(join(buildStage, "pnpm-lock.yaml"), await readFile(join(source, "pnpm-lock.yaml")));
+  const handle = await open(physical, "r");
+  try {
+    let built = false;
+    const readingStage = join(root, "reading-stage");
+    await materializeStableTree(external, readingStage, {
+      allowLinks: true, excludedEntries: new Set<string>(), label: "External dependency tree",
+      state: { bytes: 0, entries: 0 },
+      validatePhysical: async (_physical: string, pathname: string, metadata: Stats) => {
+        if (!metadata.isFile() || pathname !== path) { return; }
+        await runStagedPackageBuild(runPnpm, buildStage);
+        assert.match(await readFile(join(buildStage, "built.txt"), "utf8"), /v\d+\.\d+\.\d+/u,
+          "the actual build script must run");
+        built = true;
+      },
+    });
+    assert.equal(built, true);
+    assert.equal(await realpath(path), physical);
+    const identities = await Promise.all([lstat(path, { bigint: true }), lstat(physical, { bigint: true }), handle.stat({ bigint: true })]);
+    for (const identity of identities) {
+      for (const field of ["dev", "ino", "mode", "size", "mtimeNs", "ctimeNs", "nlink"] as const) {
+        assert.equal(identity[field], before[field], field);
+      }
+    }
+    assert.equal(await readFile(join(readingStage, "lib", "index.d.ts.map"), "utf8"), payload);
+    const staged = await lstat(join(buildStage, "node_modules", "vfile", "lib", "index.d.ts.map"), { bigint: true });
+    assert.equal(staged.nlink, 1n);
+    assert.notEqual(staged.ino, before.ino);
+  } finally { await handle.close(); }
+});
+
+// Dropping ctime or rebaselining a proved identity would accept this real drift
+// even though the pathname, inode, content, mode, size and mtime stay unchanged.
+void test("a ctime-only source mutation still rejects its proved identity", async t => {
+  const root = await mkdtemp(join(tmpdir(), "stage-ctime-custody-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, "index.d.ts.map");
+  await writeFile(path, "unchanged bytes");
+  const expected = { physical: await realpath(path), pathname: await lstat(path), metadata: await lstat(path) };
+  const before = await lstat(path, { bigint: true });
+  // Change metadata in a distinct filesystem timestamp tick; never retry reads.
+  await setTimeout(20);
+  await chmod(path, Number(before.mode) & 0o777);
+  const after = await lstat(path, { bigint: true });
+  for (const field of ["dev", "ino", "size", "mode", "mtimeNs"] as const) {
+    assert.equal(after[field], before[field], field);
+  }
+  assert.notEqual(after.ctimeNs, before.ctimeNs);
+  assert.equal(await readFile(path, "utf8"), "unchanged bytes");
+  await assert.rejects(readStableRegularFile(path, { bytes: 0 }, "External dependency tree", expected),
+    /changed before its proved identity was read/u);
+});
 
 // A stale regular-file hint must reject before directory validation can admit nested work.
-test("a replaced queued leaf rejects before invoking directory validation", async t => {
+void test("a replaced queued leaf rejects before invoking directory validation", async t => {
   const root = await mkdtemp(join(tmpdir(), "stage-leaf-race-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source");
@@ -33,7 +123,7 @@ test("a replaced queued leaf rejects before invoking directory validation", asyn
   try {
     await admitted.promise;
     const queued = paths.find(path => !started.has(path));
-    assert.ok(queued);
+    assert.ok(queued !== undefined);
     await rm(queued);
     await mkdir(queued);
   } finally { release.resolve(); }
@@ -42,7 +132,7 @@ test("a replaced queued leaf rejects before invoking directory validation", asyn
 });
 
 // An early rejection must not release the temporary-root owner while writers remain.
-test("stage I/O stops admission on undefined rejection and drains all started jobs", async () => {
+void test("stage I/O stops admission on undefined rejection and drains all started jobs", async () => {
   const admitted = Promise.withResolvers<void>();
   const rejectFirst = Promise.withResolvers<void>();
   const finishOthers = Promise.withResolvers<void>();
@@ -51,7 +141,7 @@ test("stage I/O stops admission on undefined rejection and drains all started jo
   const task = mapStageIo(Array.from({ length: 12 }, (_, index) => index), async item => {
     started.push(item);
     if (started.length === 4) { admitted.resolve(); }
-    if (item === 0) { await rejectFirst.promise; throw undefined; }
+    if (item === 0) { await rejectFirst.promise; return Promise.reject<void>(); }
     await finishOthers.promise;
     return item;
   });
@@ -68,7 +158,7 @@ test("stage I/O stops admission on undefined rejection and drains all started jo
 });
 
 // Before reservations, overlapping reads could each admit the same remaining bytes.
-test("overlapping stable reads cannot exceed their shared stage byte budget", async t => {
+void test("overlapping stable reads cannot exceed their shared stage byte budget", async t => {
   const root = await mkdtemp(join(tmpdir(), "stage-budget-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const paths = Array.from({ length: 8 }, (_, index) => join(root, `${index}.txt`));
@@ -88,7 +178,7 @@ test("overlapping stable reads cannot exceed their shared stage byte budget", as
 });
 
 // Concurrent leaves must preserve exact bytes/modes and physically independent copies.
-test("batched tree materialization preserves bytes, modes and generated exclusions", async t => {
+void test("batched tree materialization preserves bytes, modes and generated exclusions", async t => {
   const root = await mkdtemp(join(tmpdir(), "stage-copy-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source");
@@ -98,7 +188,7 @@ test("batched tree materialization preserves bytes, modes and generated exclusio
   await writeFile(join(source, "dist", "poison.txt"), "GENERATED POISON");
   const names = Array.from({ length: 48 }, (_, index) => `${index}.txt`);
   await Promise.all(names.map(name => writeFile(join(source, "nested", name), `source ${name}`)));
-  await chmod(join(source, "nested", names[0]!), 0o750);
+  await chmod(join(source, "nested", names[0]), 0o750);
   const state = { bytes: 0, entries: 0 };
   await materializeStableTree(source, destination, {
     allowLinks: false, excludedEntries: new Set(["dist"]), label: "Copy fixture", state,
@@ -110,13 +200,13 @@ test("batched tree materialization preserves bytes, modes and generated exclusio
       (await lstat(join(source, "nested", name))).mode & 0o777);
   }
   await assert.rejects(lstat(join(destination, "dist")), { code: "ENOENT" });
-  await writeFile(join(destination, "nested", names[0]!), "stage changed");
-  assert.equal(await readFile(join(source, "nested", names[0]!), "utf8"), `source ${names[0]}`);
+  await writeFile(join(destination, "nested", names[0]), "stage changed");
+  assert.equal(await readFile(join(source, "nested", names[0]), "utf8"), `source ${names[0]}`);
   assert.equal(state.bytes, names.reduce((total, name) => total + Buffer.byteLength(`source ${name}`), 0));
 });
 
 // Moving a directory after-check before concurrent descendants would miss this mutation.
-test("source directory mutation during leaf staging still rejects the tree", async t => {
+void test("source directory mutation during leaf staging still rejects the tree", async t => {
   const root = await mkdtemp(join(tmpdir(), "stage-directory-race-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = join(root, "source");

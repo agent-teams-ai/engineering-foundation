@@ -102,9 +102,14 @@ void test("staged TypeScript builds use the copied compiler rather than ambient 
     process.platform === "win32" ? "@echo off\r\nexit /b 79\r\n" : "#!/bin/sh\nexit 79\n", { mode: 0o755 });
   const inherited = (process.env.PATH ?? "").split(delimiter)
     .filter(path => !path.toLowerCase().startsWith((sourceRoot + sep).toLowerCase()));
+  // Windows inherits Path; a plain spread plus PATH creates two names that
+  // the native managed-process environment correctly rejects as duplicates.
+  const environment = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "path"));
+  environment.PATH = [poison, ...inherited].join(delimiter);
   await runCommand(process.execPath,
     [fileURLToPath(new URL("./support/staged-compiler-build-probe.mts", import.meta.url)), stage], root,
-    { environment: { ...process.env, PATH: [poison, ...inherited].join(delimiter) } });
+    { environment });
   assert.match(await readFile(join(stage, "dist", "index.js"), "utf8"), /export const answer = 42/u);
 });
 

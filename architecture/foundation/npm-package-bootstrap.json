@@ -336,7 +336,7 @@
     },
     {
       "id": "ci-input-proof",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/ci-input-proof",
       "root": "packages/ci-input-proof",
       "manifestPath": "packages/ci-input-proof/package.json",
@@ -373,7 +373,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",
+        "packageTree": "7f534b4e0323045535fd9024d70e7e1d2ac63b3c"
+      }
     }
   ]
 }

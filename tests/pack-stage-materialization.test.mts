@@ -85,9 +85,13 @@ void test("a ctime-only source mutation still rejects its proved identity", asyn
   await writeFile(path, "unchanged bytes");
   const expected = { physical: await realpath(path), pathname: await lstat(path), metadata: await lstat(path) };
   const before = await lstat(path, { bigint: true });
-  // Change metadata in a distinct filesystem timestamp tick; never retry reads.
+  // Toggle the writable attribute, then restore it. A no-op chmod does not
+  // change Windows metadata; real transitions retain the final mode and bytes.
+  const originalMode = Number(before.mode) & 0o777;
+  // Separate the mutations from the write timestamp tick on the tested filesystems.
   await setTimeout(20);
-  await chmod(path, Number(before.mode) & 0o777);
+  await chmod(path, originalMode ^ 0o200);
+  await chmod(path, originalMode);
   const after = await lstat(path, { bigint: true });
   for (const field of ["dev", "ino", "size", "mode", "mtimeNs"] as const) {
     assert.equal(after[field], before[field], field);

@@ -36,6 +36,7 @@
       "tests/source-dependency-development-mode.test.mjs",
       "tests/scorecard-workflow.test.mjs",
       "tests/release-workflow.test.mjs",
+      "tests/ci-input-proof-rc.test.mts",
       "tests/scaffolding-journal-store.test.mjs",
       "tests/features/quality-coverage/source-targets.test.mjs",
       "tests/scaffolding-owner-composition.test.mjs",

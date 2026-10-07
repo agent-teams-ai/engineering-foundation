@@ -1,7 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreBinaries": [
-    "mkfifo"
+    "mkfifo",
+    "prlimit"
   ],
   "ignoreDependencies": [
     "@arethetypeswrong/cli",

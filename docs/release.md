@@ -32,6 +32,12 @@ All tracked source bytes must remain unchanged, including other package manifest
 and changesets. The actual generation/pack/public-import boundary is exercised
 by `tests/ci-input-proof-rc.test.mts` on the workflow's Linux platform.
 
+Only the derived archive omits `publishConfig.provenance`: npm makes automatic
+generation and a supplied signed bundle mutually exclusive. Publication of this
+artifact must require `--provenance-file` and verified exact bundle/archive/source
+identity. The canonical manifest retains `provenance: true` for ordinary CI
+publication; no signature-verification exception is introduced.
+
 This is artifact qualification, not a supported release or consumer admission.
 Before the owner's authorized interactive test publication, verify the actual
 signed bundle against the archive/source and admit a narrow successor publication

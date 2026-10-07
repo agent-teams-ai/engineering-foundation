@@ -54,6 +54,10 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     const clean = resolve(sandbox, "unpacked");
     await mkdir(clean);
     execFileSync("tar", ["-xf", archive, "-C", clean]);
+    const packedManifest = JSON.parse(await readFile(resolve(clean, "package/package.json"), "utf8")) as { publishConfig: Record<string, unknown> };
+    assert(!Object.hasOwn(packedManifest.publishConfig, "provenance"), "provided-bundle archive must not request automatic regeneration");
+    const sourceManifest = JSON.parse(await readFile(resolve(source, "packages/ci-input-proof/package.json"), "utf8")) as { publishConfig: { provenance: boolean } };
+    assert.equal(sourceManifest.publishConfig.provenance, true, "canonical ordinary CI publication policy must stay enabled");
     const api = await import(pathToFileURL(resolve(clean, "package/dist/index.js")).href) as { compareLeafInventories: (left: unknown, right: unknown, permissions: readonly string[]) => unknown };
     const same = { version: 1, digestScheme: "sha256", inputs: [{ path: "package.json", type: "file", mode: "100644", membership: "closed", content: "1".repeat(64) }] };
     assert.deepEqual(api.compareLeafInventories(same, same, []), { status: "compatible-inputs", changedContentPaths: [] });

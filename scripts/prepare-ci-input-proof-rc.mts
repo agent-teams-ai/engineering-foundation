@@ -70,6 +70,13 @@ async function main(): Promise<void> {
     const pre = JSON.parse(await readFile(resolve(projection, ".changeset/pre.json"), "utf8")) as { initialVersions: Record<string, string>; changesets: string[] };
     assert.deepEqual(pre.initialVersions, { [packageName]: "0.0.0" });
     assert.deepEqual(pre.changesets, ["ci-input-proof-kernel"]);
+    // npm treats automatic generation and a supplied bundle as mutually exclusive.
+    // This signed artifact uses the latter; canonical source keeps automatic CI provenance.
+    const publishConfig = generated.publishConfig as Record<string, unknown>;
+    const { provenance: automaticProvenance, ...providedBundlePublishConfig } = publishConfig;
+    assert.equal(automaticProvenance, true);
+    generated.publishConfig = providedBundlePublishConfig;
+    await writeFile(resolve(projectedPackage, "package.json"), `${JSON.stringify(generated, null, 2)}\n`);
     // Compile in the fresh projection so an ignored stale dist cannot enter the archive.
     await cp(resolve(root, packageRoot, "src"), resolve(projectedPackage, "src"), { recursive: true });
     await copyFile(resolve(root, packageRoot, "tsconfig.json"), resolve(projectedPackage, "tsconfig.json"));
@@ -86,7 +93,7 @@ async function main(): Promise<void> {
     const archive = await readFile(archivePath);
     const sha512 = createHash("sha512").update(archive).digest("hex");
     const subject = `pkg:npm/%40agent-teams/ci-input-proof@${version}`;
-    const receipt = { schemaVersion: 1, package: packageName, version, tag: "rc", sourceCommit: expectedCommit, cliVersion: cliManifest.version, sha512, subject, archiveFile: basename(archivePath), sourceFilesChecked: trackedPaths.length };
+    const receipt = { schemaVersion: 1, package: packageName, version, tag: "rc", sourceCommit: expectedCommit, cliVersion: cliManifest.version, provenanceMode: "provided-bundle", sha512, subject, archiveFile: basename(archivePath), sourceFilesChecked: trackedPaths.length };
     assert.deepEqual(await sourceInventory(), before, "release preparation cannot modify canonical source files");
     await writeFile(resolve(destination, "artifact.json"), `${JSON.stringify(receipt, null, 2)}\n`);
     if (process.env.GITHUB_OUTPUT) {

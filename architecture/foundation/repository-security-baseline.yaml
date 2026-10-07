@@ -12,6 +12,8 @@ allowedPullRequestTargetWorkflows:
   - .github/workflows/commit-author-identity.yml
   - .github/workflows/reviewrouter-codex.yml
 allowedUses:
+  - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+    transitiveUses: []
   - uses: agent-teams-ai/.github/.github/workflows/commit-author-identity-check.yml@6d843f3a2c3f616aa2f4b902a866b1ff1a18f9c6
     transitiveUses:
       - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
@@ -51,6 +53,12 @@ allowedUses:
   - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
     transitiveUses: []
 privilegedJobs:
+  - workflowPath: .github/workflows/ci-input-proof-rc.yml
+    jobId: prepare
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
   - workflowPath: .github/workflows/commit-author-identity.yml
     jobId: identity
     permissions:

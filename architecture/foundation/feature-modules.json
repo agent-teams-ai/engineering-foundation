@@ -199,6 +199,10 @@
           "decision": "docs/decisions/0050-exact-json-primitive-admission.md",
           "consumers": [
             {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-attempt.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
@@ -333,6 +337,14 @@
           "role": "domain",
           "decision": "docs/decisions/0053-restoration-strict-json-consumer-admission.md",
           "consumers": [
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-install.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-archive.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
             {
               "path": "packages/document-authoring/src/document-authoring/adapters/node/node-document-journal-store.ts",
               "owner": "document-authoring/document-authoring"
@@ -879,7 +891,11 @@
             "packages/docs-protocol-agent-teams/tests/consumer-managed-state-schema.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-runtime-attempt-close.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-runtime-attempt.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
             "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
+            "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
             "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-authority.test.mjs",
             "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs",

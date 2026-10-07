@@ -15,6 +15,6 @@ process.argv = kind === "pnpm-version" ? [process.execPath, entry, "--version"] 
   [process.execPath, entry, "install", "--ignore-scripts", "--engine-strict",
     "--strict-peer-dependencies", "--config.auto-install-peers=false",
     "--config.manage-package-manager-versions=false", "--config.verify-store-integrity=true",
-    "--package-import-method=copy", `--store-dir=${store}`,
-    ...(kind === "pnpm-install-frozen-offline" ? ["--frozen-lockfile", "--offline"] : [])];
+    "--package-import-method=copy", `--store-dir=${store}`, "--offline",
+    ...(kind === "pnpm-install-frozen-offline" ? ["--frozen-lockfile"] : [])];
 await import(entry);

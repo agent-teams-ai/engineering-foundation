@@ -17,7 +17,7 @@ export interface RuntimeFileIdentity {
   readonly ctimeNs: string;
   readonly mtimeNs: string;
 }
-interface RuntimeObservation {
+export interface RuntimeObservation {
   readonly kind: "managed-runtime-observation";
   readonly tuple: RuntimeTuple;
   readonly node: RuntimeFileIdentity;
@@ -58,3 +58,47 @@ export interface ManagedRuntimeObservationPort {
   observe(input: { readonly runtime: ManagedRuntimeHandle; readonly expected: RuntimeTuple;
     readonly signal: AbortSignal }): Promise<RuntimeObservationResult>;
 }
+
+/** Source-private contracts; physical custody and settlement remain Host effects. */
+export interface ManagedAttemptInput {
+  /** Host must supply the same physical external namespace to every contender for a consumer. */
+  readonly externalRoot: string;
+  /** Exclusion within that namespace is keyed by the consumer directory's device and inode. */
+  readonly consumerRoot: string;
+  readonly controllerBuildDigest: string;
+  readonly role: "source" | "target";
+  readonly runtime: ManagedRuntimeHandle;
+  readonly signal: AbortSignal;
+  readonly preparationDigest?: string;
+}
+export type ManagedAttemptClose =
+  | { readonly outcome: "closed" }
+  | { readonly outcome: "debt"; readonly debt: RuntimeDebt };
+export interface ManagedRuntimeAttemptHandle {
+  readonly ["token"]: string;
+  readonly evidencePath: string;
+  readonly ownedRoot: string;
+  close(): Promise<ManagedAttemptClose>;
+}
+export type AttemptAcquisition =
+  | { readonly outcome: "acquired"; readonly attempt: ManagedRuntimeAttemptHandle }
+  | { readonly outcome: "refused"; readonly code: RuntimeRefusalCode; readonly debt: RuntimeDebt | null };
+export interface OwnedInstallationRoot {
+  readonly kind: "managed-owned-installation-root";
+}
+export interface ManagedPnpmInstallInput {
+  readonly root: OwnedInstallationRoot;
+  readonly runtime: ManagedRuntimeHandle;
+  readonly mode: "prepare" | "frozen-offline";
+  readonly expectedManifestDigest: string;
+  readonly expectedWorkspaceDigest: string;
+  readonly expectedLockDigest: string | null;
+  readonly signal: AbortSignal;
+}
+export type ManagedPnpmInstallResult =
+  | { readonly outcome: "installed"; readonly facts: ProcessFacts;
+      readonly runtime: RuntimeObservation; readonly lockDigest: string;
+      readonly virtualStoreLockDigest: string }
+  | { readonly outcome: "refused"; readonly code: RuntimeRefusalCode;
+      readonly facts: ProcessFacts; readonly debt: RuntimeDebt | null;
+      readonly diagnosticTailBase64?: string };

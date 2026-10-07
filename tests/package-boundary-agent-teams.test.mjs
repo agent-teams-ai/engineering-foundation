@@ -52,6 +52,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       "node-consumer-restoration.ts", "node-consumer-target-lockfile.ts",
       "node-consumer-upgrade-archive.ts", "node-consumer-upgrade-sandbox.ts",
       "node-consumer-upgrade-source-proof.ts", "node-consumer-upgrade-target.ts",
+      "node-managed-runtime-attempt.ts", "node-managed-runtime-install.ts",
+      "node-managed-runtime-archive.ts",
       "node-managed-runtime-identity.ts", "node-managed-runtime-process.ts",
       "node-managed-runtime.ts", "package-consumer-asset-catalog.ts",
       "pnpm-lockfile-policy-v1.ts", "pnpm-lockfile-validator-v1.ts",
@@ -100,6 +102,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       "pnpm-runtime-closure-v2.ts",
       "node-managed-runtime.ts", "node-managed-runtime-identity.ts",
       "node-managed-runtime-process.ts",
+      "node-managed-runtime-attempt.ts", "node-managed-runtime-install.ts",
+      "node-managed-runtime-archive.ts",
     ].map((name) => `${adapterRoot}/${name}`),
   });
   assert.deepEqual(policy.boundaries.find(

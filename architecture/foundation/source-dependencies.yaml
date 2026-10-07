@@ -463,6 +463,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/application-api.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/consumer-integration-assets.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/policies/managed-runtime-observation.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/application/managed-runtime-policy.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/managed-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/ports/consumer-upgrade.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/application/use-cases/plan-consumer-integration.ts
@@ -494,6 +495,9 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-attempt.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-install.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-archive.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime.ts
@@ -555,6 +559,9 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-attempt.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-install.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-archive.ts
   # Only this fixed private bootstrap may import a runtime-selected ESM entry.
   - id: docs-protocol-agent-teams.managed-runtime-probe
     roots:
@@ -682,7 +689,16 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/consumer-manifest-v2-policy.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-runtime-closure.test.mjs
       - packages/docs-protocol-agent-teams/tests/managed-runtime-fixtures.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-fixtures.d.mts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-attempt-close.test.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-attempt.test.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-corrective-helpers.mts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-corrective-peer.mts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts
       - packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts
+      - packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs
       - packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-reconciliation-authority-cases.mjs
       - packages/docs-protocol-agent-teams/tests/consumer-restoration-cases.mjs

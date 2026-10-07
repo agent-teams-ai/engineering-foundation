@@ -13,7 +13,7 @@ const MAX_OUTPUT = 1024 * 1024;
 const MAX_HANDSHAKE = 8 * 1024;
 const PROBE_DEADLINE = 30_000;
 const CLEANUP_WAIT = 1000;
-const PROBE_SHA256 = "9f0c6946a07b9cd2e98727352768fb311e13ca4c08fa0f095d8f4b20c2eab671";
+const PROBE_SHA256 = "3a1004a4a7aad25c4a96b12d58f541ef4d720bd9d3351a8bfa17e6fedb14ff50";
 const scrubbedEnvironment = (cwd: string): NodeJS.ProcessEnv => ({
   CI: "true", LANG: "C", LC_ALL: "C", TZ: "UTC",
   TMPDIR: cwd, XDG_CACHE_HOME: cwd, XDG_CONFIG_HOME: cwd, XDG_DATA_HOME: cwd,
@@ -218,6 +218,15 @@ class ManagedProbeOperation {
         "not-started", "not-started"), handshake: null, output: "" };
     }
     await this.input.lifecycle?.spawning();
+    // Durable spawning custody is an await; cancellation must be rechecked before spawn.
+    if (this.input.signal.aborted) {
+      this.cancelled = true;
+      this.failure ??= "cancelled";
+    }
+    if (this.hasFailure()) {
+      return { code: this.failure, facts: this.facts(null, "not-started", "not-started"),
+        handshake: null, output: "" };
+    }
     this.child = spawn(this.input.image.nodePath,
       [this.probePath, this.input.kind, join(this.input.image.rootPath, "bin/pnpm.mjs")],
       { cwd: this.input.cwd, shell: false, detached: true, env: scrubbedEnvironment(this.input.cwd),
@@ -234,11 +243,22 @@ class ManagedProbeOperation {
     if (!control || !release || typeof control === "number" || typeof release === "number") {throw new Error("missing-probe-pipes");}
     const releasePipe = release as Writable;
     this.wireStreams(owned, control);
-    try { this.startIdentity = await procStart(pid); }
-    catch { this.failure ??= "liveness-uncertain"; }
-    if (!this.hasFailure() && this.startIdentity !== null && this.startIdentity !== "") {await this.input.lifecycle?.running({ pid, start: this.startIdentity, pgid: pid });}
-    if (this.input.signal.aborted) { this.cancelled = true; this.failure ??= "cancelled"; }
+    await this.recordRunningChild(pid);
     return { owned, pid, releasePipe, probeBefore };
+  }
+  private async recordRunningChild(pid: number): Promise<void> {
+    try {
+      this.startIdentity = await procStart(pid);
+    } catch {
+      this.failure ??= "liveness-uncertain";
+    }
+    if (!this.hasFailure() && this.startIdentity !== null && this.startIdentity !== "") {
+      await this.input.lifecycle?.running({ pid, start: this.startIdentity, pgid: pid });
+    }
+    if (this.input.signal.aborted) {
+      this.cancelled = true;
+      this.failure ??= "cancelled";
+    }
   }
   private async releaseExecution(pid: number, releasePipe: Writable): Promise<void> {
     if (!this.hasFailure() && this.handshake.length > 0) {

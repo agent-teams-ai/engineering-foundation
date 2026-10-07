@@ -1,8 +1,13 @@
 import { lstat, mkdtemp, realpath, rm } from "node:fs/promises";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
 import { sameRuntimeTuple } from "../application/policies/managed-runtime-observation.js";
-import type { ManagedRuntimeHandle, ManagedRuntimeObservationPort, ProcessFacts,
+import type { AttemptAcquisition, ManagedAttemptClose, ManagedAttemptInput,
+  ManagedPnpmInstallInput, ManagedPnpmInstallResult, OwnedInstallationRoot,
+  ManagedRuntimeHandle, ManagedRuntimeObservationPort, ProcessFacts,
   RuntimeDebt, RuntimeObservationResult, RuntimeRefusalCode, RuntimeTuple } from "../application/ports/managed-runtime.js";
+import { snapshotAttemptInput, snapshotInstallInput } from "../application/managed-runtime-policy.js";
+import { acquireManagedRuntimeAttempt, type ManagedRuntimeAttempt } from "./node-managed-runtime-attempt.js";
+import { ManagedPnpmInstallation } from "./node-managed-runtime-install.js";
 import { observeRuntimeImage, validateSelection, type RuntimeImage, type TrustedRuntimeSelection } from "./node-managed-runtime-identity.js";
 import { runManagedProbe, type ProcessResult } from "./node-managed-runtime-process.js";
 
@@ -17,6 +22,9 @@ type RuntimeAdmission =
 type RuntimeScopeClose = { readonly outcome: "closed" } | { readonly outcome: "debt"; readonly debt: RuntimeDebt };
 export interface NodeManagedRuntimeScope extends ManagedRuntimeObservationPort {
   admit(): Promise<RuntimeAdmission>;
+  acquireAttempt(input: ManagedAttemptInput): Promise<AttemptAcquisition>;
+  ownedInstallationRoot(): OwnedInstallationRoot | null;
+  install(input: ManagedPnpmInstallInput): Promise<ManagedPnpmInstallResult>;
   close(): Promise<RuntimeScopeClose>;
 }
 const emptyFacts: ProcessFacts = { spawned: false, exitCode: null, signal: null, cancelled: false,
@@ -164,150 +172,295 @@ function ownsRuntime(runtime: ManagedRuntimeHandle, image: RuntimeImage | null,
   return image !== null && handles.has(runtime) && handles.get(runtime) === image;
 }
 
-/** Factory-local authority and lifecycle. Assembly is inert. */
-export function createNodeManagedRuntimeScope(input: ManagedRuntimeScopeInput): NodeManagedRuntimeScope {
-  const supplied = scopeFields(input);
-  const handles = new WeakMap<ManagedRuntimeHandle, RuntimeImage>();
-  let selection: TrustedRuntimeSelection | null = null;
-  let image: RuntimeImage | null = null;
-  let closed = false, busy = false, ownedRoot: string | null = null;
-  let ownedDirectory: OwnedDirectory | null = null;
-  let retainedDebt: RuntimeDebt | null = null;
-  let activeDone: Promise<void> | null = null;
-  let finishActive: (() => void) | null = null;
-  const closing = new AbortController();
-  const isClosed = (): boolean => closed;
-  const unavailable = (): boolean => closed || busy;
-  const scopeAborted = (): boolean => scopeSignal?.aborted === true;
-  const closeAborted = (): boolean => closing.signal.aborted;
-  const begin = (): void => { busy = true; activeDone = new Promise((resolve) => { finishActive = resolve; }); };
-  const finish = (): void => { busy = false; finishActive?.(); finishActive = null; activeDone = null; };
-  const root = typeof supplied?.root === "string" ? supplied.root : null;
-  const scopeSignal = supplied?.signal;
-  let closePromise: Promise<RuntimeScopeClose> | null = null;
-  const doClose = async (): Promise<RuntimeScopeClose> => {
-    closed = true;
-    closing.abort();
-    if (activeDone) {await activeDone;}
-    if (retainedDebt) {return { outcome: "debt", debt: retainedDebt };}
-    if (ownedRoot !== null) {
-      const path = ownedRoot;
-      if (!ownedDirectory || !await removeOwnedDirectory(ownedDirectory)) {
+type ObservationRequest = Parameters<ManagedRuntimeObservationPort["observe"]>[0];
+
+/** One factory's private authority and lifecycle; no owner instance is exposed. */
+class ManagedRuntimeScopeOwner implements NodeManagedRuntimeScope {
+  private readonly supplied: ReturnType<typeof scopeFields>;
+  private readonly handles = new WeakMap<ManagedRuntimeHandle, RuntimeImage>();
+  private readonly installationRoots = new WeakMap<OwnedInstallationRoot, ManagedRuntimeAttempt>();
+  private attempt: ManagedRuntimeAttempt | null = null;
+  private attemptUsable = false;
+  private attemptClosePromise: Promise<ManagedAttemptClose> | null = null;
+  private installer: ManagedPnpmInstallation | null = null;
+  private readonly installClosing = new AbortController();
+  private selection: TrustedRuntimeSelection | null = null;
+  private image: RuntimeImage | null = null;
+  private closed = false;
+  private busy = false;
+  private ownedRoot: string | null = null;
+  private ownedDirectory: OwnedDirectory | null = null;
+  private retainedDebt: RuntimeDebt | null = null;
+  private activeDone: Promise<void> | null = null;
+  private finishActive: (() => void) | null = null;
+  private readonly closing = new AbortController();
+  private readonly root: string | null;
+  private readonly scopeSignal: AbortSignal | undefined;
+  private closePromise: Promise<RuntimeScopeClose> | null = null;
+
+  constructor(input: ManagedRuntimeScopeInput) {
+    this.supplied = scopeFields(input);
+    this.root = typeof this.supplied?.root === "string" ? this.supplied.root : null;
+    this.scopeSignal = this.supplied?.signal;
+  }
+
+  private isClosed(): boolean {
+    return this.closed;
+  }
+
+  private unavailable(): boolean {
+    return this.closed || this.busy;
+  }
+
+  private scopeAborted(): boolean {
+    return this.scopeSignal?.aborted === true;
+  }
+
+  private begin(): void {
+    this.busy = true;
+    this.activeDone = new Promise((resolve) => {
+      this.finishActive = resolve;
+    });
+  }
+
+  private finish(): void {
+    this.busy = false;
+    this.finishActive?.();
+    this.finishActive = null;
+    this.activeDone = null;
+  }
+
+  private async doClose(): Promise<RuntimeScopeClose> {
+    this.closed = true;
+    this.closing.abort();
+    if (this.activeDone) {await this.activeDone;}
+    if (this.attempt) {
+      this.attemptUsable = false;
+      const result = await (this.attemptClosePromise ??= this.attempt.close());
+      if (result.outcome === "debt") {this.retainedDebt ??= result.debt;}
+      else {this.attempt = null; this.installer = null;}
+    }
+    if (this.retainedDebt) {return { outcome: "debt", debt: this.retainedDebt };}
+    if (this.ownedRoot !== null) {
+      const path = this.ownedRoot;
+      if (!this.ownedDirectory || !await removeOwnedDirectory(this.ownedDirectory)) {
         const debt = liveDebt("cleanup-failed", path, emptyFacts);
-        retainedDebt = debt;
+        this.retainedDebt = debt;
         return { outcome: "debt", debt };
       }
-      ownedRoot = null;
-      ownedDirectory = null;
+      this.ownedRoot = null;
+      this.ownedDirectory = null;
     }
     return { outcome: "closed" };
-  };
-  return {
-    async admit(): Promise<RuntimeAdmission> {
-      if (unavailable() || image) {return { outcome: "refused", code: "invalid-selection", debt: retainedDebt };}
-      const chosen = chooseRuntime(supplied, root);
-      selection = chosen.selection;
-      const invalid = chosen.code;
-      if (invalid) {return { outcome: "refused", code: invalid, debt: null };}
-      if (root === null || root === "") {return { outcome: "refused", code: "invalid-selection", debt: null };}
-      if (scopeAborted()) {return { outcome: "refused", code: "cancelled", debt: null };}
-      begin();
-      try {
-        image = await observeRuntimeImage(selection!);
-        if (isClosed() || scopeAborted()) {return { outcome: "refused", code: "cancelled", debt: null };}
-        if (!await validPrivateRoot(root, image)) {
-          return { outcome: "refused", code: "invalid-selection", debt: null };
-        }
-        // The caller supplies an owned non-consumer parent; acquisition is deferred until admit.
-        const acquired = await acquireOwnedDirectory(root);
-        ownedRoot = acquired.path;
-        ownedDirectory = acquired.binding;
-        if (!ownedDirectory || ownedRoot === null) {
-          if (ownedRoot !== null) {
-            retainedDebt = liveDebt("cleanup-failed", ownedRoot, emptyFacts);
-            closed = true;
-            return { outcome: "refused", code: "cleanup-failed", debt: retainedDebt };
-          }
-          return { outcome: "refused", code: "invalid-selection", debt: null };
-        }
-        if (isClosed() || scopeAborted()) {
-          if (!await removeOwnedDirectory(ownedDirectory)) {
-            retainedDebt = liveDebt("cleanup-failed", ownedRoot, emptyFacts);
-            closed = true;
-            return { outcome: "refused", code: "cleanup-failed", debt: retainedDebt };
-          }
-          ownedRoot = null;
-          ownedDirectory = null;
-          return { outcome: "refused", code: "cancelled", debt: null };
-        }
-        const runtime: ManagedRuntimeHandle = Object.freeze({ kind: "managed-runtime-handle" });
-        handles.set(runtime, image);
-        return { outcome: "admitted", runtime };
-      } catch { return { outcome: "refused", code: "identity-changed", debt: null }; }
-      finally { finish(); }
-    },
-    async observe(request): Promise<RuntimeObservationResult> {
-      const fields = observationFields(request);
-      if (!fields || unavailable() || !image || ownedRoot === null || !selection ||
-          !ownsRuntime(fields.runtime, image, handles)) {return refusal("invalid-selection", emptyFacts, retainedDebt);}
-      begin();
-      let uncertainProcess = false;
-      const requestAborted = (): boolean => fields.signal.aborted;
-      const cancelled = (): boolean => requestAborted() || scopeAborted() || closeAborted();
-      try {
-        if (!await validOwnedDirectory(ownedRoot, ownedDirectory)) {
-          retainedDebt = liveDebt("cleanup-failed", ownedRoot, emptyFacts);
-          closed = true;
-          return refusal("cleanup-failed", emptyFacts, retainedDebt);
-        }
-        if (!sameRuntimeTuple(fields.expected, selection.expected)) {return refusal("runtime-mismatch", emptyFacts);}
-        if (cancelled()) {
-          return refusal("cancelled", { ...emptyFacts, cancelled: true });
-        }
-        await observeRuntimeImage(selection, image);
-        const controller = new AbortController();
-        const abort = (): void => {controller.abort();};
-        fields.signal.addEventListener("abort", abort, { once: true });
-        scopeSignal?.addEventListener("abort", abort, { once: true });
-        closing.signal.addEventListener("abort", abort, { once: true });
-        if (cancelled()) {controller.abort();}
-        let result;
-        try {
-          uncertainProcess = true;
-          result = await runManagedProbe({ image, expected: selection.expected,
-            cwd: ownedRoot, kind: "pnpm-version", signal: controller.signal });
-          uncertainProcess = false;
-        }
-        finally {
-          fields.signal.removeEventListener("abort", abort);
-          scopeSignal?.removeEventListener("abort", abort);
-          closing.signal.removeEventListener("abort", abort);
-        }
-        const rejected = probeRefusal(result, selection.expected, ownedRoot);
-        if (rejected) {
-          if (rejected.debt) { retainedDebt = rejected.debt; closed = true; }
-          return rejected;
-        }
-        try { await observeRuntimeImage(selection, image); }
-        catch { return refusal("identity-changed", result.facts); }
-        if (isClosed() || cancelled()) {
-          return refusal("cancelled", { ...result.facts, cancelled: true });
-        }
-        return { outcome: "observed", observation: {
-          kind: "managed-runtime-observation", tuple: { ...selection.expected }, node: { ...image.node },
-          pnpm: { manifest: { ...image.manifest }, entry: { ...image.entry }, packageTreeDigest: image.treeDigest },
-          launcher: { kind: "direct-node" }, containment: "cooperative-posix-process-group"
-        }, facts: result.facts };
-      } catch {
-        if (uncertainProcess) {
-          retainedDebt = liveDebt("liveness-uncertain", ownedRoot, uncertainFacts);
-          closed = true;
-          return refusal("liveness-uncertain", uncertainFacts, retainedDebt);
-        }
-        return refusal("identity-changed", emptyFacts);
+  }
+
+  ownedInstallationRoot(): OwnedInstallationRoot | null {
+    if (this.closed || !this.attempt || !this.attemptUsable) {return null;}
+    const handle: OwnedInstallationRoot = Object.freeze({ kind: "managed-owned-installation-root" });
+    this.installationRoots.set(handle, this.attempt);
+    return handle;
+  }
+
+  async install(request: ManagedPnpmInstallInput): Promise<ManagedPnpmInstallResult> {
+    const snapshot = snapshotInstallInput(request);
+    if (!snapshot || this.unavailable() || !this.attempt || !this.attemptUsable || !this.installer ||
+        !ownsRuntime(snapshot.runtime, this.image, this.handles) || this.installationRoots.get(snapshot.root) !== this.attempt) {
+      return { outcome: "refused", code: "invalid-selection", facts: emptyFacts, debt: this.retainedDebt };
+    }
+    this.begin();
+    try {
+      const signal = AbortSignal.any([snapshot.signal, this.closing.signal, this.installClosing.signal,
+        ...(this.scopeSignal ? [this.scopeSignal] : [])]);
+      const result = await this.installer.install({ ...snapshot, signal });
+      if (result.outcome === "refused" && result.debt) {
+        this.retainedDebt = result.debt;
+        this.closed = true;
+        this.attemptUsable = false;
       }
-      finally { finish(); }
-    },
-    close(): Promise<RuntimeScopeClose> { return closePromise ??= doClose(); }
+      if (result.outcome === "installed" && signal.aborted) {
+        return { outcome: "refused", code: "cancelled",
+          facts: { ...result.facts, cancelled: true }, debt: null };
+      }
+      return result;
+    } catch {
+      return { outcome: "refused", code: "invalid-selection", facts: emptyFacts, debt: this.retainedDebt };
+    } finally {this.finish();}
+  }
+
+  async acquireAttempt(request: ManagedAttemptInput): Promise<AttemptAcquisition> {
+    const snapshot = snapshotAttemptInput(request);
+    if (!snapshot || this.unavailable() || this.attempt || !this.image || !this.selection ||
+        !ownsRuntime(snapshot.runtime, this.image, this.handles)) {
+      return { outcome: "refused", code: "invalid-selection", debt: this.retainedDebt };
+    }
+    const { image, selection } = this;
+    this.begin();
+    try {
+      const signal = AbortSignal.any([snapshot.signal, this.closing.signal,
+        ...(this.scopeSignal ? [this.scopeSignal] : [])]);
+      const cancelled = (): boolean => signal.aborted;
+      await observeRuntimeImage(selection, image);
+      if (cancelled()) {return { outcome: "refused", code: "cancelled", debt: null };}
+      const result = await acquireManagedRuntimeAttempt({ ...snapshot, signal },
+        { runtime: snapshot.runtime, image });
+      if (result.outcome === "refused") {
+        if (result.debt) {this.retainedDebt = result.debt; this.closed = true;}
+        return result;
+      }
+      const owned = result.attempt as ManagedRuntimeAttempt;
+      this.attempt = owned;
+      this.installer = new ManagedPnpmInstallation({ selection, image, attempt: owned });
+      if (cancelled()) {
+        const close = await (this.attemptClosePromise ??= owned.close());
+        if (close.outcome === "debt") {this.retainedDebt = close.debt; this.closed = true;}
+        return { outcome: "refused", code: "cancelled", debt: this.retainedDebt };
+      }
+      this.attemptUsable = true;
+      return { outcome: "acquired", attempt: Object.freeze({ ["token"]: owned.token,
+        evidencePath: owned.evidencePath, ownedRoot: owned.ownedRoot,
+        close: (): Promise<ManagedAttemptClose> => {
+          if (this.attemptClosePromise) {return this.attemptClosePromise;}
+          this.attemptUsable = false;
+          this.installClosing.abort();
+          this.attemptClosePromise = (async () => {
+            if (this.activeDone) {await this.activeDone;}
+            const close = await owned.close();
+            if (close.outcome === "debt") {this.retainedDebt = close.debt; this.closed = true;}
+            return close;
+          })();
+          return this.attemptClosePromise;
+        } }) };
+    } catch {return { outcome: "refused", code: "identity-changed", debt: this.retainedDebt };}
+    finally {this.finish();}
+  }
+
+  async admit(): Promise<RuntimeAdmission> {
+    if (this.unavailable() || this.image) {return { outcome: "refused", code: "invalid-selection", debt: this.retainedDebt };}
+    const chosen = chooseRuntime(this.supplied, this.root);
+    this.selection = chosen.selection;
+    const invalid = chosen.code;
+    if (invalid) {return { outcome: "refused", code: invalid, debt: null };}
+    if (this.root === null || this.root === "") {return { outcome: "refused", code: "invalid-selection", debt: null };}
+    if (this.scopeAborted()) {return { outcome: "refused", code: "cancelled", debt: null };}
+    this.begin();
+    try {
+      this.image = await observeRuntimeImage(this.selection!);
+      if (this.isClosed() || this.scopeAborted()) {return { outcome: "refused", code: "cancelled", debt: null };}
+      if (!await validPrivateRoot(this.root, this.image)) {
+        return { outcome: "refused", code: "invalid-selection", debt: null };
+      }
+      // The caller supplies an owned non-consumer parent; acquisition is deferred until admit.
+      const acquired = await acquireOwnedDirectory(this.root);
+      this.ownedRoot = acquired.path;
+      this.ownedDirectory = acquired.binding;
+      if (!this.ownedDirectory || this.ownedRoot === null) {
+        if (this.ownedRoot !== null) {
+          this.retainedDebt = liveDebt("cleanup-failed", this.ownedRoot, emptyFacts);
+          this.closed = true;
+          return { outcome: "refused", code: "cleanup-failed", debt: this.retainedDebt };
+        }
+        return { outcome: "refused", code: "invalid-selection", debt: null };
+      }
+      if (this.isClosed() || this.scopeAborted()) {
+        if (!await removeOwnedDirectory(this.ownedDirectory)) {
+          this.retainedDebt = liveDebt("cleanup-failed", this.ownedRoot, emptyFacts);
+          this.closed = true;
+          return { outcome: "refused", code: "cleanup-failed", debt: this.retainedDebt };
+        }
+        this.ownedRoot = null;
+        this.ownedDirectory = null;
+        return { outcome: "refused", code: "cancelled", debt: null };
+      }
+      const runtime: ManagedRuntimeHandle = Object.freeze({ kind: "managed-runtime-handle" });
+      this.handles.set(runtime, this.image);
+      return { outcome: "admitted", runtime };
+    } catch { return { outcome: "refused", code: "identity-changed", debt: null }; }
+    finally { this.finish(); }
+  }
+
+  async observe(request: ObservationRequest): Promise<RuntimeObservationResult> {
+    const fields = observationFields(request);
+    if (!fields || this.unavailable() || !this.image || this.ownedRoot === null || !this.selection ||
+        !ownsRuntime(fields.runtime, this.image, this.handles)) {return refusal("invalid-selection", emptyFacts, this.retainedDebt);}
+    const { image, selection, ownedRoot } = this;
+    this.begin();
+    let uncertainProcess = false;
+    const requestAborted = (): boolean => fields.signal.aborted;
+    const cancelled = (): boolean => requestAborted() || this.scopeAborted() || this.closing.signal.aborted;
+    try {
+      if (!await validOwnedDirectory(ownedRoot, this.ownedDirectory)) {
+        this.retainedDebt = liveDebt("cleanup-failed", ownedRoot, emptyFacts);
+        this.closed = true;
+        return refusal("cleanup-failed", emptyFacts, this.retainedDebt);
+      }
+      if (!sameRuntimeTuple(fields.expected, selection.expected)) {return refusal("runtime-mismatch", emptyFacts);}
+      if (cancelled()) {
+        return refusal("cancelled", { ...emptyFacts, cancelled: true });
+      }
+      await observeRuntimeImage(selection, image);
+      const controller = new AbortController();
+      const abort = (): void => {controller.abort();};
+      fields.signal.addEventListener("abort", abort, { once: true });
+      this.scopeSignal?.addEventListener("abort", abort, { once: true });
+      this.closing.signal.addEventListener("abort", abort, { once: true });
+      if (cancelled()) {controller.abort();}
+      let result: ProcessResult;
+      try {
+        uncertainProcess = true;
+        result = await runManagedProbe({ image, expected: selection.expected,
+          cwd: ownedRoot, kind: "pnpm-version", signal: controller.signal });
+        uncertainProcess = false;
+      }
+      finally {
+        fields.signal.removeEventListener("abort", abort);
+        this.scopeSignal?.removeEventListener("abort", abort);
+        this.closing.signal.removeEventListener("abort", abort);
+      }
+      return await this.completeObservation(result, selection, image, ownedRoot, cancelled);
+    } catch {
+      if (uncertainProcess) {
+        this.retainedDebt = liveDebt("liveness-uncertain", ownedRoot, uncertainFacts);
+        this.closed = true;
+        return refusal("liveness-uncertain", uncertainFacts, this.retainedDebt);
+      }
+      return refusal("identity-changed", emptyFacts);
+    }
+    finally { this.finish(); }
+  }
+
+  private async completeObservation(result: ProcessResult, selection: TrustedRuntimeSelection,
+    image: RuntimeImage, ownedRoot: string, cancelled: () => boolean): Promise<RuntimeObservationResult> {
+    const rejected = probeRefusal(result, selection.expected, ownedRoot);
+    if (rejected) {
+      if (rejected.debt) { this.retainedDebt = rejected.debt; this.closed = true; }
+      return rejected;
+    }
+    try { await observeRuntimeImage(selection, image); }
+    catch { return refusal("identity-changed", result.facts); }
+    if (this.isClosed() || cancelled()) {
+      return refusal("cancelled", { ...result.facts, cancelled: true });
+    }
+    return { outcome: "observed", observation: {
+      kind: "managed-runtime-observation", tuple: { ...selection.expected }, node: { ...image.node },
+      pnpm: { manifest: { ...image.manifest }, entry: { ...image.entry }, packageTreeDigest: image.treeDigest },
+      launcher: { kind: "direct-node" }, containment: "cooperative-posix-process-group"
+    }, facts: result.facts };
+  }
+
+  close(): Promise<RuntimeScopeClose> {
+    return this.closePromise ??= this.doClose();
+  }
+}
+
+/** Factory-local authority and lifecycle. Assembly is inert. */
+export function createNodeManagedRuntimeScope(input: ManagedRuntimeScopeInput): NodeManagedRuntimeScope {
+  const owner = new ManagedRuntimeScopeOwner(input);
+  return {
+    ownedInstallationRoot: () => owner.ownedInstallationRoot(),
+    install: request => owner.install(request),
+    acquireAttempt: request => owner.acquireAttempt(request),
+    admit: () => owner.admit(),
+    observe: request => owner.observe(request),
+    close: () => owner.close()
   };
 }

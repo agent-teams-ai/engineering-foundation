@@ -3,9 +3,10 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -58,9 +59,13 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     assert(!Object.hasOwn(packedManifest.publishConfig, "provenance"), "provided-bundle archive must not request automatic regeneration");
     const sourceManifest = JSON.parse(await readFile(resolve(source, "packages/ci-input-proof/package.json"), "utf8")) as { publishConfig: { provenance: boolean } };
     assert.equal(sourceManifest.publishConfig.provenance, true, "canonical ordinary CI publication policy must stay enabled");
-    const api = await import(pathToFileURL(resolve(clean, "package/dist/index.js")).href) as { compareLeafInventories: (left: unknown, right: unknown, permissions: readonly string[]) => unknown };
-    const same = { version: 1, digestScheme: "sha256", inputs: [{ path: "package.json", type: "file", mode: "100644", membership: "closed", content: "1".repeat(64) }] };
-    assert.deepEqual(api.compareLeafInventories(same, same, []), { status: "compatible-inputs", changedContentPaths: [] });
+    const probe = resolve(clean, "package/public-import-probe.mts");
+    await writeFile(probe, `import { compareLeafInventories } from "@agent-teams/ci-input-proof";\nconst same = { version: 1, digestScheme: "sha256", inputs: [{ path: "package.json", type: "file", mode: "100644", membership: "closed", content: "1".repeat(64) }] };\nconsole.log(JSON.stringify(compareLeafInventories(same, same, [])));\n`);
+    const compilerManifestPath = createRequire(import.meta.url).resolve("typescript/package.json");
+    const compiler = JSON.parse(await readFile(compilerManifestPath, "utf8")) as { bin: { tsc: string } };
+    execFileSync(process.execPath, [resolve(dirname(compilerManifestPath), compiler.bin.tsc), "--ignoreConfig", "--noEmit", "--strict", "--module", "nodenext", "--moduleResolution", "nodenext", "--target", "es2024", probe], { cwd: resolve(clean, "package"), env, stdio: "pipe" });
+    const publicResult = execFileSync(process.execPath, [probe], { cwd: resolve(clean, "package"), env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    assert.deepEqual(JSON.parse(publicResult), { status: "compatible-inputs", changedContentPaths: [] });
     assert.match(await readFile(resolve(clean, "package/CHANGELOG.md"), "utf8"), /0\.1\.0-rc\.0/u);
     assert.equal(git("status", "--porcelain").trim(), "");
     await writeFile(resolve(output, "sentinel"), "retain prior output");

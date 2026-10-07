@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -39,7 +39,7 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     git("commit", "-m", "test: initialize first RC TEST fixture");
     const commit = git("rev-parse", "HEAD").trim();
     const output = resolve(sandbox, "artifact");
-    const prepare = (destination: string, sha = commit): string => execFileSync(process.execPath, [resolve(source, "scripts/prepare-ci-input-proof-rc.mts"), destination, sha], { cwd: source, env, encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
+    const prepare = (destination: string, sha = commit, nodeArgs: string[] = []): string => execFileSync(process.execPath, [...nodeArgs, resolve(source, "scripts/prepare-ci-input-proof-rc.mts"), destination, sha], { cwd: source, env, encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
     prepare(output);
     const receipt = JSON.parse(await readFile(resolve(output, "artifact.json"), "utf8")) as { version: string; tag: string; archiveFile: string; sha512: string; subject: string; sourceCommit: string };
     assert.equal(receipt.version, "0.1.0-rc.0");
@@ -72,6 +72,23 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     assert.throws(() => prepare(output), (error: unknown) => error instanceof Error && "stderr" in error && String(error.stderr).includes("EEXIST"), "existing output must be rejected before reuse");
     assert.throws(() => prepare(resolve(sandbox, "wrong-head"), "0".repeat(40)), (error: unknown) => error instanceof Error && "stderr" in error && String(error.stderr).includes("ERR_ASSERTION"), "wrong source head must be rejected");
     assert.equal(await readFile(resolve(output, "sentinel"), "utf8"), "retain prior output");
+    assert.equal(git("status", "--porcelain").trim(), "");
+    // A real replacement between stat and read must fail before any output exists.
+    const raceFile = resolve(source, "LICENSE");
+    const originalBytes = await readFile(raceFile);
+    const external = resolve(sandbox, "external-TEST-file");
+    await writeFile(external, "external TEST bytes must not be read or packed");
+    const hook = resolve(sandbox, "race-preload.mts");
+    await writeFile(hook, `import fs from "node:fs/promises";\nimport { syncBuiltinESMExports } from "node:module";\nconst original = fs.lstat;\nlet swapped = false;\nfs.lstat = (async (...args: Parameters<typeof fs.lstat>) => {\n  const stat = await original(...args);\n  if (!swapped && String(args[0]) === ${JSON.stringify(raceFile)}) {\n    swapped = true;\n    await fs.unlink(${JSON.stringify(raceFile)});\n    await fs.symlink(${JSON.stringify(external)}, ${JSON.stringify(raceFile)});\n  }\n  return stat;\n}) as typeof fs.lstat;\nsyncBuiltinESMExports();\n`);
+    execFileSync(process.execPath, [resolve(dirname(compilerManifestPath), compiler.bin.tsc), "--ignoreConfig", "--noEmit", "--strict", "--module", "nodenext", "--moduleResolution", "nodenext", "--target", "es2024", "--typeRoots", resolve(root, "node_modules/@types"), "--types", "node", "--skipLibCheck", hook], { cwd: source, env, stdio: "pipe" });
+    const racedOutput = resolve(sandbox, "raced-output");
+    try {
+      assert.throws(() => prepare(racedOutput, commit, ["--import", hook]), (error: unknown) => error instanceof Error && "stderr" in error && String(error.stderr).includes("ELOOP"), "a checked regular file replaced by a symlink must not be followed");
+      await assert.rejects(lstat(racedOutput), { code: "ENOENT" });
+    } finally {
+      await unlink(raceFile);
+      await writeFile(raceFile, originalBytes);
+    }
     assert.equal(git("status", "--porcelain").trim(), "");
   } finally {
     await rm(sandbox, { recursive: true, force: true });

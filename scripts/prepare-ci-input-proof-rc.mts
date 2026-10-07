@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFile, copyFile, cp, lstat, mkdir, readFile, readlink, realpath, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { appendFile, copyFile, cp, lstat, mkdir, open, readFile, readlink, realpath, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,8 +41,22 @@ async function main(): Promise<void> {
       const absolute = resolve(root, path);
       const stat = await lstat(absolute);
       assert(stat.isFile() || stat.isSymbolicLink(), `unsupported tracked source entry: ${path}`);
-      const bytes = stat.isSymbolicLink() ? await readlink(absolute) : await readFile(absolute);
-      return [path, createHash("sha256").update(bytes).digest("hex")];
+      const identity = (value: typeof stat): readonly number[] => [value.dev, value.ino, value.size, value.mode, value.mtimeMs, value.ctimeMs];
+      let bytes: string | Buffer;
+      if (stat.isSymbolicLink()) {
+        bytes = await readlink(absolute); // Read the link itself, never its target.
+      } else {
+        const file = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+        try {
+          assert.deepEqual(identity(await file.stat()), identity(stat), `source entry replaced before read: ${path}`);
+          bytes = await file.readFile();
+          assert.deepEqual(identity(await file.stat()), identity(stat), `source entry changed during read: ${path}`);
+        } finally {
+          await file.close();
+        }
+      }
+      assert.deepEqual(identity(await lstat(absolute)), identity(stat), `source path changed during read: ${path}`);
+      return [path, `${stat.mode}:${createHash("sha256").update(bytes).digest("hex")}`];
     })));
   }
   const before = await sourceInventory();
@@ -102,6 +117,8 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(receipt));
   } finally {
     assert.deepEqual(await sourceInventory(), before, "canonical source must remain unchanged after failure too");
+    assert.equal(run("git", ["rev-parse", "HEAD"]).trim(), expectedCommit, "canonical source commit must stay fixed");
+    assert.equal(run("git", ["status", "--porcelain", "--untracked-files=normal"]).trim(), "", "canonical source checkout must stay clean");
   }
 }
 

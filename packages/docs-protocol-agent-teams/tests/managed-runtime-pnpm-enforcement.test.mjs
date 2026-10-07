@@ -238,19 +238,6 @@ for (const lane of ['node24', 'node26']) {
       assert.equal(versionSwitch.outcome, 'refused');
       assert.equal(versionSwitch.code, 'invalid-selection');
       assert.equal(versionSwitch.facts.spawned, false);
-      await writeFile(join(x.root, 'package.json'), JSON.stringify({ name: 'test-managed-install',
-        version: '1.0.0', private: true, packageManager: 'pnpm@11.20.0', dependencies: {} }) + '\n');
-      const previous = process.env.npm_config_engine_strict;
-      process.env.npm_config_engine_strict = 'false';
-      try {
-        const inherited = await runInstall(x, input);
-        assert.equal(inherited.outcome, 'refused');
-        assert.equal(inherited.code, 'invalid-selection');
-        assert.equal(inherited.facts.spawned, false);
-      } finally {
-        if (previous === undefined) {delete process.env.npm_config_engine_strict;}
-        else {process.env.npm_config_engine_strict = previous;}
-      }
     } finally {await x.scope.close(); await x.f.cleanup();}
   });
 

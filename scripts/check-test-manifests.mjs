@@ -14,7 +14,7 @@ const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
 const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.(?:mjs|mts)$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
-// Repository qualification policy for the seven feature-private linux/x64 suites.
+// Repository qualification policy for the eight feature-private linux/x64 suites.
 // Support authority: docs/reference/node26-managed-runtime-observation.md.
 // This finite selection does not change the global inventory or mandatory contract.
 const linuxManagedTests = Object.freeze([
@@ -22,8 +22,8 @@ const linuxManagedTests = Object.freeze([
   "packages/docs-protocol-agent-teams/tests/managed-runtime-attempt.test.mjs",
   "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts",
   "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
-  "packages/docs-protocol-agent-teams/tests/managed-runtime-effective-environment-boundary.test.mts",
   "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts",
   "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
   "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
 ]);

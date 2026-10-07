@@ -25,6 +25,6 @@
     "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective-peer.mts",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
-    "packages/docs-protocol-agent-teams/tests/managed-runtime-effective-environment-boundary.test.mts"
+    "packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts"
   ]
 }

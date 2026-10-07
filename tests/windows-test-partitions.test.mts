@@ -15,6 +15,12 @@ const loader = "tests/source-dependency-loader-cli.test.mjs";
 const linuxOnly = [
   "packages/docs-protocol-agent-teams/tests/managed-runtime-observation.test.mjs",
   "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-attempt-close.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-attempt.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts",
+  "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
 ];
 
 function inventoriedPaths(value: unknown): readonly string[] {

@@ -28,6 +28,9 @@ async function main(): Promise<void> {
   const cli = require.resolve("@changesets/cli/bin.js");
   const cliManifest = JSON.parse(await readFile(require.resolve("@changesets/cli/package.json"), "utf8")) as { version: string };
   assert.equal(cliManifest.version, "2.31.1", "release derivation requires the reviewed CLI pin");
+  const compilerManifestPath = require.resolve("typescript/package.json");
+  const compiler = JSON.parse(await readFile(compilerManifestPath, "utf8")) as { version: string; bin: { tsc: string } };
+  assert.equal(compiler.version, "7.0.2", "build requires the reviewed compiler pin");
   const original = JSON.parse(await readFile(resolve(root, packageRoot, "package.json"), "utf8")) as Record<string, unknown>;
   assert.equal(original.name, packageName);
   assert.equal(original.version, "0.0.0", "first RC preparation cannot advance an existing release");
@@ -70,10 +73,10 @@ async function main(): Promise<void> {
     // Compile in the fresh projection so an ignored stale dist cannot enter the archive.
     await cp(resolve(root, packageRoot, "src"), resolve(projectedPackage, "src"), { recursive: true });
     await copyFile(resolve(root, packageRoot, "tsconfig.json"), resolve(projectedPackage, "tsconfig.json"));
-    run("pnpm", ["exec", "tsc", "--build", resolve(projectedPackage, "tsconfig.json"), "--pretty", "false"]);
+    run(process.execPath, [resolve(dirname(compilerManifestPath), compiler.bin.tsc), "--build", resolve(projectedPackage, "tsconfig.json"), "--pretty", "false"]);
     const archiveDirectory = resolve(destination, "archive");
     await mkdir(archiveDirectory);
-    const report = JSON.parse(run("pnpm", ["pack", "--pack-destination", archiveDirectory, "--json", "--config.ignore-scripts=true"], projectedPackage)) as { filename: string };
+    const report = JSON.parse(run("pnpm", ["pack", "--pack-destination", archiveDirectory, "--json", "--config.ignore-scripts=true", "--config.verify-deps-before-run=false"], projectedPackage)) as { filename: string };
     assert.equal(typeof report.filename, "string");
     const archivePath = resolve(projectedPackage, report.filename);
     assert.equal(dirname(archivePath), archiveDirectory, "archive must belong to this output directory");

@@ -1,4 +1,4 @@
-# Agent Teams Engineering Foundation
+# Engineering Foundation
 
 Versioned engineering policy, tooling, and conformance for Agent Teams
 repositories.

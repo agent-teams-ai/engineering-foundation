@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFile, copyFile, cp, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, cp, lstat, mkdir, readFile, readlink, realpath, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +33,13 @@ async function main(): Promise<void> {
   assert.equal(original.version, "0.0.0", "first RC preparation cannot advance an existing release");
   const trackedPaths = run("git", ["ls-files", "-z"]).split("\0").filter(Boolean);
   async function sourceInventory(): Promise<Record<string, string>> {
-    return Object.fromEntries(await Promise.all(trackedPaths.map(async path => [path, createHash("sha256").update(await readFile(resolve(root, path))).digest("hex")])));
+    return Object.fromEntries(await Promise.all(trackedPaths.map(async path => {
+      const absolute = resolve(root, path);
+      const stat = await lstat(absolute);
+      assert(stat.isFile() || stat.isSymbolicLink(), `unsupported tracked source entry: ${path}`);
+      const bytes = stat.isSymbolicLink() ? await readlink(absolute) : await readFile(absolute);
+      return [path, createHash("sha256").update(bytes).digest("hex")];
+    })));
   }
   const before = await sourceInventory();
   await mkdir(destination); // Refuse reuse; never delete a previous artifact or another run's output.

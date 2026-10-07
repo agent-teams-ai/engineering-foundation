@@ -25,7 +25,7 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     await mkdir(resolve(source, "scripts"));
     await cp(resolve(root, "scripts/prepare-ci-input-proof-rc.mts"), resolve(source, "scripts/prepare-ci-input-proof-rc.mts"));
     await writeFile(resolve(source, "package.json"), JSON.stringify({ name: "ci-input-proof-release-TEST", private: true, packageManager: "pnpm@11.20.0" }));
-    await writeFile(resolve(source, ".gitignore"), "node_modules/\npackages/*/dist/\npackages/*/*.tsbuildinfo\n");
+    await writeFile(resolve(source, ".gitignore"), "node_modules\npackages/*/dist/\npackages/*/*.tsbuildinfo\n");
     await symlink(resolve(root, "node_modules"), resolve(source, "node_modules"));
     // An ignored stale dist file must never get packed, even with a clean Git checkout.
     await mkdir(resolve(source, "packages/ci-input-proof/dist"), { recursive: true });

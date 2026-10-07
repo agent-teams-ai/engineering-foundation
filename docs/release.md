@@ -16,6 +16,28 @@ mutable "current version" copy. Normal package changes enter the ordinary
 Changesets flow described below; the completed namespace bootstrap and D'/RC
 rollout are not prerequisites to rerun.
 
+## First CI Input Proof RC artifact
+
+`ci-input-proof-rc.yml` prepares the first `@agent-teams/ci-input-proof`
+`0.1.0-rc.0` archive from a reviewed exact `main` commit. It never publishes to
+npm, changes tags, provisions a token or consumes the repository's changesets.
+The existing bootstrap and ordinary publication policies remain enforced.
+
+The artifact contains the archive, its SHA-512/source receipt and a Sigstore
+SLSA bundle from the pinned standard `actions/attest` action. The subject is
+the exact npm PURL. Changesets 2.31.1 derives the RC and release notes in a
+fresh isolated projection containing only this package and its minor changeset;
+the pinned compiler builds fresh distribution there. Existing output is rejected.
+All tracked source bytes must remain unchanged, including other package manifests
+and changesets. The actual generation/pack/public-import boundary is exercised
+by `tests/ci-input-proof-rc.test.mts` on the workflow's Linux platform.
+
+This is artifact qualification, not a supported release or consumer admission.
+Before the owner's authorized interactive test publication, verify the actual
+signed bundle against the archive/source and admit a narrow successor publication
+policy. Do not execute the old granular-token bootstrap as a substitute. Registry
+bytes, signature/provenance and clean public installation remain required proof.
+
 ## Completed bootstrap history
 
 The D' rollout first published Foundation `0.17.0-rc.0`, then promoted Docs

@@ -10,6 +10,7 @@
       "packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs",
       "tests/document-authoring-version-compatibility.test.mjs",
       "tests/npm-package-bootstrap-policy.test.mjs",
+      "tests/ci-input-proof-rc.test.mts",
       "packages/engineering-foundation/tests/public-api-artifact-inventory.test.mjs",
       "tests/coverage-evidence.test.mjs",
       "tests/scaffolding-owned-cleanup-residue.test.mjs",

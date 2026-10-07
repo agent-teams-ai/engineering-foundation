@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, type Stats } from "node:fs";
 import { appendFile, copyFile, cp, lstat, mkdir, open, readFile, readlink, realpath, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
@@ -15,6 +15,10 @@ const version = "0.1.0-rc.0";
 
 function run(command: string, args: string[], cwd = root): string {
   return execFileSync(command, args, { cwd, encoding: "utf8", timeout: 60_000, env: { ...process.env, CI: "true" } });
+}
+
+function fileIdentity(stat: Stats): readonly number[] {
+  return [stat.dev, stat.ino, stat.size, stat.mode, stat.mtimeMs, stat.ctimeMs];
 }
 
 async function main(): Promise<void> {
@@ -35,31 +39,39 @@ async function main(): Promise<void> {
   const original = JSON.parse(await readFile(resolve(root, packageRoot, "package.json"), "utf8")) as Record<string, unknown>;
   assert.equal(original.name, packageName);
   assert.equal(original.version, "0.0.0", "first RC preparation cannot advance an existing release");
-  const trackedPaths = run("git", ["ls-files", "-z"]).split("\0").filter(Boolean);
+  const trackedEntries = run("git", ["ls-files", "--stage", "-z"]).split("\0").filter(Boolean).map(entry => {
+    const separator = entry.indexOf("\t");
+    const [mode, , stage] = entry.slice(0, separator).split(" ");
+    assert(separator > 0 && stage === "0" && ["100644", "100755", "120000"].includes(mode ?? ""), "unsupported Git source entry");
+    return { path: entry.slice(separator + 1), symlink: mode === "120000" };
+  });
   async function sourceInventory(): Promise<Record<string, string>> {
-    return Object.fromEntries(await Promise.all(trackedPaths.map(async path => {
+    return Object.fromEntries(await Promise.all(trackedEntries.map(async ({ path, symlink: isLink }) => {
       const absolute = resolve(root, path);
-      const stat = await lstat(absolute);
-      assert(stat.isFile() || stat.isSymbolicLink(), `unsupported tracked source entry: ${path}`);
-      const identity = (value: typeof stat): readonly number[] => [value.dev, value.ino, value.size, value.mode, value.mtimeMs, value.ctimeMs];
+      let stat: Stats;
       let bytes: string | Buffer;
-      if (stat.isSymbolicLink()) {
-        bytes = await readlink(absolute); // Read the link itself, never its target.
+      if (isLink) {
+        // Index type selects the operation; readlink never follows the target.
+        bytes = await readlink(absolute);
+        stat = await lstat(absolute);
+        assert(stat.isSymbolicLink(), `source link replaced during read: ${path}`);
       } else {
         const file = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
         try {
-          assert.deepEqual(identity(await file.stat()), identity(stat), `source entry replaced before read: ${path}`);
+          stat = await file.stat();
+          assert(stat.isFile(), `unsupported tracked source entry: ${path}`);
           bytes = await file.readFile();
-          assert.deepEqual(identity(await file.stat()), identity(stat), `source entry changed during read: ${path}`);
+          assert.deepEqual(fileIdentity(await file.stat()), fileIdentity(stat), `source entry changed during read: ${path}`);
         } finally {
           await file.close();
         }
       }
-      assert.deepEqual(identity(await lstat(absolute)), identity(stat), `source path changed during read: ${path}`);
+      assert.deepEqual(fileIdentity(await lstat(absolute)), fileIdentity(stat), `source path changed during read: ${path}`);
       return [path, `${stat.mode}:${createHash("sha256").update(bytes).digest("hex")}`];
     })));
   }
   const before = await sourceInventory();
+  assert.equal(run("git", ["status", "--porcelain", "--untracked-files=normal"]).trim(), "", "source checkout changed during inventory");
   await mkdir(destination); // Refuse reuse; never delete a previous artifact or another run's output.
   try {
     const projection = resolve(destination, "projection");
@@ -108,7 +120,7 @@ async function main(): Promise<void> {
     const archive = await readFile(archivePath);
     const sha512 = createHash("sha512").update(archive).digest("hex");
     const subject = `pkg:npm/%40agent-teams/ci-input-proof@${version}`;
-    const receipt = { schemaVersion: 1, package: packageName, version, tag: "rc", sourceCommit: expectedCommit, cliVersion: cliManifest.version, provenanceMode: "provided-bundle", sha512, subject, archiveFile: basename(archivePath), sourceFilesChecked: trackedPaths.length };
+    const receipt = { schemaVersion: 1, package: packageName, version, tag: "rc", sourceCommit: expectedCommit, cliVersion: cliManifest.version, provenanceMode: "provided-bundle", sha512, subject, archiveFile: basename(archivePath), sourceFilesChecked: trackedEntries.length };
     assert.deepEqual(await sourceInventory(), before, "release preparation cannot modify canonical source files");
     await writeFile(resolve(destination, "artifact.json"), `${JSON.stringify(receipt, null, 2)}\n`);
     if (process.env.GITHUB_OUTPUT) {

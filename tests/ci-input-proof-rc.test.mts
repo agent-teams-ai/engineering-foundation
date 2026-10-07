@@ -83,7 +83,7 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     execFileSync(process.execPath, [resolve(dirname(compilerManifestPath), compiler.bin.tsc), "--ignoreConfig", "--noEmit", "--strict", "--module", "nodenext", "--moduleResolution", "nodenext", "--target", "es2024", "--typeRoots", resolve(root, "node_modules/@types"), "--types", "node", "--skipLibCheck", hook], { cwd: source, env, stdio: "pipe" });
     const racedOutput = resolve(sandbox, "raced-output");
     try {
-      assert.throws(() => prepare(racedOutput, commit, ["--import", hook]), (error: unknown) => error instanceof Error && "stderr" in error && String(error.stderr).includes("ELOOP"), "a checked regular file replaced by a symlink must not be followed");
+      assert.throws(() => prepare(racedOutput, commit, ["--import", hook]), (error: unknown) => error instanceof Error && "stderr" in error && /ELOOP|ERR_ASSERTION/u.test(String(error.stderr)), "a replaced source file must be rejected before creating an artifact");
       await assert.rejects(lstat(racedOutput), { code: "ENOENT" });
     } finally {
       await unlink(raceFile);

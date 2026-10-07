@@ -14,7 +14,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // It fails on unrelated source mutation, stale distribution inclusion, wrong RC,
 // missing public implementation, or accidental reuse of a previous output.
 test("first RC is CLI-derived, importable and isolated from authoritative changesets", { skip: process.platform !== "linux", timeout: 120_000 }, async () => {
-  const sandbox = await mkdtemp(resolve(tmpdir(), "ci-input-proof-rc-TEST-"));
+  const sandbox = await mkdtemp(resolve(tmpdir(), "ci-input-proof-rc-TEST- space;-"));
   const source = resolve(sandbox, "source");
   const env = { ...process.env, GIT_AUTHOR_NAME: "iliya", GIT_AUTHOR_EMAIL: "iliyazelenkog@gmail.com", GIT_COMMITTER_NAME: "iliya", GIT_COMMITTER_EMAIL: "iliyazelenkog@gmail.com" };
   const git = (...args: string[]): string => execFileSync("git", args, { cwd: source, env, encoding: "utf8" });
@@ -45,7 +45,7 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     git("commit", "-m", "test: initialize first RC TEST fixture");
     const commit = git("rev-parse", "HEAD").trim();
     const output = resolve(sandbox, "artifact");
-    const prepare = (destination: string, sha = commit, nodeArgs: string[] = []): string => execFileSync("bash", ["-c", 'ulimit -n 1024; exec "$@"', "ci-input-proof-rc-TEST", process.execPath, ...nodeArgs, resolve(source, "scripts/prepare-ci-input-proof-rc.mts"), destination, sha], { cwd: source, env, encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
+    const prepare = (destination: string, sha = commit, nodeArgs: string[] = []): string => execFileSync("prlimit", ["--nofile=1024:1024", "--", process.execPath, ...nodeArgs, resolve(source, "scripts/prepare-ci-input-proof-rc.mts"), destination, sha], { cwd: source, env, encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
     prepare(output);
     const receipt = JSON.parse(await readFile(resolve(output, "artifact.json"), "utf8")) as { version: string; tag: string; archiveFile: string; sha512: string; subject: string; sourceCommit: string };
     assert.equal(receipt.version, "0.1.0-rc.0");

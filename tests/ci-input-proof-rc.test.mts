@@ -54,9 +54,9 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     const clean = resolve(sandbox, "unpacked");
     await mkdir(clean);
     execFileSync("tar", ["-xf", archive, "-C", clean]);
-    const api = await import(pathToFileURL(resolve(clean, "package/dist/index.js")).href) as { compareLeafInventories: (left: unknown, right: unknown) => unknown };
-    const empty = { version: 1, digestScheme: "sha256", inputs: [] };
-    assert.deepEqual(api.compareLeafInventories(empty, empty), { status: "compatible-inputs", changedContentPaths: [] });
+    const api = await import(pathToFileURL(resolve(clean, "package/dist/index.js")).href) as { compareLeafInventories: (left: unknown, right: unknown, permissions: readonly string[]) => unknown };
+    const same = { version: 1, digestScheme: "sha256", inputs: [{ path: "package.json", type: "file", mode: "100644", membership: "closed", content: "1".repeat(64) }] };
+    assert.deepEqual(api.compareLeafInventories(same, same, []), { status: "compatible-inputs", changedContentPaths: [] });
     assert.match(await readFile(resolve(clean, "package/CHANGELOG.md"), "utf8"), /0\.1\.0-rc\.0/u);
     assert.equal(git("status", "--porcelain").trim(), "");
     await writeFile(resolve(output, "sentinel"), "retain prior output");

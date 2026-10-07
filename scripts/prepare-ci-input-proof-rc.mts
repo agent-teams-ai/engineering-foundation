@@ -46,7 +46,8 @@ async function main(): Promise<void> {
     return { path: entry.slice(separator + 1), symlink: mode === "120000" };
   });
   async function sourceInventory(): Promise<Record<string, string>> {
-    return Object.fromEntries(await Promise.all(trackedEntries.map(async ({ path, symlink: isLink }) => {
+    const entries: [string, string][] = [];
+    for (const { path, symlink: isLink } of trackedEntries) {
       const absolute = resolve(root, path);
       let stat: Stats;
       let bytes: string | Buffer;
@@ -67,8 +68,9 @@ async function main(): Promise<void> {
         }
       }
       assert.deepEqual(fileIdentity(await lstat(absolute)), fileIdentity(stat), `source path changed during read: ${path}`);
-      return [path, `${stat.mode}:${createHash("sha256").update(bytes).digest("hex")}`];
-    })));
+      entries.push([path, `${stat.mode}:${createHash("sha256").update(bytes).digest("hex")}`]);
+    }
+    return Object.fromEntries(entries);
   }
   const before = await sourceInventory();
   assert.equal(run("git", ["status", "--porcelain", "--untracked-files=normal"]).trim(), "", "source checkout changed during inventory");

@@ -29,6 +29,12 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     await writeFile(resolve(source, ".gitignore"), "node_modules\npackages/*/dist/\npackages/*/*.tsbuildinfo\n");
     await symlink(resolve(root, "node_modules"), resolve(source, "node_modules"));
     await symlink("packages", resolve(source, "tracked-directory-link"));
+    // Unbounded descriptor fan-out must fail this fixture under the child limit.
+    const inventory = resolve(source, "large-inventory-TEST");
+    await mkdir(inventory);
+    for (let index = 0; index < 1100; index += 1) {
+      await writeFile(resolve(inventory, `${index}.txt`), "tracked unrelated TEST input\n");
+    }
     // An ignored stale dist file must never get packed, even with a clean Git checkout.
     await mkdir(resolve(source, "packages/ci-input-proof/dist"), { recursive: true });
     await writeFile(resolve(source, "packages/ci-input-proof/dist/stale.js"), "throw new Error('stale distribution');\n");
@@ -39,7 +45,7 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     git("commit", "-m", "test: initialize first RC TEST fixture");
     const commit = git("rev-parse", "HEAD").trim();
     const output = resolve(sandbox, "artifact");
-    const prepare = (destination: string, sha = commit, nodeArgs: string[] = []): string => execFileSync(process.execPath, [...nodeArgs, resolve(source, "scripts/prepare-ci-input-proof-rc.mts"), destination, sha], { cwd: source, env, encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
+    const prepare = (destination: string, sha = commit, nodeArgs: string[] = []): string => execFileSync("bash", ["-c", 'ulimit -n 1024; exec "$@"', "ci-input-proof-rc-TEST", process.execPath, ...nodeArgs, resolve(source, "scripts/prepare-ci-input-proof-rc.mts"), destination, sha], { cwd: source, env, encoding: "utf8", timeout: 60_000, stdio: ["ignore", "pipe", "pipe"] });
     prepare(output);
     const receipt = JSON.parse(await readFile(resolve(output, "artifact.json"), "utf8")) as { version: string; tag: string; archiveFile: string; sha512: string; subject: string; sourceCommit: string };
     assert.equal(receipt.version, "0.1.0-rc.0");

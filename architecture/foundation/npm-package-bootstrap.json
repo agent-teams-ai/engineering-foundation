@@ -336,7 +336,7 @@
     },
     {
       "id": "ci-input-proof",
-      "state": "approved",
+      "state": "historical",
       "name": "@agent-teams/ci-input-proof",
       "root": "packages/ci-input-proof",
       "manifestPath": "packages/ci-input-proof/package.json",

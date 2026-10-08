@@ -69,6 +69,7 @@
       "tests/registry-package-boundary.test.mjs"
     ],
     "b": [
+      "tests/process-failure-reporting.test.mts",
       "tests/document-command-renderer.test.mjs",
       "tests/workspace-configuration.test.mjs",
       "tests/quality-gate-runner-lifecycle.test.mjs",

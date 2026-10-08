@@ -2112,6 +2112,7 @@ boundaries:
   - id: foundation.validation-reporting.error
     roots:
       - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
+      - packages/engineering-foundation/src/features/validation-reporting/process-failure-facts.ts
     allow:
       boundaries: []
       packages: []
@@ -2119,6 +2120,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
+      - packages/engineering-foundation/src/features/validation-reporting/process-failure-facts.ts
   - id: foundation.local-mode.application
     roots:
       - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
@@ -3674,6 +3676,7 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.validation-reporting.error
       packages: []
       builtins: []
       runtimeReferences: []

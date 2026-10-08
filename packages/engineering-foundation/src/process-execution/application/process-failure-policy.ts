@@ -1,6 +1,7 @@
+import { associateProcessFailureFacts, readProcessFailureFacts, type ProcessFailureFacts } from "../../features/validation-reporting/process-failure-facts.js";
 import { FoundationError } from "../../features/validation-reporting/api.js";
 import { ProcessCancellationError, ProcessTimeoutError } from "./errors.js";
-import type { ProcessRequest } from "./process.js";
+import type { ManagedProcessResult, ProcessRequest } from "./process.js";
 
 const MAX_PROCESS_TIMEOUT_MS = 2_147_483_647;
 
@@ -11,13 +12,16 @@ function describeRequest(request: ProcessRequest): string {
 export function processFailure(
   request: ProcessRequest,
   message: string,
-  cause?: unknown
+  cause?: unknown,
+  facts?: ProcessFailureFacts
 ): FoundationError {
-  return new FoundationError(
+  const failure = new FoundationError(
     "PROCESS_FAILED",
     `${describeRequest(request)} ${message}`,
     cause === undefined ? undefined : { cause }
   );
+  associateProcessFailureFacts(failure, facts);
+  return failure;
 }
 
 export function processCancelled(
@@ -80,9 +84,24 @@ export function isProcessFailure(error: unknown): error is FoundationError {
 
 export function processCleanupFailure(request: ProcessRequest, description: string, error: unknown, windows: boolean): FoundationError {
   const requestDescription = describeRequest(request);
-  return new FoundationError(
+  const failure = new FoundationError(
     "PROCESS_FAILED",
     windows ? `${description} ${requestDescription}` : `${requestDescription} ${description}`,
     { cause: error }
   );
+  associateProcessFailureFacts(failure, { reason: "cleanup" });
+  return failure;
+}
+
+export function processExitResult(result: ManagedProcessResult, exitCode: number | null, signal: NodeJS.Signals | null): ManagedProcessResult {
+  associateProcessFailureFacts(result, {
+    reason: "exit",
+    ...(exitCode === null ? {} : { exitCode }),
+    ...(signal === null ? {} : { signal })
+  });
+  return result;
+}
+
+export function processExitFailure(request: ProcessRequest, message: string, result: ManagedProcessResult): FoundationError {
+  return processFailure(request, message, undefined, readProcessFailureFacts(result));
 }

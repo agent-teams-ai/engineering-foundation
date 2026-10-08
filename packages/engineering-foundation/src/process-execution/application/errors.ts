@@ -1,9 +1,11 @@
+import { associateProcessFailureFacts } from "../../features/validation-reporting/process-failure-facts.js";
 import { FoundationError } from "../../features/validation-reporting/api.js";
 
 export class ProcessCancellationError extends FoundationError {
   constructor(message: string, options?: ErrorOptions) {
     super("PROCESS_FAILED", message, options);
     this.name = "ProcessCancellationError";
+    associateProcessFailureFacts(this, { reason: "cancelled" });
   }
 }
 
@@ -18,5 +20,6 @@ export class ProcessTimeoutError extends FoundationError {
       options
     );
     this.name = "ProcessTimeoutError";
+    associateProcessFailureFacts(this, { reason: "timeout", timeoutMs });
   }
 }

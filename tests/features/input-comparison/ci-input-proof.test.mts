@@ -11,7 +11,7 @@ const sparse = (length: number): unknown[] => {
   array.length = length;
   return array;
 };
-const leaf = (path: string, membership: 'closed' | 'structural' = 'closed', content = oldDigest): InputLeaf =>
+const leaf = (path: string, membership: 'closed' | 'structural' = 'closed', content = oldDigest): Extract<InputLeaf, { type: 'file' }> =>
   ({ path, type: 'file', mode: '100644', membership, content });
 const inventory = (inputs: unknown = [leaf('package.json'), leaf('src/a.ts', 'structural')], scheme = 'git-object-sha1') =>
   ({ version: 1, digestScheme: scheme, inputs });

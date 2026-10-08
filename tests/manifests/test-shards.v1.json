@@ -263,6 +263,7 @@
         "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",
         "tests/test-manifests-typescript.test.mts",
+        "tests/engineering-quality-standard.test.mts",
         "tests/markdown-checkout.test.mjs",
         "tests/markdown-distribution.test.mjs",
         "tests/known-file-transaction-node.test.mjs",

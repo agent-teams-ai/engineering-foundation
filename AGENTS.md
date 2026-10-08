@@ -75,4 +75,11 @@ Before planning, implementing, or reviewing changes, read and follow the
 Apply it with this repository's instructions, accepted decisions and local
 adoption profiles. This reference does not change pinned architecture contracts
 or certify existing code as conformant.
+If live retrieval is unavailable, read the byte-exact [retained snapshot](standards/engineering-quality-standard.md)
+and its [provenance](standards/engineering-quality-standard.provenance.json).
+The organization URL remains canonical authority; the snapshot is retained input,
+not a separately maintained policy. Resolve its relative links at the exact
+canonical repository revision recorded in provenance. Report offline use; before
+updating this pin, review upstream delta instead of silently following main.
+`pnpm standards:check` enforces this pin in repository checks; missing or drifted retained input rejects.
 <!-- agent-teams:quality-standard:end -->

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -13,6 +14,100 @@ const secret = "INJECTED_PROCESS_SECRET_path_query_token_env_stack";
 const request = { command: secret, args: [secret], cwd: process.cwd() };
 const schema = JSON.parse(await readFile(new URL("../packages/engineering-foundation/schemas/foundation-check-report/v1.schema.json", import.meta.url), "utf8"));
 const validate = new Ajv2020({ strict: true, allErrors: true }).compile(schema);
+
+// Runs only in a child: prototype mutations must never reach the test runner.
+function hostileFactsScenario(scenario: string, key: string) {
+  const prototype = Object.prototype;
+  const original = Object.getOwnPropertyDescriptor(prototype, key);
+  const error = new FoundationError("PROCESS_FAILED", secret);
+  const reason = key === "timeoutMs" ? "timeout" : "exit";
+  const metadata = key === "signal" ? "SIGTERM" : 23;
+  let getters = 0;
+  function inject(value: unknown) {
+    Object.defineProperty(prototype, key, { value, configurable: true, writable: true });
+  }
+  try {
+    if (scenario === "descriptor-map") {
+      inject({ value: metadata });
+      associateProcessFailureFacts(error, { reason });
+    } else if (scenario === "accessor-value") {
+      inject("exit");
+      associateProcessFailureFacts(error, { get reason() { getters++; throw new Error(secret); } });
+    } else if (scenario === "proxy-reflection" || scenario === "throwing-reflection") {
+      const input = new Proxy({ reason }, {
+        ownKeys(target) {
+          inject({ value: metadata });
+          if (scenario === "throwing-reflection") { throw new Error(secret); }
+          return Reflect.ownKeys(target);
+        }
+      });
+      associateProcessFailureFacts(error, input);
+    } else {
+      associateProcessFailureFacts(error, { reason });
+      inject(secret);
+    }
+    const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
+    const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
+    return { capability, aggregate, text: renderFoundationReportText(aggregate), getters };
+  } finally {
+    if (original === undefined) { Reflect.deleteProperty(prototype, key); }
+    else { Object.defineProperty(prototype, key, original); }
+  }
+}
+
+function hostileReport(scenario: string, key: string, expected: string) {
+  const api = new URL("../packages/engineering-foundation/dist/features/validation-reporting/api.js", import.meta.url).href;
+  const facts = new URL("../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js", import.meta.url).href;
+  const renderer = new URL("../packages/engineering-foundation/dist/features/foundation-check/adapters/inbound/cli/report-renderer.js", import.meta.url).href;
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import { FoundationError, capabilityFailureReport, foundationReport } from ${JSON.stringify(api)};
+    import { associateProcessFailureFacts } from ${JSON.stringify(facts)};
+    import { renderFoundationReportText } from ${JSON.stringify(renderer)};
+    const secret = ${JSON.stringify(secret)};
+    const result = (${hostileFactsScenario.toString()})(${JSON.stringify(scenario)}, ${JSON.stringify(key)});
+    process.stdout.write(JSON.stringify(result));
+  `], { encoding: "utf8", timeout: 10_000 });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+  const result = JSON.parse(child.stdout) as ReturnType<typeof hostileFactsScenario>;
+  assert.equal(validate(result.aggregate), true, JSON.stringify(validate.errors));
+  for (const rendering of [JSON.stringify(result.capability), JSON.stringify(result.aggregate), result.text]) {
+    assert.ok(!rendering.includes(secret), "complete report must omit prototype-injected secrets");
+    assert.ok(rendering.includes(expected), "complete report must retain the safe wording");
+    assert.doesNotMatch(rendering, /Observed exit code:|Observed signal:|Timeout:/u, "inherited metadata must not invent observations");
+  }
+  assert.ok(result.capability.problem);
+  assert.equal(result.capability.problem.message, expected);
+  assert.equal(result.capability.problem.code, "UNEXPECTED_PROCESS_FAILURE");
+  assert.equal(result.aggregate.outcome, "failed");
+  assert.equal(result.getters, 0);
+}
+
+for (const key of ["exitCode", "signal", "timeoutMs"]) {
+  const expected = key === "timeoutMs" ? "The process timed out." : "The process exited unsuccessfully.";
+  // RED: absent descriptor-map entries acquire inherited, apparently valid metadata.
+  void test(`inherited descriptor-map ${key} cannot invent report observations`, () => {
+    hostileReport("descriptor-map", key, expected);
+  });
+  // RED: reflection itself installs metadata before the snapshot is inspected.
+  void test(`proxy reflection cannot inject inherited ${key} into reports`, () => {
+    hostileReport("proxy-reflection", key, expected);
+  });
+  // RED: frozen plain facts inherit the secret after association, leaking in every rendering.
+  void test(`postassociation prototype ${key} cannot leak into reports`, () => {
+    hostileReport("postassociation", key, expected);
+  });
+}
+
+// RED: an accessor descriptor inherits value, converting rejected input to exit wording.
+void test("accessor descriptors cannot inherit value or invoke getters", () => {
+  hostileReport("accessor-value", "value", "An unexpected process failure occurred.");
+});
+
+void test("throwing prototype-mutating reflection retains generic fallback", () => {
+  hostileReport("throwing-reflection", "signal", "An unexpected process failure occurred.");
+});
+
 function report(error: unknown) {
   const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
   const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });

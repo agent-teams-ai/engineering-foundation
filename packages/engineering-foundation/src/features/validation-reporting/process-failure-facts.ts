@@ -37,18 +37,19 @@ export function associateProcessFailureFacts(error: object, input: unknown): voi
     const descriptors = Object.getOwnPropertyDescriptors(input);
     if (Reflect.ownKeys(descriptors).some((key) =>
       typeof key !== "string" || !["reason", "exitCode", "signal", "timeoutMs"].includes(key) ||
-      !("value" in descriptors[key]!))) {
+      !Object.hasOwn(descriptors[key]!, "value"))) {
       return;
     }
-    const reason: unknown = descriptors.reason?.value;
-    const exitCode: unknown = descriptors.exitCode?.value;
-    const signal: unknown = descriptors.signal?.value;
-    const timeoutMs: unknown = descriptors.timeoutMs?.value;
+    const reason: unknown = Object.hasOwn(descriptors, "reason") ? descriptors.reason?.value : undefined;
+    const exitCode: unknown = Object.hasOwn(descriptors, "exitCode") ? descriptors.exitCode?.value : undefined;
+    const signal: unknown = Object.hasOwn(descriptors, "signal") ? descriptors.signal?.value : undefined;
+    const timeoutMs: unknown = Object.hasOwn(descriptors, "timeoutMs") ? descriptors.timeoutMs?.value : undefined;
     if (typeof reason !== "string" || !reasons.has(reason) ||
       !validMetadata(reason, exitCode, signal, timeoutMs)) {
       return;
     }
     observations.set(error, Object.freeze({
+      __proto__: null,
       reason: reason as ProcessFailureFacts["reason"],
       ...(typeof exitCode === "number" ? { exitCode } : {}),
       ...(typeof signal === "string" ? { signal: signal as ProcessSignal } : {}),

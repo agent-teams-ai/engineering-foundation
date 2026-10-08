@@ -12,6 +12,8 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0057: CI Input Proof Leaf Type Contract](0057-ci-input-proof-leaf-type-contract.md)
+
 - [ADR-0055: Qualified Non-release Metadata Root](0055-qualified-non-release-metadata-root.md)
 
 - [ADR-0054: Hardening Public API Dispositions](0054-hardening-public-api-dispositions.md)

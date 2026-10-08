@@ -164,4 +164,6 @@ packages:
         kind: data
     tsconfigPath: packages/ci-input-proof/tsconfig.json
     releasedBaselinePath: architecture/public-api/ci-input-proof.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:779147090ac75f16946d44f6c865574e0bd35be7a302d1e51c9180b21c68ce01
+        decisionId: ADR-0057

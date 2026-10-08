@@ -9,6 +9,10 @@ scripts:
   fast: check:fast
   full: check
 changedChecks:
+  - id: standards-pin
+    script: standards:check
+    extensions: [.md, .json, .mts]
+    passPaths: false
   - id: lint-fast
     script: lint:fast:files
     extensions: [.js, .jsx, .mjs, .cjs, .ts, .tsx, .mts, .cts]

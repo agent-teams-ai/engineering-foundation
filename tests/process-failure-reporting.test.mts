@@ -12,7 +12,18 @@ import { renderFoundationReportText } from "../packages/engineering-foundation/d
 
 const secret = "INJECTED_PROCESS_SECRET_path_query_token_env_stack";
 const request = { command: secret, args: [secret], cwd: process.cwd() };
-const schema = JSON.parse(await readFile(new URL("../packages/engineering-foundation/schemas/foundation-check-report/v1.schema.json", import.meta.url), "utf8"));
+const schema: unknown = JSON.parse(await readFile(new URL("../packages/engineering-foundation/schemas/foundation-check-report/v1.schema.json", import.meta.url), "utf8"));
+function assertReportSchema(value: unknown): asserts value is { $schema: string; $id: string } {
+  assert.ok(typeof value === "object" && value !== null && !Array.isArray(value));
+  assert.ok("$schema" in value && value.$schema === "https://json-schema.org/draft/2020-12/schema");
+  assert.ok("$id" in value && typeof value.$id === "string");
+  assert.ok("type" in value && value.type === "object");
+  assert.ok("additionalProperties" in value && value.additionalProperties === false);
+  assert.ok("required" in value && Array.isArray(value.required) && value.required.every((key: unknown) => typeof key === "string"));
+  assert.ok("properties" in value && typeof value.properties === "object" && value.properties !== null && !Array.isArray(value.properties));
+  assert.ok("$defs" in value && typeof value.$defs === "object" && value.$defs !== null && !Array.isArray(value.$defs));
+}
+assertReportSchema(schema);
 const validate = new Ajv2020({ strict: true, allErrors: true }).compile(schema);
 
 // Runs only in a child: prototype mutations must never reach the test runner.
@@ -121,7 +132,7 @@ function report(error: unknown) {
 }
 
 // Regression: reporting collapses explicit producer observations or leaks an opaque cause.
-test("finite producer reasons remain distinct in complete v1 reports", () => {
+void test("finite producer reasons remain distinct in complete v1 reports", () => {
   const cause = new Error(secret, { cause: new Error(secret) });
   const cases: readonly [unknown, string][] = [
     [processFailure(request, secret, cause, { reason: "launch" }), "The process could not be started."],
@@ -138,15 +149,15 @@ test("finite producer reasons remain distinct in complete v1 reports", () => {
     assert.equal(error.cause, cause);
     const { capability, aggregate } = report(error);
     assert.equal(capability.problem?.message, message);
-    assert.equal(capability.problem?.code, "UNEXPECTED_PROCESS_FAILURE");
-    assert.equal(capability.problem?.retryable, false);
+    assert.equal(capability.problem.code, "UNEXPECTED_PROCESS_FAILURE");
+    assert.equal(capability.problem.retryable, false);
     assert.equal(aggregate.outcome, "failed");
     assert.equal(exitCodeForOutcome(aggregate.outcome), 3);
   }
 });
 
 // Regression: structural copies/getters or bad numeric/signal values forge safe metadata.
-test("facts require identity and bounded own data properties", () => {
+void test("facts require identity and bounded own data properties", () => {
   let getters = 0;
   const malformed: unknown[] = [
     { reason: secret }, { reason: "exit", exitCode: NaN },
@@ -173,7 +184,8 @@ test("facts require identity and bounded own data properties", () => {
   assert.equal(readProcessFailureFacts(error)?.exitCode, 4_294_967_295);
   assert.equal(Object.isFrozen(readProcessFailureFacts(error)), true);
   assert.equal(readProcessFailureFacts(Object.create(error)), undefined);
-  assert.equal(readProcessFailureFacts({ ...error }), undefined);
+  const counterfeit: Pick<FoundationError, "name" | "code"> = { name: error.name, code: error.code };
+  assert.equal(readProcessFailureFacts(counterfeit), undefined);
   assert.equal(readProcessFailureFacts(new Proxy(error, {})), undefined);
   assert.equal(report(new ProcessTimeoutError(NaN)).capability.problem?.message, "An unexpected process failure occurred.");
   const spoof = new FoundationError("PROCESS_FAILED", secret);
@@ -195,11 +207,11 @@ test("facts require identity and bounded own data properties", () => {
 });
 
 // Regression: enrichment changes cancellation precedence, nonprocess mapping or success bytes.
-test("cancellation and nonprocess outcomes and successful bytes remain unchanged", async () => {
+void test("cancellation and nonprocess outcomes and successful bytes remain unchanged", async () => {
   const cancelled = new ProcessCancellationError(secret, { cause: new Error(secret) });
   const { capability, aggregate } = report(cancelled);
   assert.equal(capability.problem?.code, "EXECUTION_CANCELLED");
-  assert.equal(capability.problem?.message, "Capability execution was cancelled.");
+  assert.equal(capability.problem.message, "Capability execution was cancelled.");
   assert.equal(aggregate.outcome, "cancelled");
   assert.equal(exitCodeForOutcome(aggregate.outcome), 130);
   assert.equal(readProcessFailureFacts(cancelled)?.reason, "cancelled");
@@ -216,7 +228,7 @@ test("cancellation and nonprocess outcomes and successful bytes remain unchanged
 });
 
 // Regression: the real runner discards observed exit metadata when stderr is nonempty.
-test("real process exit survives reporting while stderr remains private", { timeout: 15_000 }, async () => {
+void test("real process exit survives reporting while stderr remains private", { timeout: 15_000 }, async () => {
   await assert.rejects(new NodeProcessRunner().run({
     command: process.execPath, args: ["-e", `process.stderr.write('${secret}');process.exitCode=23`], cwd: process.cwd(), timeoutMs: 5000
   }), (error: unknown) => {
@@ -226,7 +238,7 @@ test("real process exit survives reporting while stderr remains private", { time
 });
 
 // Regression: launch/output/deadline failures are falsely projected as child exits.
-test("real producer branches identify launch, timeout and invalid output", { timeout: 15_000 }, async () => {
+void test("real producer branches identify launch, timeout and invalid output", { timeout: 15_000 }, async () => {
   for (const [run, message] of [
     [() => new NodeProcessRunner().run(request), "The process could not be started."],
     [() => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "setInterval(()=>{},60000)"], cwd: process.cwd(), timeoutMs: 50 }), "The process timed out. Timeout: 50ms."],
@@ -238,7 +250,7 @@ test("real producer branches identify launch, timeout and invalid output", { tim
 });
 
 // Regression: a signal-only exit is mislabeled with the runner's synthetic code 1.
-test("signal exit reports only actually observed metadata", { skip: process.platform === "win32", timeout: 15_000 }, async () => {
+void test("signal exit reports only actually observed metadata", { skip: process.platform === "win32", timeout: 15_000 }, async () => {
   await assert.rejects(new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "process.kill(process.pid,'SIGTERM')"], cwd: process.cwd() }), (error: unknown) => {
     assert.equal(report(error).capability.problem?.message, "The process exited unsuccessfully. Observed signal: SIGTERM.");
     return true;

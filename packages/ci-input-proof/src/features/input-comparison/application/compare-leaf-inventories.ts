@@ -2,11 +2,13 @@
 export type DigestScheme = 'git-object-sha1' | 'sha256';
 export type InputLeaf = Readonly<{
   path: string;
-  type: 'file' | 'symlink' | 'gitlink';
-  mode: '100644' | '100755' | '120000' | '160000';
   membership: 'closed' | 'structural';
   content: string;
-}>;
+} & (
+  | { type: 'file'; mode: '100644' | '100755' }
+  | { type: 'symlink'; mode: '120000' }
+  | { type: 'gitlink'; mode: '160000' }
+)>;
 export type LeafInventory = Readonly<{
   version: 1;
   digestScheme: DigestScheme;

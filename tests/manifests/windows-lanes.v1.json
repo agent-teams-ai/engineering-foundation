@@ -190,6 +190,7 @@
       "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
       "tests/contract-protobuf-qualification.test.mjs",
       "tests/test-manifests-typescript.test.mts",
+        "tests/engineering-quality-standard.test.mts",
       "tests/source-dependency-v3-observation.test.mjs",
       "tests/source-dependency-workspace-discovery.test.mjs",
       "tests/document-authoring-package-boundary.test.mjs",

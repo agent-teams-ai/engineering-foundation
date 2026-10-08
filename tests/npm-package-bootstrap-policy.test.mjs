@@ -138,7 +138,7 @@ function releaseState(profile, version) {
   };
 }
 
-test("bootstrap catalog is closed, data-only, and retires completed bootstrap authorities", () => {
+test("bootstrap catalog is closed, data-only, and retains retired authorities", () => {
   assert.deepEqual(
     NPM_PACKAGE_BOOTSTRAP.packages.map(({ id, state }) => ({ id, state })),
     [
@@ -147,21 +147,17 @@ test("bootstrap catalog is closed, data-only, and retires completed bootstrap au
       { id: "docs-protocol", state: "historical" },
       { id: "docs-protocol-agent-teams", state: "historical" },
       { id: "docs-protocol-mcp", state: "historical" },
-      { id: "ci-input-proof", state: "approved" },
+      { id: "ci-input-proof", state: "historical" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
-  const inputProof = bootstrapPackageById("ci-input-proof", { approved: true });
+  const inputProof = bootstrapPackageById("ci-input-proof");
   assert.deepEqual(inputProof.approval, {
     archiveIntegrity: "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",
     packageTree: "7f534b4e0323045535fd9024d70e7e1d2ac63b3c",
   });
-  const candidate = structuredClone(NPM_PACKAGE_BOOTSTRAP);
-  const candidateInputProof = candidate.packages.find(({ id }) => id === "ci-input-proof");
-  candidateInputProof.state = "candidate";
-  candidateInputProof.approval = null;
   assert.throws(
-    () => bootstrapPackageById("ci-input-proof", { approved: true, catalog: parseBootstrapCatalog(candidate) }),
+    () => bootstrapPackageById("ci-input-proof", { approved: true }),
     /not approved/u,
   );
   assert.equal(authoring.bootstrapVersion, "0.0.0");

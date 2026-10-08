@@ -69,6 +69,15 @@ verify each immutable baseline. The bootstrap repository variable is disabled,
 the short-lived GitHub secret was removed, and no persistent npm credential is
 part of the release path.
 
+CI Input Proof's `historical` bootstrap entry revokes an unused `0.0.0` writer
+approval; it does not record a published `0.0.0`. Its original tree/SRI remain
+retained evidence, while that obsolete writer no longer constrains source edits.
+Registry evidence on 2026-10-08 lists `0.0.0-stage` and `0.1.0-rc.0`, with
+`latest`/`rc` on the RC; future releases must re-read actual registry state.
+Ordinary releases still require baseline verification and fail on missing `0.0.0`
+or unsupported stage evidence until a separate actual-RC policy is admitted.
+The RC does not silently replace the legacy baseline or authorize publication.
+
 ## One-time namespace bootstrap
 
 `architecture/foundation/npm-package-bootstrap.json` is the only package-specific

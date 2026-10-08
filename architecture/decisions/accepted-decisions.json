@@ -266,6 +266,11 @@
       "id": "ADR-0055",
       "path": "docs/decisions/0055-qualified-non-release-metadata-root.md",
       "immutableDigest": "sha256:08392f3ed924975bd28be19fedb2dd83ce8b4cabf9920e46b1764722abfb72c9"
+    },
+    {
+      "id": "ADR-0057",
+      "path": "docs/decisions/0057-ci-input-proof-leaf-type-contract.md",
+      "immutableDigest": "sha256:b05d5568ebfec29b51b9fb3b45b31d1ccd8b0b69f7d956927f90589ba9fd2613"
     }
   ]
 }

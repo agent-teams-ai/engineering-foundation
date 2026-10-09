@@ -122,6 +122,14 @@ void test("throwing prototype-mutating reflection retains generic fallback", () 
 function report(error: unknown) {
   const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
   const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
+  return assertSafeReport({ capability, aggregate });
+}
+
+function assertSafeReport(result: {
+  capability: ReturnType<typeof capabilityFailureReport>;
+  aggregate: ReturnType<typeof foundationReport>;
+}) {
+  const { capability, aggregate } = result;
   assert.equal(validate(aggregate), true, JSON.stringify(validate.errors));
   assert.equal(capability.diagnostics.length, 0);
   assert.deepEqual(capability.summary, { errors: 0, warnings: 0, infos: 0 });
@@ -238,14 +246,58 @@ void test("real process exit survives reporting while stderr remains private", {
 });
 
 // Regression: launch/output/deadline failures are falsely projected as child exits.
-void test("real producer branches identify launch, timeout and invalid output", { timeout: 15_000 }, async () => {
-  for (const [run, message] of [
-    [() => new NodeProcessRunner().run(request), "The process could not be started."],
-    [() => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "setInterval(()=>{},60000)"], cwd: process.cwd(), timeoutMs: 50 }), "The process timed out. Timeout: 50ms."],
-    [() => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "process.stdout.write(Buffer.alloc(4*1024*1024+1))"], cwd: process.cwd(), timeoutMs: 5000 }), "Process output exceeded the capture limit."],
-    [() => executeManagedProcess({ command: process.execPath, args: ["-e", "process.stdout.write(Buffer.from([255]))"], cwd: process.cwd(), strictUtf8: true }), "Process output was not valid UTF-8."]
+void test("real producer branches identify launch, timeout and invalid output", { timeout: 15_000 }, async (t) => {
+  await t.test("launch failure at the real platform launcher boundary", async () => {
+    if (process.platform === "win32") {
+      const environment = { ...process.env };
+      for (const key of Object.keys(environment)) {
+        if (key.toLowerCase() === "systemroot") { delete environment[key]; }
+      }
+      environment.SystemRoot = "relative-system-root";
+      const runner = new URL("../packages/engineering-foundation/dist/process-execution/node-process-runner.js", import.meta.url).href;
+      const api = new URL("../packages/engineering-foundation/dist/features/validation-reporting/api.js", import.meta.url).href;
+      const facts = new URL("../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js", import.meta.url).href;
+      // The missing requested command fails inside the Windows host, after launch.
+      // Rejecting the trusted launcher's root instead observes a genuine launch failure.
+      const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+        import { NodeProcessRunner } from ${JSON.stringify(runner)};
+        import { capabilityFailureReport, foundationReport } from ${JSON.stringify(api)};
+        import { readProcessFailureFacts } from ${JSON.stringify(facts)};
+        try {
+          await new NodeProcessRunner().run({ command: process.execPath, args: ["-e", ""], cwd: process.cwd() });
+          process.exitCode = 1;
+        } catch (error) {
+          const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
+          const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
+          process.stdout.write(JSON.stringify({ capability, aggregate, reason: readProcessFailureFacts(error)?.reason }));
+        }
+      `], { env: environment, encoding: "utf8", timeout: 10_000 });
+      assert.equal(child.error, undefined);
+      assert.equal(child.status, 0, child.stderr);
+      assert.equal(child.signal, null);
+      assert.equal(child.stderr, "");
+      const result = JSON.parse(child.stdout) as ReturnType<typeof report> & { reason?: unknown };
+      assert.equal(result.reason, "launch");
+      assertSafeReport(result);
+      assert.equal(result.capability.problem?.message, "The process could not be started.");
+      assert.equal(result.aggregate.outcome, "failed");
+      assert.equal(result.capability.problem.code, "UNEXPECTED_PROCESS_FAILURE");
+      return;
+    }
+    await assert.rejects(new NodeProcessRunner().run(request), (error: unknown) => {
+      assert.equal(readProcessFailureFacts(error)?.reason, "launch");
+      assert.equal(report(error).capability.problem?.message, "The process could not be started.");
+      return true;
+    });
+  });
+  for (const [name, run, message] of [
+    ["timeout after 50ms", () => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "setInterval(()=>{},60000)"], cwd: process.cwd(), timeoutMs: 50 }), "The process timed out. Timeout: 50ms."],
+    ["output limit at 4MiB plus one byte", () => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "process.stdout.write(Buffer.alloc(4*1024*1024+1))"], cwd: process.cwd(), timeoutMs: 5000 }), "Process output exceeded the capture limit."],
+    ["invalid UTF-8 output", () => executeManagedProcess({ command: process.execPath, args: ["-e", "process.stdout.write(Buffer.from([255]))"], cwd: process.cwd(), strictUtf8: true }), "Process output was not valid UTF-8."]
   ] as const) {
-    await assert.rejects(run(), (error: unknown) => { assert.equal(report(error).capability.problem?.message, message); return true; });
+    await t.test(name, async () => {
+      await assert.rejects(run(), (error: unknown) => { assert.equal(report(error).capability.problem?.message, message); return true; });
+    });
   }
 });
 

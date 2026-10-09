@@ -69,7 +69,6 @@
       "tests/registry-package-boundary.test.mjs"
     ],
     "b": [
-      "tests/process-failure-reporting.test.mts",
       "tests/document-command-renderer.test.mjs",
       "tests/workspace-configuration.test.mjs",
       "tests/quality-gate-runner-lifecycle.test.mjs",
@@ -93,6 +92,7 @@
       "tests/document-authoring-application-spine.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
       "tests/capability-public-api.test.mjs",
+      "tests/process-failure-reporting.test.mts",
       "tests/capability-reporting-architecture.test.mjs",
       "tests/known-file-transaction-characterization.test.mjs",
       "tests/npm-package-bootstrap-workflow.test.mjs",

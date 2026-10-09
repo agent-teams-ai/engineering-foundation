@@ -3,7 +3,7 @@
   "source": {
     "runId": 37154414643,
     "headSha": "331e97758fd83e6a0da69a3400b3bfe8aa8d0aee",
-    "strategy": "Static five-lane Windows policy from advisory whole-file Windows timings of successful exact-source CI. The loader remains alone in lane c and canonical shard 3. All other admitted canonical files use longest-processing-time-first assignment across a, b, d, e; ties use canonical manifest traversal order and then lane ID. Original relative order in canonical manifest traversal is retained within each resulting lane. The two existing Linux-only managed suites are omitted under the existing platform authority; all raw-coverage-only files remain excluded. Residual projected serial loads: a=734.082s, b=734.078s, d=734.077s, e=734.077s; the isolated loader projects 651.632s. Unmeasured test(s) receive 0s solely for balancing: tests/pack-stage-materialization.test.mts, packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts. The restoration lock input suite is assigned to lane d. These advisory projections exclude setup, queue, cache effects and unobserved runtime variance and are not execution or qualification proof; final exact-head CI qualifies actual behavior. A new admitted canonical file requires an explicit policy assignment before Windows dispatch. The private full-PR-CI request regression suite is explicitly assigned to light lane b without a measured timing. The focused CI Input Proof successor policy suite (canonical index 13) precedes the pure CI input comparator suite (canonical index 30); both are explicitly assigned to lane b and no measured Windows timing is claimed."
+    "strategy": "Static five-lane Windows policy from advisory whole-file Windows timings of successful exact-source CI. The loader remains alone in lane c and canonical shard 3. All other admitted canonical files use longest-processing-time-first assignment across a, b, d, e; ties use canonical manifest traversal order and then lane ID. Original relative order in canonical manifest traversal is retained within each resulting lane. The two existing Linux-only managed suites are omitted under the existing platform authority; all raw-coverage-only files remain excluded. Residual projected serial loads: a=734.082s, b=734.078s, d=734.077s, e=734.077s; the isolated loader projects 651.632s. Unmeasured test(s) receive 0s solely for balancing: tests/pack-stage-materialization.test.mts, packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts. The restoration lock input suite is assigned to lane d. These advisory projections exclude setup, queue, cache effects and unobserved runtime variance and are not execution or qualification proof; final exact-head CI qualifies actual behavior. A new admitted canonical file requires an explicit policy assignment before Windows dispatch. The private full-PR-CI request regression suite is explicitly assigned to light lane b without a measured timing. The focused CI Input Proof successor policy suite (canonical index 13) precedes the pure CI input comparator suite (canonical index 30); both are explicitly assigned to lane b and no measured Windows timing is claimed. C1 successor workflow and assembled command/capability suites are explicitly assigned across a, b, d, e without measured Windows timing; existing assignments and loader isolation are preserved. These assignments request execution and do not claim Windows qualification."
   },
   "lanes": {
     "a": [
@@ -66,7 +66,9 @@
       "tests/public-api-evidence-ports.test.mjs",
       "tests/public-api-growth-report-writer.test.mjs",
       "tests/foundation-local-mode-transaction-e2e.test.mjs",
-      "tests/registry-package-boundary.test.mjs"
+      "tests/registry-package-boundary.test.mjs",
+      "tests/command-host-successor-cli.test.mts",
+      "tests/c1-agent-workflow-coverage.test.mts"
     ],
     "b": [
       "tests/document-command-renderer.test.mjs",
@@ -131,7 +133,9 @@
       "tests/document-authoring-writer-adversarial.test.mjs",
       "tests/m4-disposable-lifecycle.test.mjs",
       "tests/package-release-inventory.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
+      "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
+      "tests/agent-workflow-versioned-capability.test.mts",
+      "tests/c1-agent-workflow-rejection.test.mts"
     ],
     "c": [
       "tests/source-dependency-loader-cli.test.mjs"
@@ -191,7 +195,7 @@
       "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
       "tests/contract-protobuf-qualification.test.mjs",
       "tests/test-manifests-typescript.test.mts",
-        "tests/engineering-quality-standard.test.mts",
+      "tests/engineering-quality-standard.test.mts",
       "tests/source-dependency-v3-observation.test.mjs",
       "tests/source-dependency-workspace-discovery.test.mjs",
       "tests/document-authoring-package-boundary.test.mjs",
@@ -199,7 +203,8 @@
       "tests/document-doctor-environment.test.mjs",
       "tests/node-test-execution.test.mjs",
       "tests/root-package-projections.test.mjs",
-      "tests/unexpected-failure-diagnostics.test.mjs"
+      "tests/unexpected-failure-diagnostics.test.mjs",
+      "tests/c1-agent-workflow-cli.test.mts"
     ],
     "e": [
       "tests/foundation-transaction-observation.test.mjs",
@@ -260,7 +265,8 @@
       "tests/repository-mutation-directory-materialization.test.mjs",
       "tests/governance-configuration.test.mjs",
       "tests/document-planning-use-case.test.mjs",
-      "tests/document-authoring-transaction-inspection.test.mjs"
+      "tests/document-authoring-transaction-inspection.test.mjs",
+      "tests/c1-agent-workflow-configuration.test.mts"
     ]
   }
 }

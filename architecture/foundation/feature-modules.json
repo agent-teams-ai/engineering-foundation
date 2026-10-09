@@ -1713,7 +1713,12 @@
           ],
           "testRoots": [
             "tests/agent-workflow.test.mjs",
-            "tests/agent-workflow-changed-scope.test.mjs"
+            "tests/agent-workflow-changed-scope.test.mjs",
+            "tests/c1-agent-workflow-coverage.test.mts",
+            "tests/agent-workflow-versioned-capability.test.mts",
+            "tests/c1-agent-workflow-cli.test.mts",
+            "tests/c1-agent-workflow-configuration.test.mts",
+            "tests/c1-agent-workflow-rejection.test.mts"
           ]
         },
         {
@@ -1869,7 +1874,8 @@
           ],
           "testRoots": [
             "tests/cli.test.mjs",
-            "tests/reporting-rest.test.mjs"
+            "tests/reporting-rest.test.mjs",
+            "tests/command-host-successor-cli.test.mts"
           ]
         },
         {

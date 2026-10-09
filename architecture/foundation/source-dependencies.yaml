@@ -914,6 +914,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/changed-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/process-execution.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/policies/workflow-input.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/check-changed.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/policies/check-cancellation.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/policies/evaluate-repository-agent-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/policies/test-dispatch-observation.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/check-changed.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/use-cases/run-check-changed-agent-workflow.ts
   - id: capability.repository-agent-workflow.contract
     roots:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/contract
@@ -935,6 +941,8 @@ boundaries:
       builtins:
         - node:fs/promises
         - node:path
+        - node:crypto
+        - node:perf_hooks
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/configuration/load-agent-workflow-policy.ts
@@ -946,6 +954,11 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/changed-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/instructions-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/process/process-execution.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/check-changed-command.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/configuration/load-agent-workflow-policy-v2.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/configuration/load-versioned-agent-workflow-policy.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/mutable-check-input-custody.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/mutable-pnpm-check-runner.ts
   - id: capability.repository-agent-workflow.composition
     roots:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts

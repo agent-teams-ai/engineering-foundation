@@ -26,6 +26,7 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
   readonly qualityCoverage: (input: CapabilityInvocation & { readonly scopeOnly: boolean }) => Promise<CapabilityReport>;
   readonly agentWorkflow: {
     changed(input: CapabilityInvocation & { readonly format: "json" | "text"; readonly baseRef?: string }): Promise<void>;
+    checkChanged(input: CapabilityInvocation & { readonly format: "json" | "text"; readonly baseRef?: string }): Promise<void>;
     instructions(input: { readonly consumerRoot: string; readonly targetPath: string; readonly format: "json" | "text"; readonly signal?: AbortSignal }): Promise<void>;
   };
   readonly rules: ReadonlyMap<string, RuleExplanation>;

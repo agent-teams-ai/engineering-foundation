@@ -127,6 +127,188 @@
         "packaging Darwin persistent zombie rejects code zero with cleanup debt"
       ],
       "kind": "test"
+    },
+    {
+      "file": "tests/command-host-successor-cli.test.mts",
+      "names": [
+        "command host advertises both changed workflow routes"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/command-host-successor-cli.test.mts",
+      "names": [
+        "command host rejects target paths before either changed route loads configuration"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/command-host-successor-cli.test.mts",
+      "names": [
+        "command host keeps base selection unavailable on workflow instructions"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/agent-workflow-versioned-capability.test.mts",
+      "names": [
+        "workflow capability validates both schema versions with their own changed route"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/agent-workflow-versioned-capability.test.mts",
+      "names": [
+        "workflow capability retains v2 identity on configuration rejection"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-cli.test.mts",
+      "names": [
+        "C1 candidate CLI preserves changed v1 and rejects v1 on successor without scripts"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-cli.test.mts",
+      "names": [
+        "C1 candidate v2 CLI runs native compiler and retains mutable feedback limitations"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-configuration.test.mts",
+      "names": [
+        "C1 versioned loading preserves v1 and successor rejects it before effects"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-configuration.test.mts",
+      "names": [
+        "C1 successor schema and parser reject malformed executable policy"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-configuration.test.mts",
+      "names": [
+        "C1 v2 conformance reads successor command and explicit prerequisite scripts"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 complete repository facets require real compiler and executed tests"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 missing facet and successful no-op cannot claim coverage"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 real empty skipped and assertion failures never supply tests"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 no changes and explicit exclusions are not checked"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 mutable successful checks remain feedback only"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 prerequisite and executable configuration substitutions reject"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 cancellation and stale closure cannot pass"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 frozen influencing closure rejects real ABA while mutable remains unverified"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 mutable adapter runs real commands with no qualified facets"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 actual run then revoke retains trace and rejects every revoked input"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 mid command cancellation retains interrupted history without coverage"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 unknown paths require adequate real repository escalation"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 overlap uses required facet union and exclusion stays path local"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 real empty selection escalates once while forged observations reject"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 qualified runner rejects nested output roots before command execution"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-rejection.test.mts",
+      "names": [
+        "C1 output cleanup failure retains completed command history"
+      ],
+      "kind": "test"
     }
   ],
   "exceptions": [

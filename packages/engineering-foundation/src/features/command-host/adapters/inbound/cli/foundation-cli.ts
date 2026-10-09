@@ -91,6 +91,7 @@ function printHelp(): void {
   agent-teams-foundation check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation repo check [capability] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow changed [--base <ref>] [--consumer <path>] [--format text|json]
+  agent-teams-foundation agent-workflow check-changed [--base <ref>] [--consumer <path>] [--format text|json]
   agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
   agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
   agent-teams-foundation quality check [--scope-only] [--consumer <path>] [--format text|json]
@@ -272,15 +273,15 @@ async function runAgentWorkflowCommand<SchemaId extends string>(
     return false;
   }
   const subcommand = parsed.positional[0];
-  if (subcommand !== "changed" && subcommand !== "instructions") {
-    throw invalidCommand("agent-workflow requires the changed or instructions subcommand.");
+  if (subcommand !== "changed" && subcommand !== "check-changed" && subcommand !== "instructions") {
+    throw invalidCommand("agent-workflow requires the changed, check-changed or instructions subcommand.");
   }
   const targetPath = parsed.positional[1];
   if (subcommand === "instructions" && parsed.positional.length !== 2) {
     throw invalidCommand("agent-workflow instructions requires exactly one repository-relative file path.");
   }
-  if (subcommand === "changed" && parsed.positional.length !== 1) {
-    throw invalidCommand("agent-workflow changed does not accept a target path.");
+  if ((subcommand === "changed" || subcommand === "check-changed") && parsed.positional.length !== 1) {
+    throw invalidCommand(`agent-workflow ${subcommand} does not accept a target path.`);
   }
   const settings = await services.readConfig(parsed.consumerRoot);
   const declaration = settings.declaredCapabilities.find(
@@ -298,13 +299,18 @@ async function runAgentWorkflowCommand<SchemaId extends string>(
     }));
     return true;
   }
-  await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => services.agentWorkflow.changed({
-    signal,
-    consumerRoot: parsed.consumerRoot,
-    configPath: declaration.configPath,
-    format: parsed.format,
-    ...(parsed.baseRef === undefined ? {} : { baseRef: parsed.baseRef })
-  }));
+  await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
+    const options = {
+      signal,
+      consumerRoot: parsed.consumerRoot,
+      configPath: declaration.configPath,
+      format: parsed.format,
+      ...(parsed.baseRef === undefined ? {} : { baseRef: parsed.baseRef })
+    };
+    return subcommand === "check-changed"
+      ? services.agentWorkflow.checkChanged(options)
+      : services.agentWorkflow.changed(options);
+  });
   return true;
 }
 

@@ -5,6 +5,7 @@ import type {
   RepositoryAgentWorkflowEvidence,
   RepositoryAgentWorkflowPolicy
 } from "../model/repository-agent-workflow.js";
+import type { WorkflowCoveragePolicy } from "../model/check-changed.js";
 
 function diagnostic(input: {
   readonly ruleId: string;
@@ -114,7 +115,8 @@ function validateAdapters(
 
 function validateCommands(
   policy: RepositoryAgentWorkflowPolicy,
-  evidence: RepositoryAgentWorkflowEvidence
+  evidence: RepositoryAgentWorkflowEvidence,
+  successor = false
 ): FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const canonicalSource = fileSource(evidence.instructionFiles.canonical);
@@ -155,10 +157,13 @@ function validateCommands(
     /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
   const selfDogfoodRunner =
     /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
+  const successorRunner = /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+check-changed\s+--consumer\s+\.$/u;
+  const successorDogfood = /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+check-changed\s+--consumer\s+\.$/u;
   if (
     changedCommand !== undefined &&
-    !installedRunner.test(changedCommand.trim()) &&
-    !selfDogfoodRunner.test(changedCommand.trim())
+    !(successor
+      ? successorRunner.test(changedCommand.trim()) || successorDogfood.test(changedCommand.trim())
+      : installedRunner.test(changedCommand.trim()) || selfDogfoodRunner.test(changedCommand.trim()))
   ) {
     diagnostics.push(
       diagnostic({
@@ -171,6 +176,22 @@ function validateCommands(
     );
   }
   return diagnostics;
+}
+
+/** Compatibility projection is only for instruction/package-script conformance.
+ * It never relabels v1 changed execution or constructs a v2 coverage result. */
+export function workflowV2ConformancePolicy(policy: WorkflowCoveragePolicy): RepositoryAgentWorkflowPolicy {
+  const scripts = [...new Set(policy.checks.flatMap((check) => [check.script, ...check.prerequisites]))];
+  return { instructions: policy.instructions, scripts: policy.scripts, changedChecks: scripts.map((script, index) => ({ id: `v2-conformance-${index}`, script, extensions: [], passPaths: false })), fullScanPaths: [] };
+}
+
+export function evaluateRepositoryAgentWorkflowV2(policy: WorkflowCoveragePolicy, evidence: RepositoryAgentWorkflowEvidence): readonly FoundationDiagnostic[] {
+  const compatibility = workflowV2ConformancePolicy(policy);
+  return Object.freeze([
+    ...validateInstructionFiles(compatibility, evidence),
+    ...validateAdapters(compatibility, evidence),
+    ...validateCommands(compatibility, evidence, true)
+  ].toSorted((left, right) => compareBinaryStrings(`${left.ruleId}:${left.subject}`, `${right.ruleId}:${right.subject}`)));
 }
 
 export function evaluateRepositoryAgentWorkflow(

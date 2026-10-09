@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/repository-agent-workflow/v2",
+  "title": "Repository-wide sufficient checks with explicit facet observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "instructions",
+    "scripts",
+    "scopes",
+    "checks",
+    "exclusions",
+    "escalationCheck"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "instructions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical",
+        "claude",
+        "gemini",
+        "copilot"
+      ],
+      "properties": {
+        "canonical": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "claude": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "gemini": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "copilot": {
+          "$ref": "#/$defs/repositoryPath"
+        }
+      }
+    },
+    "scripts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changed",
+        "fast",
+        "full"
+      ],
+      "properties": {
+        "changed": {
+          "$ref": "#/$defs/scriptName"
+        },
+        "fast": {
+          "$ref": "#/$defs/scriptName"
+        },
+        "full": {
+          "$ref": "#/$defs/scriptName"
+        }
+      }
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "roots",
+          "requiredFacets",
+          "checks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "roots": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "anyOf": [
+                {
+                  "const": "*"
+                },
+                {
+                  "$ref": "#/$defs/repositoryPath"
+                }
+              ]
+            }
+          },
+          "requiredFacets": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "lint",
+                "typecheck",
+                "tests",
+                "standards",
+                "architecture"
+              ]
+            }
+          },
+          "checks": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,62}$"
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "script",
+          "prerequisites",
+          "supplies",
+          "observation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "script": {
+            "$ref": "#/$defs/scriptName"
+          },
+          "prerequisites": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/scriptName"
+            }
+          },
+          "supplies": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "lint",
+                "typecheck",
+                "tests",
+                "standards",
+                "architecture"
+              ]
+            }
+          },
+          "observation": {
+            "enum": [
+              "command",
+              "test-dispatch/v1"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "supplies": {
+                  "type": "array",
+                  "contains": {
+                    "const": "tests"
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "observation": {
+                  "const": "test-dispatch/v1"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "reason"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    },
+    "escalationCheck": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    }
+  },
+  "$defs": {
+    "repositoryPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$"
+    },
+    "scriptName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:_-]*$"
+    }
+  }
+}

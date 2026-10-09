@@ -88,7 +88,8 @@
     "assets/windows-managed-process/bootstrap.ps1",
     "assets/windows-managed-process/WindowsManagedProcess.cs",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "schemas/repository-agent-workflow/v2.schema.json"
   ],
   "engines": {
     "node": "^24.18.0 || ^26.0.0",

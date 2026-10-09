@@ -461,7 +461,7 @@ export async function main({
     process.stdout.write("Fresh Changesets prerelease state has no releases; publish skipped.\n");
     return;
   }
-  await verifyBootstrapBaselines();
+  await verifyBootstrapBaselines({ releaseState: initialState });
   const initialRegistryState = await verifyRegistry(initialState);
   const verifiedState = await inspectReleaseState(cwd);
   if (JSON.stringify(verifiedState) !== JSON.stringify(initialState)) {

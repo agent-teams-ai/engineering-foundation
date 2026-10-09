@@ -16,6 +16,10 @@ import {
   liveDependencyVersions,
   livePackageEvidence,
 } from "./npm-package-bootstrap-registry.mjs";
+import {
+  reviewedSuccessorPredecessor,
+  verifySuccessorReleaseBaseline,
+} from "./npm-package-bootstrap-successor.mts";
 
 export {
   NPM_PACKAGE_BOOTSTRAP,
@@ -27,6 +31,7 @@ export {
   liveDependencyVersions,
   livePackageEvidence,
 } from "./npm-package-bootstrap-registry.mjs";
+export { assertPredecessorInventory } from "./npm-package-bootstrap-successor.mts";
 
 function parseTimestamp(value, label) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(value)) {
@@ -423,6 +428,18 @@ export async function verifyLiveBootstrapBaselines({
     if (profile.state === "candidate" || profile.approval === null) {
       fail(`${profile.name} cannot advance beyond ${profile.bootstrapVersion} before reviewed bootstrap approval.`);
     }
+    const predecessor = reviewedSuccessorPredecessor(profile, manifest.version);
+    if (predecessor !== null) {
+      await verifySuccessorReleaseBaseline({
+        auditPackage,
+        fetchImplementation,
+        observationOptions,
+        profile,
+        temporaryRoot,
+      });
+      verified.push(`${profile.name}@${predecessor.version}`);
+      continue;
+    }
     const observation = {
       ...observationOptions,
       retryNotFound: true,
@@ -449,7 +466,30 @@ export async function verifyLiveBootstrapBaselines({
 }
 
 export async function verifyReleaseBootstrapBaselines(options = {}) {
-  return verifyLiveBootstrapBaselines({ ...options, requireAllBaselines: true });
+  const { releaseState, ...verificationOptions } = options;
+  if (releaseState === undefined) {
+    return verifyLiveBootstrapBaselines({ ...verificationOptions, requireAllBaselines: true });
+  }
+  const manifests = [...releaseState.packages.private, ...releaseState.packages.public]
+    .map((entry) => JSON.parse(entry.manifestBytes));
+  const verified = [];
+  for (const profile of verificationOptions.catalog?.packages ?? NPM_PACKAGE_BOOTSTRAP.packages) {
+    const manifest = manifests.find((entry) => entry.name === profile.name);
+    if (manifest === undefined) {
+      continue;
+    }
+    const baselineVerification = await verifyLiveBootstrapBaselines({
+      ...verificationOptions,
+      catalog: Object.freeze({
+        ...verificationOptions.catalog,
+        packages: Object.freeze([profile]),
+      }),
+      readManifest: async () => manifest,
+      requireAllBaselines: true,
+    });
+    verified.push(...baselineVerification);
+  }
+  return Object.freeze(verified);
 }
 
 export function assertBootstrapReleasePolicy(state, registryState, catalog = NPM_PACKAGE_BOOTSTRAP) {
@@ -464,8 +504,12 @@ export function assertBootstrapReleasePolicy(state, registryState, catalog = NPM
       fail(`${profile.name} release requires reviewed bootstrap approval.`);
     }
     const registry = registryState.find((entry) => entry.name === profile.name);
-    if (!registry?.versions.includes(profile.bootstrapVersion)) {
-      fail(`${profile.name} release requires its immutable ${profile.bootstrapVersion} npm baseline.`);
+    const predecessor = reviewedSuccessorPredecessor(profile, manifest.version);
+    const baselineVersion = predecessor !== null
+      ? predecessor.version
+      : profile.bootstrapVersion;
+    if (!registry?.versions.includes(baselineVersion)) {
+      fail(`${profile.name} release requires its immutable ${baselineVersion} npm baseline.`);
     }
   }
 }

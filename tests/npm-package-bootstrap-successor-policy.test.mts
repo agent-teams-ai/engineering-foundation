@@ -1,14 +1,22 @@
 import assert from "node:assert/strict";
+import { readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
   NPM_PACKAGE_BOOTSTRAP,
+  assertBootstrapRegistryVersionHistory,
   assertBootstrapReleasePolicy,
   assertPredecessorInventory,
   parseBootstrapCatalog,
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "../scripts/npm-package-bootstrap.mjs";
+import { main as runNpmPackageBootstrapCli } from "../scripts/npm-package-bootstrap-cli.mjs";
+import {
+  collectPlannedReleaseVersions,
+  plannedReleaseVersions,
+} from "../scripts/npm-package-bootstrap-release-plan.mts";
+import { main as runReleasePublish } from "../scripts/release-publish.mjs";
 
 type Provenance = {
   ref: string;
@@ -27,7 +35,9 @@ type CatalogProfile = {
   bootstrapVersion: string;
   id: string;
   name: string;
+  provenance: Provenance;
   releasePredecessor: Predecessor | null;
+  state: string;
 };
 type MutableCatalog = { packages: Array<CatalogProfile & Record<string, unknown>> };
 type ParsedCatalog = {
@@ -104,6 +114,47 @@ function releaseState(packageName: string, packageVersion: string) {
   };
 }
 
+function generatedReleaseState(packageName: string, packageVersion: string) {
+  return {
+    controlFiles: [],
+    inventory: {
+      files: [],
+      metadata: ["README.md", "config.json"],
+      pending: [],
+      unexpected: [],
+    },
+    packages: {
+      private: [],
+      public: [{
+        manifestBytes: JSON.stringify({ name: packageName, version: packageVersion }),
+        name: packageName,
+        registry: "https://registry.npmjs.org/",
+        required: false,
+        version: packageVersion,
+      }],
+    },
+    preState: undefined,
+  };
+}
+
+function changesetPlan(packageName: string, newVersion: string) {
+  return {
+    changesets: [{
+      id: "ci-input-proof-kernel",
+      releases: [{ name: packageName, type: "minor" }],
+      summary: "Add the reviewed successor.",
+    }],
+    releases: [{
+      changesets: ["ci-input-proof-kernel"],
+      name: packageName,
+      newVersion,
+      oldVersion: "0.1.0-rc.0",
+      type: "minor",
+    }],
+    preState: undefined,
+  };
+}
+
 function statement(
   workflowPath = predecessor.provenance.workflowPath,
   commit = predecessor.provenance.sourceCommit,
@@ -165,7 +216,10 @@ function packument(integrity = archiveIntegrity, gitHead?: string | null): Packu
     published.gitHead = gitHead;
   }
   return {
-    versions: { [version]: published },
+    versions: {
+      "0.0.0-stage": { dist: { integrity: changedArchiveIntegrity } },
+      [version]: published,
+    },
     "dist-tags": { latest: version, rc: version },
   };
 }
@@ -444,4 +498,146 @@ void test("the successor baseline exception is immune to unrelated package relea
     releaseState: releaseState(unrelatedName, "0.0.0"),
   }), []);
   assert.equal(collectionCalled, false);
+});
+
+void test("the Changesets plan collector drives the actual pre-version CLI guard", async () => {
+  const plan = changesetPlan(name, "0.1.0");
+  assert.deepEqual(plannedReleaseVersions(plan), { [name]: "0.1.0" });
+
+  let outputPath = "";
+  const collected = await collectPlannedReleaseVersions({
+    cwd: "/TEST-consumer",
+    runChangesetStatus: async (cwd, output) => {
+      assert.equal(cwd, "/TEST-consumer");
+      outputPath = output;
+      await writeFile(output, `${JSON.stringify(plan)}\n`, "utf8");
+    },
+    temporaryRoot: process.env.TMPDIR,
+  });
+  assert.deepEqual(collected, { [name]: "0.1.0" });
+  await assert.rejects(() => readFile(outputPath, "utf8"), { code: "ENOENT" });
+
+  for (const mutate of [
+    (value: ReturnType<typeof changesetPlan>) => {
+      delete (value.releases[0] as Partial<typeof value.releases[number]>).newVersion;
+    },
+    (value: ReturnType<typeof changesetPlan>) => {
+      value.releases[0].newVersion = "";
+    },
+    (value: ReturnType<typeof changesetPlan>) => {
+      value.releases.push({ ...value.releases[0] });
+    },
+  ]) {
+    const changed = structuredClone(plan);
+    mutate(changed);
+    assert.throws(() => plannedReleaseVersions(changed), /Changesets release/u);
+  }
+
+  const runCli = async (releaseVersion: string, metadata = packument(), status = 200) => {
+    let output = "";
+    await runNpmPackageBootstrapCli(["check-release"], {
+      auditPackage: async () => auditEvidence(),
+      catalog: successorCatalog(),
+      collectPlannedReleaseVersions: async () => ({ [name]: releaseVersion }),
+      fetchImplementation: async () => new Response(
+        status === 200 ? JSON.stringify(metadata) : "not found",
+        { status },
+      ),
+      observationOptions: { attempts: 1, wait: async () => {} },
+      readManifest: async () => ({ name, version }),
+      writeOutput: (value: string) => {
+        output += value;
+      },
+    });
+    return output;
+  };
+
+  await assert.rejects(
+    () => runCli("0.0.0"),
+    /0\.0\.0 baseline is (?:absent|missing)/u,
+  );
+  assert.equal(
+    await runCli("0.1.0"),
+    `Verified required npm bootstrap baselines: ${name}@${version}.\n`,
+  );
+  await assert.rejects(
+    () => runCli("0.1.0", packument(), 404),
+    /predecessor is absent/u,
+  );
+  await assert.rejects(
+    () => runCli("0.1.0", packument(changedArchiveIntegrity)),
+    /predecessor archive SRI differs/u,
+  );
+  await assert.rejects(
+    () => runCli("0.1.0", packument(archiveIntegrity, "2".repeat(40))),
+    /npm gitHead contradicts signed provenance/u,
+  );
+});
+
+void test("the actual publish entrypoint accepts exact stage-plus-RC history and rejects foreign stage history", async () => {
+  const state = generatedReleaseState(name, "0.1.0");
+  let published = 0;
+  await runReleasePublish({
+    bootstrapCatalog: successorCatalog(),
+    inspectReleaseState: async () => state,
+    publishOrdered: async () => {
+      published += 1;
+    },
+    registryMetadata: async () => ({
+      distTags: { latest: version, rc: version },
+      exists: true,
+      versions: ["0.0.0-stage", version],
+    }),
+    verifyBootstrapBaselines: (options) => verifyReleaseBootstrapBaselines({
+      ...options,
+      auditPackage: async () => auditEvidence(),
+      catalog: successorCatalog(),
+      fetchImplementation: async () => new Response(JSON.stringify(packument()), { status: 200 }),
+      observationOptions: { attempts: 1, wait: async () => {} },
+    }),
+  });
+  assert.equal(published, 1);
+  assert.deepEqual(
+    assertBootstrapRegistryVersionHistory(
+      successorCatalog().packages[0],
+      ["0.0.0-stage", version],
+    ),
+    [version],
+  );
+
+  const unrelated = packageCatalog("repository-mutation");
+  const unrelatedName = unrelated.packages[0].name;
+  const unrelatedState = generatedReleaseState(unrelatedName, "0.2.0");
+  let unrelatedPublished = 0;
+  await runReleasePublish({
+    bootstrapCatalog: unrelated,
+    inspectReleaseState: async () => unrelatedState,
+    publishOrdered: async () => {
+      unrelatedPublished += 1;
+    },
+    registryMetadata: async () => ({
+      distTags: { latest: "0.0.0" },
+      exists: true,
+      versions: ["0.0.0"],
+    }),
+    verifyBootstrapBaselines: async () => [],
+  });
+  assert.equal(unrelatedPublished, 1);
+
+  await assert.rejects(
+    () => runReleasePublish({
+      bootstrapCatalog: unrelated,
+      inspectReleaseState: async () => unrelatedState,
+      publishOrdered: async () => {
+        throw new Error("foreign stage history must not publish");
+      },
+      registryMetadata: async () => ({
+        distTags: { latest: "0.0.0" },
+        exists: true,
+        versions: ["0.0.0-stage", "0.0.0"],
+      }),
+      verifyBootstrapBaselines: async () => [],
+    }),
+    /contains an unsupported version/u,
+  );
 });

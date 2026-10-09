@@ -114,6 +114,11 @@ test("five fixed Windows lanes retain exact real canonical inventory and mandato
   assert.equal(new Set(selected).size, selected.length);
   assert.deepEqual(selected.toSorted(), admitted.toSorted());
   assert.deepEqual(byLane.get("c"), [loader]);
+  const successor = "tests/npm-package-bootstrap-successor-policy.test.mts";
+  const comparator = "tests/features/input-comparison/ci-input-proof.test.mts";
+  assert.deepEqual([canonical.indexOf(successor), canonical.indexOf(comparator)], [13, 30]);
+  const laneB = byLane.get("b")!;
+  assert.ok(laneB.indexOf(successor) < laneB.indexOf(comparator));
   for (const files of byLane.values()) {
     assert.ok(files.length > 0);
     const originalPositions = files.map((file) => canonical.indexOf(file));

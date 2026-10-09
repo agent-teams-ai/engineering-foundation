@@ -4,6 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import {
   NPM_PACKAGE_BOOTSTRAP,
+  assertBootstrapReleaseApprovals,
   assertBootstrapMutationPreconditions,
   assertBootstrapPostconditions,
   assertBootstrapQuarantineCandidate,
@@ -18,6 +19,7 @@ import {
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
+import { collectPlannedReleaseVersions } from "./npm-package-bootstrap-release-plan.mts";
 import { fail } from "./npm-package-bootstrap-catalog.mjs";
 import {
   REGISTRY_OBSERVATION_ATTEMPTS,
@@ -228,9 +230,25 @@ const handlers = Object.freeze({
     const verified = await verifyLiveBootstrapBaselines();
     process.stdout.write(`Verified npm bootstrap baselines: ${verified.join(", ") || "none required"}.\n`);
   },
-  "check-release": async () => {
-    const verified = await verifyReleaseBootstrapBaselines();
-    process.stdout.write(`Verified required npm bootstrap baselines: ${verified.join(", ")}.\n`);
+  "check-release": async (args, options = {}) => {
+    const catalog = options.catalog ?? NPM_PACKAGE_BOOTSTRAP;
+    assertBootstrapReleaseApprovals(catalog);
+    const releaseVersions = options.plannedReleaseVersions ??
+      await (options.collectPlannedReleaseVersions ?? collectPlannedReleaseVersions)({
+        cwd: options.cwd ?? process.cwd(),
+        temporaryRoot: options.temporaryRoot,
+      });
+    const verified = await verifyReleaseBootstrapBaselines({
+      auditPackage: options.auditPackage,
+      catalog,
+      fetchImplementation: options.fetchImplementation,
+      observationOptions: options.observationOptions,
+      readManifest: options.readManifest,
+      releaseVersions,
+      temporaryRoot: options.temporaryRoot,
+    });
+    const writeOutput = options.writeOutput ?? ((value) => process.stdout.write(value));
+    writeOutput(`Verified required npm bootstrap baselines: ${verified.join(", ")}.\n`);
   },
   "pack-evidence": packEvidence,
   "mutation-proof": (args) => prove(
@@ -270,13 +288,13 @@ const handlers = Object.freeze({
   "token-window": tokenWindow,
 });
 
-export async function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2), options = {}) {
   const [command, ...args] = argv;
   const handler = handlers[command];
   if (handler === undefined) {
     fail("unknown command.");
   }
-  await handler(args);
+  await handler(args, options);
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {

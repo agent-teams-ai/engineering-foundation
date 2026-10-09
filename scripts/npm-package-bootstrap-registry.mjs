@@ -63,6 +63,7 @@ export async function livePackageEvidence(profile, fetchImplementation = fetch, 
   const version = packument.versions[profile.bootstrapVersion];
   return {
     deprecatedMessage: version?.deprecated ?? null,
+    gitHead: version?.gitHead ?? null,
     integrity: version?.dist?.integrity ?? null,
     metadata: {
       "dist-tags": packument["dist-tags"],

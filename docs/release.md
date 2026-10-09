@@ -38,11 +38,11 @@ artifact must require `--provenance-file` and verified exact bundle/archive/sour
 identity. The canonical manifest retains `provenance: true` for ordinary CI
 publication; no signature-verification exception is introduced.
 
-This is artifact qualification, not a supported release or consumer admission.
-Before the owner's authorized interactive test publication, verify the actual
-signed bundle against the archive/source and admit a narrow successor publication
-policy. Do not execute the old granular-token bootstrap as a substitute. Registry
-bytes, signature/provenance and clean public installation remain required proof.
+This is artifact qualification, not publication authority. The authorized test
+publication produced the immutable `0.1.0-rc.0` registry version; do not rerun it
+or execute the old granular-token bootstrap as a substitute. Registry bytes,
+signature/provenance and clean public installation remain release evidence, and
+ordinary successors use only the narrow policy below.
 
 ## Completed bootstrap history
 
@@ -75,8 +75,26 @@ retained evidence, while that obsolete writer no longer constrains source edits.
 Registry evidence on 2026-10-08 lists `0.0.0-stage` and `0.1.0-rc.0`, with
 `latest`/`rc` on the RC; future releases must re-read actual registry state.
 Ordinary releases still require baseline verification and fail on missing `0.0.0`
-or unsupported stage evidence until a separate actual-RC policy is admitted.
-The RC does not silently replace the legacy baseline or authorize publication.
+or unsupported stage evidence. Before Changesets mutates manifests, the release
+guard reads the official Changesets release plan and applies bootstrap policy to
+the planned package versions; it never estimates versions or edits Changesets
+state. The narrow CI Input Proof successor policy is the only exception: an
+ordinary stable version accepted by the existing release rules as strictly later
+than `0.1.0-rc.0` must first prove the exact
+`@agent-teams/ci-input-proof@0.1.0-rc.0` predecessor name/version, archive SRI
+`sha512-aiOC4nvGRfG6CkLKRG2utkqFAOJNtPojZZYLqmmG5OzhZYKqQCh6T2OOMNqA5vlbccWWEXxismMXE6QDl0vo7w==`,
+and signed source commit `598c248b56d134a9fd1dcd86417a2c93538ef65d`.
+The registry archive SRI and signed provenance subject digest must agree, and the
+workflow/ref/repository identity must match the retained successor authority.
+An absent npm `gitHead` is valid because the signed provenance independently
+binds the source commit; a present `gitHead` must match that commit and a
+contradictory value is rejected. The old `0.0.0` baseline and its ADR approval
+bytes remain immutable historical evidence; versions at or below the predecessor
+continue to require the missing `0.0.0` baseline. The exact historical
+`0.0.0-stage` version is admitted only in CI Input Proof's observed registry
+inventory and never becomes a supported release or baseline. This exception
+never applies to another package, never accepts a missing or changed predecessor,
+and does not authorize publication by itself.
 
 ## One-time namespace bootstrap
 
@@ -119,6 +137,13 @@ completion explicitly, run `pnpm published-compatibility:e2e --require-public-do
 That opt-in fails closed for unavailable coordinates or any failed public gate.
 `release:publish` retains the required `public-docs-release:e2e` after the ordered
 publisher and GitHub reconciliation.
+
+Its readonly baseline pass keeps unchanged source manifests at their historical
+bootstrap version on the existing skip path. When a generated release manifest
+contains a supported CI Input Proof successor, that same pass must use the exact
+`0.1.0-rc.0` predecessor authority above before `pnpm verify` can pass; it does
+not turn compatibility evidence into publication authority or weaken any
+unrelated package baseline check.
 
 The ordered release command does not complete after npm publication alone. Its
 final required phase resolves the canonical public Docs Protocol coordinates and
@@ -212,8 +237,9 @@ the reviewed workspace manifests. The projection must equal the closed
 seven-package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
-source package outside that documentation Cohort. Its initial namespace approval
-and registry adoption remain pending as recorded in
+source package outside that documentation Cohort. Its `0.1.0-rc.0` registry
+adoption is complete, and the narrow predecessor policy above governs ordinary
+successors as recorded in
 [CI Input Proof source admission](development/ci-input-proof-admission.md).
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with

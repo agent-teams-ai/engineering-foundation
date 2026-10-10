@@ -218,6 +218,7 @@ if (process.platform !== 'win32') {
 
 const descendantPidPath = resolve(process.cwd(), 'descendant-pid.json');
 const descendantReadyPath = resolve(process.cwd(), 'descendant-ready.json');
+let descendantTimeout: Awaited<ReturnType<typeof runCiInputProofAdapter>> | null = null;
 let descendantPid: number | null = null;
 try {
 const descendantScript = [
@@ -227,7 +228,7 @@ const descendantScript = [
   'writeFileSync(process.argv[1], String(child.pid));',
   'setInterval(() => {}, 1000);',
 ].join('');
-const descendantTimeout = await runCiInputProofAdapter(
+descendantTimeout = await runCiInputProofAdapter(
   request(
     observation('descendant-timeout-current'),
     ['-e', descendantScript, descendantPidPath, descendantReadyPath],
@@ -272,6 +273,9 @@ if (descendantPresent) {
   if (descendantPid !== null) {
     killRecordedPid(descendantPid);
   }
+}
+if (descendantTimeout === null) {
+  throw new Error('Descendant timeout timing evidence was not captured.');
 }
 
 const escalationReadyPath = resolve(process.cwd(), 'escalation-handler-ready-TEST');

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFileSync, readdirSync, readlinkSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
@@ -9,11 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import {
   runCiInputProofAdapter,
-  type FoundationPilotRequest,
   type Observation,
   type ScopeCategory,
 } from '../../../scripts/ci-input-proof-foundation-adapter.mts';
-import { executeFixedFull } from '../../../scripts/ci-input-proof-full.mts';
 import {
   collectFoundationPilotObservation,
   foundationPilotRequest,
@@ -22,39 +19,10 @@ import { cases } from '../../support/ci-input-proof-donor-cases.mts';
 import { compareLeafInventories } from '../../../packages/ci-input-proof/dist/index.js';
 import type { InputLeaf, RejectionReason } from '../../../packages/ci-input-proof/dist/index.js';
 
+import { adapterLeaf, adapterObservation, adapterRequest, scopeCategories } from '../../support/ci-input-proof-adapter-fixtures.mts';
+
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
-const fixtureTimeoutMs = 1_000;
-
-const waitForFixtureFile = async (path: string): Promise<string> => {
-  const deadline = Date.now() + 2_000;
-  for (;;) {
-    try {
-      return await readFile(path, 'utf8');
-    } catch (error) {
-      if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) {
-        throw error;
-      }
-    }
-    if (Date.now() >= deadline) {
-      throw new Error(`Fixture readiness file was not published: ${path}`);
-    }
-    await new Promise(resolve => {
-      setTimeout(resolve, 10);
-    });
-  }
-};
-
-const killRecordedPid = (pid: number): void => {
-  try {
-    process.kill(pid, 'SIGKILL');
-  } catch (error) {
-    if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) {
-      throw error;
-    }
-  }
-};
-
 const oldDigest = '1'.repeat(40);
 const newDigest = '2'.repeat(40);
 const sparse = (length: number): unknown[] => {
@@ -69,52 +37,6 @@ const inventory = (inputs: unknown = [leaf('package.json'), leaf('src/a.ts', 'st
 const rejected = (before: unknown, after: unknown, permission: unknown, reason: RejectionReason): void => {
   assert.deepEqual(compareLeafInventories(before, after, permission), { status: 'rejected', reason });
 };
-const scopeCategories: readonly ScopeCategory[] = [
-  'source', 'helpers', 'fixtures', 'config', 'lock', 'toolchain', 'installedGraph',
-];
-const adapterLeaf = (category: ScopeCategory, content = '1'.repeat(64), membership: 'closed' | 'structural' = 'closed'): InputLeaf =>
-  ({ path: `${category}/input.ts`, type: 'file', mode: '100644', membership, content });
-const adapterObservation = (
-  boundaryId: string,
-  inputs: readonly InputLeaf[] = scopeCategories.map(category => adapterLeaf(category)),
-  scope: Readonly<Record<ScopeCategory, readonly string[]>> = Object.freeze({
-    source: Object.freeze(['source/input.ts']),
-    helpers: Object.freeze(['helpers/input.ts']),
-    fixtures: Object.freeze(['fixtures/input.ts']),
-    config: Object.freeze(['config/input.ts']),
-    lock: Object.freeze(['lock/input.ts']),
-    toolchain: Object.freeze(['toolchain/input.ts']),
-    installedGraph: Object.freeze(['installedGraph/input.ts']),
-  }),
-): Observation => Object.freeze({
-  schemaVersion: 1,
-  boundaryId,
-  scopeId: 'foundation.ci-input-proof.focus.v1',
-  scope,
-  inventory: Object.freeze({ version: 1, digestScheme: 'sha256', inputs }),
-});
-const adapterRequest = (
-  current: Observation,
-  fullArgs: readonly string[] = ['-e', 'process.stdout.write("FULL-PASS")'],
-): FoundationPilotRequest => Object.freeze({
-  schemaVersion: 1,
-  pilotId: 'foundation.ci-input-proof.focus.v1',
-  tuple: Object.freeze({
-    headSha: '1'.repeat(40),
-    baseSha: '2'.repeat(40),
-    mergeTuple: 'refs/heads/TEST-ci-input-proof',
-  }),
-  before: adapterObservation('before'),
-  current,
-  permittedContentChanges: Object.freeze([]),
-  full: Object.freeze({
-    command: process.execPath,
-    args: fullArgs,
-    cwd: resolve(process.cwd()),
-    timeoutMs: 30_000,
-  }),
-});
-
 async function copyCollectorScope(
   sourceRoot: string,
   destinationRoot: string,
@@ -298,7 +220,7 @@ void test('positive adapter case executes a real passing FULL process', async ()
 
 void test('fixed pilot closure rejects a real minor-to-patch changeset mutation', async () => {
   const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-closure-TEST-'));
-  const changesetPath = '.changeset/ci-input-proof-kernel.md';
+  const changesetPath = 'tests/fixtures/ci-input-proof/ci-input-proof-kernel.TEST.md';
   const tuple = Object.freeze({
     headSha: '5'.repeat(40),
     baseSha: '6'.repeat(40),
@@ -308,7 +230,7 @@ void test('fixed pilot closure rejects a real minor-to-patch changeset mutation'
     const sourceCollection = await collectFoundationPilotObservation(repositoryRoot, 'source-scope');
     await copyCollectorScope(repositoryRoot, temporaryRoot, sourceCollection.observation.scope);
     const before = await collectFoundationPilotObservation(temporaryRoot, 'minor-before');
-    assert.ok(before.observation.scope.config.includes(changesetPath));
+    assert.ok(before.observation.scope.fixtures.includes(changesetPath));
     const beforeLeaf = before.observation.inventory.inputs.find(input => input.path === changesetPath);
     assert.ok(beforeLeaf);
     assert.equal(beforeLeaf.membership, 'closed');
@@ -349,12 +271,24 @@ void test('fixed pilot closure rejects a real minor-to-patch changeset mutation'
     const adapter = await runCiInputProofAdapter(focusedRequest, compareLeafInventories);
     assert.equal(adapter.exitCode, 0);
     assert.equal(adapter.report.execution.status, 'passed');
+    assert.equal(adapter.report.execution.full.status, 'passed');
+    assert.equal(adapter.report.execution.full.exitCode, 0);
     assert.deepEqual(adapter.report.candidateOmitObservation, {
       status: 'not-eligible',
       reason: 'input-proof-rejected:closed-input-changed',
       relation: { status: 'rejected', reason: 'closed-input-changed' },
       observationIssues: [],
       changedContentPaths: [],
+    });
+    assert.deepEqual(adapter.report.omission, {
+      status: 'not-attempted',
+      reason: 'shadow-executes-full',
+      reportedSeparatelyFromPass: true,
+    });
+    assert.deepEqual(adapter.report.selection, {
+      decision: 'full',
+      reason: 'shadow-no-admitted-omission-policy',
+      independentlyExecutable: true,
     });
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
@@ -494,193 +428,6 @@ void test('incomplete closure and failed FULL remain fail closed in real process
   assert.equal(failed.report.omission.status, 'not-attempted');
 });
 
-void test('plain FULL bounds newline-free output without an stdout verdict', async () => {
-  const result = await executeFixedFull({
-    command: process.execPath,
-    args: ['-e', 'process.stdout.write("x".repeat(65537))'],
-    cwd: resolve(process.cwd()),
-    timeoutMs: 5_000,
-  });
-  assert.equal(result.report.status, 'passed');
-  assert.equal(result.report.exitCode, 0);
-  assert.equal(result.report.outputTruncated, true);
-  assert.equal(result.stdout.length, 64 * 1024);
-});
-
-void test('signal termination and timeout exit zero never produce adapter PASS', async () => {
-  const signalled = await runCiInputProofAdapter(
-    adapterRequest(
-      adapterObservation('signal-current'),
-      ['-e', 'process.kill(process.pid, "SIGTERM"); setTimeout(() => {}, 1000);'],
-    ),
-    compareLeafInventories,
-  );
-  assert.notEqual(signalled.exitCode, 0);
-  assert.equal(signalled.report.execution.status, 'failed');
-  if (process.platform === 'win32') {
-    assert.notEqual(signalled.report.execution.full.exitCode, 0);
-    assert.ok(['process-failed', 'process-signal'].includes(signalled.report.execution.full.reason ?? ''));
-  } else {
-    assert.equal(signalled.report.execution.full.exitCode, null);
-    assert.equal(signalled.report.execution.full.signal, 'SIGTERM');
-    assert.equal(signalled.report.execution.full.reason, 'process-signal');
-  }
-
-  const timeoutReadyPath = resolve(process.cwd(), 'timeout-handler-ready-TEST');
-  const timeoutRequest = adapterRequest(
-    adapterObservation('timeout-current'),
-    [
-      '-e',
-      'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => setTimeout(() => process.exit(0), 5)); writeFileSync(process.argv[1], "ready"); setTimeout(() => {}, 5000);',
-      timeoutReadyPath,
-    ],
-  );
-  const timedOut = await runCiInputProofAdapter({
-    ...timeoutRequest,
-    full: Object.freeze({ ...timeoutRequest.full, timeoutMs: fixtureTimeoutMs }),
-  }, compareLeafInventories);
-  assert.equal(await waitForFixtureFile(timeoutReadyPath), 'ready');
-  assert.notEqual(timedOut.exitCode, 0);
-  assert.equal(timedOut.report.execution.status, 'failed');
-  assert.equal(timedOut.report.execution.full.reason, 'process-timeout');
-  assert.ok(timedOut.report.timingsMs.full >= fixtureTimeoutMs - 25);
-  assert.ok(timedOut.report.timingsMs.full < fixtureTimeoutMs + 5_000);
-  if (process.platform !== 'win32') {
-    assert.equal(timedOut.report.execution.full.exitCode, 0);
-    assert.equal(timedOut.report.execution.full.signal, null);
-  }
-
-  const escalationReadyPath = resolve(process.cwd(), 'escalation-handler-ready-TEST');
-  const escalationRequest = adapterRequest(
-    adapterObservation('escalation-current'),
-    [
-      '-e',
-      'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setTimeout(() => {}, 5000);',
-      escalationReadyPath,
-    ],
-  );
-  const escalated = await runCiInputProofAdapter({
-    ...escalationRequest,
-    full: Object.freeze({ ...escalationRequest.full, timeoutMs: fixtureTimeoutMs }),
-  }, compareLeafInventories);
-  assert.equal(await waitForFixtureFile(escalationReadyPath), 'ready');
-  assert.notEqual(escalated.exitCode, 0);
-  assert.equal(escalated.report.execution.status, 'failed');
-  assert.equal(escalated.report.execution.full.reason, 'process-timeout');
-  assert.ok(escalated.report.timingsMs.full >= fixtureTimeoutMs - 25);
-  assert.ok(escalated.report.timingsMs.full < fixtureTimeoutMs + 5_000);
-  if (process.platform !== 'win32') {
-    assert.equal(escalated.report.execution.full.signal, 'SIGKILL');
-  }
-});
-
-void test('timeout cleans an inherited descendant process tree', async () => {
-  const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-descendant-TEST-'));
-  let descendantPid: number | null = null;
-  try {
-    const pidPath = join(temporaryRoot, 'descendant-pid');
-    const descendantReadyPath = join(temporaryRoot, 'descendant-ready');
-    const descendantScript = [
-      'const { spawn } = require("node:child_process");',
-      'const { writeFileSync } = require("node:fs");',
-      'const child = spawn(process.execPath, [\'-e\', \'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setInterval(() => {}, 1000);\', process.argv[2]], { stdio: ["ignore", 1, 2] });',
-      'writeFileSync(process.argv[1], String(child.pid));',
-      'setInterval(() => {}, 1000);',
-    ].join('');
-    const timeoutRequest = adapterRequest(
-      adapterObservation('descendant-timeout-current'),
-      ['-e', descendantScript, pidPath, descendantReadyPath],
-    );
-    const result = await runCiInputProofAdapter({
-      ...timeoutRequest,
-      full: Object.freeze({ ...timeoutRequest.full, timeoutMs: fixtureTimeoutMs }),
-    }, compareLeafInventories);
-    assert.equal(await waitForFixtureFile(descendantReadyPath), 'ready');
-    assert.notEqual(result.exitCode, 0);
-    assert.equal(result.report.execution.status, 'failed');
-    assert.equal(result.report.execution.full.reason, 'process-timeout');
-    descendantPid = Number(await waitForFixtureFile(pidPath));
-    assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
-    let descendantPresent = true;
-    try {
-      process.kill(descendantPid, 0);
-    } catch (error) {
-      assert.equal((error as NodeJS.ErrnoException).code, 'ESRCH');
-      descendantPresent = false;
-    }
-    if (descendantPresent) {
-      assert.equal(process.platform, 'linux', 'Inherited descendant remained live after timeout cleanup.');
-      try {
-        const processStat = readFileSync(`/proc/${String(descendantPid)}/stat`, 'utf8');
-        const stateStart = processStat.lastIndexOf(') ');
-        assert.ok(stateStart >= 0);
-        assert.equal(processStat.slice(stateStart + 2).trim().split(/\s+/u)[0], 'Z');
-        const descriptors = readdirSync(`/proc/${String(descendantPid)}/fd`);
-        for (const descriptor of descriptors) {
-          assert.doesNotMatch(
-            readlinkSync(`/proc/${String(descendantPid)}/fd/${descriptor}`),
-            /^pipe:\[/u,
-          );
-        }
-      } catch (error) {
-        assert.equal((error as NodeJS.ErrnoException).code, 'ENOENT');
-      }
-    }
-  } finally {
-    if (descendantPid !== null) {
-      killRecordedPid(descendantPid);
-    }
-    await rm(temporaryRoot, { recursive: true, force: true });
-  }
-});
-
-void test('inherited pipes settle boundedly and never conceal escaped descendants', async () => {
-  const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-inherited-pipe-TEST-'));
-  let escapedPid: number | null = null;
-  try {
-    const pidPath = join(temporaryRoot, 'escaped-pid');
-    const escapedReadyPath = join(temporaryRoot, 'escaped-ready');
-    const escapedScript = [
-      'const { spawn } = require("node:child_process");',
-      'const { writeFileSync } = require("node:fs");',
-      'const child = spawn(process.execPath, [\'-e\', \'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setInterval(() => {}, 1000);\', process.argv[2]], { detached: true, stdio: ["ignore", 1, 2] });',
-      'child.unref();',
-      'writeFileSync(process.argv[1], String(child.pid));',
-      'process.stdout.write("x".repeat(65537));',
-      'process.stderr.write("x".repeat(65537));',
-    ].join('');
-    const started = Date.now();
-    const result = await executeFixedFull({
-      command: process.execPath,
-      args: ['-e', escapedScript, pidPath, escapedReadyPath],
-      cwd: temporaryRoot,
-      timeoutMs: 5_000,
-    });
-    const elapsedMs = Date.now() - started;
-    escapedPid = Number(await waitForFixtureFile(pidPath));
-    assert.equal(await waitForFixtureFile(escapedReadyPath), 'ready');
-    assert.ok(Number.isSafeInteger(escapedPid) && escapedPid > 0);
-    assert.equal(result.report.exitCode, 0);
-    assert.equal(result.report.outputTruncated, true);
-    assert.equal(result.stdout.length, 64 * 1024);
-    assert.ok(elapsedMs < 3_000);
-    if (process.platform === 'win32') {
-      assert.equal(result.report.status, 'passed');
-      assert.equal(result.report.reason, null);
-    } else {
-      assert.equal(result.report.status, 'failed');
-      assert.equal(result.report.errorCode, 'process-stream-settlement-timeout');
-      assert.equal(result.report.reason, 'process-settlement-failed');
-      process.kill(escapedPid, 0);
-    }
-  } finally {
-    if (escapedPid !== null) {
-      killRecordedPid(escapedPid);
-    }
-    await rm(temporaryRoot, { recursive: true, force: true });
-  }
-});
-
 void test('collector and comparator import failure still execute independent FULL', async () => {
   const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-import-failure-TEST-'));
   try {
@@ -707,6 +454,10 @@ void test('collector and comparator import failure still execute independent FUL
       join(temporaryRoot, 'tests', 'ci-input-proof-rc.test.mts'),
       'import assert from "node:assert/strict";\nimport { test } from "node:test";\nvoid test("independent FULL", () => assert.equal(1, 1));\n',
       'utf8',
+    );
+    await copyFile(
+      join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof.test.mts'),
+      join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof-process.test.mts'),
     );
     const child = await execFileAsync(process.execPath, [
       join(temporaryRoot, 'scripts', 'ci-input-proof-foundation-pilot.mts'),

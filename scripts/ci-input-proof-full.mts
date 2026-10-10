@@ -43,6 +43,14 @@ type OutputStream = {
   truncated: boolean;
   bytes: number;
 };
+type ProcessFinalization = Readonly<{
+  cleanupSettlement: BoundedSettlement;
+  outputSettlement: BoundedSettlement;
+  outcome: ProcessOutcome | null;
+  stderr: OutputStream;
+  stdout: OutputStream;
+  timedOut: boolean;
+}>;
 
 const maxProcessOutputBytes = 64 * 1024;
 const cleanupGraceMs = 1_000;
@@ -234,7 +242,6 @@ async function settleWithin(
   fallbackCode: string,
 ): Promise<BoundedSettlement> {
   let timeout: NodeJS.Timeout | undefined;
-  let timedOut = false;
   const bounded = Promise.race([
     operation.then(
       () => null,
@@ -242,7 +249,6 @@ async function settleWithin(
     ),
     new Promise<string>(resolve => {
       timeout = setTimeout(() => {
-        timedOut = true;
         resolve(fallbackCode);
       }, timeoutMs);
     }),
@@ -251,10 +257,9 @@ async function settleWithin(
   if (timeout !== undefined) {
     clearTimeout(timeout);
   }
-  void operation.catch(() => undefined);
   return Object.freeze({
-    error: timedOut ? fallbackCode : error,
-    settled: !timedOut && error === null,
+    error,
+    settled: error === null,
   });
 }
 
@@ -316,6 +321,64 @@ function processReason(
   return settlementFailure ? 'process-settlement-failed' : null;
 }
 
+function unavailableExecutedFull(errorCodeValue: string): ExecutedFull {
+  return Object.freeze({
+    report: Object.freeze({
+      status: 'unavailable',
+      exitCode: null,
+      signal: null,
+      errorCode: errorCodeValue,
+      outputTruncated: false,
+      reason: 'process-unavailable',
+    }),
+    stdout: '',
+  });
+}
+
+function processFailureCode(
+  outcome: ProcessOutcome | null,
+  cleanupSettlement: BoundedSettlement,
+  outputSettlement: BoundedSettlement,
+): string | null {
+  return outcome?.kind === 'error'
+    ? outcome.errorCode
+    : cleanupSettlement.error
+      ?? outputSettlement.error
+      ?? (outcome === null ? 'process-exit-settlement-timeout' : null);
+}
+
+function finalizeExecutedFull(finalization: ProcessFinalization): ExecutedFull {
+  const settlementFailure = !finalization.cleanupSettlement.settled
+    || !finalization.outputSettlement.settled
+    || finalization.outcome === null;
+  const processErrorCode = processFailureCode(
+    finalization.outcome,
+    finalization.cleanupSettlement,
+    finalization.outputSettlement,
+  );
+  const passed = !finalization.timedOut
+    && finalization.outcome?.kind === 'exit'
+    && finalization.outcome.exitCode === 0
+    && finalization.outcome.signal === null
+    && !settlementFailure;
+  const status = passed
+    ? 'passed' as const
+    : finalization.timedOut || finalization.outcome?.kind === 'exit'
+      ? 'failed' as const
+      : 'unavailable' as const;
+  return Object.freeze({
+    report: Object.freeze({
+      status,
+      exitCode: finalization.outcome?.kind === 'exit' ? finalization.outcome.exitCode : null,
+      signal: finalization.outcome?.kind === 'exit' ? finalization.outcome.signal : null,
+      errorCode: processErrorCode,
+      outputTruncated: finalization.stdout.truncated || finalization.stderr.truncated,
+      reason: processReason(finalization.timedOut, finalization.outcome, settlementFailure),
+    }),
+    stdout: outputText(finalization.stdout),
+  });
+}
+
 export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull> {
   if (!Number.isSafeInteger(spec.timeoutMs) || spec.timeoutMs <= 0) {
     throw new TypeError('The FULL process timeout must be a positive safe integer.');
@@ -324,34 +387,14 @@ export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull
   try {
     windowsManagedProcess = process.platform === 'win32' ? await loadWindowsManagedProcess() : null;
   } catch (error) {
-    return Object.freeze({
-      report: Object.freeze({
-        status: 'unavailable',
-        exitCode: null,
-        signal: null,
-        errorCode: errorCode(error, 'windows-managed-process-unavailable'),
-        outputTruncated: false,
-        reason: 'process-unavailable',
-      }),
-      stdout: '',
-    });
+    return unavailableExecutedFull(errorCode(error, 'windows-managed-process-unavailable'));
   }
 
   let child: ChildProcess;
   try {
     child = spawnCommand(spec, windowsManagedProcess);
   } catch (error) {
-    return Object.freeze({
-      report: Object.freeze({
-        status: 'unavailable',
-        exitCode: null,
-        signal: null,
-        errorCode: errorCode(error, 'process-error'),
-        outputTruncated: false,
-        reason: 'process-unavailable',
-      }),
-      stdout: '',
-    });
+    return unavailableExecutedFull(errorCode(error, 'process-error'));
   }
 
   const stdout = createOutputStream();
@@ -367,10 +410,7 @@ export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull
     stderr.settled = true;
   }
 
-  let resolveOutcome: (outcome: ProcessOutcome) => void = () => undefined;
-  const outcomePromise = new Promise<ProcessOutcome>(resolve => {
-    resolveOutcome = resolve;
-  });
+  const { promise: outcomePromise, resolve: resolveOutcome } = Promise.withResolvers<ProcessOutcome>();
   child.once('exit', (exitCode, signal) => {
     resolveOutcome({ kind: 'exit', exitCode, signal });
   });
@@ -381,10 +421,7 @@ export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull
     resolveOutcome({ kind: 'error', errorCode: errorCode(error, 'process-error') });
   });
 
-  let triggerCleanup: () => void = () => undefined;
-  const cleanupTriggered = new Promise<void>(resolve => {
-    triggerCleanup = resolve;
-  });
+  const { promise: cleanupTriggered, resolve: triggerCleanup } = Promise.withResolvers<void>();
   let cleanupStarted = false;
   let cleanup: Promise<void> = Promise.resolve();
   const startCleanup = (): void => {
@@ -423,34 +460,12 @@ export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull
   }
   clearTimeout(timer);
 
-  const outcome = observedOutcome;
-  const settlementFailure = !cleanupSettlement.settled
-    || !outputSettlement.settled
-    || outcome === null;
-  const processErrorCode = outcome?.kind === 'error'
-    ? outcome.errorCode
-    : cleanupSettlement.error
-      ?? outputSettlement.error
-      ?? (outcome === null ? 'process-exit-settlement-timeout' : null);
-  const passed = !timedOut
-    && outcome?.kind === 'exit'
-    && outcome.exitCode === 0
-    && outcome.signal === null
-    && !settlementFailure;
-  const status = passed
-    ? 'passed' as const
-    : timedOut || outcome?.kind === 'exit'
-      ? 'failed' as const
-      : 'unavailable' as const;
-  return Object.freeze({
-    report: Object.freeze({
-      status,
-      exitCode: outcome?.kind === 'exit' ? outcome.exitCode : null,
-      signal: outcome?.kind === 'exit' ? outcome.signal : null,
-      errorCode: processErrorCode,
-      outputTruncated: stdout.truncated || stderr.truncated,
-      reason: processReason(timedOut, outcome, settlementFailure),
-    }),
-    stdout: outputText(stdout),
+  return finalizeExecutedFull({
+    cleanupSettlement,
+    outputSettlement,
+    outcome: observedOutcome,
+    stderr,
+    stdout,
+    timedOut,
   });
 }

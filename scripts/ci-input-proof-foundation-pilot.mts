@@ -55,18 +55,20 @@ const scope: Scope = Object.freeze({
     { logicalPath: 'scripts/pack-test.mjs', sourcePath: 'scripts/pack-test.mjs' },
     { logicalPath: 'scripts/prepare-ci-input-proof-rc.mts', sourcePath: 'scripts/prepare-ci-input-proof-rc.mts' },
     { logicalPath: 'tests/support/ci-input-proof-donor-cases.mts', sourcePath: 'tests/support/ci-input-proof-donor-cases.mts' },
+    { logicalPath: 'tests/support/ci-input-proof-adapter-fixtures.mts', sourcePath: 'tests/support/ci-input-proof-adapter-fixtures.mts' },
   ]),
   fixtures: Object.freeze([
     { logicalPath: 'tests/features/input-comparison/ci-input-proof.test.mts', sourcePath: 'tests/features/input-comparison/ci-input-proof.test.mts' },
+    { logicalPath: 'tests/features/input-comparison/ci-input-proof-process.test.mts', sourcePath: 'tests/features/input-comparison/ci-input-proof-process.test.mts' },
     { logicalPath: 'tests/ci-input-proof-rc.test.mts', sourcePath: 'tests/ci-input-proof-rc.test.mts' },
+    {
+      logicalPath: 'tests/fixtures/ci-input-proof/ci-input-proof-kernel.TEST.md',
+      sourcePath: 'tests/fixtures/ci-input-proof/ci-input-proof-kernel.TEST.md',
+    },
     { logicalPath: 'tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts', sourcePath: 'tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts' },
   ]),
   config: Object.freeze([
     { logicalPath: '.changeset/config.json', sourcePath: '.changeset/config.json' },
-    {
-      logicalPath: '.changeset/ci-input-proof-kernel.md',
-      sourcePath: '.changeset/ci-input-proof-kernel.md',
-    },
     { logicalPath: 'architecture/foundation/feature-modules.json', sourcePath: 'architecture/foundation/feature-modules.json' },
     { logicalPath: 'foundation.config.yaml', sourcePath: 'foundation.config.yaml' },
     { logicalPath: 'LICENSE', sourcePath: 'LICENSE' },

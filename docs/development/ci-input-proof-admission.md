@@ -138,6 +138,13 @@ candidate-omit observation, selection and omission status separate. Its timing
 observation reports collection overhead and potential avoided FULL duration
 without granting omission or PASS authority.
 
+The pilot's closed Changeset input is the permanent TEST-only
+`tests/fixtures/ci-input-proof/ci-input-proof-kernel.TEST.md` fixture, not the
+release-owned `.changeset/ci-input-proof-kernel.md`. The RC test copies that
+fixture into its disposable source under the Changesets filename and seeds
+`0.0.0` only there, so generated stable release state and normal Changeset
+consumption do not change this regression.
+
 The pure comparator remains cross-platform, but this pilot and its selected RC
 target are Linux-only. Unsupported pilot platforms reject before collection or
 FULL; this route policy is not native Windows containment evidence.

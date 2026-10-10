@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { copyFile, cp, mkdir, mkdtemp, readFile, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -72,7 +72,7 @@ export const readOptionalText = async (path: string): Promise<string | null> => 
 
 const directoryLinkType = process.platform === 'win32' ? 'junction' : 'dir';
 
-export async function withExternalDirectoryReplacementLink<T>(
+async function withExternalDirectoryReplacementLink<T>(
   collectionRoot: string,
   sourcePath: string,
   action: () => Promise<T>,
@@ -94,7 +94,7 @@ export async function withExternalDirectoryReplacementLink<T>(
   }
 }
 
-export async function withDirectoryAlias<T>(
+async function withDirectoryAlias<T>(
   targetPath: string,
   aliasPath: string,
   action: () => Promise<T>,
@@ -194,26 +194,23 @@ async function writeReplacementRaceDriver(temporaryRoot: string): Promise<Readon
       'const replacement = process.env.CI_INPUT_PROOF_RACE_REPLACEMENT;',
       'const marker = process.env.CI_INPUT_PROOF_RACE_MARKER;',
       'const kind = process.env.CI_INPUT_PROOF_RACE_KIND;',
-      'const original = { lstat: fs.lstat, open: fs.open, readFile: fs.readFile };',
+      'const stage = process.env.CI_INPUT_PROOF_RACE_STAGE;',
+      'const original = { lstat: fs.lstat, open: fs.open };',
       'let swapped = false;',
       'const swap = () => {',
       '  if (swapped) return;',
       '  renameSync(replacement, target);',
-      '  writeFileSync(marker, `swapped:${kind}`);',
+      '  writeFileSync(marker, `swapped:${kind}:${stage}`);',
       '  swapped = true;',
       '};',
       'fs.lstat = async function(path, ...args) {',
       '  const stat = await original.lstat.call(fs, path, ...args);',
-      '  if (kind === "fifo" && path === target) swap();',
+      '  if (path === target && (kind === "fifo" || (kind === "regular" && stage === "before-open"))) swap();',
       '  return stat;',
-      '};',
-      'fs.readFile = async function(path, ...args) {',
-      '  if (kind === "regular" && path === target) swap();',
-      '  return original.readFile.call(fs, path, ...args);',
       '};',
       'fs.open = async function(path, ...args) {',
       '  const handle = await original.open.call(fs, path, ...args);',
-      '  if (kind === "regular" && path === target) swap();',
+      '  if (kind === "regular" && stage === "after-open" && path === target) swap();',
       '  return handle;',
       '};',
       'syncBuiltinESMExports();',
@@ -230,19 +227,23 @@ async function writeReplacementRaceDriver(temporaryRoot: string): Promise<Readon
   return Object.freeze({ preload, driver });
 }
 
-export async function assertCollectorReplacementRejection(temporaryRoot: string, raceTarget: string): Promise<void> {
-  const raceReplacement = resolve(temporaryRoot, 'packages', 'ci-input-proof', 'LICENSE.race-actual');
-  const raceMarker = resolve(temporaryRoot, 'replacement-race-marker');
-  const replacementContent = 'replacement actual file with different bytes\n';
-  const raceDriver = await writeReplacementRaceDriver(temporaryRoot);
-  const raceEnvironment = Object.freeze({
-    ...process.env,
-    CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
-    CI_INPUT_PROOF_RACE_TARGET: raceTarget,
-    CI_INPUT_PROOF_RACE_REPLACEMENT: raceReplacement,
-    CI_INPUT_PROOF_RACE_MARKER: raceMarker,
-  });
+async function replacementRaceInode(path: string): Promise<bigint> {
+  return (await lstat(path, { bigint: true })).ino;
+}
+
+async function assertRegularReplacementRace(
+  temporaryRoot: string,
+  raceTarget: string,
+  raceDriver: Readonly<{ preload: string; driver: string }>,
+  stage: 'before-open' | 'after-open',
+): Promise<void> {
+  const raceReplacement = resolve(temporaryRoot, 'packages', 'ci-input-proof', `LICENSE.race-${stage}`);
+  const raceMarker = resolve(temporaryRoot, `replacement-race-${stage}-marker`);
+  const replacementContent = `replacement actual file at ${stage} with different bytes\n`;
+  const targetInodeBefore = await replacementRaceInode(raceTarget);
   await writeFile(raceReplacement, replacementContent, 'utf8');
+  const replacementInodeBefore = await replacementRaceInode(raceReplacement);
+  assert.notEqual(replacementInodeBefore, targetInodeBefore);
   await assert.rejects(
     execFileAsync(process.execPath, [
       '--import',
@@ -252,7 +253,15 @@ export async function assertCollectorReplacementRejection(temporaryRoot: string,
       ...boundedProcess,
       cwd: temporaryRoot,
       encoding: 'utf8',
-      env: { ...raceEnvironment, CI_INPUT_PROOF_RACE_KIND: 'regular' },
+      env: {
+        ...process.env,
+        CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
+        CI_INPUT_PROOF_RACE_TARGET: raceTarget,
+        CI_INPUT_PROOF_RACE_REPLACEMENT: raceReplacement,
+        CI_INPUT_PROOF_RACE_MARKER: raceMarker,
+        CI_INPUT_PROOF_RACE_KIND: 'regular',
+        CI_INPUT_PROOF_RACE_STAGE: stage,
+      },
     }),
     (error: unknown) => {
       const childError = error as NodeJS.ErrnoException & { stdout: string; stderr: string };
@@ -262,36 +271,62 @@ export async function assertCollectorReplacementRejection(temporaryRoot: string,
       return true;
     },
   );
-  assert.equal(await readFile(raceMarker, 'utf8'), 'swapped:regular');
+  assert.equal(await readFile(raceMarker, 'utf8'), `swapped:regular:${stage}`);
   assert.equal(await readFile(raceTarget, 'utf8'), replacementContent);
   await assert.rejects(readFile(raceReplacement, 'utf8'), { code: 'ENOENT' });
+  assert.equal(await replacementRaceInode(raceTarget), replacementInodeBefore);
+  assert.notEqual(await replacementRaceInode(raceTarget), targetInodeBefore);
+}
 
-  if (process.platform === 'linux') {
-    const fifoReplacement = resolve(temporaryRoot, 'packages', 'ci-input-proof', 'LICENSE.race-fifo');
-    await execFileAsync('mkfifo', [fifoReplacement], {
+async function assertFifoReplacementRace(
+  temporaryRoot: string,
+  raceTarget: string,
+  raceDriver: Readonly<{ preload: string; driver: string }>,
+): Promise<void> {
+  const fifoReplacement = resolve(temporaryRoot, 'packages', 'ci-input-proof', 'LICENSE.race-fifo');
+  const raceMarker = resolve(temporaryRoot, 'replacement-race-fifo-marker');
+  await execFileAsync('mkfifo', [fifoReplacement], {
+    cwd: temporaryRoot,
+    timeout: 5_000,
+    maxBuffer: 65_536,
+  });
+  await assert.rejects(
+    execFileAsync(process.execPath, [
+      '--import',
+      pathToFileURL(raceDriver.preload).href,
+      raceDriver.driver,
+    ], {
+      ...boundedProcess,
       cwd: temporaryRoot,
-      timeout: 5_000,
-      maxBuffer: 65_536,
-    });
-    await assert.rejects(
-      execFileAsync(process.execPath, [
-        '--import',
-        pathToFileURL(raceDriver.preload).href,
-        raceDriver.driver,
-      ], {
-        ...boundedProcess,
-        cwd: temporaryRoot,
-        encoding: 'utf8',
-        env: { ...raceEnvironment, CI_INPUT_PROOF_RACE_REPLACEMENT: fifoReplacement, CI_INPUT_PROOF_RACE_KIND: 'fifo' },
-      }),
-      (error: unknown) => {
-        const childError = error as NodeJS.ErrnoException & { stdout: string; stderr: string };
-        assert.equal(childError.code, 1);
-        assert.equal(childError.stdout, '');
-        assert.match(childError.stderr, /scope input is not a file or symlink packages\/ci-input-proof\/LICENSE/u);
-        return true;
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CI_INPUT_PROOF_REPOSITORY_ROOT: temporaryRoot,
+        CI_INPUT_PROOF_RACE_TARGET: raceTarget,
+        CI_INPUT_PROOF_RACE_REPLACEMENT: fifoReplacement,
+        CI_INPUT_PROOF_RACE_MARKER: raceMarker,
+        CI_INPUT_PROOF_RACE_KIND: 'fifo',
+        CI_INPUT_PROOF_RACE_STAGE: 'before-open',
       },
-    );
-    assert.equal(await readFile(raceMarker, 'utf8'), 'swapped:fifo');
+    }),
+    (error: unknown) => {
+      const childError = error as NodeJS.ErrnoException & { stdout: string; stderr: string };
+      assert.equal(childError.code, 1);
+      assert.equal(childError.stdout, '');
+      assert.match(childError.stderr, /scope input is not a file or symlink packages\/ci-input-proof\/LICENSE/u);
+      return true;
+    },
+  );
+  assert.equal(await readFile(raceMarker, 'utf8'), 'swapped:fifo:before-open');
+}
+
+export async function assertCollectorReplacementRejection(temporaryRoot: string, raceTarget: string): Promise<void> {
+  const raceDriver = await writeReplacementRaceDriver(temporaryRoot);
+  await assertRegularReplacementRace(temporaryRoot, raceTarget, raceDriver, 'before-open');
+  if (process.platform !== 'win32') {
+    await assertRegularReplacementRace(temporaryRoot, raceTarget, raceDriver, 'after-open');
+  }
+  if (process.platform === 'linux') {
+    await assertFifoReplacementRace(temporaryRoot, raceTarget, raceDriver);
   }
 }

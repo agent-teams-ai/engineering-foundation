@@ -1,6 +1,7 @@
 import { constants, lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { run } from "node:test";
+import { inspect } from "node:util";
 
 type Identity = { file: string; names: string[]; kind: "suite" | "test" };
 type Exception = Identity & { status: "omitted" | "skipped" | "todo"; reason: string;
@@ -13,6 +14,13 @@ type Entry = { file: string; name: string; kind: "suite" | "test"; id: number; p
 const platforms = new Set(["darwin", "linux", "win32"]);
 const identityKey = (file: string, names: readonly string[]): string => JSON.stringify([file, names]);
 function fail(message: string): never { throw new Error(`Node test execution contract: ${message}`); }
+function failureDetails(error: unknown): string {
+  const formatted = inspect(error, {
+    breakLength: 100, colors: false, depth: 8, getters: false,
+    maxArrayLength: 20, maxStringLength: 4096, showHidden: false,
+  });
+  return formatted.length <= 16_384 ? formatted : `${formatted.slice(0, 16_384)}\n[Node test failure details truncated]`;
+}
 function fileSnapshot(stat: { dev: bigint; ino: bigint; mode: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint }): string {
   return [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
 }
@@ -347,7 +355,10 @@ export async function runNodeTestExecution({ root = process.cwd(), files, contra
   for await (const event of run({ ...runOptions, cwd: absoluteRoot, files: selected.map((file) => file.absolute), concurrency: 1 })) {
     const observed = event as Event;
     events.push(observed);
-    if (observed.type === "test:fail") { output.write(`FAIL ${String(observed.data?.name)}\n`); }
+    if (observed.type === "test:fail") {
+      const details = observed.data?.details;
+      output.write(`FAIL ${String(observed.data?.name)}\n${failureDetails(record(details) ? details.error : undefined)}\n`);
+    }
   }
   const result = evaluateNodeTestEvents(events, contract, selected);
   output.write(`Mandatory Node tests: ${result.protectedCount} required identities completed or exactly excepted\n`);

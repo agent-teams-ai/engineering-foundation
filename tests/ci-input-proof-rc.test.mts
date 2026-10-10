@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cp, lstat, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -13,7 +13,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // This tests the Linux-only artifact-preparation adapter used by the Actions job.
 // It fails on unrelated source mutation, stale distribution inclusion, wrong RC,
 // missing public implementation, or accidental reuse of a previous output.
-test("first RC is CLI-derived, importable and isolated from authoritative changesets", { skip: process.platform !== "linux", timeout: 120_000 }, async () => {
+void test("first RC is CLI-derived, importable and isolated from authoritative changesets", { skip: process.platform !== "linux", timeout: 120_000 }, async () => {
   const sandbox = await mkdtemp(resolve(tmpdir(), "ci-input-proof-rc-TEST- space;-"));
   const source = resolve(sandbox, "source");
   const env = { ...process.env, GIT_AUTHOR_NAME: "iliya", GIT_AUTHOR_EMAIL: "iliyazelenkog@gmail.com", GIT_COMMITTER_NAME: "iliya", GIT_COMMITTER_EMAIL: "iliyazelenkog@gmail.com" };
@@ -23,6 +23,14 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
     for (const path of ["packages/ci-input-proof", ".changeset", "pnpm-workspace.yaml", "LICENSE"]) {
       await cp(resolve(root, path), resolve(source, path), { recursive: true });
     }
+    const manifestPath = resolve(source, "packages/ci-input-proof/package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
+    manifest.version = "0.0.0";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    await copyFile(
+      resolve(root, "tests/fixtures/ci-input-proof/ci-input-proof-kernel.TEST.md"),
+      resolve(source, ".changeset/ci-input-proof-kernel.md"),
+    );
     await mkdir(resolve(source, "scripts"));
     await cp(resolve(root, "scripts/prepare-ci-input-proof-rc.mts"), resolve(source, "scripts/prepare-ci-input-proof-rc.mts"));
     await writeFile(resolve(source, "package.json"), JSON.stringify({ name: "ci-input-proof-release-TEST", private: true, packageManager: "pnpm@11.20.0" }));
@@ -95,6 +103,20 @@ test("first RC is CLI-derived, importable and isolated from authoritative change
       await unlink(raceFile);
       await writeFile(raceFile, originalBytes);
     }
+    assert.equal(git("status", "--porcelain").trim(), "");
+    const existingReleaseManifest = JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>;
+    existingReleaseManifest.version = "0.1.0";
+    await writeFile(manifestPath, `${JSON.stringify(existingReleaseManifest, null, 2)}\n`);
+    git("add", "packages/ci-input-proof/package.json");
+    git("commit", "-m", "test: seed generated stable TEST release");
+    const existingReleaseCommit = git("rev-parse", "HEAD").trim();
+    const existingReleaseOutput = resolve(sandbox, "existing-release");
+    assert.throws(
+      () => prepare(existingReleaseOutput, existingReleaseCommit),
+      (error: unknown) => error instanceof Error && "stderr" in error && String(error.stderr).includes("first RC preparation cannot advance an existing release"),
+      "a real existing-release manifest must be rejected before artifact creation",
+    );
+    await assert.rejects(lstat(existingReleaseOutput), { code: "ENOENT" });
     assert.equal(git("status", "--porcelain").trim(), "");
   } finally {
     await rm(sandbox, { recursive: true, force: true });

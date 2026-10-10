@@ -1,0 +1,136 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { writeSync } from "node:fs";
+import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { executeManagedProcess } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
+
+// Disposable TEST branch only. Each cold PowerShell child inherits the real
+// outer Job Object. 30s inner deadline; 90s TEST budget includes wrapper startup.
+const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const fixturePath = fileURLToPath(import.meta.url);
+const assetRoot = join(sourceRoot, "packages/engineering-foundation/assets/windows-managed-process");
+const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+const variant = process.argv[3];
+assert.equal(process.platform, "win32");
+
+function replaceOnce(source: string, anchor: string, replacement: string): string {
+  assert.equal(source.split(anchor).length, 2, "exact derivation anchor required");
+  return source.replace(anchor, replacement);
+}
+
+async function containedProbe(mode: string, root: string): Promise<void> {
+  assert.ok(mode === "baseline" || mode === "explicit-utility");
+  const original = await readFile(join(assetRoot, "bootstrap.ps1"));
+  assert.ok([
+    "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7",
+    "fa34bd6bde3d8ff5828c9ffb28b0e7b5e8855b5d2c423d61a80097040e430815"
+  ].includes(hash(original)), "only reviewed LF/CRLF source accepted");
+  const helper = await readFile(join(assetRoot, "WindowsManagedProcess.cs"));
+  assert.equal(hash(helper), "e43e687de772639301306caab09619ca2916b00c27c7b5e0849d0f2544f66197");
+  let source = original.toString("utf8").replaceAll("\r\n", "\n");
+  const prefix = [
+    '$TestClock = [System.Diagnostics.Stopwatch]::StartNew()',
+    'function Write-TestPhase([string]$Name) { [Console]::Out.WriteLine("TEST_PHASE|" + $Name + "|" + $TestClock.ElapsedMilliseconds) }',
+    'Write-TestPhase "entered"',
+    ...(mode === "explicit-utility" ? [
+      '$PSModuleAutoLoadingPreference = "None"',
+      'Write-TestPhase "import-start"',
+      'try {',
+      '  Import-Module -Name ([System.IO.Path]::Combine($PSHOME, "Modules", "Microsoft.PowerShell.Utility", "Microsoft.PowerShell.Utility.psd1")) -Scope Local -ErrorAction Stop',
+      '  Write-TestPhase "import-end"',
+      '} catch { Write-TestPhase "import-failed"; exit 2 }'
+    ] : [])
+  ].join("\n") + "\n";
+  source = replaceOnce(source, '  $FailurePhase = "helper-compile"',
+    '  Write-TestPhase "source-read"\n  $FailurePhase = "helper-compile"');
+  source = replaceOnce(source, '  Add-Type -TypeDefinition $helperSource -Language CSharp',
+    '  Write-TestPhase "compile-start"\n  Add-Type -TypeDefinition $helperSource -Language CSharp\n  Write-TestPhase "compile-end"');
+  source = replaceOnce(source, '  $FailurePhase = "bootstrap-request"',
+    '  Write-TestPhase "request-start"\n  $FailurePhase = "bootstrap-request"');
+  await copyFile(join(assetRoot, "WindowsManagedProcess.cs"), join(root, "WindowsManagedProcess.cs"));
+  const script = join(root, "bootstrap.ps1");
+  await writeFile(script, prefix + source, { flag: "wx" });
+  const systemRoot = Object.entries(process.env).find(([name]) => name.toLowerCase() === "systemroot")?.[1];
+  assert.ok(systemRoot);
+  const child = spawn(join(systemRoot, "System32/WindowsPowerShell/v1.0/powershell.exe"),
+    ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script],
+    { cwd: root, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+  let stdout = "";
+  let stderr = "";
+  let bytes = 0;
+  const started = performance.now();
+  const timer = setTimeout(() => {
+    writeSync(1, JSON.stringify({ mode, outcome: "inner-deadline", elapsedMs: performance.now() - started, phases: phaseRows(stdout) }) + "\n");
+    // Exiting the contained Node parent invokes the wrapper's whole-job cleanup,
+    // including a still-running compiler descendant. Do not continue after timeout.
+    process.exit(3);
+  }, 30_000);
+  try {
+    const result = await new Promise<number | null>((resolveExit, reject) => {
+      for (const [stream, isError] of [[child.stdout, false], [child.stderr, true]] as const) {
+        stream.setEncoding("utf8");
+        stream.on("data", (chunk: string) => {
+          bytes += Buffer.byteLength(chunk);
+          if (bytes > 16_384) { process.exit(4); }
+          if (isError) stderr += chunk; else stdout += chunk;
+        });
+      }
+      child.on("error", reject);
+      child.on("close", resolveExit);
+      child.stdin.on("error", () => { /* close/error result remains authoritative */ });
+      child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
+    });
+    const phases = phaseRows(stdout);
+    const passed = result === 1 && stderr.includes("[phase=bootstrap-request]") &&
+      stderr.includes("Unsupported Windows managed-process bootstrap schema.");
+    process.stdout.write(JSON.stringify({ mode, outcome: passed ? "schema-rejected" : "unexpected-result", exitCode: result,
+      elapsedMs: performance.now() - started, sourceSha256: hash(original), helperSha256: hash(helper), phases }) + "\n");
+    assert.ok(passed, "real helper must compile then reject schema0");
+    assert.deepEqual(phases.map(([name]) => name), mode === "baseline"
+      ? ["entered", "source-read", "compile-start", "compile-end", "request-start"]
+      : ["entered", "import-start", "import-end", "source-read", "compile-start", "compile-end", "request-start"]);
+  } finally { clearTimeout(timer); }
+}
+
+function phaseRows(stdout: string): [string, number][] {
+  const rows: [string, number][] = [];
+  if (stdout.trim() === "") return rows;
+  for (const line of stdout.trim().split(/\r?\n/u)) {
+    const match = /^TEST_PHASE\|(entered|import-start|import-end|import-failed|source-read|compile-start|compile-end|request-start)\|([0-9]+)$/u.exec(line);
+    assert.ok(match, "only finite phase output accepted");
+    const elapsed = Number(match[2]);
+    assert.ok(Number.isSafeInteger(elapsed) && elapsed >= (rows.at(-1)?.[1] ?? 0));
+    rows.push([match[1]!, elapsed]);
+  }
+  return rows;
+}
+
+if (process.argv[2] === "--contained") {
+  assert.ok(variant);
+  const root = process.argv[4];
+  assert.ok(root);
+  await containedProbe(variant, root);
+} else {
+  const outcomes: number[] = [];
+  for (const mode of ["baseline", "explicit-utility"]) {
+    const root = await mkdtemp(join(tmpdir(), "foundation TEST cold bootstrap "));
+    let confirmed = false;
+    try {
+      const result = await executeManagedProcess({ command: process.execPath,
+        args: [fixturePath, "--contained", mode, root], cwd: sourceRoot,
+        timeoutMs: 90_000, strictUtf8: true, environment: process.env });
+      confirmed = true;
+      process.stdout.write(result.stdout);
+      process.stdout.write(JSON.stringify({ mode, outerExitCode: result.exitCode, containment: "confirmed" }) + "\n");
+      outcomes.push(result.exitCode);
+    } finally {
+      // A rejected outer cleanup preserves the root and aborts further probes.
+      if (confirmed) await rm(root, { force: true, recursive: true });
+    }
+  }
+  assert.ok(outcomes.every((code) => code === 0), "one or more fixed probe receipts failed");
+}

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { lstat, readFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, open } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
@@ -136,6 +137,77 @@ function runtimeFacts(): string {
   });
 }
 
+type RegularFileRead = Readonly<{
+  bytes: Buffer;
+  mode: bigint;
+}>;
+type FileMetadata = Readonly<{
+  dev: bigint;
+  mode: bigint;
+  ino: bigint;
+  size: bigint;
+  mtimeNs: bigint;
+  ctimeNs: bigint;
+  isFile(): boolean;
+  isSymbolicLink(): boolean;
+}>;
+
+function assertExpectedFileMetadata(metadata: FileMetadata, logicalPath: string): void {
+  if (metadata.isSymbolicLink()) {
+    throw new Error(`unsupported symlink target closure ${logicalPath}`);
+  }
+  if (!metadata.isFile()) {
+    throw new Error(`scope input is not a file or symlink ${logicalPath}`);
+  }
+}
+
+function sameFileMetadata(left: FileMetadata, right: FileMetadata): boolean {
+  return left.dev === right.dev
+    && left.mode === right.mode
+    && left.ino === right.ino
+    && left.size === right.size
+    && left.mtimeNs === right.mtimeNs
+    && left.ctimeNs === right.ctimeNs;
+}
+
+async function readRegularFile(sourcePath: string, logicalPath: string): Promise<RegularFileRead> {
+  const initial = await lstat(sourcePath, { bigint: true }) as FileMetadata;
+  assertExpectedFileMetadata(initial, logicalPath);
+  const openFlags = process.platform === 'win32'
+    ? constants.O_RDONLY
+    : constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    try {
+      handle = await open(sourcePath, openFlags);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ELOOP') {
+        throw new Error(`uncertain input identity or content ${logicalPath}`, { cause: error });
+      }
+      throw error;
+    }
+    const opened = await handle.stat({ bigint: true }) as FileMetadata;
+    assertExpectedFileMetadata(opened, logicalPath);
+    if (!sameFileMetadata(initial, opened)) {
+      throw new Error(`uncertain input identity or content ${logicalPath}`);
+    }
+    const bytes = await handle.readFile();
+    const afterRead = await handle.stat({ bigint: true }) as FileMetadata;
+    assertExpectedFileMetadata(afterRead, logicalPath);
+    const pathAfterRead = await lstat(sourcePath, { bigint: true }) as FileMetadata;
+    if (
+      BigInt(bytes.length) !== afterRead.size
+      || !sameFileMetadata(initial, afterRead)
+      || !sameFileMetadata(initial, pathAfterRead)
+    ) {
+      throw new Error(`uncertain input identity or content ${logicalPath}`);
+    }
+    return Object.freeze({ bytes, mode: afterRead.mode });
+  } finally {
+    await handle?.close();
+  }
+}
+
 async function collectLeaf(repositoryRoot: string, input: ScopeInput): Promise<InputLeafShape> {
   const sourcePath = input.sourcePath === null
     ? input.logicalPath === 'toolchain/node-executable' ? process.execPath : null
@@ -152,14 +224,7 @@ async function collectLeaf(repositoryRoot: string, input: ScopeInput): Promise<I
   if (sourcePath === null) {
     throw new Error(`unsupported synthetic input ${input.logicalPath}`);
   }
-  const stat = await lstat(sourcePath);
-  if (stat.isSymbolicLink()) {
-    throw new Error(`unsupported symlink target closure ${input.logicalPath}`);
-  }
-  if (!stat.isFile()) {
-    throw new Error(`scope input is not a file or symlink ${input.logicalPath}`);
-  }
-  const bytes = await readFile(sourcePath);
+  const { bytes, mode } = await readRegularFile(sourcePath, input.logicalPath);
   if (input.logicalPath === 'packages/ci-input-proof/package.json') {
     const parsedManifest: unknown = JSON.parse(bytes.toString('utf8'));
     if (typeof parsedManifest !== 'object' || parsedManifest === null || Array.isArray(parsedManifest)) {
@@ -182,7 +247,7 @@ async function collectLeaf(repositoryRoot: string, input: ScopeInput): Promise<I
   return Object.freeze({
     path: input.logicalPath,
     type: 'file',
-    mode: (stat.mode & 0o111) === 0 ? '100644' : '100755',
+    mode: (mode & 0o111n) === 0n ? '100644' : '100755',
     membership: input.logicalPath === 'packages/ci-input-proof/src/index.ts' ? 'structural' : 'closed',
     content: digest(bytes),
   });

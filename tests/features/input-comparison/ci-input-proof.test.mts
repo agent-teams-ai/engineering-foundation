@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import {
@@ -18,9 +18,10 @@ import { cases } from '../../support/ci-input-proof-donor-cases.mts';
 import { compareLeafInventories } from '../../../packages/ci-input-proof/dist/index.js';
 import type { InputLeaf, RejectionReason } from '../../../packages/ci-input-proof/dist/index.js';
 
-import { adapterLeaf, adapterObservation, adapterRequest, scopeCategories } from '../../support/ci-input-proof-adapter-fixtures.mts';
+import { adapterLeaf, adapterObservation, adapterRequest, scopeCategories, readOptionalText, copyCollectorFixture, assertCollectorReplacementRejection } from '../../support/ci-input-proof-adapter-fixtures.mts';
 
 const execFileAsync = promisify(execFile);
+const boundedProcess = Object.freeze({ timeout: 30_000, maxBuffer: 1_048_576 });
 const repositoryRoot = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const oldDigest = '1'.repeat(40);
 const newDigest = '2'.repeat(40);
@@ -36,38 +37,6 @@ const inventory = (inputs: unknown = [leaf('package.json'), leaf('src/a.ts', 'st
 const rejected = (before: unknown, after: unknown, permission: unknown, reason: RejectionReason): void => {
   assert.deepEqual(compareLeafInventories(before, after, permission), { status: 'rejected', reason });
 };
-const readOptionalText = async (path: string): Promise<string | null> => {
-  try {
-    return await readFile(path, 'utf8');
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return null;
-    }
-    throw error;
-  }
-};
-
-async function copyCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
-  await cp(sourceRoot, destinationRoot, {
-    recursive: true,
-    force: true,
-    filter: sourcePath => {
-      const relativePath = relative(sourceRoot, sourcePath);
-      return !relativePath.split(/[\\/]/u).some(
-        part => ['.cache', '.git', 'node_modules'].includes(part),
-      );
-    },
-  });
-  await mkdir(join(destinationRoot, 'node_modules', '.pnpm'), { recursive: true });
-  await copyFile(
-    join(sourceRoot, 'node_modules', '.package-map.json'),
-    join(destinationRoot, 'node_modules', '.package-map.json'),
-  );
-  await copyFile(
-    join(sourceRoot, 'node_modules', '.pnpm', 'lock.yaml'),
-    join(destinationRoot, 'node_modules', '.pnpm', 'lock.yaml'),
-  );
-}
 
 
 const unavailableCompare = (): never => { throw new Error('comparator-import-unavailable'); };
@@ -257,6 +226,23 @@ void test('fixed pilot closure rejects a real minor-to-patch changeset mutation'
       },
     );
     await copyFile(resolve(repositoryRoot, 'LICENSE'), fixtureLicensePath);
+    await rm(fixtureLicensePath, { force: true });
+    await symlink(
+      resolve(temporaryRoot, process.platform === 'win32' ? 'packages' : 'LICENSE'),
+      fixtureLicensePath, process.platform === 'win32' ? 'junction' : 'file',
+    );
+    await assert.rejects(
+      collectFoundationPilotObservation(temporaryRoot, 'symlink-rejection'),
+      /unsupported symlink target closure packages\/ci-input-proof\/LICENSE/u,
+    );
+    await rm(fixtureLicensePath, { force: true });
+    await mkdir(fixtureLicensePath);
+    await assert.rejects(
+      collectFoundationPilotObservation(temporaryRoot, 'nonregular-rejection'),
+      /scope input is not a file or symlink packages\/ci-input-proof\/LICENSE/u,
+    );
+    await rm(fixtureLicensePath, { recursive: true, force: true });
+    await copyFile(resolve(repositoryRoot, 'LICENSE'), fixtureLicensePath);
     const before = await collectFoundationPilotObservation(temporaryRoot, 'minor-before');
     assert.ok(before.observation.scope.fixtures.includes(changesetPath));
     const beforeLeaf = before.observation.inventory.inputs.find(input => input.path === changesetPath);
@@ -319,6 +305,8 @@ void test('fixed pilot closure rejects a real minor-to-patch changeset mutation'
       independentlyExecutable: true,
     });
     assert.equal(await readOptionalText(sourceLicensePath), sourceLicenseBefore);
+
+    await assertCollectorReplacementRejection(temporaryRoot, fixtureLicensePath);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }
@@ -352,7 +340,7 @@ void test('Linux-only pilot rejects unsupported platforms before collection or F
           '--head', '7'.repeat(40),
           '--base', '8'.repeat(40),
           '--merge', 'refs/heads/TEST-ci-input-proof-platform',
-        ], { cwd: temporaryRoot }),
+        ], { ...boundedProcess, cwd: temporaryRoot, encoding: 'utf8' }),
         (error: unknown) => {
           const childError = error as NodeJS.ErrnoException & { stdout: string; stderr: string };
           assert.equal(childError.code, 1);
@@ -505,7 +493,7 @@ void test('collector and comparator import failure still execute independent FUL
         '--head', '3'.repeat(40),
         '--base', '4'.repeat(40),
         '--merge', 'refs/heads/TEST-ci-input-proof-import-failure',
-      ], { cwd: temporaryRoot });
+      ], { ...boundedProcess, cwd: temporaryRoot, encoding: 'utf8' });
       const result = JSON.parse(child.stdout) as { collectionIssues: readonly string[]; adapter: { exitCode: number; report: { candidateOmitObservation: { status: string }; execution: { status: string }; selection: { decision: string } } } };
       assert.match(result.collectionIssues.join(','), /(?:^|,)before:/u);
       assert.ok(result.collectionIssues.includes('comparator:import-unavailable'));

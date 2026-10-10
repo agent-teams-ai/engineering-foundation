@@ -45,14 +45,18 @@ export async function fixture(body: (subject: {root:string;output:string;tool:Pn
   const toolchain = join(directory,'toolchain');
   await mkdir(join(toolchain,'bin'),{recursive:true});
   const packageRoot = await realpath(process.env['C1_PNPM_PACKAGE_ROOT'] ?? dirname(fileURLToPath(import.meta.resolve('pnpm'))));
-  await cp(await realpath(process.execPath),join(toolchain,'bin/node'));
+  const nodeExecutable = join(toolchain,'bin',process.platform === 'win32' ? 'node.exe' : 'node');
+  await cp(await realpath(process.execPath),nodeExecutable);
+  const nodeVersion = await execute(nodeExecutable,['--version'],{cwd:root});
+  assert.equal(nodeVersion.exitCode,0,nodeVersion.stderr);
+  assert.equal(nodeVersion.stdout.trim(),process.version);
   await cp(packageRoot,join(toolchain,'pnpm'),{recursive:true});
   const compilerPackage = await realpath(fileURLToPath(new URL('../node_modules/typescript',import.meta.url)));
   const nativeName = `typescript-${process.platform}-${process.arch}`;
   await mkdir(join(toolchain,'node_modules/@typescript'),{recursive:true});
   await cp(compilerPackage,join(toolchain,'node_modules/typescript'),{recursive:true});
   await cp(await realpath(join(dirname(compilerPackage),'@typescript',nativeName)),join(toolchain,'node_modules/@typescript',nativeName),{recursive:true});
-  const tool = await toolIdentity(join(toolchain,'pnpm'),join(toolchain,'bin/node'));
+  const tool = await toolIdentity(join(toolchain,'pnpm'),nodeExecutable);
   const compilerPath = join(toolchain,'node_modules/typescript/bin/tsc');
   const scripts = {
     lint:'node lint.mts',

@@ -1019,6 +1019,7 @@ boundaries:
         - node:path
         - node:perf_hooks
         - node:test
+        - node:util
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/node-test-execution/command.ts

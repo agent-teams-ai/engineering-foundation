@@ -249,20 +249,21 @@ void test("real process exit survives reporting while stderr remains private", {
 void test("real producer branches identify launch, timeout and invalid output", { timeout: 15_000 }, async (t) => {
   await t.test("launch failure at the real platform launcher boundary", async () => {
     if (process.platform === "win32") {
-      const environment = { ...process.env };
-      for (const key of Object.keys(environment)) {
-        if (key.toLowerCase() === "systemroot") { delete environment[key]; }
-      }
-      environment.SystemRoot = "relative-system-root";
       const runner = new URL("../packages/engineering-foundation/dist/process-execution/node-process-runner.js", import.meta.url).href;
       const api = new URL("../packages/engineering-foundation/dist/features/validation-reporting/api.js", import.meta.url).href;
       const facts = new URL("../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js", import.meta.url).href;
       // The missing requested command fails inside the Windows host, after launch.
       // Rejecting the trusted launcher's root instead observes a genuine launch failure.
       const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+        import assert from "node:assert/strict";
         import { NodeProcessRunner } from ${JSON.stringify(runner)};
         import { capabilityFailureReport, foundationReport } from ${JSON.stringify(api)};
         import { readProcessFailureFacts } from ${JSON.stringify(facts)};
+        for (const key of Object.keys(process.env)) {
+          if (key.toLowerCase() === "systemroot") { delete process.env[key]; }
+        }
+        process.env.SystemRoot = "relative-system-root";
+        assert.equal(process.env.SystemRoot, "relative-system-root", "launcher SystemRoot precondition");
         try {
           await new NodeProcessRunner().run({ command: process.execPath, args: ["-e", ""], cwd: process.cwd() });
           process.exitCode = 1;
@@ -271,11 +272,14 @@ void test("real producer branches identify launch, timeout and invalid output", 
           const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
           process.stdout.write(JSON.stringify({ capability, aggregate, reason: readProcessFailureFacts(error)?.reason }));
         }
-      `], { env: environment, encoding: "utf8", timeout: 10_000 });
-      assert.equal(child.error, undefined);
-      assert.equal(child.status, 0, child.stderr);
-      assert.equal(child.signal, null);
-      assert.equal(child.stderr, "");
+      `], { encoding: "utf8", timeout: 10_000 });
+      const transport = JSON.stringify({ status: child.status, signal: child.signal,
+        error: child.error && { code: (child.error as NodeJS.ErrnoException).code, message: child.error.message.slice(0, 1024) },
+        stderr: child.stderr?.slice(0, 2048) });
+      assert.equal(child.error, undefined, transport);
+      assert.equal(child.status, 0, transport);
+      assert.equal(child.signal, null, transport);
+      assert.equal(child.stderr, "", transport);
       const result = JSON.parse(child.stdout) as ReturnType<typeof report> & { reason?: unknown };
       assert.equal(result.reason, "launch");
       assertSafeReport(result);

@@ -40,7 +40,8 @@
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs",
         "tests/features/input-comparison/ci-input-proof.test.mts",
-        "tests/features/input-comparison/ci-input-proof-process.test.mts"
+        "tests/features/input-comparison/ci-input-proof-process.test.mts",
+        "tests/command-host-successor-cli.test.mts"
       ]
     },
     {
@@ -147,7 +148,12 @@
         "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
-        "tests/capability-public-api.test.mjs"
+        "tests/capability-public-api.test.mjs",
+        "tests/c1-agent-workflow-coverage.test.mts",
+        "tests/agent-workflow-versioned-capability.test.mts",
+        "tests/c1-agent-workflow-cli.test.mts",
+        "tests/c1-agent-workflow-configuration.test.mts",
+        "tests/c1-agent-workflow-rejection.test.mts"
       ]
     },
     {

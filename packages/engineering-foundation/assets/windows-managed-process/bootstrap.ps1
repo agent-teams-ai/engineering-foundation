@@ -18,7 +18,7 @@ function ConvertTo-ExtendedLengthPath([string]$Path) {
 try {
   $helperSource = [System.IO.File]::ReadAllText(
     (ConvertTo-ExtendedLengthPath (
-      Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))
+      [System.IO.Path]::Combine($PSScriptRoot, "WindowsManagedProcess.cs"))))
   $FailurePhase = "helper-compile"
   Add-Type -TypeDefinition $helperSource -Language CSharp
   $FailurePhase = "bootstrap-request"

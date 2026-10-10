@@ -269,6 +269,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     .toSorted();
   const expectedSchemaFiles = [
     ...vector.schemaFiles,
+    "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/architecture-source-dependencies/v3.schema.json",
     "schemas/foundation-command-error/v1.schema.json",
     "schemas/package-public-api-audit-report/v1.schema.json",

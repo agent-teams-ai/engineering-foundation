@@ -3,7 +3,7 @@
   "source": {
     "runId": 37154414643,
     "headSha": "331e97758fd83e6a0da69a3400b3bfe8aa8d0aee",
-    "strategy": "Static five-lane Windows policy from advisory whole-file Windows timings of successful exact-source CI. The loader remains alone in lane c and canonical shard 3. All other admitted canonical files use longest-processing-time-first assignment across a, b, d, e; ties use canonical manifest traversal order and then lane ID. Original relative order in canonical manifest traversal is retained within each resulting lane. The two existing Linux-only managed suites are omitted under the existing platform authority; all raw-coverage-only files remain excluded. Residual projected serial loads: a=734.082s, b=734.078s, d=734.077s, e=734.077s; the isolated loader projects 651.632s. Unmeasured test(s) receive 0s solely for balancing: tests/pack-stage-materialization.test.mts, packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts. The restoration lock input suite is assigned to lane d. These advisory projections exclude setup, queue, cache effects and unobserved runtime variance and are not execution or qualification proof; final exact-head CI qualifies actual behavior. A new admitted canonical file requires an explicit policy assignment before Windows dispatch. The private full-PR-CI request regression suite is explicitly assigned to light lane b without a measured timing. The focused CI Input Proof successor policy suite (canonical index 13) precedes the pure CI input comparator suite (canonical index 30); both are explicitly assigned to lane b and no measured Windows timing is claimed."
+    "strategy": "Static five-lane Windows policy from advisory whole-file Windows timings of successful exact-source CI. The loader remains alone in lane c and canonical shard 3. All other admitted canonical files use longest-processing-time-first assignment across a, b, d, e; ties use canonical manifest traversal order and then lane ID. Original relative order in canonical manifest traversal is retained within each resulting lane. The two existing Linux-only managed suites are omitted under the existing platform authority; all raw-coverage-only files remain excluded. Residual projected serial loads: a=734.082s, b=734.078s, d=734.077s, e=734.077s; the isolated loader projects 651.632s. Unmeasured test(s) receive 0s solely for balancing: tests/pack-stage-materialization.test.mts, packages/docs-protocol-agent-teams/tests/restoration-lock-inputs.test.mts. The restoration lock input suite is assigned to lane d. These advisory projections exclude setup, queue, cache effects and unobserved runtime variance and are not execution or qualification proof; final exact-head CI qualifies actual behavior. A new admitted canonical file requires an explicit policy assignment before Windows dispatch. The private full-PR-CI request regression suite is explicitly assigned to light lane b without a measured timing. The focused CI Input Proof successor policy suite (canonical index 13) precedes the pure CI input comparator suite (canonical index 30); both are explicitly assigned to lane b and no measured Windows timing is claimed. C1 successor workflow and assembled command/capability suites are explicitly assigned across a, b, d, e without measured Windows timing; existing assignments and loader isolation are preserved. These assignments request execution and do not claim Windows qualification."
   },
   "lanes": {
     "a": [
@@ -13,6 +13,7 @@
       "packages/engineering-foundation/tests/public-api-artifact-inventory.test.mjs",
       "tests/coverage-evidence.test.mjs",
       "tests/scaffolding-owned-cleanup-residue.test.mjs",
+      "tests/command-host-successor-cli.test.mts",
       "tests/documentation-filesystem-reliability.test.mjs",
       "tests/document-command-cancellation.test.mjs",
       "tests/scaffolding-schema-boundary.test.mjs",
@@ -35,6 +36,7 @@
       "tests/repository-security-hardening.test.mjs",
       "tests/source-dependency-development-mode.test.mjs",
       "tests/scorecard-workflow.test.mjs",
+      "tests/c1-agent-workflow-coverage.test.mts",
       "tests/release-workflow.test.mjs",
       "tests/ci-input-proof-rc.test.mts",
       "tests/scaffolding-journal-store.test.mjs",
@@ -94,6 +96,8 @@
       "tests/document-authoring-application-spine.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
       "tests/capability-public-api.test.mjs",
+      "tests/agent-workflow-versioned-capability.test.mts",
+      "tests/c1-agent-workflow-rejection.test.mts",
       "tests/capability-reporting-architecture.test.mjs",
       "tests/known-file-transaction-characterization.test.mjs",
       "tests/npm-package-bootstrap-workflow.test.mjs",
@@ -167,6 +171,7 @@
       "tests/document-authoring-writer-concurrency.test.mjs",
       "tests/windows-managed-process-nested.test.mjs",
       "tests/executable-specifications.test.mjs",
+      "tests/c1-agent-workflow-cli.test.mts",
       "tests/local-mode-boundaries-graph.test.mts",
       "tests/docs-protocol-current-policy.test.mjs",
       "packages/engineering-foundation/tests/source-dependency-aliases.test.mjs",
@@ -192,7 +197,7 @@
       "packages/docs-protocol-agent-teams/tests/restoration-lock.test.mts",
       "tests/contract-protobuf-qualification.test.mjs",
       "tests/test-manifests-typescript.test.mts",
-        "tests/engineering-quality-standard.test.mts",
+      "tests/engineering-quality-standard.test.mts",
       "tests/source-dependency-v3-observation.test.mjs",
       "tests/source-dependency-workspace-discovery.test.mjs",
       "tests/document-authoring-package-boundary.test.mjs",
@@ -236,6 +241,7 @@
       "tests/document-authoring-contracts.test.mjs",
       "tests/document-authoring-recovery-classifier.test.mjs",
       "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
+      "tests/c1-agent-workflow-configuration.test.mts",
       "packages/repository-mutation/tests/public-api-contract.test.mjs",
       "tests/repository-mutation-qualification-api.test.mjs",
       "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",

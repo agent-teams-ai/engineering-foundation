@@ -449,6 +449,14 @@ test("central cleanup bounds owned roles and preserves roots when containment fa
     },
   );
   assert.equal(await readFile(marker, "utf8"), "fixture");
+  const primaryFailure = new Error("original fixture failure");
+  for (const [message, cleanupOptions] of [["secondary containment failure", { boundaries: [{ stop() { throw new Error("secondary containment failure"); } }] }], ["secondary root cleanup failure", { remove() { throw new Error("secondary root cleanup failure"); } }]]) {
+    await assert.rejects(cleanupSyntheticFixture({ ...cleanupOptions, primaryFailures: [primaryFailure], roots: [root] }), (error) => {
+      assert.equal(error instanceof AggregateError, true); assert.equal(error.errors[0], primaryFailure); assert.equal(error.errors.length, 2);
+      assert.match(errorEvidence(error), new RegExp(message, "u")); return true;
+    });
+    assert.equal(await readFile(marker, "utf8"), "fixture");
+  }
   await removeFixtureRoot(root);
 });
 
@@ -749,6 +757,27 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
         },
       ] : [
         {
+          name: "explicit native entrypoint takes precedence over a shadow PATH entrypoint",
+          async prepare(marker) {
+            const entrypoint = join(root, "native pnpm with spaces");
+            const pathRoot = join(root, "shadow-path");
+            const shadowEntrypoint = join(root, "shadow-pnpm.cjs");
+            await copyFile(process.execPath, entrypoint);
+            await mkdir(pathRoot, { recursive: true });
+            await writeFile(shadowEntrypoint,
+              `require("node:fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify(["shadow"]));\n`,
+              "utf8");
+            await symlink(shadowEntrypoint, join(pathRoot, "pnpm"));
+            await writeFile(join(root, "run"),
+              `require("node:fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify(process.argv.slice(2)));\n`,
+              "utf8");
+            return {
+              environment: { npmExecPath: entrypoint, pathValue: pathRoot },
+              expected: ["probe"],
+            };
+          },
+        },
+        {
           name: "PATH JavaScript entrypoint",
           async prepare(marker) {
             const pathRoot = join(root, "posix-path");
@@ -781,6 +810,24 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
       });
       assert.equal(result.exitCode, 0, `${candidate.name}: ${JSON.stringify(result)}`);
       assert.deepEqual(JSON.parse(await readFile(marker, "utf8")), expected, candidate.name);
+    }
+    if (process.platform !== "win32") {
+      for (const npmExecPath of [join(root, "missing-native-pnpm"), root]) {
+        let invoked = false;
+        const executor = new PnpmQualityGateScriptExecutor({
+          npmExecPath,
+          childEnvironment: {},
+          pathValue: join(root, "shadow-path"),
+        }, {
+          async run() {
+            invoked = true;
+            assert.fail("Invalid explicit native entrypoint must not invoke a fallback.");
+          },
+        });
+        await assert.rejects(executor.run({ consumerRoot: root, scriptId: "probe" }),
+          (error) => error.code === "PROCESS_FAILED");
+        assert.equal(invoked, false);
+      }
     }
   } finally {
     await cleanupSyntheticFixture({ roots: [root] });

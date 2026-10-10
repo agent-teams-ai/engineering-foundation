@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { createHash } from "node:crypto";
 import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
@@ -270,7 +271,7 @@ async function writeNewFileExclusive(path, contents) {
 }
 
 windowsTest(
-  "PowerShell bootstrap compiles its helper outside the deep installed asset path",
+  "PowerShell bootstrap compiles its helper outside the deep installed asset path without filesystem cmdlets",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));
@@ -298,25 +299,43 @@ windowsTest(
           helperPath
         )
       ]);
+      const actualBootstrap = (await readFile(bootstrapPath, "utf8")).replaceAll("\r\n", "\n");
+      assert.equal(createHash("sha256").update(actualBootstrap).digest("hex"),
+        "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7");
+      const legacyBootstrap = actualBootstrap.replace(
+        '[System.IO.Path]::Combine($PSScriptRoot, "WindowsManagedProcess.cs"))))',
+        'Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))');
+      assert.equal(createHash("sha256").update(legacyBootstrap).digest("hex"),
+        "f928d6f79d7aeddcb855fd1dada7e36291f5bed971383d19fd1d948153b108f6");
       const systemRoot = Object.entries(process.env).find(
         ([name]) => name.toLowerCase() === "systemroot"
       )?.[1];
       assert.equal(typeof systemRoot, "string");
-      const child = spawn(
-        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
-        { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
-      );
-      let stderr = "";
-      child.stderr.setEncoding("utf8");
-      child.stderr.on("data", (chunk) => { stderr += chunk; });
-      const closed = once(child, "close");
-      child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
-      const [exitCode] = await once(child, "exit");
-      await closed;
-      assert.equal(exitCode, 1);
-      assert.match(stderr, /\[phase=bootstrap-request\]/u);
-      assert.doesNotMatch(stderr, /\[phase=helper-(?:source-read|compile)\]/u);
+      async function rejectSchemaWithBlockedFilesystemCmdlet(source) {
+        // Same fixed installed asset and real C# helper, with only a TEST cmdlet trap.
+        await writeFile(bootstrapPath,
+          'function Join-Path { throw "TEST helper lookup must not invoke Join-Path." }\n' + source);
+        const child = spawn(
+          join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+          ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
+          { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
+        );
+        let stderr = "";
+        child.stderr.setEncoding("utf8");
+        child.stderr.on("data", (chunk) => { stderr += chunk; });
+        const closed = once(child, "close");
+        child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
+        const [exitCode] = await once(child, "exit");
+        await closed;
+        assert.equal(exitCode, 1);
+        return stderr;
+      }
+      const rejectedLegacy = await rejectSchemaWithBlockedFilesystemCmdlet(legacyBootstrap);
+      assert.match(rejectedLegacy, /\[phase=helper-source-read\]/u);
+      assert.match(rejectedLegacy, /TEST helper lookup must not invoke Join-Path/u);
+      const acceptedCurrent = await rejectSchemaWithBlockedFilesystemCmdlet(actualBootstrap);
+      assert.match(acceptedCurrent, /\[phase=bootstrap-request\]/u);
+      assert.doesNotMatch(acceptedCurrent, /\[phase=helper-(?:source-read|compile)\]/u);
     } finally {
       await rm(root, { force: true, recursive: true });
     }

@@ -14,13 +14,6 @@ type Entry = { file: string; name: string; kind: "suite" | "test"; id: number; p
 const platforms = new Set(["darwin", "linux", "win32"]);
 const identityKey = (file: string, names: readonly string[]): string => JSON.stringify([file, names]);
 function fail(message: string): never { throw new Error(`Node test execution contract: ${message}`); }
-function failureDetails(error: unknown): string {
-  const formatted = inspect(error, {
-    breakLength: 100, colors: false, depth: 8, getters: false,
-    maxArrayLength: 20, maxStringLength: 4096, showHidden: false,
-  });
-  return formatted.length <= 16_384 ? formatted : `${formatted.slice(0, 16_384)}\n[Node test failure details truncated]`;
-}
 function fileSnapshot(stat: { dev: bigint; ino: bigint; mode: bigint; size: bigint; mtimeNs: bigint; ctimeNs: bigint }): string {
   return [stat.dev, stat.ino, stat.mode, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
 }
@@ -333,6 +326,19 @@ export function assertSupportedNodeTestRuntime(version = process.versions.node):
   }
 }
 
+const FAILURE_DIAGNOSTIC_BYTES = 16 * 1024;
+function writeFailureDiagnostic(output: NodeJS.WritableStream, error: unknown): void {
+  const diagnostic = Buffer.from(inspect(error, {
+    breakLength: 100, colors: false, customInspect: false, depth: 8, getters: false,
+    maxArrayLength: 20, maxStringLength: 4096, showHidden: false,
+  }));
+  let end = Math.min(diagnostic.byteLength, FAILURE_DIAGNOSTIC_BYTES);
+  while (end > 0 && end < diagnostic.byteLength && ((diagnostic[end] ?? 0) & 0xc0) === 0x80) { end -= 1; }
+  output.write(diagnostic.subarray(0, end));
+  output.write(diagnostic.byteLength > FAILURE_DIAGNOSTIC_BYTES
+    ? "\n[Failure diagnostic truncated at 16384 bytes]\n" : "\n");
+}
+
 export async function runNodeTestExecution({ root = process.cwd(), files, contractPath, runOptions = {}, output = process.stdout }:
   { root?: string; files: string[]; contractPath: string; runOptions?: NonNullable<Parameters<typeof run>[0]>;
     output?: NodeJS.WritableStream }): Promise<{ protectedCount: number; observedCount: number; selectedFileCount: number }> {
@@ -356,8 +362,9 @@ export async function runNodeTestExecution({ root = process.cwd(), files, contra
     const observed = event as Event;
     events.push(observed);
     if (observed.type === "test:fail") {
+      output.write(`FAIL ${String(observed.data?.name)}\n`);
       const details = observed.data?.details;
-      output.write(`FAIL ${String(observed.data?.name)}\n${failureDetails(record(details) ? details.error : undefined)}\n`);
+      if (record(details) && Object.hasOwn(details, "error")) { writeFailureDiagnostic(output, details.error); }
     }
   }
   const result = evaluateNodeTestEvents(events, contract, selected);

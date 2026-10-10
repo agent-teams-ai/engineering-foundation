@@ -1,4 +1,4 @@
-schemaVersion: 1
+schemaVersion: 2
 instructions:
   canonical: AGENTS.md
   claude: CLAUDE.md
@@ -8,30 +8,16 @@ scripts:
   changed: check:changed
   fast: check:fast
   full: check
-changedChecks:
-  - id: standards-pin
-    script: standards:check
-    extensions: [.md, .json, .mts]
-    passPaths: false
-  - id: lint-fast
-    script: lint:fast:files
-    extensions: [.js, .jsx, .mjs, .cjs, .ts, .tsx, .mts, .cts]
-  - id: lint-typed
-    script: lint:typed:files
-    extensions: [.ts, .tsx, .mts, .cts]
-  - id: typecheck
-    script: typecheck
-    extensions: [.ts, .tsx, .mts, .cts]
-    passPaths: false
-fullScanPaths:
-  - .github/workflows
-  - .oxlintrc.json
-  - .oxlintrc.type-aware.json
-  - architecture/contracts
-  - architecture/foundation
-  - knip.json
-  - nx.json
-  - pnpm-lock.yaml
-  - pnpm-workspace.yaml
-  - sgconfig.yml
-  - tsconfig.json
+scopes:
+  - id: repository
+    roots: ['*']
+    requiredFacets: [lint, typecheck, tests, standards, architecture]
+    checks: [repository]
+checks:
+  - id: repository
+    script: check
+    prerequisites: []
+    supplies: [lint, typecheck, tests, standards, architecture]
+    observation: test-dispatch/v1
+exclusions: []
+escalationCheck: repository

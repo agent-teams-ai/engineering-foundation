@@ -53,6 +53,20 @@ async function nodeEntrypoint(
 async function resolvePnpmInvocation(
   environment: QualityGatePnpmEnvironment
 ): Promise<PnpmInvocation> {
+  if (
+    process.platform !== "win32" &&
+    environment.npmExecPath !== undefined &&
+    isAbsolute(environment.npmExecPath) &&
+    !/\.(?:c|m)?js$/u.test(environment.npmExecPath)
+  ) {
+    const canonical = await realpath(environment.npmExecPath).catch(() => null);
+    if (canonical === null || !await isRegularFile(canonical)) {
+      rejectQualityGateExecutor();
+    }
+    if (!/\.(?:c|m)?js$/u.test(canonical)) {
+      return { command: canonical, argsPrefix: [] };
+    }
+  }
   const homeEntrypoint = environment.pnpmHome === undefined
     ? undefined
     : resolve(environment.pnpmHome, "..", "pnpm", "bin", "pnpm.cjs");

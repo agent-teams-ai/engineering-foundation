@@ -82,7 +82,7 @@ void test('C1 prerequisite and executable configuration substitutions reject',as
     const result=await execute(nested.tool.nodeExecutable,['-e',"process.stdout.write('TEST owned stdout');process.stderr.write('TEST owned stderr');process.exitCode=7"],{cwd:nested.root});
     assert.equal(result.exitCode,7);throw primary;
   }),error=>{
-    assert.ok(error instanceof AggregateError);assert.equal(error.errors[0],primary);
+    assert.ok(error instanceof AggregateError);assert.equal(error.errors[0],primary,JSON.stringify(error.errors.slice(0,4).map(item=>item instanceof Error?{name:item.name,message:item.message.slice(0,512)}:{type:typeof item})));
     assert.ok(error.errors.some(item=>item instanceof Error&&item.message.includes('TEST owned stdout')&&item.message.includes('TEST owned stderr')));return true;
   });
   const check={...tests,prerequisites:['prerequisite']};

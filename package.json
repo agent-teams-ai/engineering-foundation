@@ -98,6 +98,7 @@
     "oxc-parser": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "pnpm": "catalog:",
     "publint": "catalog:",
     "typescript": "catalog:",
     "verdaccio": "catalog:",

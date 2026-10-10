@@ -3,7 +3,7 @@
   "source": {
     "runId": 37154414643,
     "headSha": "331e97758fd83e6a0da69a3400b3bfe8aa8d0aee",
-    "strategy": "Static eight-way partition from all 281 advisory whole-file timings of successful exact-source CI. Longest-first assignment minimizes the maximum normalized Linux raw-coverage (440s) and portable Windows (450s) load; ties use Linux load then shard ID. Loader stays in shard 3, both Linux-only managed suites stay in shard 4; original relative order within each resulting shard is retained. Canonical and raw-only inventories remain separate and complete, test execution stays serial. Projections (~439s Linux; <=448s Windows apart from the isolated loader) exclude setup, queue, cache effects and unobserved runtime variance; final exact-head CI qualifies actual behavior. One new portable materialization regression suite is assigned to shard 5 without a measured timing. The unmeasured restoration lock input suite is assigned to shard 7. The private full-PR-CI request regression suite is explicitly assigned to shard 5 without a measured timing."
+    "strategy": "Static eight-way partition from all 281 advisory whole-file timings of successful exact-source CI. Longest-first assignment minimizes the maximum normalized Linux raw-coverage (440s) and portable Windows (450s) load; ties use Linux load then shard ID. Loader stays in shard 3, both Linux-only managed suites stay in shard 4; original relative order within each resulting shard is retained. Canonical and raw-only inventories remain separate and complete, test execution stays serial. Projections (~439s Linux; <=448s Windows apart from the isolated loader) exclude setup, queue, cache effects and unobserved runtime variance; final exact-head CI qualifies actual behavior. One new portable materialization regression suite is assigned to shard 5 without a measured timing. The unmeasured restoration lock input suite is assigned to shard 7. The private full-PR-CI request regression suite is explicitly assigned to shard 5 without a measured timing. The focused CI Input Proof successor policy suite is explicitly assigned to shard 1 without a measured timing."
   },
   "shards": [
     {
@@ -22,6 +22,7 @@
         "tests/document-catalog-v2-evidence.test.mjs",
         "tests/document-planning-qualification.test.mjs",
         "tests/npm-package-bootstrap-policy.test.mjs",
+        "tests/npm-package-bootstrap-successor-policy.test.mts",
         "tests/executable-specification-topology.test.mjs",
         "tests/property-testing-standard.test.mjs",
         "tests/public-api-growth-metadata-root.test.mjs",
@@ -39,8 +40,7 @@
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs",
         "tests/features/input-comparison/ci-input-proof.test.mts",
-        "tests/command-host-successor-cli.test.mts",
-        "tests/npm-package-bootstrap-successor-policy.test.mts"
+        "tests/command-host-successor-cli.test.mts"
       ]
     },
     {

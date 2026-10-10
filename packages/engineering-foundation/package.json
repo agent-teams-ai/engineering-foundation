@@ -76,6 +76,7 @@
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-suppression-governance/v1.schema.json",
     "schemas/repository-agent-workflow/v1.schema.json",
+    "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/repository-security-baseline/v1.schema.json",
     "schemas/scaffold-authority-evidence/v1.schema.json",
     "schemas/scaffold-intent/v1.schema.json",
@@ -88,8 +89,7 @@
     "assets/windows-managed-process/bootstrap.ps1",
     "assets/windows-managed-process/WindowsManagedProcess.cs",
     "LICENSE",
-    "README.md",
-    "schemas/repository-agent-workflow/v2.schema.json"
+    "README.md"
   ],
   "engines": {
     "node": "^24.18.0 || ^26.0.0",

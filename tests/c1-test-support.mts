@@ -22,13 +22,9 @@ export async function git(root: string, ...args: string[]): Promise<void> {
   const result = await executeManagedProcess({command:'git',args,cwd:root,environment});
   assert.equal(result.exitCode,0,result.stderr);
 }
-export const compiler = fileURLToPath(new URL('../node_modules/typescript/bin/tsc',import.meta.url));
-export async function toolIdentity(selectedPackage?: string, selectedNode?: string): Promise<PnpmToolIdentity> {
-  const npmExecPath = process.env['npm_execpath'];
-  const entry = selectedPackage ?? process.env['C1_PNPM_PACKAGE_ROOT'] ?? (npmExecPath === undefined ? undefined : dirname(dirname(await realpath(npmExecPath))));
-  assert.ok(entry !== undefined && entry.length > 0, 'C1 TEST requires its admitted pinned pnpm package root.');
-  const packageRoot = await realpath(entry);
-  const nodeExecutable = await realpath(selectedNode ?? process.execPath);
+async function toolIdentity(selectedPackage: string, selectedNode: string): Promise<PnpmToolIdentity> {
+  const packageRoot = await realpath(selectedPackage);
+  const nodeExecutable = await realpath(selectedNode);
   return { packageRoot, nodeExecutable, version: '11.20.0', entrypointSha256: sha(await readFile(join(packageRoot,'bin/pnpm.mjs'))), packageJsonSha256: sha(await readFile(join(packageRoot,'package.json'))), packageTreeSha256: await fingerprintPnpmPackage(packageRoot), nodeSha256: sha(await readFile(nodeExecutable)) };
 }
 export function policyInput(checks: readonly CoverageCheck[], requiredFacets: readonly string[] = ['lint','typecheck','tests']) {
@@ -48,9 +44,9 @@ export async function fixture(body: (subject: {root:string;output:string;tool:Pn
   await mkdir(root); await mkdir(output);
   const toolchain = join(directory,'toolchain');
   await mkdir(join(toolchain,'bin'),{recursive:true});
-  const originalTool = await toolIdentity();
-  await cp(originalTool.nodeExecutable,join(toolchain,'bin/node'));
-  await cp(originalTool.packageRoot,join(toolchain,'pnpm'),{recursive:true});
+  const packageRoot = await realpath(process.env['C1_PNPM_PACKAGE_ROOT'] ?? dirname(fileURLToPath(import.meta.resolve('pnpm'))));
+  await cp(await realpath(process.execPath),join(toolchain,'bin/node'));
+  await cp(packageRoot,join(toolchain,'pnpm'),{recursive:true});
   const compilerPackage = await realpath(fileURLToPath(new URL('../node_modules/typescript',import.meta.url)));
   const nativeName = `typescript-${process.platform}-${process.arch}`;
   await mkdir(join(toolchain,'node_modules/@typescript'),{recursive:true});

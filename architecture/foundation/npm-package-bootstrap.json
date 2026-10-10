@@ -376,6 +376,17 @@
       "approval": {
         "archiveIntegrity": "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",
         "packageTree": "7f534b4e0323045535fd9024d70e7e1d2ac63b3c"
+      },
+      "releasePredecessor": {
+        "name": "@agent-teams/ci-input-proof",
+        "archiveIntegrity": "sha512-aiOC4nvGRfG6CkLKRG2utkqFAOJNtPojZZYLqmmG5OzhZYKqQCh6T2OOMNqA5vlbccWWEXxismMXE6QDl0vo7w==",
+        "provenance": {
+          "ref": "refs/heads/main",
+          "repository": "https://github.com/agent-teams-ai/engineering-foundation",
+          "sourceCommit": "598c248b56d134a9fd1dcd86417a2c93538ef65d",
+          "workflowPath": ".github/workflows/ci-input-proof-rc.yml"
+        },
+        "version": "0.1.0-rc.0"
       }
     }
   ]

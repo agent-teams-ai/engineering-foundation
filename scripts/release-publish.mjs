@@ -11,6 +11,7 @@ import {
 import { changesetsPublishArguments, releasePublishInvocation } from "./release-publish-command.mjs";
 import {
   NPM_PACKAGE_BOOTSTRAP,
+  assertBootstrapRegistryVersionHistory,
   assertBootstrapReleasePolicy,
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
@@ -375,10 +376,12 @@ export async function registryVersionExists(packageInfo, fetchImplementation = f
 async function verifyPublishRegistryState(
   state,
   bootstrapCatalog = NPM_PACKAGE_BOOTSTRAP,
+  { registryMetadata = registryPackageMetadata } = {},
 ) {
   const registryState = [];
   for (const packageInfo of state.packages.public) {
-    const metadata = await registryPackageMetadata(packageInfo);
+    const metadata = await registryMetadata(packageInfo);
+    const bootstrapProfile = bootstrapCatalog.packages.find((entry) => entry.name === packageInfo.name) ?? packageInfo;
     registryState.push({
       distTags: metadata.distTags,
       exists: metadata.exists,
@@ -396,7 +399,7 @@ async function verifyPublishRegistryState(
     if (targetRc !== undefined && (!metadata.exists || metadata.versions.length === 0)) {
       throw new Error(`Prerelease for ${packageInfo.name} requires stable registry history.`);
     }
-    const parsedVersions = metadata.versions.map((version) => ({
+    const parsedVersions = assertBootstrapRegistryVersionHistory(bootstrapProfile, metadata.versions).map((version) => ({
       parsed: parsePublishedVersion(version),
       version,
     }));
@@ -440,8 +443,9 @@ export async function main({
   cwd = process.cwd(),
   inspectReleaseState = releaseState,
   publishOrdered = publishOrderedRelease,
+  registryMetadata = registryPackageMetadata,
   verifyBootstrapBaselines = verifyReleaseBootstrapBaselines,
-  verifyRegistry = (state) => verifyPublishRegistryState(state, bootstrapCatalog),
+  verifyRegistry = (state) => verifyPublishRegistryState(state, bootstrapCatalog, { registryMetadata }),
 } = {}) {
   const initialState = await inspectReleaseState(cwd);
   const decision = releasePublishDecision(initialState);
@@ -461,7 +465,7 @@ export async function main({
     process.stdout.write("Fresh Changesets prerelease state has no releases; publish skipped.\n");
     return;
   }
-  await verifyBootstrapBaselines();
+  await verifyBootstrapBaselines({ releaseState: initialState });
   const initialRegistryState = await verifyRegistry(initialState);
   const verifiedState = await inspectReleaseState(cwd);
   if (JSON.stringify(verifiedState) !== JSON.stringify(initialState)) {

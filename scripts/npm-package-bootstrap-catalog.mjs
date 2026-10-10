@@ -30,6 +30,19 @@ const DEPENDENCY_KEYS = ["name", "specifier", "version"];
 const PROVENANCE_KEYS = ["ref", "workflowPath"];
 const APPROVAL_KEYS = ["archiveIntegrity", "packageTree"];
 const TAG_POLICY_KEYS = ["allowed", "required"];
+const RELEASE_PREDECESSOR_REQUIRED_KEYS = ["archiveIntegrity", "name", "provenance", "version"];
+const RELEASE_PREDECESSOR_PROVENANCE_REQUIRED_KEYS = ["ref", "repository", "sourceCommit", "workflowPath"];
+const CI_INPUT_PROOF_PREDECESSOR = Object.freeze({
+  archiveIntegrity: "sha512-aiOC4nvGRfG6CkLKRG2utkqFAOJNtPojZZYLqmmG5OzhZYKqQCh6T2OOMNqA5vlbccWWEXxismMXE6QDl0vo7w==",
+  name: "@agent-teams/ci-input-proof",
+  provenance: Object.freeze({
+    ref: "refs/heads/main",
+    repository: "https://github.com/agent-teams-ai/engineering-foundation",
+    sourceCommit: "598c248b56d134a9fd1dcd86417a2c93538ef65d",
+    workflowPath: ".github/workflows/ci-input-proof-rc.yml",
+  }),
+  version: "0.1.0-rc.0",
+});
 
 export function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -124,6 +137,32 @@ function parseApproval(value, state, label) {
   });
 }
 
+function parseReleasePredecessor(value, label) {
+  if (value === null) {
+    return null;
+  }
+  exactKeys(value, RELEASE_PREDECESSOR_REQUIRED_KEYS, label);
+  exactKeys(value.provenance, RELEASE_PREDECESSOR_PROVENANCE_REQUIRED_KEYS, `${label}.provenance`);
+  if (
+    value.archiveIntegrity !== CI_INPUT_PROOF_PREDECESSOR.archiveIntegrity ||
+    value.name !== CI_INPUT_PROOF_PREDECESSOR.name ||
+    value.provenance.ref !== CI_INPUT_PROOF_PREDECESSOR.provenance.ref ||
+    value.provenance.repository !== CI_INPUT_PROOF_PREDECESSOR.provenance.repository ||
+    value.provenance.sourceCommit !== CI_INPUT_PROOF_PREDECESSOR.provenance.sourceCommit ||
+    value.provenance.workflowPath !== CI_INPUT_PROOF_PREDECESSOR.provenance.workflowPath ||
+    value.version !== CI_INPUT_PROOF_PREDECESSOR.version
+  ) {
+    fail(`${label} must identify the exact reviewed CI Input Proof predecessor.`);
+  }
+  canonicalIntegrity(value.archiveIntegrity, `${label}.archiveIntegrity`);
+  return Object.freeze({
+    archiveIntegrity: value.archiveIntegrity,
+    name: value.name,
+    provenance: Object.freeze({ ...value.provenance }),
+    version: value.version,
+  });
+}
+
 function parseTagPolicy(value, label) {
   exactKeys(value, TAG_POLICY_KEYS, label);
   for (const key of TAG_POLICY_KEYS) {
@@ -141,7 +180,10 @@ function parseTagPolicy(value, label) {
 
 function parsePackage(value, index) {
   const label = `packages[${index}]`;
-  exactKeys(value, PACKAGE_KEYS, label);
+  const expectedKeys = isRecord(value) && Object.hasOwn(value, "releasePredecessor")
+    ? [...PACKAGE_KEYS, "releasePredecessor"]
+    : PACKAGE_KEYS;
+  exactKeys(value, expectedKeys, label);
   if (!PACKAGE_ID.test(value.id) || !PACKAGE_NAME.test(value.name)) {
     fail(`${label} has an invalid package ID or npm package name.`);
   }
@@ -164,6 +206,18 @@ function parsePackage(value, index) {
   if (!Array.isArray(value.dependencies) || new Set(value.dependencies.map((entry) => entry?.name)).size !== value.dependencies.length) {
     fail(`${label}.dependencies must contain unique package names.`);
   }
+  const releasePredecessor = parseReleasePredecessor(
+    value.releasePredecessor ?? null,
+    `${label}.releasePredecessor`,
+  );
+  if (
+    releasePredecessor !== null &&
+    (value.id !== "ci-input-proof" ||
+      releasePredecessor.name !== value.name ||
+      releasePredecessor.version !== "0.1.0-rc.0")
+  ) {
+    fail(`${label}.releasePredecessor is reserved for the exact CI Input Proof RC.`);
+  }
   return Object.freeze({
     approval: parseApproval(value.approval, value.state, `${label}.approval`),
     bootstrapVersion: value.bootstrapVersion,
@@ -175,6 +229,7 @@ function parsePackage(value, index) {
     manifestPath: value.manifestPath,
     name: value.name,
     provenance: Object.freeze({ ...value.provenance }),
+    releasePredecessor,
     root: value.root,
     state: value.state,
     tags: parseTagPolicy(value.tags, `${label}.tags`),

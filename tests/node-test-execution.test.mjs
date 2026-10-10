@@ -223,6 +223,34 @@ test('actual Node expected assertion failure cannot satisfy a required identity'
   assert.equal(ordinaryPass.status, 0, ordinaryPass.stderr);
 }));
 
+test('actual Node assertion failures print their real diagnostic details', async () => fixture(async (root) => {
+  const required = [identity(testFile, ['diagnostic outer marker', 'diagnostic child marker'])];
+  const source = `import assert from 'node:assert/strict';
+import test from 'node:test';
+test('diagnostic outer marker', async (t) => {
+  await t.test('diagnostic child marker', () => {
+    assert.equal('actual-diagnostic-value', 'expected-diagnostic-value');
+  });
+});`;
+  const result = await runFixture(root, source, required);
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /Node test execution contract: failed test execution:/u);
+  const lines = result.stdout.split('\n');
+  const header = lines.indexOf('FAIL diagnostic child marker');
+  assert.ok(header >= 0, result.stdout);
+  // The diagnostic is one JSON record: the AssertionError must be reached through the cause chain.
+  const top = JSON.parse(lines[header + 1]);
+  let level = top;
+  for (let depth = 0; depth < 3 && level?.name !== 'AssertionError'; depth++) { level = level?.cause; }
+  assert.equal(level?.name, 'AssertionError', lines[header + 1]);
+  assert.notEqual(level, top, 'AssertionError must be nested as a cause of the test failure');
+  assert.equal(level.code, 'ERR_ASSERTION');
+  assert.equal(level.operator, 'strictEqual');
+  assert.equal(level.actual, 'actual-diagnostic-value');
+  assert.equal(level.expected, 'expected-diagnostic-value');
+  assert.match(level.location[0], /cases\.test\.mjs:5:12/u);
+}));
+
 test('actual Node run evidence rejects skip, filtered omission and conditional omission', async () => fixture(async (root) => {
   const required = [identity(testFile, ['parent', 'child'])];
   const skipped = await runFixture(root, "import test from 'node:test'; test('parent', async t => { await t.test('child', { skip: true }, () => {}); });", required);

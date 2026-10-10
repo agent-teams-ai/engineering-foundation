@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir as makeDirectory, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { watch } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -144,7 +144,8 @@ void test('C1 qualified runner rejects nested output roots before command execut
 
 // RED: a real output ancestor replacement makes transport cleanup reject
 // after the child completed. That failure must not erase execution history.
-void test('C1 output cleanup failure retains completed command history',async()=>fixture(async subject=>{
+void test('C1 output cleanup failure retains completed command history',async()=>{
+await fixture(async subject=>{
   const moved=`${subject.output}-moved`;
   await writeFile(join(subject.root,'workflow.json'),JSON.stringify(policyInput([lint],['lint'])));
   await writeFile(join(subject.root,'lint.mts'),`import {writeFileSync} from 'node:fs';writeFileSync(${JSON.stringify(join(subject.output,'completed'))},'actual completed child');\n`);
@@ -159,4 +160,26 @@ void test('C1 output cleanup failure retains completed command history',async()=
   assert.equal(report.outcome,'failed');assert.equal(report.steps.length,1);
   assert.deepEqual(report.steps[0]?.commands.map(command=>[command.script,command.exitCode]),[['lint',0]]);
   assert.deepEqual(report.steps[0]?.qualifiedFacets,[]);assert.ok(report.coverage.every(row=>row.state==='uncovered'));
-}));
+  assert.equal(await readFile(subject.output,'utf8'),'TEST replaced output ancestor');
+  assert.ok((await readdir(moved)).some(name=>name.startsWith('check-observation-')));
+});
+await fixture(async subject=>{
+  await writeFile(join(subject.root,'workflow.json'),JSON.stringify(policyInput([lint],['lint'])));
+  subject.files['workflow.json']=sha(await readFile(join(subject.root,'workflow.json')));
+  let replaced='';
+  const runner=subject.runner(undefined,subject.tool,async(command,args,options)=>{
+    const result=await execute(command,args,options);
+    if(args.includes('run')) {
+      const name=(await readdir(subject.output)).find(entry=>entry.startsWith('check-observation-'));
+      assert.ok(name);replaced=join(subject.output,name);
+      await rename(replaced,`${replaced}-moved`);await makeDirectory(replaced);
+      await writeFile(join(replaced,'unowned'),'TEST replacement must survive');
+    }
+    return result;
+  });
+  const report=await runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody:(await subject.freeze()).custody,runner,loadPolicy:subject.loadPolicy});
+  assert.equal(report.outcome,'failed');assert.deepEqual(report.steps[0]?.commands.map(command=>[command.script,command.exitCode]),[['lint',0]]);
+  assert.deepEqual(report.steps[0]?.qualifiedFacets,[]);assert.ok(report.coverage.every(row=>row.state==='uncovered'));
+  assert.equal(await readFile(join(replaced,'unowned'),'utf8'),'TEST replacement must survive');
+});
+});

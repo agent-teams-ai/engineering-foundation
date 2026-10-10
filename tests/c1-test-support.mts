@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +13,37 @@ import type { CoverageCheck } from '../packages/engineering-foundation/dist/capa
 
 export const testRunnerIdentity = `node-test/${process.versions.node}`;
 export const sha = (bytes: string | Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
-export const execute = async (command: string, args: readonly string[], options: { cwd: string; signal?: AbortSignal; strictUtf8?: boolean }) => executeManagedProcess({ command, args, ...options, timeoutMs: 30_000, environment: { HOME: process.env['C1_TEST_SCRATCH'], XDG_CACHE_HOME: process.env['C1_TEST_SCRATCH'], XDG_DATA_HOME: process.env['C1_TEST_SCRATCH'], XDG_CONFIG_HOME: process.env['C1_TEST_SCRATCH'], PATH: process.env['PATH'], TMPDIR: process.env['C1_TEST_SCRATCH'] ?? process.env['TMPDIR'], CI: 'true' } });
+const failedCommands = new AsyncLocalStorage<Error[]>();
+function diagnosticText(value: string, maximum = 2048): string {
+  const bytes=Buffer.from(value);let end=Math.min(bytes.length,maximum);
+  while(end<bytes.length&&end>0&&(bytes[end]!&0xc0)===0x80){end--;}
+  return bytes.subarray(0,end).toString('utf8');
+}
+export const execute = async (command: string, args: readonly string[], options: { cwd: string; signal?: AbortSignal; strictUtf8?: boolean }) => {
+  const record=(detail:unknown)=>{const trace=failedCommands.getStore();if(trace!==undefined){trace.push(new Error(`TEST owned command: ${diagnosticText(JSON.stringify({command,args,cwd:options.cwd,detail}),6000)}`));if(trace.length>4){trace.shift();}}};
+  try {
+    const result=await executeManagedProcess({ command, args, ...options, timeoutMs: 30_000, environment: { HOME: process.env['C1_TEST_SCRATCH'], XDG_CACHE_HOME: process.env['C1_TEST_SCRATCH'], XDG_DATA_HOME: process.env['C1_TEST_SCRATCH'], XDG_CONFIG_HOME: process.env['C1_TEST_SCRATCH'], PATH: process.env['PATH'], TMPDIR: process.env['C1_TEST_SCRATCH'] ?? process.env['TMPDIR'], CI: 'true' } });
+    if(result.exitCode!==0){record({exitCode:result.exitCode,stdout:diagnosticText(result.stdout),stderr:diagnosticText(result.stderr)});}
+    return result;
+  } catch(error) {record(error instanceof Error?{name:error.name,message:error.message}:String(error));throw error;}
+};
+const cliObserverSource = "import { spawn } from 'node:child_process';\nimport { writeFileSync } from 'node:fs';\nimport { StringDecoder } from 'node:string_decoder';\n\nconst [record, cli, ...args] = process.argv.slice(2);\nif (record === undefined || cli === undefined) { throw new Error('TEST CLI observer requires its owned record and real CLI.'); }\nconst recordPath:string=record;\nlet stdout = \"\", stderr = \"\";\nconst stdoutDecoder=new StringDecoder(\"utf8\"),stderrDecoder=new StringDecoder(\"utf8\");\nfunction text(value: string): string {\n  const bytes=Buffer.from(value);\n  let end = Math.min(bytes.length, 8192);\n  while (end < bytes.length && end > 0 && (bytes[end]! & 0xc0) === 0x80) { end--; }\n  return bytes.subarray(0,end).toString('utf8');\n}\nfunction snapshot(event: string, detail: unknown = null): void {\n  writeFileSync(recordPath,JSON.stringify({event,detail,node:process.execPath,cli,args,cwd:process.cwd(),stdout:text(stdout),stderr:text(stderr)}));\n}\nsnapshot('before-spawn');\n// Spawn exactly once; inherit the existing managed group/Job Object and exact\n// environment. The observer never creates a detached process or another lease.\nconst child = spawn(process.execPath,[cli,...args],{cwd:process.cwd(),env:process.env,stdio:['ignore','pipe','pipe']});\nsnapshot('spawned',{pid:child.pid});\nchild.stdout.on('data',(chunk:Buffer)=>{ stdout=text(stdout+stdoutDecoder.write(chunk));snapshot('stdout');process.stdout.write(chunk); });\nchild.stderr.on('data',(chunk:Buffer)=>{ stderr=text(stderr+stderrDecoder.write(chunk));snapshot('stderr');process.stderr.write(chunk); });\nchild.on('error',(error:Error)=>{snapshot('spawn-error',{name:error.name,message:error.message,stack:error.stack});throw error;});\nchild.on('close',(code:number|null,signal:NodeJS.Signals|null)=>{\n  snapshot('closed',{code,signal});\n  if(signal!==null) { process.kill(process.pid,signal);return; }\n  process.exitCode=code??1;\n});\n";
+export async function executeCli(cli:string,args:readonly string[],options:{cwd:string}) {
+  const ownedScratch=process.env['C1_TEST_SCRATCH']??process.env['TMPDIR']??process.env['TEMP'];
+  assert.ok(ownedScratch,'TEST CLI observer requires job-owned scratch.');
+  const observerRoot=await realpath(dirname(dirname(options.cwd)));
+  assert.equal(observerRoot,await realpath(ownedScratch),'TEST CLI fixture must belong to its job-owned scratch.');
+  const directory=await mkdtemp(join(observerRoot,'cli-witness-'));
+  const observer=join(directory,'observer.mts'),record=join(directory,'record.json');
+  await writeFile(observer,cliObserverSource);
+  try {return await execute(process.execPath,[observer,record,cli,...args],options);}
+  catch(primary) {
+    let detail='TEST CLI observer produced no record.';
+    try {detail=diagnosticText(await readFile(record,'utf8'),20*1024);} catch {}
+    throw new AggregateError([primary,new Error(`TEST real CLI partial evidence: ${detail}`)],'TEST CLI execution failed; original and bounded child evidence retained.',{cause:primary});
+  }
+}
+
 export async function git(root: string, ...args: string[]): Promise<void> {
   const environment = { PATH: process.env['PATH'], TMPDIR: process.env['C1_TEST_SCRATCH'], GIT_AUTHOR_NAME: 'iliya', GIT_AUTHOR_EMAIL: 'iliyazelenkog@gmail.com', GIT_COMMITTER_NAME: 'iliya', GIT_COMMITTER_EMAIL: 'iliyazelenkog@gmail.com' };
   if (args.includes('commit')) {for (const identity of ['GIT_AUTHOR_IDENT','GIT_COMMITTER_IDENT']) {
@@ -117,6 +148,14 @@ process.exitCode=failed?1:0;\n`);
     const closure:QualifiedScriptClosure={checkId:check.id,scripts,files,supplies:check.supplies,runnerIdentity:check.observation==='test-dispatch/v1'?testRunnerIdentity:null,effects:'read-only-inputs-owned-outputs',effectiveConfig:{enablePrePostScripts:false,verifyDepsBeforeRun:false,managePackageManagerVersions:false}};
     return closure;
   }},executor);
-  try { await body({root,output,tool,scripts,files,freeze,runner,loadPolicy}); }
-  finally { await rm(directory,{recursive:true,force:true}); }
+  const trace:Error[]=[];let primary:unknown,failed=false;
+  try { await failedCommands.run(trace,()=>body({root,output,tool,scripts,files,freeze,runner,loadPolicy})); }
+  catch(error) {
+    failed=true;primary=trace.length===0?error:new AggregateError([error,...trace],'TEST fixture failed; original error and bounded owned command evidence.');
+    try {await writeFile(`${directory}-failure.json`,JSON.stringify(trace.map(item=>item.message)));}
+    catch(recordFailure){primary=new AggregateError([primary,recordFailure],'TEST fixture and diagnostic retention failed.');}
+  }
+  try {await rm(directory,{recursive:true,force:true});}
+  catch(cleanup) {if(failed){throw new AggregateError([primary,cleanup],'TEST fixture and cleanup failed.',{cause:cleanup});}throw cleanup;}
+  if(failed){throw primary;}
 }

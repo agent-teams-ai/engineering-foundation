@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import test from 'node:test';
 import { fixture, git, lint, tests, typecheck, policyInput, sha, execute } from './c1-test-support.mts';
@@ -14,6 +14,7 @@ void test('C1 complete repository facets require real compiler and executed test
   const {custody}=await subject.freeze();
   const report=await runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'}, {custody,runner:subject.runner(),loadPolicy:subject.loadPolicy});
   assert.equal(report.outcome,'passed',JSON.stringify(report));
+  assert.deepEqual((await readdir(subject.output)).filter(name=>name.startsWith('check-observation-')),[]);
   assert.deepEqual(report.coverage.map(row=>[row.facet,row.state]),[['lint','checked'],['tests','checked'],['typecheck','checked']]);
   assert.equal(report.steps.find(step=>step.id==='tests')?.observation?.executed,1);
   assert.equal(report.steps.find(step=>step.id==='typecheck')?.commands[0]?.exitCode,0);
@@ -76,6 +77,14 @@ void test('C1 mutable successful checks remain feedback only',async()=>fixture(a
 // RED: an explicit failing prerequisite could be ignored, or substituted pnpm /
 // effective lifecycle settings could be admitted as a pinned command.
 void test('C1 prerequisite and executable configuration substitutions reject',async()=>fixture(async subject=>{
+  const primary=new Error('TEST original assertion sentinel');
+  await assert.rejects(fixture(async nested=>{
+    const result=await execute(nested.tool.nodeExecutable,['-e',"process.stdout.write('TEST owned stdout');process.stderr.write('TEST owned stderr');process.exitCode=7"],{cwd:nested.root});
+    assert.equal(result.exitCode,7);throw primary;
+  }),error=>{
+    assert.ok(error instanceof AggregateError);assert.equal(error.errors[0],primary);
+    assert.ok(error.errors.some(item=>item instanceof Error&&item.message.includes('TEST owned stdout')&&item.message.includes('TEST owned stderr')));return true;
+  });
   const check={...tests,prerequisites:['prerequisite']};
   await writeFile(join(subject.root,'workflow.json'),JSON.stringify(policyInput([check],['tests'])));
   subject.files['workflow.json']=sha(await readFile(join(subject.root,'workflow.json')));

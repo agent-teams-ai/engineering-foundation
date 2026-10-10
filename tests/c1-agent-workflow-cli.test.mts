@@ -3,7 +3,7 @@ import { access, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { fixture, git, lint, typecheck, policyInput, execute } from './c1-test-support.mts';
+import { fixture, git, lint, typecheck, policyInput, execute, executeCli } from './c1-test-support.mts';
 
 // Point this at the installed candidate's actual dist/cli.js for archive proof.
 // The unintegrated checkpoint must fail these tests, not skip or fake a route.
@@ -12,7 +12,7 @@ async function declare(root:string) {
   await writeFile(join(root,'foundation.config.yaml'),'schemaVersion: 1\nproject:\n  id: c1-disposable-test\ncapabilities:\n  repository.agent-workflow:\n    configPath: workflow.yaml\n');
 }
 async function invoke(root:string,subcommand:string) {
-  return execute(process.execPath,[cli,'agent-workflow',subcommand,'--consumer',root,'--format','json'],{cwd:root});
+  return executeCli(cli,['agent-workflow',subcommand,'--consumer',root,'--format','json'],{cwd:root});
 }
 
 // RED: adding the route can replace historical v1, or rejection can happen

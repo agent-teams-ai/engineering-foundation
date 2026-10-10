@@ -114,6 +114,36 @@ function observedFacets(exitCode: number, cancelled: boolean, closure: Qualified
   if (exitCode !== 0 || cancelled) { return []; }
   return closure.supplies.filter((facet) => facet !== "tests" || observation?.outcome === "passed");
 }
+class OutputTransportFailure extends Error {}
+interface DirectoryIdentity { readonly dev: bigint; readonly ino: bigint; }
+async function directoryIdentity(path: string): Promise<DirectoryIdentity> {
+  try {
+    const metadata = await lstat(path, { bigint: true });
+    if (!metadata.isDirectory() || await realpath(path) !== path) {throw new Error("Output directory is not canonical.");}
+    return { dev: metadata.dev, ino: metadata.ino };
+  } catch (cause) {throw new OutputTransportFailure("Output directory identity is unavailable.", { cause });}
+}
+async function assertDirectoryIdentity(path: string, expected: DirectoryIdentity): Promise<void> {
+  const actual = await directoryIdentity(path);
+  if (actual.dev !== expected.dev || actual.ino !== expected.ino) {throw new OutputTransportFailure("Output directory identity changed.");}
+}
+async function assertOutputTransport(root: string, rootIdentity: DirectoryIdentity, transport: string, transportIdentity: DirectoryIdentity): Promise<void> {
+  await assertDirectoryIdentity(root, rootIdentity);
+  await assertDirectoryIdentity(transport, transportIdentity);
+}
+async function removeOutputTransport(root: string, rootIdentity: DirectoryIdentity, transport: string, transportIdentity: DirectoryIdentity): Promise<void> {
+  // A mismatch leaves cleanup debt with the trusted Host. Never recurse through
+  // a substituted ancestor or transport into content this invocation does not own.
+  await assertOutputTransport(root, rootIdentity, transport, transportIdentity);
+  await rm(transport, { recursive: true, force: true });
+  await assertDirectoryIdentity(root, rootIdentity);
+  try { await lstat(transport); }
+  catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {return;}
+    throw new OutputTransportFailure("Output transport absence is unconfirmed.", { cause: error });
+  }
+  throw new OutputTransportFailure("Output transport remains after cleanup.");
+}
 function outputIsContained(source: string, output: string): boolean {
   const path = relativePath(source, output);
   return path === "" || (!isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`));
@@ -142,7 +172,10 @@ export function createQualifiedPnpmCheckRunner(qualification: PnpmCheckQualifica
       // Output transport is external to the admitted source/input closure.
       const outputRoot = await realpath(qualification.outputRoot);
       if (outputIsContained(lease.executionRoot, outputRoot)) {throw new Error("Observation output must be outside the source closure.");}
+      const rootIdentity = await directoryIdentity(outputRoot);
       const transport = await mkdtemp(join(outputRoot, "check-observation-"));
+      const transportIdentity = await directoryIdentity(transport);
+      await assertDirectoryIdentity(outputRoot, rootIdentity);
       const observationPath = join(transport, "observation.json");
       const start = performance.now();
       let stdout = "", stderr = "", exitCode = 0;
@@ -173,16 +206,17 @@ export function createQualifiedPnpmCheckRunner(qualification: PnpmCheckQualifica
           if (exitCode !== 0 || isCheckCancelled(signal)) {break;}
         }
         await verify(lease, check, closure, signal);
+        await assertOutputTransport(outputRoot, rootIdentity, transport, transportIdentity);
         const observation = await readObservation(observationPath, check, closure, binding);
         const qualifiedFacets = observedFacets(exitCode, isCheckCancelled(signal), closure, observation);
         completed = { binding, commands, exitCode, durationMs: performance.now() - start, cancelled: isCheckCancelled(signal), output: safeOutput(stdout, stderr), observation, qualifiedFacets };
       } catch (error) {
         failure = error; failed = true;
-        failedAdmission = admissionRevoked;
+        failedAdmission = admissionRevoked && !(error instanceof OutputTransportFailure);
       }
       // Settle cleanup before returning, preserving an earlier failure instead
       // of allowing finally to overwrite its revocation or execution trace.
-      try { await rm(transport, { recursive: true, force: true }); }
+      try { await removeOutputTransport(outputRoot, rootIdentity, transport, transportIdentity); }
       catch (error) { if (!failed) { failure = error; failed = true; } }
       if (failed || completed === undefined) {
         if (commands.length === 0) {throw failure;}

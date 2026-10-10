@@ -1,6 +1,7 @@
 import { constants, lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { run } from "node:test";
+import { inspect } from "node:util";
 
 type Identity = { file: string; names: string[]; kind: "suite" | "test" };
 type Exception = Identity & { status: "omitted" | "skipped" | "todo"; reason: string;
@@ -325,6 +326,19 @@ export function assertSupportedNodeTestRuntime(version = process.versions.node):
   }
 }
 
+const FAILURE_DIAGNOSTIC_BYTES = 16 * 1024;
+function writeFailureDiagnostic(output: NodeJS.WritableStream, error: unknown): void {
+  const diagnostic = Buffer.from(inspect(error, {
+    colors: false, customInspect: false, depth: 6, getters: false,
+    maxArrayLength: 20, maxStringLength: 4096,
+  }));
+  let end = Math.min(diagnostic.byteLength, FAILURE_DIAGNOSTIC_BYTES);
+  while (end > 0 && end < diagnostic.byteLength && ((diagnostic[end] ?? 0) & 0xc0) === 0x80) { end -= 1; }
+  output.write(diagnostic.subarray(0, end));
+  output.write(diagnostic.byteLength > FAILURE_DIAGNOSTIC_BYTES
+    ? "\n[Failure diagnostic truncated at 16384 bytes]\n" : "\n");
+}
+
 export async function runNodeTestExecution({ root = process.cwd(), files, contractPath, runOptions = {}, output = process.stdout }:
   { root?: string; files: string[]; contractPath: string; runOptions?: NonNullable<Parameters<typeof run>[0]>;
     output?: NodeJS.WritableStream }): Promise<{ protectedCount: number; observedCount: number; selectedFileCount: number }> {
@@ -347,7 +361,11 @@ export async function runNodeTestExecution({ root = process.cwd(), files, contra
   for await (const event of run({ ...runOptions, cwd: absoluteRoot, files: selected.map((file) => file.absolute), concurrency: 1 })) {
     const observed = event as Event;
     events.push(observed);
-    if (observed.type === "test:fail") { output.write(`FAIL ${String(observed.data?.name)}\n`); }
+    if (observed.type === "test:fail") {
+      output.write(`FAIL ${String(observed.data?.name)}\n`);
+      const details = observed.data?.details;
+      if (record(details) && Object.hasOwn(details, "error")) { writeFailureDiagnostic(output, details.error); }
+    }
   }
   const result = evaluateNodeTestEvents(events, contract, selected);
   output.write(`Mandatory Node tests: ${result.protectedCount} required identities completed or exactly excepted\n`);

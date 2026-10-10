@@ -6,12 +6,15 @@ import {
   mkdir,
   mkdtemp,
   realpath,
+  readFile,
   stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, delimiter, dirname, extname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, extname, isAbsolute, join, resolve } from "node:path";
 import test from "node:test";
+import { inspect } from "node:util";
+import { fileURLToPath } from "node:url";
 
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
 import {
@@ -144,6 +147,28 @@ function installOneUseFixtureAuthority(environment, authority) {
   };
 }
 
+async function normalizeInstalledPnpmEntrypoint(entrypoint, version) {
+  if (process.platform === "win32" || basename(entrypoint) !== "pnpm" || basename(dirname(entrypoint)) !== ".bin") {
+    return entrypoint;
+  }
+  assert.ok((await stat(entrypoint)).size <= 16_384, "Installed pnpm shim exceeds the finite fixture inspection bound.");
+  const targets = [...(await readFile(entrypoint, "utf8")).matchAll(/^# cmd-shim-target=(.+)$/gmu)];
+  assert.equal(targets.length, 1, "Installed pnpm shim must declare exactly one target.");
+  const target = targets[0][1];
+  assert.equal(isAbsolute(target), true, "Installed pnpm shim target must be absolute.");
+  const packagePath = fileURLToPath(import.meta.resolve("pnpm"));
+  const declared = JSON.parse(await readFile(packagePath, "utf8"));
+  assert.equal(declared.version, version, "Installed pnpm shim version must match its declared package.");
+  const bin = typeof declared.bin === "string" ? declared.bin : declared.bin?.pnpm;
+  assert.equal(typeof bin, "string", "Installed pnpm package must declare its pnpm bin.");
+  const expected = await realpath(resolve(dirname(packagePath), bin));
+  const canonical = await realpath(target);
+  assert.equal(canonical, expected, "Installed pnpm shim target must match its declared package bin.");
+  assert.equal(javaScriptEntrypointPattern.test(canonical), true, "Installed pnpm shim target must be JavaScript.");
+  assert.equal((await stat(canonical)).isFile(), true, "Installed pnpm shim target must be a regular file.");
+  return canonical;
+}
+
 async function resolveInstalledPnpm() {
   assert.equal(
     typeof process.env.npm_execpath,
@@ -155,9 +180,10 @@ async function resolveInstalledPnpm() {
   )?.groups?.version;
   assert.notEqual(version, undefined, "Installed pnpm did not report its exact version.");
   assert.notEqual(process.env.npm_execpath, "", "Installed pnpm reported an empty entrypoint.");
-  const entrypoint = basename(process.env.npm_execpath) === process.env.npm_execpath
+  const selected = basename(process.env.npm_execpath) === process.env.npm_execpath
     ? await resolveCommand(process.env.npm_execpath)
     : await realpath(process.env.npm_execpath);
+  const entrypoint = await normalizeInstalledPnpmEntrypoint(selected, version);
   const nodeEntrypoint = javaScriptEntrypointPattern.test(entrypoint);
   assert.equal(
     process.platform === "win32" &&
@@ -357,6 +383,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
   let installedPnpmEntrypoint;
   let marker;
   let setupExecution;
+  let primaryFailures = [];
   try {
     let fixtureStore;
     ({
@@ -442,12 +469,26 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
     assert.deepEqual(report.tasks.map(({ id, outcome }) => [id, outcome]), [
       ["slow", "cancelled"],
     ]);
+  } catch (error) {
+    primaryFailures = [error];
+    process.stderr.write("Controlled QGR cancellation primary failure:\n");
+    const diagnostic = Buffer.from(inspect(error, {
+      colors: false, customInspect: false, depth: 6, getters: false,
+      maxArrayLength: 20, maxStringLength: 4096,
+    }));
+    let end = Math.min(diagnostic.byteLength, 16 * 1024);
+    while (end > 0 && end < diagnostic.byteLength && ((diagnostic[end] ?? 0) & 0xc0) === 0x80) { end -= 1; }
+    process.stderr.write(diagnostic.subarray(0, end));
+    process.stderr.write(diagnostic.byteLength > 16 * 1024
+      ? "\n[Primary failure diagnostic truncated at 16384 bytes]\n" : "\n");
+    throw error;
   } finally {
     try {
       await cleanupSyntheticFixture({
         boundaries: [boundary],
         executions: [setupExecution, execution],
         roots: [root],
+        primaryFailures,
       });
     } finally {
       restoreFixtureAuthority();
@@ -456,7 +497,7 @@ test("controlled QGR cancellation drains the real installed-pnpm process tree", 
   }
 });
 
-test("real-pnpm fixture authority replaces mixed-case ambient entries and restores them exactly", () => {
+test("real-pnpm fixture authority replaces mixed-case ambient entries and restores them exactly", async () => {
   const original = fixtureEnvironmentSnapshot();
   try {
     restoreFixtureEnvironment(process.env, new Map([
@@ -479,4 +520,27 @@ test("real-pnpm fixture authority replaces mixed-case ambient entries and restor
   } finally {
     restoreFixtureEnvironment(process.env, original);
   }
+  if (process.platform !== "win32") {
+    const root = await mkdtemp(join(tmpdir(), "foundation-pnpm-shim-authority-"));
+    const shim = join(root, ".bin", "pnpm");
+    try {
+      await mkdir(dirname(shim));
+      const packagePath = fileURLToPath(import.meta.resolve("pnpm"));
+      const declared = JSON.parse(await readFile(packagePath, "utf8"));
+      const bin = typeof declared.bin === "string" ? declared.bin : declared.bin.pnpm;
+      const target = await realpath(resolve(dirname(packagePath), bin));
+      await writeFile(shim, `#!/bin/sh\n# cmd-shim-target=${target}\n`);
+      assert.equal(await normalizeInstalledPnpmEntrypoint(shim, declared.version), target);
+      await assert.rejects(normalizeInstalledPnpmEntrypoint(shim, "0.0.0"), /version must match/u);
+      await writeFile(shim, `#!/bin/sh\n# cmd-shim-target=${fileURLToPath(import.meta.url)}\n`);
+      await assert.rejects(normalizeInstalledPnpmEntrypoint(shim, declared.version), /target must match/u);
+      await writeFile(shim, "#!/bin/sh\n");
+      await assert.rejects(normalizeInstalledPnpmEntrypoint(shim, declared.version), /exactly one target/u);
+      await writeFile(shim, `# cmd-shim-target=${target}\n# cmd-shim-target=${target}\n`);
+      await assert.rejects(normalizeInstalledPnpmEntrypoint(shim, declared.version), /exactly one target/u);
+    } finally {
+      await cleanupSyntheticFixture({ roots: [root] });
+    }
+  }
+
 });

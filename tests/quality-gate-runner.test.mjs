@@ -449,6 +449,14 @@ test("central cleanup bounds owned roles and preserves roots when containment fa
     },
   );
   assert.equal(await readFile(marker, "utf8"), "fixture");
+  const primaryFailure = new Error("original fixture failure");
+  for (const [message, cleanupOptions] of [["secondary containment failure", { boundaries: [{ stop() { throw new Error("secondary containment failure"); } }] }], ["secondary root cleanup failure", { remove() { throw new Error("secondary root cleanup failure"); } }]]) {
+    await assert.rejects(cleanupSyntheticFixture({ ...cleanupOptions, primaryFailures: [primaryFailure], roots: [root] }), (error) => {
+      assert.equal(error instanceof AggregateError, true); assert.equal(error.errors[0], primaryFailure); assert.equal(error.errors.length, 2);
+      assert.match(errorEvidence(error), new RegExp(message, "u")); return true;
+    });
+    assert.equal(await readFile(marker, "utf8"), "fixture");
+  }
   await removeFixtureRoot(root);
 });
 

@@ -49,7 +49,7 @@ async function runFixture(root, source, required, exceptions = [], options = {})
   await writeFile(join(root, 'invoke.mjs'), `import { runNodeTestExecution } from ${JSON.stringify(pathToFileURL(runnerPath).href)};
 await runNodeTestExecution({ root: ${JSON.stringify(options.rootAlias ?? root)}, files: ${JSON.stringify(options.selectedFiles ?? [testFile])},
   contractPath: 'contract.json', runOptions: ${options.testNamePatterns ? '{ testNamePatterns: [/unrelated/] }' : '{}'} });\n`);
-  return spawnSync(process.execPath, [join(root, 'invoke.mjs')], { cwd: root, encoding: 'utf8', env: childEnvironment });
+  return spawnSync(process.execPath, [join(root, 'invoke.mjs')], { cwd: root, encoding: options.rawOutput ? 'buffer' : 'utf8', env: childEnvironment });
 }
 
 test('contract rejects empty, ambiguous, broad and malformed authority', () => {
@@ -216,6 +216,30 @@ test('actual Node expected assertion failure cannot satisfy a required identity'
     required);
   assert.equal(expectedFailure.status, 1, expectedFailure.stderr);
   assert.match(expectedFailure.stderr, /expected failure/);
+  const ordinaryFailure = await runFixture(root,
+    "import assert from 'node:assert/strict'; import test from 'node:test'; test('required', () => assert.equal('actual diagnostic', 'expected diagnostic', 'native assertion diagnostic'));",
+    required);
+  assert.equal(ordinaryFailure.status, 1, ordinaryFailure.stderr);
+  assert.match(ordinaryFailure.stderr, /failed test execution/);
+  assert.match(ordinaryFailure.stdout, /native assertion diagnostic/);
+  assert.match(ordinaryFailure.stdout, /ERR_ASSERTION/);
+  assert.match(ordinaryFailure.stdout, /actual diagnostic/);
+  assert.match(ordinaryFailure.stdout, /expected diagnostic/);
+  assert.match(ordinaryFailure.stdout, /cases\.test\.mjs/);
+  const nestedFailure = await runFixture(root,
+    "import test from 'node:test'; test('required', () => { throw new Error('outer diagnostic', { cause: new Error('inner diagnostic') }); });",
+    required);
+  assert.equal(nestedFailure.status, 1, nestedFailure.stderr);
+  assert.match(nestedFailure.stdout, /outer diagnostic/);
+  assert.match(nestedFailure.stdout, /inner diagnostic/);
+  const oversizedFailure = await runFixture(root,
+    "import test from 'node:test'; test('required', () => { throw new Error('oversized diagnostic ' + '🌋'.repeat(100000)); });",
+    required, [], { rawOutput: true });
+  assert.equal(oversizedFailure.status, 1, oversizedFailure.stderr.toString('utf8'));
+  const oversizedOutput = new TextDecoder('utf-8', { fatal: true }).decode(oversizedFailure.stdout);
+  assert.match(oversizedOutput, /oversized diagnostic/);
+  assert.match(oversizedOutput, /Failure diagnostic truncated at 16384 bytes/);
+  assert.ok(oversizedFailure.stdout.byteLength < 16 * 1024 + 128);
   const ordinaryPass = await runFixture(root,
     "import assert from 'node:assert/strict'; import test from 'node:test'; test('required', () => assert.equal(1, 1));",
     required);

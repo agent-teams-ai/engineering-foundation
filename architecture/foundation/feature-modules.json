@@ -2013,12 +2013,14 @@
             }
           ],
           "testRoots": [
-            "tests/features/input-comparison/ci-input-proof.test.mts"
+            "tests/features/input-comparison/ci-input-proof.test.mts",
+            "tests/features/input-comparison/ci-input-proof-process.test.mts"
           ]
         }
       ],
       "testRoots": [
-        "tests/features/input-comparison/ci-input-proof.test.mts"
+        "tests/features/input-comparison/ci-input-proof.test.mts",
+        "tests/features/input-comparison/ci-input-proof-process.test.mts"
       ]
     }
   ],

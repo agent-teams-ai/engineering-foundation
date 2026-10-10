@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.3.2",
+  "packageVersion": "0.4.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -2162,6 +2162,251 @@
           "signature": "export interface DocsProtocolQualificationV3Request"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1#manifestPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly manifestPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1#manifestSha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly manifestSha256: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1#sha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sha256: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationArchiveBindingV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedRestorationArchiveBindingV1"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ManagedRestorationLockV1 = ManagedRestorationLockV1Request;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic#code:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly code: 'input' | 'derivation' | 'mismatch' | 'preservation';"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic#message:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly message: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: readonly (string | number)[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Diagnostic:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedRestorationLockV1Diagnostic"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#archives:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly archives: Readonly<Record<string, ManagedRestorationArchiveBindingV1>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#borrowedCoordinates:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly borrowedCoordinates: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#contextLocators:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly contextLocators: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#foreignOnlySnapshotCount:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly foreignOnlySnapshotCount: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#managedSnapshotCount:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly managedSnapshotCount: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#originalClosureSha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly originalClosureSha256: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#originalPackageManager:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly originalPackageManager: 'pnpm@11.20.0';"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#originalSnapshotCount:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly originalSnapshotCount: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#removedSourceCoordinates:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly removedSourceCoordinates: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#sourceLockBlob:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceLockBlob: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#sourceLockSha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceLockSha256: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance#wholeSnapshotCount:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "parentKind": "Interface",
+          "signature": "readonly wholeSnapshotCount: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Provenance:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedRestorationLockV1Provenance"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request#actualLockBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly actualLockBytes: Readonly<Uint8Array>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request#archiveBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly archiveBytes: Readonly<Record<string, Readonly<Uint8Array>>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request#originalClosureBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly originalClosureBytes: Readonly<Uint8Array>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request#selection:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly selection: ManagedRestorationSelectionV1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request#sourceLockBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceLockBytes: Readonly<Uint8Array>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedRestorationLockV1Request"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationLockV1Result:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ManagedRestorationLockV1Result = {\n    readonly schemaVersion: 1;\n} & ({\n    readonly conformance: 'conformant';\n    readonly expectedLockDigest: `sha256:${string}`;\n    readonly provenance: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly [];\n} | {\n    readonly conformance: 'nonconformant';\n    readonly expectedLockDigest?: `sha256:${string}`;\n    readonly provenance?: ManagedRestorationLockV1Provenance;\n    readonly diagnostics: readonly ManagedRestorationLockV1Diagnostic[];\n});"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1#archives:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly archives: Readonly<Record<string, ManagedRestorationArchiveBindingV1>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1#originalClosureSha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly originalClosureSha256: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1#sourceLockBlob:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceLockBlob: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1#sourceLockSha256:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1:interface",
+          "parentKind": "Interface",
+          "signature": "readonly sourceLockSha256: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedRestorationSelectionV1:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedRestorationSelectionV1"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!QualifiedDocsCohortBindingV1:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
@@ -2419,6 +2664,13 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export interface QualifiedDocsPackageCoordinateV2"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!checkManagedRestorationLockV1:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function checkManagedRestorationLockV1(request: ManagedRestorationLockV1Request): ManagedRestorationLockV1Result;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!observeDocsProtocolQualificationV3Lockfile:function(1)",

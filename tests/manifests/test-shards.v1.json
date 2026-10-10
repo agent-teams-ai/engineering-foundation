@@ -40,6 +40,7 @@
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs",
         "tests/features/input-comparison/ci-input-proof.test.mts",
+        "tests/features/input-comparison/ci-input-proof-process.test.mts",
         "tests/command-host-successor-cli.test.mts"
       ]
     },

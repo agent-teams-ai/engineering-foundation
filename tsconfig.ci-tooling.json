@@ -7,6 +7,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "noEmit": true,
+    "paths": {
+      "@agent-teams/ci-input-proof": ["./packages/ci-input-proof/src/index.ts"]
+    },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",

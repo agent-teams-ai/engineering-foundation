@@ -329,8 +329,8 @@ export function assertSupportedNodeTestRuntime(version = process.versions.node):
 const FAILURE_DIAGNOSTIC_BYTES = 16 * 1024;
 function writeFailureDiagnostic(output: NodeJS.WritableStream, error: unknown): void {
   const diagnostic = Buffer.from(inspect(error, {
-    colors: false, customInspect: false, depth: 6, getters: false,
-    maxArrayLength: 20, maxStringLength: 4096,
+    breakLength: 100, colors: false, customInspect: false, depth: 8, getters: false,
+    maxArrayLength: 20, maxStringLength: 4096, showHidden: false,
   }));
   let end = Math.min(diagnostic.byteLength, FAILURE_DIAGNOSTIC_BYTES);
   while (end > 0 && end < diagnostic.byteLength && ((diagnostic[end] ?? 0) & 0xc0) === 0x80) { end -= 1; }

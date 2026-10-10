@@ -246,6 +246,27 @@ test('actual Node expected assertion failure cannot satisfy a required identity'
   assert.equal(ordinaryPass.status, 0, ordinaryPass.stderr);
 }));
 
+test('actual Node assertion failures print their real diagnostic details', async () => fixture(async (root) => {
+  const required = [identity(testFile, ['diagnostic outer marker', 'diagnostic child marker'])];
+  const source = `import assert from 'node:assert/strict';
+import test from 'node:test';
+test('diagnostic outer marker', async (t) => {
+  await t.test('diagnostic child marker', () => {
+    assert.equal('actual-diagnostic-value', 'expected-diagnostic-value');
+  });
+});`;
+  const result = await runFixture(root, source, required);
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /Node test execution contract: failed test execution:/u);
+  assert.match(result.stdout, /FAIL diagnostic child marker/u);
+  assert.match(result.stdout, /AssertionError/u);
+  assert.match(result.stdout, /ERR_ASSERTION/u);
+  assert.match(result.stdout, /actual-diagnostic-value/u);
+  assert.match(result.stdout, /expected-diagnostic-value/u);
+  assert.match(result.stdout, /cases\.test\.mjs:5:12/u);
+  assert.match(result.stdout, /cause: AssertionError/u);
+}));
+
 test('actual Node run evidence rejects skip, filtered omission and conditional omission', async () => fixture(async (root) => {
   const required = [identity(testFile, ['parent', 'child'])];
   const skipped = await runFixture(root, "import test from 'node:test'; test('parent', async t => { await t.test('child', { skip: true }, () => {}); });", required);

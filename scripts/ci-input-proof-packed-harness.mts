@@ -1,5 +1,5 @@
-import { copyFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 
 export async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -13,8 +13,9 @@ export type DeepImportMustReject = LeafInventory;
 export const packedRunnerSource = `
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, readlinkSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { version as typescriptVersion, versionMajorMinor } from 'typescript';
 import {
   compareLeafInventories,
@@ -26,7 +27,8 @@ import {
   type FoundationPilotRequest,
   type Observation,
   type ScopeCategory,
-} from './adapter.mts';
+} from './scripts/ci-input-proof-foundation-adapter.mts';
+import { executeFixedFull } from './scripts/ci-input-proof-full.mts';
 import { typedPublicApiReference } from './typed-public-api.TEST.mts';
 
 assert.equal(typescriptVersion, '7.0.2');
@@ -81,6 +83,33 @@ const request = (
     timeoutMs,
   }),
 });
+
+const waitForFixtureFile = async (path: string): Promise<string> => {
+  const deadline = Date.now() + 2000;
+  for (;;) {
+    try {
+      return await readFile(path, 'utf8');
+    } catch (error) {
+      if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) {
+        throw error;
+      }
+    }
+    if (Date.now() >= deadline) {
+      throw new Error('Fixture readiness file was not published: ' + path);
+    }
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+};
+
+const killRecordedPid = (pid: number): void => {
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch (error) {
+    if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ESRCH')) {
+      throw error;
+    }
+  }
+};
 
 assert.deepEqual(typedPublicApiReference(), {
   status: 'compatible-inputs',
@@ -144,7 +173,7 @@ assert.equal(scopeDrift.report.execution.status, 'passed');
 assert.match(scopeDrift.report.candidateOmitObservation.reason, /observation:scope-drift/u);
 
 const failedFull = await runCiInputProofAdapter(
-  request(observation('failed-current'), ['-e', 'process.exit(23)']),
+  request(observation('failed-current'), ['-e', 'process.stdout.write("FULL-PASS"); process.exit(23)']),
   compareLeafInventories,
 );
 assert.equal(failedFull.exitCode, 23);
@@ -168,41 +197,49 @@ if (process.platform === 'win32') {
   assert.equal(signalled.report.execution.full.reason, 'process-signal');
 }
 
+const timeoutReadyPath = resolve(process.cwd(), 'timeout-handler-ready-TEST');
 const timedOut = await runCiInputProofAdapter(
   request(
     observation('timeout-current'),
-    ['-e', 'process.on("SIGTERM", () => setTimeout(() => process.exit(0), 5)); setTimeout(() => {}, 1000);'],
-    50,
+    ['-e', 'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => setTimeout(() => process.exit(0), 5)); writeFileSync(process.argv[1], "ready"); setTimeout(() => {}, 5000);', timeoutReadyPath],
+    1000,
   ),
   compareLeafInventories,
 );
+assert.equal(await waitForFixtureFile(timeoutReadyPath), 'ready');
 assert.notEqual(timedOut.exitCode, 0);
 assert.equal(timedOut.report.execution.status, 'failed');
 assert.equal(timedOut.report.execution.full.reason, 'process-timeout');
+assert.ok(timedOut.report.timingsMs.full >= 975);
+assert.ok(timedOut.report.timingsMs.full < 6000);
 if (process.platform !== 'win32') {
   assert.equal(timedOut.report.execution.full.exitCode, 0);
 }
 
 const descendantPidPath = resolve(process.cwd(), 'descendant-pid.json');
+const descendantReadyPath = resolve(process.cwd(), 'descendant-ready.json');
+let descendantPid: number | null = null;
+try {
 const descendantScript = [
   'const { spawn } = require("node:child_process");',
   'const { writeFileSync } = require("node:fs");',
-  'const child = spawn(process.execPath, [\\'-e\\', \\'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);\\'], { stdio: ["ignore", 1, 2] });',
+  'const child = spawn(process.execPath, [\\'-e\\', \\'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setInterval(() => {}, 1000);\\', process.argv[2]], { stdio: ["ignore", 1, 2] });',
   'writeFileSync(process.argv[1], String(child.pid));',
   'setInterval(() => {}, 1000);',
 ].join('');
 const descendantTimeout = await runCiInputProofAdapter(
   request(
     observation('descendant-timeout-current'),
-    ['-e', descendantScript, descendantPidPath],
-    100,
+    ['-e', descendantScript, descendantPidPath, descendantReadyPath],
+    1000,
   ),
   compareLeafInventories,
 );
+assert.equal(await waitForFixtureFile(descendantReadyPath), 'ready');
 assert.notEqual(descendantTimeout.exitCode, 0);
 assert.equal(descendantTimeout.report.execution.status, 'failed');
 assert.equal(descendantTimeout.report.execution.full.reason, 'process-timeout');
-const descendantPid = Number(await readFile(descendantPidPath, 'utf8'));
+descendantPid = Number(await waitForFixtureFile(descendantPidPath));
 assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
 let descendantPresent = true;
 try {
@@ -231,16 +268,84 @@ if (descendantPresent) {
     assert.ok(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT');
   }
 }
+} finally {
+  if (descendantPid !== null) {
+    killRecordedPid(descendantPid);
+  }
+}
 
+const escalationReadyPath = resolve(process.cwd(), 'escalation-handler-ready-TEST');
 const escalationRequest = request(
   observation('escalation-current'),
-  ['-e', 'process.on("SIGTERM", () => {}); setTimeout(() => {}, 2000);'],
-  50,
+  ['-e', 'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setTimeout(() => {}, 5000);', escalationReadyPath],
+  1000,
 );
 const escalated = await runCiInputProofAdapter(escalationRequest, compareLeafInventories);
+assert.equal(await waitForFixtureFile(escalationReadyPath), 'ready');
 assert.notEqual(escalated.exitCode, 0);
 assert.equal(escalated.report.execution.status, 'failed');
 assert.equal(escalated.report.execution.full.reason, 'process-timeout');
+assert.ok(escalated.report.timingsMs.full >= 975);
+assert.ok(escalated.report.timingsMs.full < 6000);
+if (process.platform !== 'win32') {
+  assert.equal(escalated.report.execution.full.signal, 'SIGKILL');
+}
+
+const boundedOutput = await executeFixedFull({
+  command: process.execPath,
+  args: ['-e', 'process.stdout.write("x".repeat(65537))'],
+  cwd: resolve(process.cwd()),
+  timeoutMs: 5000,
+});
+assert.equal(boundedOutput.report.status, 'passed');
+assert.equal(boundedOutput.report.exitCode, 0);
+assert.equal(boundedOutput.report.outputTruncated, true);
+assert.equal(boundedOutput.stdout.length, 64 * 1024);
+
+const inheritedPipeRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-inherited-pipe-TEST-'));
+let escapedPid: number | null = null;
+try {
+  const escapedPidPath = join(inheritedPipeRoot, 'escaped-pid');
+  const escapedReadyPath = join(inheritedPipeRoot, 'escaped-ready');
+  const escapedScript = [
+    'const { spawn } = require("node:child_process");',
+    'const { writeFileSync } = require("node:fs");',
+    'const child = spawn(process.execPath, [\\'-e\\', \\'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setInterval(() => {}, 1000);\\', process.argv[2]], { detached: true, stdio: ["ignore", 1, 2] });',
+    'child.unref();',
+    'writeFileSync(process.argv[1], String(child.pid));',
+    'process.stdout.write("x".repeat(65537));',
+    'process.stderr.write("x".repeat(65537));',
+  ].join('');
+  const inheritedStarted = Date.now();
+  const inheritedPipe = await executeFixedFull({
+    command: process.execPath,
+    args: ['-e', escapedScript, escapedPidPath, escapedReadyPath],
+    cwd: inheritedPipeRoot,
+    timeoutMs: 5000,
+  });
+  const inheritedElapsedMs = Date.now() - inheritedStarted;
+  escapedPid = Number(await waitForFixtureFile(escapedPidPath));
+  assert.equal(await waitForFixtureFile(escapedReadyPath), 'ready');
+  assert.ok(Number.isSafeInteger(escapedPid) && escapedPid > 0);
+  assert.equal(inheritedPipe.report.exitCode, 0);
+  assert.equal(inheritedPipe.report.outputTruncated, true);
+  assert.equal(inheritedPipe.stdout.length, 64 * 1024);
+  assert.ok(inheritedElapsedMs < 3000);
+  if (process.platform === 'win32') {
+    assert.equal(inheritedPipe.report.status, 'passed');
+    assert.equal(inheritedPipe.report.reason, null);
+  } else {
+    assert.equal(inheritedPipe.report.status, 'failed');
+    assert.equal(inheritedPipe.report.errorCode, 'process-stream-settlement-timeout');
+    assert.equal(inheritedPipe.report.reason, 'process-settlement-failed');
+    process.kill(escapedPid, 0);
+  }
+} finally {
+  if (escapedPid !== null) {
+    killRecordedPid(escapedPid);
+  }
+  await rm(inheritedPipeRoot, { recursive: true, force: true });
+}
 
 process.stdout.write(JSON.stringify({
   status: 'passed',
@@ -254,6 +359,8 @@ process.stdout.write(JSON.stringify({
     'timeout-full-failed-nonzero',
     'timeout-descendant-tree-cleaned',
     'timeout-escalation-full-failed-nonzero',
+    'output-bound-full-pass',
+    'inherited-pipe-bounded-settlement',
   ],
   timingsMs: {
     positive: positive.report.timingsMs,
@@ -269,18 +376,59 @@ process.stdout.write(JSON.stringify({
 }) + '\\n');
 `;
 
+const windowsManagedProcessRuntimeFiles = Object.freeze([
+  'binary-string-comparator.js',
+  'features/validation-reporting/api.js',
+  'features/validation-reporting/application/cancellation.js',
+  'features/validation-reporting/application/capability-registries.js',
+  'features/validation-reporting/application/model.js',
+  'features/validation-reporting/application/reporting.js',
+  'features/validation-reporting/application/unexpected-failure.js',
+  'features/validation-reporting/application/unique-registry.js',
+  'features/validation-reporting/foundation-error.js',
+  'process-execution/application/errors.js',
+  'process-execution/application/process-failure-policy.js',
+  'process-execution/windows-managed-process-diagnostics.js',
+  'process-execution/windows-managed-process.js',
+  'process-execution/windows-process-host.js',
+]);
+
 export async function writePackedCiInputProofHarness(
   consumerRoot: string,
   repositoryRoot: string,
 ): Promise<void> {
+  await mkdir(join(consumerRoot, 'scripts'), { recursive: true });
   await copyFile(
     resolve(repositoryRoot, 'scripts/ci-input-proof-foundation-adapter.mts'),
-    join(consumerRoot, 'adapter.mts'),
+    join(consumerRoot, 'scripts', 'ci-input-proof-foundation-adapter.mts'),
   );
   await copyFile(
     resolve(repositoryRoot, 'scripts/ci-input-proof-full.mts'),
-    join(consumerRoot, 'ci-input-proof-full.mts'),
+    join(consumerRoot, 'scripts', 'ci-input-proof-full.mts'),
   );
+  for (const relativePath of windowsManagedProcessRuntimeFiles) {
+    const destination = join(consumerRoot, 'packages', 'engineering-foundation', 'dist', relativePath);
+    await mkdir(dirname(destination), { recursive: true });
+    await copyFile(
+      resolve(repositoryRoot, 'packages', 'engineering-foundation', 'dist', relativePath),
+      destination,
+    );
+  }
+  for (const assetName of ['bootstrap.ps1', 'WindowsManagedProcess.cs']) {
+    const destination = join(
+      consumerRoot,
+      'packages',
+      'engineering-foundation',
+      'assets',
+      'windows-managed-process',
+      assetName,
+    );
+    await mkdir(dirname(destination), { recursive: true });
+    await copyFile(
+      resolve(repositoryRoot, 'packages', 'engineering-foundation', 'assets', 'windows-managed-process', assetName),
+      destination,
+    );
+  }
   await copyFile(
     resolve(repositoryRoot, 'tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts'),
     join(consumerRoot, 'typed-public-api.TEST.mts'),
@@ -303,8 +451,8 @@ export async function writePackedCiInputProofHarness(
       verbatimModuleSyntax: true,
     },
     include: [
-      'adapter.mts',
-      'ci-input-proof-full.mts',
+      'scripts/ci-input-proof-foundation-adapter.mts',
+      'scripts/ci-input-proof-full.mts',
       'typed-public-api.TEST.mts',
       'deep-import-rejected.TEST.mts',
       'adapter-conformance.TEST.mts',

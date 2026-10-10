@@ -63,6 +63,10 @@ const scope: Scope = Object.freeze({
   ]),
   config: Object.freeze([
     { logicalPath: '.changeset/config.json', sourcePath: '.changeset/config.json' },
+    {
+      logicalPath: '.changeset/ci-input-proof-kernel.md',
+      sourcePath: '.changeset/ci-input-proof-kernel.md',
+    },
     { logicalPath: 'architecture/foundation/feature-modules.json', sourcePath: 'architecture/foundation/feature-modules.json' },
     { logicalPath: 'foundation.config.yaml', sourcePath: 'foundation.config.yaml' },
     { logicalPath: 'LICENSE', sourcePath: 'LICENSE' },
@@ -239,6 +243,9 @@ export function foundationPilotRequest(
 }
 
 export async function runFoundationCiInputProofPilot(tuple: MergeTuple): Promise<FoundationPilotResult> {
+  if (process.platform !== 'linux') {
+    throw new Error(`unsupported pilot platform ${process.platform}; Foundation pilot requires Linux`);
+  }
   const repositoryRoot = resolve(process.cwd());
   const beforeResult = await attemptCollection(repositoryRoot, 'before-observation');
   const currentResult = await attemptCollection(repositoryRoot, 'current-observation');

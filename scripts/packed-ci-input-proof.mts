@@ -304,6 +304,8 @@ export async function verifyPackedCiInputProof(
     'timeout-full-failed-nonzero',
     'timeout-descendant-tree-cleaned',
     'timeout-escalation-full-failed-nonzero',
+    'output-bound-full-pass',
+    'inherited-pipe-bounded-settlement',
   ]);
   if (parsed.status !== 'passed'
       || JSON.stringify(parsed.cases) !== JSON.stringify(expectedCases)) {

@@ -38,8 +38,8 @@ retain no caller references. A compatible relation proves neither semantic
 completeness, authentication, successful tests, eligibility nor permission to
 omit a check. Runtime-specific narrower eligibility remains consumer-owned.
 
-Version `0.1.0-rc.0` is published. Runtime adopted the public import in
-[PR #213](https://github.com/agent-teams-ai/agent-runtime/pull/213); Central in
+The published `0.1.0-rc.0` predecessor remains historical evidence. Runtime
+adopted the public import in [PR #213](https://github.com/agent-teams-ai/agent-runtime/pull/213); Central in
 [PR #357](https://github.com/agent-teams-ai/.github/pull/357). Central's conformance
 wrapper is not a live authenticated merge authority. Imports do not resolve
 independent current-H, source-authority or FULL-recovery gaps.
@@ -48,6 +48,8 @@ The package is import-only ESM for its declared Node 24/26 engines, with no
 CommonJS fallback. A Social Monitor Node upgrade alone does not qualify Jest ESM.
 See the integration guide below for collector closure, affected selection,
 evidence reuse and fail-closed rules.
+
+### InputLeaf type migration
 
 `InputLeaf` is a discriminated type/mode union. Construct file
 `100644`/`100755`, symlink `120000` or gitlink `160000` leaves together; narrow
@@ -158,8 +160,38 @@ toolchain before TypeScript's real public export and compiler are exercised; no
 type stub or substitute compiler is admitted. A deep package import is expected
 to fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
-Keep tooling entrypoints as Node 24 ESM. A published-install consumer can use this
-self-contained setup; the source-only TEST reference above is not required.
+### Published install
+
+Use the consumer's supported package manager and retain its reviewed pin. For an
+existing pnpm consumer tooling workspace, substitute the workspace selector and
+the exact version from the approved manifest/registry release record:
+
+```bash
+export CONSUMER_TOOLING_WORKSPACE='<existing-consumer-tooling-workspace>'
+export CI_INPUT_PROOF_VERSION='<exact-released-version>'
+pnpm --filter "$CONSUMER_TOOLING_WORKSPACE" add --save-dev --save-exact \
+  "@agent-teams/ci-input-proof@$CI_INPUT_PROOF_VERSION"
+```
+
+This records `@agent-teams/ci-input-proof` as an exact development-only
+dependency through ordinary registry installation. The exact manifest and
+registry release record controls availability and version; this guide does not
+claim that a successor is already published. No local archive, test fixture or
+temporary token is required.
+
+The consumer tooling workspace must declare Node `^24.18.0 || ^26.0.0` (or a
+supported narrower range), retain a supported pnpm `>=11.17.0 <12` pin, and use
+ESM through `"type": "module"` or an ESM tooling entrypoint. There is no
+CommonJS fallback. Use the existing [typed example](#affected-selection) and
+[`InputLeaf` migration](#inputleaf-type-migration) rather than copying duplicate
+code.
+
+### Disposable file-tarball artifact qualification
+
+The following local-archive JSON is not an ordinary published-install recipe.
+It is retained only for the existing disposable file-tarball artifact
+qualification; the source-only TEST reference above is not required for the
+registry quickstart.
 
 ```json
 {
@@ -173,7 +205,8 @@ self-contained setup; the source-only TEST reference above is not required.
 }
 ```
 
-Keep compiler options in a separate `tsconfig.json`:
+Keep the disposable qualification consumer's compiler options in a separate
+`tsconfig.json`:
 
 ```json
 {
@@ -190,6 +223,8 @@ Keep compiler options in a separate `tsconfig.json`:
 
 ### Bounded Foundation pilot
 
+The pure comparator contract is cross-platform. This specific Foundation pilot
+and its selected RC target are Linux-only and reject other pilot platforms.
 `scripts/ci-input-proof-foundation-pilot.mts` is a concrete shadow pilot for the
 bounded Foundation CI Input Proof RC qualification group
 `tests/ci-input-proof-rc.test.mts`, including its real archive preparation and
@@ -244,27 +279,12 @@ review and reviewed merge operator unchanged.
 
 ### Get Modular and Social
 
-This package is a fixed development/CI dependency used through its public root.
-It does not import Foundation from product runtime code and does not add a Get
-Modular component or lifecycle. The requested canonical Consumer Module Standard
-revision is Get Modular `9e09e905989eda4403d5fb0c7471631d1fc9b004`. The supplied
-offline standard packet contains
-`.cache/ci-proof-rollout-reference/current-common-assembly.md`, SHA-256
-`49d08b6d1762e94308157fb59b3aa82ac1630c91f529f6efcd4915dfffee7ba7`.
-The supplied provenance identifies latest modifying commit
-`81063add7de50ffe2b91cc74bf7271b298624c21`; upstream
-`4ffa0ab5` changes only the release plan from the requested
-`9e09e905989eda4403d5fb0c7471631d1fc9b004`. This is retained input, not an
-independent online retrieval. The existing Foundation consumer record in
-`docs/reference/managed-restoration-lock-v1.md` retains the same
-`81063add7de50ffe2b91cc74bf7271b298624c21` / `49d08b6d1762e94308157fb59b3aa82ac1630c91f529f6efcd4915dfffee7ba7`
-packet identity. Earlier Foundation history from `610e595fe1f2e893d01ee44ceecd6349b5a3c8ce`
-to `bec157f1b7c317dd063a95103fc0b1d440976b9c` remains a separate retained input
-history; its documented delta is the optional dynamic Host lifecycle and is not
-adopted here. Runtime profile evidence is cross-check input only and does not
-replace this consumer pin comparison. This rollout therefore has no standard
-migration, composition change, ADR-byte change or optional dynamic Host
-lifecycle adoption.
+This package is a fixed development/CI dependency reached only through static
+ESM imports from tooling. It never enters product runtime code or a runtime
+dependency graph, and it adds no Get Modular component or lifecycle. The
+maintained [CI Input Proof source admission](../../docs/development/ci-input-proof-admission.md#modularity-and-checks)
+owns the Consumer Module Standard pin, retained provenance and packet evidence;
+no private `.cache` packet is a public prerequisite.
 
 Social Monitor support is staged: the owner-requested Node upgrade comes first,
 then the actual Node 24 ESM tooling entrypoint and Jest integration receive
@@ -281,7 +301,7 @@ qualifies Jest ESM.
 | TypeScript | repository catalog pin `7.0.2` |
 | Package dependencies | no runtime dependencies; no floating dependency ranges |
 | Module format | ESM public root only; no CommonJS fallback |
-| Published baseline | `0.1.0-rc.0`; current `InputLeaf` migration and source qualification follow the current discriminated type and package manifest version |
+| Historical published predecessor | `0.1.0-rc.0`; successor availability follows the exact manifest/registry release record |
 
 Before enabling any consumer omission:
 

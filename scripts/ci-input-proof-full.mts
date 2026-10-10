@@ -1,6 +1,7 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
+import type { Readable } from 'node:stream';
 
 export type CheckCommand = Readonly<{
   command: string;
@@ -18,11 +19,50 @@ export type ProcessReport = Readonly<{
 }>;
 export type ExecutedFull = Readonly<{ report: ProcessReport; stdout: string }>;
 
-const maxProcessOutput = 64 * 1024;
+type WindowsManagedProcessRequest = Readonly<{
+  command: string;
+  args: readonly string[];
+  cwd: string;
+  environment: Readonly<NodeJS.ProcessEnv>;
+  launcherEnvironment: Readonly<NodeJS.ProcessEnv>;
+}>;
+type WindowsManagedProcessModule = Readonly<{
+  cleanUpWindowsManagedProcessLaunchFailure: (child: ChildProcess) => void;
+  requestWindowsManagedProcessTermination: (child: ChildProcess) => Promise<void>;
+  spawnWindowsManagedProcess: (request: WindowsManagedProcessRequest) => ChildProcess;
+}>;
+type ProcessOutcome = Readonly<
+  | { kind: 'exit'; exitCode: number | null; signal: NodeJS.Signals | null }
+  | { kind: 'error'; errorCode: string }
+>;
+type BoundedSettlement = Readonly<{ error: string | null; settled: boolean }>;
+type OutputStream = {
+  chunks: Buffer[];
+  failure: string | null;
+  settled: boolean;
+  truncated: boolean;
+  bytes: number;
+};
+
+const maxProcessOutputBytes = 64 * 1024;
 const cleanupGraceMs = 1_000;
+const cleanupSettlementMs = 5_000;
+const exitSettlementMs = 1_000;
+const streamSettlementMs = 500;
+const windowsManagedProcessModuleUrl = new URL(
+  '../packages/engineering-foundation/dist/process-execution/windows-managed-process.js',
+  import.meta.url,
+);
 
 function isMissingProcess(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ESRCH';
+}
+
+function errorCode(error: unknown, fallback: string): string {
+  if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
+    return error.code;
+  }
+  return fallback;
 }
 
 function signalPosixProcessGroup(processGroupId: number, signal: NodeJS.Signals): void {
@@ -100,117 +140,317 @@ async function waitForPosixProcessGroup(processGroupId: number, timeoutMs: numbe
   return !posixProcessGroupHasLiveMembers(processGroupId);
 }
 
-async function terminateProcessTree(pid: number): Promise<void> {
-  if (process.platform === 'win32') {
-    await new Promise<void>(resolve => {
-      const taskkill = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
-        stdio: 'ignore',
-        windowsHide: true,
-      });
-      taskkill.once('error', () => {
-        resolve();
-      });
-      taskkill.once('close', () => {
-        resolve();
-      });
-    });
+async function terminatePosixProcessGroup(processGroupId: number): Promise<void> {
+  signalPosixProcessGroup(processGroupId, 'SIGTERM');
+  if (await waitForPosixProcessGroup(processGroupId, cleanupGraceMs)) {
     return;
   }
-  signalPosixProcessGroup(pid, 'SIGTERM');
-  if (await waitForPosixProcessGroup(pid, cleanupGraceMs)) {
-    return;
-  }
-  signalPosixProcessGroup(pid, 'SIGKILL');
-  if (!await waitForPosixProcessGroup(pid, cleanupGraceMs)) {
-    throw new Error(`process group ${String(pid)} did not exit after forced shutdown`);
+  signalPosixProcessGroup(processGroupId, 'SIGKILL');
+  if (!await waitForPosixProcessGroup(processGroupId, cleanupGraceMs)) {
+    throw new Error(`process group ${String(processGroupId)} did not exit after forced shutdown`);
   }
 }
 
+async function loadWindowsManagedProcess(): Promise<WindowsManagedProcessModule> {
+  return await import(windowsManagedProcessModuleUrl.href) as WindowsManagedProcessModule;
+}
+
+function fullEnvironment(): Readonly<NodeJS.ProcessEnv> {
+  return Object.freeze({
+    PATH: process.env.PATH ?? '',
+    TMPDIR: process.env.TMPDIR ?? '',
+    NODE_ENV: process.env.NODE_ENV ?? '',
+    CI: process.env.CI ?? '',
+  });
+}
+
+function spawnCommand(
+  spec: CheckCommand,
+  windowsManagedProcess: WindowsManagedProcessModule | null,
+): ChildProcess {
+  const cwd = resolvePath(spec.cwd);
+  const environment = fullEnvironment();
+  if (windowsManagedProcess !== null) {
+    return windowsManagedProcess.spawnWindowsManagedProcess({
+      command: spec.command,
+      args: [...spec.args],
+      cwd,
+      environment,
+      launcherEnvironment: process.env,
+    });
+  }
+  return spawn(spec.command, [...spec.args], {
+    cwd,
+    env: environment,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,
+    windowsHide: true,
+  });
+}
+
+function createOutputStream(): OutputStream {
+  return {
+    chunks: [],
+    failure: null,
+    settled: false,
+    truncated: false,
+    bytes: 0,
+  };
+}
+
+function appendOutput(output: OutputStream, chunk: Buffer): void {
+  const room = maxProcessOutputBytes - output.bytes;
+  const accepted = chunk.subarray(0, Math.max(0, room));
+  if (accepted.length > 0) {
+    output.chunks.push(Buffer.from(accepted));
+    output.bytes += accepted.length;
+  }
+  output.truncated ||= chunk.length > accepted.length;
+}
+
+function outputText(output: OutputStream): string {
+  return Buffer.concat(output.chunks).toString('utf8');
+}
+
+function monitorOutput(stream: Readable, output: OutputStream): void {
+  stream.on('data', (chunk: Buffer) => {
+    appendOutput(output, chunk);
+  });
+  stream.once('end', () => {
+    output.settled = true;
+  });
+  stream.once('close', () => {
+    output.settled = true;
+  });
+  stream.once('error', (error: Error) => {
+    output.failure = errorCode(error, 'process-stream-error');
+    output.settled = true;
+  });
+}
+
+async function settleWithin(
+  operation: Promise<unknown>,
+  timeoutMs: number,
+  fallbackCode: string,
+): Promise<BoundedSettlement> {
+  let timeout: NodeJS.Timeout | undefined;
+  let timedOut = false;
+  const bounded = Promise.race([
+    operation.then(
+      () => null,
+      (error: unknown) => errorCode(error, fallbackCode),
+    ),
+    new Promise<string>(resolve => {
+      timeout = setTimeout(() => {
+        timedOut = true;
+        resolve(fallbackCode);
+      }, timeoutMs);
+    }),
+  ]);
+  const error = await bounded;
+  if (timeout !== undefined) {
+    clearTimeout(timeout);
+  }
+  void operation.catch(() => undefined);
+  return Object.freeze({
+    error: timedOut ? fallbackCode : error,
+    settled: !timedOut && error === null,
+  });
+}
+
+async function waitForOutputSettlement(
+  stdout: OutputStream,
+  stderr: OutputStream,
+): Promise<BoundedSettlement> {
+  const deadline = Date.now() + streamSettlementMs;
+  while ((!stdout.settled || !stderr.settled) && Date.now() < deadline) {
+    await new Promise(resolve => {
+      setTimeout(resolve, 10);
+    });
+  }
+  if (stdout.failure !== null || stderr.failure !== null) {
+    return Object.freeze({
+      error: stdout.failure ?? stderr.failure ?? 'process-stream-error',
+      settled: false,
+    });
+  }
+  return Object.freeze({
+    error: stdout.settled && stderr.settled ? null : 'process-stream-settlement-timeout',
+    settled: stdout.settled && stderr.settled,
+  });
+}
+
+async function terminateProcessTree(
+  child: ChildProcess,
+  windowsManagedProcess: WindowsManagedProcessModule | null,
+): Promise<void> {
+  if (windowsManagedProcess !== null) {
+    await windowsManagedProcess.requestWindowsManagedProcessTermination(child);
+    return;
+  }
+  if (child.pid !== undefined) {
+    await terminatePosixProcessGroup(child.pid);
+  }
+}
+
+function processReason(
+  timedOut: boolean,
+  outcome: ProcessOutcome | null,
+  settlementFailure: boolean,
+): string | null {
+  if (timedOut) {
+    return 'process-timeout';
+  }
+  if (outcome === null) {
+    return 'process-unavailable';
+  }
+  if (outcome.kind === 'error') {
+    return 'process-unavailable';
+  }
+  if (outcome.signal !== null) {
+    return 'process-signal';
+  }
+  if (outcome.exitCode !== 0) {
+    return 'process-failed';
+  }
+  return settlementFailure ? 'process-settlement-failed' : null;
+}
+
 export async function executeFixedFull(spec: CheckCommand): Promise<ExecutedFull> {
-  return await new Promise(resolve => {
-    const child = spawn(spec.command, [...spec.args], {
-      cwd: resolvePath(spec.cwd),
-      env: Object.freeze({
-        PATH: process.env.PATH ?? '',
-        TMPDIR: process.env.TMPDIR ?? '',
-        NODE_ENV: process.env.NODE_ENV ?? '',
-        CI: process.env.CI ?? '',
+  if (!Number.isSafeInteger(spec.timeoutMs) || spec.timeoutMs <= 0) {
+    throw new TypeError('The FULL process timeout must be a positive safe integer.');
+  }
+  let windowsManagedProcess: WindowsManagedProcessModule | null = null;
+  try {
+    windowsManagedProcess = process.platform === 'win32' ? await loadWindowsManagedProcess() : null;
+  } catch (error) {
+    return Object.freeze({
+      report: Object.freeze({
+        status: 'unavailable',
+        exitCode: null,
+        signal: null,
+        errorCode: errorCode(error, 'windows-managed-process-unavailable'),
+        outputTruncated: false,
+        reason: 'process-unavailable',
       }),
-      stdio: ['ignore', 'pipe', 'pipe'],
-      detached: true,
-      windowsHide: true,
+      stdout: '',
     });
-    let stdout = '';
-    let stderr = '';
-    let outputTruncated = false;
-    let timedOut = false;
-    let settled = false;
-    let errorCode: string | null = null;
-    let cleanupStarted = false;
-    let cleanup: Promise<void> = Promise.resolve();
-    const startCleanup = (): void => {
-      if (cleanupStarted || child.pid === undefined) {
-        return;
-      }
-      cleanupStarted = true;
-      cleanup = terminateProcessTree(child.pid).catch((error: unknown) => {
-        errorCode = error instanceof Error ? error.message : 'process-cleanup-failed';
-      });
-    };
-    const timer = setTimeout(() => {
-      timedOut = true;
-      startCleanup();
-    }, spec.timeoutMs);
-    const collect = (current: string, chunk: Buffer): Readonly<{ text: string; truncated: boolean }> => {
-      const room = maxProcessOutput - current.length;
-      const text = current + chunk.subarray(0, Math.max(0, room)).toString('utf8');
-      return { text, truncated: chunk.length > Math.max(0, room) };
-    };
-    child.stdout.on('data', (chunk: Buffer) => {
-      const result = collect(stdout, chunk);
-      stdout = result.text;
-      outputTruncated ||= result.truncated;
+  }
+
+  let child: ChildProcess;
+  try {
+    child = spawnCommand(spec, windowsManagedProcess);
+  } catch (error) {
+    return Object.freeze({
+      report: Object.freeze({
+        status: 'unavailable',
+        exitCode: null,
+        signal: null,
+        errorCode: errorCode(error, 'process-error'),
+        outputTruncated: false,
+        reason: 'process-unavailable',
+      }),
+      stdout: '',
     });
-    child.stderr.on('data', (chunk: Buffer) => {
-      const result = collect(stderr, chunk);
-      stderr = result.text;
-      outputTruncated ||= result.truncated;
-    });
-    child.on('error', error => {
-      const code = (error as NodeJS.ErrnoException).code;
-      errorCode = typeof code === 'string' ? code : 'process-error';
-    });
-    child.once('exit', startCleanup);
-    child.on('close', (exitCode, signal) => {
-      if (settled) {
-        return;
-      }
-      startCleanup();
-      void cleanup.then(() => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        clearTimeout(timer);
-        const status = errorCode !== null && !timedOut
-          ? 'unavailable' as const
-          : !timedOut && exitCode === 0 && signal === null ? 'passed' as const : 'failed' as const;
-        resolve({
-          report: Object.freeze({
-            status,
-            exitCode,
-            signal,
-            errorCode,
-            outputTruncated,
-            reason: timedOut ? 'process-timeout'
-              : errorCode !== null ? 'process-unavailable'
-              : signal !== null ? 'process-signal'
-              : exitCode === 0 ? null : 'process-failed',
-          }),
-          stdout,
-        });
-        return null;
-      });
-    });
+  }
+
+  const stdout = createOutputStream();
+  const stderr = createOutputStream();
+  if (child.stdout !== null) {
+    monitorOutput(child.stdout, stdout);
+  } else {
+    stdout.settled = true;
+  }
+  if (child.stderr !== null) {
+    monitorOutput(child.stderr, stderr);
+  } else {
+    stderr.settled = true;
+  }
+
+  let resolveOutcome: (outcome: ProcessOutcome) => void = () => undefined;
+  const outcomePromise = new Promise<ProcessOutcome>(resolve => {
+    resolveOutcome = resolve;
+  });
+  child.once('exit', (exitCode, signal) => {
+    resolveOutcome({ kind: 'exit', exitCode, signal });
+  });
+  child.once('error', (error: Error) => {
+    if (windowsManagedProcess !== null) {
+      windowsManagedProcess.cleanUpWindowsManagedProcessLaunchFailure(child);
+    }
+    resolveOutcome({ kind: 'error', errorCode: errorCode(error, 'process-error') });
+  });
+
+  let triggerCleanup: () => void = () => undefined;
+  const cleanupTriggered = new Promise<void>(resolve => {
+    triggerCleanup = resolve;
+  });
+  let cleanupStarted = false;
+  let cleanup: Promise<void> = Promise.resolve();
+  const startCleanup = (): void => {
+    if (cleanupStarted) {
+      return;
+    }
+    cleanupStarted = true;
+    cleanup = terminateProcessTree(child, windowsManagedProcess);
+    triggerCleanup();
+  };
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    startCleanup();
+  }, spec.timeoutMs);
+  void outcomePromise.then(startCleanup);
+
+  await cleanupTriggered;
+  const cleanupSettlement = await settleWithin(
+    cleanup,
+    cleanupSettlementMs,
+    'process-cleanup-settlement-timeout',
+  );
+  const observedOutcome = await Promise.race([
+    outcomePromise.then((outcome: ProcessOutcome): ProcessOutcome | null => outcome),
+    new Promise<null>(resolve => {
+      setTimeout(() => {
+        resolve(null);
+      }, exitSettlementMs);
+    }),
+  ]);
+  const outputSettlement = await waitForOutputSettlement(stdout, stderr);
+  if (!outputSettlement.settled) {
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+  }
+  clearTimeout(timer);
+
+  const outcome = observedOutcome;
+  const settlementFailure = !cleanupSettlement.settled
+    || !outputSettlement.settled
+    || outcome === null;
+  const processErrorCode = outcome?.kind === 'error'
+    ? outcome.errorCode
+    : cleanupSettlement.error
+      ?? outputSettlement.error
+      ?? (outcome === null ? 'process-exit-settlement-timeout' : null);
+  const passed = !timedOut
+    && outcome?.kind === 'exit'
+    && outcome.exitCode === 0
+    && outcome.signal === null
+    && !settlementFailure;
+  const status = passed
+    ? 'passed' as const
+    : timedOut || outcome?.kind === 'exit'
+      ? 'failed' as const
+      : 'unavailable' as const;
+  return Object.freeze({
+    report: Object.freeze({
+      status,
+      exitCode: outcome?.kind === 'exit' ? outcome.exitCode : null,
+      signal: outcome?.kind === 'exit' ? outcome.signal : null,
+      errorCode: processErrorCode,
+      outputTruncated: stdout.truncated || stderr.truncated,
+      reason: processReason(timedOut, outcome, settlementFailure),
+    }),
+    stdout: outputText(stdout),
   });
 }

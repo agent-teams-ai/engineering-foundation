@@ -21,6 +21,7 @@
         "tests/fixtures/coverage-process-tree.fixture.mjs",
         "tests/fixtures/foundation-transaction-holder.mjs",
         "tests/fixtures/scaffolding-crash-worker.mjs",
+        "tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts",
         "tests/support/document-authoring-schema-closures.mjs",
         "tests/fixtures/**/scripts/*.mjs"
       ],

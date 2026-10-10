@@ -3,7 +3,8 @@
 Published comparator adoption, not a new check-omission policy.
 The package belongs to development/CI tooling only. The existing package catalog,
 source/quality profiles, build references and test manifests include it. Real Runtime and Central donor shared-subset conformance has passed in isolated
-TEST contexts. Version `0.1.0-rc.0` is published; public imports merged in Runtime
+TEST contexts. The published `0.1.0-rc.0` predecessor remains historical
+evidence; public imports merged in Runtime
 [PR #213](https://github.com/agent-teams-ai/agent-runtime/pull/213) and Central
 [PR #357](https://github.com/agent-teams-ai/.github/pull/357). Central's conformance
 wrapper is not live authenticated authority. Retained receipts below describe
@@ -93,7 +94,7 @@ not permission to copy submitted H or add a new materializer to this package.
 | GM distribution | Historical admission recorded Core/Assembly 0.2.0 and conformance E404; this is retained evidence, not a current registry claim. Compatible pair/kit qualification is separate |
 | Central independent H | Pending local expectation/caller evidence; no production materializer fabricated |
 | Public API baseline | Release-owned bytes stay immutable; check the narrowed type through the existing breaking-change policy. Source `0.0.0` is the RC preparation convention, not registry status |
-| Release / registry adoption | `0.1.0-rc.0` published; next type change has a minor Changeset and migration note. No new publication is authorized here |
+| Release / registry adoption | The published `0.1.0-rc.0` predecessor remains historical evidence; next type change has a minor Changeset and migration note. The exact manifest/registry release controls any successor. No new publication is authorized here |
 
 Missing prerequisites block only the corresponding consumer activation. They do
 not start a trust platform, broad upstream release, new workflow policy or cache
@@ -109,6 +110,10 @@ adopts the Consumer Module Standard. Canonical standard guidance is unchanged.
 
 The [integration guide](../../packages/ci-input-proof/README.md#integration-guide) defines the next consumer
 intake without creating a collector Host or new composition boundary.
+Ordinary registry installation belongs in the existing consumer tooling
+workspace through an exact development-only dependency; no local archive,
+fixture or temporary token is required. The README retains the typed example and
+`InputLeaf` migration by pointer rather than duplicating them here.
 Run focused kernel/type checks during edits. The existing packed consumer E2E
 phase now installs this exact qualified tarball into a disposable TEST consumer,
 typechecks its public root, runs compatible/rejecting behavior and rejects a deep
@@ -132,6 +137,10 @@ process. The report binds the head/base/merge tuple and keeps target PASS,
 candidate-omit observation, selection and omission status separate. Its timing
 observation reports collection overhead and potential avoided FULL duration
 without granting omission or PASS authority.
+
+The pure comparator remains cross-platform, but this pilot and its selected RC
+target are Linux-only. Unsupported pilot platforms reject before collection or
+FULL; this route policy is not native Windows containment evidence.
 
 The production route is `control-shadow`. Before/current observations come from
 one tree at two boundaries with a caller-supplied tuple. This does not prove

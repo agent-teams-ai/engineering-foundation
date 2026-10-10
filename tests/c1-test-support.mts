@@ -38,9 +38,14 @@ export async function executeCli(cli:string,args:readonly string[],options:{cwd:
   await writeFile(observer,cliObserverSource);
   try {return await execute(process.execPath,[observer,record,cli,...args],options);}
   catch(primary) {
-    let detail='TEST CLI observer produced no record.';
-    try {detail=diagnosticText(await readFile(record,'utf8'),20*1024);} catch {}
-    throw new AggregateError([primary,new Error(`TEST real CLI partial evidence: ${detail}`)],'TEST CLI execution failed; original and bounded child evidence retained.',{cause:primary});
+    let raw='',detail='TEST CLI observer produced no record.';
+    try {raw=await readFile(record,'utf8');detail=diagnosticText(raw,20*1024);} catch {}
+    let summary=diagnosticText(detail,3600);
+    try {
+      const snapshot=JSON.parse(raw) as Record<string,unknown>;
+      summary=diagnosticText(JSON.stringify({event:snapshot['event'],stderr:typeof snapshot['stderr']==='string'?diagnosticText(snapshot['stderr'],1536):null,stdout:typeof snapshot['stdout']==='string'?diagnosticText(snapshot['stdout'],768):null,detail:diagnosticText(JSON.stringify(snapshot['detail'])??'',512)}),3600);
+    } catch {}
+    throw new AggregateError([primary,new Error(`TEST real CLI partial evidence: ${detail}`)],`TEST CLI execution failed; bounded child evidence: ${summary}`,{cause:primary});
   }
 }
 
@@ -89,15 +94,22 @@ export async function fixture(body: (subject: {root:string;output:string;tool:Pn
   await cp(await realpath(join(dirname(compilerPackage),'@typescript',nativeName)),join(toolchain,'node_modules/@typescript',nativeName),{recursive:true});
   const tool = await toolIdentity(join(toolchain,'pnpm'),nodeExecutable);
   const compilerPath = join(toolchain,'node_modules/typescript/bin/tsc');
+  const scriptNode = process.platform === 'win32' ? join('..','toolchain','bin','node.exe') : JSON.stringify(tool.nodeExecutable);
+  const scriptCompiler = process.platform === 'win32' ? join('..','toolchain','node_modules','typescript','bin','tsc') : JSON.stringify(compilerPath);
+  async function assertScriptToolPaths(cwd:string):Promise<void> {
+    assert.equal(await realpath(join(cwd,'..','toolchain','bin',process.platform === 'win32' ? 'node.exe' : 'node')),tool.nodeExecutable);
+    assert.equal(await realpath(join(cwd,'..','toolchain','node_modules','typescript','bin','tsc')),await realpath(compilerPath));
+  }
+  await assertScriptToolPaths(root);
   const scripts = {
     lint:'node lint.mts',
-    typecheck:`node ${JSON.stringify(compilerPath)} --project tsconfig.json --pretty false`,
+    typecheck:`node ${scriptCompiler} --project tsconfig.json --pretty false`,
     tests:'node observe.mts',
     pretests:`node -e ${JSON.stringify(`require('node:fs').writeFileSync(${JSON.stringify(join(output,'pre-sentinel'))},'unexpected')`)}`,
     posttests:`node -e ${JSON.stringify(`require('node:fs').writeFileSync(${JSON.stringify(join(output,'post-sentinel'))},'unexpected')`)}`,
     prerequisite:'node prerequisite.mts'
   };
-  for(const name of Object.keys(scripts) as Array<keyof typeof scripts>) {scripts[name]=scripts[name].replace(/^node /u, `${JSON.stringify(tool.nodeExecutable)} `);}
+  for(const name of Object.keys(scripts) as Array<keyof typeof scripts>) {scripts[name]=scripts[name].replace(/^node /u, `${scriptNode} `);}
   await writeFile(join(root,'package.json'),JSON.stringify({type:'module',packageManager:'pnpm@11.20.0',scripts}));
   await writeFile(join(root,'tsconfig.json'),JSON.stringify({compilerOptions:{strict:true,noEmit:true,types:[],target:'ES2024',module:'NodeNext'},include:['src.ts']}));
   await writeFile(join(root,'src.ts'),'export const value: number = 1;\n');
@@ -137,6 +149,7 @@ process.exitCode=failed?1:0;\n`);
   async function freeze() {
     const snapshot = join(directory,`snapshot-${Math.random().toString(36).slice(2)}`);
     await cp(root,snapshot,{recursive:true});
+    await assertScriptToolPaths(snapshot);
     const mutable = await createMutableCheckInputCustody(execute).acquire({consumerRoot:snapshot,configPath:'workflow.json'});
     // TEST Host owns this private execution copy and all cooperative writers.
     // The real compiler reads its original bytes; origin edits have no alias.

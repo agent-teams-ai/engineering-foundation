@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { copyFile, cp, mkdir, mkdtemp, readFile, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import type { FoundationPilotRequest, Observation, ScopeCategory } from '../../scripts/ci-input-proof-foundation-adapter.mts';
+import { collectFoundationPilotObservation } from '../../scripts/ci-input-proof-foundation-pilot.mts';
+import { runCiInputProofAdapter } from '../../scripts/ci-input-proof-foundation-adapter.mts';
 import type { InputLeaf } from '../../packages/ci-input-proof/dist/index.js';
 
 export const scopeCategories: readonly ScopeCategory[] = [
@@ -67,6 +69,95 @@ export const readOptionalText = async (path: string): Promise<string | null> => 
     throw error;
   }
 };
+
+const directoryLinkType = process.platform === 'win32' ? 'junction' : 'dir';
+
+export async function withExternalDirectoryReplacementLink<T>(
+  collectionRoot: string,
+  sourcePath: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  const externalRoot = await mkdtemp(join(dirname(collectionRoot), 'ci-input-proof-external-dist-TEST-'));
+  const externalTarget = join(externalRoot, basename(sourcePath));
+  let linked = false;
+  await rename(sourcePath, externalTarget);
+  try {
+    await symlink(externalTarget, sourcePath, directoryLinkType);
+    linked = true;
+    return await action();
+  } finally {
+    if (linked) {
+      await unlink(sourcePath);
+    }
+    await rename(externalTarget, sourcePath);
+    await rm(externalRoot, { recursive: true, force: true });
+  }
+}
+
+export async function withDirectoryAlias<T>(
+  targetPath: string,
+  aliasPath: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  await symlink(targetPath, aliasPath, directoryLinkType);
+  try {
+    return await action();
+  } finally {
+    await unlink(aliasPath);
+  }
+}
+
+export async function assertAncestorDirectoryLinkPolicy(temporaryRoot: string): Promise<void> {
+  const distPath = resolve(temporaryRoot, 'packages', 'ci-input-proof', 'dist');
+  const fullMarker = resolve(temporaryRoot, 'ancestor-independent-full-marker');
+  const regularBefore = await collectFoundationPilotObservation(temporaryRoot, 'regular-before');
+  const regularIndexBefore = regularBefore.observation.inventory.inputs.find(input => input.path === 'packages/ci-input-proof/dist/index.js');
+  assert.ok(regularIndexBefore);
+  await withExternalDirectoryReplacementLink(temporaryRoot, distPath, async () => {
+    await assert.rejects(
+      collectFoundationPilotObservation(temporaryRoot, 'external-directory-link'),
+      /unsupported symlink ancestor closure packages\/ci-input-proof\/dist/u,
+    );
+    const blocking = await runCiInputProofAdapter({
+      ...adapterRequest(adapterObservation('ancestor-admission-unavailable')),
+      full: Object.freeze({
+        command: process.execPath,
+        args: Object.freeze([
+          '-e',
+          `require("node:fs").writeFileSync(${JSON.stringify(fullMarker)}, "executed"); process.exit(23)`,
+        ]),
+        cwd: temporaryRoot,
+        timeoutMs: 30_000,
+      }),
+    }, () => { throw new Error('comparator-import-unavailable'); });
+    assert.equal(blocking.exitCode, 23);
+    assert.equal(blocking.report.execution.status, 'failed');
+    assert.equal(blocking.report.execution.full.exitCode, 23);
+    assert.deepEqual(blocking.report.omission, {
+      status: 'not-attempted',
+      reason: 'shadow-executes-full',
+      reportedSeparatelyFromPass: true,
+    });
+    assert.equal(blocking.report.selection.decision, 'full');
+    assert.equal(await readFile(fullMarker, 'utf8'), 'executed');
+  });
+  const regularAfter = await collectFoundationPilotObservation(temporaryRoot, 'regular-after');
+  const regularIndexAfter = regularAfter.observation.inventory.inputs.find(input => input.path === 'packages/ci-input-proof/dist/index.js');
+  assert.deepEqual(regularIndexAfter, regularIndexBefore);
+  const rootAlias = join(dirname(temporaryRoot), `${basename(temporaryRoot)}-root-link`);
+  await withDirectoryAlias(temporaryRoot, rootAlias, async () => {
+    await assert.rejects(
+      collectFoundationPilotObservation(rootAlias, 'root-directory-link'),
+      /unsupported symlink ancestor closure <collection-root>/u,
+    );
+  });
+  const outsideAlias = join(dirname(temporaryRoot), `${basename(temporaryRoot)}-outside-alias`);
+  await withDirectoryAlias(dirname(temporaryRoot), outsideAlias, async () => {
+    const aliasedRoot = join(outsideAlias, basename(temporaryRoot));
+    const aliased = await collectFoundationPilotObservation(aliasedRoot, 'outside-root-alias');
+    assert.deepEqual(aliased.observation.inventory.inputs, regularAfter.observation.inventory.inputs);
+  });
+}
 
 export async function copyCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
   await cp(sourceRoot, destinationRoot, {

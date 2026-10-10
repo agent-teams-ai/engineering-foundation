@@ -130,8 +130,10 @@ public-root probe. Its fixed collector closes source, transitive helpers,
 fixtures, configuration, lockfile, toolchain and the package's exact exported
 build files for its declared zero-runtime-dependency graph. It materializes each
 logical fact once per before/current boundary and executes the target test in a
-real child process. Resolved symlink targets, nonempty installed runtime
-dependencies and other package-resolution forms are unsupported. Collection or
+real child process. Resolved symlink targets, linked ancestor directories within the collection root
+(including the root itself), nonempty installed runtime dependencies and other
+package-resolution forms are unsupported. Directory identities are revalidated
+after leaf reads. Path aliases outside the collection root remain supported. Collection or
 comparator import failure does not suppress the independently configured target
 process. The report binds the head/base/merge tuple and keeps target PASS,
 candidate-omit observation, selection and omission status separate. Its timing
@@ -207,3 +209,7 @@ Rollback a consumer through its reviewed FULL route; reverting this hardening
 does not unpublish the existing RC. A compatible relation is never an
 executed/pass outcome or merge authorization. No Windows latency gain is claimed
 from this extraction alone.
+
+Mandatory Node execution prints bounded assertion stacks and causes through the
+existing quality-gate adapter. Its explicit builtin contract admits `node:util`
+for diagnostic formatting; failure evaluation and execution authority are unchanged.

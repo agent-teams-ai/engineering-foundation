@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { constants } from 'node:fs';
+import { constants, type BigIntStats } from 'node:fs';
 import { lstat, open } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
@@ -170,6 +170,90 @@ function sameFileMetadata(left: FileMetadata, right: FileMetadata): boolean {
     && left.ctimeNs === right.ctimeNs;
 }
 
+const sameDirectoryMetadata = (left: BigIntStats, right: BigIntStats): boolean =>
+  left.dev === right.dev && left.mode === right.mode && left.ino === right.ino && left.nlink === right.nlink
+  && left.uid === right.uid && left.gid === right.gid && left.size === right.size && left.blocks === right.blocks
+  && left.blksize === right.blksize && left.mtimeNs === right.mtimeNs && left.ctimeNs === right.ctimeNs && left.birthtimeNs === right.birthtimeNs;
+
+const outsideRoot = (rootPath: string, candidatePath: string): boolean => {
+  const candidateRelative = relative(rootPath, candidatePath);
+  return candidateRelative === '' || candidateRelative === '..' || candidateRelative.startsWith(`..${sep}`) || isAbsolute(candidateRelative);
+};
+
+const ancestorFailure = (phase: 'initial' | 'revalidation', label: string): Error => new Error(phase === 'initial'
+  ? `unsupported symlink ancestor closure ${label}`
+  : `uncertain input identity or content ancestor directory ${label}`);
+
+async function readAncestorDirectory(
+  repositoryRoot: string,
+  directoryPath: string,
+  phase: 'initial' | 'revalidation',
+): Promise<BigIntStats> {
+  const metadata = await lstat(directoryPath, { bigint: true });
+  const label = relative(repositoryRoot, directoryPath).split(sep).join('/') || '<collection-root>';
+  if (metadata.isSymbolicLink()) {
+    throw ancestorFailure(phase, label);
+  }
+  if (!metadata.isDirectory()) {
+    throw new Error(phase === 'initial' ? `scope ancestor is not a directory ${label}` : `uncertain input identity or content ancestor directory ${label}`);
+  }
+  return metadata;
+}
+
+function ancestorDirectoryPaths(repositoryRoot: string, inputs: readonly ScopeInput[]): readonly string[] {
+  const rootPath = resolve(repositoryRoot);
+  const paths = new Set<string>([rootPath]);
+  for (const input of inputs) {
+    if (input.sourcePath === null) {
+      continue;
+    }
+    const sourcePath = resolve(rootPath, input.sourcePath);
+    if (outsideRoot(rootPath, sourcePath)) {
+      throw new Error(`scope input escapes collection root ${input.logicalPath}`);
+    }
+    let directoryPath = dirname(sourcePath);
+    while (directoryPath !== rootPath) {
+      if (outsideRoot(rootPath, directoryPath)) {
+        throw new Error(`scope input escapes collection root ${input.logicalPath}`);
+      }
+      paths.add(directoryPath);
+      const parentPath = dirname(directoryPath);
+      if (parentPath === directoryPath) {
+        throw new Error(`scope input escapes collection root ${input.logicalPath}`);
+      }
+      directoryPath = parentPath;
+    }
+  }
+  if (paths.size > 4_096) {
+    throw new Error(`exceeded ancestor directory limit 4096`);
+  }
+  return Object.freeze([...paths].toSorted((left, right) => left.localeCompare(right)));
+}
+
+async function collectAncestorDirectorySnapshot(
+  repositoryRoot: string,
+  inputs: readonly ScopeInput[],
+): Promise<ReadonlyMap<string, BigIntStats>> {
+  const paths = ancestorDirectoryPaths(repositoryRoot, inputs);
+  const entries = await Promise.all(paths.map(async directoryPath => [
+    directoryPath,
+    await readAncestorDirectory(repositoryRoot, directoryPath, 'initial'),
+  ] as const));
+  return new Map(entries);
+}
+
+async function revalidateAncestorDirectorySnapshot(
+  repositoryRoot: string,
+  snapshot: ReadonlyMap<string, BigIntStats>,
+): Promise<void> {
+  for (const [directoryPath, initial] of snapshot) {
+    const current = await readAncestorDirectory(repositoryRoot, directoryPath, 'revalidation');
+    if (!sameDirectoryMetadata(initial, current)) {
+      throw new Error(`uncertain input identity or content ancestor directory ${relative(repositoryRoot, directoryPath).split(sep).join('/') || '<collection-root>'}`);
+    }
+  }
+}
+
 async function readRegularFile(sourcePath: string, logicalPath: string): Promise<RegularFileRead> {
   const initial = await lstat(sourcePath, { bigint: true }) as FileMetadata;
   assertExpectedFileMetadata(initial, logicalPath);
@@ -262,7 +346,9 @@ export async function collectFoundationPilotObservation(
     Object.entries(scope).map(([category, inputs]) => [category, Object.freeze(inputs.map(input => input.logicalPath))]),
   ) as Record<ScopeCategory, readonly string[]>;
   const inputs = Object.values(scope).flat();
+  const ancestorDirectories = await collectAncestorDirectorySnapshot(repositoryRoot, inputs);
   const leaves = await Promise.all(inputs.map(input => collectLeaf(repositoryRoot, input)));
+  await revalidateAncestorDirectorySnapshot(repositoryRoot, ancestorDirectories);
   leaves.sort((left, right) => left.path.localeCompare(right.path));
   const observation: Observation = Object.freeze({
     schemaVersion: 1,

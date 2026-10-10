@@ -18,7 +18,16 @@ import { cases } from '../../support/ci-input-proof-donor-cases.mts';
 import { compareLeafInventories } from '../../../packages/ci-input-proof/dist/index.js';
 import type { InputLeaf, RejectionReason } from '../../../packages/ci-input-proof/dist/index.js';
 
-import { adapterLeaf, adapterObservation, adapterRequest, scopeCategories, readOptionalText, copyCollectorFixture, assertCollectorReplacementRejection } from '../../support/ci-input-proof-adapter-fixtures.mts';
+import {
+  adapterLeaf,
+  adapterObservation,
+  adapterRequest,
+  assertAncestorDirectoryLinkPolicy,
+  assertCollectorReplacementRejection,
+  copyCollectorFixture,
+  readOptionalText,
+  scopeCategories,
+} from '../../support/ci-input-proof-adapter-fixtures.mts';
 
 const execFileAsync = promisify(execFile);
 const boundedProcess = Object.freeze({ timeout: 30_000, maxBuffer: 1_048_576 });
@@ -307,6 +316,17 @@ void test('fixed pilot closure rejects a real minor-to-patch changeset mutation'
     assert.equal(await readOptionalText(sourceLicensePath), sourceLicenseBefore);
 
     await assertCollectorReplacementRejection(temporaryRoot, fixtureLicensePath);
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+void test('external directory-link ancestors reject while aliases outside the collection root remain accepted', async () => {
+  const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-ancestor-link-TEST-'));
+  try {
+    await copyCollectorFixture(repositoryRoot, temporaryRoot);
+    await copyFile(resolve(repositoryRoot, 'LICENSE'), resolve(temporaryRoot, 'packages', 'ci-input-proof', 'LICENSE'));
+    await assertAncestorDirectoryLinkPolicy(temporaryRoot);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

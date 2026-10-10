@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/ci-input-proof",
-  "packageVersion": "0.0.0",
+  "packageVersion": "0.1.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -26,7 +26,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/ci-input-proof!",
           "parentKind": "EntryPoint",
-          "signature": "export type InputLeaf = Readonly<{\n    path: string;\n    type: 'file' | 'symlink' | 'gitlink';\n    mode: '100644' | '100755' | '120000' | '160000';\n    membership: 'closed' | 'structural';\n    content: string;\n}>;"
+          "signature": "export type InputLeaf = Readonly<{\n    path: string;\n    membership: 'closed' | 'structural';\n    content: string;\n} & ({\n    type: 'file';\n    mode: '100644' | '100755';\n} | {\n    type: 'symlink';\n    mode: '120000';\n} | {\n    type: 'gitlink';\n    mode: '160000';\n})>;"
         },
         {
           "canonicalReference": "@agent-teams/ci-input-proof!LeafInventory:type",

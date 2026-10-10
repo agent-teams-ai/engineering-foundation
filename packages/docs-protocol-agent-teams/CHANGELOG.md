@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#373](https://github.com/agent-teams-ai/engineering-foundation/pull/373) [`5f9ac44`](https://github.com/agent-teams-ai/engineering-foundation/commit/5f9ac44ee95bba0ea6a6f9975f24edd3d46fd6ec) Thanks [@777genius](https://github.com/777genius)! - Add the public `checkManagedRestorationLockV1` qualification API and its byte-bound request and result types. It reports whole managed restoration lock conformance and provenance from independently selected closure, source lock and archive bindings. Conformance evidence grants no Cohort admission or restoration authority.
+
+### Patch Changes
+
+- [#379](https://github.com/agent-teams-ai/engineering-foundation/pull/379) [`1acbd97`](https://github.com/agent-teams-ai/engineering-foundation/commit/1acbd97b6c14e59e06e50c52568393bc0e3ab581) Thanks [@777genius](https://github.com/777genius)! - Add internal managed runtime attempt and install filesystem custody.
+  Track deterministic disposition and debt, and check offline prerequisites.
+  Use a strict offline environment for managed pnpm installs.
+
 ## 0.3.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @agent-teams/engineering-foundation
 
+## 1.7.3
+
+### Patch Changes
+
+- [#385](https://github.com/agent-teams-ai/engineering-foundation/pull/385) [`ff3de5d`](https://github.com/agent-teams-ai/engineering-foundation/commit/ff3de5d2a56fa9ad98d3b2c30f0635f8ef1fb38f) Thanks [@777genius](https://github.com/777genius)! - Document installed public-root integration, independent FULL recovery and a bounded Foundation shadow pilot, with executable package conformance and exact upgrade guidance.
+
+  Preserve real assertion details in mandatory Node test execution while retaining blocking execution outcomes.
+
 ## 1.7.2
 
 ### Patch Changes

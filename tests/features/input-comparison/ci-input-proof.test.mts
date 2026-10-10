@@ -1,14 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import {
   runCiInputProofAdapter,
-  type Observation,
   type ScopeCategory,
 } from '../../../scripts/ci-input-proof-foundation-adapter.mts';
 import {
@@ -37,23 +36,41 @@ const inventory = (inputs: unknown = [leaf('package.json'), leaf('src/a.ts', 'st
 const rejected = (before: unknown, after: unknown, permission: unknown, reason: RejectionReason): void => {
   assert.deepEqual(compareLeafInventories(before, after, permission), { status: 'rejected', reason });
 };
-async function copyCollectorScope(
-  sourceRoot: string,
-  destinationRoot: string,
-  scope: Observation['scope'],
-): Promise<void> {
-  for (const paths of Object.values(scope)) {
-    for (const logicalPath of paths) {
-      if (logicalPath.startsWith('toolchain/')) {
-        continue;
-      }
-      const destination = resolve(destinationRoot, logicalPath);
-      await mkdir(dirname(destination), { recursive: true });
-      await copyFile(resolve(sourceRoot, logicalPath), destination);
+const readOptionalText = async (path: string): Promise<string | null> => {
+  try {
+    return await readFile(path, 'utf8');
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return null;
     }
+    throw error;
   }
+};
+
+async function copyCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
+  await cp(sourceRoot, destinationRoot, {
+    recursive: true,
+    force: true,
+    filter: sourcePath => {
+      const relativePath = relative(sourceRoot, sourcePath);
+      return !relativePath.split(/[\\/]/u).some(
+        part => ['.cache', '.git', 'node_modules'].includes(part),
+      );
+    },
+  });
+  await mkdir(join(destinationRoot, 'node_modules', '.pnpm'), { recursive: true });
+  await copyFile(
+    join(sourceRoot, 'node_modules', '.package-map.json'),
+    join(destinationRoot, 'node_modules', '.package-map.json'),
+  );
+  await copyFile(
+    join(sourceRoot, 'node_modules', '.pnpm', 'lock.yaml'),
+    join(destinationRoot, 'node_modules', '.pnpm', 'lock.yaml'),
+  );
 }
 
+
+const unavailableCompare = (): never => { throw new Error('comparator-import-unavailable'); };
 
 // Independent common cases also execute against each real donor in TEST checkouts.
 // Failure: a shared fixture's advertised relation diverges from package behavior.
@@ -221,14 +238,25 @@ void test('positive adapter case executes a real passing FULL process', async ()
 void test('fixed pilot closure rejects a real minor-to-patch changeset mutation', async () => {
   const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-closure-TEST-'));
   const changesetPath = 'tests/fixtures/ci-input-proof/ci-input-proof-kernel.TEST.md';
+  const sourceLicensePath = resolve(repositoryRoot, 'packages/ci-input-proof/LICENSE');
+  const sourceLicenseBefore = await readOptionalText(sourceLicensePath);
   const tuple = Object.freeze({
     headSha: '5'.repeat(40),
     baseSha: '6'.repeat(40),
     mergeTuple: 'refs/heads/TEST-ci-input-proof-closure',
   });
   try {
-    const sourceCollection = await collectFoundationPilotObservation(repositoryRoot, 'source-scope');
-    await copyCollectorScope(repositoryRoot, temporaryRoot, sourceCollection.observation.scope);
+    await copyCollectorFixture(repositoryRoot, temporaryRoot);
+    const fixtureLicensePath = resolve(temporaryRoot, 'packages/ci-input-proof/LICENSE');
+    await rm(fixtureLicensePath, { force: true });
+    await assert.rejects(
+      collectFoundationPilotObservation(temporaryRoot, 'unprepared'),
+      (error: unknown) => {
+        assert.equal((error as NodeJS.ErrnoException).code, 'ENOENT');
+        return true;
+      },
+    );
+    await copyFile(resolve(repositoryRoot, 'LICENSE'), fixtureLicensePath);
     const before = await collectFoundationPilotObservation(temporaryRoot, 'minor-before');
     assert.ok(before.observation.scope.fixtures.includes(changesetPath));
     const beforeLeaf = before.observation.inventory.inputs.find(input => input.path === changesetPath);
@@ -290,6 +318,7 @@ void test('fixed pilot closure rejects a real minor-to-patch changeset mutation'
       reason: 'shadow-no-admitted-omission-policy',
       independentlyExecutable: true,
     });
+    assert.equal(await readOptionalText(sourceLicensePath), sourceLicenseBefore);
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }
@@ -318,7 +347,7 @@ void test('Linux-only pilot rejects unsupported platforms before collection or F
       );
       await assert.rejects(
         execFileAsync(process.execPath, [
-          '--import', preload,
+          '--import', pathToFileURL(preload).href,
           resolve(repositoryRoot, 'scripts', 'ci-input-proof-foundation-pilot.mts'),
           '--head', '7'.repeat(40),
           '--base', '8'.repeat(40),
@@ -430,58 +459,62 @@ void test('incomplete closure and failed FULL remain fail closed in real process
 
 void test('collector and comparator import failure still execute independent FULL', async () => {
   const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-import-failure-TEST-'));
+  const fullMarker = resolve(temporaryRoot, 'independent-full-marker');
+  const sourceFiles = ['scripts/ci-input-proof-foundation-adapter.mts', 'scripts/ci-input-proof-full.mts', 'scripts/ci-input-proof-foundation-pilot.mts'] as const;
   try {
-    await mkdir(join(temporaryRoot, 'scripts'), { recursive: true });
-    await mkdir(join(temporaryRoot, 'tests', 'features', 'input-comparison'), { recursive: true });
-    await copyFile(
-      join(repositoryRoot, 'scripts', 'ci-input-proof-foundation-adapter.mts'),
-      join(temporaryRoot, 'scripts', 'ci-input-proof-foundation-adapter.mts'),
+    await Promise.all([
+      mkdir(join(temporaryRoot, 'scripts'), { recursive: true }),
+      mkdir(join(temporaryRoot, 'tests', 'features', 'input-comparison'), { recursive: true }),
+    ]);
+    for (const sourceFile of sourceFiles) {
+      await copyFile(join(repositoryRoot, sourceFile), join(temporaryRoot, sourceFile));
+      assert.deepEqual(await readFile(join(temporaryRoot, sourceFile)), await readFile(join(repositoryRoot, sourceFile)));
+    }
+    await Promise.all([
+      writeFile(join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof.test.mts'), 'import assert from "node:assert/strict";\nimport { test } from "node:test";\nvoid test("independent FULL", () => assert.equal(1, 1));\n', 'utf8'),
+      writeFile(join(temporaryRoot, 'tests', 'ci-input-proof-rc.test.mts'), `import { writeFile } from "node:fs/promises";\nimport test from "node:test";\ntest("independent FULL", async () => writeFile(${JSON.stringify(fullMarker)}, "executed"));\n`, 'utf8'),
+    ]);
+    await copyFile(join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof.test.mts'), join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof-process.test.mts'));
+    await assert.rejects(
+      collectFoundationPilotObservation(temporaryRoot, 'collector-unavailable'),
+      (error: unknown) => (assert.equal((error as NodeJS.ErrnoException).code, 'ENOENT'), true),
     );
-    await copyFile(
-      join(repositoryRoot, 'scripts', 'ci-input-proof-full.mts'),
-      join(temporaryRoot, 'scripts', 'ci-input-proof-full.mts'),
+    await assert.rejects(
+      import(pathToFileURL(join(temporaryRoot, 'packages', 'ci-input-proof', 'dist', 'index.js')).href),
+      (error: unknown) => (assert.equal((error as NodeJS.ErrnoException).code, 'ERR_MODULE_NOT_FOUND'), true),
     );
-    await copyFile(
-      join(repositoryRoot, 'scripts', 'ci-input-proof-foundation-pilot.mts'),
-      join(temporaryRoot, 'scripts', 'ci-input-proof-foundation-pilot.mts'),
-    );
-    await writeFile(
-      join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof.test.mts'),
-      'import assert from "node:assert/strict";\nimport { test } from "node:test";\nvoid test("independent FULL", () => assert.equal(1, 1));\n',
-      'utf8',
-    );
-    await writeFile(
-      join(temporaryRoot, 'tests', 'ci-input-proof-rc.test.mts'),
-      'import assert from "node:assert/strict";\nimport { test } from "node:test";\nvoid test("independent FULL", () => assert.equal(1, 1));\n',
-      'utf8',
-    );
-    await copyFile(
-      join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof.test.mts'),
-      join(temporaryRoot, 'tests', 'features', 'input-comparison', 'ci-input-proof-process.test.mts'),
-    );
-    const child = await execFileAsync(process.execPath, [
-      join(temporaryRoot, 'scripts', 'ci-input-proof-foundation-pilot.mts'),
-      '--head', '3'.repeat(40),
-      '--base', '4'.repeat(40),
-      '--merge', 'refs/heads/TEST-ci-input-proof-import-failure',
-    ], { cwd: temporaryRoot });
-    const result = JSON.parse(child.stdout) as Readonly<{
-      collectionIssues: readonly string[];
-      adapter: Readonly<{
-        exitCode: number;
-        report: Readonly<{
-          candidateOmitObservation: Readonly<{ status: string; reason: string }>;
-          execution: Readonly<{ status: string }>;
-          selection: Readonly<{ decision: string }>;
-        }>;
-      }>;
-    }>;
-    assert.match(result.collectionIssues.join(','), /(?:^|,)before:/u);
-    assert.ok(result.collectionIssues.includes('comparator:import-unavailable'));
-    assert.equal(result.adapter.exitCode, 0);
-    assert.equal(result.adapter.report.execution.status, 'passed');
-    assert.equal(result.adapter.report.candidateOmitObservation.status, 'not-eligible');
-    assert.equal(result.adapter.report.selection.decision, 'full');
+    const focusedRequest = { ...adapterRequest(adapterObservation('unavailable-current')), full: Object.freeze({ command: process.execPath, args: Object.freeze(['--test', join(temporaryRoot, 'tests', 'ci-input-proof-rc.test.mts')]), cwd: temporaryRoot, timeoutMs: 30_000 }) };
+    const direct = await runCiInputProofAdapter(focusedRequest, unavailableCompare);
+    assert.equal(direct.exitCode, 0);
+    assert.equal(direct.report.execution.status, 'passed');
+    assert.equal(direct.report.execution.full.status, 'passed');
+    assert.equal(direct.report.execution.full.exitCode, 0);
+    assert.deepEqual(direct.report.candidateOmitObservation, { status: 'not-eligible', reason: 'input-proof-unavailable:comparator-failed', relation: { status: 'unavailable', reason: 'comparator-failed' }, observationIssues: [], changedContentPaths: [] });
+    assert.deepEqual(direct.report.omission, { status: 'not-attempted', reason: 'shadow-executes-full', reportedSeparatelyFromPass: true });
+    assert.deepEqual(direct.report.selection, { decision: 'full', reason: 'shadow-no-admitted-omission-policy', independentlyExecutable: true });
+    assert.equal(await readFile(fullMarker, 'utf8'), 'executed');
+    const blocking = await runCiInputProofAdapter(adapterRequest(adapterObservation('unavailable-blocking-current'), ['-e', 'process.exit(23)']), unavailableCompare);
+    assert.equal(blocking.exitCode, 23);
+    assert.equal(blocking.report.execution.status, 'failed');
+    assert.equal(blocking.report.execution.full.exitCode, 23);
+    assert.equal(blocking.report.selection.decision, 'full');
+    if (process.platform === 'linux') {
+      await rm(fullMarker, { force: true });
+      const child = await execFileAsync(process.execPath, [
+        join(temporaryRoot, 'scripts', 'ci-input-proof-foundation-pilot.mts'),
+        '--head', '3'.repeat(40),
+        '--base', '4'.repeat(40),
+        '--merge', 'refs/heads/TEST-ci-input-proof-import-failure',
+      ], { cwd: temporaryRoot });
+      const result = JSON.parse(child.stdout) as { collectionIssues: readonly string[]; adapter: { exitCode: number; report: { candidateOmitObservation: { status: string }; execution: { status: string }; selection: { decision: string } } } };
+      assert.match(result.collectionIssues.join(','), /(?:^|,)before:/u);
+      assert.ok(result.collectionIssues.includes('comparator:import-unavailable'));
+      assert.equal(result.adapter.exitCode, 0);
+      assert.equal(result.adapter.report.execution.status, 'passed');
+      assert.equal(result.adapter.report.candidateOmitObservation.status, 'not-eligible');
+      assert.equal(result.adapter.report.selection.decision, 'full');
+      assert.equal(await readFile(fullMarker, 'utf8'), 'executed');
+    }
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

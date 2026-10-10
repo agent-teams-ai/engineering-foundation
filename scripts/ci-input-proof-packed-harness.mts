@@ -314,11 +314,14 @@ try {
   const escapedScript = [
     'const { spawn } = require("node:child_process");',
     'const { writeFileSync } = require("node:fs");',
-    'const child = spawn(process.execPath, [\\'-e\\', \\'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setInterval(() => {}, 1000);\\', process.argv[2]], { detached: true, stdio: ["ignore", 1, 2] });',
-    'child.unref();',
-    'writeFileSync(process.argv[1], String(child.pid));',
-    'process.stdout.write("x".repeat(65537));',
-    'process.stderr.write("x".repeat(65537));',
+    'const child = spawn(process.execPath, [\\'-e\\', \\'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); process.send({ ready: true }); setInterval(() => {}, 1000);\\', process.argv[2]], { detached: true, stdio: ["ignore", 1, 2, "ipc"] });',
+    'child.once("message", () => {',
+    '  child.disconnect();',
+    '  child.unref();',
+    '  writeFileSync(process.argv[1], String(child.pid));',
+    '  process.stdout.write("x".repeat(65537));',
+    '  process.stderr.write("x".repeat(65537));',
+    '});',
   ].join('');
   const inheritedStarted = Date.now();
   const inheritedPipe = await executeFixedFull({

@@ -1,15 +1,56 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { readFileSync, readdirSync, readlinkSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { runCiInputProofAdapter } from '../../../scripts/ci-input-proof-foundation-adapter.mts';
-import { executeFixedFull } from '../../../scripts/ci-input-proof-full.mts';
+import { executeFixedFull, type ExecutedFull } from '../../../scripts/ci-input-proof-full.mts';
 import { compareLeafInventories } from '../../../packages/ci-input-proof/dist/index.js';
 import { adapterObservation, adapterRequest } from '../../support/ci-input-proof-adapter-fixtures.mts';
 
+const execFileAsync = promisify(execFile);
 const fixtureTimeoutMs = 1_000;
+const processFailureProbeDriver = String.raw`
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { pathToFileURL } from 'node:url';
+
+const [modulePath, fixtureRoot, failureCode] = process.argv.slice(2);
+const originalReadFileSync = fs.readFileSync;
+let injections = 0;
+let injectedPath = null;
+fs.readFileSync = function (...args) {
+  const [path] = args;
+  if (typeof path === 'string' && /^\/proc\/\d+\/stat$/u.test(path) && injections === 0) {
+    injections += 1;
+    injectedPath = path;
+    const error = new Error('Injected ' + failureCode + ' for ' + path);
+    error.code = failureCode;
+    throw error;
+  }
+  return originalReadFileSync.apply(this, args);
+};
+syncBuiltinESMExports();
+
+const { executeFixedFull } = await import(pathToFileURL(modulePath).href);
+const result = await executeFixedFull({
+  command: process.execPath,
+  args: ['-e', ''],
+  cwd: fixtureRoot,
+  timeoutMs: 5_000,
+});
+process.stdout.write(JSON.stringify({ injections, injectedPath, result }));
+`;
+
+type ProcessFailureProbe = Readonly<{
+  injections: number;
+  injectedPath: string | null;
+  result: ExecutedFull;
+}>;
 
 const waitForFixtureFile = async (path: string): Promise<string> => {
   const deadline = Date.now() + 2_000;
@@ -39,6 +80,51 @@ const killRecordedPid = (pid: number): void => {
     }
   }
 };
+
+const runProcessFailureProbe = async (
+  driverPath: string,
+  modulePath: string,
+  fixtureRoot: string,
+  failureCode: string,
+): Promise<ProcessFailureProbe> => {
+  const { stdout } = await execFileAsync(
+    process.execPath,
+    [driverPath, modulePath, fixtureRoot, failureCode],
+    { cwd: fixtureRoot, timeout: 15_000, maxBuffer: 64 * 1024 },
+  );
+  return JSON.parse(stdout) as ProcessFailureProbe;
+};
+
+void test('Linux proc stat ESRCH vanished entries are absent and EACCES remains failed', async context => {
+  if (process.platform !== 'linux') {
+    context.skip('Linux /proc read-failure injection is platform-specific.');
+    return;
+  }
+  const temporaryRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-proc-stat-read-TEST-'));
+  try {
+    const driverPath = join(temporaryRoot, 'process-failure-probe.mts');
+    const modulePath = fileURLToPath(new URL('../../../scripts/ci-input-proof-full.mts', import.meta.url));
+    await writeFile(driverPath, processFailureProbeDriver, 'utf8');
+
+    const vanished = await runProcessFailureProbe(driverPath, modulePath, temporaryRoot, 'ESRCH');
+    assert.equal(vanished.injections, 1);
+    assert.match(vanished.injectedPath ?? '', /^\/proc\/\d+\/stat$/u);
+    assert.equal(vanished.result.report.status, 'passed');
+    assert.equal(vanished.result.report.exitCode, 0);
+    assert.equal(vanished.result.report.errorCode, null);
+    assert.equal(vanished.result.report.reason, null);
+
+    const denied = await runProcessFailureProbe(driverPath, modulePath, temporaryRoot, 'EACCES');
+    assert.equal(denied.injections, 1);
+    assert.match(denied.injectedPath ?? '', /^\/proc\/\d+\/stat$/u);
+    assert.equal(denied.result.report.status, 'failed');
+    assert.equal(denied.result.report.exitCode, 0);
+    assert.equal(denied.result.report.errorCode, 'EACCES');
+    assert.equal(denied.result.report.reason, 'process-settlement-failed');
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
+});
 
 void test('plain FULL bounds newline-free output without an stdout verdict', async () => {
   const result = await executeFixedFull({
@@ -191,11 +277,14 @@ void test('inherited pipes settle boundedly and never conceal escaped descendant
     const escapedScript = [
       'const { spawn } = require("node:child_process");',
       'const { writeFileSync } = require("node:fs");',
-      'const child = spawn(process.execPath, [\'-e\', \'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); setInterval(() => {}, 1000);\', process.argv[2]], { detached: true, stdio: ["ignore", 1, 2] });',
-      'child.unref();',
-      'writeFileSync(process.argv[1], String(child.pid));',
-      'process.stdout.write("x".repeat(65537));',
-      'process.stderr.write("x".repeat(65537));',
+      'const child = spawn(process.execPath, [\'-e\', \'const { writeFileSync } = require("node:fs"); process.on("SIGTERM", () => {}); writeFileSync(process.argv[1], "ready"); process.send({ ready: true }); setInterval(() => {}, 1000);\', process.argv[2]], { detached: true, stdio: ["ignore", 1, 2, "ipc"] });',
+      'child.once("message", () => {',
+      '  child.disconnect();',
+      '  child.unref();',
+      '  writeFileSync(process.argv[1], String(child.pid));',
+      '  process.stdout.write("x".repeat(65537));',
+      '  process.stderr.write("x".repeat(65537));',
+      '});',
     ].join('');
     const started = Date.now();
     const result = await executeFixedFull({
@@ -228,4 +317,3 @@ void test('inherited pipes settle boundedly and never conceal escaped descendant
     await rm(temporaryRoot, { recursive: true, force: true });
   }
 });
-

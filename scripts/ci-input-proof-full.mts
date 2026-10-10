@@ -115,7 +115,11 @@ function readPosixProcessObservation(pid: number): PosixProcessObservation | nul
     }
     return Object.freeze({ state, processGroupId });
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    if (
+      error instanceof Error
+      && 'code' in error
+      && (error.code === 'ENOENT' || error.code === 'ESRCH')
+    ) {
       return null;
     }
     throw error;

@@ -153,6 +153,7 @@
     {
       "id": "5",
       "tests": [
+        "tests/process-failure-reporting.test.mts",
         "tests/capability-reporting-architecture.test.mjs",
         "packages/repository-mutation/tests/public-api-contract.test.mjs",
         "tests/local-mode-boundaries-graph.test.mts",

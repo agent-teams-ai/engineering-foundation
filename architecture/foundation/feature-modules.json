@@ -1941,12 +1941,14 @@
                 "packages/engineering-foundation/src/features/validation-reporting/application",
                 "packages/engineering-foundation/src/features/validation-reporting/api.ts",
                 "packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts",
+                "packages/engineering-foundation/src/features/validation-reporting/process-failure-facts.ts",
                 "packages/engineering-foundation/src/features/validation-reporting/schemas.ts"
               ]
             }
           ],
           "testRoots": [
-            "tests/capability.test.mjs"
+            "tests/capability.test.mjs",
+            "tests/process-failure-reporting.test.mts"
           ]
         },
         {

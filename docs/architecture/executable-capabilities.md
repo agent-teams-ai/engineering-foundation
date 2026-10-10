@@ -493,6 +493,19 @@ including argument parsing and command-launch failures. Non-document commands
 use the versioned `foundation-command-error/v1` envelope; document commands keep
 their command-specific versioned envelopes.
 
+Process failure messages may include private producer observations: launch, child
+exit, timeout, cancellation, output limit, invalid UTF-8, stream or cleanup failure.
+These immutable identity-associated facts carry only integer exit codes from 0
+through 4,294,967,295, timeouts from 1 through 2,147,483,647 milliseconds, and an
+owned finite signal vocabulary. A signal exit's synthetic runner exit code is
+not reported as an observed child exit code. Unknown or invalid facts retain the
+fixed generic message. Reporting never parses process messages, output or causes.
+The facts remain internal to Foundation; consumers own fixture orchestration and
+artifact retention. The existing v1 problem shape, codes, outcomes and diagnostic
+counts stay unchanged. Human message wording is not a parseable API contract.
+This diagnostic repair does not establish the cause of Get Modular's Windows
+failure or prove that failure resolved.
+
 Each rule's ID and metadata are declared once in its owning capability. The same
 registry powers diagnostics, generated reference material, and:
 

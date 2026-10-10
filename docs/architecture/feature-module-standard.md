@@ -35,6 +35,14 @@ mappings. New features use `src/features/<feature>` and
 not a ceremonial domain aggregate. Feature tests and module export/package tests
 retain their existing owners; no mass move is implied.
 
+The quality-gate-runner adapters boundary may import the fixed Node builtins
+`node:test` and `node:util`. `node:util` is used only for `types.isProxy`, so the
+mandatory Node test formatter rejects a Proxy before any reflection. This is an
+existing cohesive Node adapter using a fixed builtin through a static import and
+a private helper: it adds no composition boundary, lifecycle, public API or
+extracted Get Modular module contract, and it makes no Assembly adoption claim.
+The same builtin stays forbidden in the quality-gate-runner application boundary.
+
 Capability `contract` directories now contain transport-independent policy models
 and capability identities after their loaders moved to inbound adapters. These
 map to the owning application layer. Public transport contracts remain outer

@@ -1,3 +1,4 @@
+import { processFailureMessage } from "../process-failure-facts.js";
 import { FoundationError } from "../foundation-error.js";
 
 type UnexpectedFailureCauseKind =
@@ -139,7 +140,7 @@ export function classifyUnexpectedFailure(
   const kind = causeKind(error);
   return Object.freeze({
     code: STABLE_CODES[kind],
-    message: SAFE_MESSAGES[kind],
+    message: kind === "process" ? processFailureMessage(error) : SAFE_MESSAGES[kind],
     phase,
     retryable: false
   });

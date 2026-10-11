@@ -184,6 +184,33 @@ byte and filesystem revalidation. Pure markers do not hide nested `dist` or
 `coverage` source. Existing same-package development-output admission also
 requires stable marker evidence and rejects nested package authority.
 
+V3 admits a child package's development boundary reaching repository development
+source through a relative import only when all of these facts hold:
+
+- `rootPackage: true` selects the actual repository owner; normalized resolution
+  identifies the target manifest as root `package.json` and the source as a child
+  package;
+- both source and target boundaries declare `dependencyMode: development`;
+- the source's `allow.boundaries` explicitly includes the target boundary ID;
+- the resolved exact target path appears in that target's `entrypoints`.
+
+For example, a package test boundary may allow a repository qualification boundary
+whose entrypoints list `tests/qualification/prepare.mts`. That admits the exact
+declared development relationship, not other files beneath `tests`, private
+package development source, runtime-to-development imports, or the reverse
+repository-to-package direction. Boundary IDs and package names remain opaque;
+path names alone do not authorize an edge. A missing fact retains cross-package
+relative-import rejection. Admitted edges continue through ordinary boundary
+diagnostics and the immutable graph's cycle checks; entrypoint admission does
+not return an early successful capability result.
+
+This correction is source-implemented with rejecting fixtures. Delivery target
+1.7.4 remains pending independent exact-source review, real consumer use,
+artifact qualification and required CI. It changes no schema bytes or CMS
+composition contract. Consumers qualify the exact new package and update their
+development-only pin, lockfile and tooling profile together; existing governed
+roots and production prohibitions remain in force.
+
 V1/v2 schema bytes and behavior remain unchanged by this opt-in contract;
 Foundation's own policy remains v2. Root configuration and report versions stay
 independent of the capability schema. Combined producer checks and a separately

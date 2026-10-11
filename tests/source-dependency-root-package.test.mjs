@@ -645,3 +645,83 @@ test("v3 a pure marker cannot satisfy a package selector", async () => {
     assertV3Problem(root, "PACKAGE_ROOT_EMPTY", "tooling/task");
   });
 });
+
+// These fixtures fail if declared development entrypoints are blocked before
+// boundary admission, or if any missing fact grants a cross-package edge.
+async function declaredDevelopmentFixture(callback) {
+  await withV3Fixture(async (root, policy) => {
+    const source = policy.boundaries[0];
+    const target = policy.boundaries.at(-1);
+    source.dependencyMode = "development";
+    target.dependencyMode = "development";
+    source.allow.boundaries = [target.id];
+    await saveV3Policy(root, policy);
+    await writeV3File(root, "packages/domain/src/index.ts",
+      'import "../../../tooling/task/src/index.js";\n');
+    await callback(root, policy, source, target);
+  });
+}
+
+test("v3 admits only the explicitly allowed repository development entrypoint", async () => {
+  await declaredDevelopmentFixture(async (root) => { checkV3(root); });
+});
+
+for (const [name, mutate] of [
+  ["runtime source", async (_root, _policy, source) => { source.dependencyMode = "runtime"; }],
+  ["runtime target", async (_root, _policy, _source, target) => { target.dependencyMode = "runtime"; }],
+  ["absent allowed boundary", async (_root, _policy, source) => { source.allow.boundaries = []; }],
+  ["undeclared exact entrypoint", async (_root, _policy, _source, target) => { target.entrypoints = []; }],
+  ["unknown target boundary", async (root, _policy, _source, target) => {
+    target.roots = ["tooling/task/src/index.ts"];
+    await writeV3File(root, "tooling/task/src/unknown.ts", "export {};\n");
+    await writeV3File(root, "packages/domain/src/index.ts",
+      'import "../../../tooling/task/src/unknown.js";\n');
+  }],
+  ["another private package owner", async (root, policy, _source, target) => {
+    // Identical target path and allowed identity, but a real child manifest
+    // fences the repository owner. Path names never confer root authority.
+    await writeV3File(root, "tooling/task/package.json", {
+      name: "@fixture/private-tooling", private: true, type: "module",
+    });
+    policy.packageRoots.push("tooling/task");
+    policy.governedRoots.push("root-tests");
+    policy.boundaries.push(v3Boundary("root.tests", "root-tests"));
+    await writeV3File(root, "root-tests/index.ts", "export {};\n");
+    target.dependencyMode = "development";
+  }],
+]) {
+  test(`v3 declared development admission rejects ${name}`, async () => {
+    await declaredDevelopmentFixture(async (root, policy, source, target) => {
+      await mutate(root, policy, source, target);
+      await saveV3Policy(root, policy);
+      assertV3Rule(root, "cross-package-relative-import", "packages/domain/src/index.ts");
+    });
+  });
+}
+
+test("v3 development admission retains reverse direction and downstream boundary rules", async () => {
+  await declaredDevelopmentFixture(async (root, policy, source, target) => {
+    checkV3(root);
+    const runtime = v3Boundary("root.runtime", "tooling/runtime");
+    runtime.allow.boundaries = [target.id];
+    policy.governedRoots.push("tooling/runtime");
+    policy.boundaries.push(runtime);
+    await writeV3File(root, "tooling/runtime/index.ts", "export {};\n");
+    await saveV3Policy(root, policy);
+    // The admitted entrypoint is still observed and cannot reach a forbidden
+    // boundary. There is no early successful aggregate return.
+    await writeV3File(root, "tooling/task/src/index.ts",
+      'import "../../runtime/index.js";\n');
+    assertV3Rule(root, "forbidden-boundary-dependency", "tooling/task/src/index.ts");
+    await writeV3File(root, "tooling/task/src/index.ts", "export {};\n");
+    await writeV3File(root, "tooling/runtime/index.ts",
+      'import "../task/src/index.js";\n');
+    assertV3Rule(root, "runtime-boundary-imports-development-boundary", "tooling/runtime/index.ts");
+    await writeV3File(root, "tooling/runtime/index.ts", "export {};\n");
+    target.allow.boundaries = [source.id];
+    await saveV3Policy(root, policy);
+    await writeV3File(root, "tooling/task/src/index.ts",
+      'import "../../../packages/domain/src/index.js";\n');
+    assertV3Rule(root, "cross-package-relative-import", "tooling/task/src/index.ts");
+  });
+});

@@ -283,13 +283,27 @@ function evaluateLocalFileDependency(input: EvaluationInput & {
   readonly resolution: ResolutionOfKind<"local-file">;
   readonly sourceBoundary: ArchitectureBoundaryPolicy;
 }): readonly FoundationDiagnostic[] {
-  if (input.resolution.workspacePackageName !== input.edge.fromWorkspacePackageName) {
-    return [crossPackageRelativeImportDiagnostic(input.edge, input.resolution)];
-  }
   const targetBoundary =
     input.resolution.targetBoundaryId === null
       ? undefined
       : input.boundariesById.get(input.resolution.targetBoundaryId);
+  // The normalized resolver evidence identifies the selected root package by
+  // its manifest, independently of consumer package or boundary names.
+  const declaredRepositoryDevelopmentEntrypoint =
+    input.policy.schemaVersion === 3 &&
+    input.policy.includeRootPackage &&
+    input.edge.fromWorkspacePackageManifestPath !== "package.json" &&
+    input.resolution.workspacePackageManifestPath === "package.json" &&
+    input.sourceBoundary.dependencyMode === "development" &&
+    targetBoundary?.dependencyMode === "development" &&
+    input.sourceBoundary.allowedBoundaries.includes(targetBoundary.id) &&
+    targetBoundary.entrypoints.includes(input.resolution.path);
+  if (
+    input.resolution.workspacePackageName !== input.edge.fromWorkspacePackageName &&
+    !declaredRepositoryDevelopmentEntrypoint
+  ) {
+    return [crossPackageRelativeImportDiagnostic(input.edge, input.resolution)];
+  }
   if (targetBoundary === undefined || targetBoundary.id === input.sourceBoundary.id) {
     return [];
   }

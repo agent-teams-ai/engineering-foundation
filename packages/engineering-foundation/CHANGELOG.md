@@ -1,5 +1,17 @@
 # @agent-teams/engineering-foundation
 
+## 1.7.4
+
+### Patch Changes
+
+- [#382](https://github.com/agent-teams-ai/engineering-foundation/pull/382) [`9bdca2f`](https://github.com/agent-teams-ai/engineering-foundation/commit/9bdca2f70d541ea943ce9bfe4e5b15d31311282d) Thanks [@777genius](https://github.com/777genius)! - Preserve private bounded process observations in safe v1 failure messages without exposing process output or changing outcome and exit classification.
+
+- [#387](https://github.com/agent-teams-ai/engineering-foundation/pull/387) [`b9e1a67`](https://github.com/agent-teams-ai/engineering-foundation/commit/b9e1a670d5c93b54bf7455580842281ca91773ad) Thanks [@777genius](https://github.com/777genius)! - Correct SourceDeps v3 admission of explicitly allowed child-package development
+  imports into exact declared repository development entrypoints. Root package
+  ownership, both development classifications, boundary permission and the exact
+  entrypoint must all be proven. Preserve cross-package rejection for missing
+  facts and retain boundary diagnostics and cycle checks.
+
 ## 1.7.3
 
 ### Patch Changes

@@ -6,6 +6,22 @@ const execFileAsync = promisify(execFile);
 
 export const GENERATION2_NODE_ENV = "PACK_TEST_GENERATION2_NODE";
 
+// Legacy suites that call the managed generation2 adapter in-process or through its CLI. Their
+// fixture `.node-version` files do not select an interpreter, so they run on the explicit Node 24.
+export const GENERATION2_LEGACY_TEST_FILES: readonly string[] = Object.freeze([
+  "packages/docs-protocol-agent-teams/tests/consumer-integration-characterization.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/consumer-upgrade.test.mjs",
+  "packages/docs-protocol-agent-teams/tests/consumer-integration-e2e.test.mjs",
+]);
+
+export function partitionGeneration2Tests(files: readonly string[]): { current: string[]; legacy: string[] } {
+  const legacyFiles = new Set(GENERATION2_LEGACY_TEST_FILES);
+  const current: string[] = [];
+  const legacy: string[] = [];
+  for (const file of files) { (legacyFiles.has(file.replaceAll("\\", "/")) ? legacy : current).push(file); }
+  return { current, legacy };
+}
+
 // Exactly one `v24.<minor>.<patch>` line, with an optional LF or CRLF terminator (Windows).
 export function generation2Minor(output: string): number | undefined {
   const match = /^v24\.(\d+)\.\d+(?:\r?\n)?$/u.exec(output);

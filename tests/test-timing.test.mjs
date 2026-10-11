@@ -287,7 +287,8 @@ await runTestShardTests([], { timingDirectory: ${JSON.stringify(join(alias, "tim
 test("CI retains registry and package obligations and isolated advisory timing uploads", async () => {
   const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
   assert.deepEqual(ci.jobs["linux-registry"].steps.filter((step) => step.run).map((step) => step.run),
-    ["pnpm install --frozen-lockfile", "pnpm registry-install-e2e"]);
+    ["printf 'PACK_TEST_GENERATION2_NODE=%s\\n' \"$(command -v node)\" >> \"$GITHUB_ENV\"",
+      "pnpm install --frozen-lockfile", "pnpm registry-install-e2e"]);
   assert.ok(ci.jobs["linux-package"].steps.some((step) => step.run === "pnpm package:check:built"));
   const scripts = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")).scripts;
   assert.equal(scripts["registry-install-e2e"], "pnpm build && pnpm package:qualification:built");

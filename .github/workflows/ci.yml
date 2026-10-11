@@ -183,9 +183,11 @@ jobs:
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false, working-directory: a }
+      # Legacy managed generation2 suites (shards 1 and 2 included) run on this Node 24; the default stays Node 26.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: ${{ matrix.pair.second == '4' }}
         with: { node-version: "24.21.0" }
+      - name: Retain Node 24 for legacy generation2 test suites
+        run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - name: Retain pinned Node 24 test source
         if: ${{ matrix.pair.second == '4' }}
         run: printf 'MANAGED_TEST_NODE24_SOURCE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
@@ -324,6 +326,11 @@ jobs:
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
+      # registry-install-e2e reaches pack-test: managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Retain Node 24 for managed generation2 consumer gates
+        run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile

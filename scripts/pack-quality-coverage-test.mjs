@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
-import { cp, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, open, opendir, readFile, realpath, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
 import { inspectCompressedTarArchive, readRegularArchive, sha256 } from "./pack-artifact-archive.mjs";
@@ -106,6 +106,49 @@ async function validateWorkspaceFixtureSnapshot(snapshot, testHooks) {
   }
 }
 
+const sameFileState = (before, after) => after.isFile() && !after.isSymbolicLink() &&
+  before.size === after.size && before.mtimeNs === after.mtimeNs &&
+  (!hasReliableFileIdentity(before) || !hasReliableFileIdentity(after) ||
+    (before.dev === after.dev && before.ino === after.ino));
+
+const sameDirectoryState = (before, after) => after.isDirectory() && !after.isSymbolicLink() &&
+  (!hasReliableFileIdentity(before) || !hasReliableFileIdentity(after) ||
+    (before.dev === after.dev && before.ino === after.ino));
+
+// lstat-driven finite copy of regular files and directories only. fs.cp does not preserve or
+// reliably classify Windows junctions (it follows them and fails on dangling ones), so every
+// link is reported to the caller instead of being followed or copied.
+async function copyPhysicalDirectory(source, destination, { onLink, irregularMessage }) {
+  const directory = await lstat(source, { bigint: true });
+  assert.ok(directory.isDirectory() && !directory.isSymbolicLink(), irregularMessage);
+  await mkdir(destination);
+  const handle = await opendir(source);
+  // opendir follows links, so the same physical directory must still be at the path afterwards.
+  assert.ok(
+    sameDirectoryState(directory, await lstat(source, { bigint: true })),
+    `Source directory changed while opening: ${source}`
+  );
+  for await (const entry of handle) {
+    const from = join(source, entry.name);
+    const to = join(destination, entry.name);
+    const before = await lstat(from, { bigint: true });
+    if (before.isSymbolicLink()) {
+      await onLink(from);
+      continue;
+    }
+    if (before.isDirectory()) {
+      await copyPhysicalDirectory(from, to, { onLink, irregularMessage });
+      continue;
+    }
+    assert.ok(before.isFile(), irregularMessage);
+    await copyFile(from, to, fsConstants.COPYFILE_EXCL);
+    assert.ok(
+      sameFileState(before, await lstat(from, { bigint: true })),
+      `Source changed while copying: ${relative(source, from)}`
+    );
+  }
+}
+
 async function assertAbsent(path) {
   try {
     await lstat(path);
@@ -154,15 +197,30 @@ export async function copyInstalledClosure(source, destination, testHooks = {}) 
   const fixtureSnapshot = join(temporaryRoot, "public-api-fixture");
   try {
     if (fixture !== undefined) {
-      await cp(fixture.fixtureSource, fixtureSnapshot, {
-        recursive: true,
-        verbatimSymlinks: true
+      await copyPhysicalDirectory(fixture.fixtureSource, fixtureSnapshot, {
+        onLink: () => assert.fail("Approved workspace fixture target must not contain symbolic links"),
+        irregularMessage: "Approved workspace fixture target must contain only regular files and directories"
       });
       await validateWorkspaceFixtureSnapshot(fixtureSnapshot, testHooks);
       await testHooks.afterFixtureSnapshotValidated?.({ fixtureSource: fixture.fixtureSource });
     }
 
-    await cp(source, stagedDestination, { recursive: true, verbatimSymlinks: true });
+    // Links are never copied: each one was validated into `plan` and is recreated below.
+    const plannedLinks = new Set(plan.map(({ relativeLink }) => relativeLink));
+    const seenLinks = new Set();
+    await copyPhysicalDirectory(source, stagedDestination, {
+      onLink: (path) => {
+        const link = relative(source, path);
+        assert.ok(plannedLinks.has(link), "Installed dependency link set changed during copy");
+        seenLinks.add(link);
+      },
+      irregularMessage: "Installed dependency closure must contain only regular files, directories and planned links"
+    });
+    // A planned link that was removed or replaced by a directory is not silently recreated.
+    assert.deepEqual(
+      [...seenLinks].toSorted(), [...plannedLinks].toSorted(),
+      "Installed dependency link set changed during copy"
+    );
 
     for (const { fixtureSource, relativeLink, targetSuffix, targetType } of plan) {
       const destinationLink = join(stagedDestination, relativeLink);

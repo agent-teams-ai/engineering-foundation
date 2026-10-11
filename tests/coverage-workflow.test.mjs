@@ -165,7 +165,11 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(provision.env.RUNNER_TEMP, "${{ runner.temp }}/producer-4");
   // Managed generation2 tuples stay Node 24.21.0 / 26.10.0; the repository default comes from .node-version.
   const node24 = producer.steps.find(step => step.with?.["node-version"] === "24.21.0");
-  assert.equal(node24.if, "${{ matrix.pair.second == '4' }}");
+  // Node 24 is provisioned for every pair: shards 1 and 2 run legacy generation2 suites through it.
+  assert.equal(node24.if, undefined);
+  const node24Capture = producer.steps.find(step => /PACK_TEST_GENERATION2_NODE=/u.test(step.run ?? ""));
+  assert.equal(node24Capture.if, undefined);
+  assert.ok(producer.steps.indexOf(node24) < producer.steps.indexOf(node24Capture));
   const node26 = producer.steps.find(step => step.with?.["node-version"] === "26.10.0");
   assert.equal(node26.if, "${{ matrix.pair.second == '4' }}");
   const defaultNode = producer.steps.find(step => step.with?.["node-version-file"]);
@@ -175,6 +179,18 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.ok(producer.steps.indexOf(node26) < producer.steps.indexOf(defaultNode));
 
 
+});
+
+test("every CI job that reaches generation2 pack-test binds an explicit Node 24 before the Node 26 default", async () => {
+  const ci = parseYaml(await readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"));
+  for (const jobId of ["linux-package", "linux-registry", "windows-package", "macos-package"]) {
+    const steps = ci.jobs[jobId].steps;
+    const node24 = steps.findIndex(step => step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version"] === "24.21.0");
+    const capture = steps.findIndex(step => /PACK_TEST_GENERATION2_NODE=/u.test(step.run ?? ""));
+    const defaultNode = steps.findIndex(step => step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version-file"] === ".node-version");
+    assert.ok(node24 >= 0 && capture > node24 && defaultNode > capture, `${jobId}: Node 24 setup, capture, then default Node`);
+    assert.match(steps[capture].run, /command -v node|Get-Command node/u, jobId);
+  }
 });
 
 test("Automatic PR feedback checks the committed delta independently of full qualification", async () => {

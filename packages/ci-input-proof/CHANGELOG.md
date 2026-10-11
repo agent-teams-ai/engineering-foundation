@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+### Patch Changes
+
+- [#389](https://github.com/agent-teams-ai/engineering-foundation/pull/389) [`8e36bd7`](https://github.com/agent-teams-ai/engineering-foundation/commit/8e36bd76a89f6b5366731159d97f443c8bd0b5de) Thanks [@777genius](https://github.com/777genius)! - Document the repository Node 26.11.1 default in the package README.
+
 ## 0.1.0
 
 ### Minor Changes

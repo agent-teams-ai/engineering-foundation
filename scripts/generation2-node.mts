@@ -6,6 +6,20 @@ const execFileAsync = promisify(execFile);
 
 export const GENERATION2_NODE_ENV = "PACK_TEST_GENERATION2_NODE";
 
+/** The only child-process surface the test runners use: exit/error events and termination. */
+export interface TestProcess {
+  once(event: "error", listener: (error: Error) => void): unknown;
+  once(event: "exit", listener: (code: number | null, signal: NodeJS.Signals | null) => void): unknown;
+  kill(signal?: NodeJS.Signals): unknown;
+}
+
+/** Satisfied by node:child_process `spawn` and by test doubles. */
+export type TestProcessSpawner = (
+  node: string,
+  args: readonly string[],
+  options: { readonly cwd: string; readonly stdio: "inherit" },
+) => TestProcess;
+
 // Legacy suites that call the managed generation2 adapter in-process or through its CLI. Their
 // fixture `.node-version` files do not select an interpreter, so they run on the explicit Node 24.
 export const GENERATION2_LEGACY_TEST_FILES: readonly string[] = Object.freeze([

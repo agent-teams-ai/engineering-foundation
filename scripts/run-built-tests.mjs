@@ -42,6 +42,14 @@ async function runChild(spawnChild, node, tests) {
 
 // Managed generation2 suites run in their own process on the explicit Node 24; everything else
 // (including mandatory observation) stays on the default interpreter.
+/**
+ * @param {readonly string[]} tests
+ * @param {{
+ *   spawnChild?: import("./generation2-node.mts").TestProcessSpawner,
+ *   runMandatory?: (files: string[]) => Promise<number | null>
+ * }} [options]
+ * @returns {Promise<number>}
+ */
 export async function runPartitionedBuiltTests(tests, { spawnChild = spawn, runMandatory = maybeRunMandatoryNodeTests } = {}) {
   const { current, legacy } = partitionGeneration2Tests(tests);
   // Fail before any test starts when the explicit Node 24 is unavailable.

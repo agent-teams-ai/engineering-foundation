@@ -1945,6 +1945,12 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
   assert.deepEqual([releaseJob.permissions["id-token"], releaseJob.permissions.contents, releaseJob.steps.find(({ run }) => run?.startsWith("pnpm install"))?.run, releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases], ["write", "write", "pnpm install --frozen-lockfile --ignore-scripts", false]);
+  const releaseNodeIndex = releaseJob.steps.findIndex(({ uses }) => uses?.startsWith("actions/setup-node@"));
+  const releaseNpmIndex = releaseJob.steps.findIndex(({ run }) => run === "npm install --global npm@11.19.0 --ignore-scripts");
+  const releaseNpmGuardIndex = releaseJob.steps.findIndex(({ run }) => /assertNpmVersion\(\)/u.test(run ?? ""));
+  assert.ok(releaseNodeIndex >= 0 && releaseNpmIndex > releaseNodeIndex && releaseNpmGuardIndex > releaseNpmIndex,
+    "release must provision the qualified npm 11.19.0 after Node setup and before its version guard");
+  assert.ok(releaseNpmGuardIndex < releaseJob.steps.findIndex((step) => step.id === "changesets"));
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
   assert.ok(attestationPnpmSetupIndex > 0);
   assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);

@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   GENERATION2_LEGACY_TEST_FILES, GENERATION2_NODE_ENV, generation2Minor, partitionGeneration2Tests, resolveGeneration2Node,
 } from "../scripts/generation2-node.mts";
+import type { TestProcessSpawner } from "../scripts/generation2-node.mts";
 import { runPartitionedBuiltTests } from "../scripts/run-built-tests.mjs";
 import { runTestShardTests } from "../scripts/run-test-shard.mjs";
 
@@ -102,7 +103,7 @@ test("the built-test runner sends only legacy generation2 suites to the explicit
   const previous = process.env[GENERATION2_NODE_ENV];
   context.after(() => { if (previous === undefined) { delete process.env[GENERATION2_NODE_ENV]; } else { process.env[GENERATION2_NODE_ENV] = previous; } });
   const launched: { node: string; tests: string[] }[] = [];
-  const spawnChild = (node: string, args: string[]): EventEmitter & { kill: () => boolean } => {
+  const spawnChild: TestProcessSpawner = (node, args) => {
     launched.push({ node, tests: args.slice(2) });
     const child = Object.assign(new EventEmitter(), { kill: () => false });
     setImmediate(() => child.emit("exit", node === process.execPath ? currentExit : 0, null));

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import test from "node:test";
+import { parse as parseYaml } from "yaml";
 import { createMergeOperatorPort, mergeCommandEnvironment, mergeReviewedPr, nativeMergeProfile, parseMergeArguments, readMergeReviewInput, renderMergeReviewPrompt, verifyReviewedPr } from "../scripts/merge-reviewed-pr.mts";
 import type { MergeBinding, MergeCommand, MergePort } from "../scripts/merge-reviewed-pr.mts";
 
@@ -21,7 +22,7 @@ const args = ["--pr", "7", "--review-job", job, "--review-host", "workers-fsn1-0
   "--subject", "ci: bound owner merge", "--body-file", bodyFile];
 // Independent oracle: the owner-provided immutable inventory, not production's exported list.
 const lanes = ["dependency-review", "windows-static", "linux-static", "linux-registry", "windows-test-a", "linux-bootstrap-evidence",
-  "linux-published", "linux-tests-1-2", "node-compatibility (node26-compatibility)", "node-compatibility (node24-production-default)",
+  "linux-published", "linux-tests-1-2", "node-compatibility (node26-production-default)", "node-compatibility (node24-compatibility)",
   "linux-tests-3-4", "linux-tests-7-8", "linux-tests-5-6", "windows-test-d", "windows-test-b", "macos-native", "macos-package (pnpm-docs)",
   "windows-published", "macos-package (npm-docs)", "windows-test-e", "macos-package (foundation)", "windows-test-c", "windows-registry (pnpm-docs)",
   "windows-package (integration)", "windows-registry (foundation)", "windows-registry (npm-docs)", "windows-package (quality-coverage)",
@@ -79,6 +80,14 @@ test("complete independent custody and all 34 native lanes admit only the canoni
   assert.equal(await mergeReviewedPr(args, port), merged); assert.equal(state.merges, 1);
   assert.ok(state.calls.some(call => call[5]?.includes("/attempts/2/jobs")));
 });
+test("native merge inventory names the actual ci.yml Node compatibility matrix lanes", async () => {
+  const workflow = parseYaml(await readFile(join(import.meta.dirname, "..", ".github", "workflows", "ci.yml"), "utf8")) as
+    { jobs: Record<string, { strategy: { matrix: { include: { lane: string }[] } } }> };
+  const matrixJobs = workflow.jobs["node26-compatibility"]!.strategy.matrix.include.map(({ lane }) => `node-compatibility (${lane})`);
+  assert.deepEqual(matrixJobs.toSorted(), lanes.filter(lane => lane.startsWith("node-compatibility (")).toSorted());
+  assert.deepEqual(nativeMergeProfile.jobs.filter(lane => lane.startsWith("node-compatibility (")).toSorted(), matrixJobs.toSorted());
+  assert.ok(!nativeMergeProfile.jobs.some(lane => /node24-production-default|node26-compatibility\)/u.test(lane)));
+});
 test("operator prompt construction uses current exact source metadata and performs no reviewer lookup", async () => {
   const { state, port } = fixture(); const input = await readMergeReviewInput(args, port);
   assert.deepEqual(input.binding, binding); assert.equal(input.diff, diff); assert.equal(state.reviewCalls, 0); assert.equal(state.merges, 0);
@@ -87,6 +96,11 @@ test("operator prompt construction uses current exact source metadata and perfor
   assert.equal(renderMergeReviewPrompt(reversed, diff), input.promptBody);
   state.diff += "changed after independent review\n";
   await assert.rejects(verifyReviewedPr(args, port), /prompt\/checkout/u);
+});
+test("rendered review prompt requires the Node 26.11.1 default and preserves Node 24 lanes", () => {
+  const prompt = renderMergeReviewPrompt(binding, diff);
+  assert.match(prompt, /repository Node 26\.11\.1 default, retained Node 24 compatibility and the explicit historical Node 24 qualification lanes and Node 26 qualification/u);
+  assert.doesNotMatch(prompt, /Node 24 default/u);
 });
 test("input traversal, option injection and arbitrary receipt files fail before any IO", async () => {
   const replacements = [["--review-job", "../review"], ["--review-host", "host;whoami"], ["--review-host", "-oProxyCommand=id"],

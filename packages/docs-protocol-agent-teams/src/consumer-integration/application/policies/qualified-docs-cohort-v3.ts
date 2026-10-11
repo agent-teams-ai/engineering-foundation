@@ -88,8 +88,8 @@ export function bindUnselectedCohortV3(
       runtime.qualificationRuntime.pnpmVersion !== lane.qualificationRuntime.pnpmVersion ||
       runtime.qualificationRuntime.platform !== lane.qualificationRuntime.platform ||
       runtime.qualificationRuntime.architecture !== lane.qualificationRuntime.architecture ||
-      !policy.lanes["node-24-production-default"].default ||
-      policy.lanes["node-26-managed-qualified"].default) {
+      policy.lanes["node-24-production-default"].default ||
+      !policy.lanes["node-26-managed-qualified"].default) {
     throw new TypeError("Cohort v3 runtime differs from the packed managed policy lane.");
   }
   return candidate;

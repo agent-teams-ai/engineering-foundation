@@ -94,6 +94,7 @@
       "tests/document-authoring-application-spine.test.mjs",
       "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
       "tests/capability-public-api.test.mjs",
+      "tests/process-failure-reporting.test.mts",
       "tests/capability-reporting-architecture.test.mjs",
       "tests/known-file-transaction-characterization.test.mjs",
       "tests/npm-package-bootstrap-workflow.test.mjs",

@@ -20,19 +20,20 @@ function archiveWithEntries(count) {
 }
 
 test("keeps the Foundation archive exception package-specific and bounded", () => {
+  assert.equal(inspectCompressedTarArchive(archiveWithEntries(2_500)).entryCount, 2_500);
   assert.throws(
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_563);
+  const atFoundationLimit = archiveWithEntries(2_567);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_563,
+    2_567,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_564), FOUNDATION_PACKAGE),
-    /too many entries: 2564/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_568), FOUNDATION_PACKAGE),
+    /too many entries: 2568/u,
   );
 });
 
@@ -41,7 +42,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_560 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_564 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -56,7 +57,7 @@ test("applies the same Foundation budget to archive listings", () => {
       { length: 1 },
       (_, index) => `package/dist/extra-${index}.js`,
     )].join("\n"),
-  }), /too many entries: 2564/u);
+  }), /too many entries: 2568/u);
 });
 
 test("admits the complete built Foundation package inventory and rejects one additional member", async () => {
@@ -75,11 +76,11 @@ test("admits the complete built Foundation package inventory and rejects one add
     }
   }
   for (const path of manifest.files) { await visit(path); }
-  assert.equal(paths.size, 2_563, "Requalify the complete package inventory when its membership changes");
+  assert.equal(paths.size, 2_567, "Requalify the complete package inventory when its membership changes");
   const listing = [...paths].toSorted().map(path => `package/${path}`);
   const input = { archiveBytes: Buffer.from("inventory"), packageName: FOUNDATION_PACKAGE,
     requiredArtifactPaths: [...paths], allowedArtifactPaths: manifest.files, verboseListing: "" };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
   assert.throws(() => assertArchiveSafety({ ...input,
-    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2564/u);
+    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2568/u);
 });

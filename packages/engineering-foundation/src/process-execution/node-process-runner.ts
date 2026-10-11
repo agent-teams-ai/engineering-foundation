@@ -4,6 +4,8 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import {
   processFailure,
+  processExitResult,
+  processExitFailure,
   processCancelled,
   processTimedOut,
   prepareProcessRequest,
@@ -213,7 +215,8 @@ function decodeProcessOutput(
     return processFailure(
       request,
       "returned output that is not valid UTF-8.",
-      error
+      error,
+      { reason: "invalid-output" }
     );
   }
 }
@@ -239,12 +242,13 @@ function observedFailureAfterCancellation(
   ) {
     return undefined;
   }
-  return {
+  const result = {
     exitCode: observedExit.exitCode,
     signal: observedExit.signal,
     stdout: decoded.stdout,
     stderr: decoded.stderr
   };
+  return processExitResult(result, observedExit.exitCode, observedExit.signal);
 }
 
 function combinedTerminationFailure(
@@ -255,7 +259,8 @@ function combinedTerminationFailure(
   return processFailure(
     request,
     "could not be terminated after failure.",
-    new AggregateError([failure, error], "Process execution and termination failed.")
+    new AggregateError([failure, error], "Process execution and termination failed."),
+    { reason: "cleanup" }
   );
 }
 
@@ -285,12 +290,17 @@ async function normalExitResult(input: {
   if (isProcessFailure(decoded)) {
     return decoded;
   }
-  return input.completionFailure() ?? {
+  const completionFailure = input.completionFailure();
+  if (completionFailure !== undefined) {
+    return completionFailure;
+  }
+  const result = {
     exitCode: input.exit.exitCode ?? 1,
     signal: input.exit.signal,
     stdout: decoded.stdout,
     stderr: decoded.stderr
   };
+  return processExitResult(result, input.exit.exitCode, input.exit.signal);
 }
 
 function observeProcessOutputErrors(
@@ -314,7 +324,7 @@ export async function executeManagedProcess(
       try {
         child = spawnNodeManagedProcess(request);
       } catch (error) {
-        reject(processFailure(request, "could not be started.", error));
+        reject(processFailure(request, "could not be started.", error, { reason: "launch" }));
         return;
       }
       const stdout: Buffer[] = [];
@@ -418,7 +428,9 @@ export async function executeManagedProcess(
         if (nextSize > MAX_OUTPUT_BYTES) {
           const failure = processFailure(
             request,
-            `exceeded the ${stream} output limit of ${MAX_OUTPUT_BYTES} bytes.`
+            `exceeded the ${stream} output limit of ${MAX_OUTPUT_BYTES} bytes.`,
+            undefined,
+            { reason: "output-limit" }
           );
           if (terminating) {
             completionFailure ??= failure;
@@ -436,7 +448,7 @@ export async function executeManagedProcess(
       };
 
       observeProcessOutputErrors(child, (stream, error) => {
-        const failure = processFailure(request, `${stream} stream failed.`, error);
+        const failure = processFailure(request, `${stream} stream failed.`, error, { reason: "stream" });
         completionFailure ??= failure;
         if (!terminating) {
           failAfterTermination(failure);
@@ -450,7 +462,7 @@ export async function executeManagedProcess(
       });
       child.once("error", (error) => {
         cleanUpWindowsManagedProcessLaunchFailure(child);
-        failAfterTermination(completionFailure ??= processFailure(request, "could not be started.", error));
+        failAfterTermination(completionFailure ??= processFailure(request, "could not be started.", error, { reason: "launch" }));
       });
       child.once("exit", completeAfterExit);
 
@@ -466,9 +478,10 @@ export class NodeProcessRunner implements ProcessRunner {
   async run(request: ProcessRequest): Promise<ProcessResult> {
     const result = await executeManagedProcess(request);
     if (result.exitCode !== 0) {
-      throw processFailure(
+      throw processExitFailure(
         request,
-        `failed: ${result.stderr.trim() || `exit code ${String(result.exitCode)}${result.signal === null ? "" : ` (${result.signal})`}`}`
+        `failed: ${result.stderr.trim() || `exit code ${String(result.exitCode)}${result.signal === null ? "" : ` (${result.signal})`}`}`,
+        result
       );
     }
     return { stderr: result.stderr, stdout: result.stdout };

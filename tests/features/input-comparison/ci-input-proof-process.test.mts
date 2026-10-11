@@ -5,8 +5,9 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
+import { writePackedCiInputProofHarness } from '../../../scripts/ci-input-proof-packed-harness.mts';
 import { runCiInputProofAdapter } from '../../../scripts/ci-input-proof-foundation-adapter.mts';
 import { executeFixedFull, type ExecutedFull } from '../../../scripts/ci-input-proof-full.mts';
 import { compareLeafInventories } from '../../../packages/ci-input-proof/dist/index.js';
@@ -123,6 +124,34 @@ void test('Linux proc stat ESRCH vanished entries are absent and EACCES remains 
     assert.equal(denied.result.report.reason, 'process-settlement-failed');
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+void test('packed harness copies a loadable Windows managed-process runtime closure', async () => {
+  const consumerRoot = await mkdtemp(join(process.env.TMPDIR ?? tmpdir(), 'ci-input-proof-runtime-closure-TEST-'));
+  try {
+    await writePackedCiInputProofHarness(consumerRoot, resolve(process.cwd()));
+    // A fresh temporary directory gives the copied module graph a unique URL, so no cached import is reused.
+    const runtime = await import(pathToFileURL(join(
+      consumerRoot, 'packages', 'engineering-foundation', 'dist', 'process-execution', 'windows-managed-process.js',
+    )).href) as Record<string, unknown>;
+    for (const name of [
+      'spawnWindowsManagedProcess', 'cleanUpWindowsManagedProcessLaunchFailure',
+      'requestWindowsManagedProcessTermination', 'waitForWindowsManagedProcessContainment',
+      'describeManagedProcessCleanupFailure', 'managedProcessCleanupFailure',
+    ]) {
+      assert.equal(typeof runtime[name], 'function', name);
+    }
+    // This reaches the policy and process-failure-facts modules without launching a process.
+    const cause = new Error('closure probe cause');
+    const failure = (runtime.managedProcessCleanupFailure as (
+      request: { command: string; args: string[]; cwd: string }, error: unknown, stderr: Buffer[], windows: boolean,
+    ) => Error & { code: string })({ command: 'closure-probe', args: ['one', 'two'], cwd: consumerRoot }, cause, [], false);
+    assert.equal(failure.code, 'PROCESS_FAILED');
+    assert.equal(failure.message, 'closure-probe one two could not clean up its process tree after exit.');
+    assert.equal(failure.cause, cause);
+  } finally {
+    await rm(consumerRoot, { recursive: true, force: true });
   }
 });
 

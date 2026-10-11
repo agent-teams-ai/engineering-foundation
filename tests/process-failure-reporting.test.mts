@@ -1,0 +1,314 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { CapabilityInputError, FoundationError, capabilityFailureReport, foundationReport, exitCodeForOutcome } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
+import { associateProcessFailureFacts, readProcessFailureFacts } from "../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js";
+import { processFailure, processCleanupFailure } from "../packages/engineering-foundation/dist/process-execution/application/process-failure-policy.js";
+import { ProcessCancellationError, ProcessTimeoutError } from "../packages/engineering-foundation/dist/process-execution/api.js";
+import { NodeProcessRunner, executeManagedProcess } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
+import { renderFoundationReportText } from "../packages/engineering-foundation/dist/features/foundation-check/adapters/inbound/cli/report-renderer.js";
+
+const secret = "INJECTED_PROCESS_SECRET_path_query_token_env_stack";
+const request = { command: secret, args: [secret], cwd: process.cwd() };
+const schema: unknown = JSON.parse(await readFile(new URL("../packages/engineering-foundation/schemas/foundation-check-report/v1.schema.json", import.meta.url), "utf8"));
+function assertReportSchema(value: unknown): asserts value is { $schema: string; $id: string } {
+  assert.ok(typeof value === "object" && value !== null && !Array.isArray(value));
+  assert.ok("$schema" in value && value.$schema === "https://json-schema.org/draft/2020-12/schema");
+  assert.ok("$id" in value && typeof value.$id === "string");
+  assert.ok("type" in value && value.type === "object");
+  assert.ok("additionalProperties" in value && value.additionalProperties === false);
+  assert.ok("required" in value && Array.isArray(value.required) && value.required.every((key: unknown) => typeof key === "string"));
+  assert.ok("properties" in value && typeof value.properties === "object" && value.properties !== null && !Array.isArray(value.properties));
+  assert.ok("$defs" in value && typeof value.$defs === "object" && value.$defs !== null && !Array.isArray(value.$defs));
+}
+assertReportSchema(schema);
+const validate = new Ajv2020({ strict: true, allErrors: true }).compile(schema);
+
+// Runs only in a child: prototype mutations must never reach the test runner.
+function hostileFactsScenario(scenario: string, key: string) {
+  const prototype = Object.prototype;
+  const original = Object.getOwnPropertyDescriptor(prototype, key);
+  const error = new FoundationError("PROCESS_FAILED", secret);
+  const reason = key === "timeoutMs" ? "timeout" : "exit";
+  const metadata = key === "signal" ? "SIGTERM" : 23;
+  let getters = 0;
+  function inject(value: unknown) {
+    Object.defineProperty(prototype, key, { value, configurable: true, writable: true });
+  }
+  try {
+    if (scenario === "descriptor-map") {
+      inject({ value: metadata });
+      associateProcessFailureFacts(error, { reason });
+    } else if (scenario === "accessor-value") {
+      inject("exit");
+      associateProcessFailureFacts(error, { get reason() { getters++; throw new Error(secret); } });
+    } else if (scenario === "proxy-reflection" || scenario === "throwing-reflection") {
+      const input = new Proxy({ reason }, {
+        ownKeys(target) {
+          inject({ value: metadata });
+          if (scenario === "throwing-reflection") { throw new Error(secret); }
+          return Reflect.ownKeys(target);
+        }
+      });
+      associateProcessFailureFacts(error, input);
+    } else {
+      associateProcessFailureFacts(error, { reason });
+      inject(secret);
+    }
+    const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
+    const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
+    return { capability, aggregate, text: renderFoundationReportText(aggregate), getters };
+  } finally {
+    if (original === undefined) { Reflect.deleteProperty(prototype, key); }
+    else { Object.defineProperty(prototype, key, original); }
+  }
+}
+
+function hostileReport(scenario: string, key: string, expected: string) {
+  const api = new URL("../packages/engineering-foundation/dist/features/validation-reporting/api.js", import.meta.url).href;
+  const facts = new URL("../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js", import.meta.url).href;
+  const renderer = new URL("../packages/engineering-foundation/dist/features/foundation-check/adapters/inbound/cli/report-renderer.js", import.meta.url).href;
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import { FoundationError, capabilityFailureReport, foundationReport } from ${JSON.stringify(api)};
+    import { associateProcessFailureFacts } from ${JSON.stringify(facts)};
+    import { renderFoundationReportText } from ${JSON.stringify(renderer)};
+    const secret = ${JSON.stringify(secret)};
+    const result = (${hostileFactsScenario.toString()})(${JSON.stringify(scenario)}, ${JSON.stringify(key)});
+    process.stdout.write(JSON.stringify(result));
+  `], { encoding: "utf8", timeout: 10_000 });
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+  const result = JSON.parse(child.stdout) as ReturnType<typeof hostileFactsScenario>;
+  assert.equal(validate(result.aggregate), true, JSON.stringify(validate.errors));
+  for (const rendering of [JSON.stringify(result.capability), JSON.stringify(result.aggregate), result.text]) {
+    assert.ok(!rendering.includes(secret), "complete report must omit prototype-injected secrets");
+    assert.ok(rendering.includes(expected), "complete report must retain the safe wording");
+    assert.doesNotMatch(rendering, /Observed exit code:|Observed signal:|Timeout:/u, "inherited metadata must not invent observations");
+  }
+  assert.ok(result.capability.problem);
+  assert.equal(result.capability.problem.message, expected);
+  assert.equal(result.capability.problem.code, "UNEXPECTED_PROCESS_FAILURE");
+  assert.equal(result.aggregate.outcome, "failed");
+  assert.equal(result.getters, 0);
+}
+
+for (const key of ["exitCode", "signal", "timeoutMs"]) {
+  const expected = key === "timeoutMs" ? "The process timed out." : "The process exited unsuccessfully.";
+  // RED: absent descriptor-map entries acquire inherited, apparently valid metadata.
+  void test(`inherited descriptor-map ${key} cannot invent report observations`, () => {
+    hostileReport("descriptor-map", key, expected);
+  });
+  // RED: reflection itself installs metadata before the snapshot is inspected.
+  void test(`proxy reflection cannot inject inherited ${key} into reports`, () => {
+    hostileReport("proxy-reflection", key, expected);
+  });
+  // RED: frozen plain facts inherit the secret after association, leaking in every rendering.
+  void test(`postassociation prototype ${key} cannot leak into reports`, () => {
+    hostileReport("postassociation", key, expected);
+  });
+}
+
+// RED: an accessor descriptor inherits value, converting rejected input to exit wording.
+void test("accessor descriptors cannot inherit value or invoke getters", () => {
+  hostileReport("accessor-value", "value", "An unexpected process failure occurred.");
+});
+
+void test("throwing prototype-mutating reflection retains generic fallback", () => {
+  hostileReport("throwing-reflection", "signal", "An unexpected process failure occurred.");
+});
+
+function report(error: unknown) {
+  const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
+  const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
+  return assertSafeReport({ capability, aggregate });
+}
+
+function assertSafeReport(result: {
+  capability: ReturnType<typeof capabilityFailureReport>;
+  aggregate: ReturnType<typeof foundationReport>;
+}) {
+  const { capability, aggregate } = result;
+  assert.equal(validate(aggregate), true, JSON.stringify(validate.errors));
+  assert.equal(capability.diagnostics.length, 0);
+  assert.deepEqual(capability.summary, { errors: 0, warnings: 0, infos: 0 });
+  for (const rendering of [JSON.stringify(capability), JSON.stringify(aggregate), renderFoundationReportText(aggregate)]) {
+    assert.ok(!rendering.includes(secret), "complete report must omit injected secrets");
+  }
+  return { capability, aggregate };
+}
+
+// Regression: reporting collapses explicit producer observations or leaks an opaque cause.
+void test("finite producer reasons remain distinct in complete v1 reports", () => {
+  const cause = new Error(secret, { cause: new Error(secret) });
+  const cases: readonly [unknown, string][] = [
+    [processFailure(request, secret, cause, { reason: "launch" }), "The process could not be started."],
+    [processFailure(request, secret, cause, { reason: "exit", exitCode: 23, signal: "SIGTERM" }), "The process exited unsuccessfully. Observed exit code: 23. Observed signal: SIGTERM."],
+    [new ProcessTimeoutError(500, { cause, requestDescription: secret }), "The process timed out. Timeout: 500ms."],
+    [processFailure(request, secret, cause, { reason: "output-limit" }), "Process output exceeded the capture limit."],
+    [processFailure(request, secret, cause, { reason: "invalid-output" }), "Process output was not valid UTF-8."],
+    [processFailure(request, secret, cause, { reason: "stream" }), "A process output stream failed."],
+    [processCleanupFailure(request, secret, cause, false), "Process cleanup failed."],
+    [new FoundationError("PROCESS_FAILED", secret, { cause }), "An unexpected process failure occurred."]
+  ];
+  for (const [error, message] of cases) {
+    assert.ok(error instanceof FoundationError);
+    assert.equal(error.cause, cause);
+    const { capability, aggregate } = report(error);
+    assert.equal(capability.problem?.message, message);
+    assert.equal(capability.problem.code, "UNEXPECTED_PROCESS_FAILURE");
+    assert.equal(capability.problem.retryable, false);
+    assert.equal(aggregate.outcome, "failed");
+    assert.equal(exitCodeForOutcome(aggregate.outcome), 3);
+  }
+});
+
+// Regression: structural copies/getters or bad numeric/signal values forge safe metadata.
+void test("facts require identity and bounded own data properties", () => {
+  let getters = 0;
+  const malformed: unknown[] = [
+    { reason: secret }, { reason: "exit", exitCode: NaN },
+    { reason: "exit", exitCode: Infinity }, { reason: "exit", exitCode: 1.5 },
+    { reason: "exit", exitCode: -1 }, { reason: "exit", exitCode: 4_294_967_296 },
+    { reason: "exit", signal: secret }, { reason: "launch", exitCode: 23 },
+    { reason: "timeout", timeoutMs: 0 }, { reason: "timeout", timeoutMs: 2_147_483_648 },
+    { reason: "timeout", timeoutMs: 1.5 }, { reason: "exit", cause: secret },
+    { get reason() { getters++; throw new Error(secret); } },
+    new Proxy({}, { ownKeys() { throw new Error(secret); } })
+  ];
+  for (const input of malformed) {
+    const error = new FoundationError("PROCESS_FAILED", secret);
+    associateProcessFailureFacts(error, input);
+    assert.equal(readProcessFailureFacts(error), undefined);
+    assert.equal(report(error).capability.problem?.message, "An unexpected process failure occurred.");
+  }
+  assert.equal(getters, 0);
+  const input = { reason: "exit", exitCode: 4_294_967_295 };
+  const error = new FoundationError("PROCESS_FAILED", secret);
+  associateProcessFailureFacts(error, input);
+  input.exitCode = 12;
+  associateProcessFailureFacts(error, { reason: "launch" });
+  assert.equal(readProcessFailureFacts(error)?.exitCode, 4_294_967_295);
+  assert.equal(Object.isFrozen(readProcessFailureFacts(error)), true);
+  assert.equal(readProcessFailureFacts(Object.create(error)), undefined);
+  const counterfeit: Pick<FoundationError, "name" | "code"> = { name: error.name, code: error.code };
+  assert.equal(readProcessFailureFacts(counterfeit), undefined);
+  assert.equal(readProcessFailureFacts(new Proxy(error, {})), undefined);
+  assert.equal(report(new ProcessTimeoutError(NaN)).capability.problem?.message, "An unexpected process failure occurred.");
+  const spoof = new FoundationError("PROCESS_FAILED", secret);
+  Object.defineProperty(spoof, "processFailureFacts", { get() { getters++; throw new Error(secret); } });
+  assert.equal(report(spoof).capability.problem?.message, "An unexpected process failure occurred.");
+  assert.equal(getters, 0);
+  assert.equal(report({ name: "PackageScriptTimeoutError", timeoutMs: 500, message: secret }).capability.problem?.message, "An unexpected process failure occurred.");
+  for (const [facts, message] of [
+    [{ reason: "exit", exitCode: 0 }, "The process exited unsuccessfully. Observed exit code: 0."],
+    [{ reason: "timeout", timeoutMs: 1 }, "The process timed out. Timeout: 1ms."],
+    [{ reason: "timeout", timeoutMs: 2_147_483_647 }, "The process timed out. Timeout: 2147483647ms."]
+  ] as const) {
+    const boundary = new FoundationError("PROCESS_FAILED", secret);
+    associateProcessFailureFacts(boundary, facts);
+    assert.equal(report(boundary).capability.problem?.message, message);
+  }
+  const hostile = new Proxy({}, { get() { throw new Error(secret); }, getPrototypeOf() { throw new Error(secret); } });
+  assert.equal(report(hostile).capability.problem?.code, "UNEXPECTED_FAILURE");
+});
+
+// Regression: enrichment changes cancellation precedence, nonprocess mapping or success bytes.
+void test("cancellation and nonprocess outcomes and successful bytes remain unchanged", async () => {
+  const cancelled = new ProcessCancellationError(secret, { cause: new Error(secret) });
+  const { capability, aggregate } = report(cancelled);
+  assert.equal(capability.problem?.code, "EXECUTION_CANCELLED");
+  assert.equal(capability.problem.message, "Capability execution was cancelled.");
+  assert.equal(aggregate.outcome, "cancelled");
+  assert.equal(exitCodeForOutcome(aggregate.outcome), 130);
+  assert.equal(readProcessFailureFacts(cancelled)?.reason, "cancelled");
+  for (const [error, code] of [[new SyntaxError(secret), "UNEXPECTED_PARSER_FAILURE"], [new TypeError(secret), "UNEXPECTED_CONTRACT_FAILURE"], [new Error(secret), "UNEXPECTED_FAILURE"]] as const) {
+    assert.equal(report(error).capability.problem?.code, code);
+  }
+  const invalid = report(new CapabilityInputError({ code: "FIXTURE_INVALID", message: "Invalid fixture input.", phase: "input", retryable: false }, { cause: new Error(secret) }));
+  assert.equal(invalid.aggregate.outcome, "invalid-input");
+  assert.equal(exitCodeForOutcome(invalid.aggregate.outcome), 2);
+  const runner = new NodeProcessRunner();
+  assert.deepEqual(await runner.run({ command: process.execPath, args: ["-e", "process.stdout.write('ok\\n');process.stderr.write('err\\n')"], cwd: process.cwd() }), { stdout: "ok\n", stderr: "err\n" });
+  const passed = foundationReport({ foundationVersion: "fixture", coverage: "full" });
+  assert.equal(JSON.stringify(passed), '{"reportSchemaVersion":1,"foundationVersion":"fixture","coverage":"full","outcome":"passed","summary":{"errors":0,"warnings":0,"infos":0},"capabilities":[]}');
+});
+
+// Regression: the real runner discards observed exit metadata when stderr is nonempty.
+void test("real process exit survives reporting while stderr remains private", { timeout: 15_000 }, async () => {
+  await assert.rejects(new NodeProcessRunner().run({
+    command: process.execPath, args: ["-e", `process.stderr.write('${secret}');process.exitCode=23`], cwd: process.cwd(), timeoutMs: 5000
+  }), (error: unknown) => {
+    assert.equal(report(error).capability.problem?.message, "The process exited unsuccessfully. Observed exit code: 23.");
+    return true;
+  });
+});
+
+// Regression: launch/output/deadline failures are falsely projected as child exits.
+void test("real producer branches identify launch, timeout and invalid output", { timeout: 15_000 }, async (t) => {
+  await t.test("launch failure at the real platform launcher boundary", async () => {
+    if (process.platform === "win32") {
+      const runner = new URL("../packages/engineering-foundation/dist/process-execution/node-process-runner.js", import.meta.url).href;
+      const api = new URL("../packages/engineering-foundation/dist/features/validation-reporting/api.js", import.meta.url).href;
+      const facts = new URL("../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js", import.meta.url).href;
+      // The missing requested command fails inside the Windows host, after launch.
+      // Rejecting the trusted launcher's root instead observes a genuine launch failure.
+      const child = spawnSync(process.execPath, ["--input-type=module", "-e", `
+        import assert from "node:assert/strict";
+        import { NodeProcessRunner } from ${JSON.stringify(runner)};
+        import { capabilityFailureReport, foundationReport } from ${JSON.stringify(api)};
+        import { readProcessFailureFacts } from ${JSON.stringify(facts)};
+        for (const key of Object.keys(process.env)) {
+          if (key.toLowerCase() === "systemroot") { delete process.env[key]; }
+        }
+        process.env.SystemRoot = "relative-system-root";
+        assert.equal(process.env.SystemRoot, "relative-system-root", "launcher SystemRoot precondition");
+        try {
+          await new NodeProcessRunner().run({ command: process.execPath, args: ["-e", ""], cwd: process.cwd() });
+          process.exitCode = 1;
+        } catch (error) {
+          const capability = capabilityFailureReport({ capabilityId: "fixture.process", capabilityConfigSchemaVersion: 1, error, phase: "execution" });
+          const aggregate = foundationReport({ foundationVersion: "fixture", coverage: "full", capabilities: [capability] });
+          process.stdout.write(JSON.stringify({ capability, aggregate, reason: readProcessFailureFacts(error)?.reason }));
+        }
+      `], { encoding: "utf8", timeout: 10_000 });
+      const transport = JSON.stringify({ status: child.status, signal: child.signal,
+        error: child.error && { code: (child.error as NodeJS.ErrnoException).code, message: child.error.message.slice(0, 1024) },
+        stderr: child.stderr?.slice(0, 2048) });
+      assert.equal(child.error, undefined, transport);
+      assert.equal(child.status, 0, transport);
+      assert.equal(child.signal, null, transport);
+      assert.equal(child.stderr, "", transport);
+      const result = JSON.parse(child.stdout) as ReturnType<typeof report> & { reason?: unknown };
+      assert.equal(result.reason, "launch");
+      assertSafeReport(result);
+      assert.equal(result.capability.problem?.message, "The process could not be started.");
+      assert.equal(result.aggregate.outcome, "failed");
+      assert.equal(result.capability.problem.code, "UNEXPECTED_PROCESS_FAILURE");
+      return;
+    }
+    await assert.rejects(new NodeProcessRunner().run(request), (error: unknown) => {
+      assert.equal(readProcessFailureFacts(error)?.reason, "launch");
+      assert.equal(report(error).capability.problem?.message, "The process could not be started.");
+      return true;
+    });
+  });
+  for (const [name, run, message] of [
+    ["timeout after 50ms", () => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "setInterval(()=>{},60000)"], cwd: process.cwd(), timeoutMs: 50 }), "The process timed out. Timeout: 50ms."],
+    ["output limit at 4MiB plus one byte", () => new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "process.stdout.write(Buffer.alloc(4*1024*1024+1))"], cwd: process.cwd(), timeoutMs: 5000 }), "Process output exceeded the capture limit."],
+    ["invalid UTF-8 output", () => executeManagedProcess({ command: process.execPath, args: ["-e", "process.stdout.write(Buffer.from([255]))"], cwd: process.cwd(), strictUtf8: true }), "Process output was not valid UTF-8."]
+  ] as const) {
+    await t.test(name, async () => {
+      await assert.rejects(run(), (error: unknown) => { assert.equal(report(error).capability.problem?.message, message); return true; });
+    });
+  }
+});
+
+// Regression: a signal-only exit is mislabeled with the runner's synthetic code 1.
+void test("signal exit reports only actually observed metadata", { skip: process.platform === "win32", timeout: 15_000 }, async () => {
+  await assert.rejects(new NodeProcessRunner().run({ command: process.execPath, args: ["-e", "process.kill(process.pid,'SIGTERM')"], cwd: process.cwd() }), (error: unknown) => {
+    assert.equal(report(error).capability.problem?.message, "The process exited unsuccessfully. Observed signal: SIGTERM.");
+    return true;
+  });
+});

@@ -599,6 +599,83 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
   }
 });
 
+const forbiddenAt = (report, suffix) => report.diagnostics.some(({ location, ruleId }) =>
+  ruleId === "architecture.source-dependencies.forbidden-builtin-dependency" && location.path.endsWith(suffix));
+
+test("quality-gate-runner adapters may import node:util; the application layer and a removed allowance may not", async () => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "qgr-builtin-boundary-"));
+  try {
+    const policy = parseYaml(await readFile(join(
+      repositoryRoot,
+      "architecture/foundation/source-dependencies.yaml",
+    ), "utf8"));
+    const qgr = "packages/engineering-foundation/src/capabilities/quality-gate-runner";
+    const adapterFile = `${qgr}/adapters/inbound/node-test-execution/runner.ts`;
+    const applicationFile = `${qgr}/application/policies/probe.ts`;
+    const boundaryIds = new Set([
+      "capability.quality-gate-runner.adapters",
+      "capability.quality-gate-runner.application",
+    ]);
+    const policyWithoutUtil = (removeAdapterAllowance) => ({
+      schemaVersion: 2,
+      workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      packageRoots: ["packages"],
+      governedRoots: [qgr],
+      boundaries: policy.boundaries.filter(({ id }) => boundaryIds.has(id)).map((boundary) => ({
+        ...boundary,
+        roots: boundary.roots.filter((root) => !root.endsWith(".ts")),
+        allow: {
+          ...boundary.allow,
+          boundaries: boundary.allow.boundaries.filter((id) => boundaryIds.has(id)),
+          packages: [],
+          builtins: removeAdapterAllowance && boundary.id.endsWith(".adapters")
+            ? boundary.allow.builtins.filter((builtin) => builtin !== "node:util") : boundary.allow.builtins,
+        },
+        entrypoints: [boundary.id.endsWith(".adapters") ? adapterFile : applicationFile],
+      })),
+    });
+    const safeSource = "export const marker = true;\n";
+    const utilSource = "import { types } from \"node:util\";\nexport const isProxy = (value: unknown) => types.isProxy(value);\n";
+    await Promise.all([
+      mkdir(join(temporaryRoot, "architecture/foundation"), { recursive: true }),
+      mkdir(dirname(join(temporaryRoot, adapterFile)), { recursive: true }),
+      mkdir(dirname(join(temporaryRoot, applicationFile)), { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(join(temporaryRoot, "package.json"), `${JSON.stringify({
+        name: "@fixture/repository", version: "0.0.0", private: true, type: "module", packageManager: "pnpm@11.20.0",
+      }, null, 2)}\n`),
+      writeFile(join(temporaryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n"),
+      writeFile(join(temporaryRoot, "packages/engineering-foundation/package.json"), `${JSON.stringify({
+        name: "@fixture/engineering-foundation", version: "0.0.0", private: true, type: "module",
+      }, null, 2)}\n`),
+    ]);
+    const run = async ({ adapter, application, removeAdapterAllowance = false }) => {
+      await Promise.all([
+        writeFile(join(temporaryRoot, "architecture/foundation/source-dependencies.yaml"),
+          stringifyYaml(policyWithoutUtil(removeAdapterAllowance), { lineWidth: 0 })),
+        writeFile(join(temporaryRoot, adapterFile), adapter),
+        writeFile(join(temporaryRoot, applicationFile), application),
+      ]);
+      return createSourceDependenciesCapability(sourceDependencyAdapters()).run({
+        consumerRoot: temporaryRoot,
+        configPath: "architecture/foundation/source-dependencies.yaml",
+      });
+    };
+
+    const accepted = await run({ adapter: utilSource, application: safeSource });
+    assert.equal(accepted.outcome, "passed", JSON.stringify(accepted, null, 2));
+    const application = await run({ adapter: safeSource, application: utilSource });
+    assert.equal(application.outcome, "violations", JSON.stringify(application, null, 2));
+    assert.ok(forbiddenAt(application, "application/policies/probe.ts"), JSON.stringify(application, null, 2));
+    const removed = await run({ adapter: utilSource, application: safeSource, removeAdapterAllowance: true });
+    assert.equal(removed.outcome, "violations", JSON.stringify(removed, null, 2));
+    assert.ok(forbiddenAt(removed, "node-test-execution/runner.ts"), JSON.stringify(removed, null, 2));
+  } finally {
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
+});
+
 test("source dependency capability accepts the exact repository allowlist", async () => {
   const report = await createSourceDependenciesCapability(sourceDependencyAdapters()).run({
     consumerRoot: repositoryRoot,

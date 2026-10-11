@@ -393,6 +393,7 @@ const windowsManagedProcessRuntimeFiles = Object.freeze([
   'features/validation-reporting/application/unexpected-failure.js',
   'features/validation-reporting/application/unique-registry.js',
   'features/validation-reporting/foundation-error.js',
+  'features/validation-reporting/process-failure-facts.js',
   'process-execution/application/errors.js',
   'process-execution/application/process-failure-policy.js',
   'process-execution/windows-managed-process-diagnostics.js',

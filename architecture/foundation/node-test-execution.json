@@ -115,6 +115,27 @@
       "kind": "test"
     },
     {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "mandatory runner retains assertion detail and fixture location while rejecting"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "mandatory runner bounds oversized assertion evidence without erasing fields or location"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/node-test-execution.test.mjs",
+      "names": [
+        "mandatory runner formatter reflects no hostile failure value under in-process isolation"
+      ],
+      "kind": "test"
+    },
+    {
       "file": "tests/tooling.test.mjs",
       "names": [
         "packaging Darwin transient zombie succeeds only after group ESRCH"

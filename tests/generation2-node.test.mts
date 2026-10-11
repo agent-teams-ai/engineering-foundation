@@ -102,9 +102,9 @@ test("the built-test runner sends only legacy generation2 suites to the explicit
   const previous = process.env[GENERATION2_NODE_ENV];
   context.after(() => { if (previous === undefined) { delete process.env[GENERATION2_NODE_ENV]; } else { process.env[GENERATION2_NODE_ENV] = previous; } });
   const launched: { node: string; tests: string[] }[] = [];
-  const spawnChild = (node: string, args: string[]): EventEmitter & { kill: () => void } => {
+  const spawnChild = (node: string, args: string[]): EventEmitter & { kill: () => boolean } => {
     launched.push({ node, tests: args.slice(2) });
-    const child = Object.assign(new EventEmitter(), { kill: () => undefined });
+    const child = Object.assign(new EventEmitter(), { kill: () => false });
     setImmediate(() => child.emit("exit", node === process.execPath ? currentExit : 0, null));
     return child;
   };

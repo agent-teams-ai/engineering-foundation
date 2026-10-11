@@ -151,10 +151,10 @@ export async function runTestShardTests(tests, { runOptions = {}, timingDirector
   const legacyNode = legacy.length > 0 ? await resolveGeneration2Node() : undefined;
   const mandatoryExit = await maybeRunMandatoryNodeTests(current, options, root);
   let exitCode = mandatoryExit ?? (current.length === 0
-    ? 0 : await spawnTestShard(current, runOptions, timingDirectory, records, root));
+    ? 0 : await spawnTestShard(current, { runOptions, timingDirectory, records, root }));
   if (legacyNode !== undefined) {
     // Always dispatch the legacy lane, even after a current failure; keep the first nonzero code.
-    const legacyExit = await spawnTestShard(legacy, runOptions, timingDirectory, records, root, legacyNode);
+    const legacyExit = await spawnTestShard(legacy, { runOptions, timingDirectory, records, root, node: legacyNode });
     exitCode ||= legacyExit;
   }
   if (timingDirectory !== undefined) {
@@ -184,7 +184,7 @@ export async function runTestShardTests(tests, { runOptions = {}, timingDirector
   return exitCode;
 }
 
-async function spawnTestShard(tests, runOptions, timingDirectory, records, root, node = process.execPath) {
+async function spawnTestShard(tests, { runOptions, timingDirectory, records, root, node = process.execPath }) {
   const childArguments = [
     ...(runOptions.execArgv ?? []),
     "--test",

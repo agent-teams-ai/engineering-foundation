@@ -38,6 +38,10 @@ const canonical = (value) => value === null || typeof value !== "object" ? JSON.
 const sha = (value) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
 test("packed successor refs compile and profile4 remains unselected", async () => {
   const manifest = await read("../package.json"); assert.equal(manifest.exports["./schemas/*"], "./schemas/*"); assert.ok(manifest.files.includes("schemas"));
+  assert.equal(policy.policyVersion, "3.0.0");
+  assert.equal(policy.managedCandidate.status, "candidate-unqualified");
+  assert.notEqual(policy.productionDefault.status, "QUALIFIED");
+  assert.notEqual(policy.productionDefault.status, "CANARY");
   const ajv = new Ajv2020({ strict: true }); ajv.addSchema(await read("../schemas/qualified-docs-cohort/v3.schema.json"));
   const validateState = ajv.compile(await read("../schemas/docs-consumer-managed-state/v3.schema.json"));
   const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
@@ -47,7 +51,7 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   assert.equal(validateState(state), true, JSON.stringify(validateState.errors)); assert.equal(state.assets.agentsRouteDigest, sha(route));
   assert.equal(state.assets.docsScriptsDigest, sha(canonical(scripts)));
   const { stateDigest, ...body } = state;
-  assert.equal(stateDigest, "sha256:f12a16bc343e2b6773ade9c2bf042c4254ea0fd480d800ab26cb7eece03ec9bf");
+  assert.equal(stateDigest, "sha256:5a770c522f4c642fdb1fb6344b77e5304a8541b8e88d6c4ad04c701c26d2e754");
   assert.equal(stateDigest, sha(canonical({ domain: "agent-teams.docs-protocol.managed-state/v3", body })));
   assert.equal(state.cohortAuthority.candidateDigest, selected.cohort.candidateDigest); assert.deepEqual(state.workflow, selected.cohort.workflow);
   for (const change of [

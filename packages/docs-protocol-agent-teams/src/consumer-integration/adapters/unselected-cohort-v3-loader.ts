@@ -29,7 +29,7 @@ export async function loadPackedManagedRuntimePolicy(): Promise<PackedManagedRun
   const asset = parseRecord(await readFile(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8"));
   const validatePolicy = new Ajv2020({ strict: true, allErrors: true }).compile(policySchema);
   if (!validatePolicy(asset)) { throw new TypeError("Packed managed runtime policy is invalid."); }
-  if (asset.policyId !== "agent-teams.docs-protocol-current-policy" || asset.policyVersion !== "2.0.0" ||
+  if (asset.policyId !== "agent-teams.docs-protocol-current-policy" || asset.policyVersion !== "3.0.0" ||
       typeof asset.sourceDigest !== "string") { throw new TypeError("Packed runtime policy identity is invalid."); }
   const managed = asset.managedRuntime as Record<string, unknown> | undefined;
   const lanes = managed?.lanes;
@@ -43,6 +43,8 @@ export async function loadPackedManagedRuntimePolicy(): Promise<PackedManagedRun
     throw new TypeError("Packed managed runtime policy is incomplete or selected.");
   }
   return {
+    policyId: asset.policyId,
+    policyVersion: asset.policyVersion,
     sourceDigest: asset.sourceDigest,
     pnpm: managed.pnpm,
     lanes: lanes as PackedManagedRuntimePolicy["lanes"],

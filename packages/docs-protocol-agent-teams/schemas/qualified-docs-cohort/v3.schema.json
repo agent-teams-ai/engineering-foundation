@@ -217,7 +217,7 @@
                   "const": "agent-teams.docs-protocol-current-policy"
                 },
                 "version": {
-                  "const": "2.0.0"
+                  "const": "3.0.0"
                 },
                 "digest": {
                   "$ref": "#/$defs/nonzeroSha256"

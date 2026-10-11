@@ -24,7 +24,7 @@ export interface UnselectedCohortV3 {
     readonly docsProtocol: 1;
   };
   readonly runtime: {
-    readonly policy: { readonly id: "agent-teams.docs-protocol-current-policy"; readonly version: "2.0.0"; readonly digest: string };
+    readonly policy: { readonly id: "agent-teams.docs-protocol-current-policy"; readonly version: "3.0.0"; readonly digest: string };
     readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";
     readonly node: string;
     readonly pnpm: string;
@@ -39,6 +39,8 @@ export interface UnselectedCohortV3 {
 }
 
 export interface PackedManagedRuntimePolicy {
+  readonly policyId: "agent-teams.docs-protocol-current-policy";
+  readonly policyVersion: "3.0.0";
   readonly sourceDigest: string;
   readonly pnpm: string;
   readonly lanes: Readonly<Record<"node-24-production-default" | "node-26-managed-qualified", {
@@ -79,7 +81,8 @@ export function bindUnselectedCohortV3(
       candidate.rollbackTo.some((origin) => !candidate.upgradeFrom.includes(origin))) {
     throw new TypeError("Cohort v3 source and rollback edges are inconsistent.");
   }
-  if (runtime.policy.digest !== policy.sourceDigest || !Object.hasOwn(policy.lanes, runtime.selectedLane) ||
+  if (runtime.policy.id !== policy.policyId || runtime.policy.version !== policy.policyVersion ||
+      runtime.policy.digest !== policy.sourceDigest || !Object.hasOwn(policy.lanes, runtime.selectedLane) ||
       runtime.node !== lane.node || runtime.pnpm !== policy.pnpm ||
       runtime.qualificationRuntime.nodeVersion !== lane.qualificationRuntime.nodeVersion ||
       runtime.qualificationRuntime.pnpmVersion !== lane.qualificationRuntime.pnpmVersion ||

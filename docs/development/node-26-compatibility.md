@@ -1,7 +1,8 @@
-# Node 24 Default And Node 26 Compatibility
+# Node 26 Default And Node 24 Compatibility
 
-Status: implemented as a compatibility policy and CI lane. Node 24 remains the
-production/default runtime; owner-authorized Node 26 cutover is not claimed.
+Status: the repository default is official Node 26.11.1 (`.node-version`).
+Node 24.21.0 stays a compatibility lane. Managed generation2 consumer
+qualification stays on its Node 24 tuple and is not migrated or claimed here.
 
 The versioned [Docs Protocol current policy](../../architecture/foundation/docs-protocol-current-policy.json)
 and its [v1 schema](../../architecture/contracts/docs-protocol-current-policy/v1.schema.json)
@@ -12,7 +13,11 @@ artifact-protected and does not add a JSON Schema family support claim.
 ## Runtime contract
 
 All publishable Foundation packages use the exact Node engine range
-`^24.18.0 || ^26.0.0`. `.node-version` stays at `24.21.0`. The compatibility
+`^24.18.0 || ^26.0.0`. `.node-version` is `26.11.1`; the compatibility matrix
+runs the default lane on 26.11.1 and the compatibility lane on 24.21.0. The
+frozen current-policy tuple (24.21.0 / 26.10.0) is historical data and is not
+edited; `scripts/node-engine-compatibility.mjs` accepts the repository default
+or an exact policy-qualified version. The compatibility
 qualification installs packed packages into a new disposable consumer with
 `engine-strict`, then verifies the installed manifests and
 `@agent-teams/docs-protocol/qualification#runDocsProtocolQualification`.
@@ -32,6 +37,28 @@ index projection, check and source immutability. It runs only against a new
 disposable fixture. Agent launch, provisioning, terminal runtime, task
 assignment and smoke flows are outside this qualification and are never run
 against real projects.
+
+## Legacy Node 24 exceptions
+
+These stay on Node 24 on purpose because the managed generation2 contract
+(`runtime.node` `>=24.18.0 <25`, frozen policy and packed `runtime-policy.v1.json`)
+is still current and enforced:
+
+- `scripts/pack-test.mjs` writes `.node-version` `24.21.0` into its managed
+  generation2 consumer fixture and runs the adapter `check`/`plan`/`apply` CLI
+  on the Node 24 given by `PACK_TEST_GENERATION2_NODE`
+  (`scripts/generation2-node.mts` fails closed unless it is `>=24.18.0 <25`).
+  `linux-package`, `windows-package` and `macos-package` install Node 24.21.0
+  first, record its path, then select the Node 26.11.1 default for build and all
+  other gates. Local runs under Node 26 must set the variable.
+- `.github/workflows/m4-disposable-lifecycle.yml` runs entirely on Node 24.21.0
+  (historical 0.2.x adapters).
+- `.github/workflows/public-managed-registry-canary.yml` runs on Node 24.21.0.
+- Managed test tools keep the 24.21.0 / 26.10.0 tuple; `ci.yml` retains both as
+  pinned sources (`MANAGED_TEST_NODE24_SOURCE`, `MANAGED_TEST_NODE26_SOURCE`).
+- Managed consumer fixtures with `.node-version` `24.18.0` in package tests.
+
+Moving these to Node 26 needs a new qualified generation, not an edit here.
 
 ## Publication order
 

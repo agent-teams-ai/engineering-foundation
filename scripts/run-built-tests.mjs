@@ -4,6 +4,7 @@ import { resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } from "./check-test-manifests.mjs";
+import { partitionGeneration2Tests, resolveGeneration2Node } from "./generation2-node.mts";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 
 export function builtTestArguments(manifest) {
@@ -13,12 +14,8 @@ export function builtTestArguments(manifest) {
   return Object.freeze(["--test", "--test-concurrency=1", ...manifest.tests]);
 }
 
-export async function runBuiltTests({ spawnChild = spawn } = {}) {
-  const manifest = await validateTestManifests();
-  const tests = selectTestPathsForPlatform(manifest, manifest.tests);
-  const mandatoryExit = await maybeRunMandatoryNodeTests(tests);
-  if (mandatoryExit !== null) { return mandatoryExit; }
-  const child = spawnChild(process.execPath, builtTestArguments({ tests }), {
+async function runChild(spawnChild, node, tests) {
+  const child = spawnChild(node, builtTestArguments({ tests }), {
     cwd: repositoryRoot,
     stdio: "inherit",
   });
@@ -41,6 +38,35 @@ export async function runBuiltTests({ spawnChild = spawn } = {}) {
     process.removeListener("SIGINT", forwardInterrupt);
     process.removeListener("SIGTERM", forwardTermination);
   }
+}
+
+// Managed generation2 suites run in their own process on the explicit Node 24; everything else
+// (including mandatory observation) stays on the default interpreter.
+/**
+ * @param {readonly string[]} tests
+ * @param {{
+ *   spawnChild?: import("./generation2-node.mts").TestProcessSpawner,
+ *   runMandatory?: (files: string[]) => Promise<number | null>
+ * }} [options]
+ * @returns {Promise<number>}
+ */
+export async function runPartitionedBuiltTests(tests, { spawnChild = spawn, runMandatory = maybeRunMandatoryNodeTests } = {}) {
+  const { current, legacy } = partitionGeneration2Tests(tests);
+  // Fail before any test starts when the explicit Node 24 is unavailable.
+  const legacyNode = legacy.length > 0 ? await resolveGeneration2Node() : undefined;
+  const mandatoryExit = await runMandatory(current);
+  let exitCode = mandatoryExit ?? (current.length === 0 ? 0 : await runChild(spawnChild, process.execPath, current));
+  if (legacyNode !== undefined) {
+    // Always dispatch the legacy lane, even after a current failure; keep the first nonzero code.
+    const legacyExit = await runChild(spawnChild, legacyNode, legacy);
+    exitCode ||= legacyExit;
+  }
+  return exitCode;
+}
+
+export async function runBuiltTests(options = {}) {
+  const manifest = await validateTestManifests();
+  return runPartitionedBuiltTests(selectTestPathsForPlatform(manifest, manifest.tests), options);
 }
 
 const invokedPath = process.argv[1] === undefined

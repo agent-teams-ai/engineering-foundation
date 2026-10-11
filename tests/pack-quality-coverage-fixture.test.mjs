@@ -131,6 +131,42 @@ test("quality closure validates the fixture snapshot after copying it", async (t
   assert.deepEqual(await readdir(join(fixture.destination, "..")), []);
 });
 
+test("quality closure rejects an installed link added after its link plan", async (t) => {
+  const fixture = await createQualityClosureFixture(t);
+  const outside = join(fixture.root, "outside");
+  await mkdir(outside);
+  await assert.rejects(
+    copyInstalledClosure(fixture.source, fixture.destination, {
+      afterFixtureTargetApproved: async () => {
+        await symlink(
+          outside,
+          join(fixture.source, "late-link"),
+          process.platform === "win32" ? "junction" : "dir"
+        );
+      }
+    }),
+    /Installed dependency link set changed during copy/u
+  );
+  await assert.rejects(lstat(fixture.destination), { code: "ENOENT" });
+  assert.deepEqual(await readdir(join(fixture.destination, "..")), []);
+});
+
+test("quality closure rejects a planned link replaced by a directory after planning", async (t) => {
+  const fixture = await createQualityClosureFixture(t);
+  await assert.rejects(
+    copyInstalledClosure(fixture.source, fixture.destination, {
+      afterFixtureTargetApproved: async () => {
+        await rm(join(fixture.source, "tool"), { force: true, recursive: true });
+        await mkdir(join(fixture.source, "tool"));
+        await writeFile(join(fixture.source, "tool", "package.json"), "{}");
+      }
+    }),
+    /Installed dependency link set changed during copy/u
+  );
+  await assert.rejects(lstat(fixture.destination), { code: "ENOENT" });
+  assert.deepEqual(await readdir(join(fixture.destination, "..")), []);
+});
+
 test("quality closure rejects a manifest symlink replacement after snapshot validation", async (t) => {
   const fixture = await createQualityClosureFixture(t);
   const outsideManifest = join(fixture.root, "outside-package.json");

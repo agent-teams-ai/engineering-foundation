@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 
 import { repositoryRoot, selectTestPathsForPlatform, validateTestManifests } from "./check-test-manifests.mjs";
 import { requireContainedRealDirectory, writeShardEvidence } from "./coverage-evidence.mjs";
+import { partitionGeneration2Tests, resolveGeneration2Node } from "./generation2-node.mts";
 import { maybeRunMandatoryNodeTests } from "./mandatory-node-test.mjs";
 import { attachTestTiming } from "./test-timing.mjs";
 import { requireWindowsTestLane, selectWindowsTestLanePaths } from "./windows-test-partitions.mts";
@@ -144,8 +145,18 @@ export async function runTestShardTests(tests, { runOptions = {}, timingDirector
       return result;
     },
   };
-  const mandatoryExit = await maybeRunMandatoryNodeTests(tests, options, root);
-  const exitCode = mandatoryExit ?? await spawnTestShard(tests, runOptions, timingDirectory, records, root);
+  // Managed generation2 suites run in their own `node --test` process on the explicit Node 24.
+  const { current, legacy } = partitionGeneration2Tests(tests);
+  // Fail before any test starts when the explicit Node 24 is unavailable.
+  const legacyNode = legacy.length > 0 ? await resolveGeneration2Node() : undefined;
+  const mandatoryExit = await maybeRunMandatoryNodeTests(current, options, root);
+  let exitCode = mandatoryExit ?? (current.length === 0
+    ? 0 : await spawnTestShard(current, { runOptions, timingDirectory, records, root }));
+  if (legacyNode !== undefined) {
+    // Always dispatch the legacy lane, even after a current failure; keep the first nonzero code.
+    const legacyExit = await spawnTestShard(legacy, { runOptions, timingDirectory, records, root, node: legacyNode });
+    exitCode ||= legacyExit;
+  }
   if (timingDirectory !== undefined) {
     try {
       // Tests and async setup may have replaced a previously qualified directory.
@@ -173,7 +184,7 @@ export async function runTestShardTests(tests, { runOptions = {}, timingDirector
   return exitCode;
 }
 
-async function spawnTestShard(tests, runOptions, timingDirectory, records, root) {
+async function spawnTestShard(tests, { runOptions, timingDirectory, records, root, node = process.execPath }) {
   const childArguments = [
     ...(runOptions.execArgv ?? []),
     "--test",
@@ -185,7 +196,7 @@ async function spawnTestShard(tests, runOptions, timingDirectory, records, root)
     "--test-concurrency=1",
     ...tests,
   ];
-  const child = spawn(process.execPath, childArguments, {
+  const child = spawn(node, childArguments, {
     cwd: root,
     env: runOptions.env ?? process.env,
     stdio: timingDirectory === undefined ? "inherit" : ["inherit", "inherit", "inherit", "ipc"],

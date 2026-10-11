@@ -36,7 +36,7 @@ test("both required aggregates depend on the complete Node compatibility matrix"
   const compatibility = workflow.jobs["node26-compatibility"];
   assert.equal(compatibility.strategy["fail-fast"], false);
   assert.deepEqual(compatibility.strategy.matrix.include.map(({ lane }) => lane), [
-    "node24-production-default", "node26-compatibility",
+    "node24-compatibility", "node26-production-default",
   ]);
   for (const name of ["check", "windows-check"]) {
     assert.ok(workflow.jobs[name].needs.includes("node26-compatibility"), name);

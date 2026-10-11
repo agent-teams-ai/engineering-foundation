@@ -16,8 +16,8 @@ export const nativeMergeProfile = Object.freeze({
   repository: "agent-teams-ai/engineering-foundation", repositoryId: 1316243988, registry, workspaces,
   jobs: Object.freeze([
     "dependency-review", "windows-static", "linux-static", "linux-registry", "windows-test-a", "linux-bootstrap-evidence",
-    "linux-published", "linux-tests-1-2", "node-compatibility (node26-compatibility)",
-    "node-compatibility (node24-production-default)", "linux-tests-3-4", "linux-tests-7-8", "linux-tests-5-6",
+    "linux-published", "linux-tests-1-2", "node-compatibility (node26-production-default)",
+    "node-compatibility (node24-compatibility)", "linux-tests-3-4", "linux-tests-7-8", "linux-tests-5-6",
     "windows-test-d", "windows-test-b", "macos-native", "macos-package (pnpm-docs)", "windows-published",
     "macos-package (npm-docs)", "windows-test-e", "macos-package (foundation)", "windows-test-c",
     "windows-registry (pnpm-docs)", "windows-package (integration)", "windows-registry (foundation)",
@@ -138,7 +138,7 @@ export function renderMergeReviewPrompt(binding: MergeBinding, diff: string): st
     "Do not modify files, self-approve by running a verdict-producing script, merge, or use a status/context or ReviewRouter as review authority. " +
     "Your verdict assesses source correctness and the review custody contract. Native CI may run concurrently; an incomplete or failed run alone is not a source finding. The operator independently requires successful complete current-head native CI before merge, even when this review passes. Report actual source defects that cause CI failures. " +
     "Preserve all 283 existing tests, 35 native jobs (including advisory), eight coverage shards and c8 floors, five Windows test lanes, " +
-    "three Mac package lanes, Node 24 default and Node 26 qualification. Review actual behavior and every changed file plus relevant full source. " +
+    "three Mac package lanes, the repository Node 26.11.1 default, retained Node 24 compatibility and the explicit historical Node 24 qualification lanes and Node 26 qualification. Review actual behavior and every changed file plus relevant full source. " +
     "A no-op aggregate or missing native lane is not qualification. Reject custody gaps, stale bindings, forged reviews, post-ready pushes and retargets. " +
     "Report blockers through the terminal receipt. Your only final output must be one JSON object with exactly these keys and values, " +
     `using verdict REJECT instead of PASS if any requirement fails, and provide actionable findings as objects {severity, path, line, message}; PASS requires findings=[]: ${JSON.stringify({ ...verdict, findings: [] })}\n` +

@@ -296,7 +296,7 @@ qualifies Jest ESM.
 
 | Item | Exact support |
 | --- | --- |
-| Node | repository `.node-version` `24.21.0` for this rollout; package engines `^24.18.0 || ^26.0.0` |
+| Node | repository `.node-version` `26.11.1`; package engines `^24.18.0 || ^26.0.0` |
 | pnpm | package range `>=11.17.0 <12`; this repository pins `pnpm@11.20.0` |
 | TypeScript | repository catalog pin `7.0.2` |
 | Package dependencies | no runtime dependencies; no floating dependency ranges |

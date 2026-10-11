@@ -82,10 +82,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - lane: node24-production-default
+          - lane: node24-compatibility
             node-version: "24.21.0"
-          - lane: node26-compatibility
-            node-version: "26.10.0"
+          - lane: node26-production-default
+            node-version: "26.11.1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -183,6 +183,12 @@ jobs:
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false, working-directory: a }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: ${{ matrix.pair.second == '4' }}
+        with: { node-version: "24.21.0" }
+      - name: Retain pinned Node 24 test source
+        if: ${{ matrix.pair.second == '4' }}
+        run: printf 'MANAGED_TEST_NODE24_SOURCE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: ${{ matrix.pair.second == '4' }}
         with: { node-version: "26.10.0" }
@@ -284,6 +290,11 @@ jobs:
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
+      # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Retain Node 24 for managed generation2 consumer gates
+        run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile --ignore-scripts
@@ -612,6 +623,12 @@ jobs:
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
+      # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Retain Node 24 for managed generation2 consumer gates
+        shell: pwsh
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value "PACK_TEST_GENERATION2_NODE=$((Get-Command node).Source)"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version-file: .node-version, cache: pnpm }
       - name: Use runner temporary directory
@@ -766,6 +783,11 @@ jobs:
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
+      # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Retain Node 24 for managed generation2 consumer gates
+        run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version

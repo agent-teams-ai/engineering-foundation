@@ -14,6 +14,7 @@ import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./p
 import {
   packageQualificationPhaseIds, runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
+import { resolveGeneration2Node } from "./generation2-node.mts";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
@@ -342,7 +343,9 @@ async function verifyPackedDocsConsumerIntegration(input) {
     `overrides:\n${Object.entries(localArtifactOverrides).map(([name, specifier]) =>
       `  ${JSON.stringify(name)}: ${JSON.stringify(specifier)}`).join("\n")}\n`
   );
-  await writeFile(join(consumerRoot, ".node-version"), `${process.versions.node}\n`);
+  // The managed generation2 consumer contract still requires Node >=24.18.0 <25 in .node-version,
+  // independent of the Node 26 repository default that runs this script.
+  await writeFile(join(consumerRoot, ".node-version"), "24.21.0\n");
   await runPnpm(["install", "--ignore-scripts"], consumerRoot);
   await rm(join(consumerRoot, "node_modules"), { force: true, recursive: true });
   await runPnpm(
@@ -456,10 +459,12 @@ snapshots:
     "dist",
     "cli.js"
   );
+  // Only the managed generation2 adapter CLI runs on the explicit Node 24; everything else stays on the default.
+  const generation2Node = await resolveGeneration2Node();
   const invoke = async (args) => {
     try {
       const result = await runCommand(
-        process.execPath,
+        generation2Node,
         [cli, ...args, "--consumer", consumerRoot, "--json"],
         consumerRoot
       );

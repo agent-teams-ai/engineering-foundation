@@ -151,11 +151,21 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(job["runs-on"], "ubuntu-24.04");
   assert.equal(ciWriter["runs-on"], job["runs-on"]);
   assert.equal(repositoryManifest.packageManager, "pnpm@11.20.0");
-  assert.equal(job.steps[1].uses, ciWriter.steps[1].uses);
-  assert.equal(job.steps[1].with.install, false);
-  assert.equal(job.steps[2].uses, ciWriter.steps[2].uses);
-  assert.equal(job.steps[2].with["node-version-file"], ".node-version");
-  assert.equal(ciWriter.steps[2].with["node-version-file"], job.steps[2].with["node-version-file"]);
+  // Steps 1-2 provision the explicit Node 24 for pack-test (reached by `pnpm check`) before the Node 26 default.
+  assert.equal(job.steps[1].uses, ciWriter.steps[2].uses);
+  assert.equal(job.steps[1].with["node-version"], "24.21.0");
+  assert.equal(job.steps[2].run, `printf 'PACK_TEST_GENERATION2_NODE=%s\\n' "$(command -v node)" >> "$GITHUB_ENV"`);
+  assert.equal(job.steps[3].uses, ciWriter.steps[1].uses);
+  assert.equal(job.steps[3].with.install, false);
+  assert.equal(job.steps[4].uses, ciWriter.steps[2].uses);
+  assert.equal(job.steps[4].with["node-version-file"], ".node-version");
+  // CI also has an explicit Node 24 setup, so select its default setup-node step by its setting, not by index.
+  const ciDefaultNode = ciWriter.steps.find(
+    ({ uses, with: inputs }) => uses?.startsWith("actions/setup-node@") && inputs?.["node-version-file"] === ".node-version",
+  );
+  assert.ok(ciDefaultNode, "CI writer must select the repository default Node through .node-version");
+  assert.equal(ciDefaultNode.with["node-version-file"], job.steps[4].with["node-version-file"]);
+  assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 1);
   assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
   assert.match(job.if, /NPM_PACKAGE_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
   assert.equal(job.env.NPM_TOKEN, undefined);

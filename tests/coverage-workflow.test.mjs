@@ -24,12 +24,14 @@ if (process.platform === "linux") {
       const output = join(root, "output");
       const log = join(root, "commands.jsonl");
       await Promise.all(["a", "b", "temporary", "bin"].map(name => mkdir(join(root, name))));
+      // Extensionless stubs use `require`; Node 26 would otherwise interpret them as ESM.
+      await writeFile(join(bin, "package.json"), '{"type":"commonjs"}\n');
       await writeFile(join(bin, "pnpm"), `#!${process.execPath}\n${String.raw`
 const fs = require("node:fs");
 const record = { cwd: process.cwd(), args: process.argv.slice(2),
   temporary: process.env.RUNNER_TEMP, tmpdir: process.env.TMPDIR,
   tools: process.env.MANAGED_TEST_TOOLS_ROOT, managed: process.env.MANAGED_TEST_ROOT,
-  node26: process.env.MANAGED_TEST_NODE26_SOURCE };
+  node24: process.env.MANAGED_TEST_NODE24_SOURCE, node26: process.env.MANAGED_TEST_NODE26_SOURCE };
 fs.appendFileSync(process.env.PAIR_TEST_LOG, JSON.stringify(record) + "\n");
 if (process.cwd().endsWith("/a")) process.exit(7);
 setTimeout(() => {
@@ -39,7 +41,7 @@ setTimeout(() => {
       const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, GITHUB_SHA: "a".repeat(40),
         RUNNER_TEMP: temporary, GITHUB_OUTPUT: output, PAIR_TEST_LOG: log,
         MANAGED_TEST_TOOLS_ROOT: "/declared-tools", MANAGED_TEST_ROOT: "/declared-managed",
-        MANAGED_TEST_NODE26_SOURCE: "/declared-node26" };
+        MANAGED_TEST_NODE24_SOURCE: "/declared-node24", MANAGED_TEST_NODE26_SOURCE: "/declared-node26" };
       const helper = join(repositoryRoot, "scripts", "run-ci-test-pair.mts");
       await assert.rejects(executeFile(process.execPath, [helper, phase, "3", "4"], { cwd: root, env }),
         error => error.code === 1 && /producer 3.*exited 7/u.test(error.stderr));
@@ -54,6 +56,7 @@ setTimeout(() => {
         assert.equal(record.tmpdir, record.temporary);
         assert.equal(record.tools, first ? undefined : "/declared-tools");
         assert.equal(record.managed, first ? undefined : "/declared-managed");
+        assert.equal(record.node24, first ? undefined : "/declared-node24");
         assert.equal(record.node26, first ? undefined : "/declared-node26");
         if (phase === "test") {
           assert.equal(record.args[record.args.indexOf("--shards") + 1], first ? "3" : "4");
@@ -155,17 +158,21 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     assert.equal(upload.with.overwrite, true);
   }
   const managed = producer.steps.filter(step => step.name?.includes("pinned"));
-  assert.equal(managed.length, 2);
+  assert.equal(managed.length, 3);
   for (const step of managed) { assert.equal(step.if, "${{ matrix.pair.second == '4' }}"); }
   const provision = managed.find(step => step.run?.includes("provision-managed-test-tools"));
   assert.equal(provision["working-directory"], "b");
   assert.equal(provision.env.RUNNER_TEMP, "${{ runner.temp }}/producer-4");
+  // Managed generation2 tuples stay Node 24.21.0 / 26.10.0; the repository default comes from .node-version.
+  const node24 = producer.steps.find(step => step.with?.["node-version"] === "24.21.0");
+  assert.equal(node24.if, "${{ matrix.pair.second == '4' }}");
   const node26 = producer.steps.find(step => step.with?.["node-version"] === "26.10.0");
   assert.equal(node26.if, "${{ matrix.pair.second == '4' }}");
-  const node24 = producer.steps.find(step => step.with?.["node-version-file"]);
-  assert.equal(node24.with["node-version-file"], "a/.node-version");
-  assert.equal(node24.with["cache-dependency-path"], "a/pnpm-lock.yaml");
-  assert.ok(producer.steps.indexOf(node26) < producer.steps.indexOf(node24));
+  const defaultNode = producer.steps.find(step => step.with?.["node-version-file"]);
+  assert.equal(defaultNode.with["node-version-file"], "a/.node-version");
+  assert.equal(defaultNode.with["cache-dependency-path"], "a/pnpm-lock.yaml");
+  assert.ok(producer.steps.indexOf(node24) < producer.steps.indexOf(node26));
+  assert.ok(producer.steps.indexOf(node26) < producer.steps.indexOf(defaultNode));
 
 
 });

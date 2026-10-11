@@ -44,7 +44,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version-file: .node-version
+          # Legacy generation2 adapters (0.2.x) enforce Node >=24.18.0 <25 at runtime.
+          node-version: "24.21.0"
       - run: npm install --global corepack@0.36.0 --ignore-scripts
       - run: node --test tests/m4-disposable-lifecycle.test.mjs
       - name: Stable9.1 to stable18 and exact restoration in a fresh TEST clone

@@ -56,6 +56,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ inputs.expected_commit }}
+      # `pnpm check` reaches pack-test: managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "24.21.0" }
+      - name: Retain Node 24 for managed generation2 consumer gates
+        run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         with: { install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

@@ -12,12 +12,13 @@ import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
-function assertNodeLane(version, policy) {
-  const major = Number(version.split(".")[0]);
-  const lane = [policy.runtime.productionDefault, policy.runtime.compatibilityLane]
-    .find((candidate) => candidate.nodeMajor === major);
-  if (lane?.qualificationVersion !== version) {
-    throw new Error(`Node compatibility qualification requires the policy-qualified Node version, received ${version}.`);
+// Qualifying runtimes are the repository default (.node-version) and the
+// exact versions pinned by the frozen current policy lanes.
+export function assertNodeLane(version, policy, repositoryDefault) {
+  const policyVersions = [policy.runtime.productionDefault, policy.runtime.compatibilityLane]
+    .map((lane) => lane.qualificationVersion);
+  if (version !== repositoryDefault && !policyVersions.includes(version)) {
+    throw new Error(`Node compatibility qualification requires the repository default or a policy-qualified Node version, received ${version}.`);
   }
 }
 
@@ -85,7 +86,8 @@ async function runPortableQualification(qualification, temporaryRoot) {
 export async function qualifyNodeEngineCompatibility() {
   const nodeVersion = process.versions.node;
   const policy = await readManifest(join(repositoryRoot, "architecture", "foundation", "docs-protocol-current-policy.json"));
-  assertNodeLane(nodeVersion, policy);
+  const repositoryDefault = (await readFile(join(repositoryRoot, ".node-version"), "utf8")).trim();
+  assertNodeLane(nodeVersion, policy, repositoryDefault);
   const rootManifest = await readManifest(join(repositoryRoot, "package.json"));
   const packageEngine = policy.runtime.packageEngine;
   if (rootManifest.engines?.node !== packageEngine) {

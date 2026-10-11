@@ -69,6 +69,7 @@ export async function runCiTestPair(args: readonly string[]): Promise<void> {
     if (shard !== "4") {
       delete env.MANAGED_TEST_TOOLS_ROOT;
       delete env.MANAGED_TEST_ROOT;
+      delete env.MANAGED_TEST_NODE24_SOURCE;
       delete env.MANAGED_TEST_NODE26_SOURCE;
     }
     const commands = phase === "build"

@@ -13,11 +13,16 @@ const policy = JSON.parse(await readFile(join(workspace,
 const manifest = JSON.parse(await readFile(join(workspace, 'package.json'), 'utf8'));
 assert.equal(process.platform, 'linux');
 assert.equal(process.arch, 'x64');
-assert.equal(process.versions.node, policy.runtime.productionDefault.qualificationVersion);
+// The repository default runs this script; the managed generation2 tuple stays
+// Node 24.21.0 / 26.10.0 and is provisioned from its own pinned sources.
+assert.equal(process.versions.node,
+  (await readFile(join(workspace, '.node-version'), 'utf8')).trim());
+assert.ok(process.env.MANAGED_TEST_NODE24_SOURCE);
 assert.ok(process.env.MANAGED_TEST_NODE26_SOURCE);
 assert.ok(process.env.RUNNER_TEMP);
 assert.ok(!/[\r\n]/u.test(process.env.RUNNER_TEMP));
 assert.ok(process.env.GITHUB_ENV);
+const source24 = await realpath(process.env.MANAGED_TEST_NODE24_SOURCE);
 const source26 = await realpath(process.env.MANAGED_TEST_NODE26_SOURCE);
 const versionMatch = /^pnpm@(\d+\.\d+\.\d+)$/u.exec(manifest.packageManager);
 assert.ok(versionMatch, 'packageManager must declare an exact pnpm version');
@@ -65,7 +70,7 @@ assert.equal(manifest.packageManager, `pnpm@${pnpmManifest.version}`);
 assert.equal(pnpmManifest.bin.pnpm, 'bin/pnpm.mjs');
 assert.equal(await realpath(join(packageRoot, pnpmManifest.bin.pnpm)), join(packageRoot, pnpmManifest.bin.pnpm));
 
-for (const [lane, source] of [['node24', process.execPath], ['node26', source26]]) {
+for (const [lane, source] of [['node24', source24], ['node26', source26]]) {
   await mkdir(join(tools, lane, 'bin'), { recursive: true });
   await copyFile(source, join(tools, lane, 'bin/node'));
 }

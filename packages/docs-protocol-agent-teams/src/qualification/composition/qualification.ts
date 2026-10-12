@@ -73,6 +73,13 @@ export function runDocsProtocolQualificationV2(
 
 export function observeDocsProtocolQualificationV3Lockfile(
   request: DocsProtocolQualificationLockfileObservationV3Request
+): DocsProtocolQualificationLockfileObservationV3;
+export function observeDocsProtocolQualificationV3Lockfile(
+  request: Pick<DocsProtocolQualificationCohortV3Request, "profile" | "lockfileBytes">
+): DocsProtocolQualificationLockfileObservationV3;
+export function observeDocsProtocolQualificationV3Lockfile(
+  request: DocsProtocolQualificationLockfileObservationV3Request |
+    Pick<DocsProtocolQualificationCohortV3Request, "profile" | "lockfileBytes">
 ): DocsProtocolQualificationLockfileObservationV3 {
   return qualification.observeDocsProtocolQualificationV3Lockfile(request);
 }

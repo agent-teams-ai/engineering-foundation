@@ -114,7 +114,7 @@ interface RuntimePolicyFixture {
     readonly pnpm: ">=11.17.0 <12";
     readonly status: string;
     readonly lane: {
-      readonly node: string;
+      readonly node: ">=26.0.0 <27";
       readonly qualificationRuntime: {
         readonly nodeVersion: "26.11.1";
         readonly pnpmVersion: "11.20.0";
@@ -172,7 +172,7 @@ function requireDigest(value: unknown, label: string): `sha256:${string}` {
   if (!digestValue.startsWith("sha256:")) {
     throw new TypeError(`${label} must be a sha256 digest`);
   }
-  return digestValue as `sha256:${string}`;
+  return `sha256:${digestValue.slice("sha256:".length)}`;
 }
 
 function requireLiteral<T extends string>(value: unknown, expected: T, label: string): T {
@@ -186,7 +186,7 @@ function readRuntimePolicy(): RuntimePolicyFixture {
   const parsed: unknown = JSON.parse(readFileSync(
     new URL("../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json", import.meta.url),
     "utf8",
-  )) as unknown;
+  ));
   const root = requireRecord(parsed, "runtime policy");
   const managedRuntime = requireRecord(root["managedRuntime"], "runtime policy managedRuntime");
   const lanes = requireRecord(managedRuntime["lanes"], "runtime policy managedRuntime.lanes");
@@ -208,7 +208,11 @@ function readRuntimePolicy(): RuntimePolicyFixture {
       pnpm: requireLiteral(managedRuntime["pnpm"], ">=11.17.0 <12", "runtime policy managedRuntime.pnpm"),
       status: requireString(managedRuntime["status"], "runtime policy managedRuntime.status"),
       lane: {
-        node: requireString(lane["node"], "runtime policy Node 26 lane node"),
+        node: requireLiteral(
+          lane["node"],
+          ">=26.0.0 <27",
+          "runtime policy Node 26 lane node",
+        ),
         qualificationRuntime: {
           nodeVersion: requireLiteral(
             qualificationRuntime["nodeVersion"],
@@ -376,7 +380,12 @@ export function successorQualificationFixture(): SuccessorQualificationFixture {
     rollbackTo: ["docs-v2"],
     candidateDigest: sha256("e"),
     packages: structuredClone(cohort.packages),
-    workflow: structuredClone(cohort.workflow),
+    workflow: {
+      repository: "agent-teams-ai/.github",
+      path: ".github/workflows/docs-protocol-check.yml",
+      revision: cohort.workflow.revision,
+      blobSha: cohort.workflow.blobSha,
+    },
     assets: {
       skillDigest: sha256("f"),
       callerWorkflowDigest: sha256("a"),
@@ -438,23 +447,71 @@ export function successorQualificationFixture(): SuccessorQualificationFixture {
     evidence: {
       cohort: {
         cohortId: successorCohort.cohortId,
-        recordDigest: successorCohort.recordDigest,
-        qualificationEventDigest: successorCohort.qualificationEventDigest,
-        candidateDigest: successorCohort.candidateDigest,
+        recordDigest: requireDigest(
+          successorCohort.recordDigest,
+          "successor cohort recordDigest",
+        ),
+        qualificationEventDigest: requireDigest(
+          successorCohort.qualificationEventDigest,
+          "successor cohort qualificationEventDigest",
+        ),
+        candidateDigest: requireDigest(
+          successorCohort.candidateDigest,
+          "successor cohort candidateDigest",
+        ),
       },
       packages: structuredClone(successorCohort.packages),
       schemas: structuredClone(successorCohort.schemas),
       policy: {
         id: successorCohort.runtime.policy.id,
         version: successorCohort.runtime.policy.version,
-        sourceDigest: successorCohort.runtime.policy.digest,
+        sourceDigest: requireDigest(
+          successorCohort.runtime.policy.digest,
+          "successor cohort runtime policy digest",
+        ),
       },
       runtime: {
-        selectedLane: successorCohort.runtime.selectedLane,
-        node: successorCohort.runtime.node,
-        pnpm: successorCohort.runtime.pnpm,
-        qualificationRuntime: structuredClone(successorCohort.runtime.qualificationRuntime),
-        runtimeClosureDigest: successorCohort.runtime.runtimeClosure.digest,
+        selectedLane: requireLiteral(
+          successorCohort.runtime.selectedLane,
+          "node-26-managed-qualified",
+          "successor cohort selected lane",
+        ),
+        node: requireLiteral(
+          successorCohort.runtime.node,
+          ">=26.0.0 <27",
+          "successor cohort Node runtime",
+        ),
+        pnpm: requireLiteral(
+          successorCohort.runtime.pnpm,
+          ">=11.17.0 <12",
+          "successor cohort pnpm runtime",
+        ),
+        qualificationRuntime: {
+          nodeVersion: requireLiteral(
+            successorCohort.runtime.qualificationRuntime.nodeVersion,
+            "26.11.1",
+            "successor cohort qualification Node version",
+          ),
+          pnpmVersion: requireLiteral(
+            successorCohort.runtime.qualificationRuntime.pnpmVersion,
+            "11.20.0",
+            "successor cohort qualification pnpm version",
+          ),
+          platform: requireLiteral(
+            successorCohort.runtime.qualificationRuntime.platform,
+            "linux",
+            "successor cohort qualification platform",
+          ),
+          architecture: requireLiteral(
+            successorCohort.runtime.qualificationRuntime.architecture,
+            "x64",
+            "successor cohort qualification architecture",
+          ),
+        },
+        runtimeClosureDigest: requireDigest(
+          successorCohort.runtime.runtimeClosure.digest,
+          "successor cohort runtime closure digest",
+        ),
       },
     },
     lockfileBytes,

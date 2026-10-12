@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import { publishablePackageByName } from "./publishable-packages.mjs";
+import { normalizePackedRuntimePolicy } from "./public-managed-registry-canary-runtime-policy.mts";
 import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
 const SHA512_SRI = /^sha512-([A-Za-z0-9+/]+={0,2})$/u;
@@ -209,65 +210,6 @@ function cohortCoordinates(packages) {
   });
 }
 
-function normalizePackedRuntimePolicy(value) {
-  const raw = value?.managedRuntime === undefined ? undefined : value;
-  if (raw !== undefined) {
-    const validate = new Ajv2020({ allErrors: true, strict: true }).compile(runtimePolicySchema);
-    if (!validate(raw)) {
-      fail(`packed runtime policy schema validation failed: ${JSON.stringify(validate.errors)}`);
-    }
-  }
-  const normalized = raw === undefined ? value : {
-    policyId: raw.policyId,
-    policyVersion: raw.policyVersion,
-    sourceDigest: raw.sourceDigest,
-    pnpm: raw.managedRuntime?.pnpm,
-    lanes: raw.managedRuntime?.lanes,
-  };
-  exactKeys(normalized, ["policyId", "policyVersion", "sourceDigest", "pnpm", "lanes"], "packed runtime policy");
-  exactKeys(normalized.lanes, ["node-24-production-default", "node-26-managed-qualified"], "packed runtime policy lanes");
-  if (normalized.policyId !== "agent-teams.docs-protocol-current-policy" ||
-      normalized.policyVersion !== "3.0.0" ||
-      normalized.sourceDigest !== runtimePolicySourceDigest ||
-      normalized.pnpm !== COHORT_V3_RUNTIME.pnpm) {
-    fail("packed runtime policy identity is invalid");
-  }
-  for (const [laneId, expectedDefault] of [
-    ["node-24-production-default", false],
-    ["node-26-managed-qualified", true],
-  ]) {
-    const lane = normalized.lanes[laneId];
-    exactKeys(lane, ["node", "qualificationRuntime", "default"], `packed runtime policy lane ${laneId}`);
-    exactKeys(lane.qualificationRuntime, ["nodeVersion", "pnpmVersion", "platform", "architecture"],
-      `packed runtime policy qualification runtime ${laneId}`);
-    if (lane.default !== expectedDefault) {
-      fail(`packed runtime policy lane ${laneId} has the wrong default`);
-    }
-  }
-  const qualified = normalized.lanes["node-26-managed-qualified"];
-  if (qualified.node !== COHORT_V3_RUNTIME.node ||
-      canonicalJson(qualified.qualificationRuntime) !== canonicalJson(COHORT_V3_RUNTIME.qualificationRuntime)) {
-    fail("packed runtime policy qualified lane is invalid");
-  }
-  if (raw !== undefined && (raw.schemaVersion !== 1 || raw.managedCandidate?.selected !== false ||
-      raw.managedCandidate?.status !== "candidate-unqualified" ||
-      raw.managedCandidate?.cohortSchema !== 3 ||
-      raw.managedCandidate?.consumerIntegrationProfile !== 4 ||
-      raw.managedCandidate?.managedState !== 3 ||
-      raw.managedCandidate?.qualificationReceipt !== 1 ||
-      raw.managedCandidate?.runtimeLane !== COHORT_V3_RUNTIME.selectedLane ||
-      raw.managedRuntime?.status !== "candidate-unqualified")) {
-    fail("packed runtime policy candidate is selected or incomplete");
-  }
-  return Object.freeze({
-    policyId: normalized.policyId,
-    policyVersion: normalized.policyVersion,
-    sourceDigest: normalized.sourceDigest,
-    pnpm: normalized.pnpm,
-    lanes: Object.freeze(structuredClone(normalized.lanes)),
-  });
-}
-
 function validateCohortV3Bindings(cohort, packedPolicy) {
   exactKeys(cohort.assets, ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"], "Cohort assets");
   if (!Object.values(cohort.assets).every((digest) => SHA256.test(digest))) {
@@ -342,7 +284,11 @@ export function createCanaryAuthority(projected, inputs) {
   }
   const cohort = projected.cohort;
   if (cohort?.schemaVersion === 3) {
-    const packedPolicy = normalizePackedRuntimePolicy(runtimePolicyAsset);
+    const packedPolicy = normalizePackedRuntimePolicy(runtimePolicyAsset, {
+      expected: COHORT_V3_RUNTIME,
+      schema: runtimePolicySchema,
+      sourceDigest: runtimePolicySourceDigest,
+    });
     exactKeys(cohort, COHORT_V3_KEYS, "Cohort v3 authority");
     if (cohort.schemaVersion !== 3 || !COHORT_ID.test(cohort.cohortId ?? "") ||
         !["rc", "stable"].includes(cohort.channel) || !SHA256.test(cohort.recordDigest ?? "") ||

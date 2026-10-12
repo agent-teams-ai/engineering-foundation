@@ -144,6 +144,41 @@ function hasValidCohort(cohort: unknown, generation: 1 | 2): boolean {
     hasValidSchemasAndRuntime(cohort, generation);
 }
 
+function hasValidCohort3Policy(value: unknown): boolean {
+  return hasExactKeys(value, ["id", "version", "digest"]) &&
+    value["id"] === "agent-teams.docs-protocol-current-policy" &&
+    value["version"] === "3.0.0" && matches(value["digest"], NONZERO_SHA256);
+}
+
+function hasValidCohort3QualificationRuntime(value: unknown): boolean {
+  return hasExactKeys(value, ["nodeVersion", "pnpmVersion", "platform", "architecture"]) &&
+    matches(value["nodeVersion"], SEMVER) && matches(value["pnpmVersion"], SEMVER) &&
+    typeof value["platform"] === "string" && typeof value["architecture"] === "string";
+}
+
+function hasValidCohort3RuntimeClosure(value: unknown): boolean {
+  return hasExactKeys(value, ["domain", "digest"]) &&
+    value["domain"] === "agent-teams.docs-runtime-closure/v2" &&
+    matches(value["digest"], NONZERO_SHA256);
+}
+
+function hasValidCohort3Runtime(value: unknown): boolean {
+  return hasExactKeys(value, [
+    "policy", "selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"
+  ]) && hasValidCohort3Policy(value["policy"]) && hasValidCohort3QualificationRuntime(value["qualificationRuntime"]) &&
+    hasValidCohort3RuntimeClosure(value["runtimeClosure"]) &&
+    (value["selectedLane"] === "node-24-production-default" || value["selectedLane"] === "node-26-managed-qualified") &&
+    value["node"] === (value["selectedLane"] === "node-24-production-default"
+      ? ">=24.18.0 <25"
+      : ">=26.0.0 <27") && value["pnpm"] === ">=11.17.0 <12";
+}
+
+function hasValidCohort3Schemas(value: unknown): boolean {
+  return hasExactKeys(value, ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"]) &&
+    value["consumerIntegration"] === 4 && value["managedState"] === 3 &&
+    value["qualificationReceipt"] === 1 && value["docsProtocol"] === 1;
+}
+
 function hasValidCohort3Binding(cohort: unknown): boolean {
   const keys = [
     "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
@@ -151,47 +186,10 @@ function hasValidCohort3Binding(cohort: unknown): boolean {
     "assets", "schemas", "runtime"
   ];
   if (!hasExactKeys(cohort, keys) || !hasValidAuthority(cohort, 3)) {return false;}
-  const record = cohort as Record<string, unknown>;
-  const packages = record["packages"];
-  const schemas = record["schemas"];
-  const runtime = record["runtime"];
-  const policy = typeof runtime === "object" && runtime !== null
-    ? (runtime as Record<string, unknown>)["policy"]
-    : undefined;
-  const qualificationRuntime = typeof runtime === "object" && runtime !== null
-    ? (runtime as Record<string, unknown>)["qualificationRuntime"]
-    : undefined;
-  const runtimeClosure = typeof runtime === "object" && runtime !== null
-    ? (runtime as Record<string, unknown>)["runtimeClosure"]
-    : undefined;
-  const selectedLane = typeof runtime === "object" && runtime !== null
-    ? (runtime as Record<string, unknown>)["selectedLane"]
-    : undefined;
-  return record["schemaVersion"] === 3 && matches(record["candidateDigest"], NONZERO_SHA256) &&
-    hasValidPackages(packages, QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key)) &&
-    hasValidWorkflow(record["workflow"]) && hasValidAssets(record["assets"]) &&
-    hasExactKeys(schemas, ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"]) &&
-    (schemas as Record<string, unknown>)["consumerIntegration"] === 4 &&
-    (schemas as Record<string, unknown>)["managedState"] === 3 &&
-    (schemas as Record<string, unknown>)["qualificationReceipt"] === 1 &&
-    (schemas as Record<string, unknown>)["docsProtocol"] === 1 &&
-    hasExactKeys(runtime, ["policy", "selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"]) &&
-    hasExactKeys(policy, ["id", "version", "digest"]) &&
-    (policy as Record<string, unknown>)["id"] === "agent-teams.docs-protocol-current-policy" &&
-    (policy as Record<string, unknown>)["version"] === "3.0.0" &&
-    matches((policy as Record<string, unknown>)["digest"], NONZERO_SHA256) &&
-    (selectedLane === "node-24-production-default" || selectedLane === "node-26-managed-qualified") &&
-    (runtime as Record<string, unknown>)["node"] ===
-      (selectedLane === "node-24-production-default" ? ">=24.18.0 <25" : ">=26.0.0 <27") &&
-    (runtime as Record<string, unknown>)["pnpm"] === ">=11.17.0 <12" &&
-    hasExactKeys(qualificationRuntime, ["nodeVersion", "pnpmVersion", "platform", "architecture"]) &&
-    matches((qualificationRuntime as Record<string, unknown>)["nodeVersion"], SEMVER) &&
-    matches((qualificationRuntime as Record<string, unknown>)["pnpmVersion"], SEMVER) &&
-    typeof (qualificationRuntime as Record<string, unknown>)["platform"] === "string" &&
-    typeof (qualificationRuntime as Record<string, unknown>)["architecture"] === "string" &&
-    hasExactKeys(runtimeClosure, ["domain", "digest"]) &&
-    (runtimeClosure as Record<string, unknown>)["domain"] === "agent-teams.docs-runtime-closure/v2" &&
-    matches((runtimeClosure as Record<string, unknown>)["digest"], NONZERO_SHA256);
+  return cohort["schemaVersion"] === 3 && matches(cohort["candidateDigest"], NONZERO_SHA256) &&
+    hasValidPackages(cohort["packages"], QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key)) &&
+    hasValidWorkflow(cohort["workflow"]) && hasValidAssets(cohort["assets"]) &&
+    hasValidCohort3Schemas(cohort["schemas"]) && hasValidCohort3Runtime(cohort["runtime"]);
 }
 
 export function assertQualifiedDocsCohortBindingV1(

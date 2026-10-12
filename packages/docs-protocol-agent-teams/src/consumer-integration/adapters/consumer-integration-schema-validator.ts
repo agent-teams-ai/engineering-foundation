@@ -93,10 +93,11 @@ export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<
     return assertSchema("docs-consumer-integration-profile-v3", value);
   }
   if (version === 4) {
-    return assertSchema("docs-consumer-integration-profile-v4", value).then(async () => {
+    return assertSchema("docs-consumer-integration-profile-v4", value).then(async (): Promise<void> => {
       assertManagedSuccessorProfileV4(value);
       // The binder reads core fields only; Profile4 omits full-cohort lifecycle fields.
       bindUnselectedCohortV3(value.cohort as UnselectedCohortV3, await loadPackedManagedRuntimePolicy());
+      return undefined;
     });
   }
   return Promise.reject(new TypeError(

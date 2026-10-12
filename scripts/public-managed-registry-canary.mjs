@@ -23,6 +23,13 @@ import {
   publicationClosureDecision,
 } from "./public-managed-registry-canary-policy.mjs";
 import { observeSupportingMcp, qualifySupportingMcp } from "./public-managed-registry-canary-mcp.mjs";
+import {
+  assertCanonicalManagedState,
+  assertCohortV3QualificationReceiptDigest,
+  assertQualificationReceiptDigest,
+  managedQualificationCohortV2,
+  managedQualificationCohortV3,
+} from "./public-managed-registry-canary-qualification.mts";
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -30,6 +37,17 @@ const receiptSchemaPath = join(repositoryRoot, "architecture", "foundation", "sc
 const commandTimeout = 240_000;
 const adapterSegments = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
 const FORBIDDEN_MCP = "@agent-teams/docs-protocol-mcp";
+const qualificationHost = Object.freeze({
+  parseJson: (value) => JSON.parse(value),
+  readSchema: async (path) => JSON.parse(await readFile(path, "utf8")),
+  run: async (command, args, cwd, options) => await runCommand(command, [...args], cwd, options),
+});
+
+export {
+  assertCanonicalManagedState,
+  assertCohortV3QualificationReceiptDigest,
+  assertQualificationReceiptDigest,
+};
 
 function sha256(bytes) { return `sha256:${createHash("sha256").update(bytes).digest("hex")}`; }
 
@@ -251,376 +269,6 @@ async function portableNegative(root, authority, docsInventory) {
   });
 }
 
-function qualificationProfile(cohort, repository) {
-  return Object.freeze({
-    schemaVersion: 3,
-    repository,
-    integrationRoot: ".",
-    packageManager: "pnpm",
-    profilePath: "architecture/foundation/docs-protocol.yaml",
-    skillPath: ".agents/skills/docs-authoring/SKILL.md",
-    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
-    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-    qualification: {
-      contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check",
-    },
-    cohort,
-  });
-}
-
-function qualificationProfileCohortV3(cohort, repository) {
-  return Object.freeze({
-    schemaVersion: 4,
-    repository,
-    integrationRoot: ".",
-    packageManager: "pnpm",
-    profilePath: "architecture/foundation/docs-protocol.yaml",
-    skillPath: ".agents/skills/docs-authoring/SKILL.md",
-    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
-    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-    qualification: {
-      contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check",
-    },
-    cohort,
-  });
-}
-
-function canonicalJson(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (value !== null && typeof value === "object") {
-    return `{${Object.entries(value).toSorted(([left], [right]) =>
-      Buffer.compare(Buffer.from(left), Buffer.from(right)))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-export function assertQualificationReceiptDigest(receipt) {
-  if (receipt?.schemaVersion === 1) {
-    assertCohortV3QualificationReceiptDigest(receipt);
-    return;
-  }
-  const { receiptDigest, ...body } = receipt;
-  if (receiptDigest !== sha256(Buffer.from(canonicalJson(body), "utf8"))) {
-    throw new Error("Qualification v3 receipt digest is not independently canonical.");
-  }
-}
-
-export function assertCohortV3QualificationReceiptDigest(receipt) {
-  if (receipt?.namespace !== "docs-protocol-cohort-v3-qualification-receipt/v1") {
-    throw new Error("Qualification Cohort v3 receipt namespace is invalid.");
-  }
-  const { receiptDigest, ...body } = receipt;
-  if (receiptDigest !== sha256(Buffer.from(canonicalJson(body), "utf8"))) {
-    throw new Error("Qualification Cohort v3 receipt digest is not independently canonical.");
-  }
-}
-
-export function assertCanonicalManagedState(serialization) {
-  if (typeof serialization !== "string" || !serialization.endsWith("\n")) {
-    throw new Error("Managed-state v2 serialization is not newline terminated.");
-  }
-  const state = JSON.parse(serialization);
-  if (serialization !== `${canonicalJson(state)}\n`) {
-    throw new Error("Managed-state v2 serialization is not canonical JSON.");
-  }
-  if (state.schemaVersion === 3) {
-    const { stateDigest, ...body } = state;
-    const expectedV3 = sha256(Buffer.from(canonicalJson({
-      domain: "agent-teams.docs-protocol.managed-state/v3",
-      body,
-    }), "utf8"));
-    if (stateDigest !== expectedV3) {
-      throw new Error("Managed-state v3 stateDigest is invalid.");
-    }
-    return state;
-  }
-  const { stateDigest, ...body } = state;
-  const expected = sha256(Buffer.from(canonicalJson({
-    domain: "agent-teams.docs-protocol.managed-state/v2",
-    body,
-  }), "utf8"));
-  if (stateDigest !== expected) {
-    throw new Error("Managed-state v2 stateDigest is invalid.");
-  }
-  return state;
-}
-
-async function validateManagedQualification(root, qualificationReceipt, managedStateSerialization, profile) {
-  assertQualificationReceiptDigest(qualificationReceipt);
-  const managedState = assertCanonicalManagedState(managedStateSerialization);
-  const schemaRoot = join(root, ...adapterSegments, "schemas");
-  const qualificationSchema = JSON.parse(await readFile(join(schemaRoot, "docs-protocol-qualification-receipt", "v3.schema.json"), "utf8"));
-  const cohortSchema = JSON.parse(await readFile(join(schemaRoot, "qualified-docs-cohort", "v2.schema.json"), "utf8"));
-  const profileSchema = JSON.parse(await readFile(join(schemaRoot, "docs-consumer-integration-profile", "v3.schema.json"), "utf8"));
-  const managedSchema = JSON.parse(await readFile(join(schemaRoot, "docs-consumer-managed-state", "v2.schema.json"), "utf8"));
-  const docsProtocolSchema = JSON.parse(await readFile(join(schemaRoot, "docs-protocol-profile", "v1.schema.json"), "utf8"));
-  if (profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v3" ||
-      managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v2" ||
-      docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1") {
-    throw new Error("Installed schema tuple identity is not exactly 3/2/1.");
-  }
-  const ajv = new Ajv2020({ allErrors: true, strict: true });
-  ajv.addSchema(cohortSchema);
-  for (const [label, schema, value] of [
-    ["consumer integration profile v3", profileSchema, profile],
-    ["qualification receipt v3", qualificationSchema, qualificationReceipt],
-    ["managed state v2", managedSchema, managedState],
-  ]) {
-    const validate = ajv.compile(schema);
-    if (!validate(value)) {
-      throw new Error(`Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`);
-    }
-  }
-  ajv.compile(docsProtocolSchema);
-  return managedState;
-}
-
-async function validateManagedQualificationCohortV3(root, qualificationReceipt, managedStateSerialization, profile) {
-  if (profile.schemaVersion !== 4 || profile.cohort.schemaVersion !== 3 ||
-      qualificationReceipt.schemaVersion !== 1 ||
-      qualificationReceipt.namespace !== "docs-protocol-cohort-v3-qualification-receipt/v1" ||
-      qualificationReceipt.profileSchemaVersion !== 4 ||
-      qualificationReceipt.cohort.schemaVersion !== 3) {
-    throw new Error("Managed qualification contains mixed Cohort/profile/receipt generations.");
-  }
-  assertCohortV3QualificationReceiptDigest(qualificationReceipt);
-  const managedState = assertCanonicalManagedState(managedStateSerialization);
-  if (managedState.schemaVersion !== 3) {
-    throw new Error("Managed qualification contains mixed managed-state generations.");
-  }
-  const schemaRoot = join(root, ...adapterSegments, "schemas");
-  const qualificationSchema = JSON.parse(await readFile(
-    join(schemaRoot, "docs-protocol-cohort-v3-qualification-receipt", "v1.schema.json"), "utf8",
-  ));
-  const cohortSchema = JSON.parse(await readFile(join(schemaRoot, "qualified-docs-cohort", "v3.schema.json"), "utf8"));
-  const profileSchema = JSON.parse(await readFile(join(schemaRoot, "docs-consumer-integration-profile", "v4.schema.json"), "utf8"));
-  const managedSchema = JSON.parse(await readFile(join(schemaRoot, "docs-consumer-managed-state", "v3.schema.json"), "utf8"));
-  const docsProtocolSchema = JSON.parse(await readFile(join(schemaRoot, "docs-protocol-profile", "v1.schema.json"), "utf8"));
-  if (qualificationSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-cohort-v3-qualification-receipt/v1" ||
-      cohortSchema.$id !== "https://agent-teams.ai/schemas/qualified-docs-cohort/v3" ||
-      profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v4" ||
-      managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v3" ||
-      docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1") {
-    throw new Error("Installed schema tuple identity is not exactly 4/3/1/qualificationReceipt1.");
-  }
-  const ajv = new Ajv2020({ allErrors: true, strict: true });
-  ajv.addSchema(cohortSchema);
-  for (const [label, schema, value] of [
-    ["consumer integration profile v4", profileSchema, profile],
-    ["qualification Cohort v3 receipt v1", qualificationSchema, qualificationReceipt],
-    ["managed state v3", managedSchema, managedState],
-  ]) {
-    const validate = ajv.compile(schema);
-    if (!validate(value)) {
-      throw new Error(`Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`);
-    }
-  }
-  ajv.compile(docsProtocolSchema);
-  return managedState;
-}
-
-async function managedQualification(root, authority, repository, observedPackages, lockfileEvidence) {
-  if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {
-    throw new Error("Captured pnpm lockfile bytes differ from install receipt digest.");
-  }
-  const authorityProfile = qualificationProfile(authority.cohort, repository);
-  const capturedLockfile = lockfileEvidence.lockfileBytes.toString("base64");
-  const program = [
-    "import { createHash } from 'node:crypto';",
-    `const authorityProfile = ${JSON.stringify(authorityProfile)};`,
-    `const capturedLockfileBytes = Buffer.from(${JSON.stringify(capturedLockfile)}, 'base64');`,
-    `const expectedLockfileDigest = ${JSON.stringify(lockfileEvidence.receipt.lockfileDigest)};`,
-    "if (`sha256:${createHash('sha256').update(capturedLockfileBytes).digest('hex')}` !== expectedLockfileDigest) throw new Error('Embedded lockfile capture digest mismatch.');",
-    "const exactLockfileBytes = () => Buffer.from(capturedLockfileBytes);",
-    "const { canonicalDocsScriptsDigest, canonicalManagedRoute, canonicalManagedState, describeCanonicalConsumerAssets } = await import('@agent-teams/docs-protocol-agent-teams');",
-    "const { observeDocsProtocolQualificationV3Lockfile, runDocsProtocolQualificationV3 } = await import('@agent-teams/docs-protocol-agent-teams/qualification');",
-    "const observed = observeDocsProtocolQualificationV3Lockfile({ profile: authorityProfile, lockfileBytes: exactLockfileBytes() });",
-    "if (observed.runtimeClosureDigest !== authorityProfile.cohort.runtime.runtimeClosureDigest) throw new Error('Observed runtime closure differs from Cohort authority.');",
-    "const trustedCohort = { ...authorityProfile.cohort, runtime: { ...authorityProfile.cohort.runtime, runtimeClosureDigest: observed.runtimeClosureDigest } };",
-    "const profile = { ...authorityProfile, cohort: trustedCohort };",
-    `const evidence = { packages: ${JSON.stringify(observedPackages)}, schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }, runtimeClosureDigest: observed.runtimeClosureDigest };`,
-    "const receipt = runDocsProtocolQualificationV3({ profile, evidence, lockfileBytes: exactLockfileBytes() });",
-    "const canonical = describeCanonicalConsumerAssets(profile.cohort);",
-    "const routeDigest = `sha256:${createHash('sha256').update(canonicalManagedRoute(profile.skillPath)).digest('hex')}`;",
-    "const assets = { ...canonical, agentsRouteDigest: routeDigest, docsScriptsDigest: canonicalDocsScriptsDigest(profile.profilePath) };",
-    "const managedState = canonicalManagedState(profile, assets);",
-    "process.stdout.write(JSON.stringify({ managedState, observed, receipt }));",
-  ].join("\n");
-  const result = await runCommand(process.execPath, ["--input-type=module", "--eval", program], root, { timeoutMs: commandTimeout });
-  const output = JSON.parse(result.stdout);
-  const managedState = await validateManagedQualification(
-    root,
-    output.receipt,
-    output.managedState,
-    qualificationProfile(authority.cohort, repository),
-  );
-  if (output.observed.runtimeClosureDigest !== output.receipt.runtime.runtimeClosureDigest ||
-      managedState.schemaVersion !== 2) {
-    throw new Error("Managed qualification evidence is internally inconsistent.");
-  }
-  return Object.freeze({
-    actualRuntimeClosureDigest: output.observed.runtimeClosureDigest,
-    managedState: Object.freeze({
-      schemaVersion: 2,
-      schemaValidated: true,
-      serialization: output.managedState,
-      stateDigest: managedState.stateDigest,
-    }),
-    qualificationReceipt: Object.freeze(output.receipt),
-    schemaEvidence: Object.freeze({
-      consumerIntegration: 3,
-      docsProtocol: 1,
-      managedState: 2,
-      validated: true,
-    }),
-  });
-}
-
-async function managedQualificationCohortV3(root, authority, repository, observedPackages, lockfileEvidence) {
-  if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {
-    throw new Error("Captured pnpm lockfile bytes differ from install receipt digest.");
-  }
-  const cohort = authority.cohort;
-  const expectedPackages = Object.fromEntries(authority.coordinates.map(({ key, version, integrity }) => [key, {
-    version,
-    integrity,
-  }]));
-  if (Object.keys(observedPackages).length !== 5 ||
-      canonicalJson(observedPackages) !== canonicalJson(expectedPackages)) {
-    throw new Error("Host package/SRI observations differ from exact Cohort authority.");
-  }
-  const expectedRuntime = cohort.runtime;
-  if (expectedRuntime.policy.id !== "agent-teams.docs-protocol-current-policy" ||
-      expectedRuntime.policy.version !== "3.0.0" ||
-      expectedRuntime.selectedLane !== "node-26-managed-qualified" ||
-      expectedRuntime.node !== ">=26.0.0 <27" ||
-      expectedRuntime.pnpm !== ">=11.17.0 <12" ||
-      canonicalJson(expectedRuntime.qualificationRuntime) !== canonicalJson({
-        nodeVersion: "26.11.1",
-        pnpmVersion: "11.20.0",
-        platform: "linux",
-        architecture: "x64",
-      }) ||
-      expectedRuntime.runtimeClosure.domain !== "agent-teams.docs-runtime-closure/v2") {
-    throw new Error("Cohort v3 policy/runtime authority is not the exact qualified Node 26 tuple.");
-  }
-  const authorityProfile = qualificationProfileCohortV3(cohort, repository);
-  const capturedLockfile = lockfileEvidence.lockfileBytes.toString("base64");
-  const evidence = Object.freeze({
-    cohort: Object.freeze({
-      cohortId: cohort.cohortId,
-      recordDigest: cohort.recordDigest,
-      qualificationEventDigest: cohort.qualificationEventDigest,
-      candidateDigest: cohort.candidateDigest,
-    }),
-    packages: Object.freeze(structuredClone(expectedPackages)),
-    schemas: Object.freeze({
-      consumerIntegration: 4,
-      managedState: 3,
-      qualificationReceipt: 1,
-      docsProtocol: 1,
-    }),
-    policy: Object.freeze({
-      id: expectedRuntime.policy.id,
-      version: expectedRuntime.policy.version,
-      sourceDigest: expectedRuntime.policy.digest,
-    }),
-    runtime: Object.freeze({
-      selectedLane: expectedRuntime.selectedLane,
-      node: expectedRuntime.node,
-      pnpm: expectedRuntime.pnpm,
-      qualificationRuntime: Object.freeze({ ...expectedRuntime.qualificationRuntime }),
-      runtimeClosureDigest: expectedRuntime.runtimeClosure.digest,
-    }),
-  });
-  const program = [
-    "import { createHash } from 'node:crypto';",
-    `const authorityProfile = ${JSON.stringify(authorityProfile)};`,
-    `const capturedLockfileBytes = Buffer.from(${JSON.stringify(capturedLockfile)}, 'base64');`,
-    `const expectedLockfileDigest = ${JSON.stringify(lockfileEvidence.receipt.lockfileDigest)};`,
-    "if (`sha256:${createHash('sha256').update(capturedLockfileBytes).digest('hex')}` !== expectedLockfileDigest) throw new Error('Embedded lockfile capture digest mismatch.');",
-    "const exactLockfileBytes = () => Buffer.from(capturedLockfileBytes);",
-    "const { canonicalDocsScriptsDigest, canonicalManagedRoute, canonicalManagedState, describeCanonicalConsumerAssets } = await import('@agent-teams/docs-protocol-agent-teams');",
-    "const { observeDocsProtocolQualificationV3Lockfile, runDocsProtocolQualificationV3 } = await import('@agent-teams/docs-protocol-agent-teams/qualification');",
-    "const observedRuntime = { nodeVersion: process.versions.node, platform: process.platform, architecture: process.arch };",
-    `const expectedQualificationRuntime = ${JSON.stringify(expectedRuntime.qualificationRuntime)};`,
-    "if (observedRuntime.nodeVersion !== expectedQualificationRuntime.nodeVersion || observedRuntime.platform !== expectedQualificationRuntime.platform || observedRuntime.architecture !== expectedQualificationRuntime.architecture) throw new Error('Installed private process runtime differs from Cohort authority.');",
-    "const observed = observeDocsProtocolQualificationV3Lockfile({ profile: authorityProfile, lockfileBytes: exactLockfileBytes() });",
-    `if (observed.runtimeClosureDigest !== ${JSON.stringify(expectedRuntime.runtimeClosure.digest)}) throw new Error('Observed runtime closure differs from Cohort authority.');`,
-    `const evidence = ${JSON.stringify(evidence)};`,
-    "const receipt = runDocsProtocolQualificationV3({ profile: authorityProfile, evidence, lockfileBytes: exactLockfileBytes() });",
-    "const canonical = describeCanonicalConsumerAssets(authorityProfile.cohort);",
-    "const routeDigest = `sha256:${createHash('sha256').update(canonicalManagedRoute(authorityProfile.skillPath)).digest('hex')}`;",
-    "const assets = { ...canonical, agentsRouteDigest: routeDigest, docsScriptsDigest: canonicalDocsScriptsDigest(authorityProfile.profilePath) };",
-    "const managedState = canonicalManagedState(authorityProfile, assets);",
-    "process.stdout.write(JSON.stringify({ managedState, observed, observedRuntime, receipt }));",
-  ].join("\n");
-  const result = await runCommand(process.execPath, ["--input-type=module", "--eval", program], root, { timeoutMs: commandTimeout });
-  const output = JSON.parse(result.stdout);
-  const managedState = await validateManagedQualificationCohortV3(
-    root,
-    output.receipt,
-    output.managedState,
-    authorityProfile,
-  );
-  const expectedReceiptPackages = authority.coordinates.map(({ key, name, version, integrity }) => ({
-    key,
-    name,
-    version,
-    integrity,
-  }));
-  const expectedReceiptRuntime = {
-    selectedLane: expectedRuntime.selectedLane,
-    node: expectedRuntime.node,
-    pnpm: expectedRuntime.pnpm,
-    qualificationRuntime: expectedRuntime.qualificationRuntime,
-    runtimeClosure: {
-      domain: expectedRuntime.runtimeClosure.domain,
-      digest: output.observed.runtimeClosureDigest,
-    },
-  };
-  if (output.observed.runtimeClosureDigest !== expectedRuntime.runtimeClosure.digest ||
-      output.observedRuntime.nodeVersion !== expectedRuntime.qualificationRuntime.nodeVersion ||
-      output.observedRuntime.platform !== expectedRuntime.qualificationRuntime.platform ||
-      output.observedRuntime.architecture !== expectedRuntime.qualificationRuntime.architecture ||
-      canonicalJson(output.receipt.cohort) !== canonicalJson({
-        schemaVersion: 3,
-        cohortId: cohort.cohortId,
-        recordDigest: cohort.recordDigest,
-        qualificationEventDigest: cohort.qualificationEventDigest,
-        candidateDigest: cohort.candidateDigest,
-      }) ||
-      canonicalJson(output.receipt.packages) !== canonicalJson(expectedReceiptPackages) ||
-      canonicalJson(output.receipt.schemas) !== canonicalJson(evidence.schemas) ||
-      canonicalJson(output.receipt.policy) !== canonicalJson(evidence.policy) ||
-      canonicalJson(output.receipt.runtime) !== canonicalJson(expectedReceiptRuntime) ||
-      managedState.schemaVersion !== 3) {
-    throw new Error("Managed Cohort v3 qualification evidence is internally inconsistent.");
-  }
-  return Object.freeze({
-    actualRuntimeClosureDigest: output.observed.runtimeClosureDigest,
-    managedState: Object.freeze({
-      schemaVersion: 3,
-      schemaValidated: true,
-      serialization: output.managedState,
-      stateDigest: managedState.stateDigest,
-    }),
-    qualificationReceipt: Object.freeze(output.receipt),
-    schemaEvidence: Object.freeze({
-      consumerIntegration: 4,
-      managedState: 3,
-      qualificationReceipt: 1,
-      docsProtocol: 1,
-      validated: true,
-    }),
-  });
-}
-
 async function validateReceipt(receipt) {
   const schema = JSON.parse(await readFile(receiptSchemaPath, "utf8"));
   const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
@@ -677,13 +325,15 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
         repository,
         observedPackages,
         pnpmInstall,
+        qualificationHost,
       )
-      : await managedQualification(
+      : await managedQualificationCohortV2(
         pnpmRoot,
         authority,
         repository,
         observedPackages,
         pnpmInstall,
+        qualificationHost,
       );
     const hostile = [
       ...hostilePolicyMatrix(authority),

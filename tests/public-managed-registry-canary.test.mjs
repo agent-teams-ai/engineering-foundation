@@ -919,7 +919,10 @@ test("Host qualification rejects mixed generations and evidence drift at their a
       const lock = parseYaml(value.lockfileBytes.toString("utf8"));
       lock.snapshots["@agent-teams/docs-protocol@1.0.2"].dependencies["consumer-transitive"] = "1.0.0";
       value.lockfileBytes = Buffer.from(stringify(lock));
-    }, /Qualification Cohort v3 lockfile runtime closure digest mismatch\./u],
+    }, {
+      name: "ConsumerIntegrationNodeError",
+      message: "Runtime closure package consumer-transitive@1.0.0 must be one object."
+    }],
   ]) {
     const candidate = successorQualificationFixture();
     mutation(candidate);

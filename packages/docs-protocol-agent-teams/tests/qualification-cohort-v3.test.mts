@@ -398,7 +398,10 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
   } else {
     assert.throws(
       () => runDocsProtocolQualificationV3(publicRequest),
-      /^Qualification Cohort v3 observed Node runtime mismatch\.$/u
+      {
+        name: "TypeError",
+        message: "Qualification Cohort v3 observed Node runtime mismatch."
+      }
     );
   }
 });
@@ -510,7 +513,10 @@ test("Gen3 rejects mixed generations, schemas and package coordinates", () => {
   });
   assert.throws(
     () => qualification(wrongCoordinate),
-    /^@agent-teams\/docs-protocol importer evidence must select exact cohort version 0\.5\.1\.$/u
+    {
+      name: "ConsumerIntegrationNodeError",
+      message: "@agent-teams/docs-protocol importer evidence must select exact cohort version 0.5.1."
+    }
   );
 });
 

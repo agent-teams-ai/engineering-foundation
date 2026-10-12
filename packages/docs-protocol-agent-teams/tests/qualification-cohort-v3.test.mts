@@ -23,13 +23,17 @@ import type {
   DocsProtocolQualificationCohortEvidenceV3,
   DocsProtocolQualificationCohortV3Receipt,
   DocsProtocolQualificationCohortV3Request,
-  DocsProtocolQualificationPackageKeyV3,
-  DocsProtocolQualificationRuntimeObservation
+  DocsProtocolQualificationPackageKeyV3
 } from "../dist/qualification/index.js";
 import type {
-  ManagedSuccessorProfile,
+  DocsProtocolQualificationRuntimeObservation
+} from "../dist/qualification/application/model/v3-contract.js";
+import type {
+  ManagedSuccessorProfile
+} from "../dist/consumer-integration/domain/model.js";
+import type {
   PackedManagedRuntimePolicy
-} from "../dist/consumer-integration/index.js";
+} from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
 
 const digest = (character: string): `sha256:${string}` => `sha256:${character.repeat(64)}`;
 const integrity = (character: string): `sha512-${string}` =>

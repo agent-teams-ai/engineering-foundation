@@ -14,6 +14,8 @@ import {
   createDocsProtocolQualificationV3,
   createDocsProtocolQualificationV3Observer
 } from "../dist/qualification/application-api.js";
+import { parsePackedManagedRuntimePolicy } from
+  "../dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
 import { runDocsProtocolQualificationV3 } from "../dist/qualification/index.js";
 import { createNodeDocsProtocolQualificationRuntimeObserver } from
   "../dist/qualification/adapters/outbound/node-qualification-runtime.js";
@@ -34,6 +36,59 @@ import type {
 import type {
   PackedManagedRuntimePolicy
 } from "../dist/consumer-integration/application/policies/qualified-docs-cohort-v3.js";
+
+type Node26RuntimeFixture = {
+  readonly nodeVersion: "26.11.1";
+  readonly pnpmVersion: "11.20.0";
+  readonly platform: "linux";
+  readonly architecture: "x64";
+};
+type PackedRuntimePolicyFixture = Omit<
+  PackedManagedRuntimePolicy,
+  "sourceDigest" | "pnpm" | "lanes"
+> & {
+  readonly sourceDigest: `sha256:${string}`;
+  readonly pnpm: ">=11.17.0 <12";
+  readonly lanes: {
+    readonly "node-24-production-default": {
+      readonly node: ">=24.18.0 <25";
+      readonly qualificationRuntime: {
+        readonly nodeVersion: "24.21.0";
+        readonly pnpmVersion: "11.20.0";
+        readonly platform: "linux";
+        readonly architecture: "x64";
+      };
+      readonly default: false;
+    };
+    readonly "node-26-managed-qualified": {
+      readonly node: ">=26.0.0 <27";
+      readonly qualificationRuntime: Node26RuntimeFixture;
+      readonly default: true;
+    };
+  };
+};
+type CohortFixture = Omit<
+  ManagedSuccessorProfile["cohort"],
+  "recordDigest" | "qualificationEventDigest" | "candidateDigest" | "runtime"
+> & {
+  readonly recordDigest: `sha256:${string}`;
+  readonly qualificationEventDigest: `sha256:${string}`;
+  readonly candidateDigest: `sha256:${string}`;
+  readonly runtime: Omit<
+    ManagedSuccessorProfile["cohort"]["runtime"],
+    "policy" | "selectedLane" | "node" | "pnpm" | "qualificationRuntime"
+  > & {
+    readonly policy: {
+      readonly id: "agent-teams.docs-protocol-current-policy";
+      readonly version: "3.0.0";
+      readonly digest: `sha256:${string}`;
+    };
+    readonly selectedLane: "node-26-managed-qualified";
+    readonly node: ">=26.0.0 <27";
+    readonly pnpm: ">=11.17.0 <12";
+    readonly qualificationRuntime: Node26RuntimeFixture;
+  };
+};
 
 const digest = (character: string): `sha256:${string}` => `sha256:${character.repeat(64)}`;
 const integrity = (character: string): `sha512-${string}` =>
@@ -106,7 +161,7 @@ const lockfile: Record<string, unknown> = {
 };
 const lockfileBytes = Buffer.from(stringify(lockfile));
 const sourceDigest = digest("f");
-const policy: PackedManagedRuntimePolicy = {
+const policy: PackedRuntimePolicyFixture = {
   policyId: "agent-teams.docs-protocol-current-policy",
   policyVersion: "3.0.0",
   sourceDigest,
@@ -134,114 +189,112 @@ const policy: PackedManagedRuntimePolicy = {
     }
   }
 };
-const cohortData: ManagedSuccessorProfile["cohort"] = {
-  schemaVersion: 3,
-  cohortId: "docs-v3-rc1",
-  channel: "rc",
-  recordDigest: digest("1"),
-  qualificationEventDigest: digest("2"),
-  eligibleAfter: "2026-09-28T00:00:00Z",
-  upgradeFrom: ["docs-v2"],
-  rollbackTo: ["docs-v2"],
-  candidateDigest: digest("3"),
-  packages,
-  workflow: {
-    repository: "agent-teams-ai/.github",
-    path: ".github/workflows/docs-protocol-check.yml",
-    revision: "4".repeat(40),
-    blobSha: "5".repeat(40)
-  },
-  assets: {
-    skillDigest: digest("6"),
-    callerWorkflowDigest: digest("7"),
-    assetCatalogDigest: digest("8"),
-    transitionCatalogDigest: digest("9")
-  },
-  schemas: {
-    consumerIntegration: 4,
-    managedState: 3,
-    qualificationReceipt: 1,
-    docsProtocol: 1
-  },
-  runtime: {
+const createRequestFixture = (
+  fixturePolicy: PackedRuntimePolicyFixture
+): DocsProtocolQualificationCohortV3Request => {
+  const selectedLane = "node-26-managed-qualified";
+  const selectedRuntime = fixturePolicy.lanes[selectedLane];
+  const cohortData: CohortFixture = {
+    schemaVersion: 3,
+    cohortId: "docs-v3-rc1",
+    channel: "rc",
+    recordDigest: digest("1"),
+    qualificationEventDigest: digest("2"),
+    eligibleAfter: "2026-09-28T00:00:00Z",
+    upgradeFrom: ["docs-v2"],
+    rollbackTo: ["docs-v2"],
+    candidateDigest: digest("3"),
+    packages,
+    workflow: {
+      repository: "agent-teams-ai/.github",
+      path: ".github/workflows/docs-protocol-check.yml",
+      revision: "4".repeat(40),
+      blobSha: "5".repeat(40)
+    },
+    assets: {
+      skillDigest: digest("6"),
+      callerWorkflowDigest: digest("7"),
+      assetCatalogDigest: digest("8"),
+      transitionCatalogDigest: digest("9")
+    },
+    schemas: {
+      consumerIntegration: 4,
+      managedState: 3,
+      qualificationReceipt: 1,
+      docsProtocol: 1
+    },
+    runtime: {
+      policy: {
+        id: fixturePolicy.policyId,
+        version: fixturePolicy.policyVersion,
+        digest: fixturePolicy.sourceDigest
+      },
+      selectedLane,
+      node: selectedRuntime.node,
+      pnpm: fixturePolicy.pnpm,
+      qualificationRuntime: selectedRuntime.qualificationRuntime,
+      runtimeClosure: {
+        domain: "agent-teams.docs-runtime-closure/v2",
+        digest: digest("a")
+      }
+    }
+  };
+  const runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfile, cohortData);
+  const cohort: CohortFixture = {
+    ...cohortData,
+    assets: describeCanonicalConsumerAssets(cohortData),
+    runtime: {
+      ...cohortData.runtime,
+      runtimeClosure: {
+        domain: "agent-teams.docs-runtime-closure/v2",
+        digest: runtimeClosureDigest
+      }
+    }
+  };
+  const profile: ManagedSuccessorProfile = {
+    schemaVersion: 4,
+    repository: { provider: "github", id: "123", nameWithOwner: "example/docs" },
+    integrationRoot: ".",
+    packageManager: "pnpm",
+    profilePath: "architecture/foundation/docs-protocol.yaml",
+    skillPath: ".agents/skills/docs-authoring/SKILL.md",
+    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
+    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
+    qualification: {
+      contractPath: "architecture/foundation/docs-protocol-qualification.json",
+      gateCommand: "pnpm docs:protocol:check"
+    },
+    cohort
+  };
+  const evidence: DocsProtocolQualificationCohortEvidenceV3 = {
+    cohort: {
+      cohortId: cohort.cohortId,
+      recordDigest: cohort.recordDigest,
+      qualificationEventDigest: cohort.qualificationEventDigest,
+      candidateDigest: cohort.candidateDigest
+    },
+    packages,
+    schemas: cohort.schemas,
     policy: {
-      id: policy.policyId,
-      version: policy.policyVersion,
-      digest: sourceDigest
+      id: fixturePolicy.policyId,
+      version: fixturePolicy.policyVersion,
+      sourceDigest: fixturePolicy.sourceDigest
     },
-    selectedLane: "node-26-managed-qualified",
-    node: ">=26.0.0 <27",
-    pnpm: policy.pnpm,
-    qualificationRuntime: {
-      nodeVersion: "26.11.1",
-      pnpmVersion: "11.20.0",
-      platform: "linux",
-      architecture: "x64"
-    },
-    runtimeClosure: {
-      domain: "agent-teams.docs-runtime-closure/v2",
-      digest: digest("a")
+    runtime: {
+      selectedLane: cohort.runtime.selectedLane,
+      node: cohort.runtime.node,
+      pnpm: cohort.runtime.pnpm,
+      qualificationRuntime: cohort.runtime.qualificationRuntime,
+      runtimeClosureDigest
     }
-  }
+  };
+  return {
+    profile: structuredClone(profile),
+    evidence: structuredClone(evidence),
+    lockfileBytes: new Uint8Array(lockfileBytes)
+  };
 };
-const runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfile, cohortData);
-const cohort: ManagedSuccessorProfile["cohort"] = {
-  ...cohortData,
-  assets: describeCanonicalConsumerAssets(cohortData),
-  runtime: {
-    ...cohortData.runtime,
-    runtimeClosure: {
-      domain: "agent-teams.docs-runtime-closure/v2",
-      digest: runtimeClosureDigest
-    }
-  }
-};
-const profile: ManagedSuccessorProfile = {
-  schemaVersion: 4,
-  repository: { provider: "github", id: "123", nameWithOwner: "example/docs" },
-  integrationRoot: ".",
-  packageManager: "pnpm",
-  profilePath: "architecture/foundation/docs-protocol.yaml",
-  skillPath: ".agents/skills/docs-authoring/SKILL.md",
-  callerWorkflowPath: ".github/workflows/docs-protocol.yml",
-  managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-  qualification: {
-    contractPath: "architecture/foundation/docs-protocol-qualification.json",
-    gateCommand: "pnpm docs:protocol:check"
-  },
-  cohort
-};
-const evidence: DocsProtocolQualificationCohortEvidenceV3 = {
-  cohort: {
-    cohortId: cohort.cohortId,
-    recordDigest: cohort.recordDigest,
-    qualificationEventDigest: cohort.qualificationEventDigest,
-    candidateDigest: cohort.candidateDigest
-  },
-  packages,
-  schemas: cohort.schemas,
-  policy: {
-    id: policy.policyId,
-    version: policy.policyVersion,
-    sourceDigest
-  },
-  runtime: {
-    selectedLane: cohort.runtime.selectedLane,
-    node: cohort.runtime.node,
-    pnpm: cohort.runtime.pnpm,
-    qualificationRuntime: cohort.runtime.qualificationRuntime,
-    runtimeClosureDigest
-  }
-};
-const createRequestFixture = (): DocsProtocolQualificationCohortV3Request => ({
-  // Clone each typed fixture independently at the request boundary. The source
-  // fixtures intentionally share package/schema/runtime source data, but a
-  // qualification request must not preserve that aliasing across its roots.
-  profile: structuredClone(profile),
-  evidence: structuredClone(evidence),
-  lockfileBytes: new Uint8Array(lockfileBytes)
-});
-const request = createRequestFixture();
+const request = createRequestFixture(policy);
 const exactRuntime: DocsProtocolQualificationRuntimeObservation = {
   nodeVersion: "26.11.1",
   platform: "linux",
@@ -312,23 +365,40 @@ test("Gen3 valid observation and lock closure emits the exact namespace receipt"
   assert.equal(validate(receipt), true, JSON.stringify(validate.errors));
 });
 
-test("public runDocsProtocolQualificationV3 observes the actual process without a blanket skip", () => {
+test("public runDocsProtocolQualificationV3 observes the actual process without a blanket skip", async () => {
+  const [schemaInput, assetInput] = await Promise.all([
+    readFile(new URL("../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"),
+    readFile(new URL("../assets/runtime-policy.v1.json", import.meta.url), "utf8")
+  ]);
+  const parsedPolicy = parsePackedManagedRuntimePolicy(schemaInput, assetInput);
+  assert.match(parsedPolicy.sourceDigest, /^sha256:[0-9a-f]{64}$/u);
+  const actualPolicy = parsedPolicy as PackedRuntimePolicyFixture;
+  const publicRequest = createRequestFixture(actualPolicy);
+  const privateActualQualification = createDocsProtocolQualificationV3(
+    observeLockfile,
+    () => exactRuntime,
+    () => actualPolicy
+  );
   const observed = createNodeDocsProtocolQualificationRuntimeObserver()();
   const isExactRuntime = observed.nodeVersion === exactRuntime.nodeVersion &&
     observed.platform === exactRuntime.platform &&
     observed.architecture === exactRuntime.architecture;
   assert.notEqual(runDocsProtocolQualificationV3, qualification);
   if (isExactRuntime) {
-    const publicReceipt = runDocsProtocolQualificationV3(request);
+    const publicReceipt = runDocsProtocolQualificationV3(publicRequest);
     if (!isCohortReceipt(publicReceipt)) {
       assert.fail("Public Gen3 request must emit a Cohort v3 receipt.");
     }
+    const privateReceipt = privateActualQualification(publicRequest);
+    if (!isCohortReceipt(privateReceipt)) {
+      assert.fail("Private injected Gen3 request must emit a Cohort v3 receipt.");
+    }
     assert.equal(publicReceipt.namespace, "docs-protocol-cohort-v3-qualification-receipt/v1");
-    assert.equal(publicReceipt.receiptDigest, qualification(request).receiptDigest);
+    assert.equal(publicReceipt.receiptDigest, privateReceipt.receiptDigest);
   } else {
     assert.throws(
-      () => runDocsProtocolQualificationV3(request),
-      /observed Node runtime mismatch/u
+      () => runDocsProtocolQualificationV3(publicRequest),
+      /^Qualification Cohort v3 observed Node runtime mismatch\.$/u
     );
   }
 });
@@ -438,7 +508,10 @@ test("Gen3 rejects mixed generations, schemas and package coordinates", () => {
     configurable: true,
     writable: true
   });
-  assert.throws(() => qualification(wrongCoordinate), /runtime closure/u);
+  assert.throws(
+    () => qualification(wrongCoordinate),
+    /^@agent-teams\/docs-protocol importer evidence must select exact cohort version 0\.5\.1\.$/u
+  );
 });
 
 test("legacy receipt v3 bytes and digest are independent of the new namespace schema", async () => {

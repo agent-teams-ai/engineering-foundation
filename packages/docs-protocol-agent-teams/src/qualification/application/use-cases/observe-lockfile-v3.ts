@@ -24,7 +24,7 @@ function assertDocsProtocolQualificationV3ProfileAuthority(
   }
   const canonicalAssets = profile.schemaVersion === 3
     ? describeCanonicalConsumerAssets(profile.cohort)
-    : describeCanonicalConsumerAssets(profile.cohort as ConsumerIntegrationDesiredStateV3["cohort"]);
+    : describeCanonicalConsumerAssets(profile.cohort);
   if (canonicalAssets.skillDigest !== profile.cohort.assets.skillDigest ||
     canonicalAssets.callerWorkflowDigest !== profile.cohort.assets.callerWorkflowDigest ||
     canonicalAssets.assetCatalogDigest !== profile.cohort.assets.assetCatalogDigest ||

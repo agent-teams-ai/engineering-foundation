@@ -161,8 +161,10 @@ export function digestBytes(value: Uint8Array): ConsumerIntegrationDigest {
 
 export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1): string;
 export function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV2): string;
+export function canonicalCallerWorkflow(cohort: ManagedSuccessorProfile["cohort"]): string;
 export function canonicalCallerWorkflow(
-  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2
+  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2 |
+    ManagedSuccessorProfile["cohort"]
 ): string {
   return CANONICAL_CALLER_WORKFLOW_TEMPLATE
     .replace("{{REUSABLE_WORKFLOW_REPOSITORY}}", cohort.workflow.repository)
@@ -370,8 +372,15 @@ export function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindi
   readonly assetCatalogDigest: ConsumerIntegrationDigest;
   readonly transitionCatalogDigest: ConsumerIntegrationDigest;
 };
+export function describeCanonicalConsumerAssets(cohort: ManagedSuccessorProfile["cohort"]): {
+  readonly skillDigest: ConsumerIntegrationDigest;
+  readonly callerWorkflowDigest: ConsumerIntegrationDigest;
+  readonly assetCatalogDigest: ConsumerIntegrationDigest;
+  readonly transitionCatalogDigest: ConsumerIntegrationDigest;
+};
 export function describeCanonicalConsumerAssets(
-  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2
+  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2 |
+    ManagedSuccessorProfile["cohort"]
 ): {
   readonly skillDigest: ConsumerIntegrationDigest;
   readonly callerWorkflowDigest: ConsumerIntegrationDigest;

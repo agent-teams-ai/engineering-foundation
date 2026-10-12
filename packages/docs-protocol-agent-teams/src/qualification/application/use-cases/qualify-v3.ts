@@ -221,7 +221,7 @@ function qualifyCohortV3(
     policy: Object.freeze({
       id: cohort.runtime.policy.id,
       version: cohort.runtime.policy.version,
-      sourceDigest: cohort.runtime.policy.digest
+      sourceDigest: evidence.policy.sourceDigest
     }),
     runtime: Object.freeze({
       selectedLane: cohort.runtime.selectedLane,

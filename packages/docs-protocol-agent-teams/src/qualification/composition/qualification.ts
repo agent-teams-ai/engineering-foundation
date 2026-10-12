@@ -55,7 +55,7 @@ const qualification = {
   runDocsProtocolQualificationV3: createDocsProtocolQualificationV3(
     observeLockfile,
     observeNodeRuntime,
-    readPackedManagedRuntimePolicy()
+    readPackedManagedRuntimePolicy
   )
 };
 

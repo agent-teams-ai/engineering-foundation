@@ -1,5 +1,5 @@
 ---
-"@agent-teams/docs-protocol-agent-teams": patch
+"@agent-teams/docs-protocol-agent-teams": minor
 ---
 
 Correct the current Docs Protocol runtime policy to policy 3.0.0 for the accepted

@@ -22,7 +22,9 @@ function assertDocsProtocolQualificationV3ProfileAuthority(
   } else {
     throw new TypeError("Qualification v3 lockfile profile generation is invalid or unsupported.");
   }
-  const canonicalAssets = describeCanonicalConsumerAssets(profile.cohort);
+  const canonicalAssets = profile.schemaVersion === 3
+    ? describeCanonicalConsumerAssets(profile.cohort)
+    : describeCanonicalConsumerAssets(profile.cohort as ConsumerIntegrationDesiredStateV3["cohort"]);
   if (canonicalAssets.skillDigest !== profile.cohort.assets.skillDigest ||
     canonicalAssets.callerWorkflowDigest !== profile.cohort.assets.callerWorkflowDigest ||
     canonicalAssets.assetCatalogDigest !== profile.cohort.assets.assetCatalogDigest ||

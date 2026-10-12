@@ -2,104 +2,21 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
-import type { SchemaObject } from "ajv";
 
-type JsonRecord = Record<string, unknown>;
-
-type Repository = Readonly<{
-  provider: "github";
-  id: string;
-  nameWithOwner: string;
-}>;
-
-type PackageEvidence = Readonly<Record<string, Readonly<{
-  version: string;
-  integrity: string;
-}>>>;
-
-type Coordinate = Readonly<{
-  key: string;
-  name: string;
-  version: string;
-  integrity: string;
-}>;
-
-type QualificationRuntime = Readonly<{
-  nodeVersion: string;
-  pnpmVersion: string;
-  platform: string;
-  architecture: string;
-}>;
-
-type CohortV2Authority = Readonly<{
-  schemaVersion: 2;
-  cohortId: string;
-  recordDigest: string;
-  qualificationEventDigest: string;
-  packages: JsonRecord;
-  runtime: Readonly<{ runtimeClosureDigest: string }>;
-}>;
-
-type CohortV3Authority = Readonly<{
-  schemaVersion: 3;
-  cohortId: string;
-  recordDigest: string;
-  qualificationEventDigest: string;
-  candidateDigest: string;
-  packages: JsonRecord;
-  runtime: Readonly<{
-    policy: Readonly<{ id: string; version: string; digest: string }>;
-    selectedLane: string;
-    node: string;
-    pnpm: string;
-    qualificationRuntime: QualificationRuntime;
-    runtimeClosure: Readonly<{ domain: string; digest: string }>;
-  }>;
-}>;
-
-type Authority = Readonly<{
-  cohort: CohortV2Authority | CohortV3Authority;
-  coordinates: readonly Coordinate[];
-}>;
-
-type LockfileEvidence = Readonly<{
-  lockfileBytes: Buffer;
-  receipt: Readonly<{ lockfileDigest: string }>;
-}>;
-
-type QualificationCommandResult = Readonly<{ stdout: string }>;
-
-type QualificationHostPorts = Readonly<{
-  parseJson: (text: string) => JsonRecord;
-  readSchema: (path: string) => Promise<SchemaObject>;
-  run: (
-    command: string,
-    args: readonly string[],
-    cwd: string,
-    options: Readonly<{ timeoutMs: number }>,
-  ) => Promise<QualificationCommandResult>;
-}>;
-
-type QualificationProfileV2 = Readonly<{
-  schemaVersion: 3;
-  repository: Repository;
-  cohort: CohortV2Authority;
-  [key: string]: unknown;
-}>;
-
-type QualificationProfileV3 = Readonly<{
-  schemaVersion: 4;
-  repository: Repository;
-  cohort: CohortV3Authority;
-  [key: string]: unknown;
-}>;
-
-type ManagedState = JsonRecord & Readonly<{
-  schemaVersion: number;
-  stateDigest: string;
-}>;
-
-type SchemaCase = readonly [string, SchemaObject, unknown];
+import type {
+  Authority,
+  CohortV2Authority,
+  CohortV3Authority,
+  JsonRecord,
+  LockfileEvidence,
+  ManagedState,
+  PackageEvidence,
+  QualificationHostPorts,
+  QualificationProfileV2,
+  QualificationProfileV3,
+  Repository,
+  SchemaCase,
+} from "./public-managed-registry-canary-qualification-types.mts";
 
 const adapterSegments: readonly string[] = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
 const commandTimeout = 240_000;
@@ -361,7 +278,7 @@ function qualificationProgramV2(
     "const trustedCohort = { ...authorityProfile.cohort, runtime: { ...authorityProfile.cohort.runtime, runtimeClosureDigest: observed.runtimeClosureDigest } };",
     "const profile = { ...authorityProfile, cohort: trustedCohort };",
     `const evidence = { packages: ${JSON.stringify(observedPackages)}, schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }, runtimeClosureDigest: observed.runtimeClosureDigest };`,
-    "const receipt = runDocsProtocolQualificationV3({ profile: authorityProfile, evidence, lockfileBytes: exactLockfileBytes() });",
+    "const receipt = runDocsProtocolQualificationV3({ profile, evidence, lockfileBytes: exactLockfileBytes() });",
     "const canonical = describeCanonicalConsumerAssets(profile.cohort);",
     "const routeDigest = `sha256:${createHash('sha256').update(canonicalManagedRoute(profile.skillPath)).digest('hex')}`;",
     "const assets = { ...canonical, agentsRouteDigest: routeDigest, docsScriptsDigest: canonicalDocsScriptsDigest(profile.profilePath) };",
@@ -460,7 +377,7 @@ function assertCohortV3Consistency(
   output: JsonRecord,
   cohort: CohortV3Authority,
   evidence: JsonRecord,
-  expectedPackages: JsonRecord,
+  expectedPackages: readonly JsonRecord[],
   managedStateValue: ManagedState,
 ): void {
   const observed = record(output.observed, "Managed Cohort v3 observed evidence");

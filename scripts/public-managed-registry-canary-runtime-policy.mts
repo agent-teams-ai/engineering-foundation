@@ -87,22 +87,31 @@ function normalizedShape(value: unknown, validateSchema: (value: unknown) => voi
   const managedRuntime = raw === undefined
     ? source
     : record(source.managedRuntime, "packed runtime policy managedRuntime");
-  return {
+  const normalized = raw === undefined ? source : {
     policyId: source.policyId,
     policyVersion: source.policyVersion,
     sourceDigest: source.sourceDigest,
     pnpm: managedRuntime.pnpm,
     lanes: managedRuntime.lanes,
   };
+  return exactKeys(
+    normalized,
+    ["policyId", "policyVersion", "sourceDigest", "pnpm", "lanes"],
+    "packed runtime policy",
+  );
 }
 
-function normalizeLane(value: unknown, laneId: string): RuntimeLane {
+function normalizeLane(value: unknown, laneId: string, expectedDefault: boolean): RuntimeLane {
   const lane = exactKeys(value, ["node", "qualificationRuntime", "default"], `packed runtime policy lane ${laneId}`);
   const qualificationRuntime = exactKeys(
     lane.qualificationRuntime,
     ["nodeVersion", "pnpmVersion", "platform", "architecture"],
     `packed runtime policy qualification runtime ${laneId}`,
   );
+  const defaultLane = lane.default;
+  if (typeof defaultLane !== "boolean" || defaultLane !== expectedDefault) {
+    fail(`packed runtime policy lane ${laneId} has the wrong default`);
+  }
   return Object.freeze({
     node: string(lane.node, `packed runtime policy lane ${laneId} node`),
     qualificationRuntime: Object.freeze({
@@ -111,7 +120,7 @@ function normalizeLane(value: unknown, laneId: string): RuntimeLane {
       platform: string(qualificationRuntime.platform, `packed runtime policy qualification runtime ${laneId} platform`),
       architecture: string(qualificationRuntime.architecture, `packed runtime policy qualification runtime ${laneId} architecture`),
     }),
-    default: lane.default === true,
+    default: defaultLane,
   });
 }
 
@@ -121,11 +130,8 @@ function normalizeLanes(value: unknown): NormalizedRuntimePolicy["lanes"] {
     ["node-24-production-default", "node-26-managed-qualified"],
     "packed runtime policy lanes",
   );
-  const production = normalizeLane(lanes["node-24-production-default"], "node-24-production-default");
-  const qualified = normalizeLane(lanes["node-26-managed-qualified"], "node-26-managed-qualified");
-  if (production.default || !qualified.default) {
-    fail("packed runtime policy lane has the wrong default");
-  }
+  const production = normalizeLane(lanes["node-24-production-default"], "node-24-production-default", false);
+  const qualified = normalizeLane(lanes["node-26-managed-qualified"], "node-26-managed-qualified", true);
   return Object.freeze({
     "node-24-production-default": production,
     "node-26-managed-qualified": qualified,

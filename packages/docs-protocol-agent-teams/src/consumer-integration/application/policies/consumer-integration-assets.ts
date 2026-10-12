@@ -5,6 +5,8 @@ import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationDigest,
+  ManagedSuccessorAssetDigests,
+  ManagedSuccessorProfile,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2
 } from "../../domain/model.js";
@@ -211,6 +213,55 @@ export function canonicalConsumerIntegrationJson(value: unknown): string {
     .join(",")}}`;
 }
 
+const SUCCESSOR_ASSET_KEYS = ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest",
+  "transitionCatalogDigest", "agentsRouteDigest", "docsScriptsDigest"] as const;
+const NONZERO_SHA256 = /^sha256:(?!0{64}$)[0-9a-f]{64}$/u;
+
+/** Shared state3 body used by the existing projector and the canonical profile4 dispatch. */
+export function projectManagedSuccessorStateBody(
+  profile: ManagedSuccessorProfile,
+  assets: ManagedSuccessorAssetDigests
+): string {
+  if (Object.keys(assets).toSorted().join("\0") !== [...SUCCESSOR_ASSET_KEYS].toSorted().join("\0") ||
+      !SUCCESSOR_ASSET_KEYS.every((key) => NONZERO_SHA256.test(assets[key])) ||
+      assets.skillDigest !== profile.cohort.assets.skillDigest ||
+      assets.callerWorkflowDigest !== profile.cohort.assets.callerWorkflowDigest ||
+      assets.assetCatalogDigest !== profile.cohort.assets.assetCatalogDigest ||
+      assets.transitionCatalogDigest !== profile.cohort.assets.transitionCatalogDigest ||
+      assets.agentsRouteDigest !== digestBytes(Buffer.from(canonicalManagedRoute(profile.skillPath), "utf8")) ||
+      assets.docsScriptsDigest !== canonicalDocsScriptsDigest(profile.profilePath)) {
+    throw new TypeError("Successor state assets do not bind the cohort.");
+  }
+  const cohort = profile.cohort;
+  const body = {
+    schemaVersion: 3,
+    cohortId: cohort.cohortId,
+    cohortAuthority: {
+      channel: cohort.channel,
+      recordDigest: cohort.recordDigest,
+      qualificationEventDigest: cohort.qualificationEventDigest,
+      eligibleAfter: cohort.eligibleAfter,
+      upgradeFrom: cohort.upgradeFrom,
+      rollbackTo: cohort.rollbackTo,
+      candidateDigest: cohort.candidateDigest
+    },
+    repository: profile.repository,
+    packages: cohort.packages,
+    schemas: cohort.schemas,
+    runtime: cohort.runtime,
+    workflow: cohort.workflow,
+    profilePath: profile.profilePath,
+    skillPath: profile.skillPath,
+    callerWorkflowPath: profile.callerWorkflowPath,
+    managedStatePath: profile.managedStatePath,
+    assets
+  };
+  const stateDigest = digestBytes(Buffer.from(canonicalConsumerIntegrationJson({
+    domain: "agent-teams.docs-protocol.managed-state/v3", body
+  }), "utf8"));
+  return `${canonicalConsumerIntegrationJson({ ...body, stateDigest })}\n`;
+}
+
 export function canonicalManagedState(
   desired: ConsumerIntegrationDesiredStateV1,
   assets: {
@@ -227,9 +278,16 @@ export function canonicalManagedState(
   assets: CanonicalManagedAssetDigests
 ): string;
 export function canonicalManagedState(
-  desired: ConsumerIntegrationDesiredState,
-  assets: CanonicalManagedAssetDigests
+  desired: ManagedSuccessorProfile,
+  assets: ManagedSuccessorAssetDigests
+): string;
+export function canonicalManagedState(
+  desired: ConsumerIntegrationDesiredState | ManagedSuccessorProfile,
+  assets: CanonicalManagedAssetDigests | ManagedSuccessorAssetDigests
 ): string {
+  if (desired.schemaVersion === 4) {
+    return projectManagedSuccessorStateBody(desired, assets);
+  }
   if (desired.schemaVersion === 3) {
     return canonicalManagedStateV2(desired, assets);
   }
@@ -267,7 +325,7 @@ export function canonicalManagedState(
 
 function canonicalManagedStateV2(
   desired: ConsumerIntegrationDesiredStateV3,
-  assets: CanonicalManagedAssetDigests
+  assets: ManagedSuccessorAssetDigests
 ): string {
   const body = {
     schemaVersion: 2,

@@ -1,6 +1,7 @@
 import type {
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationDesiredStateV1,
+  ManagedSuccessorProfile,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2
 } from "../../domain/model.js";
@@ -84,7 +85,7 @@ function assertPlainBoundedJson(value: unknown): void {
   visit(value, 0);
 }
 
-function hasValidAuthority(cohort: Record<string, unknown>, generation: 1 | 2): boolean {
+function hasValidAuthority(cohort: Record<string, unknown>, generation: 1 | 2 | 3): boolean {
   const upgrades = cohort["upgradeFrom"];
   const rollbacks = cohort["rollbackTo"];
   if (!stringList(upgrades) || !stringList(rollbacks)) {return false;}
@@ -143,6 +144,56 @@ function hasValidCohort(cohort: unknown, generation: 1 | 2): boolean {
     hasValidSchemasAndRuntime(cohort, generation);
 }
 
+function hasValidCohort3Binding(cohort: unknown): boolean {
+  const keys = [
+    "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
+    "eligibleAfter", "upgradeFrom", "rollbackTo", "candidateDigest", "packages", "workflow",
+    "assets", "schemas", "runtime"
+  ];
+  if (!hasExactKeys(cohort, keys) || !hasValidAuthority(cohort, 3)) {return false;}
+  const record = cohort as Record<string, unknown>;
+  const packages = record["packages"];
+  const schemas = record["schemas"];
+  const runtime = record["runtime"];
+  const policy = typeof runtime === "object" && runtime !== null
+    ? (runtime as Record<string, unknown>)["policy"]
+    : undefined;
+  const qualificationRuntime = typeof runtime === "object" && runtime !== null
+    ? (runtime as Record<string, unknown>)["qualificationRuntime"]
+    : undefined;
+  const runtimeClosure = typeof runtime === "object" && runtime !== null
+    ? (runtime as Record<string, unknown>)["runtimeClosure"]
+    : undefined;
+  const selectedLane = typeof runtime === "object" && runtime !== null
+    ? (runtime as Record<string, unknown>)["selectedLane"]
+    : undefined;
+  return record["schemaVersion"] === 3 && matches(record["candidateDigest"], NONZERO_SHA256) &&
+    hasValidPackages(packages, QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key)) &&
+    hasValidWorkflow(record["workflow"]) && hasValidAssets(record["assets"]) &&
+    hasExactKeys(schemas, ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"]) &&
+    (schemas as Record<string, unknown>)["consumerIntegration"] === 4 &&
+    (schemas as Record<string, unknown>)["managedState"] === 3 &&
+    (schemas as Record<string, unknown>)["qualificationReceipt"] === 1 &&
+    (schemas as Record<string, unknown>)["docsProtocol"] === 1 &&
+    hasExactKeys(runtime, ["policy", "selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"]) &&
+    hasExactKeys(policy, ["id", "version", "digest"]) &&
+    (policy as Record<string, unknown>)["id"] === "agent-teams.docs-protocol-current-policy" &&
+    (policy as Record<string, unknown>)["version"] === "3.0.0" &&
+    matches((policy as Record<string, unknown>)["digest"], NONZERO_SHA256) &&
+    (selectedLane === "node-24-production-default" || selectedLane === "node-26-managed-qualified") &&
+    (runtime as Record<string, unknown>)["node"] ===
+      (selectedLane === "node-24-production-default" ? ">=24.18.0 <25" : ">=26.0.0 <27") &&
+    (runtime as Record<string, unknown>)["pnpm"] === ">=11.17.0 <12" &&
+    hasExactKeys(qualificationRuntime, ["nodeVersion", "pnpmVersion", "platform", "architecture"]) &&
+    matches((qualificationRuntime as Record<string, unknown>)["nodeVersion"], SEMVER) &&
+    matches((qualificationRuntime as Record<string, unknown>)["pnpmVersion"], SEMVER) &&
+    typeof (qualificationRuntime as Record<string, unknown>)["platform"] === "string" &&
+    typeof (qualificationRuntime as Record<string, unknown>)["architecture"] === "string" &&
+    hasExactKeys(runtimeClosure, ["domain", "digest"]) &&
+    (runtimeClosure as Record<string, unknown>)["domain"] === "agent-teams.docs-runtime-closure/v2" &&
+    matches((runtimeClosure as Record<string, unknown>)["digest"], NONZERO_SHA256);
+}
+
 export function assertQualifiedDocsCohortBindingV1(
   cohort: unknown
 ): asserts cohort is QualifiedDocsCohortBindingV1 {
@@ -173,13 +224,13 @@ function hasValidQualification(value: unknown): boolean {
     value["gateCommand"] === "pnpm docs:protocol:check";
 }
 
-function hasValidDesired(desired: unknown, version: 1 | 3): boolean {
+function hasValidDesired(desired: unknown, version: 1 | 3 | 4): boolean {
   if (typeof desired !== "object" || desired === null) {return false;}
   const roots = "governedDocsRoots" in desired ? desired.governedDocsRoots : undefined;
   if (!hasExactKeys(desired, [
     "schemaVersion", "repository", "integrationRoot", "packageManager", "profilePath",
     "skillPath", "callerWorkflowPath", "managedStatePath", "cohort",
-    ...(version === 3 ? ["qualification"] : []),
+    ...(version === 1 ? [] : ["qualification"]),
     ...(roots === undefined ? [] : ["governedDocsRoots"])
   ])) {return false;}
   const qualification = desired["qualification"];
@@ -188,7 +239,11 @@ function hasValidDesired(desired: unknown, version: 1 | 3): boolean {
     desired["skillPath"] === SKILL_PATH && desired["callerWorkflowPath"] === CALLER_WORKFLOW_PATH &&
     desired["managedStatePath"] === MANAGED_STATE_PATH &&
     hasValidRepository(desired["repository"]) && hasValidGovernedRoots(roots) &&
-    hasValidCohort(desired["cohort"], version === 1 ? 1 : 2) &&
+    (version === 1
+      ? hasValidCohort(desired["cohort"], 1)
+      : version === 3
+        ? hasValidCohort(desired["cohort"], 2)
+        : hasValidCohort3Binding(desired["cohort"])) &&
     (version === 1 || hasValidQualification(qualification));
 }
 
@@ -207,5 +262,15 @@ export function assertConsumerIntegrationDesiredStateV3(
   assertPlainBoundedJson(desired);
   if (!hasValidDesired(desired, 3)) {
     throw new TypeError("Consumer integration desired state v3 is invalid or unsupported.");
+  }
+}
+
+/** Validates the closed unselected Profile4 data seam without granting operational selection. */
+export function assertManagedSuccessorProfileV4(
+  desired: unknown
+): asserts desired is ManagedSuccessorProfile {
+  assertPlainBoundedJson(desired);
+  if (!hasValidDesired(desired, 4)) {
+    throw new TypeError("Managed successor profile v4 is invalid or unsupported.");
   }
 }

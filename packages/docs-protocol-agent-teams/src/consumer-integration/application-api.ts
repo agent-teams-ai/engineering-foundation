@@ -18,7 +18,8 @@ export type {
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
-  QualifiedDocsPackageCoordinateV2
+  QualifiedDocsPackageCoordinateV2,
+  ManagedSuccessorProfile
 } from "./domain/model.js";
 export type {
   ConsumerUpgradeExecutionV1
@@ -98,6 +99,6 @@ export {
 export { assertConsumerIntegrationDesiredStateV1 } from "./application/policies/consumer-integration-desired-state.js";
 
 export { bindUnselectedCohortV3 } from "./application/policies/qualified-docs-cohort-v3.js";
-export type { UnselectedCohortV3, PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";
+export type { UnselectedCohortV3 } from "./domain/model.js";
+export type { PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";
 export { projectManagedSuccessorState } from "./application/policies/managed-successor-state.js";
-export type { ManagedSuccessorProfile } from "./application/policies/managed-successor-state.js";

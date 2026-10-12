@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import type { DocsProtocolProfileV3 } from "@agent-teams/docs-protocol";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
+import { assertManagedSuccessorProfileV4 } from "../application/policies/consumer-integration-desired-state.js";
 
 const validators = new Map<string, Promise<ValidateFunction>>();
 
@@ -10,6 +11,7 @@ type SchemaId = "docs-protocol-agent-teams/docs-consumer-integration-execution" 
   "docs-consumer-integration-profile" |
   "docs-consumer-integration-profile-v2" |
   "docs-consumer-integration-profile-v3" |
+  "docs-consumer-integration-profile-v4" |
   "docs-protocol-agent-teams/docs-consumer-upgrade-execution" |
   "docs-protocol-agent-teams/docs-consumer-restoration-execution";
 
@@ -33,9 +35,11 @@ async function validator(
       ajv.addSchema(JSON.parse(plan) as object);
       ajv.addSchema(JSON.parse(mutationReceipt) as object);
     }
-    if (id === "docs-consumer-integration-profile-v3") {
+    if (id === "docs-consumer-integration-profile-v3" || id === "docs-consumer-integration-profile-v4") {
       const cohort = JSON.parse(await readFile(new URL(
-        "../../../schemas/qualified-docs-cohort/v2.schema.json",
+        id === "docs-consumer-integration-profile-v3"
+          ? "../../../schemas/qualified-docs-cohort/v2.schema.json"
+          : "../../../schemas/qualified-docs-cohort/v3.schema.json",
         import.meta.url
       ), "utf8")) as object;
       ajv.addSchema(cohort);
@@ -45,6 +49,8 @@ async function validator(
         ? "../../../schemas/docs-consumer-integration-profile/v2.schema.json"
         : id === "docs-consumer-integration-profile-v3"
           ? "../../../schemas/docs-consumer-integration-profile/v3.schema.json"
+          : id === "docs-consumer-integration-profile-v4"
+            ? "../../../schemas/docs-consumer-integration-profile/v4.schema.json"
           : `../../../schemas/${id}/v1.schema.json`,
       import.meta.url
     );
@@ -65,7 +71,7 @@ async function assertSchema(
     .map(({ instancePath, message }) => `${instancePath || "/"} ${message ?? "is invalid"}`)
     .join("; ")
     .slice(0, 1000);
-  throw new TypeError(`${id}${/-v[23]$/u.test(id) ? "" : "/v1"} validation failed: ${problems}`);
+  throw new TypeError(`${id}${/-v[234]$/u.test(id) ? "" : "/v1"} validation failed: ${problems}`);
 }
 
 export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<void> {
@@ -81,8 +87,13 @@ export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<
   if (version === 3) {
     return assertSchema("docs-consumer-integration-profile-v3", value);
   }
+  if (version === 4) {
+    return assertSchema("docs-consumer-integration-profile-v4", value).then(() => {
+      assertManagedSuccessorProfileV4(value);
+    });
+  }
   return Promise.reject(new TypeError(
-    "docs-consumer-integration-profile schemaVersion must be exactly 1, 2, or 3."
+    "docs-consumer-integration-profile schemaVersion must be exactly 1, 2, 3, or 4."
   ));
 }
 

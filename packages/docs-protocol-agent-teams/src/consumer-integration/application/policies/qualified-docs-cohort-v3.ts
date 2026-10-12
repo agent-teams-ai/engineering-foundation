@@ -1,42 +1,6 @@
-/** Candidate shape and lane consistency; validation grants no lifecycle selection. */
-export interface UnselectedCohortV3 {
-  readonly schemaVersion: 3;
-  readonly cohortId: string;
-  readonly channel: "rc" | "stable";
-  readonly recordDigest: string;
-  readonly qualificationEventDigest: string;
-  readonly eligibleAfter: string;
-  readonly upgradeFrom: readonly string[];
-  readonly rollbackTo: readonly string[];
-  readonly candidateDigest: string;
-  readonly lifecycleState: "QUALIFIED" | "CANARY" | "RECOMMENDED";
-  readonly canaryRepositoryIds: readonly string[];
-  readonly packages: Readonly<Record<"repositoryMutation" | "documentAuthoring" | "docsProtocol" |
-    "docsProtocolAgentTeams" | "engineeringFoundation", { readonly version: string; readonly integrity: string }>>;
-  readonly workflow: { readonly repository: "agent-teams-ai/.github"; readonly path: ".github/workflows/docs-protocol-check.yml";
-    readonly revision: string; readonly blobSha: string };
-  readonly assets: { readonly skillDigest: string; readonly callerWorkflowDigest: string;
-    readonly assetCatalogDigest: string; readonly transitionCatalogDigest: string };
-  readonly schemas: {
-    readonly consumerIntegration: 4;
-    readonly managedState: 3;
-    readonly qualificationReceipt: 1;
-    readonly docsProtocol: 1;
-  };
-  readonly runtime: {
-    readonly policy: { readonly id: "agent-teams.docs-protocol-current-policy"; readonly version: "3.0.0"; readonly digest: string };
-    readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";
-    readonly node: string;
-    readonly pnpm: string;
-    readonly qualificationRuntime: {
-      readonly nodeVersion: string;
-      readonly pnpmVersion: string;
-      readonly platform: string;
-      readonly architecture: string;
-    };
-    readonly runtimeClosure: { readonly domain: "agent-teams.docs-runtime-closure/v2"; readonly digest: string };
-  };
-}
+import type { UnselectedCohortV3 } from "../../domain/model.js";
+
+export type { UnselectedCohortV3 } from "../../domain/model.js";
 
 export interface PackedManagedRuntimePolicy {
   readonly policyId: "agent-teams.docs-protocol-current-policy";

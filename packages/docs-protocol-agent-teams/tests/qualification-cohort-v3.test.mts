@@ -27,6 +27,7 @@ import {
   observePackedPolicy,
   policy,
   qualification,
+  request,
   receiptDigest,
   type PackedRuntimePolicyFixture
 } from "./qualification-cohort-v3-fixtures.mts";

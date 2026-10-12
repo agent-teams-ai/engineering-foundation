@@ -165,6 +165,10 @@ export function canonicalCallerWorkflow(cohort: ManagedSuccessorProfile["cohort"
 export function canonicalCallerWorkflow(
   cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2 |
     ManagedSuccessorProfile["cohort"]
+): string;
+export function canonicalCallerWorkflow(
+  cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2 |
+    ManagedSuccessorProfile["cohort"]
 ): string {
   return CANONICAL_CALLER_WORKFLOW_TEMPLATE
     .replace("{{REUSABLE_WORKFLOW_REPOSITORY}}", cohort.workflow.repository)

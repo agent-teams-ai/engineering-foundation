@@ -224,11 +224,14 @@ function qualifyCohortV3(
       sourceDigest: evidence.policy.sourceDigest
     }),
     runtime: Object.freeze({
-      selectedLane: cohort.runtime.selectedLane,
-      node: cohort.runtime.node,
-      pnpm: cohort.runtime.pnpm,
-      qualificationRuntime: Object.freeze({ ...cohort.runtime.qualificationRuntime }),
-      runtimeClosure: Object.freeze({ ...cohort.runtime.runtimeClosure })
+      selectedLane: evidence.runtime.selectedLane,
+      node: evidence.runtime.node,
+      pnpm: evidence.runtime.pnpm,
+      qualificationRuntime: Object.freeze({ ...evidence.runtime.qualificationRuntime }),
+      runtimeClosure: Object.freeze({
+        domain: "agent-teams.docs-runtime-closure/v2" as const,
+        digest: evidence.runtime.runtimeClosureDigest
+      })
     }),
     checks: COHORT_CHECKS
   });

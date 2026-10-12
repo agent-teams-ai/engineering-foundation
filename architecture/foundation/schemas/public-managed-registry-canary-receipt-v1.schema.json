@@ -8,13 +8,13 @@
   "oneOf": [
     {
       "properties": {
-        "authority": { "properties": { "cohort": { "$ref": "#/$defs/cohort" } } },
+        "authority": { "type": "object", "properties": { "cohort": { "$ref": "#/$defs/cohort" } } },
         "managedQualification": { "$ref": "#/$defs/legacyManagedQualification" }
       }
     },
     {
       "properties": {
-        "authority": { "properties": { "cohort": { "$ref": "#/$defs/cohort3" } } },
+        "authority": { "type": "object", "properties": { "cohort": { "$ref": "#/$defs/cohort3" } } },
         "managedQualification": { "$ref": "#/$defs/cohort3ManagedQualification" }
       }
     }

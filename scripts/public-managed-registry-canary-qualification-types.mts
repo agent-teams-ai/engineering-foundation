@@ -63,6 +63,11 @@ export type LockfileEvidence = Readonly<{
   receipt: Readonly<{ lockfileDigest: string }>;
 }>;
 
+export type ManagedQualificationRequest = Readonly<{
+  observedPackages: PackageEvidence;
+  lockfileEvidence: LockfileEvidence;
+}>;
+
 export type QualificationCommandResult = Readonly<{ stdout: string }>;
 
 export type QualificationHostPorts = Readonly<{

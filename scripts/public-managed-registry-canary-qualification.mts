@@ -9,6 +9,7 @@ import type {
   CohortV3Authority,
   JsonRecord,
   LockfileEvidence,
+  ManagedQualificationRequest,
   ManagedState,
   PackageEvidence,
   QualificationHostPorts,
@@ -318,8 +319,7 @@ export async function managedQualificationCohortV2(
   root: string,
   authority: Authority,
   repository: Repository,
-  observedPackages: PackageEvidence,
-  lockfileEvidence: LockfileEvidence,
+  { observedPackages, lockfileEvidence }: ManagedQualificationRequest,
   ports: QualificationHostPorts,
 ): Promise<JsonRecord> {
   if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {
@@ -417,8 +417,7 @@ export async function managedQualificationCohortV3(
   root: string,
   authority: Authority,
   repository: Repository,
-  observedPackages: PackageEvidence,
-  lockfileEvidence: LockfileEvidence,
+  { observedPackages, lockfileEvidence }: ManagedQualificationRequest,
   ports: QualificationHostPorts,
 ): Promise<JsonRecord> {
   if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {

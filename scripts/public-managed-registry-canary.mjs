@@ -35,7 +35,6 @@ import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtim
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const receiptSchemaPath = join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v1.schema.json");
 const commandTimeout = 240_000;
-const adapterSegments = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
 const FORBIDDEN_MCP = "@agent-teams/docs-protocol-mcp";
 const qualificationHost = Object.freeze({
   parseJson: (value) => JSON.parse(value),
@@ -323,16 +322,14 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
         pnpmRoot,
         authority,
         repository,
-        observedPackages,
-        pnpmInstall,
+        { observedPackages, lockfileEvidence: pnpmInstall },
         qualificationHost,
       )
       : await managedQualificationCohortV2(
         pnpmRoot,
         authority,
         repository,
-        observedPackages,
-        pnpmInstall,
+        { observedPackages, lockfileEvidence: pnpmInstall },
         qualificationHost,
       );
     const hostile = [

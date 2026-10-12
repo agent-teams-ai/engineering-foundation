@@ -12,6 +12,7 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0058: Node 26 Current Policy Public API Evolution](0058-node26-current-policy-public-api-evolution.md)
 - [ADR-0057: CI Input Proof Leaf Type Contract](0057-ci-input-proof-leaf-type-contract.md)
 
 - [ADR-0055: Qualified Non-release Metadata Root](0055-qualified-non-release-metadata-root.md)

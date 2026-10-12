@@ -1,12 +1,10 @@
 import {
   describeCanonicalConsumerAssets,
   type ConsumerIntegrationDesiredStateV3,
-  type ManagedSuccessorProfile
-} from "../../../consumer-integration/application-api.js";
-import {
+  type ManagedSuccessorProfile,
   assertConsumerIntegrationDesiredStateV3,
   assertManagedSuccessorProfileV4
-} from "../../../consumer-integration/application/policies/consumer-integration-desired-state.js";
+} from "../../../consumer-integration/application-api.js";
 import type {
   DocsProtocolQualificationLockfileObservationV3,
   DocsProtocolQualificationLockfileObservationV3Request

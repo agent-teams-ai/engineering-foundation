@@ -32,6 +32,10 @@ export type {
   DocsProtocolQualificationReceiptV3,
   DocsProtocolQualificationV3Request
 } from "./application/model/v3-contract.js";
+export type {
+  DocsProtocolQualificationRuntimeObservation,
+  DocsProtocolQualificationRuntimeObserver
+} from "./application/model/v3-contract.js";
 export {
   createDocsProtocolQualificationV3Observer
 } from "./application/use-cases/observe-lockfile-v3.js";

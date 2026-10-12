@@ -1,7 +1,7 @@
 import type {
   DocsProtocolQualificationRuntimeObservation,
   DocsProtocolQualificationRuntimeObserver
-} from "../../application/model/v3-contract.js";
+} from "../../application-api.js";
 
 /**
  * Feature-local physical Node observation. Pnpm and registry/canary execution

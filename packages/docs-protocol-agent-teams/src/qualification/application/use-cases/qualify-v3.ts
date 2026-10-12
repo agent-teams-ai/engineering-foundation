@@ -4,13 +4,12 @@ import { createHash } from "node:crypto";
 import {
   QUALIFIED_DOCS_COHORT_V2_PACKAGES,
   type PackedManagedRuntimePolicy,
-  type UnselectedCohortV3
-} from "../../../consumer-integration/application-api.js";
-import { bindUnselectedCohortV3 } from "../../../consumer-integration/application/policies/qualified-docs-cohort-v3.js";
-import {
+  type UnselectedCohortV3,
+  assertPlainBoundedJson,
   assertConsumerIntegrationDesiredStateV3,
-  assertManagedSuccessorProfileV4
-} from "../../../consumer-integration/application/policies/consumer-integration-desired-state.js";
+  assertManagedSuccessorProfileV4,
+  bindUnselectedCohortV3
+} from "../../../consumer-integration/application-api.js";
 import type {
   DocsProtocolQualificationCohortEvidenceV3,
   DocsProtocolQualificationCohortV3Receipt,
@@ -25,6 +24,19 @@ import type {
 } from "../model/v3-contract.js";
 
 const NONZERO_SHA256 = /^sha256:(?!0{64}$)[0-9a-f]{64}$/u;
+const MAXIMUM_LOCKFILE_BYTES = 32 * 1024 * 1024;
+const TYPED_ARRAY_BUFFER_GETTER = Object.getOwnPropertyDescriptor(
+  Object.getPrototypeOf(Uint8Array.prototype),
+  "buffer"
+)?.get;
+const TYPED_ARRAY_BYTE_LENGTH_GETTER = Object.getOwnPropertyDescriptor(
+  Object.getPrototypeOf(Uint8Array.prototype),
+  "byteLength"
+)?.get;
+const ARRAY_BUFFER_BYTE_LENGTH_GETTER = Object.getOwnPropertyDescriptor(
+  ArrayBuffer.prototype,
+  "byteLength"
+)?.get;
 const PACKAGE_KEYS = QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key);
 const CHECKS: readonly DocsProtocolQualificationCheckV3[] = Object.freeze([
   "profile-v3",
@@ -65,6 +77,78 @@ function digest(value: unknown): `sha256:${string}` {
 
 function hasExactKeys(value: object, keys: readonly string[]): boolean {
   return Object.keys(value).toSorted().join("\u0000") === [...keys].toSorted().join("\u0000");
+}
+
+function freezeJson(value: unknown): void {
+  if (value !== null && typeof value === "object") {
+    for (const entry of Object.values(value)) {
+      freezeJson(entry);
+    }
+    Object.freeze(value);
+  }
+}
+
+function assertQualificationRequestRoot(request: object): void {
+  const prototype: unknown = Object.getPrototypeOf(request);
+  const descriptors = Object.getOwnPropertyDescriptors(request);
+  if ((prototype !== Object.prototype && prototype !== null) ||
+    Object.getOwnPropertySymbols(request).length > 0 ||
+    !hasExactKeys(descriptors, ["profile", "evidence", "lockfileBytes"])) {
+    throw new TypeError("Qualification request must be stable plain JSON data with lockfile bytes.");
+  }
+  for (const descriptor of Object.values(descriptors)) {
+    if (descriptor.enumerable !== true || descriptor.get !== undefined || descriptor.set !== undefined) {
+      throw new TypeError("Qualification request must be stable plain JSON data with lockfile bytes.");
+    }
+  }
+}
+
+function isAdmittedNativeLockfileBytes(value: unknown): value is Uint8Array {
+  try {
+    if (typeof value !== "object" || value === null ||
+      !(value instanceof Uint8Array) ||
+      typeof TYPED_ARRAY_BUFFER_GETTER !== "function" ||
+      typeof TYPED_ARRAY_BYTE_LENGTH_GETTER !== "function" ||
+      typeof ARRAY_BUFFER_BYTE_LENGTH_GETTER !== "function") {
+      return false;
+    }
+    const viewByteLength = Number(Reflect.apply(TYPED_ARRAY_BYTE_LENGTH_GETTER, value, []));
+    const backing = Reflect.apply(TYPED_ARRAY_BUFFER_GETTER, value, []);
+    if (backing === null || typeof backing !== "object") {
+      return false;
+    }
+    const backingByteLength = Number(Reflect.apply(ARRAY_BUFFER_BYTE_LENGTH_GETTER, backing, []));
+    return Number.isSafeInteger(viewByteLength) && Number.isSafeInteger(backingByteLength) &&
+      viewByteLength >= 1 && backingByteLength >= 1 &&
+      viewByteLength <= MAXIMUM_LOCKFILE_BYTES && backingByteLength <= MAXIMUM_LOCKFILE_BYTES;
+  } catch {
+    return false;
+  }
+}
+
+function snapshotQualificationRequest<
+  Request extends DocsProtocolQualificationV3Request | DocsProtocolQualificationCohortV3Request
+>(request: Request): Request {
+  try {
+    assertQualificationRequestRoot(request);
+  } catch {
+    throw new TypeError("Qualification request must be stable plain JSON data with lockfile bytes.");
+  }
+  const { profile, evidence, lockfileBytes } = request;
+  assertPlainBoundedJson(profile);
+  assertPlainBoundedJson(evidence);
+  if (!isAdmittedNativeLockfileBytes(lockfileBytes)) {
+    throw new TypeError(`Qualification v3 lockfile must contain 1..${MAXIMUM_LOCKFILE_BYTES} bytes.`);
+  }
+  let snapshot: Request;
+  try {
+    snapshot = structuredClone(request);
+  } catch {
+    throw new TypeError("Qualification request must be stable plain JSON data with lockfile bytes.");
+  }
+  freezeJson(snapshot.profile);
+  freezeJson(snapshot.evidence);
+  return Object.freeze(snapshot);
 }
 
 function assertEvidenceShape(evidence: DocsProtocolQualificationEvidenceV3): void {
@@ -251,26 +335,27 @@ export function createDocsProtocolQualificationV3(observeLockfile: (
   return function runDocsProtocolQualificationV3(
     request: DocsProtocolQualificationV3Request | DocsProtocolQualificationCohortV3Request
   ): DocsProtocolQualificationReceiptV3 | DocsProtocolQualificationCohortV3Receipt {
-    const generation = typeof request.profile === "object" && request.profile !== null
-      ? request.profile.schemaVersion
+    const admittedRequest = snapshotQualificationRequest(request);
+    const generation = typeof admittedRequest.profile === "object" && admittedRequest.profile !== null
+      ? admittedRequest.profile.schemaVersion
       : undefined;
     if (generation === 4) {
-      if (!isDocsProtocolQualificationCohortV3Request(request)) {
+      if (!isDocsProtocolQualificationCohortV3Request(admittedRequest)) {
         throw new TypeError("Qualification Cohort v3 evidence is invalid or incomplete.");
       }
-      assertManagedSuccessorProfileV4(request.profile);
+      assertManagedSuccessorProfileV4(admittedRequest.profile);
       return qualifyCohortV3(
-        request,
-        observeLockfile(request),
+        admittedRequest,
+        observeLockfile(admittedRequest),
         observeRuntime(),
         observePackedPolicy()
       );
     }
-    assertConsumerIntegrationDesiredStateV3(request.profile);
-    if (generation !== 3 || !isDocsProtocolQualificationV3Request(request)) {
+    assertConsumerIntegrationDesiredStateV3(admittedRequest.profile);
+    if (generation !== 3 || !isDocsProtocolQualificationV3Request(admittedRequest)) {
       throw new TypeError("Qualification request generation is invalid or unsupported.");
     }
-    const legacyRequest = request;
+    const legacyRequest = admittedRequest;
     const lockfileObservation = observeLockfile(legacyRequest);
     assertEvidenceShape(legacyRequest.evidence);
     const { cohort } = legacyRequest.profile;

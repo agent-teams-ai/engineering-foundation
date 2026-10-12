@@ -152,7 +152,11 @@ packages:
         kind: wildcard
     tsconfigPath: packages/docs-protocol-agent-teams/tsconfig.json
     releasedBaselinePath: architecture/public-api/docs-protocol-agent-teams.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:d9af150a7c71fb7fa0172f1d51aa77d5eb8509977a90548b743a77a1c29afaea
+        decisionId: ADR-0058
+      - fingerprint: sha256:b0bc159c7a8385393399623aaa98d80200bf93755030886b5b0fb4fddb18f79e
+        decisionId: ADR-0058
   - packageName: "@agent-teams/ci-input-proof"
     packageRoot: packages/ci-input-proof
     manifestPath: packages/ci-input-proof/package.json

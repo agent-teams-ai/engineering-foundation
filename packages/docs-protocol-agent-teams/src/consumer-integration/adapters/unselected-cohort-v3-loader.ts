@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parseStrictJson } from "@agent-teams/repository-mutation";
@@ -101,4 +102,17 @@ export async function loadPackedManagedRuntimePolicy(): Promise<PackedManagedRun
     await readFile(new URL("../../../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"),
     await readFile(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8")
   );
+}
+
+/** Creates a synchronous observer that reads the packed policy only when generation-4 evidence asks for it. */
+export function createLazyPackedManagedRuntimePolicyObserver():
+  () => PackedManagedRuntimePolicy {
+  let observed: PackedManagedRuntimePolicy | undefined;
+  return function observePackedManagedRuntimePolicy(): PackedManagedRuntimePolicy {
+    observed ??= parsePackedManagedRuntimePolicy(
+      readFileSync(new URL("../../../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"),
+      readFileSync(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8")
+    );
+    return observed;
+  };
 }

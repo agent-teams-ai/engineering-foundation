@@ -45,9 +45,11 @@ export type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
   ConsumerUpgradeAuthorityV2,
+  ManagedSuccessorProfile,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
-  QualifiedDocsPackageCoordinateV2
+  QualifiedDocsPackageCoordinateV2,
+  UnselectedCohortV3
 } from "../consumer-integration/application-api.js";

@@ -48,8 +48,7 @@ function isCanonicalUtcSeconds(value: unknown): boolean {
   return Number.isFinite(milliseconds) &&
     new Date(milliseconds).toISOString().replace(".000", "") === value;
 }
-
-function assertPlainBoundedJson(value: unknown): void {
+export function assertPlainBoundedJson(value: unknown): void {
   let remaining = 2048;
   const seen = new Set<object>();
   // oxlint-disable-next-line complexity

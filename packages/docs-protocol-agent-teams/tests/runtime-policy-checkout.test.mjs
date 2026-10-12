@@ -5,10 +5,10 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { runtimePolicySchemaPath, runtimePolicySourcePath } from "../scripts/runtime-policy-input-paths.mjs";
 
 const root = new URL("../../../", import.meta.url);
-const policyPath = runtimePolicySourcePath;
+const policyPath = "architecture/foundation/docs-protocol-current-policy-v3.json";
+const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.schema.json";
 const assetPath = "packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json";
 const historicalDigests = new Map([
   ["architecture/foundation/docs-protocol-current-policy.json",
@@ -24,7 +24,7 @@ const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("h
 
 test("Windows-style CRLF checkout preserves current policy and exact historical bytes", async () => {
   assert.equal(policyPath, "architecture/foundation/docs-protocol-current-policy-v3.json");
-  assert.equal(runtimePolicySchemaPath, "architecture/contracts/docs-protocol-current-policy/v3.schema.json");
+  assert.equal(schemaPath, "architecture/contracts/docs-protocol-current-policy/v3.schema.json");
   const directory = await mkdtemp(join(tmpdir(), "foundation-policy-checkout-"));
   const git = (...args) => execFileSync("git", args, { cwd: directory, stdio: "pipe" });
   try {

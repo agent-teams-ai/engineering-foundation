@@ -48,6 +48,8 @@ export type {
 } from "./application/policies/consumer-integration-assets.js";
 export {
   assertConsumerIntegrationDesiredStateV3,
+  assertManagedSuccessorProfileV4,
+  assertPlainBoundedJson,
   assertQualifiedDocsCohortBindingV1,
   assertQualifiedDocsCohortBindingV2
 } from "./application/policies/consumer-integration-desired-state.js";
@@ -102,3 +104,6 @@ export { bindUnselectedCohortV3 } from "./application/policies/qualified-docs-co
 export type { UnselectedCohortV3 } from "./domain/model.js";
 export type { PackedManagedRuntimePolicy } from "./application/policies/qualified-docs-cohort-v3.js";
 export { projectManagedSuccessorState } from "./application/policies/managed-successor-state.js";
+export type {
+  ManagedSuccessorAssetDigests
+} from "./application/policies/managed-successor-state.js";

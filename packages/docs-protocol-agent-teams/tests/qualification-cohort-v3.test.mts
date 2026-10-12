@@ -156,6 +156,198 @@ test("packed policy thunk is lazy and generation-4-only", () => {
   assert.equal(policyCalls, 1);
 });
 
+test("Gen3 rejects accessor, hidden and nonplain evidence before callbacks", () => {
+  let lockfileCalls = 0;
+  let runtimeCalls = 0;
+  let policyCalls = 0;
+  const guarded = createDocsProtocolQualificationV3(
+    (observedRequest) => {
+      lockfileCalls++;
+      return observeLockfile(observedRequest);
+    },
+    () => {
+      runtimeCalls++;
+      return exactRuntime;
+    },
+    () => {
+      policyCalls++;
+      return observePackedPolicy();
+    }
+  );
+
+  const accessorRequest = createRequestFixture(policy);
+  Object.defineProperty(accessorRequest.evidence.runtime, "selectedLane", {
+    get: () => "node-26-managed-qualified",
+    enumerable: true,
+    configurable: true
+  });
+  assert.throws(
+    () => guarded(accessorRequest),
+    {
+      name: "TypeError",
+      message: "Consumer input must not contain accessors or hidden properties."
+    }
+  );
+
+  const hiddenRequest = createRequestFixture(policy);
+  Object.defineProperty(hiddenRequest.evidence, "hidden", {
+    value: true,
+    enumerable: false,
+    configurable: true,
+    writable: true
+  });
+  assert.throws(
+    () => guarded(hiddenRequest),
+    {
+      name: "TypeError",
+      message: "Consumer input must not contain accessors or hidden properties."
+    }
+  );
+
+  const symbolRequest = createRequestFixture(policy);
+  Object.defineProperty(symbolRequest.evidence, Symbol("hidden"), {
+    value: true,
+    enumerable: true,
+    configurable: true,
+    writable: true
+  });
+  assert.throws(
+    () => guarded(symbolRequest),
+    {
+      name: "TypeError",
+      message: "Consumer input must not contain symbol properties."
+    }
+  );
+
+  const nonPlainRequest = createRequestFixture(policy);
+  Object.setPrototypeOf(nonPlainRequest.evidence, {});
+  assert.throws(
+    () => guarded(nonPlainRequest),
+    {
+      name: "TypeError",
+      message: "Consumer input must use plain JSON objects and arrays."
+    }
+  );
+
+  const proxyRequest = new Proxy(createRequestFixture(policy), {});
+  assert.throws(
+    () => guarded(proxyRequest),
+    {
+      name: "TypeError",
+      message: "Qualification request must be stable plain JSON data with lockfile bytes."
+    }
+  );
+  let rootGetterCalls = 0;
+  const accessorRootRequest = createRequestFixture(policy);
+  Object.defineProperty(accessorRootRequest, "profile", {
+    get: () => {
+      rootGetterCalls++;
+      return accessorRootRequest.profile;
+    },
+    enumerable: true,
+    configurable: true
+  });
+  assert.throws(
+    () => guarded(accessorRootRequest),
+    {
+      name: "TypeError",
+      message: "Qualification request must be stable plain JSON data with lockfile bytes."
+    }
+  );
+  assert.equal(rootGetterCalls, 0);
+  assert.deepEqual([lockfileCalls, runtimeCalls, policyCalls], [0, 0, 0]);
+});
+
+test("observer mutation cannot change the admitted request used by the receipt", () => {
+  const mutableRequest = createRequestFixture(policy);
+  const expected = qualification(mutableRequest);
+  const expectedBytes = Uint8Array.from(mutableRequest.lockfileBytes);
+  const changedDigest = `sha256:${"f".repeat(64)}` as const;
+  const mutationQualification = createDocsProtocolQualificationV3(
+    (observedRequest) => {
+      const observedEvidence = observedRequest.evidence;
+      if (!("runtime" in observedEvidence) || !("policy" in observedEvidence)) {
+        throw new Error("Observer mutation test requires Cohort v3 evidence.");
+      }
+      assert.equal(
+        Reflect.set(observedEvidence.runtime, "selectedLane", "node-24-production-default"),
+        false
+      );
+      assert.equal(
+        Reflect.set(observedEvidence.policy, "sourceDigest", changedDigest),
+        false
+      );
+      assert.notStrictEqual(observedRequest.lockfileBytes, mutableRequest.lockfileBytes);
+      assert.deepEqual(observedRequest.lockfileBytes, expectedBytes);
+      const observation = observeLockfile(observedRequest);
+      assert.equal(
+        Reflect.set(mutableRequest.evidence.runtime, "selectedLane", "node-24-production-default"),
+        true
+      );
+      assert.equal(
+        Reflect.set(mutableRequest.evidence.policy, "sourceDigest", changedDigest),
+        true
+      );
+      mutableRequest.lockfileBytes.fill(0);
+      assert.deepEqual(observedRequest.lockfileBytes, expectedBytes);
+      return observation;
+    },
+    () => exactRuntime,
+    observePackedPolicy
+  );
+
+  assert.deepEqual(mutationQualification(mutableRequest), expected);
+  assert.equal(mutableRequest.evidence.runtime.selectedLane, "node-24-production-default");
+  assert.equal(mutableRequest.evidence.policy.sourceDigest, changedDigest);
+});
+
+test("native backing bounds reject SharedArrayBuffer and oversized ordinary buffers before callbacks", () => {
+  let lockfileCalls = 0;
+  let runtimeCalls = 0;
+  let policyCalls = 0;
+  const guarded = createDocsProtocolQualificationV3(
+    (observedRequest) => {
+      lockfileCalls++;
+      return observeLockfile(observedRequest);
+    },
+    () => {
+      runtimeCalls++;
+      return exactRuntime;
+    },
+    () => {
+      policyCalls++;
+      return observePackedPolicy();
+    }
+  );
+  const sharedRequest = {
+    ...createRequestFixture(policy),
+    lockfileBytes: new Uint8Array(new SharedArrayBuffer(1))
+  };
+  const oversizedRequest = {
+    ...createRequestFixture(policy),
+    lockfileBytes: new Uint8Array(new ArrayBuffer(33 * 1024 * 1024), 0, 1)
+  };
+  assert.throws(
+    () => guarded(sharedRequest),
+    {
+      name: "TypeError",
+      message: "Qualification v3 lockfile must contain 1..33554432 bytes."
+    }
+  );
+  assert.throws(
+    () => guarded(oversizedRequest),
+    {
+      name: "TypeError",
+      message: "Qualification v3 lockfile must contain 1..33554432 bytes."
+    }
+  );
+  assert.deepEqual([lockfileCalls, runtimeCalls, policyCalls], [0, 0, 0]);
+
+  const ordinaryRequest = createRequestFixture(policy);
+  assert.equal(isCohortReceipt(guarded(ordinaryRequest)), true);
+  assert.deepEqual([lockfileCalls, runtimeCalls, policyCalls], [1, 1, 1]);
+});
+
 test("real process observer refuses caller-spoofed runtime and declared profile alone cannot green", () => {
   const spoofed = structuredClone(request);
   Object.defineProperty(spoofed.evidence.runtime.qualificationRuntime, "nodeVersion", {

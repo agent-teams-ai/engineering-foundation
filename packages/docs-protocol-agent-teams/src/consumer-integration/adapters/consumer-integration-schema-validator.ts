@@ -3,11 +3,11 @@ import { readFile } from "node:fs/promises";
 import type { DocsProtocolProfileV3 } from "@agent-teams/docs-protocol";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
-import { assertManagedSuccessorProfileV4 } from "../application/policies/consumer-integration-desired-state.js";
 import {
+  assertManagedSuccessorProfileV4,
   bindUnselectedCohortV3,
   type UnselectedCohortV3
-} from "../application/policies/qualified-docs-cohort-v3.js";
+} from "../application-api.js";
 import { loadPackedManagedRuntimePolicy } from "./unselected-cohort-v3-loader.js";
 
 const validators = new Map<string, Promise<ValidateFunction>>();

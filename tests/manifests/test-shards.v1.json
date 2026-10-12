@@ -223,6 +223,7 @@
         "tests/coverage-workflow.test.mjs",
         "tests/test-timing.test.mjs",
         "tests/public-managed-registry-canary.test.mjs",
+        "tests/public-managed-registry-canary-generation3.test.mts",
         "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs"
       ]
     },

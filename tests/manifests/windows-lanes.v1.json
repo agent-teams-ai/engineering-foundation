@@ -116,6 +116,7 @@
       "tests/changeset-coverage.test.mjs",
       "tests/test-timing.test.mjs",
       "tests/public-managed-registry-canary.test.mjs",
+      "tests/public-managed-registry-canary-generation3.test.mts",
       "tests/public-api-default-type-equivalence.test.mjs",
       "tests/features/quality-coverage/policy.test.mjs",
       "tests/sdk-growth-c0-contract.test.mjs",

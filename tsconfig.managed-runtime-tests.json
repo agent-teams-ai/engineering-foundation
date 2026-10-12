@@ -26,6 +26,8 @@
     "packages/docs-protocol-agent-teams/tests/managed-runtime-corrective.test.mts",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-custody.test.mts",
     "packages/docs-protocol-agent-teams/tests/managed-runtime-parent-environment.test.mts",
-    "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts"
+    "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts",
+    "tests/public-managed-registry-canary-generation3-fixtures.mts",
+    "tests/public-managed-registry-canary-generation3.test.mts"
   ]
 }

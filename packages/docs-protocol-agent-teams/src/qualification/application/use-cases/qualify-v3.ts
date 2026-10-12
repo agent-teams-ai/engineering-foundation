@@ -266,11 +266,11 @@ export function createDocsProtocolQualificationV3(observeLockfile: (
         observePackedPolicy()
       );
     }
+    assertConsumerIntegrationDesiredStateV3(request.profile);
     if (generation !== 3 || !isDocsProtocolQualificationV3Request(request)) {
       throw new TypeError("Qualification request generation is invalid or unsupported.");
     }
     const legacyRequest = request;
-    assertConsumerIntegrationDesiredStateV3(legacyRequest.profile);
     const lockfileObservation = observeLockfile(legacyRequest);
     assertEvidenceShape(legacyRequest.evidence);
     const { cohort } = legacyRequest.profile;

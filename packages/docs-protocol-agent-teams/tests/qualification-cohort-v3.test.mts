@@ -14,6 +14,7 @@ import {
   createDocsProtocolQualificationV3,
   createDocsProtocolQualificationV3Observer
 } from "../dist/qualification/application-api.js";
+import { runDocsProtocolQualificationV3 } from "../dist/qualification/index.js";
 import { createNodeDocsProtocolQualificationRuntimeObserver } from
   "../dist/qualification/adapters/outbound/node-qualification-runtime.js";
 import { observeQualifiedPnpmLockfileV2 } from
@@ -228,11 +229,15 @@ const evidence: DocsProtocolQualificationCohortEvidenceV3 = {
     runtimeClosureDigest
   }
 };
-const request: DocsProtocolQualificationCohortV3Request = {
-  profile,
-  evidence,
-  lockfileBytes
-};
+const createRequestFixture = (): DocsProtocolQualificationCohortV3Request => ({
+  // Clone each typed fixture independently at the request boundary. The source
+  // fixtures intentionally share package/schema/runtime source data, but a
+  // qualification request must not preserve that aliasing across its roots.
+  profile: structuredClone(profile),
+  evidence: structuredClone(evidence),
+  lockfileBytes: new Uint8Array(lockfileBytes)
+});
+const request = createRequestFixture();
 const exactRuntime: DocsProtocolQualificationRuntimeObservation = {
   nodeVersion: "26.11.1",
   platform: "linux",
@@ -301,6 +306,27 @@ test("Gen3 valid observation and lock closure emits the exact namespace receipt"
   ));
   const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
   assert.equal(validate(receipt), true, JSON.stringify(validate.errors));
+});
+
+test("public runDocsProtocolQualificationV3 observes the actual process without a blanket skip", () => {
+  const observed = createNodeDocsProtocolQualificationRuntimeObserver()();
+  const isExactRuntime = observed.nodeVersion === exactRuntime.nodeVersion &&
+    observed.platform === exactRuntime.platform &&
+    observed.architecture === exactRuntime.architecture;
+  assert.notEqual(runDocsProtocolQualificationV3, qualification);
+  if (isExactRuntime) {
+    const publicReceipt = runDocsProtocolQualificationV3(request);
+    if (!isCohortReceipt(publicReceipt)) {
+      assert.fail("Public Gen3 request must emit a Cohort v3 receipt.");
+    }
+    assert.equal(publicReceipt.namespace, "docs-protocol-cohort-v3-qualification-receipt/v1");
+    assert.equal(publicReceipt.receiptDigest, qualification(request).receiptDigest);
+  } else {
+    assert.throws(
+      () => runDocsProtocolQualificationV3(request),
+      /observed Node runtime mismatch/u
+    );
+  }
 });
 
 test("real process observer reflects the current process and fake injection remains distinct", () => {

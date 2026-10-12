@@ -27,6 +27,10 @@ export type {
 } from "./application-api.js";
 export type {
   DocsProtocolQualificationCheckV3,
+  DocsProtocolQualificationCheckCohortV3,
+  DocsProtocolQualificationCohortEvidenceV3,
+  DocsProtocolQualificationCohortV3Receipt,
+  DocsProtocolQualificationCohortV3Request,
   DocsProtocolQualificationEvidenceV3,
   DocsProtocolQualificationLockfileObservationV3,
   DocsProtocolQualificationLockfileObservationV3Request,

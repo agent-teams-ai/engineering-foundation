@@ -195,7 +195,8 @@ export interface ManagedSuccessorAssetDigests {
 
 export type ConsumerIntegrationDesiredState =
   | ConsumerIntegrationDesiredStateV1
-  | ConsumerIntegrationDesiredStateV3;
+  | ConsumerIntegrationDesiredStateV3
+  | ManagedSuccessorProfile;
 
 export type ConsumerIntegrationFileObservation =
   | { readonly state: "absent" }

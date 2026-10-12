@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -101,6 +102,53 @@ function snapshot() {
   };
 }
 
+function managedDesired() {
+  const policy = JSON.parse(readFileSync(new URL("../assets/runtime-policy.v1.json", import.meta.url), "utf8"));
+  const lane = policy.managedRuntime.lanes["node-26-managed-qualified"];
+  const base = desired();
+  const packageCoordinate = Object.freeze({ version: "1.0.0", integrity: INTEGRITY });
+  return {
+    schemaVersion: 4,
+    repository: base.repository,
+    integrationRoot: ".",
+    packageManager: "pnpm",
+    profilePath: base.profilePath,
+    skillPath: base.skillPath,
+    callerWorkflowPath: base.callerWorkflowPath,
+    managedStatePath: base.managedStatePath,
+    qualification: base.qualification,
+    cohort: {
+      schemaVersion: 3,
+      cohortId: "docs-2026-10-profile4",
+      channel: "rc",
+      recordDigest: `sha256:${"1".repeat(64)}`,
+      qualificationEventDigest: `sha256:${"2".repeat(64)}`,
+      eligibleAfter: "2026-10-12T00:00:00Z",
+      upgradeFrom: ["docs-2026-09-v2"],
+      rollbackTo: ["docs-2026-09-v2"],
+      candidateDigest: `sha256:${"3".repeat(64)}`,
+      packages: Object.freeze({
+        repositoryMutation: packageCoordinate,
+        documentAuthoring: packageCoordinate,
+        docsProtocol: packageCoordinate,
+        docsProtocolAgentTeams: packageCoordinate,
+        engineeringFoundation: packageCoordinate
+      }),
+      workflow: base.cohort.workflow,
+      assets: describeCanonicalConsumerAssets(base.cohort),
+      schemas: { consumerIntegration: 4, managedState: 3, qualificationReceipt: 1, docsProtocol: 1 },
+      runtime: {
+        policy: { id: policy.policyId, version: policy.policyVersion, digest: policy.sourceDigest },
+        selectedLane: "node-26-managed-qualified",
+        node: lane.node,
+        pnpm: policy.managedRuntime.pnpm,
+        qualificationRuntime: lane.qualificationRuntime,
+        runtimeClosure: { domain: "agent-teams.docs-runtime-closure/v2", digest: `sha256:${"4".repeat(64)}` }
+      }
+    }
+  };
+}
+
 function ports(observedSchemas) {
   return {
     packageManifest: {
@@ -177,6 +225,71 @@ test("profile v3 plans only canonical new assets and accepts exact managed-state
     Buffer.from(current.callerWorkflow.bytes).toString("utf8"),
     canonicalCallerWorkflow(target.cohort)
   );
+});
+
+test("profile4 plans closed cohort3 through canonical managed state3 (TEST fixture only)", () => {
+  const target = managedDesired();
+  const before = structuredClone(target);
+  const initial = snapshot();
+  const schemas = [];
+  const compiled = compileConsumerIntegration(
+    { desired: target, snapshot: initial },
+    ports(schemas)
+  );
+
+  assert.deepEqual(schemas, [3]);
+  assert.equal(compiled.plan.outcome, "change-required");
+  assert.deepEqual(target, before, "planning must not mutate the unselected candidate");
+  const current = applyFullAssetOperations(initial, compiled);
+  const managed = JSON.parse(Buffer.from(current.managedState.bytes).toString("utf8"));
+  assert.equal(managed.schemaVersion, 3);
+  assert.equal(managed.cohortAuthority.recordDigest, target.cohort.recordDigest);
+  assert.equal(managed.cohortAuthority.qualificationEventDigest, target.cohort.qualificationEventDigest);
+  assert.equal(managed.cohortAuthority.candidateDigest, target.cohort.candidateDigest);
+  assert.deepEqual(managed.runtime.runtimeClosure, target.cohort.runtime.runtimeClosure);
+  assert.equal(Object.hasOwn(managed.cohortAuthority, "lifecycleState"), false);
+  assert.equal(Object.hasOwn(managed, "canaryRepositoryIds"), false);
+  assert.equal(compileConsumerIntegration(
+    { desired: target, snapshot: current },
+    ports([])
+  ).plan.outcome, "current");
+});
+
+test("profile4 refuses unknown, mixed, and incomplete nominal bindings", () => {
+  const unknown = { ...managedDesired(), schemaVersion: 5 };
+  assert.throws(
+    () => compileConsumerIntegration({ desired: unknown, snapshot: snapshot() }, ports([])),
+    /Unsupported consumer integration profile generation/u
+  );
+  assert.throws(
+    () => compileConsumerIntegration({
+      desired: { ...managedDesired(), schemaVersion: 3 },
+      snapshot: snapshot()
+    }, ports([])),
+    /invalid or unsupported/u
+  );
+  assert.throws(
+    () => compileConsumerIntegration({
+      desired: { ...managedDesired(), cohort: desired().cohort },
+      snapshot: snapshot()
+    }, ports([])),
+    /invalid or unsupported/u
+  );
+
+  for (const mutate of [
+    (value) => { value.cohort.recordDigest = `sha256:${"0".repeat(64)}`; },
+    (value) => { value.cohort.qualificationEventDigest = `sha256:${"0".repeat(64)}`; },
+    (value) => { value.cohort.candidateDigest = `sha256:${"0".repeat(64)}`; },
+    (value) => { delete value.cohort.runtime.runtimeClosure; },
+    (value) => { delete value.cohort.packages.docsProtocol; }
+  ]) {
+    const input = managedDesired();
+    mutate(input);
+    assert.throws(() => compileConsumerIntegration(
+      { desired: input, snapshot: snapshot() },
+      ports([])
+    ), TypeError);
+  }
 });
 
 for (const [name, origins] of [

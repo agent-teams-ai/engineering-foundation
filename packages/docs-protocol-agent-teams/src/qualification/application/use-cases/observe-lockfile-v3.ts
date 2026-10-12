@@ -1,6 +1,10 @@
 import {
+  assertManagedSuccessorProfileV4,
   assertConsumerIntegrationDesiredStateV3,
-  describeCanonicalConsumerAssets
+  describeCanonicalConsumerAssets,
+  type ConsumerIntegrationDesiredStateV3,
+  type ManagedSuccessorProfile,
+  type QualifiedDocsCohortBindingV2
 } from "../../../consumer-integration/application-api.js";
 import type {
   DocsProtocolQualificationLockfileObservationV3,
@@ -8,10 +12,18 @@ import type {
 } from "../model/v3-contract.js";
 
 function assertDocsProtocolQualificationV3ProfileAuthority(
-  profile: DocsProtocolQualificationLockfileObservationV3Request["profile"]
+  profile: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile
 ): void {
-  assertConsumerIntegrationDesiredStateV3(profile);
-  const canonicalAssets = describeCanonicalConsumerAssets(profile.cohort);
+  if (profile.schemaVersion === 3) {
+    assertConsumerIntegrationDesiredStateV3(profile);
+  } else if (profile.schemaVersion === 4) {
+    assertManagedSuccessorProfileV4(profile);
+  } else {
+    throw new TypeError("Qualification v3 lockfile profile generation is invalid or unsupported.");
+  }
+  const canonicalAssets = describeCanonicalConsumerAssets(
+    profile.cohort as unknown as QualifiedDocsCohortBindingV2
+  );
   if (canonicalAssets.skillDigest !== profile.cohort.assets.skillDigest ||
     canonicalAssets.callerWorkflowDigest !== profile.cohort.assets.callerWorkflowDigest ||
     canonicalAssets.assetCatalogDigest !== profile.cohort.assets.assetCatalogDigest ||
@@ -26,10 +38,13 @@ function assertDocsProtocolQualificationV3ProfileAuthority(
  */
 export function createDocsProtocolQualificationV3Observer(observeLockfile: (
   bytes: Uint8Array,
-  profile: DocsProtocolQualificationLockfileObservationV3Request["profile"]
+  profile: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile
 ) => `sha256:${string}`) {
   return function observeDocsProtocolQualificationV3Lockfile(
-    request: DocsProtocolQualificationLockfileObservationV3Request
+    request: DocsProtocolQualificationLockfileObservationV3Request | {
+      readonly profile: ManagedSuccessorProfile;
+      readonly lockfileBytes: Uint8Array;
+    }
   ): DocsProtocolQualificationLockfileObservationV3 {
     assertDocsProtocolQualificationV3ProfileAuthority(request.profile);
     return Object.freeze({

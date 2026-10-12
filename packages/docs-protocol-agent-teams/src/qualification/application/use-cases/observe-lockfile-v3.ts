@@ -1,11 +1,12 @@
 import {
-  assertManagedSuccessorProfileV4,
-  assertConsumerIntegrationDesiredStateV3,
   describeCanonicalConsumerAssets,
   type ConsumerIntegrationDesiredStateV3,
-  type ManagedSuccessorProfile,
-  type QualifiedDocsCohortBindingV2
+  type ManagedSuccessorProfile
 } from "../../../consumer-integration/application-api.js";
+import {
+  assertConsumerIntegrationDesiredStateV3,
+  assertManagedSuccessorProfileV4
+} from "../../../consumer-integration/application/policies/consumer-integration-desired-state.js";
 import type {
   DocsProtocolQualificationLockfileObservationV3,
   DocsProtocolQualificationLockfileObservationV3Request
@@ -21,9 +22,7 @@ function assertDocsProtocolQualificationV3ProfileAuthority(
   } else {
     throw new TypeError("Qualification v3 lockfile profile generation is invalid or unsupported.");
   }
-  const canonicalAssets = describeCanonicalConsumerAssets(
-    profile.cohort as unknown as QualifiedDocsCohortBindingV2
-  );
+  const canonicalAssets = describeCanonicalConsumerAssets(profile.cohort);
   if (canonicalAssets.skillDigest !== profile.cohort.assets.skillDigest ||
     canonicalAssets.callerWorkflowDigest !== profile.cohort.assets.callerWorkflowDigest ||
     canonicalAssets.assetCatalogDigest !== profile.cohort.assets.assetCatalogDigest ||

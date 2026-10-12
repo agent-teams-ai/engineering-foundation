@@ -1,11 +1,16 @@
+
 import { createHash } from "node:crypto";
 
 import {
-  bindUnselectedCohortV3,
   QUALIFIED_DOCS_COHORT_V2_PACKAGES,
   type PackedManagedRuntimePolicy,
   type UnselectedCohortV3
 } from "../../../consumer-integration/application-api.js";
+import { bindUnselectedCohortV3 } from "../../../consumer-integration/application/policies/qualified-docs-cohort-v3.js";
+import {
+  assertConsumerIntegrationDesiredStateV3,
+  assertManagedSuccessorProfileV4
+} from "../../../consumer-integration/application/policies/consumer-integration-desired-state.js";
 import type {
   DocsProtocolQualificationCohortEvidenceV3,
   DocsProtocolQualificationCohortV3Receipt,
@@ -76,7 +81,9 @@ function assertEvidenceShape(evidence: DocsProtocolQualificationEvidenceV3): voi
   }
 }
 
-function assertCohortEvidenceShape(evidence: DocsProtocolQualificationCohortEvidenceV3): void {
+function assertCohortEvidenceShape(value: unknown): value is DocsProtocolQualificationCohortEvidenceV3 {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {return false;}
+  const evidence = value as DocsProtocolQualificationCohortEvidenceV3;
   if (!hasExactKeys(evidence, ["cohort", "packages", "schemas", "policy", "runtime"]) ||
     !hasExactKeys(evidence.cohort, ["cohortId", "recordDigest", "qualificationEventDigest", "candidateDigest"]) ||
     !hasExactKeys(evidence.packages, PACKAGE_KEYS) ||
@@ -88,25 +95,26 @@ function assertCohortEvidenceShape(evidence: DocsProtocolQualificationCohortEvid
     !hasExactKeys(evidence.runtime.qualificationRuntime, [
       "nodeVersion", "pnpmVersion", "platform", "architecture"
     ]) ||
+    typeof evidence.cohort.cohortId !== "string" ||
     !NONZERO_SHA256.test(evidence.cohort.recordDigest) ||
     !NONZERO_SHA256.test(evidence.cohort.qualificationEventDigest) ||
     !NONZERO_SHA256.test(evidence.cohort.candidateDigest) ||
     !NONZERO_SHA256.test(evidence.policy.sourceDigest) ||
     !NONZERO_SHA256.test(evidence.runtime.runtimeClosureDigest)) {
-    throw new TypeError("Qualification Cohort v3 evidence is invalid or incomplete.");
+    return false;
   }
-  for (const { key } of QUALIFIED_DOCS_COHORT_V2_PACKAGES) {
-    if (!hasExactKeys(evidence.packages[key], ["version", "integrity"])) {
-      throw new TypeError(`Qualification Cohort v3 package evidence for ${key} is invalid.`);
-    }
-  }
+  return QUALIFIED_DOCS_COHORT_V2_PACKAGES.every(({ key }) =>
+    hasExactKeys(evidence.packages[key], ["version", "integrity"]));
 }
 
 function assertCohortAuthority(
   request: DocsProtocolQualificationCohortV3Request,
   policy: PackedManagedRuntimePolicy
 ): void {
-  assertCohortEvidenceShape(request.evidence);
+  assertManagedSuccessorProfileV4(request.profile);
+  if (!assertCohortEvidenceShape(request.evidence)) {
+    throw new TypeError("Qualification Cohort v3 evidence is invalid or incomplete.");
+  }
   bindUnselectedCohortV3(request.profile.cohort as UnselectedCohortV3, policy);
   const { cohort } = request.profile;
   const evidence = request.evidence;
@@ -144,7 +152,7 @@ function qualifyCohortV3(
   const { cohort } = request.profile;
   for (const { key, name } of QUALIFIED_DOCS_COHORT_V2_PACKAGES) {
     const expected = cohort.packages[key];
-    const observed = request.evidence.packages[key];
+    const observed = legacyRequest.evidence.packages[key];
     if (observed.version !== expected.version) {
       throw new Error(`Qualification Cohort v3 version mismatch for ${name}.`);
     }
@@ -152,10 +160,10 @@ function qualifyCohortV3(
       throw new Error(`Qualification Cohort v3 integrity mismatch for ${name}.`);
     }
   }
-  if (request.evidence.schemas.consumerIntegration !== 4 ||
-    request.evidence.schemas.managedState !== 3 ||
-    request.evidence.schemas.qualificationReceipt !== 1 ||
-    request.evidence.schemas.docsProtocol !== 1) {
+  if (legacyRequest.evidence.schemas.consumerIntegration !== 4 ||
+    legacyRequest.evidence.schemas.managedState !== 3 ||
+    legacyRequest.evidence.schemas.qualificationReceipt !== 1 ||
+    legacyRequest.evidence.schemas.docsProtocol !== 1) {
     throw new Error("Qualification Cohort v3 requires exact schema bindings 4/3/1/qualificationReceipt1.");
   }
   const expectedRuntime = cohort.runtime;
@@ -211,7 +219,7 @@ function qualifyCohortV3(
     }),
     checks: COHORT_CHECKS
   });
-  return Object.freeze({ ...body, receiptDigest: digest(body) });
+  return Object.freeze({ ...body, receiptDigest: digest(canonicalJson(body)) });
 }
 
 /**
@@ -231,17 +239,24 @@ export function createDocsProtocolQualificationV3(observeLockfile: (
       ? request.profile.schemaVersion
       : undefined;
     if (generation === 4) {
-      return qualifyCohortV3(request, observeLockfile(request), observeRuntime(), policy);
+      const cohortRequest = request as DocsProtocolQualificationCohortV3Request;
+      if (!assertCohortEvidenceShape(cohortRequest.evidence)) {
+        throw new TypeError("Qualification Cohort v3 evidence is invalid or incomplete.");
+      }
+      assertManagedSuccessorProfileV4(cohortRequest.profile);
+      return qualifyCohortV3(cohortRequest, observeLockfile(cohortRequest), observeRuntime(), policy);
     }
     if (generation !== 3) {
       throw new TypeError("Qualification request generation is invalid or unsupported.");
     }
-    const lockfileObservation = observeLockfile(request);
-    assertEvidenceShape(request.evidence);
-    const { cohort } = request.profile;
+    const legacyRequest = request as DocsProtocolQualificationV3Request;
+    assertConsumerIntegrationDesiredStateV3(legacyRequest.profile);
+    const lockfileObservation = observeLockfile(legacyRequest);
+    assertEvidenceShape(legacyRequest.evidence);
+    const { cohort } = legacyRequest.profile;
     for (const { key, name } of QUALIFIED_DOCS_COHORT_V2_PACKAGES) {
       const expected = cohort.packages[key];
-      const observed = request.evidence.packages[key];
+      const observed = legacyRequest.evidence.packages[key];
       if (observed.version !== expected.version) {
         throw new Error(`Qualification v3 version mismatch for ${name}.`);
       }
@@ -249,15 +264,16 @@ export function createDocsProtocolQualificationV3(observeLockfile: (
         throw new Error(`Qualification v3 integrity mismatch for ${name}.`);
       }
     }
-    if (request.evidence.schemas.consumerIntegration !== 3 ||
-      request.evidence.schemas.managedState !== 2 ||
-      request.evidence.schemas.docsProtocol !== 1) {
+    if (legacyRequest.evidence.schemas.consumerIntegration !== 3 ||
+      legacyRequest.evidence.schemas.managedState !== 2 ||
+      legacyRequest.evidence.schemas.docsProtocol !== 1) {
       throw new Error("Qualification v3 requires exact schema bindings 3/2/1.");
     }
-    if (request.evidence.runtimeClosureDigest !== cohort.runtime.runtimeClosureDigest) {
+    const runtimeClosureDigest = cohort.runtime.runtimeClosureDigest;
+    if (legacyRequest.evidence.runtimeClosureDigest !== runtimeClosureDigest) {
       throw new Error("Qualification v3 runtime closure digest mismatch.");
     }
-    if (lockfileObservation.runtimeClosureDigest !== cohort.runtime.runtimeClosureDigest) {
+    if (lockfileObservation.runtimeClosureDigest !== runtimeClosureDigest) {
       throw new Error("Qualification v3 lockfile runtime closure digest mismatch.");
     }
 
@@ -278,9 +294,9 @@ export function createDocsProtocolQualificationV3(observeLockfile: (
         managedState: 2 as const,
         docsProtocol: 1 as const
       }),
-      runtime: Object.freeze({ runtimeClosureDigest: cohort.runtime.runtimeClosureDigest }),
+      runtime: Object.freeze({ runtimeClosureDigest }),
       checks: CHECKS
     });
-    return Object.freeze({ ...body, receiptDigest: digest(body) });
+    return Object.freeze({ ...body, receiptDigest: digest(canonicalJson(body)) });
   };
 }

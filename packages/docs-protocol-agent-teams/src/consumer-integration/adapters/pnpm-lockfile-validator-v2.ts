@@ -2,8 +2,7 @@ import {
   QUALIFIED_DOCS_COHORT_V2_EDGES,
   qualifiedDocsCohortV2PackageEntries,
   type ConsumerIntegrationDesiredStateV3,
-  type ManagedSuccessorProfile,
-  type QualifiedDocsCohortBindingV2
+  type ManagedSuccessorProfile
 } from "../application-api.js";
 import { assertQualifiedPnpmLockfileTargets } from "./pnpm-lockfile-validator-v1.js";
 import { computePnpmRuntimeClosureDigestV2 } from "./pnpm-runtime-closure-v2.js";
@@ -21,9 +20,7 @@ function validateQualifiedPnpmLockfileV2(
       `Qualification v3 lockfile must contain 1..${MAXIMUM_LOCKFILE_BYTES} bytes.`
     );
   }
-  const entries = qualifiedDocsCohortV2PackageEntries(
-    desired.cohort as unknown as QualifiedDocsCohortBindingV2
-  );
+  const entries = qualifiedDocsCohortV2PackageEntries(desired.cohort);
   const expectedRuntimeClosureDigest = desired.schemaVersion === 3
     ? desired.cohort.runtime.runtimeClosureDigest
     : desired.cohort.runtime.runtimeClosure.digest;
@@ -37,10 +34,7 @@ function validateQualifiedPnpmLockfileV2(
     runtimeClosureDigest: expectedRuntimeClosureDigest,
     enforceRuntimeClosureDigest,
     computeRuntimeClosureDigest(lockfile) {
-      runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(
-        lockfile,
-        desired.cohort as unknown as QualifiedDocsCohortBindingV2
-      );
+      runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfile, desired.cohort);
       return runtimeClosureDigest;
     }
   });

@@ -1,7 +1,54 @@
 import { readFile } from "node:fs/promises";
-import { Ajv2020 } from "ajv/dist/2020.js";
+import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { parseStrictJson } from "@agent-teams/repository-mutation";
 import { bindUnselectedCohortV3, type UnselectedCohortV3, type PackedManagedRuntimePolicy } from "../application-api.js";
+
+type SchemaInput = string | Record<string, unknown>;
+
+function projectSchema(input: SchemaInput): Record<string, unknown> {
+  return typeof input === "string" ? parseRecord(input) : input;
+}
+
+function projectPackedManagedRuntimePolicy(
+  schemaInput: SchemaInput,
+  assetInput: SchemaInput,
+  validatePolicyInput?: ValidateFunction<Record<string, unknown>>
+): PackedManagedRuntimePolicy {
+  const policySchema = projectSchema(schemaInput);
+  const asset = projectSchema(assetInput);
+  const validatePolicy = validatePolicyInput ??
+    new Ajv2020({ strict: true, allErrors: true }).compile(policySchema);
+  if (!validatePolicy(asset)) { throw new TypeError("Packed managed runtime policy is invalid."); }
+  if (asset.policyId !== "agent-teams.docs-protocol-current-policy" || asset.policyVersion !== "3.0.0" ||
+      typeof asset.sourceDigest !== "string") { throw new TypeError("Packed runtime policy identity is invalid."); }
+  const managed = asset.managedRuntime;
+  const lanes = managed?.lanes;
+  if (asset.managedCandidate === undefined || managed?.status !== "candidate-unqualified" ||
+      Array.isArray(asset.managedCandidate) || typeof asset.managedCandidate !== "object" ||
+      (asset.managedCandidate as Record<string, unknown>).selected !== false ||
+      typeof lanes !== "object" || lanes === null || Array.isArray(lanes) ||
+      !Object.hasOwn(lanes, "node-24-production-default") ||
+      !Object.hasOwn(lanes, "node-26-managed-qualified") ||
+      typeof managed.pnpm !== "string") {
+    throw new TypeError("Packed managed runtime policy is incomplete or selected.");
+  }
+  return {
+    policyId: asset.policyId,
+    policyVersion: asset.policyVersion,
+    sourceDigest: asset.sourceDigest,
+    pnpm: managed.pnpm,
+    lanes: lanes as PackedManagedRuntimePolicy["lanes"],
+  };
+}
+
+/** Project only strict schema-validated policy bytes; no selected authority is granted. */
+export function parsePackedManagedRuntimePolicy(
+  schemaInput: SchemaInput,
+  assetInput: SchemaInput,
+  validatePolicy?: ValidateFunction<Record<string, unknown>>
+): PackedManagedRuntimePolicy {
+  return projectPackedManagedRuntimePolicy(schemaInput, assetInput, validatePolicy);
+}
 
 export function parseRecord(source: string): Record<string, unknown> {
   const value = parseStrictJson(source);
@@ -27,26 +74,5 @@ export async function loadUnselectedCohortV3(source: string): Promise<Unselected
 export async function loadPackedManagedRuntimePolicy(): Promise<PackedManagedRuntimePolicy> {
   const policySchema = parseRecord(await readFile(new URL("../../../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"));
   const asset = parseRecord(await readFile(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8"));
-  const validatePolicy = new Ajv2020({ strict: true, allErrors: true }).compile(policySchema);
-  if (!validatePolicy(asset)) { throw new TypeError("Packed managed runtime policy is invalid."); }
-  if (asset.policyId !== "agent-teams.docs-protocol-current-policy" || asset.policyVersion !== "3.0.0" ||
-      typeof asset.sourceDigest !== "string") { throw new TypeError("Packed runtime policy identity is invalid."); }
-  const managed = asset.managedRuntime as Record<string, unknown> | undefined;
-  const lanes = managed?.lanes;
-  if (asset.managedCandidate === undefined || managed?.status !== "candidate-unqualified" ||
-      Array.isArray(asset.managedCandidate) || typeof asset.managedCandidate !== "object" ||
-      (asset.managedCandidate as Record<string, unknown>).selected !== false ||
-      typeof lanes !== "object" || lanes === null || Array.isArray(lanes) ||
-      !Object.hasOwn(lanes, "node-24-production-default") ||
-      !Object.hasOwn(lanes, "node-26-managed-qualified") ||
-      typeof managed.pnpm !== "string") {
-    throw new TypeError("Packed managed runtime policy is incomplete or selected.");
-  }
-  return {
-    policyId: asset.policyId,
-    policyVersion: asset.policyVersion,
-    sourceDigest: asset.sourceDigest,
-    pnpm: managed.pnpm,
-    lanes: lanes as PackedManagedRuntimePolicy["lanes"],
-  };
+  return projectPackedManagedRuntimePolicy(policySchema, asset);
 }

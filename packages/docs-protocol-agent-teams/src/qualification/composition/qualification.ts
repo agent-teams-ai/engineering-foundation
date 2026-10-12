@@ -28,43 +28,15 @@ import {
   type DocsProtocolQualificationAuthorityV3,
   type DocsProtocolQualificationAuthorityV3Request
 } from "../application-api.js";
-import type { PackedManagedRuntimePolicy } from
-  "../../consumer-integration/application-api.js";
+import {
+  parsePackedManagedRuntimePolicy
+} from "../../consumer-integration/adapters/unselected-cohort-v3-loader.js";
 
-function readPackedManagedRuntimePolicy(): PackedManagedRuntimePolicy {
-  const source = readFileSync(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8");
-  if (Buffer.byteLength(source, "utf8") > 64 * 1024) {
-    throw new TypeError("Packed managed runtime policy exceeds its bounded size.");
-  }
-  const asset: unknown = JSON.parse(source);
-  if (typeof asset !== "object" || asset === null || Array.isArray(asset)) {
-    throw new TypeError("Packed managed runtime policy must be one object.");
-  }
-  const record = asset as Record<string, unknown>;
-  const managedRuntime = record["managedRuntime"];
-  const lanes = typeof managedRuntime === "object" && managedRuntime !== null &&
-    !Array.isArray(managedRuntime)
-    ? (managedRuntime as Record<string, unknown>)["lanes"]
-    : undefined;
-  if (record["schemaVersion"] !== 1 ||
-    record["policyId"] !== "agent-teams.docs-protocol-current-policy" ||
-    record["policyVersion"] !== "3.0.0" ||
-    typeof record["sourceDigest"] !== "string" ||
-    typeof managedRuntime !== "object" || managedRuntime === null || Array.isArray(managedRuntime) ||
-    (managedRuntime as Record<string, unknown>)["status"] !== "candidate-unqualified" ||
-    typeof (managedRuntime as Record<string, unknown>)["pnpm"] !== "string" ||
-    typeof lanes !== "object" || lanes === null || Array.isArray(lanes) ||
-    Object.keys(lanes).toSorted().join("\u0000") !==
-      ["node-24-production-default", "node-26-managed-qualified"].toSorted().join("\u0000")) {
-    throw new TypeError("Packed managed runtime policy identity is invalid.");
-  }
-  return {
-    policyId: "agent-teams.docs-protocol-current-policy",
-    policyVersion: "3.0.0",
-    sourceDigest: record["sourceDigest"],
-    pnpm: (managedRuntime as Record<string, unknown>)["pnpm"] as string,
-    lanes: lanes as PackedManagedRuntimePolicy["lanes"]
-  };
+function readPackedManagedRuntimePolicy() {
+  return parsePackedManagedRuntimePolicy(
+    readFileSync(new URL("../../../schemas/managed-runtime-policy/v1.schema.json", import.meta.url), "utf8"),
+    readFileSync(new URL("../../../assets/runtime-policy.v1.json", import.meta.url), "utf8")
+  );
 }
 
 const observeLockfile =

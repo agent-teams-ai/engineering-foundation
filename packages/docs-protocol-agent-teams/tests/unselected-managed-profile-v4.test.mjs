@@ -46,7 +46,11 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   const validateState = ajv.compile(await read("../schemas/docs-consumer-managed-state/v3.schema.json"));
   const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
   assert.deepEqual(Object.keys(selected.cohort).toSorted(), Object.keys(cohort()).toSorted());
-  await assert.rejects(assertConsumerIntegrationProfileSchema(selected), /exactly 1, 2, or 3/);
+  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(selected));
+  await assert.rejects(
+    assertConsumerIntegrationProfileSchema({ ...selected, schemaVersion: 5 }),
+    /schemaVersion must be exactly 1, 2, 3, or 4/u
+  );
   const state = JSON.parse(projectManagedSuccessorState(selected, assets()));
   assert.equal(validateState(state), true, JSON.stringify(validateState.errors)); assert.equal(state.assets.agentsRouteDigest, sha(route));
   assert.equal(state.assets.docsScriptsDigest, sha(canonical(scripts)));
@@ -60,14 +64,37 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   const old = new Ajv2020({ strict: true }); old.addSchema(await read("../schemas/qualified-docs-cohort/v2.schema.json"));
   assert.equal(old.compile(await read("../schemas/docs-consumer-managed-state/v2.schema.json"))(state), false);
 });
+test("generic profile4 dispatch binds the actual packed policy digest and runtime tuple", async () => {
+  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(profile()));
+  for (const [name, mutate] of [
+    ["forged nonzero policy digest", (p) => { p.cohort.runtime.policy.digest = digest("f"); }],
+    ["wrong exact qualification runtime", (p) => { p.cohort.runtime.qualificationRuntime.pnpmVersion = "11.19.0"; }]
+  ]) {
+    const invalid = profile();
+    mutate(invalid);
+    const expected = /runtime differs from the packed managed policy lane/u;
+    await assert.rejects(assertConsumerIntegrationProfileSchema(invalid), expected, name);
+    await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid)), expected, name);
+  }
+});
 test("profile refuses mixed generations and policy swaps", async () => {
   for (const mutate of [
-    (p) => { p.schemaVersion = 3; }, (p) => { p.cohort.schemas.managedState = 2; },
+    (p) => { p.schemaVersion = 3; }, (p) => { p.schemaVersion = 5; },
+    (p) => { p.cohort.schemaVersion = 2; }, (p) => { p.cohort.schemas.managedState = 2; },
+    (p) => { p.cohort.schemas.qualificationReceipt = 2; },
+    (p) => { delete p.cohort.recordDigest; }, (p) => { p.cohort.recordDigest = `sha512:${"1".repeat(64)}`; },
+    (p) => { delete p.cohort.qualificationEventDigest; },
+    (p) => { p.cohort.qualificationEventDigest = digest("2").slice(1); },
     (p) => { p.cohort.runtime.selectedLane = "node-24-production-default"; }, (p) => { p.cohort.runtime.policy.digest = digest("f"); },
     (p) => { p.cohort.packages.docsProtocolMcp = packageCoordinate; }, (p) => { p.cohort.candidateDigest = digest("0"); },
     (p) => { p.cohort.rollbackTo = ["unrelated"]; }, (p) => { p.cohort.lifecycleState = "QUALIFIED"; },
     (p) => { p.cohort.canaryRepositoryIds = ["1"]; },
-  ]) { const invalid = profile(); mutate(invalid); await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid))); }
+  ]) {
+    const invalid = profile();
+    mutate(invalid);
+    await assert.rejects(assertConsumerIntegrationProfileSchema(invalid));
+    await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid)));
+  }
   await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(profile()).replace('"selectedLane":"node-26-managed-qualified"',
     '"selectedLane":"node-26-managed-qualified","selected\\u004cane":"node-24-production-default"')));
   await assert.rejects(loadUnselectedManagedProfileV4("x".repeat(1024 * 1024 + 1)), /bounded input size/);

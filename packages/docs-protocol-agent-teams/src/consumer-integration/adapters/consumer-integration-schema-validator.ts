@@ -4,6 +4,11 @@ import type { DocsProtocolProfileV3 } from "@agent-teams/docs-protocol";
 
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import { assertManagedSuccessorProfileV4 } from "../application/policies/consumer-integration-desired-state.js";
+import {
+  bindUnselectedCohortV3,
+  type UnselectedCohortV3
+} from "../application/policies/qualified-docs-cohort-v3.js";
+import { loadPackedManagedRuntimePolicy } from "./unselected-cohort-v3-loader.js";
 
 const validators = new Map<string, Promise<ValidateFunction>>();
 
@@ -88,8 +93,10 @@ export function assertConsumerIntegrationProfileSchema(value: unknown): Promise<
     return assertSchema("docs-consumer-integration-profile-v3", value);
   }
   if (version === 4) {
-    return assertSchema("docs-consumer-integration-profile-v4", value).then(() => {
+    return assertSchema("docs-consumer-integration-profile-v4", value).then(async () => {
       assertManagedSuccessorProfileV4(value);
+      // The binder reads core fields only; Profile4 omits full-cohort lifecycle fields.
+      bindUnselectedCohortV3(value.cohort as UnselectedCohortV3, await loadPackedManagedRuntimePolicy());
     });
   }
   return Promise.reject(new TypeError(

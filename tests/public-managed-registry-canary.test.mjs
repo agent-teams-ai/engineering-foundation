@@ -255,9 +255,9 @@ function successorQualificationFixture() {
     workflow: structuredClone(cohort.workflow),
     assets: {
       skillDigest: sha256("f"),
-      callerWorkflowDigest: sha256("g"),
-      assetCatalogDigest: sha256("h"),
-      transitionCatalogDigest: sha256("i"),
+      callerWorkflowDigest: sha256("a"),
+      assetCatalogDigest: sha256("b"),
+      transitionCatalogDigest: sha256("c"),
     },
     schemas: { consumerIntegration: 4, managedState: 3, qualificationReceipt: 1, docsProtocol: 1 },
     runtime: {
@@ -899,15 +899,15 @@ test("Host qualification rejects mixed generations and evidence drift at their a
       /Qualification Cohort v3 runtime evidence mismatch\./u],
     [(value) => { value.evidence.runtime.qualificationRuntime.pnpmVersion = "11.19.0"; },
       /Qualification Cohort v3 runtime evidence mismatch\./u],
-    [(value) => { value.evidence.policy.sourceDigest = sha256("p"); },
+    [(value) => { value.evidence.policy.sourceDigest = sha256("a"); },
       /Qualification Cohort v3 policy identity or source digest mismatch\./u],
-    [(value) => { value.evidence.runtime.runtimeClosureDigest = sha256("r"); },
+    [(value) => { value.evidence.runtime.runtimeClosureDigest = sha256("b"); },
       /Qualification Cohort v3 runtime closure digest mismatch\./u],
-    [(value) => { value.evidence.cohort.recordDigest = sha256("0"); },
+    [(value) => { value.evidence.cohort.recordDigest = sha256("a"); },
       /Qualification Cohort v3 identity evidence does not match the profile\./u],
-    [(value) => { value.evidence.cohort.qualificationEventDigest = sha256("0"); },
+    [(value) => { value.evidence.cohort.qualificationEventDigest = sha256("b"); },
       /Qualification Cohort v3 identity evidence does not match the profile\./u],
-    [(value) => { value.evidence.cohort.candidateDigest = sha256("0"); },
+    [(value) => { value.evidence.cohort.candidateDigest = sha256("c"); },
       /Qualification Cohort v3 identity evidence does not match the profile\./u],
     [(value) => { value.evidence.schemas.consumerIntegration = 3; },
       /Qualification Cohort v3 requires exact schema bindings 4\/3\/1\/qualificationReceipt1\./u],
@@ -933,8 +933,8 @@ test("Host qualification rejects mixed generations and evidence drift at their a
   if (process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64") {
     const receipt = qualify(successorReceiptFixture);
     assert.throws(
-      () => assertQualificationReceiptDigest({ ...receipt, receiptDigest: sha256("x") }),
-      /Qualification v3 receipt digest is not independently canonical\./u,
+      () => assertQualificationReceiptDigest({ ...receipt, receiptDigest: sha256("c") }),
+      /Qualification Cohort v3 receipt digest is not independently canonical\./u,
     );
   } else {
     assert.throws(
@@ -966,8 +966,8 @@ test("policy createCanaryAuthority accepts packed policy26 and support receipt i
     "cohortId",
     "eligibleAfter",
     "packages",
-    "recordDigest",
     "qualificationEventDigest",
+    "recordDigest",
     "rollbackTo",
     "runtime",
     "schemaVersion",
@@ -986,7 +986,7 @@ test("policy createCanaryAuthority accepts packed policy26 and support receipt i
   });
 
   const rejected = structuredClone(projectedCohort3);
-  rejected.cohort.runtime.policy.digest = sha256("p");
+  rejected.cohort.runtime.policy.digest = sha256("a");
   assert.throws(
     () => createCanaryAuthority(rejected, inputs3),
     /Cohort v3 runtime authority is invalid/u,

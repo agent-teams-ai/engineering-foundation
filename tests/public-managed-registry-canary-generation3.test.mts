@@ -16,6 +16,7 @@ import {
   descriptors,
   legacyQualificationChecks,
   legacyQualificationFixture,
+  integrity,
   sha256,
   successorQualificationFixture,
   type LegacyQualificationFixture,
@@ -182,7 +183,7 @@ test("Host overload preserves generation2 and emits the closed generation3 quali
       ["docs-protocol-cohort-v3-qualification-receipt/v1.schema.json",
         "https://agent-teams.ai/schemas/docs-protocol-cohort-v3-qualification-receipt/v1"],
       ["docs-protocol-profile/v1.schema.json", "https://agent-teams.ai/schemas/docs-protocol-profile/v1"],
-    ];
+    ] as const;
     for (const [path, id] of schemaPaths) {
       const schema = JSON.parse(await readFile(
         new URL(`../packages/docs-protocol-agent-teams/schemas/${path}`, import.meta.url),

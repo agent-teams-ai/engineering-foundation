@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 
 import { stringify } from "yaml";
 
-import { describeCanonicalConsumerAssets } from "../packages/docs-protocol-agent-teams/dist/index.js";
+import {
+  describeCanonicalConsumerAssets,
+  type ManagedSuccessorProfile,
+} from "../packages/docs-protocol-agent-teams/dist/index.js";
 import {
   observeDocsProtocolQualificationV3Lockfile,
   type ConsumerIntegrationDesiredStateV3,
@@ -11,7 +14,6 @@ import {
   type DocsProtocolQualificationCheckV3,
   type DocsProtocolQualificationCohortEvidenceV3,
   type DocsProtocolQualificationEvidenceV3,
-  type ManagedSuccessorProfile,
   type QualifiedDocsCohortBindingV2,
 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
 

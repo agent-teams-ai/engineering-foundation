@@ -3,19 +3,19 @@ import { readFileSync } from "node:fs";
 
 import { stringify } from "yaml";
 
-import {
-  describeCanonicalConsumerAssets,
-  type ManagedSuccessorProfile,
-} from "../packages/docs-protocol-agent-teams/dist/index.js";
+import { describeCanonicalConsumerAssets } from "../packages/docs-protocol-agent-teams/dist/index.js";
 import {
   observeDocsProtocolQualificationV3Lockfile,
   type ConsumerIntegrationDesiredStateV3,
   type DocsProtocolQualificationCheckCohortV3,
   type DocsProtocolQualificationCheckV3,
   type DocsProtocolQualificationCohortEvidenceV3,
+  type DocsProtocolQualificationCohortV3Request,
   type DocsProtocolQualificationEvidenceV3,
   type QualifiedDocsCohortBindingV2,
 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
+
+type ManagedSuccessorProfile = DocsProtocolQualificationCohortV3Request["profile"];
 
 export const commit = "a".repeat(40);
 export const authorityRevision = "b".repeat(40);

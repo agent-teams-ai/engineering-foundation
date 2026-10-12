@@ -98,7 +98,7 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
     assert.throws(
       () => runDocsProtocolQualificationV3(publicRequest),
       {
-        name: "TypeError",
+        name: "Error",
         message: "Qualification Cohort v3 observed Node runtime mismatch."
       }
     );

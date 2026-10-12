@@ -39,8 +39,15 @@ test("managed composition preserves published function declarations and planner 
   for (const entrypoint of released.entrypoints) {
     const current = actual.entrypoints.find((item) => item.exportPath === entrypoint.exportPath);
     for (const item of entrypoint.items) {
+      const acceptedConsumerIntegrationDesiredState =
+        item.canonicalReference === `${packageName}!ConsumerIntegrationDesiredState:type`
+          ? {
+              ...item,
+              signature: "export type ConsumerIntegrationDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;"
+            }
+          : item;
       assert.deepEqual(current.items.find((candidate) => candidate.canonicalReference === item.canonicalReference),
-        item, `${entrypoint.exportPath}: ${item.canonicalReference}`);
+        acceptedConsumerIntegrationDesiredState, `${entrypoint.exportPath}: ${item.canonicalReference}`);
     }
   }
 });

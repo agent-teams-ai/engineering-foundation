@@ -25,18 +25,28 @@ import type {
 
 const NONZERO_SHA256 = /^sha256:(?!0{64}$)[0-9a-f]{64}$/u;
 const MAXIMUM_LOCKFILE_BYTES = 32 * 1024 * 1024;
-const TYPED_ARRAY_BUFFER_GETTER = Object.getOwnPropertyDescriptor(
+
+type IntrinsicGetter = (receiver: object) => unknown;
+
+function bindIntrinsicGetter(descriptor: PropertyDescriptor | undefined): IntrinsicGetter | undefined {
+  const getter: unknown = descriptor === undefined ? undefined : Reflect.get(descriptor, "get");
+  return typeof getter === "function"
+    ? (receiver: object): unknown => Reflect.apply(getter, receiver, [])
+    : undefined;
+}
+
+const TYPED_ARRAY_BUFFER_GETTER = bindIntrinsicGetter(Object.getOwnPropertyDescriptor(
   Object.getPrototypeOf(Uint8Array.prototype),
   "buffer"
-)?.get;
-const TYPED_ARRAY_BYTE_LENGTH_GETTER = Object.getOwnPropertyDescriptor(
+));
+const TYPED_ARRAY_BYTE_LENGTH_GETTER = bindIntrinsicGetter(Object.getOwnPropertyDescriptor(
   Object.getPrototypeOf(Uint8Array.prototype),
   "byteLength"
-)?.get;
-const ARRAY_BUFFER_BYTE_LENGTH_GETTER = Object.getOwnPropertyDescriptor(
+));
+const ARRAY_BUFFER_BYTE_LENGTH_GETTER = bindIntrinsicGetter(Object.getOwnPropertyDescriptor(
   ArrayBuffer.prototype,
   "byteLength"
-)?.get;
+));
 const PACKAGE_KEYS = QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key);
 const CHECKS: readonly DocsProtocolQualificationCheckV3[] = Object.freeze([
   "profile-v3",
@@ -73,6 +83,20 @@ function canonicalJson(value: unknown): string {
 
 function digest(value: unknown): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
+}
+
+function hasExactString(value: unknown, expected: string): boolean {
+  return typeof value === "string" && value === expected;
+}
+
+function hasExactNumber(value: unknown, expected: number): boolean {
+  return typeof value === "number" && value === expected;
+}
+
+function readSchemaVersion(profile: unknown): unknown {
+  return typeof profile === "object" && profile !== null
+    ? Reflect.get(profile, "schemaVersion")
+    : undefined;
 }
 
 function hasExactKeys(value: object, keys: readonly string[]): boolean {
@@ -112,12 +136,12 @@ function isAdmittedNativeLockfileBytes(value: unknown): value is Uint8Array {
       typeof ARRAY_BUFFER_BYTE_LENGTH_GETTER !== "function") {
       return false;
     }
-    const viewByteLength = Number(Reflect.apply(TYPED_ARRAY_BYTE_LENGTH_GETTER, value, []));
-    const backing = Reflect.apply(TYPED_ARRAY_BUFFER_GETTER, value, []);
+    const viewByteLength = Number(TYPED_ARRAY_BYTE_LENGTH_GETTER(value));
+    const backing = TYPED_ARRAY_BUFFER_GETTER(value);
     if (backing === null || typeof backing !== "object") {
       return false;
     }
-    const backingByteLength = Number(Reflect.apply(ARRAY_BUFFER_BYTE_LENGTH_GETTER, backing, []));
+    const backingByteLength = Number(ARRAY_BUFFER_BYTE_LENGTH_GETTER(backing));
     return Number.isSafeInteger(viewByteLength) && Number.isSafeInteger(backingByteLength) &&
       viewByteLength >= 1 && backingByteLength >= 1 &&
       viewByteLength <= MAXIMUM_LOCKFILE_BYTES && backingByteLength <= MAXIMUM_LOCKFILE_BYTES;
@@ -220,8 +244,8 @@ function assertCohortAuthority(
     evidence.cohort.candidateDigest !== cohort.candidateDigest) {
     throw new Error("Qualification Cohort v3 identity evidence does not match the profile.");
   }
-  if (evidence.policy.id !== cohort.runtime.policy.id ||
-    evidence.policy.version !== cohort.runtime.policy.version ||
+  if (!hasExactString(evidence.policy.id, cohort.runtime.policy.id) ||
+    !hasExactString(evidence.policy.version, cohort.runtime.policy.version) ||
     evidence.policy.sourceDigest !== cohort.runtime.policy.digest) {
     throw new Error("Qualification Cohort v3 policy identity or source digest mismatch.");
   }
@@ -257,10 +281,10 @@ function qualifyCohortV3(
       throw new Error(`Qualification Cohort v3 integrity mismatch for ${name}.`);
     }
   }
-  if (evidence.schemas.consumerIntegration !== 4 ||
-    evidence.schemas.managedState !== 3 ||
-    evidence.schemas.qualificationReceipt !== 1 ||
-    evidence.schemas.docsProtocol !== 1) {
+  if (!hasExactNumber(evidence.schemas.consumerIntegration, 4) ||
+    !hasExactNumber(evidence.schemas.managedState, 3) ||
+    !hasExactNumber(evidence.schemas.qualificationReceipt, 1) ||
+    !hasExactNumber(evidence.schemas.docsProtocol, 1)) {
     throw new Error("Qualification Cohort v3 requires exact schema bindings 4/3/1/qualificationReceipt1.");
   }
   const expectedRuntime = cohort.runtime;
@@ -336,9 +360,7 @@ export function createDocsProtocolQualificationV3(observeLockfile: (
     request: DocsProtocolQualificationV3Request | DocsProtocolQualificationCohortV3Request
   ): DocsProtocolQualificationReceiptV3 | DocsProtocolQualificationCohortV3Receipt {
     const admittedRequest = snapshotQualificationRequest(request);
-    const generation = typeof admittedRequest.profile === "object" && admittedRequest.profile !== null
-      ? admittedRequest.profile.schemaVersion
-      : undefined;
+    const generation = readSchemaVersion(admittedRequest.profile);
     if (generation === 4) {
       if (!isDocsProtocolQualificationCohortV3Request(admittedRequest)) {
         throw new TypeError("Qualification Cohort v3 evidence is invalid or incomplete.");

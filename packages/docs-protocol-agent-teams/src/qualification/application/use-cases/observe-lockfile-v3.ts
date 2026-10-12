@@ -10,12 +10,17 @@ import type {
   DocsProtocolQualificationLockfileObservationV3Request
 } from "../model/v3-contract.js";
 
+function hasExactNumber(value: unknown, expected: number): boolean {
+  return typeof value === "number" && value === expected;
+}
+
 function assertDocsProtocolQualificationV3ProfileAuthority(
   profile: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile
 ): void {
-  if (profile.schemaVersion === 3) {
+  const schemaVersion: unknown = profile.schemaVersion;
+  if (hasExactNumber(schemaVersion, 3)) {
     assertConsumerIntegrationDesiredStateV3(profile);
-  } else if (profile.schemaVersion === 4) {
+  } else if (hasExactNumber(schemaVersion, 4)) {
     assertManagedSuccessorProfileV4(profile);
   } else {
     throw new TypeError("Qualification v3 lockfile profile generation is invalid or unsupported.");

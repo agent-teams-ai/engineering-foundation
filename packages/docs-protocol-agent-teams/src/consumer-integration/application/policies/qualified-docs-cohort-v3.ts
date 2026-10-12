@@ -27,6 +27,10 @@ function isCanonicalUtcSecond(value: string): boolean {
     new Date(milliseconds).toISOString() === `${value.slice(0, -1)}.000Z`;
 }
 
+function hasExactString(value: unknown, expected: string): boolean {
+  return typeof value === "string" && value === expected;
+}
+
 export function bindUnselectedCohortV3(
   candidate: UnselectedCohortV3,
   policy: PackedManagedRuntimePolicy
@@ -45,7 +49,8 @@ export function bindUnselectedCohortV3(
       candidate.rollbackTo.some((origin) => !candidate.upgradeFrom.includes(origin))) {
     throw new TypeError("Cohort v3 source and rollback edges are inconsistent.");
   }
-  if (runtime.policy.id !== policy.policyId || runtime.policy.version !== policy.policyVersion ||
+  if (!hasExactString(runtime.policy.id, policy.policyId) ||
+      !hasExactString(runtime.policy.version, policy.policyVersion) ||
       runtime.policy.digest !== policy.sourceDigest || !Object.hasOwn(policy.lanes, runtime.selectedLane) ||
       runtime.node !== lane.node || runtime.pnpm !== policy.pnpm ||
       runtime.qualificationRuntime.nodeVersion !== lane.qualificationRuntime.nodeVersion ||

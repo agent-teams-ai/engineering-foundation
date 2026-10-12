@@ -21,9 +21,9 @@ function validateQualifiedPnpmLockfileV2(
     );
   }
   const entries = qualifiedDocsCohortV2PackageEntries(desired.cohort);
-  const expectedRuntimeClosureDigest = desired.schemaVersion === 3
-    ? desired.cohort.runtime.runtimeClosureDigest
-    : desired.cohort.runtime.runtimeClosure.digest;
+  const expectedRuntimeClosureDigest = desired.cohort.schemaVersion === 3
+    ? desired.cohort.runtime.runtimeClosure.digest
+    : desired.cohort.runtime.runtimeClosureDigest;
   let runtimeClosureDigest: `sha256:${string}` | undefined;
   assertQualifiedPnpmLockfileTargets(bytes, {
     targets: entries.map(

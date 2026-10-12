@@ -11,7 +11,7 @@ import { parseJsonRecord } from "../dist/consumer-integration/adapters/strict-js
 const read = async (path) => JSON.parse(await readFile(new URL(path, import.meta.url), "utf8"));
 const digest = (digit) => `sha256:${digit.repeat(64)}`;
 const policy = await read("../assets/runtime-policy.v1.json"), packageCoordinate = { version: "1.0.0", integrity: `sha512-${"A".repeat(86)}==` };
-const cohort = () => ({
+const cohort = () => JSON.parse(JSON.stringify({
   schemaVersion: 3, cohortId: "candidate-v3", channel: "rc", recordDigest: digest("1"), qualificationEventDigest: digest("2"),
   eligibleAfter: "2026-09-28T00:00:00Z", upgradeFrom: ["prior-v2"], rollbackTo: ["prior-v2"], candidateDigest: digest("9"),
   packages: Object.fromEntries(["repositoryMutation", "documentAuthoring", "docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"].map((key) => [key, packageCoordinate])),
@@ -21,7 +21,7 @@ const cohort = () => ({
   runtime: { policy: { id: policy.policyId, version: policy.policyVersion, digest: policy.sourceDigest }, selectedLane: "node-26-managed-qualified", node: ">=26.0.0 <27",
     pnpm: policy.managedRuntime.pnpm, qualificationRuntime: policy.managedRuntime.lanes["node-26-managed-qualified"].qualificationRuntime,
     runtimeClosure: { domain: "agent-teams.docs-runtime-closure/v2", digest: digest("7") } }
-});
+}));
 const profile = () => ({
   schemaVersion: 4, repository: { provider: "github", id: "123", nameWithOwner: "example/docs" }, integrationRoot: ".", packageManager: "pnpm",
   profilePath: "architecture/foundation/docs-protocol.yaml", skillPath: ".agents/skills/docs-authoring/SKILL.md", callerWorkflowPath: ".github/workflows/docs-protocol.yml",
@@ -65,7 +65,9 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   assert.equal(old.compile(await read("../schemas/docs-consumer-managed-state/v2.schema.json"))(state), false);
 });
 test("generic profile4 dispatch binds the actual packed policy digest and runtime tuple", async () => {
-  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(profile()));
+  const valid = profile();
+  assert.notEqual(valid.cohort.packages.repositoryMutation, valid.cohort.packages.documentAuthoring);
+  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(valid));
   for (const [name, mutate] of [
     ["forged nonzero policy digest", (p) => { p.cohort.runtime.policy.digest = digest("f"); }],
     ["wrong exact qualification runtime", (p) => { p.cohort.runtime.qualificationRuntime.pnpmVersion = "11.19.0"; }]

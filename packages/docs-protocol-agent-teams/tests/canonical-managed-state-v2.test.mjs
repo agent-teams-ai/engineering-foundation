@@ -171,7 +171,7 @@ function desiredV4() {
       cohortId: "docs-2026-09-05-candidate1",
       channel: "rc",
       recordDigest: digest("f"),
-      qualificationEventDigest: digest("0"),
+      qualificationEventDigest: digest("3"),
       eligibleAfter: "2026-09-05T12:00:00Z",
       upgradeFrom: ["docs-2026-09-04-stable1"],
       rollbackTo: ["docs-2026-09-04-stable1"],

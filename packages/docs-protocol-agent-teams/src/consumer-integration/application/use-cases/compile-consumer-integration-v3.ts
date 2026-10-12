@@ -256,14 +256,23 @@ function planFullAssetsV3(input: {
       input.desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"]
     ), "utf8");
   const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");
-  const managedStateBytes = Buffer.from(canonicalManagedState(input.desired, {
-    skillDigest: digestBytes(skillBytes),
-    callerWorkflowDigest: digestBytes(callerBytes),
-    assetCatalogDigest: input.desired.cohort.assets.assetCatalogDigest,
-    transitionCatalogDigest: input.desired.cohort.assets.transitionCatalogDigest,
-    agentsRouteDigest: digestBytes(routeBytes),
-    docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
-  }), "utf8");
+  const managedStateBytes = input.desired.schemaVersion === 3
+    ? Buffer.from(canonicalManagedState(input.desired, {
+        skillDigest: digestBytes(skillBytes),
+        callerWorkflowDigest: digestBytes(callerBytes),
+        assetCatalogDigest: input.desired.cohort.assets.assetCatalogDigest,
+        transitionCatalogDigest: input.desired.cohort.assets.transitionCatalogDigest,
+        agentsRouteDigest: digestBytes(routeBytes),
+        docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
+      }), "utf8")
+    : Buffer.from(canonicalManagedState(input.desired, {
+        skillDigest: digestBytes(skillBytes),
+        callerWorkflowDigest: digestBytes(callerBytes),
+        assetCatalogDigest: input.desired.cohort.assets.assetCatalogDigest,
+        transitionCatalogDigest: input.desired.cohort.assets.transitionCatalogDigest,
+        agentsRouteDigest: digestBytes(routeBytes),
+        docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
+      }), "utf8");
   return [
     fullAsset({
       id: "skill",

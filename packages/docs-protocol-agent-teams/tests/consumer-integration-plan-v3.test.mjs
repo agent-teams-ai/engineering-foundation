@@ -106,8 +106,7 @@ function managedDesired() {
   const policy = JSON.parse(readFileSync(new URL("../assets/runtime-policy.v1.json", import.meta.url), "utf8"));
   const lane = policy.managedRuntime.lanes["node-26-managed-qualified"];
   const base = desired();
-  const packageCoordinate = Object.freeze({ version: "1.0.0", integrity: INTEGRITY });
-  return {
+  return JSON.parse(JSON.stringify({
     schemaVersion: 4,
     repository: base.repository,
     integrationRoot: ".",
@@ -127,13 +126,13 @@ function managedDesired() {
       upgradeFrom: ["docs-2026-09-v2"],
       rollbackTo: ["docs-2026-09-v2"],
       candidateDigest: `sha256:${"3".repeat(64)}`,
-      packages: Object.freeze({
-        repositoryMutation: packageCoordinate,
-        documentAuthoring: packageCoordinate,
-        docsProtocol: packageCoordinate,
-        docsProtocolAgentTeams: packageCoordinate,
-        engineeringFoundation: packageCoordinate
-      }),
+      packages: {
+        repositoryMutation: { version: "1.0.0", integrity: INTEGRITY },
+        documentAuthoring: { version: "1.0.0", integrity: INTEGRITY },
+        docsProtocol: { version: "1.0.0", integrity: INTEGRITY },
+        docsProtocolAgentTeams: { version: "1.0.0", integrity: INTEGRITY },
+        engineeringFoundation: { version: "1.0.0", integrity: INTEGRITY }
+      },
       workflow: base.cohort.workflow,
       assets: describeCanonicalConsumerAssets(base.cohort),
       schemas: { consumerIntegration: 4, managedState: 3, qualificationReceipt: 1, docsProtocol: 1 },
@@ -146,7 +145,7 @@ function managedDesired() {
         runtimeClosure: { domain: "agent-teams.docs-runtime-closure/v2", digest: `sha256:${"4".repeat(64)}` }
       }
     }
-  };
+  }));
 }
 
 function ports(observedSchemas) {

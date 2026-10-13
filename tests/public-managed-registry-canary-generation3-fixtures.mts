@@ -17,9 +17,6 @@ import {
 
 type ManagedSuccessorProfile = DocsProtocolQualificationCohortV3Request["profile"];
 
-const commit = "a".repeat(40);
-const authorityRevision = "b".repeat(40);
-
 export function sha256(character: string): `sha256:${string}` {
   return `sha256:${character.repeat(64)}`;
 }

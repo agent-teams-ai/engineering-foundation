@@ -17,8 +17,8 @@ import {
 
 type ManagedSuccessorProfile = DocsProtocolQualificationCohortV3Request["profile"];
 
-export const commit = "a".repeat(40);
-export const authorityRevision = "b".repeat(40);
+const commit = "a".repeat(40);
+const authorityRevision = "b".repeat(40);
 
 export function sha256(character: string): `sha256:${string}` {
   return `sha256:${character.repeat(64)}`;
@@ -40,7 +40,7 @@ export const descriptors = [
   ["engineeringFoundation", "@agent-teams/engineering-foundation", true],
 ] as const;
 
-export const cohort: QualifiedDocsCohortBindingV2 = {
+const cohort: QualifiedDocsCohortBindingV2 = {
   schemaVersion: 2,
   cohortId: "docs-v2-canary",
   channel: "stable",
@@ -76,7 +76,7 @@ export const cohort: QualifiedDocsCohortBindingV2 = {
   },
 };
 
-export const repository: ConsumerIntegrationDesiredStateV3["repository"] = {
+const repository: ConsumerIntegrationDesiredStateV3["repository"] = {
   provider: "github",
   id: "1316243988",
   nameWithOwner: "agent-teams-ai/engineering-foundation",

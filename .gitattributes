@@ -19,6 +19,7 @@ packages/docs-protocol-agent-teams/assets/** text eol=lf
 packages/docs-protocol-agent-teams/skills/** text eol=lf
 packages/docs-protocol-agent-teams/src/consumer-integration/generated/canonical-assets.ts text eol=lf
 packages/*/schemas/**/*.json text eol=lf
+architecture/foundation/schemas/*.schema.json text eol=lf
 tests/fixtures/document-authoring-contracts/*.json text eol=lf
 tests/fixtures/document-authoring-canonical-markdown/*.md text eol=lf
 tests/fixtures/document-authoring-contracts/orchestrator-golden-v1/*.md text eol=lf

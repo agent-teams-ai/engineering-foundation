@@ -7,7 +7,6 @@ import { parse as parseYaml, stringify } from "yaml";
 
 import {
   observeDocsProtocolQualificationV3Lockfile,
-  runDocsProtocolQualificationV3,
   type DocsProtocolQualificationCohortV3Receipt,
   type DocsProtocolQualificationReceiptV3,
 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
@@ -103,6 +102,41 @@ function parseReceiptSchema(source: string): ReceiptSchema {
   return value;
 }
 
+const syntheticRuntime = {
+  nodeVersion: "26.11.1",
+  pnpmVersion: "11.20.0",
+  platform: "linux",
+  architecture: "x64",
+} as const;
+const [policySchemaSource, policyAssetSource] = await Promise.all([
+  readFile(new URL(
+    "../packages/docs-protocol-agent-teams/schemas/managed-runtime-policy/v1.schema.json",
+    import.meta.url,
+  ), "utf8"),
+  readFile(new URL(
+    "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
+    import.meta.url,
+  ), "utf8"),
+]);
+const packedPolicy = parsePackedManagedRuntimePolicy(policySchemaSource, policyAssetSource);
+
+const syntheticQualification = createDocsProtocolQualificationV3(
+  (request) => {
+    if (request.profile.schemaVersion === 3) {
+      return observeDocsProtocolQualificationV3Lockfile({
+        profile: request.profile,
+        lockfileBytes: request.lockfileBytes,
+      });
+    }
+    return observeDocsProtocolQualificationV3Lockfile({
+      profile: request.profile,
+      lockfileBytes: request.lockfileBytes,
+    });
+  },
+  () => syntheticRuntime,
+  () => packedPolicy,
+);
+
 function mutableSuccessorFixture(value: SuccessorQualificationFixture): MutableSuccessorFixture {
   return value as unknown as MutableSuccessorFixture;
 }
@@ -112,13 +146,13 @@ function qualify(value: SuccessorQualificationFixture): DocsProtocolQualificatio
 function qualify(value: QualificationCrossing): DocsProtocolQualificationReceiptV3 | DocsProtocolQualificationCohortV3Receipt;
 function qualify(value: QualificationCrossing) {
   if ("cohort" in value.evidence) {
-    return runDocsProtocolQualificationV3({
+    return syntheticQualification({
       profile: value.profile as SuccessorQualificationFixture["profile"],
       evidence: value.evidence,
       lockfileBytes: value.lockfileBytes,
     });
   }
-  return runDocsProtocolQualificationV3({
+  return syntheticQualification({
     profile: value.profile as LegacyQualificationFixture["profile"],
     evidence: value.evidence,
     lockfileBytes: value.lockfileBytes,
@@ -145,18 +179,7 @@ test("Host overload preserves generation2 and emits the closed generation3 quali
   assertQualificationReceiptDigest(legacyReceipt);
 
   const successor = successorQualificationFixture();
-  const actualRuntime = {
-    nodeVersion: process.versions.node,
-    platform: process.platform,
-    architecture: process.arch,
-  };
-  const qualifiedRuntime = {
-    nodeVersion: "26.11.1",
-    platform: "linux",
-    architecture: "x64",
-  };
   const qualifySuccessor = () => qualify(successor);
-  if (JSON.stringify(actualRuntime) === JSON.stringify(qualifiedRuntime)) {
     const receipt = qualifySuccessor();
     assert.deepEqual(Object.keys(receipt).toSorted(), [
       "checks",
@@ -234,10 +257,6 @@ test("Host overload preserves generation2 and emits the closed generation3 quali
         assert.equal(new Ajv2020({ allErrors: true, strict: true }).compile(schema)(receipt), true);
       }
     }
-  } else {
-    assert.throws(qualifySuccessor, /Qualification Cohort v3 observed Node runtime mismatch\./u);
-    assert.ok(process.versions.node.startsWith("24.") || process.platform === "win32");
-  }
 });
 
 test("Host qualification rejects mixed generations and evidence drift at their actual boundaries", async () => {
@@ -296,17 +315,6 @@ test("Host qualification rejects mixed generations and evidence drift at their a
     assert.throws(() => qualify(candidate), message);
   }
 
-  const [policySchemaSource, policyAssetSource] = await Promise.all([
-    readFile(new URL(
-      "../packages/docs-protocol-agent-teams/schemas/managed-runtime-policy/v1.schema.json",
-      import.meta.url,
-    ), "utf8"),
-    readFile(new URL(
-      "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
-      import.meta.url,
-    ), "utf8"),
-  ]);
-  const packedPolicy = parsePackedManagedRuntimePolicy(policySchemaSource, policyAssetSource);
   const wrongPnpmRuntime = {
     nodeVersion: process.versions.node,
     pnpmVersion: "11.19.0",
@@ -347,17 +355,9 @@ test("Host qualification rejects mixed generations and evidence drift at their a
   };
   assert.throws(() => qualify(legacyDrift), /Qualification v3 requires exact schema bindings 3\/2\/1\./u);
   const successorReceiptFixture = successorQualificationFixture();
-  if (process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64") {
-    const receipt = qualify(successorReceiptFixture);
-    assert.throws(
-      () => assertQualificationReceiptDigest({ ...receipt, receiptDigest: sha256("c") }),
-      /Qualification Cohort v3 receipt digest is not independently canonical\./u,
-    );
-  } else {
-    assert.throws(
-      () => qualify(successorReceiptFixture),
-      /Qualification Cohort v3 observed Node runtime mismatch\./u,
-    );
-    assert.ok(process.versions.node.startsWith("24.") || process.platform === "win32");
-  }
+  const receipt = qualify(successorReceiptFixture);
+  assert.throws(
+    () => assertQualificationReceiptDigest({ ...receipt, receiptDigest: sha256("c") }),
+    /Qualification Cohort v3 receipt digest is not independently canonical\./u,
+  );
 });

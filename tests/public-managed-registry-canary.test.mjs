@@ -30,6 +30,7 @@ import {
   SUPPORTING_MCP_PACKAGE,
   supportingMcpCoordinate,
 } from "../scripts/public-managed-registry-canary-policy.mjs";
+import { runDocsProtocolQualificationV3 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
 import { successorQualificationFixture } from "./public-managed-registry-canary-generation3-fixtures.mts";
 
 const commit = "a".repeat(40);
@@ -666,22 +667,33 @@ test("workflow is manual and capture plus digest precede the earliest installed 
   assert.doesNotMatch(source, /npm\s+(?:publish|unpublish|deprecate|dist-tag)|pnpm\s+publish/u);
   assert.match(source, /pnpm build/u);
   assert.match(source, /Run read-only six-package public managed registry canary/u);
+  const qualificationSource = await readFile(new URL("../scripts/public-managed-registry-canary-qualification.mts", import.meta.url), "utf8");
   const capture = runnerSource.indexOf("const lockfile = await readFile");
   const copy = runnerSource.indexOf("const lockfileBytes = Buffer.from(lockfile)", capture);
   const digestCapture = runnerSource.indexOf("const lockfileDigest = sha256(lockfileBytes)", copy);
-  const installedImports = [
-    runnerSource.indexOf("await import(${JSON.stringify(coordinate.name)})"),
-    runnerSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams')"),
-    runnerSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams/qualification')"),
-  ].filter((index) => index >= 0);
-  const earliestInstalledImport = Math.min(...installedImports);
-  assert.ok(capture >= 0 && copy > capture && digestCapture > copy && earliestInstalledImport > digestCapture);
-  assert.match(runnerSource, /lockfileBytes: exactLockfileBytes\(\)/u);
+  const rootInstalledImport = runnerSource.indexOf("await import(${JSON.stringify(coordinate.name)})");
+  assert.ok(capture >= 0 && copy > capture && digestCapture > copy && rootInstalledImport > digestCapture);
   assert.doesNotMatch(
-    runnerSource.slice(earliestInstalledImport - 300, earliestInstalledImport),
+    runnerSource.slice(rootInstalledImport - 300, rootInstalledImport),
     /readFile\('pnpm-lock\.yaml'\)/u,
   );
   assert.match(runnerSource, /GITHUB_REPOSITORY_ID/u);
+  const qualificationCapture = qualificationSource.indexOf("const capturedLockfileBytes = Buffer.from(");
+  const qualificationDigest = qualificationSource.indexOf("createHash('sha256').update(capturedLockfileBytes)", qualificationCapture);
+  const qualificationCopy = qualificationSource.indexOf("const exactLockfileBytes = () => Buffer.from(capturedLockfileBytes)", qualificationDigest);
+  const qualificationPackageImport = qualificationSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams')");
+  const qualificationEntryPointImport = qualificationSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams/qualification')");
+  assert.ok(qualificationPackageImport >= 0 && qualificationEntryPointImport >= 0);
+  const earliestQualificationImport = Math.min(qualificationPackageImport, qualificationEntryPointImport);
+  assert.ok(
+    qualificationCapture >= 0 && qualificationDigest > qualificationCapture &&
+    qualificationCopy > qualificationDigest && earliestQualificationImport > qualificationCopy,
+  );
+  assert.doesNotMatch(
+    qualificationSource.slice(qualificationCopy, earliestQualificationImport),
+    /readFile\('(?:pnpm-lock\.yaml|package-lock\.json)'\)/u,
+  );
+  assert.match(qualificationSource, /lockfileBytes: exactLockfileBytes\(\)/u);
   const supportingInstall = mcpRunnerSource.indexOf("async function installSupportingMcp");
   const supportingCapture = mcpRunnerSource.indexOf("const lockfile = await readFile", supportingInstall);
   const supportingCopy = mcpRunnerSource.indexOf("const lockfileBytes = Buffer.from(lockfile)", supportingCapture);

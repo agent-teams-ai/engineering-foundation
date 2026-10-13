@@ -23,6 +23,7 @@ import {
   publicationClosureDecision,
 } from "./public-managed-registry-canary-policy.mjs";
 import { observeSupportingMcp, qualifySupportingMcp } from "./public-managed-registry-canary-mcp.mjs";
+import { observeQualificationRuntime } from "./public-managed-registry-canary-runtime-policy.mts";
 import {
   assertCanonicalManagedState,
   assertCohortV3QualificationReceiptDigest,
@@ -33,7 +34,10 @@ import {
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const receiptSchemaPath = join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v1.schema.json");
+const receiptSchemaPaths = Object.freeze({
+  1: join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v1.schema.json"),
+  2: join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v2.schema.json"),
+});
 const commandTimeout = 240_000;
 const FORBIDDEN_MCP = "@agent-teams/docs-protocol-mcp";
 const qualificationHost = Object.freeze({
@@ -144,7 +148,18 @@ export function assertPnpmLockCoordinates(lockfileBytes, authority) {
   }
 }
 
-async function installConsumer(root, authority, manager) {
+async function installConsumer(root, authority, manager, runtimeObservation) {
+  if (authority.cohort.schemaVersion === 3 && manager === "pnpm" &&
+      (runtimeObservation === undefined ||
+       runtimeObservation.nodeVersion !== "26.11.1" ||
+       runtimeObservation.pnpmVersion !== "11.20.0" ||
+       runtimeObservation.platform !== "linux" ||
+       runtimeObservation.architecture !== "x64")) {
+    throw new Error("Pre-install runtime observation is not the exact qualified tuple.");
+  }
+  const boundRuntimeObservation = authority.cohort.schemaVersion === 3 && manager === "pnpm"
+    ? runtimeObservation
+    : undefined;
   await writeConsumer(root, authority, `public-managed-canary-${manager}`);
   if (manager === "npm") {
     await runNpmCommand([
@@ -173,6 +188,7 @@ async function installConsumer(root, authority, manager) {
   }
   return Object.freeze({
     lockfileBytes,
+    ...(boundRuntimeObservation === undefined ? {} : { runtimeObservation: boundRuntimeObservation }),
     receipt: Object.freeze({
       fivePackageLockValidated: true,
       lockfileDigest,
@@ -269,7 +285,11 @@ async function portableNegative(root, authority, docsInventory) {
 }
 
 async function validateReceipt(receipt) {
-  const schema = JSON.parse(await readFile(receiptSchemaPath, "utf8"));
+  const schemaPath = Reflect.get(receiptSchemaPaths, receipt.schemaVersion);
+  if (typeof schemaPath !== "string") {
+    throw new Error(`Unsupported canary receipt schemaVersion ${String(receipt.schemaVersion)}.`);
+  }
+  const schema = JSON.parse(await readFile(schemaPath, "utf8"));
   const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
   if (!validate(receipt)) {
     throw new Error(`Canary receipt schema validation failed: ${JSON.stringify(validate.errors)}`);
@@ -288,10 +308,13 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
     }
     assertRegistryObservations(authority, observations);
 
+    const runtimeObservation = authority.cohort.schemaVersion === 3
+      ? observeQualificationRuntime()
+      : undefined;
     const npmRoot = join(temporaryRoot, "npm-three-root");
     const pnpmRoot = join(temporaryRoot, "pnpm-three-root");
-    const npmInstall = await installConsumer(npmRoot, authority, "npm");
-    const pnpmInstall = await installConsumer(pnpmRoot, authority, "pnpm");
+    const npmInstall = await installConsumer(npmRoot, authority, "npm", runtimeObservation);
+    const pnpmInstall = await installConsumer(pnpmRoot, authority, "pnpm", runtimeObservation);
     const supportingReleasePrecondition = await qualifySupportingMcp(
       join(temporaryRoot, "npm-supporting-mcp"), authority, supportingMcpCoordinateValue,
     );
@@ -346,7 +369,7 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
       },
     ];
     const receipt = finalizeCanaryReceipt({
-      schemaVersion: 1,
+      schemaVersion: authority.cohort.schemaVersion === 3 ? 2 : 1,
       run,
       authority: {
         central: authority.central,
@@ -356,7 +379,12 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
       },
       packages,
       supportingReleasePrecondition,
-      installs: [npmInstall.receipt, pnpmInstall.receipt],
+      installs: [
+        npmInstall.receipt,
+        authority.cohort.schemaVersion === 3
+          ? { ...pnpmInstall.receipt, runtimeObservation }
+          : pnpmInstall.receipt,
+      ],
       portableNegative: portable,
       managedQualification: qualification,
       hostile,

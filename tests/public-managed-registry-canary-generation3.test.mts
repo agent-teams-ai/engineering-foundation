@@ -6,15 +6,22 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify } from "yaml";
 
 import {
+  observeDocsProtocolQualificationV3Lockfile,
   runDocsProtocolQualificationV3,
   type DocsProtocolQualificationCohortV3Receipt,
   type DocsProtocolQualificationReceiptV3,
 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
+import {
+  createDocsProtocolQualificationV3
+} from "../packages/docs-protocol-agent-teams/dist/qualification/application/use-cases/qualify-v3.js";
+import { parsePackedManagedRuntimePolicy } from
+  "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
 import { assertQualificationReceiptDigest } from "../scripts/public-managed-registry-canary.mjs";
 import {
   cohortV3QualificationChecks,
   descriptors,
   legacyQualificationChecks,
+  digest,
   legacyQualificationFixture,
   integrity,
   sha256,
@@ -76,6 +83,26 @@ type ErrorExpectation = RegExp | {
   readonly name: string;
 };
 
+function isReceiptSchema(value: unknown): value is ReceiptSchema {
+  if (value === null || typeof value !== "object" ||
+    !Object.hasOwn(value, "$id") || !Object.hasOwn(value, "properties")) {
+    return false;
+  }
+  const candidate: Record<string, unknown> = { ...value };
+  return typeof candidate["$id"] === "string" &&
+    candidate["properties"] !== null &&
+    typeof candidate["properties"] === "object" &&
+    !Array.isArray(candidate["properties"]);
+}
+
+function parseReceiptSchema(source: string): ReceiptSchema {
+  const value: unknown = JSON.parse(source);
+  if (!isReceiptSchema(value)) {
+    throw new TypeError("Receipt schema identity is invalid.");
+  }
+  return value;
+}
+
 function mutableSuccessorFixture(value: SuccessorQualificationFixture): MutableSuccessorFixture {
   return value as unknown as MutableSuccessorFixture;
 }
@@ -99,6 +126,14 @@ function qualify(value: QualificationCrossing) {
 }
 
 test("Host overload preserves generation2 and emits the closed generation3 qualification receipt", async () => {
+  const oldSchemaSource = await readFile(new URL(
+    "../architecture/foundation/schemas/public-managed-registry-canary-receipt-v1.schema.json",
+    import.meta.url,
+  ), "utf8");
+  assert.equal(digest(oldSchemaSource), "sha256:6c3e8e5207a31e3cdc8e565ec690acdab26b0aaf1b1a40ef5fc485c2deaf6f2a");
+  assert.equal(parseReceiptSchema(oldSchemaSource).$id,
+    "https://agent-teams.dev/schemas/public-managed-registry-canary-receipt-v1.schema.json");
+
   const legacy = legacyQualificationFixture();
   const legacyReceipt = qualify(legacy);
   assert.equal(legacyReceipt.schemaVersion, 3);
@@ -185,10 +220,10 @@ test("Host overload preserves generation2 and emits the closed generation3 quali
       ["docs-protocol-profile/v1.schema.json", "https://agent-teams.ai/schemas/docs-protocol-profile/v1"],
     ] as const;
     for (const [path, id] of schemaPaths) {
-      const schema = JSON.parse(await readFile(
+      const schema = parseReceiptSchema(await readFile(
         new URL(`../packages/docs-protocol-agent-teams/schemas/${path}`, import.meta.url),
         "utf8",
-      )) as ReceiptSchema;
+      ));
       assert.equal(schema.$id, id);
       if (path.startsWith("docs-protocol-cohort-v3-qualification-receipt/")) {
         assert.deepEqual(Object.keys(schema.properties).toSorted(), Object.keys(receipt).toSorted());
@@ -205,7 +240,7 @@ test("Host overload preserves generation2 and emits the closed generation3 quali
   }
 });
 
-test("Host qualification rejects mixed generations and evidence drift at their actual boundaries", () => {
+test("Host qualification rejects mixed generations and evidence drift at their actual boundaries", async () => {
   const legacy = legacyQualificationFixture();
   const successor = successorQualificationFixture();
   assert.throws(() => qualify({
@@ -260,6 +295,48 @@ test("Host qualification rejects mixed generations and evidence drift at their a
     mutation(candidate);
     assert.throws(() => qualify(candidate), message);
   }
+
+  const [policySchemaSource, policyAssetSource] = await Promise.all([
+    readFile(new URL(
+      "../packages/docs-protocol-agent-teams/schemas/managed-runtime-policy/v1.schema.json",
+      import.meta.url,
+    ), "utf8"),
+    readFile(new URL(
+      "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
+      import.meta.url,
+    ), "utf8"),
+  ]);
+  const packedPolicy = parsePackedManagedRuntimePolicy(policySchemaSource, policyAssetSource);
+  const wrongPnpmRuntime = {
+    nodeVersion: process.versions.node,
+    pnpmVersion: "11.19.0",
+    platform: process.platform,
+    architecture: process.arch,
+  };
+  const qualifyWrongPnpm = createDocsProtocolQualificationV3(
+    (request) => {
+      if (request.profile.schemaVersion === 3) {
+        return observeDocsProtocolQualificationV3Lockfile({
+          profile: request.profile,
+          lockfileBytes: request.lockfileBytes,
+        });
+      }
+      return observeDocsProtocolQualificationV3Lockfile({
+        profile: request.profile,
+        lockfileBytes: request.lockfileBytes,
+      });
+    },
+    () => wrongPnpmRuntime,
+    () => packedPolicy,
+  );
+  assert.throws(
+    () => qualifyWrongPnpm({
+      profile: successor.profile,
+      evidence: successor.evidence,
+      lockfileBytes: successor.lockfileBytes,
+    }),
+    /Qualification Cohort v3 observed Node runtime mismatch\./u,
+  );
 
   const legacyDrift: LegacyQualificationFixture = {
     ...legacy,

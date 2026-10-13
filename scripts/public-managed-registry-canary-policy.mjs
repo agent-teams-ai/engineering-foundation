@@ -146,6 +146,20 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
+function expectedCanaryReceiptSchemaVersion(receipt) {
+  const cohortSchemaVersion = receipt?.authority?.cohort?.schemaVersion;
+  if (cohortSchemaVersion === 2) { return 1; }
+  if (cohortSchemaVersion === 3) { return 2; }
+  fail("receipt generation must correspond to Cohort v2 or Cohort v3");
+}
+
+function assertCanaryReceiptGeneration(receipt) {
+  const expected = expectedCanaryReceiptSchemaVersion(receipt);
+  if (receipt?.schemaVersion !== expected) {
+    fail(`receipt schemaVersion must be ${expected} for its Cohort generation`);
+  }
+}
+
 export function canonicalReceiptDigest(receiptWithoutDigest) {
   return `sha256:${createHash("sha256").update(canonicalJson(receiptWithoutDigest)).digest("hex")}`;
 }
@@ -469,7 +483,8 @@ export function hostilePolicyMatrix(authority) {
 }
 
 export function finalizeCanaryReceipt(body) {
-  // The reusable receipt schema owns shape; this release-owned boundary owns identity.
+  // The reusable receipt schemas own shape; this boundary owns generation and identity.
+  assertCanaryReceiptGeneration(body);
   const supporting = body.supportingReleasePrecondition;
   const coordinate = supportingMcpCoordinate({
     "dist-tags": { latest: supporting?.package?.latest },
@@ -485,6 +500,7 @@ export function finalizeCanaryReceipt(body) {
 }
 
 export function assertCanaryReceiptDigest(receipt) {
+  assertCanaryReceiptGeneration(receipt);
   const { receiptDigest, ...body } = receipt;
   if (receiptDigest !== canonicalReceiptDigest(body)) {
     fail("receipt digest does not match canonical receipt body");

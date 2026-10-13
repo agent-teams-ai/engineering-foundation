@@ -16,8 +16,10 @@ import type {
   QualificationProfileV2,
   QualificationProfileV3,
   Repository,
+  RuntimeObservation,
   SchemaCase,
 } from "./public-managed-registry-canary-qualification-types.mts";
+import { assertCohortV3Consistency } from "./public-managed-registry-canary-runtime-policy.mts";
 
 const adapterSegments: readonly string[] = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
 const commandTimeout = 240_000;
@@ -293,6 +295,7 @@ function qualificationProgramV3(
   lockfileEvidence: LockfileEvidence,
   evidence: JsonRecord,
   expectedRuntime: CohortV3Authority["runtime"],
+  runtimeObservation: RuntimeObservation,
 ): string {
   return [
     "import { createHash } from 'node:crypto';",
@@ -300,13 +303,13 @@ function qualificationProgramV3(
     ...lockfileCapture(lockfileEvidence),
     "const { canonicalDocsScriptsDigest, canonicalManagedRoute, canonicalManagedState, describeCanonicalConsumerAssets } = await import('@agent-teams/docs-protocol-agent-teams');",
     "const { observeDocsProtocolQualificationV3Lockfile, runDocsProtocolQualificationV3 } = await import('@agent-teams/docs-protocol-agent-teams/qualification');",
-    "const observedRuntime = { nodeVersion: process.versions.node, platform: process.platform, architecture: process.arch };",
-    `const expectedQualificationRuntime = ${JSON.stringify(expectedRuntime.qualificationRuntime)};`,
-    "if (observedRuntime.nodeVersion !== expectedQualificationRuntime.nodeVersion || observedRuntime.platform !== expectedQualificationRuntime.platform || observedRuntime.architecture !== expectedQualificationRuntime.architecture) throw new Error('Installed private process runtime differs from Cohort authority.');",
+    `const expectedHostRuntime = ${JSON.stringify(runtimeObservation)};`,
     "const observed = observeDocsProtocolQualificationV3Lockfile({ profile: authorityProfile, lockfileBytes: exactLockfileBytes() });",
     `if (observed.runtimeClosureDigest !== ${JSON.stringify(expectedRuntime.runtimeClosure.digest)}) throw new Error('Observed runtime closure differs from Cohort authority.');`,
     `const evidence = ${JSON.stringify(evidence)};`,
     "const receipt = runDocsProtocolQualificationV3({ profile: authorityProfile, evidence, lockfileBytes: exactLockfileBytes() });",
+    "const observedRuntime = receipt.runtime.qualificationRuntime;",
+    "if (JSON.stringify(observedRuntime) !== JSON.stringify(expectedHostRuntime)) throw new Error('Qualification receipt differs from the pre-install runtime observation.');",
     "const canonical = describeCanonicalConsumerAssets(authorityProfile.cohort);",
     "const routeDigest = `sha256:${createHash('sha256').update(canonicalManagedRoute(authorityProfile.skillPath)).digest('hex')}`;",
     "const assets = { ...canonical, agentsRouteDigest: routeDigest, docsScriptsDigest: canonicalDocsScriptsDigest(authorityProfile.profilePath) };",
@@ -364,55 +367,6 @@ export async function managedQualificationCohortV2(
   });
 }
 
-function expectedReceiptPackages(authority: Authority): readonly JsonRecord[] {
-  return authority.coordinates.map(({ key, name, version, integrity }) => ({
-    key,
-    name,
-    version,
-    integrity,
-  }));
-}
-
-function assertCohortV3Consistency(
-  output: JsonRecord,
-  cohort: CohortV3Authority,
-  evidence: JsonRecord,
-  expectedPackages: readonly JsonRecord[],
-  managedStateValue: ManagedState,
-): void {
-  const observed = record(output.observed, "Managed Cohort v3 observed evidence");
-  const observedRuntime = record(output.observedRuntime, "Managed Cohort v3 process runtime");
-  const receipt = record(output.receipt, "Managed Cohort v3 receipt");
-  const expectedReceiptRuntime = {
-    selectedLane: cohort.runtime.selectedLane,
-    node: cohort.runtime.node,
-    pnpm: cohort.runtime.pnpm,
-    qualificationRuntime: cohort.runtime.qualificationRuntime,
-    runtimeClosure: {
-      domain: cohort.runtime.runtimeClosure.domain,
-      digest: observed.runtimeClosureDigest,
-    },
-  };
-  if (observed.runtimeClosureDigest !== cohort.runtime.runtimeClosure.digest ||
-      observedRuntime.nodeVersion !== cohort.runtime.qualificationRuntime.nodeVersion ||
-      observedRuntime.platform !== cohort.runtime.qualificationRuntime.platform ||
-      observedRuntime.architecture !== cohort.runtime.qualificationRuntime.architecture ||
-      canonicalJson(receipt.cohort) !== canonicalJson({
-        schemaVersion: 3,
-        cohortId: cohort.cohortId,
-        recordDigest: cohort.recordDigest,
-        qualificationEventDigest: cohort.qualificationEventDigest,
-        candidateDigest: cohort.candidateDigest,
-      }) ||
-      canonicalJson(receipt.packages) !== canonicalJson(expectedPackages) ||
-      canonicalJson(receipt.schemas) !== canonicalJson(evidence.schemas) ||
-      canonicalJson(receipt.policy) !== canonicalJson(evidence.policy) ||
-      canonicalJson(receipt.runtime) !== canonicalJson(expectedReceiptRuntime) ||
-      managedStateValue.schemaVersion !== 3) {
-    throw new Error("Managed Cohort v3 qualification evidence is internally inconsistent.");
-  }
-}
-
 export async function managedQualificationCohortV3(
   root: string,
   authority: Authority,
@@ -420,6 +374,14 @@ export async function managedQualificationCohortV3(
   { observedPackages, lockfileEvidence }: ManagedQualificationRequest,
   ports: QualificationHostPorts,
 ): Promise<JsonRecord> {
+  const observedRuntime = lockfileEvidence.runtimeObservation;
+  if (observedRuntime === undefined ||
+      observedRuntime.nodeVersion !== "26.11.1" ||
+      observedRuntime.pnpmVersion !== "11.20.0" ||
+      observedRuntime.platform !== "linux" ||
+      observedRuntime.architecture !== "x64") {
+    throw new Error("Pre-install runtime observation is not the exact qualified tuple.");
+  }
   if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {
     throw new Error("Captured pnpm lockfile bytes differ from install receipt digest.");
   }
@@ -450,6 +412,12 @@ export async function managedQualificationCohortV3(
       expectedRuntime.runtimeClosure.domain !== "agent-teams.docs-runtime-closure/v2") {
     throw new Error("Cohort v3 policy/runtime authority is not the exact qualified Node 26 tuple.");
   }
+  const runtimeObservation: RuntimeObservation = Object.freeze({
+    nodeVersion: observedRuntime.nodeVersion,
+    pnpmVersion: observedRuntime.pnpmVersion,
+    platform: observedRuntime.platform,
+    architecture: observedRuntime.architecture,
+  });
   const authorityProfile = qualificationProfileCohortV3(cohort, repository);
   const evidence = Object.freeze({
     cohort: Object.freeze({
@@ -474,11 +442,17 @@ export async function managedQualificationCohortV3(
       selectedLane: expectedRuntime.selectedLane,
       node: expectedRuntime.node,
       pnpm: expectedRuntime.pnpm,
-      qualificationRuntime: Object.freeze({ ...expectedRuntime.qualificationRuntime }),
+      qualificationRuntime: Object.freeze({ ...runtimeObservation }),
       runtimeClosureDigest: expectedRuntime.runtimeClosure.digest,
     }),
   });
-  const program = qualificationProgramV3(authorityProfile, lockfileEvidence, evidence, expectedRuntime);
+  const program = qualificationProgramV3(
+    authorityProfile,
+    lockfileEvidence,
+    evidence,
+    expectedRuntime,
+    runtimeObservation,
+  );
   const result = await ports.run(process.execPath, ["--input-type=module", "--eval", program], root, { timeoutMs: commandTimeout });
   const output = record(ports.parseJson(result.stdout), "Managed Cohort v3 qualification output");
   const receipt = record(output.receipt, "Managed Cohort v3 receipt");
@@ -489,15 +463,22 @@ export async function managedQualificationCohortV3(
     authorityProfile,
     ports,
   );
-  assertCohortV3Consistency(
-    { ...output, receipt },
+  assertCohortV3Consistency({
+    output: { ...output, receipt },
     cohort,
     evidence,
-    Object.freeze(expectedReceiptPackages(authority)),
+    expectedPackages: Object.freeze(authority.coordinates.map(({ key, name, version, integrity }) => ({
+      key,
+      name,
+      version,
+      integrity,
+    }))),
     managedStateValue,
-  );
+    runtimeObservation,
+  });
   return Object.freeze({
     actualRuntimeClosureDigest: record(output.observed, "Managed Cohort v3 observed evidence").runtimeClosureDigest,
+    runtimeObservation: Object.freeze({ ...runtimeObservation }),
     managedState: Object.freeze({
       schemaVersion: 3,
       schemaValidated: true,

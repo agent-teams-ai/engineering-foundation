@@ -1,13 +1,26 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 
+import { createNodeDocsProtocolQualificationRuntimeObserver } from
+  "../packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-qualification-runtime.ts";
+import type {
+  CohortV3Consistency,
+  QualificationRuntime,
+  RuntimeObservation,
+} from "./public-managed-registry-canary-qualification-types.mts";
+
 type JsonRecord = Record<string, unknown>;
 
-type QualificationRuntime = Readonly<{
-  nodeVersion: string;
-  pnpmVersion: string;
-  platform: string;
-  architecture: string;
-}>;
+const observeNodeQualificationRuntime = createNodeDocsProtocolQualificationRuntimeObserver();
+
+export function observeQualificationRuntime(): RuntimeObservation {
+  const observed = observeNodeQualificationRuntime();
+  return {
+    nodeVersion: observed.nodeVersion,
+    ...(observed.pnpmVersion === undefined ? {} : { pnpmVersion: observed.pnpmVersion }),
+    platform: observed.platform,
+    architecture: observed.architecture,
+  };
+}
 
 type RuntimeLane = Readonly<{
   node: string;
@@ -76,6 +89,49 @@ function canonicalJson(value: unknown): string {
       .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+export function assertCohortV3Consistency({
+  output,
+  cohort,
+  evidence,
+  expectedPackages,
+  managedStateValue,
+  runtimeObservation,
+}: CohortV3Consistency): void {
+  const observed = record(output.observed, "Managed Cohort v3 observed evidence");
+  const observedRuntime = record(output.observedRuntime, "Managed Cohort v3 process runtime");
+  const receipt = record(output.receipt, "Managed Cohort v3 receipt");
+  const expectedReceiptRuntime = {
+    selectedLane: cohort.runtime.selectedLane,
+    node: cohort.runtime.node,
+    pnpm: cohort.runtime.pnpm,
+    qualificationRuntime: runtimeObservation,
+    runtimeClosure: {
+      domain: cohort.runtime.runtimeClosure.domain,
+      digest: observed.runtimeClosureDigest,
+    },
+  };
+  if (observed.runtimeClosureDigest !== cohort.runtime.runtimeClosure.digest ||
+      canonicalJson(observedRuntime) !== canonicalJson(runtimeObservation) ||
+      runtimeObservation.nodeVersion !== "26.11.1" ||
+      runtimeObservation.pnpmVersion !== "11.20.0" ||
+      runtimeObservation.platform !== "linux" ||
+      runtimeObservation.architecture !== "x64" ||
+      canonicalJson(receipt.cohort) !== canonicalJson({
+        schemaVersion: 3,
+        cohortId: cohort.cohortId,
+        recordDigest: cohort.recordDigest,
+        qualificationEventDigest: cohort.qualificationEventDigest,
+        candidateDigest: cohort.candidateDigest,
+      }) ||
+      canonicalJson(receipt.packages) !== canonicalJson(expectedPackages) ||
+      canonicalJson(receipt.schemas) !== canonicalJson(evidence.schemas) ||
+      canonicalJson(receipt.policy) !== canonicalJson(evidence.policy) ||
+      canonicalJson(receipt.runtime) !== canonicalJson(expectedReceiptRuntime) ||
+      managedStateValue.schemaVersion !== 3) {
+    throw new Error("Managed Cohort v3 qualification evidence is internally inconsistent.");
+  }
 }
 
 function normalizedShape(value: unknown, validateSchema: (value: unknown) => void): JsonRecord {

@@ -288,6 +288,7 @@ export const createRequestFixture = (
 export const request = createRequestFixture(policy);
 export const exactRuntime: DocsProtocolQualificationRuntimeObservation = {
   nodeVersion: "26.11.1",
+  pnpmVersion: "11.20.0",
   platform: "linux",
   architecture: "x64"
 };

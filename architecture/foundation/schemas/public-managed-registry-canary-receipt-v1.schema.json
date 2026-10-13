@@ -5,20 +5,6 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "run", "authority", "packages", "supportingReleasePrecondition", "installs", "portableNegative", "managedQualification", "hostile", "receiptDigest"],
-  "oneOf": [
-    {
-      "properties": {
-        "authority": { "type": "object", "properties": { "cohort": { "$ref": "#/$defs/cohort" } } },
-        "managedQualification": { "$ref": "#/$defs/legacyManagedQualification" }
-      }
-    },
-    {
-      "properties": {
-        "authority": { "type": "object", "properties": { "cohort": { "$ref": "#/$defs/cohort3" } } },
-        "managedQualification": { "$ref": "#/$defs/cohort3ManagedQualification" }
-      }
-    }
-  ],
   "properties": {
     "schemaVersion": { "const": 1 },
     "run": {
@@ -48,12 +34,7 @@
             "revision": { "$ref": "#/$defs/commit" }
           }
         },
-        "cohort": {
-          "oneOf": [
-            { "$ref": "#/$defs/cohort" },
-            { "$ref": "#/$defs/cohort3" }
-          ]
-        },
+        "cohort": { "$ref": "#/$defs/cohort" },
         "expectedCommit": { "$ref": "#/$defs/commit" },
         "registry": { "const": "https://registry.npmjs.org/" }
       }
@@ -153,10 +134,35 @@
       }
     },
     "managedQualification": {
-      "oneOf": [
-        { "$ref": "#/$defs/legacyManagedQualification" },
-        { "$ref": "#/$defs/cohort3ManagedQualification" }
-      ]
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actualRuntimeClosureDigest", "managedState", "qualificationReceipt", "schemaEvidence"],
+      "properties": {
+        "actualRuntimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" },
+        "managedState": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "schemaValidated", "serialization", "stateDigest"],
+          "properties": {
+            "schemaVersion": { "const": 2 },
+            "schemaValidated": { "const": true },
+            "serialization": { "type": "string", "pattern": "^\\{.*\\}\\n$" },
+            "stateDigest": { "$ref": "#/$defs/nonzeroSha256" }
+          }
+        },
+        "qualificationReceipt": { "$ref": "#/$defs/qualificationReceipt" },
+        "schemaEvidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["consumerIntegration", "managedState", "docsProtocol", "validated"],
+          "properties": {
+            "consumerIntegration": { "const": 3 },
+            "managedState": { "const": 2 },
+            "docsProtocol": { "const": 1 },
+            "validated": { "const": true }
+          }
+        }
+      }
     },
     "hostile": {
       "type": "array",
@@ -353,304 +359,6 @@
           "items": false
         }
       }
-    },
-    "legacyManagedQualification": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["actualRuntimeClosureDigest", "managedState", "qualificationReceipt", "schemaEvidence"],
-      "properties": {
-        "actualRuntimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" },
-        "managedState": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["schemaVersion", "schemaValidated", "serialization", "stateDigest"],
-          "properties": {
-            "schemaVersion": { "const": 2 },
-            "schemaValidated": { "const": true },
-            "serialization": { "type": "string", "pattern": "^\\{.*\\}\\n$" },
-            "stateDigest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        },
-        "qualificationReceipt": { "$ref": "#/$defs/qualificationReceipt" },
-        "schemaEvidence": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["consumerIntegration", "managedState", "docsProtocol", "validated"],
-          "properties": {
-            "consumerIntegration": { "const": 3 },
-            "managedState": { "const": 2 },
-            "docsProtocol": { "const": 1 },
-            "validated": { "const": true }
-          }
-        }
-      }
-    },
-    "cohort3ManagedQualification": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["actualRuntimeClosureDigest", "managedState", "qualificationReceipt", "schemaEvidence"],
-      "properties": {
-        "actualRuntimeClosureDigest": { "$ref": "#/$defs/nonzeroSha256" },
-        "managedState": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["schemaVersion", "schemaValidated", "serialization", "stateDigest"],
-          "properties": {
-            "schemaVersion": { "const": 3 },
-            "schemaValidated": { "const": true },
-            "serialization": { "type": "string", "pattern": "^\\{.*\\}\\n$" },
-            "stateDigest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        },
-        "qualificationReceipt": { "$ref": "#/$defs/cohort3QualificationReceipt" },
-        "schemaEvidence": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol", "validated"],
-          "properties": {
-            "consumerIntegration": { "const": 4 },
-            "managedState": { "const": 3 },
-            "qualificationReceipt": { "const": 1 },
-            "docsProtocol": { "const": 1 },
-            "validated": { "const": true }
-          }
-        }
-      }
-    },
-    "cohort3": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest", "eligibleAfter", "upgradeFrom", "rollbackTo", "candidateDigest", "packages", "workflow", "assets", "schemas", "runtime"],
-      "properties": {
-        "schemaVersion": { "const": 3 },
-        "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
-        "channel": { "enum": ["rc", "stable"] },
-        "recordDigest": { "$ref": "#/$defs/nonzeroSha256" },
-        "qualificationEventDigest": { "$ref": "#/$defs/nonzeroSha256" },
-        "eligibleAfter": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
-        "upgradeFrom": { "$ref": "#/$defs/cohort3Ids" },
-        "rollbackTo": { "$ref": "#/$defs/cohort3Ids" },
-        "candidateDigest": { "$ref": "#/$defs/nonzeroSha256" },
-        "packages": { "$ref": "#/$defs/cohort3Packages" },
-        "workflow": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["repository", "path", "revision", "blobSha"],
-          "properties": {
-            "repository": { "const": "agent-teams-ai/.github" },
-            "path": { "const": ".github/workflows/docs-protocol-check.yml" },
-            "revision": { "$ref": "#/$defs/commit" },
-            "blobSha": { "$ref": "#/$defs/commit" }
-          }
-        },
-        "assets": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"],
-          "properties": {
-            "skillDigest": { "$ref": "#/$defs/nonzeroSha256" },
-            "callerWorkflowDigest": { "$ref": "#/$defs/nonzeroSha256" },
-            "assetCatalogDigest": { "$ref": "#/$defs/nonzeroSha256" },
-            "transitionCatalogDigest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        },
-        "schemas": { "$ref": "#/$defs/cohort3Schemas" },
-        "runtime": { "$ref": "#/$defs/cohort3Runtime" }
-      }
-    },
-    "cohort3Ids": {
-      "type": "array",
-      "minItems": 1,
-      "maxItems": 32,
-      "uniqueItems": true,
-      "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" }
-    },
-    "cohort3Packages": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["repositoryMutation", "documentAuthoring", "docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"],
-      "properties": {
-        "repositoryMutation": { "$ref": "#/$defs/coordinate" },
-        "documentAuthoring": { "$ref": "#/$defs/coordinate" },
-        "docsProtocol": { "$ref": "#/$defs/coordinate" },
-        "docsProtocolAgentTeams": { "$ref": "#/$defs/coordinate" },
-        "engineeringFoundation": { "$ref": "#/$defs/coordinate" }
-      }
-    },
-    "cohort3Schemas": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"],
-      "properties": {
-        "consumerIntegration": { "const": 4 },
-        "managedState": { "const": 3 },
-        "qualificationReceipt": { "const": 1 },
-        "docsProtocol": { "const": 1 }
-      }
-    },
-    "cohort3Runtime": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["policy", "selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"],
-      "properties": {
-        "policy": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["id", "version", "digest"],
-          "properties": {
-            "id": { "const": "agent-teams.docs-protocol-current-policy" },
-            "version": { "const": "3.0.0" },
-            "digest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        },
-        "selectedLane": { "const": "node-26-managed-qualified" },
-        "node": { "const": ">=26.0.0 <27" },
-        "pnpm": { "const": ">=11.17.0 <12" },
-        "qualificationRuntime": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["nodeVersion", "pnpmVersion", "platform", "architecture"],
-          "properties": {
-            "nodeVersion": { "const": "26.11.1" },
-            "pnpmVersion": { "const": "11.20.0" },
-            "platform": { "const": "linux" },
-            "architecture": { "const": "x64" }
-          }
-        },
-        "runtimeClosure": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["domain", "digest"],
-          "properties": {
-            "domain": { "const": "agent-teams.docs-runtime-closure/v2" },
-            "digest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        }
-      }
-    },
-    "cohort3QualificationReceipt": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schemaVersion", "namespace", "receiptDigest", "cohortAdmissible", "profileSchemaVersion", "cohort", "packages", "schemas", "policy", "runtime", "checks"],
-      "properties": {
-        "schemaVersion": { "const": 1 },
-        "namespace": { "const": "docs-protocol-cohort-v3-qualification-receipt/v1" },
-        "receiptDigest": { "$ref": "#/$defs/nonzeroSha256" },
-        "cohortAdmissible": { "const": true },
-        "profileSchemaVersion": { "const": 4 },
-        "cohort": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["schemaVersion", "cohortId", "recordDigest", "qualificationEventDigest", "candidateDigest"],
-          "properties": {
-            "schemaVersion": { "const": 3 },
-            "cohortId": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
-            "recordDigest": { "$ref": "#/$defs/nonzeroSha256" },
-            "qualificationEventDigest": { "$ref": "#/$defs/nonzeroSha256" },
-            "candidateDigest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        },
-        "packages": {
-          "type": "array",
-          "minItems": 5,
-          "maxItems": 5,
-          "prefixItems": [
-            { "$ref": "#/$defs/cohort3QualificationRepositoryMutation" },
-            { "$ref": "#/$defs/cohort3QualificationDocumentAuthoring" },
-            { "$ref": "#/$defs/cohort3QualificationDocsProtocol" },
-            { "$ref": "#/$defs/cohort3QualificationDocsProtocolAgentTeams" },
-            { "$ref": "#/$defs/cohort3QualificationEngineeringFoundation" }
-          ],
-          "items": false
-        },
-        "schemas": { "$ref": "#/$defs/cohort3QualificationSchemas" },
-        "policy": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["id", "version", "sourceDigest"],
-          "properties": {
-            "id": { "const": "agent-teams.docs-protocol-current-policy" },
-            "version": { "const": "3.0.0" },
-            "sourceDigest": { "$ref": "#/$defs/nonzeroSha256" }
-          }
-        },
-        "runtime": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"],
-          "properties": {
-            "selectedLane": { "const": "node-26-managed-qualified" },
-            "node": { "const": ">=26.0.0 <27" },
-            "pnpm": { "const": ">=11.17.0 <12" },
-            "qualificationRuntime": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["nodeVersion", "pnpmVersion", "platform", "architecture"],
-              "properties": {
-                "nodeVersion": { "const": "26.11.1" },
-                "pnpmVersion": { "const": "11.20.0" },
-                "platform": { "const": "linux" },
-                "architecture": { "const": "x64" }
-              }
-            },
-            "runtimeClosure": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["domain", "digest"],
-              "properties": {
-                "domain": { "const": "agent-teams.docs-runtime-closure/v2" },
-                "digest": { "$ref": "#/$defs/nonzeroSha256" }
-              }
-            }
-          }
-        },
-        "checks": {
-          "type": "array",
-          "minItems": 11,
-          "maxItems": 11,
-          "prefixItems": [
-            { "const": "profile-v4" },
-            { "const": "cohort-v3" },
-            { "const": "cohort-assets" },
-            { "const": "five-package-closure" },
-            { "const": "exact-package-versions" },
-            { "const": "exact-package-integrities" },
-            { "const": "schema-bindings-4-3-1-qualification-receipt-1" },
-            { "const": "runtime-closure-digest" },
-            { "const": "policy-identity-source-digest" },
-            { "const": "selected-lane-runtime" },
-            { "const": "observed-node-runtime" }
-          ],
-          "items": false
-        }
-      }
-    },
-    "cohort3QualificationSchemas": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"],
-      "properties": {
-        "consumerIntegration": { "const": 4 },
-        "managedState": { "const": 3 },
-        "qualificationReceipt": { "const": 1 },
-        "docsProtocol": { "const": 1 }
-      }
-    },
-    "cohort3QualificationPackage": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["key", "name", "version", "integrity"],
-      "properties": {
-        "key": { "type": "string" },
-        "name": { "type": "string" },
-        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
-        "integrity": { "type": "string", "pattern": "^sha512-[A-Za-z0-9+/]{86}==$" }
-      }
-    },
-    "cohort3QualificationRepositoryMutation": { "allOf": [{ "$ref": "#/$defs/cohort3QualificationPackage" }, { "type": "object", "properties": { "key": { "const": "repositoryMutation" }, "name": { "const": "@agent-teams/repository-mutation" } } }] },
-    "cohort3QualificationDocumentAuthoring": { "allOf": [{ "$ref": "#/$defs/cohort3QualificationPackage" }, { "type": "object", "properties": { "key": { "const": "documentAuthoring" }, "name": { "const": "@agent-teams/document-authoring" } } }] },
-    "cohort3QualificationDocsProtocol": { "allOf": [{ "$ref": "#/$defs/cohort3QualificationPackage" }, { "type": "object", "properties": { "key": { "const": "docsProtocol" }, "name": { "const": "@agent-teams/docs-protocol" } } }] },
-    "cohort3QualificationDocsProtocolAgentTeams": { "allOf": [{ "$ref": "#/$defs/cohort3QualificationPackage" }, { "type": "object", "properties": { "key": { "const": "docsProtocolAgentTeams" }, "name": { "const": "@agent-teams/docs-protocol-agent-teams" } } }] },
-    "cohort3QualificationEngineeringFoundation": { "allOf": [{ "$ref": "#/$defs/cohort3QualificationPackage" }, { "type": "object", "properties": { "key": { "const": "engineeringFoundation" }, "name": { "const": "@agent-teams/engineering-foundation" } } }] }
+    }
   }
 }

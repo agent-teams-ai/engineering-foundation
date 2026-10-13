@@ -180,6 +180,7 @@ export interface DocsProtocolQualificationCohortV3Receipt {
 
 export interface DocsProtocolQualificationRuntimeObservation {
   readonly nodeVersion: string;
+  readonly pnpmVersion?: string;
   readonly platform: string;
   readonly architecture: string;
 }

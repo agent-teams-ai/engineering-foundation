@@ -116,6 +116,7 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       boundaries: ["docs-protocol-agent-teams.qualification.application"],
       packages: [docsProtocolName, "ajv", "jsonc-parser", "yaml"],
       builtins: [
+        "node:child_process",
         "node:crypto", "node:fs", "node:fs/promises", "node:os", "node:path",
         "node:url", "node:util", "node:zlib",
       ],

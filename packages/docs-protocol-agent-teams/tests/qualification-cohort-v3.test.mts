@@ -78,8 +78,23 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
     () => exactRuntime,
     () => actualPolicy
   );
-  const observed = createNodeDocsProtocolQualificationRuntimeObserver()();
+  const observeCurrent = createNodeDocsProtocolQualificationRuntimeObserver();
+  let observed: DocsProtocolQualificationRuntimeObservation;
+  try {
+    observed = observeCurrent();
+  } catch (error) {
+    assert.equal(process.versions.node, exactRuntime.nodeVersion);
+    assert.equal(process.platform, exactRuntime.platform);
+    assert.equal(process.arch, exactRuntime.architecture);
+    assert.match(String(error), /could not observe the resolved pnpm executable/u);
+    assert.throws(
+      () => runDocsProtocolQualificationV3(publicRequest),
+      /could not observe the resolved pnpm executable/u
+    );
+    return;
+  }
   const isExactRuntime = observed.nodeVersion === exactRuntime.nodeVersion &&
+    observed.pnpmVersion === exactRuntime.pnpmVersion &&
     observed.platform === exactRuntime.platform &&
     observed.architecture === exactRuntime.architecture;
   assert.notEqual(runDocsProtocolQualificationV3, qualification);
@@ -111,6 +126,9 @@ test("real process observer reflects the current process and fake injection rema
   assert.equal(observed.nodeVersion, process.versions.node);
   assert.equal(observed.platform, process.platform);
   assert.equal(observed.architecture, process.arch);
+  if (observed.pnpmVersion !== undefined) {
+    assert.equal(observed.pnpmVersion, exactRuntime.pnpmVersion);
+  }
 
   let fakeCalls = 0;
   const fakeRuntime: DocsProtocolQualificationRuntimeObservation = { ...exactRuntime };
@@ -364,10 +382,17 @@ test("real process observer refuses caller-spoofed runtime and declared profile 
   }), observePackedPolicy);
   assert.throws(() => wrongObserver(request), /observed Node runtime mismatch/u);
   const wrongPlatform = createDocsProtocolQualificationV3(observeLockfile, () => ({
-    ...exactRuntime,
-    platform: "macos"
+    nodeVersion: "26.11.1",
+    platform: "macos",
+    architecture: "x64"
   }), observePackedPolicy);
   assert.throws(() => wrongPlatform(request), /observed Node runtime mismatch/u);
+  const missingPnpm = createDocsProtocolQualificationV3(observeLockfile, () => ({
+    nodeVersion: "26.11.1",
+    platform: "linux",
+    architecture: "x64"
+  }), observePackedPolicy);
+  assert.throws(() => missingPnpm(request), /observed Node runtime mismatch/u);
 });
 
 test("Gen3 rejects mixed generations, schemas and package coordinates", () => {

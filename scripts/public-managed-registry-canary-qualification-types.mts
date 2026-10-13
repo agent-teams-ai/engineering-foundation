@@ -20,6 +20,13 @@ export type Coordinate = Readonly<{
   integrity: string;
 }>;
 
+export type RuntimeObservation = Readonly<{
+  nodeVersion: string;
+  pnpmVersion?: string;
+  platform: string;
+  architecture: string;
+}>;
+
 export type QualificationRuntime = Readonly<{
   nodeVersion: string;
   pnpmVersion: string;
@@ -61,6 +68,7 @@ export type Authority = Readonly<{
 export type LockfileEvidence = Readonly<{
   lockfileBytes: Buffer;
   receipt: Readonly<{ lockfileDigest: string }>;
+  runtimeObservation?: RuntimeObservation | undefined;
 }>;
 
 export type ManagedQualificationRequest = Readonly<{
@@ -98,6 +106,15 @@ export type QualificationProfileV3 = Readonly<{
 export type ManagedState = JsonRecord & Readonly<{
   schemaVersion: number;
   stateDigest: string;
+}>;
+
+export type CohortV3Consistency = Readonly<{
+  output: JsonRecord;
+  cohort: CohortV3Authority;
+  evidence: JsonRecord;
+  expectedPackages: readonly JsonRecord[];
+  managedStateValue: ManagedState;
+  runtimeObservation: RuntimeObservation;
 }>;
 
 export type SchemaCase = readonly [string, SchemaObject, unknown];

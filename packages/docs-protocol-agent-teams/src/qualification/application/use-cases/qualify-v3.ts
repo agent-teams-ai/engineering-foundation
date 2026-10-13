@@ -262,12 +262,31 @@ function assertCohortAuthority(
   }
 }
 
+function freezeObservedQualificationRuntime(
+  observedRuntime: ReturnType<DocsProtocolQualificationRuntimeObserver>
+) {
+  const observedPnpmVersion = observedRuntime.pnpmVersion;
+  if (observedRuntime.nodeVersion !== "26.11.1" ||
+    observedPnpmVersion !== "11.20.0" ||
+    observedRuntime.platform !== "linux" ||
+    observedRuntime.architecture !== "x64") {
+    throw new Error("Qualification Cohort v3 observed Node runtime mismatch.");
+  }
+  return Object.freeze({
+    nodeVersion: observedRuntime.nodeVersion,
+    pnpmVersion: observedPnpmVersion,
+    platform: observedRuntime.platform,
+    architecture: observedRuntime.architecture
+  });
+}
+
 function qualifyCohortV3(
   request: DocsProtocolQualificationCohortV3Request,
   lockfileObservation: DocsProtocolQualificationLockfileObservationV3,
   observedRuntime: ReturnType<DocsProtocolQualificationRuntimeObserver>,
   policy: PackedManagedRuntimePolicy
 ): DocsProtocolQualificationCohortV3Receipt {
+  const observedQualificationRuntime = freezeObservedQualificationRuntime(observedRuntime);
   assertCohortAuthority(request, policy);
   const { cohort } = request.profile;
   const { evidence } = request;
@@ -297,10 +316,9 @@ function qualifyCohortV3(
     expectedRuntime.qualificationRuntime.architecture !== "x64") {
     throw new Error("Qualification Cohort v3 requires the exact qualified Node 26 runtime.");
   }
-  if (observedRuntime.nodeVersion !== expectedRuntime.qualificationRuntime.nodeVersion ||
-    observedRuntime.platform !== expectedRuntime.qualificationRuntime.platform ||
-    observedRuntime.architecture !== expectedRuntime.qualificationRuntime.architecture) {
-    throw new Error("Qualification Cohort v3 observed Node runtime mismatch.");
+  if (canonicalJson(evidence.runtime.qualificationRuntime) !==
+    canonicalJson(observedQualificationRuntime)) {
+    throw new Error("Qualification Cohort v3 runtime evidence mismatch.");
   }
   if (lockfileObservation.runtimeClosureDigest !== expectedRuntime.runtimeClosure.digest) {
     throw new Error("Qualification Cohort v3 lockfile runtime closure digest mismatch.");
@@ -335,7 +353,7 @@ function qualifyCohortV3(
       selectedLane: evidence.runtime.selectedLane,
       node: evidence.runtime.node,
       pnpm: evidence.runtime.pnpm,
-      qualificationRuntime: Object.freeze({ ...evidence.runtime.qualificationRuntime }),
+      qualificationRuntime: observedQualificationRuntime,
       runtimeClosure: Object.freeze({
         domain: "agent-teams.docs-runtime-closure/v2" as const,
         digest: evidence.runtime.runtimeClosureDigest

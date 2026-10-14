@@ -1,5 +1,5 @@
 import { associateProcessFailureFacts } from "../../features/validation-reporting/process-failure-facts.js";
-import { FoundationError } from "../../features/validation-reporting/api.js";
+import { FoundationError } from "../../features/validation-reporting/foundation-error.js";
 
 export class ProcessCancellationError extends FoundationError {
   constructor(message: string, options?: ErrorOptions) {

@@ -35,7 +35,7 @@ boundaries:
         - docs-protocol.portable-documentation.composition
         - docs-protocol.qualification
         - docs-protocol.qualification.composition
-      packages: []
+      packages: [ "@agent-teams/process-runtime" ]
       builtins: []
       runtimeReferences: []
     entrypoints: []
@@ -2255,7 +2255,7 @@ boundaries:
         - foundation.process-execution.application
         - foundation.validation-reporting.error
         - foundation.core
-      packages: []
+      packages: [ "@agent-teams/process-runtime" ]
       builtins:
         - node:child_process
         - node:events

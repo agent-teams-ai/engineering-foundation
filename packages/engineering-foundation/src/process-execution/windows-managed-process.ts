@@ -1,11 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import fileSystemPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
 import { join, win32 } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+
+import { requireAdmittedNodeExecutable } from "./node-runtime-verifier.js";
 
 export {
   describeManagedProcessCleanupFailure,
@@ -16,11 +18,15 @@ export interface WindowsManagedProcessRequest {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string;
+  /** Explicitly verified Node for the contained bootstrap host. */
+  readonly nodeExecutable?: string;
   /** Exact environment inherited by the requested command. */
   readonly environment?: Readonly<NodeJS.ProcessEnv>;
   /** Private environment used only to launch the trusted PowerShell wrapper. */
   readonly launcherEnvironment?: Readonly<NodeJS.ProcessEnv>;
 }
+
+export type WindowsManagedProcessRetain = (child: ChildProcess) => void;
 
 const WINDOWS_BOOTSTRAP_PATH = fileURLToPath(
   new URL("../../assets/windows-managed-process/bootstrap.ps1", import.meta.url)
@@ -179,10 +185,17 @@ function assertWindowsCommandLineFits(executable: string, args: readonly string[
  * only that contained host can launch the requested command.
  */
 export function spawnWindowsManagedProcess(
-  request: WindowsManagedProcessRequest
+  request: WindowsManagedProcessRequest,
+  retain?: WindowsManagedProcessRetain
 ): ChildProcess {
-  const control = createControl();
   const launcherEnvironment = request.launcherEnvironment ?? process.env;
+  const nodeExecutable = requireAdmittedNodeExecutable(
+    request.nodeExecutable === undefined
+      ? {}
+      : { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: request.nodeExecutable },
+    process.execPath
+  );
+  const control = createControl();
   const commandEnvironment = commandEnvironmentWithSystemRoot(
     request.environment ?? launcherEnvironment,
     launcherEnvironment
@@ -200,7 +213,7 @@ export function spawnWindowsManagedProcess(
       flag: "wx",
       mode: 0o600
     });
-    assertWindowsCommandLineFits(process.execPath, [
+    assertWindowsCommandLineFits(nodeExecutable, [
       PROCESS_HOST_PATH,
       control.requestPath
     ]);
@@ -233,15 +246,20 @@ export function spawnWindowsManagedProcess(
     throw error;
   }
   windowsProcessControls.set(child, control);
+  // Custody and Windows control ownership are physically available before any
+  // listener, control handoff or bootstrap write below can fail.
+  retain?.(child);
   child.once("error", () => {
     cleanUpWindowsManagedProcessLaunchFailure(child);
   });
   const bootstrapInput = child.stdin;
   if (bootstrapInput === null) {
-    try {
-      child.kill("SIGKILL");
-    } finally {
-      disposeControlAfterWrapperExit(child, control);
+    if (retain === undefined) {
+      try {
+        child.kill("SIGKILL");
+      } finally {
+        disposeControlAfterWrapperExit(child, control);
+      }
     }
     throw new Error("Windows Job Object wrapper did not expose its bootstrap input.");
   }
@@ -250,7 +268,7 @@ export function spawnWindowsManagedProcess(
   });
   bootstrapInput.end(JSON.stringify({
     schemaVersion: 1,
-    nodeExecutable: process.execPath,
+    nodeExecutable,
     processHostPath: PROCESS_HOST_PATH,
     requestPath: control.requestPath,
     hostWorkingDirectory: control.root,
@@ -276,7 +294,7 @@ async function readContainmentConfirmation(
   control: WindowsProcessControl
 ): Promise<string | undefined> {
   try {
-    return await readFile(control.confirmationPath, "utf8");
+    return await fileSystemPromises.readFile(control.confirmationPath, "utf8");
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return undefined;
@@ -407,7 +425,7 @@ export async function requestWindowsManagedProcessTermination(
 ): Promise<void> {
   const control = controlFor(child);
   try {
-    await writeFile(control.cancellationPath, "CANCEL", { encoding: "utf8" });
+    await fileSystemPromises.writeFile(control.cancellationPath, "CANCEL", { encoding: "utf8" });
   } catch (error) {
     await failAfterForcingWrapperExit(
       child,

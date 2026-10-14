@@ -425,8 +425,8 @@ test("accepts a containment marker published in the wrapper-exit poll race", { s
   let child;
   await mkdir(bin);
   const fakePowerShell = join(bin, FAKE_WINDOWS_POWERSHELL);
-  await writeFile(fakePowerShell, [
-    "#!/usr/bin/env node",
+  const fakePowerShellRuntime = join(bin, "fake-powershell.cjs");
+  await writeFile(fakePowerShellRuntime, [
     'const { existsSync, writeFileSync } = require("node:fs");',
     "let input = '';",
     "process.stdin.setEncoding('utf8');",
@@ -439,6 +439,10 @@ test("accepts a containment marker published in the wrapper-exit poll race", { s
     "    writeFileSync(request.confirmationPath, 'CONTAINED', 'utf8');",
     "  }, 1);",
     "});"
+  ].join("\n"), "utf8");
+  await writeFile(fakePowerShell, [
+    "#!/bin/sh",
+    `exec "${process.execPath}" "${fakePowerShellRuntime}" "$@"`
   ].join("\n"), "utf8");
   await chmod(fakePowerShell, 0o700);
 
@@ -623,8 +627,9 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   );
   assert.match(
     managedLauncherSource,
-    /assertWindowsCommandLineFits\(process\.execPath, \[\s*PROCESS_HOST_PATH,\s*control\.requestPath\s*\]\)/u
+    /assertWindowsCommandLineFits\(nodeExecutable, \[\s*PROCESS_HOST_PATH,\s*control\.requestPath\s*\]\)/u
   );
+  assert.match(managedLauncherSource, /nodeExecutable,\s*processHostPath/u);
   assert.match(
     managedLauncherSource,
     /cwd: control\.root,\s*env: launcherEnvironment[\s\S]*hostWorkingDirectory: control\.root/u
@@ -700,14 +705,21 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   const requestTermination = nodeAdapterSource.indexOf(
     "await requestWindowsManagedProcessTermination(child);"
   );
-  const forceWrapperExit = nodeAdapterSource.indexOf(
-    'child.kill("SIGKILL");',
-    requestTermination
-  );
   assert.ok(requestTermination >= 0);
-  assert.ok(requestTermination < forceWrapperExit);
+  assert.doesNotMatch(nodeAdapterSource, /child\.kill\("SIGKILL"\)/u);
   assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
+  assert.match(managedLauncherSource, /forceAndWaitForWrapperExit/u);
+  assert.match(managedLauncherSource, /requireAdmittedNodeExecutable/u);
   assert.match(windowsManagedProcessSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
+
+  const controlOwnership = managedLauncherSource.indexOf(
+    "windowsProcessControls.set(child, control);"
+  );
+  const retainChild = managedLauncherSource.indexOf("retain?.(child);", controlOwnership);
+  const firstLaterSetup = managedLauncherSource.indexOf("child.once(\"error\"", retainChild);
+  assert.ok(controlOwnership >= 0);
+  assert.ok(controlOwnership < retainChild);
+  assert.ok(retainChild < firstLaterSetup);
 
   const waitForProcessExit = windowsManagedProcessSource.indexOf(
     "var waitResult = WaitForSingleObject(process.hProcess, 10);"
@@ -740,7 +752,7 @@ test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_
     }),
     (error) => {
       assert.equal(error?.code, "PROCESS_FAILED");
-      assert.match(error.message, /exceeded the stdout output limit/u);
+      assert.match(error.message, /exceeded its captured output limit/u);
       return true;
     }
   );
@@ -787,7 +799,7 @@ test("an output-limit failure observed during real cancellation outranks cancell
     controller.abort("test cancellation");
     await assert.rejects(execution, (error) => {
       assert.equal(error?.code, "PROCESS_FAILED");
-      assert.match(error.message, /exceeded the stdout output limit/u);
+      assert.match(error.message, /exceeded its captured output limit/u);
       assert.doesNotMatch(error.message, /was cancelled/u);
       return true;
     });

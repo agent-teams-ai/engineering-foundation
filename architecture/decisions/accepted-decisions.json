@@ -281,6 +281,11 @@
       "id": "ADR-0059",
       "path": "docs/decisions/0059-node26-current-policy-coherent-behavior-unit.md",
       "immutableDigest": "sha256:a07726acf3b8e76c991190ddbcde895b36fdd79ad059987ad9568824d523fd8b"
+    },
+    {
+      "id": "ADR-0060",
+      "path": "docs/decisions/0060-node26-cohort3-projector-public-api-evolution.md",
+      "immutableDigest": "sha256:c07b8c29ff8362a866d4196e6abed41f10ca2d9b05a148aba17a6f7a3270d49c"
     }
   ]
 }

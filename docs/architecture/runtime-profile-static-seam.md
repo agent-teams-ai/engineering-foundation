@@ -10,8 +10,11 @@ historical ADR bytes.
 
 The complete current Consumer Module Standard input is Get Modular
 `docs/architecture/common-assembly.md` at commit
-`5287ef4ebae3dce19feb9378a9a0ac9267b30878`, SHA-256
+`7d6535dd86533566620040233290869825000d2b`, SHA-256
 `859fbca1e8a0c61b6ae873bea0057735a55b80230100e6e73a74de22e123165a`.
+The prior `5287ef4ebae3dce19feb9378a9a0ac9267b30878` input has the same bytes;
+that zero-byte revision delta is retained rather than rewritten as a semantic
+change.
 The latest retained Foundation record uses modifying commit
 `81063add7de50ffe2b91cc74bf7271b298624c21`, SHA-256
 `49d08b6d1762e94308157fb59b3aa82ac1630c91f529f6efcd4915dfffee7ba7`.
@@ -21,8 +24,10 @@ namespace tests and requires per-variant composition-root evidence. The older
 `6b31f20...` QGR input remains historical evidence and is not rewritten.
 
 The organization Feature Module Standard v1 remains the semantic ownership
-authority. Foundation's organization Engineering Quality Standard pin remains
-`66d6d3d2c2643edac414ded48c0ee0586774dd07`; this checkpoint does not repin it.
+authority. Foundation's organization Engineering Quality Standard is now bound
+to `f9f4c8ad381254fb07cba737d6443542348395c1`; its bytes remain identical to
+the historical `66d6d3d2c2643edac414ded48c0ee0586774dd07` pin and that history is
+retained in the provenance record.
 Installing packages or adding a closed TypeScript switch does not adopt CMS or
 change release authority.
 

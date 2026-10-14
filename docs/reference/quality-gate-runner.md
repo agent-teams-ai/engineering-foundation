@@ -90,11 +90,12 @@ pnpm entrypoint uses one explicit verified Node executable and never treats
 `process.execPath` as Node while Bun is executing.
 
 Manager selection and ordinary leaf runtime selection are separate. The outer
-snapshot may carry `AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE`,
+snapshot carries `AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE`,
 `AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE` and
-`AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE` for later repository-command routing.
-This checkpoint does not add the root dispatcher or rewrite root package
-scripts.
+`AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE` into the closed repository-command
+routing table. Runtime roles use the selected Bun/Node executable; Node
+qualification and native-tool roles remain explicit and never infer Node from
+the package-manager caller.
 
 - `needs` waits for the referenced tasks and runs only if all passed. Otherwise
   the task is `blocked`.

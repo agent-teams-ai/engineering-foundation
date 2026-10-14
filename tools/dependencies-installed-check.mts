@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 import { mkdir, readdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parsePnpmWorkspaceAuthority } from "./runtime-policy.mts";
 
 interface Manifest {
   readonly name?: string;
@@ -13,20 +15,25 @@ interface Manifest {
   readonly engines?: Readonly<Record<string, string>>;
 }
 
+interface PeerAssignment {
+  readonly name: string;
+  readonly range: string;
+  readonly optional: boolean;
+  readonly resolution: string;
+}
+
+interface Inventory {
+  readonly outcome: "passed";
+  readonly packageContexts: readonly string[];
+  readonly packages: readonly string[];
+  readonly peerAssignments: readonly string[];
+}
+
 const require = createRequire(import.meta.url);
-const semver = (() => {
-  try {
-    return require("semver") as {
-      readonly validRange: (range: string) => string | null;
-      readonly satisfies: (version: string, range: string) => boolean;
-    };
-  } catch {
-    return require(resolve(import.meta.dirname, "../node_modules/.pnpm/semver@7.8.5/node_modules/semver")) as {
-      readonly validRange: (range: string) => string | null;
-      readonly satisfies: (version: string, range: string) => boolean;
-    };
-  }
-})();
+const semver = require("semver") as {
+  readonly validRange: (range: string) => string | null;
+  readonly satisfies: (version: string, range: string) => boolean;
+};
 
 function dependencyNames(manifest: Manifest, includeDevelopment: boolean): readonly string[] {
   return [...new Set([
@@ -36,7 +43,10 @@ function dependencyNames(manifest: Manifest, includeDevelopment: boolean): reado
   ])].toSorted();
 }
 
-async function packageDirectories(root: string, patterns: readonly string[]): Promise<readonly string[]> {
+async function packageDirectories(
+  root: string,
+  patterns: readonly string[]
+): Promise<readonly string[]> {
   const directories: string[] = [root];
   for (const pattern of patterns) {
     const match = /^([^/*]+)\/\*$/u.exec(pattern);
@@ -62,12 +72,14 @@ async function manifestAt(path: string): Promise<Manifest | undefined> {
   }
 }
 
-async function resolveInstalled(issuer: string, name: string): Promise<string | undefined> {
+async function resolveInstalled(
+  issuer: string,
+  name: string
+): Promise<string | undefined> {
   let current = issuer;
   while (true) {
     const candidate = join(current, "node_modules", ...name.split("/"));
-    const manifest = await manifestAt(candidate);
-    if (manifest !== undefined) {
+    if (await manifestAt(candidate) !== undefined) {
       return await realpath(candidate);
     }
     const parent = dirname(current);
@@ -86,7 +98,16 @@ function validRange(range: string, subject: string): string {
   return parsed;
 }
 
-function checkEngine(manifest: Manifest, subject: string, nodeVersion: string, bunVersion: string): void {
+function coordinate(manifest: Manifest, fallback: string): string {
+  return `${manifest.name ?? fallback}@${manifest.version ?? "?"}`;
+}
+
+function checkEngine(
+  manifest: Manifest,
+  subject: string,
+  nodeVersion: string,
+  bunVersion: string
+): void {
   for (const [engine, range] of Object.entries(manifest.engines ?? {})) {
     const version = engine === "node" ? nodeVersion : engine === "bun" ? bunVersion : undefined;
     if (version === undefined) {
@@ -94,31 +115,67 @@ function checkEngine(manifest: Manifest, subject: string, nodeVersion: string, b
     }
     const normalized = validRange(range, `${subject} engines.${engine}`);
     if (!semver.satisfies(version, normalized)) {
-      throw new Error(`Installed engine mismatch for ${subject}: ${engine} ${version} does not satisfy ${range}.`);
+      throw new Error(
+        `Installed engine mismatch for ${subject}: ${engine} ${version} does not satisfy ${range}.`
+      );
     }
   }
+}
+
+async function inspectPeers(
+  issuer: string,
+  manifest: Manifest
+): Promise<readonly PeerAssignment[]> {
+  const assignments: PeerAssignment[] = [];
+  for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
+    const normalized = validRange(range, `${name} peer from ${issuer}`);
+    const optional = manifest.peerDependenciesMeta?.[name]?.optional === true;
+    const installed = await resolveInstalled(issuer, name);
+    if (installed === undefined) {
+      if (!optional) {
+        throw new Error(`Required peer dependency is unresolved: ${name} from ${issuer}.`);
+      }
+      assignments.push({ name, range: normalized, optional, resolution: "missing-optional" });
+      continue;
+    }
+    const peerManifest = await manifestAt(installed);
+    const version = peerManifest?.version;
+    if (version === undefined) {
+      throw new Error(`Installed peer metadata is missing: ${name} from ${issuer}.`);
+    }
+    if (!semver.satisfies(version, normalized)) {
+      throw new Error(
+        `Incompatible installed peer for ${issuer}: ${name}@${version} does not satisfy ${range}.`
+      );
+    }
+    assignments.push({
+      name,
+      range: normalized,
+      optional,
+      resolution: `${peerManifest?.name ?? name}@${version}`
+    });
+  }
+  return assignments.toSorted((left, right) => left.name.localeCompare(right.name));
 }
 
 export async function inspectInstalledDependencies(
   root: string,
   nodeVersion = "26.11.1",
   bunVersion = "1.4.3"
-): Promise<{
-  readonly contextCount: number;
-  readonly packages: ReadonlySet<string>;
-  readonly peerAssignments: ReadonlySet<string>;
-}> {
+): Promise<Inventory> {
   const rootManifest = await manifestAt(root);
   if (rootManifest === undefined) {
     throw new Error("Installed graph root manifest is missing.");
   }
-  const patterns = ["packages/*", "spikes/*"];
-  const contexts = new Set<string>();
+  const authority = parsePnpmWorkspaceAuthority(
+    await readFile(resolve(root, "pnpm-workspace.yaml"), "utf8")
+  );
+  const packageContexts = new Set<string>();
   const packages = new Set<string>();
   const peerAssignments = new Set<string>();
-  const queue: string[] = [...await packageDirectories(root, patterns)];
-  const seenIssuers = new Set<string>();
+  const queue: string[] = [...await packageDirectories(root, authority.workspaces)];
   const workspaceIssuers = new Set(queue.map((path) => resolve(path)));
+  const seenIssuers = new Set<string>();
   while (queue.length > 0) {
     const issuer = await realpath(queue.shift() ?? root);
     if (seenIssuers.has(issuer)) {
@@ -129,7 +186,18 @@ export async function inspectInstalledDependencies(
     if (manifest === undefined) {
       throw new Error(`Installed package manifest is missing at ${issuer}.`);
     }
-    checkEngine(manifest, issuer, nodeVersion, bunVersion);
+    const issuerCoordinate = coordinate(manifest, relative(root, issuer) || "root");
+    checkEngine(manifest, issuerCoordinate, nodeVersion, bunVersion);
+    const peers = await inspectPeers(issuer, manifest);
+    for (const peer of peers) {
+      peerAssignments.add(`${issuerCoordinate} -> ${peer.name}@${peer.range}=${peer.resolution}`);
+      if (peer.resolution !== "missing-optional") {
+        const peerManifest = await manifestAt(await resolveInstalled(issuer, peer.name) ?? issuer);
+        if (peerManifest !== undefined) {
+          queue.push(await resolveInstalled(issuer, peer.name) ?? issuer);
+        }
+      }
+    }
     for (const name of dependencyNames(manifest, workspaceIssuers.has(issuer))) {
       const optional = Object.hasOwn(manifest.optionalDependencies ?? {}, name);
       const installed = await resolveInstalled(issuer, name);
@@ -143,54 +211,58 @@ export async function inspectInstalledDependencies(
       if (installedManifest === undefined) {
         throw new Error(`Installed dependency metadata is missing: ${name} at ${installed}.`);
       }
-      checkEngine(installedManifest, `${name}@${installedManifest.version ?? "?"}`, nodeVersion, bunVersion);
-      contexts.add(`${issuer}\u0000${installed}\u0000${name}\u0000${installedManifest.version ?? ""}`);
-      packages.add(`${installedManifest.name ?? name}@${installedManifest.version ?? "?"}`);
+      const targetCoordinate = coordinate(installedManifest, name);
+      checkEngine(installedManifest, targetCoordinate, nodeVersion, bunVersion);
+      const targetPeers = await inspectPeers(installed, installedManifest);
+      const peerProjection = targetPeers.map((peer) =>
+        `${peer.name}@${peer.range}=${peer.resolution}`
+      ).join(",");
+      packages.add(targetCoordinate);
+      packageContexts.add(
+        `${issuerCoordinate} -> ${name}@${targetCoordinate} [${peerProjection}]`
+      );
       queue.push(installed);
-    }
-    for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
-      const optional = manifest.peerDependenciesMeta?.[name]?.optional === true;
-      const installed = await resolveInstalled(issuer, name);
-      if (installed === undefined) {
-        if (!optional) {
-          throw new Error(`Required peer dependency is unresolved: ${name} from ${issuer}.`);
-        }
-        continue;
-      }
-      const peerManifest = await manifestAt(installed);
-      const version = peerManifest?.version;
-      if (version === undefined) {
-        throw new Error(`Installed peer metadata is missing: ${name} from ${issuer}.`);
-      }
-      const normalized = validRange(range, `${name} peer from ${issuer}`);
-      if (!semver.satisfies(version, normalized)) {
-        throw new Error(`Incompatible installed peer for ${issuer}: ${name}@${version} does not satisfy ${range}.`);
-      }
-      contexts.add(`${issuer}\u0000${installed}\u0000peer:${name}\u0000${version}`);
-      peerAssignments.add(`${manifest.name ?? issuer}@${manifest.version ?? "?"} -> ${peerManifest?.name ?? name}@${version}`);
+      await enqueuePeerTargets(targetPeers, installed, queue);
     }
   }
-  return { contextCount: contexts.size, packages, peerAssignments };
+  return {
+    outcome: "passed",
+    packageContexts: [...packageContexts].toSorted(),
+    packages: [...packages].toSorted(),
+    peerAssignments: [...peerAssignments].toSorted()
+  };
 }
 
-const root = resolve(process.cwd());
-const inventory = await inspectInstalledDependencies(root);
-const projection = {
-  outcome: "passed",
-  packageContexts: inventory.contextCount,
-  packages: [...inventory.packages].toSorted(),
-  peerAssignments: [...inventory.peerAssignments].toSorted()
-};
-const inventoryPath = process.env["AGENT_TEAMS_FOUNDATION_INSTALLED_INVENTORY"];
-if (inventoryPath !== undefined && inventoryPath.length > 0) {
-  const target = resolve(inventoryPath);
-  await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, `${JSON.stringify(projection, null, 2)}\n`, "utf8");
+async function enqueuePeerTargets(
+  peers: readonly PeerAssignment[],
+  issuer: string,
+  queue: string[]
+): Promise<void> {
+  for (const peer of peers) {
+    if (peer.resolution === "missing-optional") {
+      continue;
+    }
+    const peerPath = await resolveInstalled(issuer, peer.name);
+    if (peerPath !== undefined) {
+      queue.push(peerPath);
+    }
+  }
 }
-process.stdout.write(`${JSON.stringify({
-  outcome: projection.outcome,
-  packageContexts: projection.packageContexts,
-  packageCoordinates: projection.packages.length,
-  peerAssignments: projection.peerAssignments.length,
-  inventory: inventoryPath ?? null
-}, null, 2)}\n`);
+
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const root = resolve(process.cwd());
+  const inventory = await inspectInstalledDependencies(root);
+  const inventoryPath = process.env["AGENT_TEAMS_FOUNDATION_INSTALLED_INVENTORY"];
+  if (inventoryPath !== undefined && inventoryPath.length > 0) {
+    const target = resolve(inventoryPath);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, `${JSON.stringify(inventory, null, 2)}\n`, "utf8");
+  }
+  process.stdout.write(`${JSON.stringify({
+    outcome: inventory.outcome,
+    packageContexts: inventory.packageContexts.length,
+    packageCoordinates: inventory.packages.length,
+    peerAssignments: inventory.peerAssignments.length,
+    inventory: inventoryPath ?? null
+  }, null, 2)}\n`);
+}

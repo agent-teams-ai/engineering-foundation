@@ -1,5 +1,19 @@
 # Release Procedure
 
+## Repository runtime and rollback
+
+Bun 1.4.3 is the frozen default for this repository's install, ordinary scripts
+and emitted Foundation CLI invocation. `bun tools/dev.mts install` performs a
+frozen dependency-script-disabled install and the connected installed-graph
+guard. Node qualification, raw V8/c8 coverage, npm/pnpm consumers, signing and
+release publication remain explicit Node lanes.
+
+The supported rollback is a separate clean profile projection:
+`node tools/dev.mts --profile node install` changes only the private root
+`packageManager` field to pnpm 11.20.0 and installs the retained pnpm lock. Bun
+and Node profiles never share `node_modules`; switching is an operator action,
+not an automatic fallback.
+
 All ordinary releases of packages in the reviewed public-package catalog use
 npm Trusted Publishing from the protected `main` workflow with GitHub OIDC and
 automatic provenance. Manual workstation publication and persistent npm secrets

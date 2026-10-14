@@ -18,6 +18,8 @@ export function createNodeQualityGateCommand(
   assertSchema: QualityGateConfigurationDependencies["assertSchema"]
 ): QualityGateCommand {
   const snapshot = Object.freeze({ ...environment });
+  const pnpmEntrypoint = snapshot.npm_execpath ??
+    snapshot["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"];
   return async (input) => {
     const runtime = await resolveRepositoryRuntimeExecutables({
       environment: snapshot,
@@ -51,9 +53,9 @@ export function createNodeQualityGateCommand(
         pnpm: new PnpmQualityGateScriptExecutor({
           childEnvironment,
           nodeExecutablePath: runtime.executables.node,
-          ...(snapshot.npm_execpath === undefined
+          ...(pnpmEntrypoint === undefined
             ? {}
-            : { npmExecPath: snapshot.npm_execpath }),
+            : { npmExecPath: pnpmEntrypoint }),
           ...(snapshot.PNPM_HOME === undefined
             ? {}
             : { pnpmHome: snapshot.PNPM_HOME }),

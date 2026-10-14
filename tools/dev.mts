@@ -1,8 +1,10 @@
 import { execFileSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
+import { resolveQualificationExecutables } from "./executable-policy.mts";
+import { assertOwnedProfileRoot } from "./profile-root.mts";
 
 type Profile = "bun" | "node";
 
@@ -24,7 +26,7 @@ function parseArguments(arguments_: readonly string[]): { readonly profile: Prof
 }
 
 function run(command: string, args: readonly string[], cwd: string, environment: NodeJS.ProcessEnv = process.env): Promise<number> {
-  return new Promise((resolvePromise, reject) => {
+  return new Promise((_resolve, reject) => {
     const child = spawn(command, [...args], { cwd, env: environment, shell: false, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
@@ -32,22 +34,39 @@ function run(command: string, args: readonly string[], cwd: string, environment:
         reject(new Error(`Command terminated by ${signal}.`));
         return;
       }
-      resolvePromise(code ?? 1);
+      _resolve(code ?? 1);
     });
   });
 }
 
 async function executable(profile: Profile): Promise<{ readonly node: string; readonly bun?: string; readonly manager: string }> {
   const policy = await readRepositoryRuntimePolicy();
-  const node = process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"] ??
-    (process.versions["bun"] === undefined ? process.execPath : "/opt/nodejs/node-v26.11.1-linux-x64/bin/node");
-  const bun = process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"] ??
-    resolve(repositoryRoot, "node_modules/.job-scratch/toolchains/bun/bun-linux-x64/bun");
-  const manager = profile === "bun" ? bun : resolve(repositoryRoot, "tools/pnpm-command.mts");
+  const runtime = await resolveQualificationExecutables(profile);
+  const node = runtime.node;
+  const bun = runtime.bun;
+  const manager = profile === "bun"
+    ? bun ?? (() => { throw new Error("Bun executable is unavailable."); })()
+    : resolve(repositoryRoot, "tools/pnpm-command.mts");
   if (policy.defaultProfile !== "bun") {
     throw new Error("Runtime policy default profile drifted.");
   }
   return { node, ...(profile === "bun" ? { bun } : {}), manager };
+}
+
+async function copyTree(source: string, destination: string): Promise<void> {
+  await mkdir(destination, { recursive: true });
+  for (const entry of await readdir(source, { withFileTypes: true })) {
+    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".worker-tmp" || entry.name === ".pnpm-store") {
+      continue;
+    }
+    const from = resolve(source, entry.name);
+    const to = resolve(destination, entry.name);
+    if (entry.isDirectory()) {
+      await copyTree(from, to);
+    } else if (entry.isFile()) {
+      await copyFile(from, to);
+    }
+  }
 }
 
 async function freshProfileRoot(profile: Profile): Promise<string> {
@@ -55,34 +74,39 @@ async function freshProfileRoot(profile: Profile): Promise<string> {
   if (profile === "bun" && requested === undefined) {
     const installed = resolve(repositoryRoot, "node_modules");
     const entries: string[] = await readdir(installed).catch((): string[] => []);
-    if (entries.includes(".pnpm") || entries.includes(".bun")) {
-      throw new Error("Bun install refuses a mixed existing node_modules; use a profile-owned TEST root.");
+    if (entries.includes(".pnpm")) {
+      throw new Error("The repository has a pnpm installation; use a profile-owned TEST root.");
     }
     return repositoryRoot;
   }
   const sourceSha = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"] ??
     execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
-  const target = requested ?? resolve(repositoryRoot, `.worker-tmp/profiles/${profile}-${sourceSha}`);
-  if (!resolve(target).startsWith(resolve(repositoryRoot, ".worker-tmp/"))) {
-    throw new Error(`${profile} install requires a profile-owned root beneath .worker-tmp.`);
+  const sourceDigest = await sourceTreeDigest();
+  const profiles = resolve(repositoryRoot, ".worker-tmp/profiles");
+  await mkdir(profiles, { recursive: true });
+  const target = await assertOwnedProfileRoot(
+    requested ?? resolve(repositoryRoot, `.worker-tmp/profiles/${profile}-${sourceSha}`)
+  );
+  if (profile === "bun") {
+    const evidence = await readFile(resolve(target, ".agent-teams-runtime-profile.json"), "utf8")
+      .then((source) => JSON.parse(source) as {
+        readonly profile?: string;
+        readonly sourceSha?: string;
+        readonly sourceDigest?: string;
+      })
+      .catch(() => null);
+    const entries = await readdir(resolve(target, "node_modules")).catch((): string[] => []);
+    if (
+      evidence?.profile === "bun" &&
+      evidence.sourceSha === sourceSha &&
+      evidence.sourceDigest === sourceDigest &&
+      !entries.includes(".pnpm")
+    ) {
+      return target;
+    }
   }
   await rm(target, { recursive: true, force: true });
   await mkdir(target, { recursive: true });
-  const copyTree = async (source: string, destination: string): Promise<void> => {
-    await mkdir(destination, { recursive: true });
-    for (const entry of await readdir(source, { withFileTypes: true })) {
-      if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".worker-tmp" || entry.name === ".pnpm-store") {
-        continue;
-      }
-      const from = resolve(source, entry.name);
-      const to = resolve(destination, entry.name);
-      if (entry.isDirectory()) {
-        await copyTree(from, to);
-      } else if (entry.isFile()) {
-        await copyFile(from, to);
-      }
-    }
-  };
   await copyTree(repositoryRoot, target);
   return target;
 }
@@ -104,13 +128,27 @@ async function install(profile: Profile): Promise<number> {
   const originalManifest = await readFile(resolve(profileRoot, "package.json"), "utf8");
   const originalDigest = createHash("sha256").update(originalManifest).digest("hex");
   if (profile === "node") {
-    const manifest = JSON.parse(originalManifest) as Record<string, unknown>;
-    manifest["packageManager"] = `pnpm@${policy.toolchain.pnpm.version}`;
-    await writeFile(resolve(profileRoot, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-    const derivedDigest = createHash("sha256").update(JSON.stringify(manifest, null, 2) + "\n").digest("hex");
-    await writeProfileEvidence(profileRoot, profile, sourceSha, originalDigest, derivedDigest);
+    const derivedManifest = projectPackageManager(
+      originalManifest,
+      `pnpm@${policy.toolchain.pnpm.version}`
+    );
+    await writeFile(resolve(profileRoot, "package.json"), derivedManifest, "utf8");
+    const derivedDigest = createHash("sha256").update(derivedManifest).digest("hex");
+  await writeProfileEvidence(profileRoot, {
+    profile,
+    sourceSha,
+    sourceDigest: await sourceTreeDigest(),
+    originalManifestSha256: originalDigest,
+    derivedManifestSha256: derivedDigest
+  });
   } else {
-    await writeProfileEvidence(profileRoot, profile, sourceSha, originalDigest, originalDigest);
+    await writeProfileEvidence(profileRoot, {
+      profile,
+      sourceSha,
+      sourceDigest: await sourceTreeDigest(),
+      originalManifestSha256: originalDigest,
+      derivedManifestSha256: originalDigest
+    });
   }
   const tools = await executable(profile);
   const managerArgs = profile === "bun"
@@ -131,9 +169,10 @@ async function install(profile: Profile): Promise<number> {
       const initStatus = await run(tools.node, args, profileRoot);
       if (initStatus !== 0) { return initStatus; }
     }
-    const qualified = await run(tools.node, [resolve(profileRoot, "tools/qualify-native-tools.mts")], profileRoot);
+    const selectedRuntime = tools.bun ?? tools.node;
+    const qualified = await run(selectedRuntime, [resolve(profileRoot, "tools/qualify-native-tools.mts")], profileRoot);
     return qualified === 0
-      ? run(tools.node, [resolve(profileRoot, "tools/dependencies-installed-check.mts")], profileRoot, {
+      ? run(selectedRuntime, [resolve(profileRoot, "tools/dependencies-installed-check.mts")], profileRoot, {
           ...process.env,
           AGENT_TEAMS_FOUNDATION_INSTALLED_INVENTORY: resolve(profileRoot, ".worker-tmp/installed-dependencies.json")
         })
@@ -142,16 +181,62 @@ async function install(profile: Profile): Promise<number> {
   return run(tools.node, [tools.manager, "peers", "check", "--lockfile-only"], profileRoot);
 }
 
+function projectPackageManager(manifestSource: string, packageManager: string): string {
+  const before = JSON.parse(manifestSource) as Record<string, unknown>;
+  const projected = manifestSource.replace(
+    /("packageManager"\s*:\s*")[^"]+(")/u,
+    `$1${packageManager}$2`
+  );
+  if (projected === manifestSource) {
+    throw new Error("The root packageManager field is missing or duplicated.");
+  }
+  const after = JSON.parse(projected) as Record<string, unknown>;
+  const beforeWithoutManager = { ...before };
+  const afterWithoutManager = { ...after };
+  delete beforeWithoutManager["packageManager"];
+  delete afterWithoutManager["packageManager"];
+  if (
+    JSON.stringify(beforeWithoutManager) !== JSON.stringify(afterWithoutManager) ||
+    after["packageManager"] !== packageManager
+  ) {
+    throw new Error("The Node profile projection may change only packageManager.");
+  }
+  return projected;
+}
+
 async function writeProfileEvidence(
   root: string,
-  profile: Profile,
-  sourceSha: string,
-  originalManifestSha256: string,
-  derivedManifestSha256: string
+  evidence: {
+    readonly profile: Profile;
+    readonly sourceSha: string;
+    readonly sourceDigest: string;
+    readonly originalManifestSha256: string;
+    readonly derivedManifestSha256: string;
+  }
 ): Promise<void> {
   await writeFile(resolve(root, ".agent-teams-runtime-profile.json"), `${JSON.stringify({
-    profile, sourceSha, originalManifestSha256, derivedManifestSha256
+    ...evidence
   }, null, 2)}\n`, "utf8");
+}
+
+async function sourceTreeDigest(): Promise<string> {
+  const hash = createHash("sha256");
+  const walk = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if ([".git", ".worker-tmp", ".cache", "node_modules"].includes(entry.name)) {
+        continue;
+      }
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(path);
+      } else if (entry.isFile()) {
+        hash.update(`${relative(repositoryRoot, path)}\0`);
+        hash.update(await readFile(path));
+      }
+    }
+  };
+  await walk(repositoryRoot);
+  return hash.digest("hex");
 }
 
 async function build(profile: Profile): Promise<number> {

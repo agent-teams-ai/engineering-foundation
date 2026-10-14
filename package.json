@@ -116,6 +116,7 @@
     "check:changed": "node tools/repository-command.mts tool check:changed",
     "check:fast": "node tools/repository-command.mts script standards:check && node tools/repository-command.mts script dependencies:peers:check && node tools/repository-command.mts script docs:terminology:check && node tools/repository-command.mts script release-graph:check && node tools/repository-command.mts script test:manifests:check && node tools/repository-command.mts script lint:fast && node tools/repository-command.mts script typecheck && node tools/repository-command.mts script quality:scope:check && node tools/repository-command.mts script architecture:features:check && node tools/repository-command.mts script quality:coverage:scope",
     "dependencies:peers:check": "node tools/repository-command.mts tool dependencies:peers:check",
+    "dependencies:installed:check": "node tools/repository-command.mts tool dependencies:installed:check",
     "ci:full": "node scripts/request-full-pr-ci.mts",
     "ci:merge": "node scripts/merge-reviewed-pr.mts",
     "changeset": "changeset",

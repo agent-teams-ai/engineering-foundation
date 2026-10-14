@@ -102,6 +102,7 @@ function nestedMapsAtIndent(
   };
 }
 
+// oxlint-disable-next-line complexity -- The closed YAML subset has one deterministic authority parser.
 export function parsePnpmWorkspaceAuthority(source: string): BunRootProjection {
   const lines = source.replace(/\r\n/gu, "\n").split("\n");
   const packages: string[] = [];

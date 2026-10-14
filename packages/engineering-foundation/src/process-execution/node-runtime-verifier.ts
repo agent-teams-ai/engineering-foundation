@@ -12,7 +12,7 @@ async function verifyNode(path: string): Promise<boolean> {
   if (!isAbsolute(path) || !await regularFile(path)) {
     return false;
   }
-  const observation = spawnSync(path, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node})"], {
+  const observation = spawnSync(path, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name})"], {
     encoding: "utf8",
     timeout: 10_000
   });
@@ -20,8 +20,16 @@ async function verifyNode(path: string): Promise<boolean> {
     return false;
   }
   try {
-    const observed = JSON.parse(observation.stdout) as { readonly execPath: string; readonly version: string };
-    return observed.version === "26.11.1" &&
+    const observed = JSON.parse(observation.stdout) as {
+      readonly execPath: string;
+      readonly version: string;
+      readonly releaseName: string;
+    };
+    const match = /^(\d+)\.(\d+)\.\d+$/u.exec(observed.version);
+    const major = match === null ? 0 : Number(match[1]);
+    const minor = match === null ? 0 : Number(match[2]);
+    return observed.releaseName === "node" &&
+      (major === 26 || (major === 24 && minor >= 18)) &&
       await realpath(observed.execPath) === await realpath(path) &&
       /^node(?:\.exe)?$/iu.test(basename(observed.execPath));
   } catch {
@@ -54,7 +62,7 @@ export function requireAdmittedNodeExecutable(
   const explicit = environment["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"];
   const candidate = explicit ?? currentExecutablePath;
   const observation = isAbsolute(candidate)
-    ? spawnSync(candidate, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node})"], {
+    ? spawnSync(candidate, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name})"], {
         encoding: "utf8",
         timeout: 10_000
       })
@@ -63,16 +71,24 @@ export function requireAdmittedNodeExecutable(
     throw new Error("An explicit admitted Node executable is required.");
   }
   try {
-    const observed = JSON.parse(observation?.stdout ?? "") as { readonly execPath: string; readonly version: string };
+    const observed = JSON.parse(observation?.stdout ?? "") as {
+      readonly execPath: string;
+      readonly version: string;
+      readonly releaseName: string;
+    };
+    const match = /^(\d+)\.(\d+)\.\d+$/u.exec(observed.version);
+    const major = match === null ? 0 : Number(match[1]);
+    const minor = match === null ? 0 : Number(match[2]);
     if (
-      observed.version !== "26.11.1" ||
+      observed.releaseName !== "node" ||
+      !(major === 26 || (major === 24 && minor >= 18)) ||
       realpathSync(observed.execPath) !== realpathSync(candidate) ||
       !/^node(?:\.exe)?$/iu.test(basename(observed.execPath))
     ) {
-      throw new Error("The selected executable is not admitted Node 26.11.1.");
+      throw new Error("The selected executable is not a supported public Node runtime.");
     }
     return candidate;
   } catch (error) {
-    throw new Error("An explicit admitted Node executable is required.", { cause: error });
+      throw new Error("A supported public Node executable is required.", { cause: error });
   }
 }

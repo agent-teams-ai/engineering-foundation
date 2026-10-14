@@ -3,47 +3,84 @@ import { resolve } from "node:path";
 
 interface Inventory {
   readonly outcome: "passed";
-  readonly packageContexts: number;
+  readonly packageContexts: readonly string[];
   readonly packages: readonly string[];
   readonly peerAssignments: readonly string[];
 }
 
-if (process.argv.length !== 4) {
-  throw new Error("Usage: compare-installed-inventories.mts <bun.json> <node.json>");
+interface ReviewedDifferences {
+  readonly reviewedContextDifferences: readonly {
+    readonly context: string;
+    readonly packageCoordinate: string;
+    readonly reason: string;
+  }[];
+}
+
+if (process.argv.length < 4 || process.argv.length > 5) {
+  throw new Error(
+    "Usage: compare-installed-inventories.mts <bun.json> <node.json> [reviewed-contexts.json]"
+  );
 }
 
 const [bun, node] = await Promise.all(
-  process.argv.slice(2).map(async (path) =>
+  process.argv.slice(2, 4).map(async (path) =>
     JSON.parse(await readFile(resolve(path), "utf8")) as Inventory
   )
 );
+const reviewed = process.argv[4] === undefined
+  ? { reviewedContextDifferences: [] }
+  : JSON.parse(await readFile(resolve(process.argv[4]), "utf8")) as ReviewedDifferences;
 if (bun.outcome !== "passed" || node.outcome !== "passed") {
   throw new Error("Both installed inventories must have passed.");
 }
 
-const differences: Record<string, readonly string[]> = {};
-for (const field of ["packages", "peerAssignments"] as const) {
-  const left = new Set(bun[field]);
-  const right = new Set(node[field]);
-  const onlyBun = [...left].filter((value) => !right.has(value)).toSorted();
-  const onlyNode = [...right].filter((value) => !left.has(value)).toSorted();
-  if (onlyBun.length > 0 || onlyNode.length > 0) {
-    differences[field] = Object.freeze([
-      ...onlyBun.map((value) => `bun-only ${value}`),
-      ...onlyNode.map((value) => `node-only ${value}`)
-    ]);
-  }
+function differences(
+  left: readonly string[],
+  right: readonly string[]
+): readonly string[] {
+  const rightSet = new Set(right);
+  const leftSet = new Set(left);
+  return [
+    ...left.filter((value) => !rightSet.has(value)).map((value) => `bun-only ${value}`),
+    ...right.filter((value) => !leftSet.has(value)).map((value) => `node-only ${value}`)
+  ].toSorted();
 }
-if (Object.keys(differences).length > 0) {
-  throw new Error(`Unknown installed inventory differences: ${JSON.stringify(differences)}`);
+
+const contextDifferences = differences(bun.packageContexts, node.packageContexts);
+const reviewedContexts = new Map(
+  reviewed.reviewedContextDifferences.map((entry) => [entry.context, entry])
+);
+const unreviewedContexts = contextDifferences.filter((value) => {
+  const identity = value.replace(/^(?:bun-only|node-only) /u, "");
+  return !reviewedContexts.has(identity);
+});
+if (unreviewedContexts.length > 0) {
+  throw new Error(`Unreviewed installed context differences: ${JSON.stringify(unreviewedContexts)}`);
+}
+const packageDifferences = differences(bun.packages, node.packages);
+const reviewedPackages = new Set(
+  reviewed.reviewedContextDifferences.map((entry) => `bun-only ${entry.packageCoordinate}`)
+);
+const unreviewedPackages = packageDifferences.filter((value) => !reviewedPackages.has(value));
+if (unreviewedPackages.length > 0) {
+  throw new Error(`Unknown installed inventory differences: ${JSON.stringify(unreviewedPackages)}`);
+}
+for (const field of ["peerAssignments"] as const) {
+  const unknown = differences(bun[field], node[field]);
+  if (unknown.length > 0) {
+    throw new Error(`Unknown installed inventory differences: ${JSON.stringify(unknown)}`);
+  }
 }
 
 process.stdout.write(`${JSON.stringify({
   outcome: "passed",
-  reviewedContextDifference: {
-    bunPackageContexts: bun.packageContexts,
-    nodePackageContexts: node.packageContexts
-  },
+  reviewedContextDifference: contextDifferences.map((context) => ({
+    context,
+    ...(reviewedContexts.get(context.replace(/^(?:bun-only|node-only) /u, "")) ?? {
+      packageCoordinate: "",
+      reason: ""
+    })
+  })),
   packageCoordinates: bun.packages.length,
   peerAssignments: bun.peerAssignments.length
 }, null, 2)}\n`);

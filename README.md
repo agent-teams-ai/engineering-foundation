@@ -65,15 +65,27 @@ The repository explicitly adopts the [Feature Module Standard](docs/architecture
 ## Commands
 
 ```bash
-pnpm install
-pnpm check:changed
-pnpm check:fast
-pnpm check
-pnpm verify
-pnpm package:check
-pnpm quality:gate:fast
-pnpm foundation:qualification
+bun tools/dev.mts install
+bun tools/dev.mts check:changed
+bun tools/dev.mts check:fast
+bun tools/dev.mts security:workflows
+bun run check
+bun run verify
+bun run package:check
+bun run foundation:qualification
 ```
+
+Bun 1.4.3 is the default repository manager and ordinary tool runtime. The
+explicit rollback profile uses a clean, separate pnpm installation:
+
+```bash
+node tools/dev.mts --profile node install
+node tools/dev.mts --profile node check:fast
+```
+
+Node remains explicit for mandatory Node tests, raw V8 coverage, c8, npm/pnpm
+qualification, signing and release operations. Published Node 24/26 support is
+unchanged.
 
 Consumers use:
 

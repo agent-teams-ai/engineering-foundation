@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
-import { lstat, realpath } from "node:fs/promises";
-import { delimiter, isAbsolute, resolve } from "node:path";
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
+import { resolveQualificationExecutables } from "./executable-policy.mts";
 
 type RuntimeProfile = "bun" | "node";
 type ToolRole = "runtime" | "node-qualification" | "native-tool";
@@ -16,6 +17,7 @@ interface ToolCommand {
 const SCRIPT_IDS = new Set([
   "standards:check", "build", "buf-qualification:e2e", "buf-qualification:e2e:built",
   "check", "verify", "check:changed", "check:fast", "dependencies:peers:check",
+  "dependencies:installed:check",
   "ci:full", "ci:merge", "changeset", "changeset:coverage", "clean",
   "foundation:bootstrap", "foundation:dogfood", "foundation:qualification",
   "foundation:check", "foundation:check:built", "lint", "lint:fast", "lint:fast:files",
@@ -70,85 +72,29 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "architecture:patterns": { entry: "scripts/run-ast-grep.mjs", args: ["scan", "--config", "sgconfig.yml", "--error=unused-suppression"], role: "runtime" },
   "architecture:patterns:test": { entry: "scripts/run-ast-grep.mjs", args: ["test", "--config", "sgconfig.yml", "--skip-snapshot-tests"], role: "runtime" },
   "quality:scope:check": { entry: "scripts/check-production-quality.mjs", args: [], role: "runtime" },
-  "architecture:features:check": { entry: "scripts/check-feature-modules.mjs", args: [], role: "runtime" },
+  "architecture:features:check": { entry: "scripts/check-feature-modules.mjs", args: [], role: "node-qualification" },
   "architecture:features:plan": { entry: "scripts/check-feature-modules.mjs", args: ["plan"], role: "runtime" },
   "quality:coverage:scope": { entry: "packages/engineering-foundation/dist/cli.js", args: ["quality", "check", "--consumer", ".", "--scope-only"], role: "runtime" },
   "foundation:check:built": { entry: "packages/engineering-foundation/dist/cli.js", args: ["check", "--consumer", "."], role: "runtime" },
-  "runtime-observe": { entry: "tests/support/record-repository-runtime.mjs", args: [], role: "runtime" },
+  "runtime-observe": { entry: "tests/support/record-repository-runtime.mts", args: [], role: "runtime" },
   "parser-spike:check": { entry: "tools/pnpm-command.mts", args: ["--filter", "@agent-teams/source-dependency-parser-spike", "run", "check"], role: "node-qualification" },
   "spike:source-parser": { entry: "tools/pnpm-command.mts", args: ["--filter", "@agent-teams/source-dependency-parser-spike", "run", "spike"], role: "node-qualification" }
 });
 
 async function isFile(path: string): Promise<boolean> {
-  const metadata = await lstat(path).catch(() => null);
+  const metadata = await stat(path).catch(() => null);
   return metadata?.isFile() === true;
-}
-
-async function verifyNode(path: string): Promise<string> {
-  if (!isAbsolute(path) || !await isFile(path)) {
-    throw new Error(`Node executable is unavailable: ${path}`);
-  }
-  const { spawnSync } = await import("node:child_process");
-  const observation = spawnSync(path, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node})"], {
-    encoding: "utf8",
-    timeout: 10_000
-  });
-  if (observation.status !== 0) {
-    throw new Error(`Node executable did not run: ${path}`);
-  }
-  const observed = JSON.parse(observation.stdout) as { readonly execPath: string; readonly version: string };
-  if (
-    observed.version !== "26.11.1" ||
-    await realpath(observed.execPath) !== await realpath(path) ||
-    !/(?:^|[\\/])node(?:\.exe)?$/u.test(observed.execPath)
-  ) {
-    throw new Error(`Executable is not admitted Node 26.11.1: ${path}`);
-  }
-  return path;
-}
-
-async function verifyBun(path: string): Promise<string> {
-  if (!isAbsolute(path) || !await isFile(path)) {
-    throw new Error(`Bun executable is unavailable: ${path}`);
-  }
-  const { spawnSync } = await import("node:child_process");
-  const observation = spawnSync(path, ["--version"], { encoding: "utf8", timeout: 10_000 });
-  if (observation.status !== 0 || observation.stdout.trim() !== "1.4.3") {
-    throw new Error(`Executable is not admitted Bun 1.4.3: ${path}`);
-  }
-  return path;
-}
-
-async function firstExisting(candidates: readonly (string | undefined)[]): Promise<string> {
-  for (const candidate of candidates) {
-    if (candidate !== undefined && isAbsolute(candidate) && await isFile(candidate)) {
-      return candidate;
-    }
-  }
-  throw new Error("No admitted runtime executable was found.");
 }
 
 async function runtimeExecutables(): Promise<{ readonly profile: RuntimeProfile; readonly node: string; readonly bun?: string }> {
   const policy = await readRepositoryRuntimePolicy();
   const marker = process.env["AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE"];
   const profile: RuntimeProfile = marker === undefined ? policy.defaultProfile : marker === "bun" || marker === "node" ? marker : (() => { throw new Error(`Unknown runtime profile: ${marker}`); })();
-  const node = await verifyNode(await firstExisting([
-    process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"],
-    process.versions["bun"] === undefined ? process.execPath : undefined,
-    ...((process.env["PATH"] ?? "").split(delimiter).filter(Boolean).map((path) => resolve(path, process.platform === "win32" ? "node.exe" : "node")))
-  ]));
-  const bun = profile === "bun" || process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"] !== undefined
-    ? await verifyBun(await firstExisting([
-        process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"],
-        resolve(repositoryRoot, "node_modules/.job-scratch/toolchains/bun/bun-linux-x64/bun"),
-        ...((process.env["PATH"] ?? "").split(delimiter).filter(Boolean).map((path) => resolve(path, process.platform === "win32" ? "bun.exe" : "bun")))
-      ]))
-    : undefined;
-  return { profile, node, bun };
+  return resolveQualificationExecutables(profile);
 }
 
 function run(command: string, args: readonly string[], cwd: string): Promise<number> {
-  return new Promise((resolvePromise, reject) => {
+  return new Promise((_resolve, reject) => {
     const child = spawn(command, [...args], { cwd, env: process.env, shell: false, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
@@ -156,7 +102,7 @@ function run(command: string, args: readonly string[], cwd: string): Promise<num
         reject(new Error(`Command terminated by ${signal}.`));
         return;
       }
-      resolvePromise(code ?? 1);
+      _resolve(code ?? 1);
     });
   });
 }
@@ -174,7 +120,10 @@ async function invokeScript(id: string): Promise<number> {
 }
 
 async function invokeTool(id: string, paths: readonly string[]): Promise<number> {
-  const command = TOOL_COMMANDS[id];
+  const command = id === "dependencies:peers:check" &&
+    (await runtimeExecutables()).profile === "bun"
+    ? TOOL_COMMANDS["dependencies:installed:check"]
+    : TOOL_COMMANDS[id];
   if (command === undefined) {
     throw new Error(`Unknown repository tool ID: ${id}`);
   }

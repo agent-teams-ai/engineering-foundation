@@ -9,9 +9,18 @@ import {
   projectPnpmWorkspaceMigrationExclusionsV2
 } from "../dist/consumer-integration/adapters/consumer-upgrade-file-projectors.js";
 import {
+  projectCohortV3AuthorityBinding
+} from "../dist/consumer-integration/adapters/cohort-v3-authority-projector.js";
+import {
+  selectManagedSuccessorProfileV3
+} from "../dist/consumer-integration/application/policies/managed-successor-state.js";
+import {
   projectPnpmManifestCohortPinsV2
 } from "../dist/consumer-integration/adapters/pnpm-manifest-adapter-v2.js";
 import { assertConsumerIntegrationProfileSchema } from "../dist/consumer-integration/adapters/consumer-integration-schema-validator.js";
+import {
+  cohortV3Registry, rebindCohortV3Registry, sourceManifestV2
+} from "./consumer-upgrade-e2e-fixtures.mjs";
 
 const integrity = `sha512-${"A".repeat(86)}==`;
 const coordinate = (version) => ({ version, integrity });
@@ -77,6 +86,55 @@ function profile(binding) {
   };
 }
 
+function cohort3(suffix, options = {}) {
+  return {
+    ...cohort(suffix, options.version ?? "2.0.0"),
+    schemaVersion: 3,
+    candidateDigest: `sha256:${"a".repeat(64)}`,
+    schemas: {
+      consumerIntegration: 4,
+      managedState: 3,
+      qualificationReceipt: 1,
+      docsProtocol: 1
+    },
+    runtime: {
+      policy: {
+        id: "agent-teams.docs-protocol-current-policy",
+        version: "3.0.0",
+        digest: "sha256:7af41f44a6e522b8919ace5f85499747215ddd1955199584c34046ec95c4b141"
+      },
+      selectedLane: "node-26-managed-qualified",
+      node: ">=26.0.0 <27",
+      pnpm: ">=11.17.0 <12",
+      qualificationRuntime: {
+        nodeVersion: "26.11.1",
+        pnpmVersion: "11.20.0",
+        platform: "linux",
+        architecture: "x64"
+      },
+      runtimeClosure: {
+        domain: "agent-teams.docs-runtime-closure/v2",
+        digest: `sha256:${"9".repeat(64)}`
+      }
+    },
+    upgradeFrom: [`${options.sourceCohortId ?? "docs-v2-source"}`],
+    rollbackTo: [`${options.sourceCohortId ?? "docs-v2-source"}`]
+  };
+}
+
+function authority3(cohortBinding, options = {}) {
+  return {
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: "8".repeat(40),
+    cohort: {
+      ...cohortBinding,
+      lifecycleState: options.lifecycleState ?? "RECOMMENDED",
+      canaryRepositoryIds: options.canaryRepositoryIds ?? ["999999999"]
+    }
+  };
+}
+
 test("profile v3 schema rejects extra projected fields before desired-state interpretation", async () => {
   const valid = profile(cohort("source", "1.0.0"));
   await assert.doesNotReject(assertConsumerIntegrationProfileSchema(valid));
@@ -117,6 +175,113 @@ test("projects one explicit profile v3 and the three public entrypoint pins", as
     "@agent-teams/docs-protocol-agent-teams": "2.0.0",
     "@agent-teams/engineering-foundation": "2.0.0"
   });
+});
+
+test("selects only a lifecycle-authorized Node26 Profile4 state before projection", () => {
+  const source = profile(cohort("source", "1.0.0"));
+  const target = cohort3("target", { sourceCohortId: source.cohort.cohortId });
+  const selected = selectManagedSuccessorProfileV3(
+    source,
+    authority3(target),
+    Date.parse("2026-10-14T00:00:00Z")
+  );
+  assert.equal(selected.status, "selected");
+  assert.equal(selected.selection.profile.schemaVersion, 4);
+  assert.equal(selected.selection.profile.cohort.schemaVersion, 3);
+  assert.equal("lifecycleState" in selected.selection.profile.cohort, false);
+  assert.deepEqual(selected.selection.profile.governedDocsRoots, source.governedDocsRoots);
+  assert.equal(selected.selection.repositoryId, source.repository.id);
+
+  for (const [description, authority, expected] of [
+    ["QUALIFIED publication", authority3(target, { lifecycleState: "QUALIFIED" }),
+      "DOCS_CONSUMER_COHORT_NOT_SELECTABLE"],
+    ["denied canary repository", authority3(target, {
+      lifecycleState: "CANARY", canaryRepositoryIds: ["123"]
+    }), "DOCS_CONSUMER_COHORT_NOT_SELECTABLE"],
+    ["future eligibility", authority3({
+      ...target, eligibleAfter: "2099-01-01T00:00:00Z"
+    }), "DOCS_CONSUMER_COHORT_NOT_ELIGIBLE"],
+    ["missing source edge", authority3({
+      ...target, upgradeFrom: ["other-source"], rollbackTo: ["other-source"]
+    }), "DOCS_CONSUMER_COHORT_TRANSITION_FORBIDDEN"]
+  ]) {
+    const result = selectManagedSuccessorProfileV3(
+      source,
+      authority,
+      Date.parse("2026-10-14T00:00:00Z")
+    );
+    assert.equal(result.status, "rejected", description);
+    assert.equal(result.code, expected, description);
+  }
+});
+
+test("projects Profile4 files with five-package, three-root and Node26 preimages", async () => {
+  const source = profile(cohort("source", "1.0.0"));
+  const target = cohort3("target", { sourceCohortId: source.cohort.cohortId });
+  const selection = selectManagedSuccessorProfileV3(
+    source,
+    authority3(target),
+    Date.parse("2026-10-14T00:00:00Z")
+  );
+  assert.equal(selection.status, "selected");
+  const workspace = Buffer.from(`packages: []
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - '@agent-teams/docs-protocol@1.0.0'
+  - '@agent-teams/docs-protocol-agent-teams@1.0.0'
+  - '@agent-teams/engineering-foundation@1.0.0'
+`);
+  const projected = await projectConsumerUpgradeFiles({
+    authority: authority3(target),
+    current: source,
+    manifest: Buffer.from(`${JSON.stringify(sourceManifestV2(source.cohort, source.profilePath), null, 2)}\n`),
+    profile: Buffer.from(`${JSON.stringify(source, null, 2)}\n`),
+    selection: selection.selection,
+    workspace
+  });
+  const projectedProfile = JSON.parse(Buffer.from(projected.profile).toString("utf8"));
+  assert.equal(projectedProfile.schemaVersion, 4);
+  assert.deepEqual(projectedProfile.cohort, selection.selection.profile.cohort);
+  assert.equal(Buffer.from(projected.nodeVersion).toString("utf8"), "26.11.1\n");
+  const manifest = JSON.parse(Buffer.from(projected.manifest).toString("utf8"));
+  assert.deepEqual(Object.keys(manifest.devDependencies).toSorted(), [
+    "@agent-teams/docs-protocol",
+    "@agent-teams/docs-protocol-agent-teams",
+    "@agent-teams/engineering-foundation"
+  ]);
+  for (const bytes of [projected.profile, projected.manifest, projected.nodeVersion]) {
+    assert.ok(bytes.byteLength > 0);
+  }
+  const targetEntries = [
+    "repository-mutation", "document-authoring", "docs-protocol",
+    "docs-protocol-agent-teams", "engineering-foundation"
+  ].map((name) => `@agent-teams/${name}@2.0.0`);
+  const committed = workspaceExclusions(projected.targetWorkspace);
+  const migration = workspaceExclusions(projected.migrationWorkspace);
+  assert.equal(managedExclusions(committed).length, 5);
+  assert.equal(managedExclusions(migration).length, 10);
+  for (const entry of targetEntries) {
+    assert.equal(committed.filter((candidate) => candidate === entry).length, 1);
+    assert.equal(migration.filter((candidate) => candidate === entry).length, 1);
+  }
+});
+
+test("rejects a Cohort3 tuple that differs from packed policy before selection", () => {
+  const source = profile(cohort("source", "1.0.0"));
+  const target = cohort3("target", { sourceCohortId: source.cohort.cohortId });
+  const repository = { provider: "github", id: "999999999", nameWithOwner: "agent-teams-ai/docs-v3-sandbox" };
+  const registry = cohortV3Registry({ cohort: target, repository });
+  registry.cohorts[0].runtime.qualification_runtime.node_version = "26.10.0";
+  rebindCohortV3Registry(registry);
+  assert.throws(
+    () => projectCohortV3AuthorityBinding({
+      cohortId: target.cohortId,
+      registry,
+      repository,
+      revision: "8".repeat(40)
+    }),
+    /runtime differs/u
+  );
 });
 
 test("stages source and target release-age evidence, then commits target-only authority", () => {

@@ -142,6 +142,9 @@ export interface ConsumerQualificationAuthorityV3 {
   readonly cohort: UnselectedCohortV3;
 }
 
+/** Ordinary upgrade view of the same protected Cohort3 registry evidence. */
+export type ConsumerUpgradeAuthorityV3 = ConsumerQualificationAuthorityV3;
+
 export interface ConsumerIntegrationDesiredStateV1 {
   readonly schemaVersion: 1;
   readonly repository: {
@@ -177,7 +180,7 @@ export interface ConsumerIntegrationDesiredStateV3 {
   readonly cohort: QualifiedDocsCohortBindingV2;
 }
 
-/** Closed unselected Profile4 binding over Cohort3; it grants no lifecycle selection. */
+/** Closed unselected Profile4 data; lifecycle selection is represented separately. */
 export interface ManagedSuccessorProfile {
   readonly schemaVersion: 4;
   readonly repository: { readonly provider: "github"; readonly id: string; readonly nameWithOwner: string };
@@ -190,6 +193,13 @@ export interface ManagedSuccessorProfile {
   readonly qualification: { readonly contractPath: string; readonly gateCommand: string };
   readonly governedDocsRoots?: readonly string[];
   readonly cohort: Omit<UnselectedCohortV3, "lifecycleState" | "canaryRepositoryIds">;
+}
+
+/** In-memory selection result; only `profile` is valid Profile4 persistence data. */
+export interface ManagedSuccessorSelectionV3 {
+  readonly profile: ManagedSuccessorProfile;
+  readonly lifecycleState: "CANARY" | "RECOMMENDED";
+  readonly repositoryId: string;
 }
 
 export interface ManagedSuccessorAssetDigests {

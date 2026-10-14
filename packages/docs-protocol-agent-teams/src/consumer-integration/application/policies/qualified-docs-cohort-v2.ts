@@ -1,9 +1,12 @@
 import type {
   QualifiedDocsCohortBindingV2,
-  QualifiedDocsPackageCoordinateV2
+  QualifiedDocsPackageCoordinateV2,
+  UnselectedCohortV3
 } from "../../domain/model.js";
 
 type QualifiedDocsCohortV2PackageKey = keyof QualifiedDocsCohortBindingV2["packages"];
+type FivePackageCohort = Pick<QualifiedDocsCohortBindingV2, "packages"> |
+  Pick<UnselectedCohortV3, "packages">;
 
 export interface QualifiedDocsCohortV2PackageDescriptor {
   readonly key: QualifiedDocsCohortV2PackageKey;
@@ -73,7 +76,7 @@ export const QUALIFIED_DOCS_COHORT_V2_EDGES = Object.freeze([
 ]);
 
 export function qualifiedDocsCohortV2PackageEntries(
-  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">
+  cohort: FivePackageCohort
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {
   return QUALIFIED_DOCS_COHORT_V2_PACKAGES.map((descriptor) => Object.freeze({
     ...descriptor,
@@ -82,7 +85,7 @@ export function qualifiedDocsCohortV2PackageEntries(
 }
 
 export function qualifiedDocsCohortV2DirectPackageEntries(
-  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">
+  cohort: FivePackageCohort
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {
   return qualifiedDocsCohortV2PackageEntries(cohort).filter(({ direct }) => direct);
 }

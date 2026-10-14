@@ -6,5 +6,8 @@ Correct the current Docs Protocol runtime policy to policy 3.0.0 for the accepte
 Node 26.11.1 production default and Node 24 compatibility lane. Retain exact
 historical policy bytes and the unselected managed candidate; physical Node 26
 qualification remains pending. Add the read-only Cohort 3 qualification
-authority projector used by the public managed registry canary while retaining
-generation 1/2 consumer upgrade authority and the unselected Profile 4 binding.
+authority projector used by the public managed registry canary and the narrow
+qualified Profile 3/Cohort 2 to Profile 4/Cohort 3 consumer upgrade. Selection
+requires protected CANARY or RECOMMENDED lifecycle evidence for the exact
+repository and tuple; policy 3 remains an immutable unselected candidate input,
+and generation 1/2 upgrade behavior remains unchanged.

@@ -204,11 +204,12 @@ function assertManagedProfileRuntime(desired: ManagedSuccessorProfile): void {
 
 async function assertQualifiedPnpmRoot(
   root: string,
-  desired: ConsumerIntegrationDesiredState
+  desired: ConsumerIntegrationDesiredState,
+  runtimeAssessment: "consumer" | "upgrade-source"
 ): Promise<void> {
   if (desired.schemaVersion === 4) {
     assertManagedProfileRuntime(desired);
-  } else {
+  } else if (runtimeAssessment === "consumer") {
     assertLegacyNodeRuntime();
   }
   const manifestObservation = await readStableConsumerFile(
@@ -334,6 +335,7 @@ async function assertQualifiedLockfile(
 async function readManagedConsumerIntegrationInput(options: {
   readonly consumerRoot: string;
   readonly integrationProfilePath?: string;
+  readonly runtimeAssessment?: "consumer" | "upgrade-source";
 }): Promise<{
   readonly desired: ConsumerIntegrationDesiredState;
   readonly repositoryHead?: string;
@@ -391,7 +393,7 @@ async function readManagedConsumerIntegrationInput(options: {
     }
     assertNestedAgentsAuthority(topology, desired.governedDocsRoots);
     assertGitHubRuntimeIdentity(desired);
-    await assertQualifiedPnpmRoot(root, desired);
+    await assertQualifiedPnpmRoot(root, desired, options.runtimeAssessment ?? "consumer");
     lockfile = await assertQualifiedLockfile(root, desired);
   } catch (error) {
     if (error instanceof ConsumerIntegrationNodeError) {throw error;}
@@ -435,6 +437,7 @@ async function readManagedConsumerIntegrationInput(options: {
 export async function readConsumerIntegrationInput(options: {
   readonly consumerRoot: string;
   readonly integrationProfilePath?: string;
+  readonly runtimeAssessment?: "consumer" | "upgrade-source";
 }): Promise<{
   readonly desired: ConsumerIntegrationDesiredStateV1;
   readonly root: string;

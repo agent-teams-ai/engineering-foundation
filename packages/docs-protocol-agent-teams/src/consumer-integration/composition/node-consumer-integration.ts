@@ -88,7 +88,7 @@ export async function upgradeConsumerIntegration(options: {
 export function upgradeConsumerIntegrationToGeneration(options: {
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
-  readonly targetGeneration: 1 | 2;
+  readonly targetGeneration: 1 | 2 | 3;
   readonly sourceGeneration?: 1;
   readonly restorationProofPath?: string;
   readonly prepare?: boolean;

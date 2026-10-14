@@ -20,10 +20,13 @@ import { compileConsumerIntegration } from "./plan-consumer-integration.js";
 import type {
   ConsumerIntegrationIssue,
   ConsumerIntegrationDesiredState,
+  ConsumerIntegrationDigest,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2
+  ConsumerUpgradeAuthorityV2,
+  ConsumerUpgradeAuthorityV3,
+  ManagedSuccessorSelectionV3
 } from "../../domain/model.js";
 import type {
   RestorableConsumerUpgradeExecution
@@ -31,6 +34,9 @@ import type {
 import {
   canonicalConsumerIntegrationJson
 } from "../policies/consumer-integration-assets.js";
+import {
+  selectManagedSuccessorProfileV3
+} from "../policies/managed-successor-state.js";
 
 import type { ConsumerRestorationRecorder } from "../ports/consumer-restoration.js";
 
@@ -58,14 +64,21 @@ function blocked(
   });
 }
 
+function executionDigest(value: string): ConsumerIntegrationDigest {
+  if (!/^sha256:(?!0{64}$)[0-9a-f]{64}$/u.test(value)) {
+    throw new TypeError("Authority evidence contains one invalid SHA-256 digest.");
+  }
+  return value as ConsumerIntegrationDigest;
+}
+
 function authorityEvidence(authority: ConsumerUpgradeAuthority) {
   return Object.freeze({
     repository: authority.repository,
     path: authority.path,
     revision: authority.revision,
     cohortId: authority.cohort.cohortId,
-    recordDigest: authority.cohort.recordDigest,
-    qualificationEventDigest: authority.cohort.qualificationEventDigest
+    recordDigest: executionDigest(authority.cohort.recordDigest),
+    qualificationEventDigest: executionDigest(authority.cohort.qualificationEventDigest)
   });
 }
 
@@ -78,7 +91,7 @@ function incompatibleGeneration(
     authority.cohort.cohortId,
     `Profile schema ${current.schemaVersion} cannot upgrade to Cohort schema ${
       authority.cohort.schemaVersion
-    }; only 1->1, explicit 1->2 migration, and 3->2 are supported.`
+    }; only 1->1, explicit 1->2 migration, 3->2, and qualified 3->3 are supported.`
   );
 }
 
@@ -92,6 +105,12 @@ function isAuthorityV2(
   authority: ConsumerUpgradeAuthority
 ): authority is ConsumerUpgradeAuthorityV2 {
   return authority.cohort.schemaVersion === 2;
+}
+
+function isAuthorityV3(
+  authority: ConsumerUpgradeAuthority
+): authority is ConsumerUpgradeAuthorityV3 {
+  return authority.cohort.schemaVersion === 3;
 }
 
 function reverseFullyOwnedOperations(
@@ -176,7 +195,7 @@ async function rollbackReceiptOwnedReplacements(
   }
 }
 
-function restorationOptionIssue(options: { readonly targetLockfile?: ConsumerTargetLockfileInput; readonly prepare?: boolean; readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2; readonly to: string },
+function restorationOptionIssue(options: { readonly targetLockfile?: ConsumerTargetLockfileInput; readonly prepare?: boolean; readonly restorationProofPath?: string; readonly sourceGeneration?: 1; readonly targetGeneration?: 1 | 2 | 3; readonly to: string },
   desired: ConsumerIntegrationDesiredState, recorder: ConsumerRestorationRecorder | undefined): RestorableConsumerUpgradeExecution | undefined {
   if (options.targetLockfile !== undefined &&
     (options.prepare !== true || options.sourceGeneration !== 1 || options.targetGeneration !== 2 ||
@@ -209,7 +228,7 @@ interface ConsumerUpgradeOptions {
   readonly targetLockfile?: ConsumerTargetLockfileInput;
   readonly consumerRoot: string;
   readonly authorityRevision?: string;
-  readonly targetGeneration?: 1 | 2;
+  readonly targetGeneration?: 1 | 2 | 3;
   readonly to: string;
   readonly sourceGeneration?: 1;
   readonly restorationProofPath?: string;
@@ -219,18 +238,18 @@ interface ConsumerUpgradeOptions {
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
   // oxlint-disable-next-line complexity
   return async function upgrade(options: ConsumerUpgradeOptions): Promise<RestorableConsumerUpgradeExecution> {
-    if (options.targetGeneration !== 1 && options.targetGeneration !== 2) {
+    if (![1, 2, 3].includes(options.targetGeneration)) {
       return blocked(issue(
         "DOCS_CONSUMER_TARGET_GENERATION_REQUIRED",
         options.to,
-        "Upgrade requires one explicit target Cohort generation (1 or 2)."
+        "Upgrade requires one explicit target Cohort generation (1, 2, or 3)."
       ));
     }
     const inspection = await ports.transaction.inspect({ consumerRoot: options.consumerRoot });
     if (inspection.state !== "idle") {
       return blocked(issue(inspection.code, "foundation-transaction", inspection.message));
     }
-    const input = await ports.input.read({ consumerRoot: options.consumerRoot });
+    const input = await ports.input.read({ consumerRoot: options.consumerRoot, runtimeAssessment: "upgrade-source" });
     const restorationIssue = restorationOptionIssue(options, input.desired, ports.restoration);
     if (restorationIssue !== undefined) {return restorationIssue;}
     const source = compileConsumerIntegration({
@@ -267,25 +286,22 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         "Cohort upgrade requires one exact committed source Git HEAD."
       ));
     }
-    const authority = await ports.authority.read({
-      cohortId: options.to,
-      generation: options.targetGeneration,
-      repository: input.desired.repository,
-      ...(options.authorityRevision === undefined
-        ? {}
-        : { revision: options.authorityRevision })
-    });
+    const authority = await ports.authority.read({ cohortId: options.to,
+      generation: options.targetGeneration, repository: input.desired.repository,
+      ...(options.authorityRevision === undefined ? {} : { revision: options.authorityRevision }) });
     if (authority.cohort.schemaVersion !== options.targetGeneration) {
       return blocked(incompatibleGeneration(input.desired, authority), authority);
     }
     const supportedGeneration =
       (input.desired.schemaVersion === 1 && isAuthorityV1(authority)) ||
       (input.desired.schemaVersion === 1 && isAuthorityV2(authority)) ||
-      (input.desired.schemaVersion === 3 && isAuthorityV2(authority));
+      (input.desired.schemaVersion === 3 && isAuthorityV2(authority)) ||
+      (input.desired.schemaVersion === 3 && isAuthorityV3(authority));
     if (!supportedGeneration) {
       return blocked(incompatibleGeneration(input.desired, authority), authority);
     }
-    const crossGeneration = input.desired.schemaVersion === 1 && isAuthorityV2(authority);
+    const crossGeneration = (input.desired.schemaVersion === 1 && isAuthorityV2(authority)) ||
+      (input.desired.schemaVersion === 3 && isAuthorityV3(authority));
     const transitionAllowed = authority.cohort.upgradeFrom.includes(
       input.desired.cohort.cohortId
     ) || (!crossGeneration && input.desired.cohort.rollbackTo.includes(
@@ -298,6 +314,14 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
         `Central authority does not permit a transition from ${input.desired.cohort.cohortId}.`
       ), authority);
     }
+    let selection: ManagedSuccessorSelectionV3 | undefined;
+    if (input.desired.schemaVersion === 3 && isAuthorityV3(authority)) {
+      const selected = selectManagedSuccessorProfileV3(input.desired, authority, Date.now());
+      if (selected.status === "rejected") {
+        return blocked(issue(selected.code, options.to, selected.message), authority);
+      }
+      selection = selected.selection;
+    }
     const targetLockfile = await readTargetLockfile(options.targetLockfile, ports.targetLockfile, input.root);
     const transition = await prepareTransition({
       authority,
@@ -306,6 +330,7 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       root: input.root,
       sandbox: ports.sandbox,
       ...(targetLockfile === undefined ? {} : { targetLockfile }),
+      ...(selection === undefined ? {} : { selection }),
       snapshot: input.snapshot,
       source
     });
@@ -368,57 +393,78 @@ async function prepareTransition(input: {
   readonly sandbox: ConsumerUpgradeSandboxPort;
   readonly snapshot: ConsumerIntegrationSnapshot;
   readonly source: ConsumerIntegrationPlanV1;
+  readonly selection?: ManagedSuccessorSelectionV3;
 }): Promise<{
   readonly activateAndVerify: () => Promise<void>;
   readonly prepared: PreparedConsumerUpgradeV1;
   readonly restoreAndVerify: () => Promise<void>;
 } | undefined> {
+  const current = input.current;
+  const authority = input.authority;
   const common = {
     consumerRoot: input.root,
     expectedSourceRevision: input.repositoryHead,
     expectedSourceSnapshot: input.snapshot
   };
-  if (input.current.schemaVersion === 1 && isAuthorityV1(input.authority)) {
+  if (current.schemaVersion === 1 && isAuthorityV1(authority)) {
     return {
       prepared: await input.sandbox.prepareV1({
-        ...common, authority: input.authority, current: input.current
+        ...common, authority, current
       }),
       activateAndVerify: () => input.sandbox.activateAndVerifyV1({
-        authority: input.authority as ConsumerUpgradeAuthorityV1, consumerRoot: input.root
+        authority, consumerRoot: input.root
       }),
       restoreAndVerify: () => input.sandbox.restoreAndVerifyV1({
         consumerRoot: input.root,
-        current: input.current as Extract<ConsumerIntegrationDesiredState, { schemaVersion: 1 }>
+        current
       })
     };
   }
-  if (input.current.schemaVersion === 3 && isAuthorityV2(input.authority)) {
+  if (current.schemaVersion === 3 && isAuthorityV2(authority)) {
     return {
       prepared: await input.sandbox.prepareV2({
-        ...common, authority: input.authority, current: input.current,
-        managedPreimages: managedPreimagesV2(input.current, input.snapshot, input.source)
+        ...common, authority, current,
+        managedPreimages: managedPreimagesV2(current, input.snapshot, input.source)
       }),
       activateAndVerify: () => input.sandbox.activateAndVerifyV2({
-        authority: input.authority as ConsumerUpgradeAuthorityV2, consumerRoot: input.root
+        authority, consumerRoot: input.root
       }),
       restoreAndVerify: () => input.sandbox.restoreAndVerifyV2({
         consumerRoot: input.root,
-        current: input.current as Extract<ConsumerIntegrationDesiredState, { schemaVersion: 3 }>
+        current
       })
     };
   }
-  if (input.current.schemaVersion === 1 && isAuthorityV2(input.authority)) {
+  if (current.schemaVersion === 3 && isAuthorityV3(authority) &&
+      input.selection !== undefined) {
+    return {
+      prepared: await input.sandbox.prepareV3({
+        ...common, authority, current,
+        managedPreimages: managedPreimagesV2(current, input.snapshot, input.source),
+        selection: input.selection
+      }),
+      activateAndVerify: () => input.sandbox.activateAndVerifyV3({
+        authority, consumerRoot: input.root
+      }),
+      restoreAndVerify: () => input.sandbox.restoreAndVerifyV3({
+        consumerRoot: input.root,
+        current,
+        expectedSourceSnapshot: input.snapshot
+      })
+    };
+  }
+  if (current.schemaVersion === 1 && isAuthorityV2(authority)) {
     return {
       prepared: await input.sandbox.prepareV1ToV2({
         ...(input.targetLockfile === undefined ? {} : { targetLockfile: input.targetLockfile }),
-        ...common, authority: input.authority, current: input.current
+        ...common, authority, current
       }),
       activateAndVerify: () => input.sandbox.activateAndVerifyV2({
-        authority: input.authority as ConsumerUpgradeAuthorityV2, consumerRoot: input.root
+        authority, consumerRoot: input.root
       }),
       restoreAndVerify: () => input.sandbox.restoreAndVerifyV1({
         consumerRoot: input.root,
-        current: input.current as Extract<ConsumerIntegrationDesiredState, { schemaVersion: 1 }>
+        current
       })
     };
   }

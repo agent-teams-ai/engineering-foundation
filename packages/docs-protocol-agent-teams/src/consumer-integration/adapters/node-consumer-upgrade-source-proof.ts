@@ -52,9 +52,13 @@ export async function assertCleanConsumerGitSource(
   return head;
 }
 
-export function allowedUpgradePaths(current: UpgradeDesiredState): ReadonlySet<string> {
+export function allowedUpgradePaths(
+  current: UpgradeDesiredState,
+  includeNodeVersion = false
+): ReadonlySet<string> {
   return new Set([
     "AGENTS.md",
+    ...(includeNodeVersion ? [".node-version"] : []),
     INTEGRATION_PROFILE_PATH,
     "package.json",
     "pnpm-lock.yaml",

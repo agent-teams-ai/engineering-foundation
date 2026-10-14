@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -149,6 +150,146 @@ export function sourceManifest(cohort, profilePath) {
   };
 }
 
+function canonicalJson(value) {
+  if (Array.isArray(value)) {return `[${value.map(canonicalJson).join(",")}]`;}
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).toSorted().map((key) =>
+      `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function registryDigest(value, field, domain) {
+  const body = Object.fromEntries(Object.entries(value).filter(([key]) => key !== field));
+  return `sha256:${createHash("sha256").update(canonicalJson({ domain, body })).digest("hex")}`;
+}
+
+const V3_PACKAGES = {
+  repositoryMutation: ["@agent-teams/repository-mutation", "transitive"],
+  documentAuthoring: ["@agent-teams/document-authoring", "transitive"],
+  docsProtocol: ["@agent-teams/docs-protocol", "direct"],
+  docsProtocolAgentTeams: ["@agent-teams/docs-protocol-agent-teams", "direct"],
+  engineeringFoundation: ["@agent-teams/engineering-foundation", "direct"]
+};
+const V3_EDGES = [
+  ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+  ["@agent-teams/docs-protocol", "@agent-teams/document-authoring"],
+  ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"],
+  ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/docs-protocol"],
+  ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/repository-mutation"],
+  ["@agent-teams/engineering-foundation", "@agent-teams/document-authoring"],
+  ["@agent-teams/engineering-foundation", "@agent-teams/repository-mutation"]
+];
+function v3Provenance(name, version) {
+  return {
+    source_repository: "agent-teams-ai/engineering-foundation",
+    source_repository_id: 1316243988,
+    source_workflow: "scripts/release-publish.mjs",
+    source_commit: "a".repeat(40),
+    workflow_run_id: 1,
+    workflow_run_attempt: 1,
+    registry_attestation_url: `https://registry.npmjs.org/-/npm/v1/attestations/${name.replaceAll("/", "%2f")}@${version}`,
+    workflow_run_url: "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/1",
+    signature_verified: true
+  };
+}
+function v3Asset(path, digest, renderedDigest) {
+  const asset = { package: "@agent-teams/docs-protocol-agent-teams", path, digest };
+  return renderedDigest === undefined ? asset : { ...asset, rendered_digest: renderedDigest };
+}
+export function cohortV3Registry({
+  cohort, repository, lifecycleState = "CANARY",
+  canaryRepositoryIds = [repository.id], revision = "8".repeat(40)
+}) {
+  const packageEntry = ([key, coordinate]) => {
+    const [name, role] = V3_PACKAGES[key];
+    return { name, role, version: coordinate.version, integrity: coordinate.integrity,
+      registry: "https://registry.npmjs.org/", published_at: "2026-10-14T00:00:00Z",
+      provenance: v3Provenance(name, coordinate.version) };
+  };
+  const event = (sequence, state, effectiveAt, previousEventDigest, canaryEvidence) => {
+    const value = { sequence, cohort_id: cohort.cohortId, state, effective_at: effectiveAt,
+      support_until: null, evidence_references: [`https://github.com/agent-teams-ai/engineering-foundation/actions/runs/${sequence}`],
+      canary_evidence: canaryEvidence, previous_event_digest: previousEventDigest };
+    value.event_digest = registryDigest(value, "event_digest", "agent-teams.docs-qualified-cohort-event/v1");
+    return value;
+  };
+  const source = {
+    cohort_generation: 3, cohort_id: cohort.cohortId, channel: cohort.channel,
+    candidate_digest: cohort.candidateDigest,
+    policy_identity: cohort.runtime.policy,
+    packages: Object.entries(cohort.packages).map(packageEntry),
+    dependency_edges: V3_EDGES.map(([from, to]) => ({ from, to })),
+    reusable_workflow: { ...cohort.workflow, repository_id: 1316243981 },
+    schemas: { consumer_integration: 4, managed_state: 3, qualification_receipt: 1,
+      docs_protocol: 1, foundation_plan: 1, foundation_journal: 1, foundation_receipt: 1,
+      foundation_envelope: 5 },
+    assets: {
+      skill: v3Asset("skills/docs/SKILL.md", cohort.assets.skillDigest),
+      caller_workflow: v3Asset("assets/docs-protocol.yml", cohort.assets.callerWorkflowDigest,
+        cohort.assets.callerWorkflowDigest),
+      asset_catalog: v3Asset("assets/catalog.json", cohort.assets.assetCatalogDigest),
+      transition_catalog: v3Asset("assets/transition-catalog.json", cohort.assets.transitionCatalogDigest)
+    },
+    runtime: { selected_lane: cohort.runtime.selectedLane, node: cohort.runtime.node,
+      pnpm: cohort.runtime.pnpm,
+      qualification_runtime: { node_version: cohort.runtime.qualificationRuntime.nodeVersion,
+        pnpm_version: cohort.runtime.qualificationRuntime.pnpmVersion,
+        platform: cohort.runtime.qualificationRuntime.platform,
+        architecture: cohort.runtime.qualificationRuntime.architecture } },
+    runtime_closure: { schema_version: 2, domain: cohort.runtime.runtimeClosure.domain,
+      package_manager: "pnpm@11.20.0", lockfile_version: "9.0", package_count: 5,
+      projection_path: `governance/docs-runtime-closures/${cohort.runtime.runtimeClosure.digest.replace(":", "-")}.json`,
+      digest: cohort.runtime.runtimeClosure.digest },
+    eligible_after: cohort.eligibleAfter, upgrade_from: cohort.upgradeFrom,
+    rollback_to: cohort.rollbackTo,
+    canary_repositories: canaryRepositoryIds.map((id) => ({ repository_id: Number(id),
+      repository: id === repository.id ? repository.nameWithOwner : "agent-teams-ai/other-consumer" })),
+    evidence_references: ["https://github.com/agent-teams-ai/engineering-foundation/actions/runs/1"]
+  };
+  source.record_digest = registryDigest(source, "record_digest", "agent-teams.docs-qualified-cohort/v3");
+  const qualified = event(1, "QUALIFIED", "2026-10-14T00:00:00Z", null, []);
+  const selectedRepository = canaryRepositoryIds[0] === repository.id;
+  const canaryEvidence = lifecycleState === "CANARY" ? [{
+    repository_id: Number(canaryRepositoryIds[0]),
+    repository: selectedRepository ? repository.nameWithOwner : "agent-teams-ai/other-consumer",
+    merge_revision: "a".repeat(40), observed_cohort_id: cohort.cohortId,
+    observed_record_digest: source.record_digest, observed_event_digest: qualified.event_digest,
+    required_context: "Docs Protocol", integration_id: 1, conclusion: "success",
+    check_run_id: 22,
+    check_run_url: `https://github.com/agent-teams-ai/${selectedRepository ? repository.nameWithOwner.split("/")[1] : "other-consumer"}/actions/runs/33/job/22`,
+    workflow_run_id: 33, workflow_id: 4,
+    caller_workflow_path: ".github/workflows/docs-protocol.yml",
+    caller_workflow_digest: cohort.assets.callerWorkflowDigest
+  }] : [];
+  return { schema_version: 1, cohorts: [source], events: [
+    qualified, event(2, lifecycleState, "2026-10-14T00:01:00Z", qualified.event_digest, canaryEvidence)
+  ], revision };
+}
+export function rebindCohortV3Registry(registry) {
+  const source = registry.cohorts[0];
+  const sourceBody = { ...source };
+  delete sourceBody.record_digest;
+  source.record_digest = registryDigest(
+    sourceBody, "record_digest", "agent-teams.docs-qualified-cohort/v3"
+  );
+  let previous = null;
+  let qualifiedDigest;
+  for (const event of registry.events) {
+    event.previous_event_digest = previous;
+    for (const evidence of event.canary_evidence) {
+      evidence.observed_record_digest = source.record_digest;
+      if (qualifiedDigest !== undefined) {evidence.observed_event_digest = qualifiedDigest;}
+    }
+    delete event.event_digest;
+    event.event_digest = registryDigest(
+      event, "event_digest", "agent-teams.docs-qualified-cohort-event/v1"
+    );
+    previous = event.event_digest;
+    if (event.state === "QUALIFIED") {qualifiedDigest = event.event_digest;}
+  }
+  return registry;
+}
 export async function cleanupOneCommandSandbox({
   disposable,
   originalPath,
@@ -204,7 +345,7 @@ const profile = JSON.parse(readFileSync(join(
 ), "utf8"));
 const docs = profile.cohort.packages.docsProtocol;
 const foundation = profile.cohort.packages.engineeringFoundation;
-const isV2 = profile.cohort.schemaVersion === 2;
+  const isV2 = profile.cohort.schemaVersion === 2 || profile.cohort.schemaVersion === 3;
 const historicalDocsSource = ${JSON.stringify(historicalDocsRoot ?? null)};
 if (process.argv.includes("--no-frozen-lockfile") && !isV2) {
   const workspace = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");

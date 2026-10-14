@@ -29,7 +29,9 @@ import type {
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2
+  ConsumerUpgradeAuthorityV2,
+  ConsumerUpgradeAuthorityV3,
+  ManagedSuccessorSelectionV3
 } from "../domain/model.js";
 import {
   projectConsumerUpgradeFiles
@@ -62,11 +64,20 @@ import {
   assertProvedSourceSnapshot,
   resetProvedManagedAssetsV2
 } from "./node-consumer-upgrade-source-proof.js";
-type ConsumerUpgradeAuthority = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+type ConsumerUpgradeAuthority = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 |
+  ConsumerUpgradeAuthorityV3;
 type UpgradeDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3;
 
 function isAuthorityV1(value: ConsumerUpgradeAuthority): value is ConsumerUpgradeAuthorityV1 {
   return value.cohort.schemaVersion === 1;
+}
+
+function isAuthorityV3(value: ConsumerUpgradeAuthority): value is ConsumerUpgradeAuthorityV3 {
+  return value.cohort.schemaVersion === 3;
+}
+
+function isAuthorityV2(value: ConsumerUpgradeAuthority): value is ConsumerUpgradeAuthorityV2 {
+  return value.cohort.schemaVersion === 2;
 }
 
 const WORKSPACE_PATH = "pnpm-workspace.yaml";
@@ -301,6 +312,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     readonly expectedSourceRevision: string;
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
     readonly managedPreimages?: ConsumerUpgradeManagedPreimagesV2;
+    readonly selection?: ManagedSuccessorSelectionV3;
   }): Promise<PreparedConsumerUpgradeV1> {
     const { selectedLock } = options;
     const head = await assertCleanGitRoot(options.consumerRoot);
@@ -343,19 +355,29 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
         ...(workspace.state === "file" ? { workspace: workspace.bytes } : {})
       };
       let projected;
-      if (options.current.schemaVersion === 1 && isAuthorityV1(options.authority)) {
+      const authority = options.authority;
+      const current = options.current;
+      if (current.schemaVersion === 1 && isAuthorityV1(authority)) {
         projected = await projectConsumerUpgradeFiles({
           ...fileInput,
-          authority: options.authority,
-          current: options.current
+          authority,
+          current
         });
-      } else if (!isAuthorityV1(options.authority)) {
-        projected = options.current.schemaVersion === 1
+      } else if (isAuthorityV3(authority) && current.schemaVersion === 3) {
+        if (options.selection === undefined) {throw new Error("unreachable");}
+        projected = await projectConsumerUpgradeFiles({
+          ...fileInput,
+          authority,
+          current,
+          selection: options.selection
+        });
+      } else if (isAuthorityV2(authority)) {
+        projected = current.schemaVersion === 1
           ? await projectConsumerUpgradeFiles({
-              ...fileInput, authority: options.authority, current: options.current
+              ...fileInput, authority, current
             })
           : await projectConsumerUpgradeFiles({
-              ...fileInput, authority: options.authority, current: options.current
+              ...fileInput, authority, current
             });
       } else {throw new Error("unreachable");}
       const validatedLock = await validateConsumerTargetLockfile(
@@ -364,6 +386,9 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
       await Promise.all([
         writeProjectedFile(stagedRoot, INTEGRATION_PROFILE_PATH, projected.profile),
         writeProjectedFile(stagedRoot, "package.json", projected.manifest),
+        ...(projected.nodeVersion === undefined ? [] : [
+          writeProjectedFile(stagedRoot, ".node-version", projected.nodeVersion)
+        ]),
         ...(projected.migrationWorkspace === undefined ? [] : [
           writeProjectedFile(stagedRoot, WORKSPACE_PATH, projected.migrationWorkspace)
         ])
@@ -399,7 +424,7 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
         await repositoryInventory(beforeRoot),
         await repositoryInventory(stagedRoot)
       );
-      const allowed = allowedUpgradePaths(options.current);
+      const allowed = allowedUpgradePaths(options.current, isAuthorityV3(options.authority));
       const unexpected = changed.filter((path) => !allowed.has(path));
       if (unexpected.length > 0) {
         throw new ConsumerIntegrationNodeError(
@@ -467,6 +492,18 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     return this.prepareGeneration({ ...options, ...(selectedLock === undefined ? {} : { selectedLock }) });
   }
 
+  public prepareV3(options: {
+    readonly authority: ConsumerUpgradeAuthorityV3;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+    readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
+    readonly selection: ManagedSuccessorSelectionV3;
+  }): Promise<PreparedConsumerUpgradeV1> {
+    return this.prepareGeneration(options);
+  }
+
   private async activateAndVerifyGeneration(options: {
     readonly authority: ConsumerUpgradeAuthority;
     readonly consumerRoot: string;
@@ -484,6 +521,13 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
 
   public activateAndVerifyV2(options: {
     readonly authority: ConsumerUpgradeAuthorityV2;
+    readonly consumerRoot: string;
+  }): Promise<void> {
+    return this.activateAndVerifyGeneration(options);
+  }
+
+  public activateAndVerifyV3(options: {
+    readonly authority: ConsumerUpgradeAuthorityV3;
     readonly consumerRoot: string;
   }): Promise<void> {
     return this.activateAndVerifyGeneration(options);
@@ -515,6 +559,19 @@ export class NodeConsumerUpgradeSandbox implements ConsumerUpgradeSandboxPort {
     await assertCleanGitRoot(options.consumerRoot);
     await this.restoreAndVerifyGeneration(options);
     await assertCleanGitRoot(options.consumerRoot);
+  }
+
+  public async restoreAndVerifyV3(options: {
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+  }): Promise<void> {
+    await assertCleanGitRoot(options.consumerRoot);
+    await assertProvedSourceSnapshot({
+      current: options.current,
+      expected: options.expectedSourceSnapshot,
+      sourceRoot: options.consumerRoot
+    });
   }
 }
 

@@ -20,6 +20,7 @@ export interface ConsumerIntegrationInputReader {
   read(options: {
     readonly consumerRoot: string;
     readonly integrationProfilePath?: string;
+    readonly runtimeAssessment?: "consumer" | "upgrade-source";
   }): Promise<ConsumerIntegrationInput>;
 }
 

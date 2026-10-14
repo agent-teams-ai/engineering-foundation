@@ -8,6 +8,7 @@ import {
   type ConsumerIntegrationDesiredStateV1,
   type ConsumerUpgradeAuthorityV1,
   type ConsumerUpgradeAuthorityV2,
+  type ConsumerUpgradeAuthorityV3,
   type QualifiedDocsCohortBindingV1,
   type QualifiedDocsCohortBindingV2
 } from "../application-api.js";
@@ -15,6 +16,7 @@ import {
   assertCohortAuthorityV2,
   assertCohortEventChainV2
 } from "./cohort-v2-authority-validator.js";
+import { projectCohortV3AuthorityBinding } from "./cohort-v3-authority-projector.js";
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import { parseJsonRecord } from "./strict-json-record.js";
 
@@ -281,7 +283,8 @@ function packageProjectionV2(source: Record<string, unknown>) {
   })) as QualifiedDocsCohortBindingV2["packages"];
 }
 
-type AuthorityProjection = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+type AuthorityProjection = ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2 |
+  ConsumerUpgradeAuthorityV3;
 type CohortProjection = QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2;
 
 function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
@@ -452,13 +455,22 @@ export function projectQualifiedCohortAuthority(input: {
   } else if (!(input.restorationBinding === "source" && lifecycle.state === "SUSPENDED")) {
     assertSelectable(source, lifecycle.state, input.repository);
   }
-  const cohort = cohortProjection(source, lifecycle.qualificationEventDigest, input.generation);
-  return Object.freeze({
-    repository: AUTHORITY_REPOSITORY,
-    path: AUTHORITY_PATH,
-    revision: input.revision,
-    cohort
-  }) as AuthorityProjection;
+  const cohort: CohortProjection = cohortProjection(
+    source, lifecycle.qualificationEventDigest, input.generation
+  );
+  return cohort.schemaVersion === 1
+    ? Object.freeze({
+        repository: AUTHORITY_REPOSITORY,
+        path: AUTHORITY_PATH,
+        revision: input.revision,
+        cohort
+      })
+    : Object.freeze({
+        repository: AUTHORITY_REPOSITORY,
+        path: AUTHORITY_PATH,
+        revision: input.revision,
+        cohort
+      });
 }
 
 export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityReader {
@@ -474,7 +486,10 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
     readonly source: QualifiedDocsCohortBindingV2;
     readonly origin: QualifiedDocsCohortBindingV1;
     readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
-  }): Promise<{ readonly source: AuthorityProjection; readonly target: AuthorityProjection }> {
+  }): Promise<{
+    readonly source: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+    readonly target: ConsumerUpgradeAuthorityV1 | ConsumerUpgradeAuthorityV2;
+  }> {
     const revision = await resolveAuthorityRevision(this.#fetcher);
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
     const common = { registry, revision, repository: options.repository };
@@ -490,7 +505,7 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
 
   public async read(options: {
     readonly cohortId: string;
-    readonly generation: 1 | 2;
+    readonly generation: 1 | 2 | 3;
     readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
     readonly revision?: string;
   }): Promise<AuthorityProjection> {
@@ -508,7 +523,21 @@ export class GitHubCohortAuthorityReader implements ConsumerUpgradeAuthorityRead
       );
     }
     const registry = await readAuthorityRegistry(this.#fetcher, revision);
-    return projectQualifiedCohortAuthority({ ...options, registry, revision }, this.#now());
+    if (options.generation === 3) {
+      return projectCohortV3AuthorityBinding({
+        cohortId: options.cohortId,
+        registry,
+        repository: options.repository,
+        revision
+      });
+    }
+    return projectQualifiedCohortAuthority({
+      cohortId: options.cohortId,
+      generation: options.generation,
+      registry,
+      repository: options.repository,
+      revision
+    }, this.#now());
   }
 }
 

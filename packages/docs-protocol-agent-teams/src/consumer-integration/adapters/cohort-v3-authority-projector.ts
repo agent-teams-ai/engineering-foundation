@@ -11,8 +11,11 @@ import {
 import { ConsumerIntegrationNodeError } from "./consumer-integration-node-error.js";
 import type {
   ConsumerIntegrationDesiredStateV1,
+  ConsumerQualificationAuthorityV3,
   UnselectedCohortV3
 } from "../application-api.js";
+import { bindUnselectedCohortV3 } from "../application-api.js";
+import { createLazyPackedManagedRuntimePolicyObserver } from "./unselected-cohort-v3-loader.js";
 
 const GIT_SHA = /^(?!0{40}$)[0-9a-f]{40}$/u;
 const SHA256 = /^sha256:(?!0{64}$)[0-9a-f]{64}$/u;
@@ -34,6 +37,8 @@ export interface CohortV3AuthorityProjectorRequest {
   readonly repository: ConsumerIntegrationDesiredStateV1["repository"];
   readonly revision: string;
 }
+
+const observePackedManagedRuntimePolicy = createLazyPackedManagedRuntimePolicyObserver();
 
 function invalid(message: string): never {
   throw new ConsumerIntegrationNodeError("DOCS_CONSUMER_AUTHORITY_INVALID", message);
@@ -288,4 +293,19 @@ export function projectCohortV3Authority(
     }
   };
   return Object.freeze(candidate);
+}
+
+/** The one Cohort3 projection used by qualification and ordinary upgrade readers. */
+export function projectCohortV3AuthorityBinding(
+  input: CohortV3AuthorityProjectorRequest
+): ConsumerQualificationAuthorityV3 {
+  return Object.freeze({
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: input.revision,
+    cohort: bindUnselectedCohortV3(
+      projectCohortV3Authority(input),
+      observePackedManagedRuntimePolicy()
+    )
+  });
 }

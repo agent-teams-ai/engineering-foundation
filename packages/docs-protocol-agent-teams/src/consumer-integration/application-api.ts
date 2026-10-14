@@ -15,6 +15,8 @@ export type {
   ConsumerQualificationAuthorityV3,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2,
+  ConsumerUpgradeAuthorityV3,
+  ManagedSuccessorSelectionV3,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,

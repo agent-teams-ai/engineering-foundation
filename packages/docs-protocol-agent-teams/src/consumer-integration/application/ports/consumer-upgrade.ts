@@ -9,17 +9,20 @@ import type {
   ConsumerIntegrationDigest,
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
-  ConsumerUpgradeAuthorityV2
+  ConsumerUpgradeAuthorityV2,
+  ConsumerUpgradeAuthorityV3,
+  ManagedSuccessorSelectionV3
 } from "../../domain/model.js";
 
 export type ConsumerUpgradeAuthority =
   | ConsumerUpgradeAuthorityV1
-  | ConsumerUpgradeAuthorityV2;
+  | ConsumerUpgradeAuthorityV2
+  | ConsumerUpgradeAuthorityV3;
 
 export interface ConsumerUpgradeAuthorityReader {
   read(options: {
     readonly cohortId: string;
-    readonly generation: 1 | 2;
+    readonly generation: 1 | 2 | 3;
     readonly repository: ConsumerIntegrationDesiredState["repository"];
     readonly revision?: string;
   }): Promise<ConsumerUpgradeAuthority>;
@@ -74,12 +77,25 @@ export interface ConsumerUpgradeSandboxPort {
     readonly expectedSourceRevision: string;
     readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
   }): Promise<PreparedConsumerUpgradeV1>;
+  prepareV3(options: {
+    readonly authority: ConsumerUpgradeAuthorityV3;
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly expectedSourceRevision: string;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
+    readonly managedPreimages: ConsumerUpgradeManagedPreimagesV2;
+    readonly selection: ManagedSuccessorSelectionV3;
+  }): Promise<PreparedConsumerUpgradeV1>;
   activateAndVerifyV1(options: {
     readonly authority: ConsumerUpgradeAuthorityV1;
     readonly consumerRoot: string;
   }): Promise<void>;
   activateAndVerifyV2(options: {
     readonly authority: ConsumerUpgradeAuthorityV2;
+    readonly consumerRoot: string;
+  }): Promise<void>;
+  activateAndVerifyV3(options: {
+    readonly authority: ConsumerUpgradeAuthorityV3;
     readonly consumerRoot: string;
   }): Promise<void>;
   restoreAndVerifyV1(options: {
@@ -89,5 +105,10 @@ export interface ConsumerUpgradeSandboxPort {
   restoreAndVerifyV2(options: {
     readonly consumerRoot: string;
     readonly current: ConsumerIntegrationDesiredStateV3;
+  }): Promise<void>;
+  restoreAndVerifyV3(options: {
+    readonly consumerRoot: string;
+    readonly current: ConsumerIntegrationDesiredStateV3;
+    readonly expectedSourceSnapshot: ConsumerIntegrationSnapshot;
   }): Promise<void>;
 }

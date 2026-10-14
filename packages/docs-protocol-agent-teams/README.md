@@ -31,10 +31,11 @@ The managed runtime projection retains `node-24-production-default` and
 `node-26-managed-qualified` as nominal historical lane IDs. The retained Node 24
 ID has `default: false` and does not claim that Node 24 is the current default.
 The Node 26 lane has `default: true` and records the actual 26.11.1 / pnpm
-11.20.0 / Linux / x64 qualification runtime tuple, but the Cohort v3 candidate
-remains unselected with status `candidate-unqualified` until genuine registry
-qualification. The operational Profile 3 / Cohort 2 / receipt 3 contract remains
-explicitly Node 24 and unchanged.
+11.20.0 / Linux / x64 qualification runtime tuple. Policy 3 remains an immutable
+candidate input with `selected: false` / `candidate-unqualified`; a protected
+registry lifecycle record is separate selection evidence. The operational
+Profile 3 / Cohort 2 / receipt 3 contract remains explicitly Node 24 and
+unchanged.
 
 Managed operations use the distinct executable:
 
@@ -42,7 +43,7 @@ Managed operations use the distinct executable:
 agent-teams-docs-managed check --consumer .
 agent-teams-docs-managed plan --consumer . --to COHORT
 agent-teams-docs-managed apply --consumer . --expect sha256:DIGEST
-agent-teams-docs-managed upgrade --consumer . --to COHORT --target-generation 2
+agent-teams-docs-managed upgrade --consumer . --to COHORT --target-generation 1|2|3
 agent-teams-docs-managed recover --consumer .
 agent-teams-docs-managed qualify --consumer .
 ```
@@ -61,6 +62,15 @@ proves the successor in a disposable copy, publishes once, and restores exact
 source evidence if activation fails. It is not a bridge, alias, dual writer, or
 permission to emit new v1 records.
 
+The explicit `--target-generation 3` route performs only the ordinary Profile
+v3/Cohort v2/state 2/receipt 3 to Profile v4/Cohort 3/state 3/receipt 1
+transition. It accepts a protected Cohort3 record only after its immutable
+qualification event and current `CANARY` evidence for this exact repository, or
+its `RECOMMENDED` lifecycle transition, authorize the exact Node 26.11.1 / pnpm
+11.20.0 / Linux / x64 tuple. `QUALIFIED` publication alone is rejected before
+repository writes. The route retains the source Git history and reverses exact
+receipt-owned replacements if target activation fails.
+
 Portable profile v4 is a separate, optional consumer change. The managed owner
 exports `projectManagedPortableProfileV4(v3Bytes)` to produce reviewable UTF-8
 JSON (also valid YAML) from one strict portable profile v3. It preserves the
@@ -76,7 +86,10 @@ Plan/Apply workflow with the exact saved v3 preimage. Finish or preserve any
 pending transaction through its exact recorded recovery artifact first. Cohort
 upgrade commands do not automatically invoke this migration. Profile 4 / Cohort 3 / state 3
 uses the sync overload, exact namespace and packed policy 3, and actual Node 26.11.1 / pnpm
-11.20.0 / Linux / x64 observation; `selected: false` until genuine published `QUALIFIED` authority, and a supporting receipt is not `CANARY`.
+11.20.0 / Linux / x64 observation. The persisted policy remains
+`selected: false`; only protected CANARY evidence for the repository or a
+RECOMMENDED lifecycle transition selects the consumer upgrade, and a supporting
+qualification receipt is not CANARY.
 
 The qualification fixture selects portable v4 explicitly and is tested against
 the reviewed portable producer candidate. Existing canonical asset generation

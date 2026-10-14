@@ -4,33 +4,38 @@ import {
   type ConsumerIntegrationDigest,
   type ConsumerIntegrationFileObservation,
   type QualifiedDocsCohortBindingV2,
-  type PnpmManifestPlanV1
+  type ManagedSuccessorProfile,
+  type PnpmManifestPlanV1,
+  type UnselectedCohortV3
 } from "../application-api.js";
 import {
   planPnpmManifestTargets,
   projectPnpmManifestCohortTargets
 } from "./pnpm-manifest-adapter-v1.js";
 
-function targets(cohort: QualifiedDocsCohortBindingV2) {
+type FivePackageCohort = QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] |
+  UnselectedCohortV3;
+
+function targets(cohort: FivePackageCohort) {
   return qualifiedDocsCohortV2DirectPackageEntries(cohort).map(({ name, version }) => ({
     name,
     version
   }));
 }
 
-function transitivePackageNames(cohort: QualifiedDocsCohortBindingV2): readonly string[] {
+function transitivePackageNames(cohort: FivePackageCohort): readonly string[] {
   return qualifiedDocsCohortV2PackageEntries(cohort)
     .filter(({ direct }) => !direct)
     .map(({ name }) => name);
 }
 
-function cohortPackageNames(cohort: QualifiedDocsCohortBindingV2): readonly string[] {
+function cohortPackageNames(cohort: FivePackageCohort): readonly string[] {
   return qualifiedDocsCohortV2PackageEntries(cohort).map(({ name }) => name);
 }
 
 export function projectPnpmManifestCohortPinsV2(input: {
   readonly bytes: Uint8Array;
-  readonly cohort: QualifiedDocsCohortBindingV2;
+  readonly cohort: FivePackageCohort;
 }): Uint8Array {
   return projectPnpmManifestCohortTargets({
     bytes: input.bytes,
@@ -43,7 +48,7 @@ export function projectPnpmManifestCohortPinsV2(input: {
 export function planPnpmManifestV2(input: {
   readonly observation: ConsumerIntegrationFileObservation;
   readonly profilePath: string;
-  readonly cohort: QualifiedDocsCohortBindingV2;
+  readonly cohort: FivePackageCohort;
   readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
 }): PnpmManifestPlanV1 {
   return planPnpmManifestTargets({

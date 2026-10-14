@@ -170,7 +170,7 @@ Commands:
   check                         Verify the selected Cohort without writing
   plan --to COHORT              Print a deterministic, write-free semantic plan
   apply --expect SHA256         Rebuild and apply the reviewed plan through Foundation
-  upgrade --to COHORT --target-generation 1|2  Project authority, pins, lockfile, and assets
+  upgrade --to COHORT --target-generation 1|2|3  Project authority, pins, lockfile, and assets
   restore --from V2 --to V1 --source-generation 2 --target-generation 1
           --proof PATH --expect SHA256 [--activation-only]  Restore recorded V1
   finalize --from V1 --to V2 --source-generation 1 --target-generation 2
@@ -234,9 +234,10 @@ export function createManagedConsumerCommand(operations: ManagedConsumerOperatio
           throw new ConsumerCliInputError("--authority-revision must be one nonzero lowercase Git SHA.");
         }
         const generation = args.one("--target-generation", true)!;
-        if (generation !== "1" && generation !== "2") {
-          throw new ConsumerCliInputError("--target-generation must be exactly 1 or 2.");
+        if (generation !== "1" && generation !== "2" && generation !== "3") {
+          throw new ConsumerCliInputError("--target-generation must be exactly 1, 2, or 3.");
         }
+        const targetGeneration = generation === "1" ? 1 : generation === "2" ? 2 : 3;
         const restorationProofPath = args.one("--restoration-proof");
         const prepare = args.flag("--prepare");
         const targetLockfilePath = args.one("--target-lockfile");
@@ -259,7 +260,7 @@ export function createManagedConsumerCommand(operations: ManagedConsumerOperatio
           }),
           consumerRoot,
           to,
-          targetGeneration: Number(generation) as 1 | 2,
+          targetGeneration,
           prepare,
           ...(sourceGeneration === undefined ? {} : { sourceGeneration: 1 }),
           ...(restorationProofPath === undefined ? {} : { restorationProofPath }),

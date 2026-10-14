@@ -53,6 +53,15 @@ import {
   NodeConsumerUpgradeSandbox
 } from "../dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js";
 import {
+  GitHubCohortAuthorityReader
+} from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
+import {
+  createManagedConsumerCommand
+} from "../dist/consumer-integration/adapters/inbound/consumer-integration-cli.js";
+import {
+  assertQualifiedPnpmLockfileV2
+} from "../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js";
+import {
   assertInstalledHistoricalIntegrationCurrent,
   assertInstalledIntegrationCurrent
 } from "../dist/consumer-integration/adapters/node-consumer-upgrade-target.js";
@@ -68,6 +77,8 @@ import {
   lockfileForV2,
   lockfileObjectForV2,
   repositoryMutationRoot,
+  cohortV3Registry,
+  rebindCohortV3Registry,
   sourceCohort,
   sourceManifest,
   sourceManifestV2
@@ -1507,6 +1518,347 @@ ${Object.entries(sourceBinding.packages).map(([key, coordinate]) => {
   }
 });
 
+test("public managed CLI performs the qualified Profile4/Node26 transition and retains rollback history", {
+  skip: process.platform === "win32"
+}, async () => {
+  const disposable = await mkdtemp(join(tmpdir(), "docs-node26-qualified-e2e-"));
+  const consumerRoot = join(disposable, "consumer");
+  const fakeBin = join(disposable, "bin");
+  await Promise.all([
+    mkdir(join(consumerRoot, "architecture", "foundation"), { recursive: true }),
+    mkdir(join(consumerRoot, ".agents", "skills", "docs-authoring"), { recursive: true }),
+    mkdir(join(consumerRoot, ".github", "workflows"), { recursive: true }),
+    mkdir(fakeBin, { recursive: true })
+  ]);
+  const [docsManifest, managedManifest, foundationManifest, mutationManifest, authoringManifest] =
+    await Promise.all([
+      readFile(join(coreRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(packageRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(foundationRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(repositoryMutationRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(documentAuthoringRoot, "package.json"), "utf8").then(JSON.parse)
+    ]);
+  let sourceBinding = {
+    ...cohortV2("docs-node26-source"),
+    packages: {
+      repositoryMutation: { version: mutationManifest.version, integrity: V2_INTEGRITY },
+      documentAuthoring: { version: authoringManifest.version, integrity: V2_INTEGRITY },
+      docsProtocol: { version: docsManifest.version, integrity: V2_INTEGRITY },
+      docsProtocolAgentTeams: { version: managedManifest.version, integrity: V2_INTEGRITY },
+      engineeringFoundation: { version: foundationManifest.version, integrity: V2_INTEGRITY }
+    }
+  };
+  sourceBinding = {
+    ...sourceBinding,
+    assets: describeCanonicalConsumerAssets(sourceBinding),
+    runtime: {
+      ...sourceBinding.runtime,
+      runtimeClosureDigest: computePnpmRuntimeClosureDigestV2(
+        lockfileObjectForV2(sourceBinding),
+        sourceBinding
+      )
+    }
+  };
+  const current = desiredV3(sourceBinding);
+  const targetProvisional = {
+    schemaVersion: 3,
+    cohortId: "docs-node26-target",
+    channel: "stable",
+    candidateDigest: `sha256:${"a".repeat(64)}`,
+    recordDigest: `sha256:${"6".repeat(64)}`,
+    qualificationEventDigest: `sha256:${"7".repeat(64)}`,
+    eligibleAfter: "2026-10-14T00:00:00Z",
+    upgradeFrom: [sourceBinding.cohortId],
+    rollbackTo: [sourceBinding.cohortId],
+    packages: sourceBinding.packages,
+    workflow: {
+      ...sourceBinding.workflow,
+      revision: "5".repeat(40),
+      blobSha: "6".repeat(40)
+    },
+    assets: sourceBinding.assets,
+    schemas: {
+      consumerIntegration: 4,
+      managedState: 3,
+      qualificationReceipt: 1,
+      docsProtocol: 1
+    },
+    runtime: {
+      policy: {
+        id: "agent-teams.docs-protocol-current-policy",
+        version: "3.0.0",
+        digest: "sha256:7af41f44a6e522b8919ace5f85499747215ddd1955199584c34046ec95c4b141"
+      },
+      selectedLane: "node-26-managed-qualified",
+      node: ">=26.0.0 <27",
+      pnpm: ">=11.17.0 <12",
+      qualificationRuntime: {
+        nodeVersion: "26.11.1",
+        pnpmVersion: "11.20.0",
+        platform: "linux",
+        architecture: "x64"
+      },
+      runtimeClosure: {
+        domain: "agent-teams.docs-runtime-closure/v2",
+        digest: `sha256:${"9".repeat(64)}`
+      }
+    }
+  };
+  const target = {
+    ...targetProvisional,
+    assets: describeCanonicalConsumerAssets(targetProvisional),
+    runtime: {
+      ...targetProvisional.runtime,
+      runtimeClosure: {
+        ...targetProvisional.runtime.runtimeClosure,
+        digest: computePnpmRuntimeClosureDigestV2(
+          lockfileObjectForV2(sourceBinding),
+          targetProvisional
+        )
+      }
+    }
+  };
+  const registry = cohortV3Registry({
+    cohort: target,
+    repository: REPOSITORY,
+    lifecycleState: "CANARY",
+    canaryRepositoryIds: [REPOSITORY.id],
+    revision: "8".repeat(40)
+  });
+  const route = Buffer.from(canonicalManagedRoute(current.skillPath));
+  const skill = Buffer.from(readFileSync(join(packageRoot, "skills/docs/SKILL.md")));
+  const caller = Buffer.from(canonicalCallerWorkflow(sourceBinding));
+  const managedState = canonicalManagedState(current, {
+    skillDigest: digestBytes(skill),
+    callerWorkflowDigest: digestBytes(caller),
+    assetCatalogDigest: sourceBinding.assets.assetCatalogDigest,
+    transitionCatalogDigest: sourceBinding.assets.transitionCatalogDigest,
+    agentsRouteDigest: digestBytes(route),
+    docsScriptsDigest: canonicalDocsScriptsDigest(current.profilePath)
+  });
+  const profilePath = join(consumerRoot, "architecture", "foundation", "docs-consumer-integration.json");
+  const fakeCorepack = join(fakeBin, "corepack");
+  await Promise.all([
+    writeFile(profilePath, `${JSON.stringify(current, null, 2)}\n`),
+    writeFile(join(consumerRoot, "package.json"),
+      `${JSON.stringify(sourceManifestV2(sourceBinding, current.profilePath), null, 2)}\n`),
+    writeFile(join(consumerRoot, "pnpm-lock.yaml"), lockfileForV2(sourceBinding)),
+    writeFile(join(consumerRoot, ".node-version"), "24.18.0\n"),
+    writeFile(join(consumerRoot, ".gitignore"), "node_modules/\n"),
+    writeFile(join(consumerRoot, "AGENTS.md"), route),
+    writeFile(join(consumerRoot, current.skillPath), skill),
+    writeFile(join(consumerRoot, current.callerWorkflowPath), caller),
+    writeFile(join(consumerRoot, current.managedStatePath), managedState),
+    writeFile(join(consumerRoot, "pnpm-workspace.yaml"), `packages: []
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - "@agent-teams/repository-mutation@${sourceBinding.packages.repositoryMutation.version}"
+  - "@agent-teams/document-authoring@${sourceBinding.packages.documentAuthoring.version}"
+  - "@agent-teams/docs-protocol@${sourceBinding.packages.docsProtocol.version}"
+  - "@agent-teams/docs-protocol-agent-teams@${sourceBinding.packages.docsProtocolAgentTeams.version}"
+  - "@agent-teams/engineering-foundation@${sourceBinding.packages.engineeringFoundation.version}"
+  - "unrelated@1.0.0"
+`),
+    writeFile(fakeCorepack, fakeCorepackSource())
+  ]);
+  await chmod(fakeCorepack, 0o755);
+  runGit(consumerRoot, ["init", "-q"]);
+  runGit(consumerRoot, ["config", "user.email", "sandbox@example.invalid"]);
+  runGit(consumerRoot, ["config", "user.name", "Docs Node26 Upgrade Sandbox"]);
+  runGit(consumerRoot, ["add", "--all"]);
+  runGit(consumerRoot, ["commit", "-qm", "test: seed disposable Node26 source"]);
+  const sourceHead = runGit(consumerRoot, ["rev-parse", "HEAD"]);
+  const sourceTree = runGit(consumerRoot, ["rev-parse", "HEAD^{tree}"]);
+  const originalPath = process.env.PATH;
+  const originalDocs = process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE;
+  const originalFoundation = process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE;
+  const originalManaged = process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE;
+  const originalDocumentAuthoring = process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE;
+  const originalRepositoryMutation =
+    process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE;
+  const restoreGitHubIdentity = useGitHubRepositoryIdentity(REPOSITORY);
+  process.env.PATH = `${fakeBin}:${originalPath ?? ""}`;
+  process.env.DOCS_UPGRADE_TEST_DOCS_PACKAGE = coreRoot;
+  process.env.DOCS_UPGRADE_TEST_FOUNDATION_PACKAGE = foundationRoot;
+  process.env.DOCS_UPGRADE_TEST_MANAGED_PACKAGE = packageRoot;
+  process.env.DOCS_UPGRADE_TEST_DOCUMENT_AUTHORING_PACKAGE = documentAuthoringRoot;
+  process.env.DOCS_UPGRADE_TEST_REPOSITORY_MUTATION_PACKAGE = repositoryMutationRoot;
+  const originalFetch = globalThis.fetch;
+  const deniedRegistry = cohortV3Registry({
+    cohort: target,
+    repository: REPOSITORY,
+    lifecycleState: "CANARY",
+    canaryRepositoryIds: ["123"],
+    revision: "8".repeat(40)
+  });
+  let activeRegistry = deniedRegistry;
+  const authorityFetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/commits/main")) {
+      return new Response(JSON.stringify({ sha: activeRegistry.revision }), { status: 200 });
+    }
+    if (url.includes("/governance/docs-qualified-cohorts.json")) {
+      assert.equal(
+        activeRegistry.cohorts[0]?.cohort_id,
+        target.cohortId,
+        JSON.stringify(activeRegistry.cohorts.map(({ cohort_id }) => cohort_id))
+      );
+      return new Response(JSON.stringify(activeRegistry), { status: 200 });
+    }
+    throw new Error(`unexpected TEST authority URL: ${url}`);
+  };
+  try {
+    const actualUpgrade = createConsumerUpgradeUseCase({
+      assets: packageConsumerAssetCatalogReader,
+      authority: new GitHubCohortAuthorityReader(authorityFetch),
+      input: nodeConsumerIntegrationInputReader,
+      planning: consumerIntegrationPlanningPorts,
+      sandbox: new NodeConsumerUpgradeSandbox(),
+      transaction: foundationKnownFileTransaction
+    });
+    const runCli = createManagedConsumerCommand({
+      check: async () => {throw new Error("not used");},
+      plan: async () => {throw new Error("not used");},
+      apply: async () => {throw new Error("not used");},
+      recover: async () => {throw new Error("not used");},
+      restore: async () => {throw new Error("not used");},
+      finalize: async () => {throw new Error("not used");},
+      upgrade: actualUpgrade
+    });
+    const runJson = async (args) => {
+      const originalWrite = process.stdout.write.bind(process.stdout);
+      let output = "";
+      process.stdout.write = (chunk) => {
+        output += String(chunk);
+        return true;
+      };
+      try {
+        const code = await runCli(args);
+        return { code, execution: JSON.parse(output) };
+      } finally {
+        process.stdout.write = originalWrite;
+      }
+    };
+    const upgradeArgs = [
+      "upgrade", "--consumer", consumerRoot, "--to", target.cohortId,
+      "--target-generation", "3", "--json"
+    ];
+    const wrongRuntime = structuredClone(registry);
+    wrongRuntime.cohorts[0].runtime.qualification_runtime.node_version = "26.10.0";
+    activeRegistry = rebindCohortV3Registry(wrongRuntime);
+    assert.equal(activeRegistry.cohorts.length, 1);
+    assert.equal(activeRegistry.cohorts[0].cohort_id, target.cohortId);
+    const wrongTuple = await runJson(upgradeArgs);
+    assert.notEqual(wrongTuple.code, 0);
+    assert.equal(wrongTuple.execution.issues[0].code, "DOCS_CONSUMER_EXECUTION_FAILURE");
+    assert.match(wrongTuple.execution.issues[0].message, /runtime differs/u);
+    assert.equal(runGit(consumerRoot, ["write-tree"]), sourceTree);
+
+    activeRegistry = deniedRegistry;
+    const denied = await runJson(upgradeArgs);
+    assert.notEqual(denied.code, 0);
+    assert.equal(denied.execution.issues[0].code, "DOCS_CONSUMER_COHORT_NOT_SELECTABLE");
+    assert.equal(runGit(consumerRoot, ["write-tree"]), sourceTree);
+
+    activeRegistry = registry;
+    const manifestPath = join(consumerRoot, "package.json");
+    const originalManifest = await readFile(manifestPath, "utf8");
+    await writeFile(manifestPath, originalManifest.replace('"private": true', '"private": false'));
+    const drift = await runJson(upgradeArgs);
+    assert.notEqual(drift.code, 0);
+    assert.equal(
+      drift.execution.issues[0].code,
+      "DOCS_CONSUMER_UPGRADE_DIRTY_WORKTREE",
+      JSON.stringify(drift.execution)
+    );
+    assert.equal(runGit(consumerRoot, ["write-tree"]), sourceTree);
+    await writeFile(manifestPath, originalManifest);
+
+    const targetAuthority = {
+      repository: "agent-teams-ai/.github",
+      path: "governance/docs-qualified-cohorts.json",
+      revision: registry.revision,
+      cohort: {
+        ...target,
+        lifecycleState: "CANARY",
+        canaryRepositoryIds: [REPOSITORY.id]
+      }
+    };
+    const activationFailure = new Error("forced disposable Node26 activation failure");
+    const realSandbox = new NodeConsumerUpgradeSandbox();
+    const failingUpgrade = createConsumerUpgradeUseCase({
+      assets: packageConsumerAssetCatalogReader,
+      authority: { read: async () => targetAuthority },
+      input: nodeConsumerIntegrationInputReader,
+      planning: consumerIntegrationPlanningPorts,
+      sandbox: {
+        prepareV1: realSandbox.prepareV1.bind(realSandbox),
+        prepareV2: realSandbox.prepareV2.bind(realSandbox),
+        prepareV1ToV2: realSandbox.prepareV1ToV2.bind(realSandbox),
+        prepareV3: realSandbox.prepareV3.bind(realSandbox),
+        activateAndVerifyV1: realSandbox.activateAndVerifyV1.bind(realSandbox),
+        activateAndVerifyV2: realSandbox.activateAndVerifyV2.bind(realSandbox),
+        activateAndVerifyV3: async () => {throw activationFailure;},
+        restoreAndVerifyV1: realSandbox.restoreAndVerifyV1.bind(realSandbox),
+        restoreAndVerifyV2: realSandbox.restoreAndVerifyV2.bind(realSandbox),
+        restoreAndVerifyV3: realSandbox.restoreAndVerifyV3.bind(realSandbox)
+      },
+      transaction: foundationKnownFileTransaction
+    });
+    await assert.rejects(
+      failingUpgrade({
+        consumerRoot, targetGeneration: 3, to: target.cohortId
+      }),
+      (error) => error === activationFailure
+    );
+    assert.equal(runGit(consumerRoot, ["write-tree"]), sourceTree);
+    assert.equal(runGit(consumerRoot, [
+      "status", "--porcelain=v1", "--untracked-files=all", "--", ".",
+      ":(exclude).agent-teams-local", ":(exclude).agent-teams-local/**"
+    ]), "");
+
+    const { code: cliCode, execution } = await runJson(upgradeArgs);
+    assert.equal(cliCode, 0);
+    assert.equal(execution.outcome, "upgraded");
+    const [profileAfter, manifestAfter, stateAfter, nodeAfter] = await Promise.all([
+      readFile(profilePath, "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, "package.json"), "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, current.managedStatePath), "utf8").then(JSON.parse),
+      readFile(join(consumerRoot, ".node-version"), "utf8")
+    ]);
+    assert.equal(profileAfter.schemaVersion, 4);
+    assert.equal(profileAfter.cohort.schemaVersion, 3);
+    assert.equal(stateAfter.schemaVersion, 3);
+    assert.equal(nodeAfter, "26.11.1\n");
+    assert.deepEqual(Object.keys(manifestAfter.devDependencies).filter(
+      (name) => name.startsWith("@agent-teams/")
+    ).toSorted(), [
+      "@agent-teams/docs-protocol",
+      "@agent-teams/docs-protocol-agent-teams",
+      "@agent-teams/engineering-foundation"
+    ]);
+    assertQualifiedPnpmLockfileV2(await readFile(join(consumerRoot, "pnpm-lock.yaml")), profileAfter);
+    assert.equal(runGit(consumerRoot, ["show", `${sourceHead}:architecture/foundation/docs-consumer-integration.json`])
+      .includes(sourceBinding.cohortId), true);
+    assert.equal(runGit(consumerRoot, ["show", `${sourceHead}:.node-version`]), "24.18.0");
+    assert.equal(runGit(consumerRoot, ["show", `${sourceHead}:pnpm-lock.yaml`]).includes(
+      sourceBinding.packages.docsProtocol.version
+    ), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await cleanupOneCommandSandbox({
+      disposable,
+      originalPath,
+      originalDocs,
+      originalFoundation,
+      originalManaged,
+      originalDocumentAuthoring,
+      originalRepositoryMutation,
+      restoreGitHubIdentity
+    });
+  }
+});
+
 registerConsumerRestorationTests({ cohortV2, desired, rawRegistry, sourceCohort });
 
 registerRestorationFinalizationTests({ cohortV2, desired });
@@ -1551,7 +1903,6 @@ const closureBytes = (lock) => Buffer.from(JSON.stringify(lock));
 test("consumer v3 reads its registry closure without replacing isolated authority", async () => {
   const fixture = await consumerClosureFixture();
   try {
-    const { assertQualifiedPnpmLockfileV2 } = await import("../dist/consumer-integration/adapters/pnpm-lockfile-validator-v2.js");
     const authority = JSON.stringify(fixture.target);
     const bytes = closureBytes(fixture.lock);
     assert.notEqual(computePnpmRuntimeClosureDigestV2(fixture.lock, fixture.target.cohort),

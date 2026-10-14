@@ -7,8 +7,12 @@ import {
   type ConsumerIntegrationDesiredStateV3,
   type ConsumerUpgradeAuthorityV1,
   type ConsumerUpgradeAuthorityV2,
+  type ConsumerUpgradeAuthorityV3,
+  type ManagedSuccessorProfile,
+  type ManagedSuccessorSelectionV3,
   type QualifiedDocsCohortBindingV1,
-  type QualifiedDocsCohortBindingV2
+  type QualifiedDocsCohortBindingV2,
+  type UnselectedCohortV3
 } from "../application-api.js";
 import { applyEdits, modify } from "jsonc-parser";
 import { isMap, isScalar, isSeq, parseDocument, visit, type Scalar, type YAMLSeq } from "yaml";
@@ -87,6 +91,28 @@ export async function projectConsumerIntegrationProfileV3(input: {
   return Buffer.from(postimage, "utf8");
 }
 
+export async function projectConsumerIntegrationProfileV4(input: {
+  readonly bytes: Uint8Array;
+  readonly selection: ManagedSuccessorSelectionV3;
+}): Promise<Uint8Array> {
+  const source = decode(input.bytes, "Consumer integration profile");
+  const profile = parseJsonRecord(source);
+  if (profile["schemaVersion"] !== 3) {
+    throw new ConsumerIntegrationNodeError(
+      "DOCS_CONSUMER_UPGRADE_GENERATION_MISMATCH",
+      "A Cohort v3 upgrade requires one explicit consumer integration profile v3 source."
+    );
+  }
+  await assertConsumerIntegrationProfileSchema(profile);
+  const edits = [
+    ...modify(source, ["schemaVersion"], 4, { formattingOptions: formatting(source) }),
+    ...modify(source, ["cohort"], input.selection.profile.cohort, { formattingOptions: formatting(source) })
+  ];
+  const postimage = applyEdits(source, edits);
+  await assertConsumerIntegrationProfileSchema(parseJsonRecord(postimage));
+  return Buffer.from(postimage, "utf8");
+}
+
 async function migrateHistoricalConsumerIntegrationProfileToV3(input: {
   readonly bytes: Uint8Array;
   readonly cohort: QualifiedDocsCohortBindingV2;
@@ -131,7 +157,9 @@ function exactExclusions(cohort: QualifiedDocsCohortBindingV1) {
   ]);
 }
 
-function exactExclusionsV2(cohort: QualifiedDocsCohortBindingV2) {
+function exactExclusionsV2(
+  cohort: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3
+) {
   return new Map(qualifiedDocsCohortV2PackageEntries(cohort).map(({ name, version }) =>
     [name, `${name}@${version}`] as const
   ));
@@ -278,7 +306,7 @@ function projectPnpmWorkspaceExclusions(input: {
 
 export function projectPnpmWorkspaceCohortExclusionsV2(input: {
   readonly bytes: Uint8Array;
-  readonly cohort: QualifiedDocsCohortBindingV2;
+  readonly cohort: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3;
 }): Uint8Array {
   return projectPnpmWorkspaceExclusions({
     bytes: input.bytes,
@@ -288,8 +316,8 @@ export function projectPnpmWorkspaceCohortExclusionsV2(input: {
 
 export function projectPnpmWorkspaceMigrationExclusionsV2(input: {
   readonly bytes: Uint8Array;
-  readonly source: QualifiedDocsCohortBindingV2;
-  readonly target: QualifiedDocsCohortBindingV2;
+  readonly source: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3;
+  readonly target: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3;
 }): Uint8Array {
   const targetBytes = projectPnpmWorkspaceCohortExclusionsV2({
     bytes: input.bytes,
@@ -362,11 +390,20 @@ export type ConsumerUpgradeFileProjectionInput =
       readonly manifest: Uint8Array;
       readonly profile: Uint8Array;
       readonly workspace?: Uint8Array;
+    }
+  | {
+      readonly authority: ConsumerUpgradeAuthorityV3;
+      readonly current: ConsumerIntegrationDesiredStateV3;
+      readonly manifest: Uint8Array;
+      readonly profile: Uint8Array;
+      readonly selection: ManagedSuccessorSelectionV3;
+      readonly workspace?: Uint8Array;
     };
 
 export interface ConsumerUpgradeFileProjection {
   readonly manifest: Uint8Array;
   readonly migrationWorkspace?: Uint8Array;
+  readonly nodeVersion?: Uint8Array;
   readonly profile: Uint8Array;
   readonly targetWorkspace?: Uint8Array;
 }
@@ -445,6 +482,33 @@ export async function projectConsumerUpgradeFiles(
           bytes: input.workspace!,
           source: input.current.cohort,
           target: input.authority.cohort
+        })
+      })
+    };
+  }
+  if (input.current.schemaVersion === 3 && input.authority.cohort.schemaVersion === 3 &&
+      "selection" in input) {
+    const targetWorkspace = input.workspace === undefined ? undefined :
+      projectPnpmWorkspaceCohortExclusionsV2({
+        bytes: input.workspace,
+        cohort: input.selection.profile.cohort
+      });
+    return {
+      profile: await projectConsumerIntegrationProfileV4({
+        bytes: input.profile,
+        selection: input.selection
+      }),
+      manifest: projectPnpmManifestCohortPinsV2({
+        bytes: input.manifest,
+        cohort: input.selection.profile.cohort
+      }),
+      nodeVersion: Buffer.from("26.11.1\n", "utf8"),
+      ...(targetWorkspace === undefined ? {} : {
+        targetWorkspace,
+        migrationWorkspace: projectPnpmWorkspaceMigrationExclusionsV2({
+          bytes: input.workspace!,
+          source: input.current.cohort,
+          target: input.selection.profile.cohort
         })
       })
     };

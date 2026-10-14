@@ -1,3 +1,8 @@
+import type {
+  QualifiedDocsCohortBindingV2,
+  UnselectedCohortV3,
+} from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
+
 export interface CanaryInputs {
   readonly authorityRevision: string;
   readonly cohortId: string;
@@ -10,11 +15,52 @@ export interface CanaryRepository {
   readonly nameWithOwner: string;
 }
 
+export type CanaryPackageKey =
+  | "repositoryMutation"
+  | "documentAuthoring"
+  | "docsProtocol"
+  | "docsProtocolAgentTeams"
+  | "engineeringFoundation";
+
+export interface CanaryPackageCoordinate {
+  readonly direct: boolean;
+  readonly integrity: `sha512-${string}`;
+  readonly key: CanaryPackageKey;
+  readonly name: `@agent-teams/${string}`;
+  readonly version: string;
+}
+
+export type CanaryCohortV3 = Omit<
+  UnselectedCohortV3,
+  "canaryRepositoryIds" | "lifecycleState"
+>;
+
+export type CanaryCohort = QualifiedDocsCohortBindingV2 | CanaryCohortV3;
+
+export interface ProjectedCohortAuthority {
+  readonly cohort: CanaryCohort;
+  readonly path: "governance/docs-qualified-cohorts.json";
+  readonly repository: "agent-teams-ai/.github";
+  readonly revision: string;
+}
+
 export interface ProjectedCanaryAuthority {
-  readonly cohort: Record<string, unknown>;
-  readonly coordinates: readonly Record<string, unknown>[];
-  readonly roots: readonly Record<string, unknown>[];
-  readonly central: Record<string, unknown>;
+  readonly cohort: CanaryCohort;
+  readonly coordinates: readonly CanaryPackageCoordinate[];
+  readonly roots: readonly CanaryPackageCoordinate[];
+  readonly central: {
+    readonly path: "governance/docs-qualified-cohorts.json";
+    readonly repository: "agent-teams-ai/.github";
+    readonly revision: string;
+    readonly schemaPath: "governance/docs-qualified-cohorts.schema.json";
+  };
+  readonly expectedCommit: string;
+  readonly registry: "https://registry.npmjs.org/";
+  readonly source: {
+    readonly ref: "refs/heads/main";
+    readonly repository: "https://github.com/agent-teams-ai/engineering-foundation";
+    readonly workflow: ".github/workflows/release.yml";
+  };
 }
 
 export type CanaryAuthorityFetcher = (
@@ -27,7 +73,7 @@ export type CanaryAuthorityProjector = (input: {
   readonly registry: Record<string, unknown>;
   readonly repository: CanaryRepository;
   readonly revision: string;
-}) => ProjectedCanaryAuthority | Promise<ProjectedCanaryAuthority>;
+}) => ProjectedCohortAuthority | Promise<ProjectedCohortAuthority>;
 
 export function parseCanaryInputs(input: {
   readonly authorityRevision: string;

@@ -45,6 +45,7 @@ export type {
   DocsProtocolQualificationV3Request
 } from "./application-api.js";
 export type {
+  ConsumerQualificationAuthorityV3,
   ConsumerIntegrationDigest,
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,

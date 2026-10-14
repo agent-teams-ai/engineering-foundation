@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import test from "node:test";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { parse as parseYaml, stringify } from "yaml";
@@ -41,12 +43,56 @@ function centralRegistrySchema() {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     type: "object",
-    required: ["schema_version", "cohorts", "events"],
+    additionalProperties: false,
+    required: [
+      "$schema",
+      "schema_version",
+      "organization",
+      "policy",
+      "cohorts",
+      "events",
+    ],
     properties: {
+      $schema: { const: "./docs-qualified-cohorts.schema.json" },
       schema_version: { const: 1 },
-      cohorts: { type: "array" },
-      events: { type: "array" },
+      organization: { const: "agent-teams-ai" },
+      policy: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "version"],
+        properties: {
+          name: { const: "docs-qualified-cohorts" },
+          version: { const: 1 },
+        },
+      },
+      cohorts: {
+        type: "array",
+        maxItems: 4096,
+        items: { type: "object" },
+      },
+      events: {
+        type: "array",
+        maxItems: 4096,
+        items: { type: "object" },
+      },
     },
+  };
+}
+
+function cohort3NetworkFetcher(
+  fixture: ReturnType<typeof successorCentralRegistryFixture>,
+  registry: Record<string, unknown>,
+): CanaryAuthorityFetcher {
+  return async (input) => {
+    const value = String(input).endsWith("/branches/main")
+      ? { protected: true, commit: { sha: fixture.revision } }
+      : String(input).endsWith(".schema.json")
+        ? centralRegistrySchema()
+        : registry;
+    return new Response(JSON.stringify(value), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   };
 }
 
@@ -59,21 +105,27 @@ async function observeRealisticCohort3(
     cohortId: fixture.cohort.cohortId,
     expectedCommit: "a".repeat(40),
   });
-  const fetcher: CanaryAuthorityFetcher = async (input) => {
-    const value = String(input).endsWith("/branches/main")
-      ? { protected: true, commit: { sha: fixture.revision } }
-      : String(input).endsWith(".schema.json")
-        ? centralRegistrySchema()
-        : registry;
-    return new Response(JSON.stringify(value), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-  };
   return observeCentralCohortAuthority(
     { inputs, repository: fixture.repository },
-    { fetcher },
+    { fetcher: cohort3NetworkFetcher(fixture, registry) },
   );
+}
+
+async function assertRetainedCohortBinding(
+  cohort: Record<string, unknown>,
+): Promise<void> {
+  const schema = JSON.parse(await readFile(
+    new URL(
+      "../packages/docs-protocol-agent-teams/schemas/qualified-docs-cohort/v3.schema.json",
+      import.meta.url,
+    ),
+    "utf8",
+  )) as { $id: string };
+  const ajv = new Ajv2020({ allErrors: true, strict: true });
+  ajv.compile(schema);
+  const validateBinding = ajv.getSchema(`${schema.$id}#/$defs/cohortBinding`);
+  assert.ok(validateBinding);
+  assert.equal(validateBinding(cohort), true, JSON.stringify(validateBinding.errors));
 }
 
 interface MutableSuccessorFixture {
@@ -438,6 +490,7 @@ test("real production default projector observes a realistic Cohort3 registry", 
   assert.deepEqual(observed.cohort, fixture.cohort);
   assert.equal("lifecycleState" in observed.cohort, false);
   assert.equal("canaryRepositoryIds" in observed.cohort, false);
+  await assertRetainedCohortBinding(observed.cohort as Record<string, unknown>);
   const policy = JSON.parse(await readFile(
     new URL(
       "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
@@ -447,6 +500,62 @@ test("real production default projector observes a realistic Cohort3 registry", 
   )) as { managedCandidate: { selected: boolean; status: string } };
   assert.equal(policy.managedCandidate.selected, false);
   assert.equal(policy.managedCandidate.status, "candidate-unqualified");
+});
+
+test("disposable generation2 DEFAULT wiring is red for Cohort3 while production default is green", async () => {
+  const fixture = successorCentralRegistryFixture();
+  const current = await observeRealisticCohort3(fixture.registry);
+  assert.deepEqual(current.cohort, fixture.cohort);
+
+  const policyPath = new URL(
+    "../scripts/public-managed-registry-canary-policy.mjs",
+    import.meta.url,
+  );
+  const source = await readFile(policyPath, "utf8");
+  const start = source.indexOf("async function defaultProjectAuthority(input) {");
+  const end = source.indexOf(
+    "\n}\n\nexport async function observeCentralCohortAuthority",
+    start,
+  );
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const qualificationModule = pathToFileURL(join(
+    process.cwd(),
+    "packages/docs-protocol-agent-teams/dist/qualification/index.js",
+  )).href;
+  const generation2Default = `async function defaultProjectAuthority(input) {
+  const { projectDocsProtocolQualificationV3Authority } = await import(${JSON.stringify(qualificationModule)});
+  return projectDocsProtocolQualificationV3Authority(input);
+}`;
+  const disposablePath = join(
+    process.cwd(),
+    "scripts",
+    `.public-managed-registry-canary-generation2-default-${process.pid}.mjs`,
+  );
+  await writeFile(
+    disposablePath,
+    source.slice(0, start) + generation2Default + source.slice(end + 2),
+    "utf8",
+  );
+  try {
+    const generation2Policy = await import(
+      `${pathToFileURL(disposablePath).href}?test=${process.pid}`
+    );
+    const inputs = parseCanaryInputs({
+      authorityRevision: fixture.revision,
+      cohortId: fixture.cohort.cohortId,
+      expectedCommit: "a".repeat(40),
+    });
+    await assert.rejects(
+      generation2Policy.observeCentralCohortAuthority(
+        { inputs, repository: fixture.repository },
+        { fetcher: cohort3NetworkFetcher(fixture, fixture.registry) },
+      ),
+      /generation/iu,
+    );
+  } finally {
+    await rm(disposablePath, { force: true });
+  }
 });
 
 test("real Cohort3 projection rejects wrong generation, identity and source at its actual boundaries", async () => {

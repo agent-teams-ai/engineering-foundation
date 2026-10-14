@@ -12,9 +12,13 @@ export { runDocsProtocolQualificationV2 } from "./composition/qualification.js";
 export { runDocsProtocolQualificationV3 } from "./composition/qualification.js";
 export { projectDocsProtocolQualificationV3Authority } from
   "./composition/qualification.js";
+export { projectDocsProtocolQualificationCohortV3Authority } from
+  "./composition/qualification.js";
 export type {
   DocsProtocolQualificationAuthorityV3,
-  DocsProtocolQualificationAuthorityV3Request
+  DocsProtocolQualificationAuthorityV3Request,
+  DocsProtocolQualificationCohortV3Authority,
+  DocsProtocolQualificationCohortV3AuthorityRequest
 } from "./application-api.js";
 export {
   observeDocsProtocolQualificationV3Lockfile

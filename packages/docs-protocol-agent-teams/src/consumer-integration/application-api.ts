@@ -12,6 +12,7 @@ export type {
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
   ConsumerIntegrationSnapshot,
+  ConsumerQualificationAuthorityV3,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2,
   QualifiedDocsCohortBindingV1,

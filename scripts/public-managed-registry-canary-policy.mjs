@@ -41,10 +41,24 @@ async function fetchAuthorityJson(url, fetcher) {
 }
 
 async function defaultProjectAuthority(input) {
-  const { projectDocsProtocolQualificationV3Authority } = await import(
-    "../packages/docs-protocol-agent-teams/dist/qualification/index.js"
+  const matches = input.registry.cohorts.filter(
+    ({ cohort_id: cohortId }) => cohortId === input.cohortId
   );
-  return projectDocsProtocolQualificationV3Authority(input);
+  const generation = matches.length === 1 ? matches[0].cohort_generation : undefined;
+  const {
+    projectDocsProtocolQualificationCohortV3Authority,
+    projectDocsProtocolQualificationV3Authority
+  } = await import("../packages/docs-protocol-agent-teams/dist/qualification/index.js");
+  if (generation !== 3) {
+    return projectDocsProtocolQualificationV3Authority(input);
+  }
+  const projected = projectDocsProtocolQualificationCohortV3Authority(input);
+  const { lifecycleState, canaryRepositoryIds, ...cohort } = projected.cohort;
+  if (!["QUALIFIED", "CANARY"].includes(lifecycleState) ||
+      !canaryRepositoryIds.includes(input.repository.id)) {
+    fail("Cohort v3 is not eligible for this canary repository");
+  }
+  return { ...projected, cohort };
 }
 
 export async function observeCentralCohortAuthority(

@@ -139,6 +139,13 @@ export interface SuccessorQualificationFixture {
   readonly runtimePolicy: RuntimePolicyFixture;
 }
 
+export interface SuccessorCentralRegistryFixture {
+  readonly cohort: ManagedSuccessorProfile["cohort"];
+  readonly registry: Record<string, unknown>;
+  readonly repository: ManagedSuccessorProfile["repository"];
+  readonly revision: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -514,5 +521,196 @@ export function successorQualificationFixture(): SuccessorQualificationFixture {
     lockfileBytes,
     profile,
     runtimePolicy,
+  };
+}
+
+function canonicalAuthorityJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalAuthorityJson).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).toSorted().map((key) =>
+      `${JSON.stringify(key)}:${canonicalAuthorityJson((value as Record<string, unknown>)[key])}`
+    ).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export function authorityDigest(domain: string, body: unknown): `sha256:${string}` {
+  return `sha256:${createHash("sha256")
+    .update(canonicalAuthorityJson({ domain, body }))
+    .digest("hex")}`;
+}
+
+export function successorCentralRegistryFixture(): SuccessorCentralRegistryFixture {
+  const { profile } = successorQualificationFixture();
+  const binding = profile.cohort;
+  const consumerRepository = profile.repository;
+  const revision = "b".repeat(40);
+  const publishedAt = "2026-10-11T00:00:00Z";
+  const packageNames = {
+    repositoryMutation: "@agent-teams/repository-mutation",
+    documentAuthoring: "@agent-teams/document-authoring",
+    docsProtocol: "@agent-teams/docs-protocol",
+    docsProtocolAgentTeams: "@agent-teams/docs-protocol-agent-teams",
+    engineeringFoundation: "@agent-teams/engineering-foundation",
+  } as const;
+  const packages = Object.entries(packageNames).map(([key, name], index) => ({
+    name,
+    role: ["docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"].includes(key)
+      ? "direct"
+      : "transitive",
+    ...binding.packages[key as keyof typeof binding.packages],
+    registry: "https://registry.npmjs.org/",
+    published_at: publishedAt,
+    provenance: {
+      source_repository: "agent-teams-ai/engineering-foundation",
+      source_repository_id: 1316243988,
+      source_workflow: ".github/workflows/release.yml",
+      source_commit: `${index + 1}`.repeat(40),
+      workflow_run_id: 123,
+      workflow_run_attempt: 1,
+      registry_attestation_url:
+        `https://registry.npmjs.org/-/npm/v1/attestations/${name.replaceAll("/", "%2f")}@${
+          binding.packages[key as keyof typeof binding.packages].version
+        }`,
+      workflow_run_url:
+        "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/123",
+      signature_verified: true,
+    },
+  }));
+  const dependencyEdges = [
+    ["@agent-teams/document-authoring", "@agent-teams/repository-mutation"],
+    ["@agent-teams/docs-protocol", "@agent-teams/document-authoring"],
+    ["@agent-teams/docs-protocol", "@agent-teams/repository-mutation"],
+    ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/docs-protocol"],
+    ["@agent-teams/docs-protocol-agent-teams", "@agent-teams/repository-mutation"],
+    ["@agent-teams/engineering-foundation", "@agent-teams/document-authoring"],
+    ["@agent-teams/engineering-foundation", "@agent-teams/repository-mutation"],
+  ].map(([from, to]) => ({ from, to }));
+  const recordBody = {
+    cohort_generation: 3,
+    cohort_id: binding.cohortId,
+    channel: binding.channel,
+    candidate_digest: binding.candidateDigest,
+    policy_identity: binding.runtime.policy,
+    packages,
+    dependency_edges: dependencyEdges,
+    reusable_workflow: {
+      repository: binding.workflow.repository,
+      repository_id: 1316243981,
+      path: binding.workflow.path,
+      revision: binding.workflow.revision,
+      blob_sha: binding.workflow.blobSha,
+    },
+    schemas: {
+      consumer_integration: 4,
+      managed_state: 3,
+      qualification_receipt: 1,
+      docs_protocol: 1,
+      foundation_plan: 1,
+      foundation_journal: 1,
+      foundation_receipt: 1,
+      foundation_envelope: 5,
+    },
+    assets: {
+      skill: {
+        package: packageNames.docsProtocolAgentTeams,
+        path: "skills/docs/SKILL.md",
+        digest: binding.assets.skillDigest,
+      },
+      caller_workflow: {
+        package: packageNames.docsProtocolAgentTeams,
+        path: "assets/docs-protocol.yml",
+        digest: digest("cohort3-caller-source"),
+        rendered_digest: binding.assets.callerWorkflowDigest,
+      },
+      asset_catalog: {
+        package: packageNames.docsProtocolAgentTeams,
+        path: "assets/catalog.json",
+        digest: binding.assets.assetCatalogDigest,
+      },
+      transition_catalog: {
+        package: packageNames.docsProtocolAgentTeams,
+        path: "assets/transition-catalog.json",
+        digest: binding.assets.transitionCatalogDigest,
+      },
+    },
+    runtime: {
+      selected_lane: binding.runtime.selectedLane,
+      node: binding.runtime.node,
+      pnpm: binding.runtime.pnpm,
+      qualification_runtime: {
+        node_version: binding.runtime.qualificationRuntime.nodeVersion,
+        pnpm_version: binding.runtime.qualificationRuntime.pnpmVersion,
+        platform: binding.runtime.qualificationRuntime.platform,
+        architecture: binding.runtime.qualificationRuntime.architecture,
+      },
+    },
+    runtime_closure: {
+      schema_version: 2,
+      domain: binding.runtime.runtimeClosure.domain,
+      package_manager: "pnpm@11.20.0",
+      lockfile_version: "9.0",
+      package_count: 5,
+      projection_path:
+        `governance/docs-runtime-closures/${binding.runtime.runtimeClosure.digest.replace(":", "-")}.json`,
+      digest: binding.runtime.runtimeClosure.digest,
+    },
+    eligible_after: binding.eligibleAfter,
+    upgrade_from: binding.upgradeFrom,
+    rollback_to: binding.rollbackTo,
+    canary_repositories: [{
+      repository_id: Number(consumerRepository.id),
+      repository: consumerRepository.nameWithOwner,
+    }],
+    evidence_references: ["test:node26-cohort3-realistic-registry"],
+  } as Record<string, unknown>;
+  recordBody.record_digest =
+    authorityDigest("agent-teams.docs-qualified-cohort/v3", recordBody);
+  const event1Body = {
+    sequence: 1,
+    cohort_id: binding.cohortId,
+    state: "PUBLISHED_UNQUALIFIED",
+    effective_at: publishedAt,
+    support_until: null,
+    evidence_references: ["test:published"],
+    canary_evidence: [],
+    previous_event_digest: null,
+  };
+  const event1 = {
+    ...event1Body,
+    event_digest: authorityDigest("agent-teams.docs-qualified-cohort-event/v1", event1Body),
+  };
+  const event2Body = {
+    sequence: 2,
+    cohort_id: binding.cohortId,
+    state: "QUALIFIED",
+    effective_at: "2026-10-12T00:00:00Z",
+    support_until: null,
+    evidence_references: ["test:qualified"],
+    canary_evidence: [],
+    previous_event_digest: event1.event_digest,
+  };
+  const event2 = {
+    ...event2Body,
+    event_digest: authorityDigest("agent-teams.docs-qualified-cohort-event/v1", event2Body),
+  };
+  return {
+    cohort: {
+      ...binding,
+      recordDigest: recordBody.record_digest as `sha256:${string}`,
+      qualificationEventDigest: event2.event_digest,
+    },
+    registry: {
+      $schema: "./docs-qualified-cohorts.schema.json",
+      schema_version: 1,
+      organization: "agent-teams-ai",
+      policy: { name: "docs-qualified-cohorts", version: 1 },
+      cohorts: [recordBody],
+      events: [event1, event2],
+    },
+    repository: consumerRepository,
+    revision,
   };
 }

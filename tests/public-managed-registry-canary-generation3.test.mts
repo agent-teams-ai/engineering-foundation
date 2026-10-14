@@ -7,6 +7,7 @@ import { parse as parseYaml, stringify } from "yaml";
 
 import {
   observeDocsProtocolQualificationV3Lockfile,
+  projectDocsProtocolQualificationCohortV3Authority,
   type DocsProtocolQualificationCohortV3Receipt,
   type DocsProtocolQualificationReceiptV3,
 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
@@ -15,19 +16,65 @@ import {
 } from "../packages/docs-protocol-agent-teams/dist/qualification/application/use-cases/qualify-v3.js";
 import { parsePackedManagedRuntimePolicy } from
   "../packages/docs-protocol-agent-teams/dist/consumer-integration/adapters/unselected-cohort-v3-loader.js";
+import {
+  observeCentralCohortAuthority,
+  parseCanaryInputs,
+  type CanaryAuthorityFetcher,
+} from "../scripts/public-managed-registry-canary-policy.mjs";
 import { assertQualificationReceiptDigest } from "../scripts/public-managed-registry-canary.mjs";
 import {
   cohortV3QualificationChecks,
+  authorityDigest,
   descriptors,
   legacyQualificationChecks,
   digest,
   legacyQualificationFixture,
   integrity,
   sha256,
+  successorCentralRegistryFixture,
   successorQualificationFixture,
   type LegacyQualificationFixture,
   type SuccessorQualificationFixture,
 } from "./public-managed-registry-canary-generation3-fixtures.mts";
+
+function centralRegistrySchema() {
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    type: "object",
+    required: ["schema_version", "cohorts", "events"],
+    properties: {
+      schema_version: { const: 1 },
+      cohorts: { type: "array" },
+      events: { type: "array" },
+    },
+  };
+}
+
+async function observeRealisticCohort3(
+  registry: Record<string, unknown>,
+): ReturnType<typeof observeCentralCohortAuthority> {
+  const fixture = successorCentralRegistryFixture();
+  const inputs = parseCanaryInputs({
+    authorityRevision: fixture.revision,
+    cohortId: fixture.cohort.cohortId,
+    expectedCommit: "a".repeat(40),
+  });
+  const fetcher: CanaryAuthorityFetcher = async (input) => {
+    const value = String(input).endsWith("/branches/main")
+      ? { protected: true, commit: { sha: fixture.revision } }
+      : String(input).endsWith(".schema.json")
+        ? centralRegistrySchema()
+        : registry;
+    return new Response(JSON.stringify(value), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  return observeCentralCohortAuthority(
+    { inputs, repository: fixture.repository },
+    { fetcher },
+  );
+}
 
 interface MutableSuccessorFixture {
   evidence: {
@@ -359,5 +406,90 @@ test("Host qualification rejects mixed generations and evidence drift at their a
   assert.throws(
     () => assertQualificationReceiptDigest({ ...receipt, receiptDigest: sha256("c") }),
     /Qualification Cohort v3 receipt digest is not independently canonical\./u,
+  );
+});
+
+function mutableCentralRegistry(): {
+  readonly cohorts: Record<string, unknown>[];
+  readonly events: Record<string, unknown>[];
+  readonly registry: Record<string, unknown>;
+} {
+  const registry = structuredClone(successorCentralRegistryFixture().registry);
+  return {
+    cohorts: registry["cohorts"] as Record<string, unknown>[],
+    events: registry["events"] as Record<string, unknown>[],
+    registry,
+  };
+}
+
+function cohort3ProjectorInput(registry: Record<string, unknown>) {
+  const fixture = successorCentralRegistryFixture();
+  return {
+    cohortId: fixture.cohort.cohortId,
+    registry,
+    repository: fixture.repository,
+    revision: fixture.revision,
+  };
+}
+
+test("real production default projector observes a realistic Cohort3 registry", async () => {
+  const fixture = successorCentralRegistryFixture();
+  const observed = await observeRealisticCohort3(fixture.registry);
+  assert.deepEqual(observed.cohort, fixture.cohort);
+  assert.equal("lifecycleState" in observed.cohort, false);
+  assert.equal("canaryRepositoryIds" in observed.cohort, false);
+  const policy = JSON.parse(await readFile(
+    new URL(
+      "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  )) as { managedCandidate: { selected: boolean; status: string } };
+  assert.equal(policy.managedCandidate.selected, false);
+  assert.equal(policy.managedCandidate.status, "candidate-unqualified");
+});
+
+test("real Cohort3 projection rejects wrong generation, identity and source at its actual boundaries", async () => {
+  const wrongGeneration = mutableCentralRegistry();
+  wrongGeneration.cohorts[0]!["cohort_generation"] = 2;
+  assert.throws(
+    () => projectDocsProtocolQualificationCohortV3Authority(
+      cohort3ProjectorInput(wrongGeneration.registry),
+    ),
+    /Qualification Cohort v3 projector requires cohort_generation 3\./u,
+  );
+
+  const wrongIdentity = mutableCentralRegistry();
+  wrongIdentity.cohorts[0]!["record_digest"] = sha256("wrong-record-identity");
+  assert.throws(
+    () => projectDocsProtocolQualificationCohortV3Authority(
+      cohort3ProjectorInput(wrongIdentity.registry),
+    ),
+    /Cohort record_digest does not bind its canonical body\./u,
+  );
+
+  const wrongPolicySource = mutableCentralRegistry();
+  const policyRecord = wrongPolicySource.cohorts[0]!;
+  const policyIdentity = policyRecord["policy_identity"] as Record<string, unknown>;
+  policyIdentity["digest"] = sha256("f");
+  const { record_digest: _recordDigest, ...policyRecordBody } = policyRecord;
+  policyRecord["record_digest"] =
+    authorityDigest("agent-teams.docs-qualified-cohort/v3", policyRecordBody);
+  assert.throws(
+    () => projectDocsProtocolQualificationCohortV3Authority(
+      cohort3ProjectorInput(wrongPolicySource.registry),
+    ),
+    /Cohort v3 runtime differs from the packed managed policy lane\./u,
+  );
+
+  const wrongPackageSource = mutableCentralRegistry();
+  const packages = wrongPackageSource.cohorts[0]!["packages"] as Record<string, unknown>[];
+  const provenance = packages[0]!["provenance"] as Record<string, unknown>;
+  provenance["source_repository"] = "agent-teams-ai/untrusted-source";
+  assert.throws(
+    () => projectDocsProtocolQualificationCohortV3Authority(
+      cohort3ProjectorInput(wrongPackageSource.registry),
+    ),
+    /repository-mutation provenance must match the closed current authority identity\./u,
   );
 });

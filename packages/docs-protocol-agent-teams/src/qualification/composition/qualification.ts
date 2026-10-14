@@ -4,7 +4,8 @@ import {
   checkConsumerIntegration,
   createLazyPackedManagedRuntimePolicyObserver,
   observeQualifiedPnpmLockfileV2,
-  projectQualificationAuthorityV2
+  projectQualificationAuthorityV2,
+  projectQualificationAuthorityV3
 } from "../../consumer-integration/composition/qualification-v3-boundary.js";
 import { createNodeManagedQualificationEnvironment } from "../adapters/outbound/node-managed-qualification.js";
 import { createNodeDocsProtocolQualificationRuntimeObserver } from "../adapters/outbound/node-qualification-runtime.js";
@@ -13,6 +14,8 @@ import { createNodeQualificationApi } from "../adapters/outbound/node-qualificat
 import type {
   DocsProtocolQualificationAuthorityV3,
   DocsProtocolQualificationAuthorityV3Request,
+  DocsProtocolQualificationCohortV3Authority,
+  DocsProtocolQualificationCohortV3AuthorityRequest,
   DocsProtocolQualificationCohortV3Receipt,
   DocsProtocolQualificationCohortV3Request,
   DocsProtocolQualificationLockfileObservationV3,
@@ -36,6 +39,7 @@ const qualification = createNodeQualificationApi({
   observeRuntime: observeNodeRuntime,
   observePackedPolicy: createLazyPackedManagedRuntimePolicyObserver(),
   projectAuthority: projectQualificationAuthorityV2,
+  projectCohortAuthority: projectQualificationAuthorityV3,
   evaluateRestorationLock: evaluateManagedRestorationLockV1
 });
 
@@ -43,6 +47,12 @@ export function projectDocsProtocolQualificationV3Authority(
   request: DocsProtocolQualificationAuthorityV3Request
 ): DocsProtocolQualificationAuthorityV3 {
   return qualification.projectDocsProtocolQualificationV3Authority(request);
+}
+
+export function projectDocsProtocolQualificationCohortV3Authority(
+  request: DocsProtocolQualificationCohortV3AuthorityRequest
+): DocsProtocolQualificationCohortV3Authority {
+  return qualification.projectDocsProtocolQualificationCohortV3Authority(request);
 }
 
 export function runDocsProtocolQualificationV2(

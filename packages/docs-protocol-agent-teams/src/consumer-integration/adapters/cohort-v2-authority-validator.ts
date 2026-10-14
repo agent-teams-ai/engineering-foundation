@@ -83,7 +83,7 @@ function assertPath(value: unknown, subject: string): void {
   }
 }
 
-function assertReferences(value: unknown, subject: string): void {
+export function assertReferences(value: unknown, subject: string): void {
   const references = array(value, subject);
   if (references.length < 1 || references.length > 64 ||
     references.some((entry) => typeof entry !== "string" || entry.length < 1 ||
@@ -130,7 +130,7 @@ function assertProvenance(value: unknown, packageName: string, version: string):
   }
 }
 
-function assertPackages(source: Record<string, unknown>): void {
+export function assertPackages(source: Record<string, unknown>): void {
   const entries = array(source["packages"], "Cohort packages");
   if (entries.length !== QUALIFIED_DOCS_COHORT_V2_PACKAGES.length) {
     invalid("Qualified Cohort v2 must select exactly its five canonical packages.");
@@ -150,7 +150,7 @@ function assertPackages(source: Record<string, unknown>): void {
   });
 }
 
-function assertWorkflow(value: unknown): void {
+export function assertWorkflow(value: unknown): void {
   const workflow = record(value, "Cohort reusable workflow");
   if (!hasExactKeys(workflow, [
     "repository", "repository_id", "path", "revision", "blob_sha"
@@ -176,7 +176,7 @@ function assertAsset(value: unknown, subject: string, caller: boolean): void {
   if (caller) {assertPattern(asset["rendered_digest"], SHA256, `${subject} rendered digest`);}
 }
 
-function assertAssets(value: unknown): void {
+export function assertAssets(value: unknown): void {
   const assets = record(value, "Cohort assets");
   if (!hasExactKeys(assets, [
     "skill", "caller_workflow", "asset_catalog", "transition_catalog"
@@ -218,7 +218,7 @@ function assertRuntimeClosure(value: unknown): void {
   }.json`) {invalid("Qualified Cohort v2 runtime closure path must bind its digest.");}
 }
 
-function assertCanaryRepositories(value: unknown): void {
+export function assertCanaryRepositories(value: unknown): void {
   const canaries = array(value, "Cohort canary repositories");
   if (canaries.length < 1 || canaries.length > 32) {
     invalid("Qualified Cohort v2 must contain 1-32 canary repositories.");
@@ -233,19 +233,26 @@ function assertCanaryRepositories(value: unknown): void {
   });
 }
 
+export function assertDependencyEdges(
+  value: unknown,
+  subject = "Qualified Cohort v2 dependency edges"
+): void {
+  const edges = array(value, "Cohort dependency edges");
+  if (edges.length !== V2_DEPENDENCY_EDGES.length || edges.some((entry, index) => {
+    const edge = record(entry, "Cohort dependency edge");
+    return !hasExactKeys(edge, ["from", "to"]) ||
+      edge["from"] !== V2_DEPENDENCY_EDGES[index]?.[0] ||
+      edge["to"] !== V2_DEPENDENCY_EDGES[index]?.[1];
+  })) {invalid(`${subject} must match the canonical package graph.`);}
+}
+
 function assertSchemasAndEdges(source: Record<string, unknown>): void {
   const schemas = record(source["schemas"], "Cohort schemas");
-  const edges = array(source["dependency_edges"], "Cohort dependency edges");
   if (!hasExactKeys(schemas, Object.keys(V2_SCHEMA)) ||
     Object.entries(V2_SCHEMA).some(([key, value]) => schemas[key] !== value)) {
     invalid("Qualified Cohort v2 schemas must match the exact authority shape.");
   }
-  if (edges.length !== V2_DEPENDENCY_EDGES.length || edges.some((value, index) => {
-    const edge = record(value, "Cohort dependency edge");
-    return !hasExactKeys(edge, ["from", "to"]) ||
-      edge["from"] !== V2_DEPENDENCY_EDGES[index]?.[0] ||
-      edge["to"] !== V2_DEPENDENCY_EDGES[index]?.[1];
-  })) {invalid("Qualified Cohort v2 dependency edges must match the canonical package graph.");}
+  assertDependencyEdges(source["dependency_edges"]);
 }
 
 /** Validates every nested field admitted from the current raw Cohort v2 authority. */
@@ -276,7 +283,7 @@ function canonicalJson(value: unknown): string {
   ).join(",")}}`;
 }
 
-function assertDigest(value: Record<string, unknown>, key: string, domain: string): void {
+export function assertDigest(value: Record<string, unknown>, key: string, domain: string): void {
   const body = Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
   const expected = `sha256:${createHash("sha256").update(canonicalJson({ domain, body })).digest("hex")}`;
   if (value[key] !== expected) {invalid(`Cohort ${key} does not bind its canonical body.`);}

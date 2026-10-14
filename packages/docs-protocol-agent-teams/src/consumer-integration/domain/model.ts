@@ -134,6 +134,14 @@ export interface UnselectedCohortV3 {
   };
 }
 
+/** Read-only qualification projection; it grants no consumer upgrade or admission authority. */
+export interface ConsumerQualificationAuthorityV3 {
+  readonly repository: "agent-teams-ai/.github";
+  readonly path: "governance/docs-qualified-cohorts.json";
+  readonly revision: string;
+  readonly cohort: UnselectedCohortV3;
+}
+
 export interface ConsumerIntegrationDesiredStateV1 {
   readonly schemaVersion: 1;
   readonly repository: {

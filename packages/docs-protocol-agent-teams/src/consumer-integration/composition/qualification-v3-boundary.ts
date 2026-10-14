@@ -1,5 +1,6 @@
 export {
   projectQualificationAuthorityV2,
+  projectQualificationAuthorityV3,
   readManagedQualificationProfileInput
 } from "../adapters/managed-qualification-input.js";
 export { observeQualifiedPnpmLockfileV2 } from "../adapters/pnpm-lockfile-validator-v2.js";

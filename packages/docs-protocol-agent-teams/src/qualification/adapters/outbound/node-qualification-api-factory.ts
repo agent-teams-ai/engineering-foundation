@@ -4,6 +4,8 @@ import {
   createDocsProtocolQualificationV3Observer,
   type DocsProtocolQualificationAuthorityV3,
   type DocsProtocolQualificationAuthorityV3Request,
+  type DocsProtocolQualificationCohortV3Authority,
+  type DocsProtocolQualificationCohortV3AuthorityRequest,
   type DocsProtocolQualificationCohortV3Receipt,
   type DocsProtocolQualificationCohortV3Request,
   type DocsProtocolQualificationLockfileObservationV3,
@@ -37,6 +39,9 @@ export interface NodeQualificationApiDependencies {
   readonly projectAuthority: (
     request: DocsProtocolQualificationAuthorityV3Request
   ) => DocsProtocolQualificationAuthorityV3;
+  readonly projectCohortAuthority: (
+    request: DocsProtocolQualificationCohortV3AuthorityRequest
+  ) => DocsProtocolQualificationCohortV3Authority;
   readonly evaluateRestorationLock: (
     request: ManagedRestorationLockV1Request
   ) => ManagedRestorationLockV1Result;
@@ -46,6 +51,9 @@ export interface NodeQualificationApi {
   projectDocsProtocolQualificationV3Authority(
     request: DocsProtocolQualificationAuthorityV3Request
   ): DocsProtocolQualificationAuthorityV3;
+  projectDocsProtocolQualificationCohortV3Authority(
+    request: DocsProtocolQualificationCohortV3AuthorityRequest
+  ): DocsProtocolQualificationCohortV3Authority;
   runDocsProtocolQualificationV2(
     request: DocsProtocolQualificationV2Request
   ): Promise<DocsProtocolQualificationReceiptV2>;
@@ -81,6 +89,7 @@ export function createNodeQualificationApi(
   ) => DocsProtocolQualificationReceiptV3 | DocsProtocolQualificationCohortV3Receipt = runV3;
   return Object.freeze({
     projectDocsProtocolQualificationV3Authority: dependencies.projectAuthority,
+    projectDocsProtocolQualificationCohortV3Authority: dependencies.projectCohortAuthority,
     runDocsProtocolQualificationV2: runV2,
     observeDocsProtocolQualificationV3Lockfile,
     runDocsProtocolQualificationV3,

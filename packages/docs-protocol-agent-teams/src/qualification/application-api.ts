@@ -9,7 +9,9 @@ export type {
 } from "./application/model/restoration-lock.js";
 export type {
   DocsProtocolQualificationAuthorityV3,
-  DocsProtocolQualificationAuthorityV3Request
+  DocsProtocolQualificationAuthorityV3Request,
+  DocsProtocolQualificationCohortV3Authority,
+  DocsProtocolQualificationCohortV3AuthorityRequest
 } from "./application/model/qualification-authority-v3.js";
 export type {
   DocsProtocolQualificationContractV2,

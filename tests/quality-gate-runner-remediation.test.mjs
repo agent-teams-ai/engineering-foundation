@@ -29,8 +29,8 @@ import {
 
 function policy() {
   return {
-    packageManager: "pnpm",
     profiles: [{
+      packageManager: "pnpm",
       concurrency: 1,
       id: "verify",
       tasks: [{ after: [], id: "slow", needs: [] }],
@@ -272,6 +272,7 @@ test("QGR binds one immutable exact child environment in the pnpm adapter", asyn
     clock: { nowMs: () => 0 },
     executor: new PnpmQualityGateScriptExecutor({
       childEnvironment,
+      nodeExecutablePath: process.execPath,
       npmExecPath: fileURLToPath(import.meta.url),
     }, {
       async run(request) {

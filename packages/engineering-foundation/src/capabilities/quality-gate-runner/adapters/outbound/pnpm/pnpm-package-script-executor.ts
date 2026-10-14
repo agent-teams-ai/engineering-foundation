@@ -16,6 +16,7 @@ import {
 
 export interface QualityGatePnpmEnvironment {
   readonly childEnvironment: Readonly<NodeJS.ProcessEnv>;
+  readonly nodeExecutablePath?: string;
   readonly npmExecPath?: string;
   readonly pnpmHome?: string;
   readonly pathValue?: string;
@@ -67,7 +68,10 @@ async function resolvePnpmInvocation(
     ...pathEntrypoints
   ]);
   if (entrypoint !== undefined) {
-    return { command: process.execPath, argsPrefix: [entrypoint] };
+    if (environment.nodeExecutablePath === undefined) {
+      rejectQualityGateExecutor();
+    }
+    return { command: environment.nodeExecutablePath, argsPrefix: [entrypoint] };
   }
   if (process.platform !== "win32") {
     return { command: "pnpm", argsPrefix: [] };
@@ -97,11 +101,15 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
   ) {}
 
   async run(input: {
+    readonly packageManager: "bun" | "pnpm";
     readonly consumerRoot: string;
     readonly scriptId: string;
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;
   }) {
+    if (input.packageManager !== "pnpm") {
+      rejectQualityGateExecutor();
+    }
     const invocation = await resolvePnpmInvocation(this.environment);
     try {
       const result = await this.processExecutor.run({

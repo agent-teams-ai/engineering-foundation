@@ -100,9 +100,19 @@ test("workflow process adapters use the selected executor and preserve process e
     exitCode: 17, stdout: "observed", stderr: "failure",
   });
   assert.deepEqual(requests[0], { command: "git", args: ["status"], cwd: "/inert", signal, strictUtf8: true });
-  const runner = new PnpmPackageScriptRunner({ npmExecPath: cliPath }, execute);
-  assert.equal((await runner.run({ consumerRoot: "/inert", script: "test", paths: ["src/value.ts"], signal })).exitCode, 17);
+  const runner = new PnpmPackageScriptRunner({
+    npmExecPath: cliPath,
+    nodeExecutablePath: "/verified/node"
+  }, execute);
+  assert.equal((await runner.run({
+    packageManager: "pnpm",
+    consumerRoot: "/inert",
+    script: "test",
+    paths: ["src/value.ts"],
+    signal
+  })).exitCode, 17);
   assert.deepEqual(requests[1].args, [cliPath, "run", "test", "--", "src/value.ts"]);
+  assert.equal(requests[1].command, "/verified/node");
   assert.equal(requests[1].signal, signal);
   const reader = new GitRepositoryChangesReader(createProcessExecution({ async run(request) {
     assert.equal(request.strictUtf8, true);

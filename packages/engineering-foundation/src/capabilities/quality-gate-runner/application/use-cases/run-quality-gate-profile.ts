@@ -47,6 +47,7 @@ function failureTail(stdout: string, stderr: string): string {
 }
 
 async function executeTask(input: {
+  readonly packageManager: "bun" | "pnpm";
   readonly consumerRoot: string;
   readonly task: QualityGateTask;
   readonly signal?: AbortSignal;
@@ -54,6 +55,7 @@ async function executeTask(input: {
   const startedAt = clock.nowMs();
   try {
     const result = await executor.run({
+      packageManager: input.packageManager,
       consumerRoot: input.consumerRoot,
       scriptId: input.task.id,
       ...(input.task.timeoutMs === undefined
@@ -195,6 +197,7 @@ function scheduleReadyTasks(
       break;
     }
     active.set(task.id, executeTask({
+      packageManager: input.profile.packageManager,
       consumerRoot: input.consumerRoot,
       task,
       ...(input.signal === undefined ? {} : { signal: input.signal })

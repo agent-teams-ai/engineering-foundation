@@ -43,7 +43,7 @@ function validateEnforcement(pkg, profile, problems) {
     }
   }
   for (const entry of ["check", "check:fast"]) {
-    if (!executesScript(pkg.scripts, entry, "architecture:features:check", "node scripts/check-feature-modules.mjs")) {
+    if (!executesScript(pkg.scripts, entry, "architecture:features:check", "node tools/repository-command.mts tool architecture:features:check")) {
       problem(problems, "enforcement-command", `${entry} must execute the feature checker through literal scripts joined by &&.`);
     }
   }

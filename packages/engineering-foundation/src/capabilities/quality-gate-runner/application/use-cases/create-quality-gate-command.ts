@@ -1,5 +1,6 @@
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type { QualityGateRunReport } from "../model/quality-gate-report.js";
+import type { NormalizedQualityGatePolicy, QualityGatePolicyInput } from "../model/quality-gate.js";
 import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import type { PackageScriptCatalogReader } from "../ports/package-script-catalog-reader.js";
 import type { PackageScriptExecutor } from "../ports/package-script-executor.js";
@@ -35,6 +36,18 @@ export type QualityGateCommand = (
   input: QualityGateCommandInput
 ) => Promise<QualityGateRunReport>;
 
+function normalizePolicy(input: QualityGatePolicyInput): NormalizedQualityGatePolicy {
+  if ("packageManager" in input) {
+    return Object.freeze({
+      profiles: Object.freeze(input.profiles.map((profile) => Object.freeze({
+        ...profile,
+        packageManager: input.packageManager
+      })))
+    });
+  }
+  return input;
+}
+
 function assertNotCancelled(signal: AbortSignal | undefined): void {
   if (signal?.aborted === true) {
     inputError(
@@ -55,11 +68,11 @@ export function createQualityGateCommand(
       );
     }
     assertNotCancelled(input.signal);
-    const policy = await dependencies.policyLoader(
+    const policy = normalizePolicy(await dependencies.policyLoader(
       input.consumerRoot,
       input.configPath,
       input.signal
-    );
+    ));
     assertNotCancelled(input.signal);
     const profile = policy.profiles.find(({ id }) => id === input.profileId);
     if (profile === undefined) {
@@ -91,4 +104,3 @@ export function createQualityGateCommand(
     );
   };
 }
-

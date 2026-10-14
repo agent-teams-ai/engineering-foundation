@@ -1,9 +1,13 @@
-// Extracted from the repository production guard: only literal pnpm calls and
-// && sequences are supported. This deliberately is not a shell interpreter.
+// Extracted from the repository production guard: only literal manager calls,
+// repository-command routes and && sequences are supported. This deliberately
+// is not a shell interpreter.
 function sequence(command: string | undefined, expected: string): readonly string[] {
   if (typeof command !== "string") { return []; }
   const parts = command.split(/\s*&&\s*/u).map((part) => part.trim());
-  return parts.every((part) => part === expected || /^(?:pnpm (?:run )?[\w:-]+|node scripts\/[\w./-]+\.mjs|false|true)$/u.test(part)) ? parts : [];
+  return parts.every((part) =>
+    part === expected ||
+    /^(?:pnpm (?:run )?[\w:-]+|node scripts\/[\w./-]+\.(?:mjs|mts)|node tools\/repository-command\.mts (?:script|tool) [\w:.-]+|false|true)$/u.test(part)
+  ) ? parts : [];
 }
 
 // A literal failure anywhere in the required chain cannot establish a valid
@@ -17,8 +21,9 @@ function containsFailure(
   const visited = new Set([...active, entry]);
   return (scripts?.[entry] ?? "").split(/\s*&&\s*/u).some((part) => {
     if (part.trim() === "false") { return true; }
-    const match = /^pnpm (?:run )?([\w:-]+)$/u.exec(part.trim());
-    return match?.[1] !== undefined && containsFailure(scripts, match[1], visited);
+    const match = /^(?:pnpm (?:run )?([\w:-]+)|node tools\/repository-command\.mts script ([A-Za-z0-9][A-Za-z0-9:._-]*))$/u.exec(part.trim());
+    const script = match?.[1] ?? match?.[2];
+    return script !== undefined && containsFailure(scripts, script, visited);
   });
 }
 
@@ -35,8 +40,9 @@ export function containsScriptRoute(
   if (entry === target) { return parts.includes(expected); }
   const visited = new Set([...active, entry]);
   return parts.some((part) => {
-    const match = /^pnpm (?:run )?([\w:-]+)$/u.exec(part);
-    return match?.[1] !== undefined && containsScriptRoute(scripts, match[1], target, expected, visited);
+    const match = /^(?:pnpm (?:run )?([\w:-]+)|node tools\/repository-command\.mts script ([A-Za-z0-9][A-Za-z0-9:._-]*))$/u.exec(part);
+    const script = match?.[1] ?? match?.[2];
+    return script !== undefined && containsScriptRoute(scripts, script, target, expected, visited);
   });
 }
 

@@ -7,9 +7,8 @@ import { performanceMonotonicClock } from "../adapters/outbound/time/performance
 import { loadQualityGatePolicy, type QualityGateConfigurationDependencies } from "../adapters/inbound/configuration/load-quality-gate-policy.js";
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { resolveRepositoryRuntimeExecutables } from "../../../process-execution/application/runtime-selection.js";
+import { verifyAdmittedRuntimeExecutable } from "../../../process-execution/node-runtime-verifier.js";
 import { createPackageManagerScriptExecutor } from "./select-package-script-executor.js";
-import { lstat } from "node:fs/promises";
-import { isAbsolute } from "node:path";
 
 const ACTIVE_GATE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE";
 
@@ -28,13 +27,7 @@ export function createNodeQualityGateCommand(
         typeof process.versions["bun"] === "string"
           ? "bun"
           : "node",
-      verifyExecutable: async (path) => {
-        if (!isAbsolute(path)) {
-          return false;
-        }
-        const metadata = await lstat(path).catch(() => null);
-        return metadata?.isFile() === true;
-      }
+      verifyExecutable: verifyAdmittedRuntimeExecutable
     });
     const childEnvironment = Object.freeze({
       ...snapshot,

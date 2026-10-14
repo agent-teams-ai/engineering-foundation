@@ -476,10 +476,12 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v2-authority-validator.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v3-authority-projector.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-node-error.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-profile-projection-internal.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-cohort-authority-reader.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/github-authority-response-reader-internal.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/managed-qualification-input.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-clock.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-environment.ts
@@ -494,6 +496,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-target-lockfile.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-archive.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-sandbox-inventory-internal.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-source-proof.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-upgrade-target.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-attempt.ts

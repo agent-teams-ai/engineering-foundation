@@ -35,7 +35,8 @@ function cohortPackageNames(cohort: FivePackageCohort): readonly string[] {
 
 export function projectPnpmManifestCohortPinsV2(input: {
   readonly bytes: Uint8Array;
-  readonly cohort: FivePackageCohort;
+  readonly cohort: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] |
+    UnselectedCohortV3;
 }): Uint8Array {
   return projectPnpmManifestCohortTargets({
     bytes: input.bytes,
@@ -48,7 +49,8 @@ export function projectPnpmManifestCohortPinsV2(input: {
 export function planPnpmManifestV2(input: {
   readonly observation: ConsumerIntegrationFileObservation;
   readonly profilePath: string;
-  readonly cohort: FivePackageCohort;
+  readonly cohort: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] |
+    UnselectedCohortV3;
   readonly knownPriorScriptsDigest?: ConsumerIntegrationDigest;
 }): PnpmManifestPlanV1 {
   return planPnpmManifestTargets({

@@ -159,6 +159,8 @@ packages:
         decisionId: ADR-0058
       - fingerprint: sha256:e53b9871f0c72f61a0619db37826b879297e9aaf2c3c2105150768b731fba54a
         decisionId: ADR-0060
+      - fingerprint: sha256:8107d4aba03496fcc0a495c308c155baa71b30df94c44e8a9d5c45194cbb9148
+        decisionId: ADR-0061
   - packageName: "@agent-teams/ci-input-proof"
     packageRoot: packages/ci-input-proof
     manifestPath: packages/ci-input-proof/package.json

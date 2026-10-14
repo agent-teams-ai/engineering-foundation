@@ -6,12 +6,12 @@ editing the accepted decision.
 
 ## Proposed
 
-
 - [ADR-0056: Bounded Qualified Managed Node 26 Transition](0056-bounded-qualified-managed-node-26-transition.md)
 - [ADR-0052: Bounded Managed V1 Restoration](0052-bounded-managed-v1-restoration.md)
 
 ## Accepted
 
+- [ADR-0061: Node 26 Qualified Consumer Upgrade](0061-node26-qualified-consumer-upgrade.md)
 - [ADR-0060: Node 26 Cohort3 Projector Public API Evolution](0060-node26-cohort3-projector-public-api-evolution.md)
 - [ADR-0059: Node 26 Current Policy Coherent Behavior Unit](0059-node26-current-policy-coherent-behavior-unit.md)
 - [ADR-0058: Node 26 Current Policy Public API Evolution](0058-node26-current-policy-public-api-evolution.md)

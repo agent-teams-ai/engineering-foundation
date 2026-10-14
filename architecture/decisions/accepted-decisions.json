@@ -286,6 +286,11 @@
       "id": "ADR-0060",
       "path": "docs/decisions/0060-node26-cohort3-projector-public-api-evolution.md",
       "immutableDigest": "sha256:c07b8c29ff8362a866d4196e6abed41f10ca2d9b05a148aba17a6f7a3270d49c"
+    },
+    {
+      "id": "ADR-0061",
+      "path": "docs/decisions/0061-node26-qualified-consumer-upgrade.md",
+      "immutableDigest": "sha256:3f5fba8d171bdf1fc4650c9d7fb14f70239de9acbcb03403359edbe3c6b39eab"
     }
   ]
 }

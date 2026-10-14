@@ -26,6 +26,7 @@
     },
     {
       "files": [
+        "packages/docs-protocol-agent-teams/tests/consumer-upgrade-e2e-fixtures.mjs",
         "scripts/pack-test.mjs",
         "spikes/**",
         "tests/**",

@@ -1,20 +1,23 @@
 ---
 id: ADR-0061
-status: proposed
+status: accepted
 supersedes: []
 superseded_by: []
 ---
 
 # ADR-0061: Node 26 Qualified Consumer Upgrade
 
-Status: Proposed; Root independently accepts the successor decision before
-merge. This document records the bounded implementation design and does not
-grant lifecycle or release authority.
+Status: Accepted by the repository architecture coordinator within the
+continuing Product owner Node 26 migration authorization at source
+`bcfc3e5f2f63cf0093f0d69766f648e409449950`. Root accepts this new decision
+within that owner-approved scope; independent final technical review and
+required CI remain before merge. This decision records one bounded route and
+does not claim that migration, publication, or final E2E is complete.
 
 Date: 2026-10-14
 
 Decision owner: Product owner; the repository architecture coordinator records
-the proposed bounded route.
+this bounded decision.
 
 ## Supported transition
 
@@ -45,6 +48,43 @@ depends on ports in its own vocabulary; adapters translate registry and
 filesystem data. These are fixed SDK helpers for real consumers, not dynamic
 providers. Foundation has FMS adoption but no Get Modular construction
 profile or pin, so this change creates no Get Modular adoption claim.
+
+## Public API evolution
+
+The source/API change was read before this decision. In
+`packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts`,
+both exported cohort inputs use the public inline union
+`QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3`
+rather than a private alias:
+
+```ts
+export function projectPnpmWorkspaceCohortExclusionsV2(input: {
+  readonly bytes: Uint8Array;
+  readonly cohort: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3;
+}): Uint8Array;
+
+export function projectPnpmWorkspaceMigrationExclusionsV2(input: {
+  readonly bytes: Uint8Array;
+  readonly source: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3;
+  readonly target: QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile["cohort"] | UnselectedCohortV3;
+}): Uint8Array;
+```
+
+The transition extends the existing cohort, planning and upgrade contracts with
+explicit generation-3 and selected Profile4 values. Inlining the public members
+makes the extractor resolve the exact public
+contract while preserving the existing cohort semantics and rejection
+behavior. The actual pinned API check now extracts successfully and reports
+one breaking fingerprint for
+`@agent-teams/docs-protocol-agent-teams`:
+
+`sha256:8107d4aba03496fcc0a495c308c155baa71b30df94c44e8a9d5c45194cbb9148`
+
+Approve only that exact fingerprint through the existing compatibility policy,
+referencing `ADR-0061`, while retaining the existing ADR-0058 and ADR-0060
+approvals unchanged. The released `0.4.0` typed and artifact baselines,
+package versions, manifests and generated baselines remain unchanged; this
+decision performs no baseline promotion or release action.
 
 ## Authorizing evidence and lifecycle boundary
 
@@ -105,9 +145,24 @@ created.
 
 ## Evidence boundary
 
+The source/API review and pinned extraction above are implementation evidence.
+The actual Root Node 26.11.1 build passed after the tiny public-signature fix in `pnpm-manifest-adapter-v2.ts`, and the
+pinned API check extracted successfully before rejecting only the fingerprint
+recorded above. Those observations do not convert this decision into a
+migration, publication, or E2E claim.
+
 Disposable TEST fixtures may prove the public CLI/use case transition,
 lifecycle and repository rejection before writes, wrong exact runtime tuple,
 authority drift, source preimage drift, retained source history and atomic
 rollback. They do not prove signed public-archive qualification, registry
 lifecycle transition, real consumer adoption, publication or final Node26 E2E.
-Those remain Root delivery steps.
+Those remain Root delivery steps and require independent final technical
+review.
+
+The existing source Profile3 / Cohort2 / state2 with Node `>=24.18.0 <25`
+was verified directly in real Canary main blobs
+`df3b901256894c452a48299d229d757ada4f2fdd` and
+`1b797b03d6e146a14c88750a7f5805756cea6beb`. Those blobs verify only the
+source binding. Profile4 / Cohort3 / state3 on Node 26.11.1 is the target
+of this decision; real consumer migration, publication and final E2E remain
+pending.

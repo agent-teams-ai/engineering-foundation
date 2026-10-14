@@ -276,6 +276,11 @@
       "id": "ADR-0058",
       "path": "docs/decisions/0058-node26-current-policy-public-api-evolution.md",
       "immutableDigest": "sha256:9436c5bf13a999272b69922f9a158e81c2955bc1873057d13ab1437e3bbcb7a9"
+    },
+    {
+      "id": "ADR-0059",
+      "path": "docs/decisions/0059-node26-current-policy-coherent-behavior-unit.md",
+      "immutableDigest": "sha256:a07726acf3b8e76c991190ddbcde895b36fdd79ad059987ad9568824d523fd8b"
     }
   ]
 }

@@ -12,6 +12,7 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0059: Node 26 Current Policy Coherent Behavior Unit](0059-node26-current-policy-coherent-behavior-unit.md)
 - [ADR-0058: Node 26 Current Policy Public API Evolution](0058-node26-current-policy-public-api-evolution.md)
 - [ADR-0057: CI Input Proof Leaf Type Contract](0057-ci-input-proof-leaf-type-contract.md)
 

@@ -32,7 +32,8 @@ import {
   projectPnpmWorkspaceCohortExclusionsV1
 } from "../dist/consumer-integration/adapters/consumer-upgrade-file-projectors.js";
 import {
-  projectQualifiedCohortAuthority
+  projectQualifiedCohortAuthority,
+  GitHubCohortAuthorityReader
 } from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
 import {
   packageConsumerAssetCatalogReader
@@ -52,9 +53,6 @@ import {
 import {
   NodeConsumerUpgradeSandbox
 } from "../dist/consumer-integration/adapters/node-consumer-upgrade-sandbox.js";
-import {
-  GitHubCohortAuthorityReader
-} from "../dist/consumer-integration/adapters/github-cohort-authority-reader.js";
 import {
   createManagedConsumerCommand
 } from "../dist/consumer-integration/adapters/inbound/consumer-integration-cli.js";
@@ -686,6 +684,40 @@ test("coordinates staged proof, one Foundation publication, activation, and reve
   });
   assert.equal(interruptedResult.issues[0].code, "DOCS_CONSUMER_AUTHORITY_CHANGED");
   assert.equal(appliedAfterAuthorityChange, false);
+});
+
+test("migration-source runtime assessment is limited to explicit generation 3", async () => {
+  const reads = [];
+  const inputStop = new Error("input read recorded");
+  const upgrade = createConsumerUpgradeUseCase({
+    assets: { read: async () => { throw new Error("unused"); } },
+    authority: { read: async () => { throw new Error("unused"); } },
+    input: {
+      read: async (options) => {
+        reads.push(options);
+        throw inputStop;
+      }
+    },
+    planning: consumerIntegrationPlanningPorts,
+    sandbox: {},
+    transaction: { inspect: async () => ({ state: "idle" }) }
+  });
+
+  for (const targetGeneration of [1, 2]) {
+    await assert.rejects(
+      upgrade({ consumerRoot: "/consumer", targetGeneration, to: "target" }),
+      (error) => error === inputStop
+    );
+  }
+  await assert.rejects(
+    upgrade({ consumerRoot: "/consumer", targetGeneration: 3, to: "target" }),
+    (error) => error === inputStop
+  );
+  assert.deepEqual(reads, [
+    { consumerRoot: "/consumer" },
+    { consumerRoot: "/consumer" },
+    { consumerRoot: "/consumer", runtimeAssessment: "upgrade-source" }
+  ]);
 });
 
 test("keeps an exact V1 Cohort current when the repository has an unborn HEAD", async () => {

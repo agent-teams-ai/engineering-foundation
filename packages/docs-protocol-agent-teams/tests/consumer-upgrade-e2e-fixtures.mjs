@@ -220,7 +220,10 @@ export function cohortV3Registry({
     policy_identity: cohort.runtime.policy,
     packages: Object.entries(cohort.packages).map(packageEntry),
     dependency_edges: V3_EDGES.map(([from, to]) => ({ from, to })),
-    reusable_workflow: { ...cohort.workflow, repository_id: 1316243981 },
+    reusable_workflow: {
+      repository: cohort.workflow.repository, repository_id: 1316243981,
+      path: cohort.workflow.path, revision: cohort.workflow.revision, blob_sha: cohort.workflow.blobSha
+    },
     schemas: { consumer_integration: 4, managed_state: 3, qualification_receipt: 1,
       docs_protocol: 1, foundation_plan: 1, foundation_journal: 1, foundation_receipt: 1,
       foundation_envelope: 5 },

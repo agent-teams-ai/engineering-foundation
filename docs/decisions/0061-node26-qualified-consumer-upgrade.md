@@ -22,7 +22,8 @@ Support exactly one ordinary consumer transition:
 Profile 3 / Cohort 2 / managed state 2 / qualification receipt 3 to Profile 4 /
 Cohort 3 / managed state 3 /
 `docs-protocol-cohort-v3-qualification-receipt/v1` receipt 1. The source remains
-an actual Node 24.21.0 compatibility-lane consumer; the target is the policy
+the protected Canary consumer with the retained exact Node 24.18.0 source pin;
+that pin satisfies the existing Cohort 2 `>=24.18.0 <25` contract. The target is the policy
 3.0.0 Node 26.11.1 production default with pnpm 11.20.0 on Linux x64. Profile,
 cohort, state, receipt and policy versions remain distinct nominal identities.
 

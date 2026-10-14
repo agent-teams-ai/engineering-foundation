@@ -235,10 +235,29 @@ interface ConsumerUpgradeOptions {
   readonly prepare?: boolean;
 }
 
+type ConsumerUpgradeTargetGeneration = 1 | 2 | 3;
+
+function isConsumerUpgradeTargetGeneration(
+  targetGeneration: ConsumerUpgradeTargetGeneration | undefined
+): targetGeneration is ConsumerUpgradeTargetGeneration {
+  return targetGeneration === 1 || targetGeneration === 2 || targetGeneration === 3;
+}
+
+function readUpgradeSource(
+  ports: ConsumerUpgradePorts,
+  consumerRoot: string,
+  targetGeneration: ConsumerUpgradeTargetGeneration
+) {
+  return targetGeneration === 3
+    ? ports.input.read({ consumerRoot, runtimeAssessment: "upgrade-source" })
+    : ports.input.read({ consumerRoot });
+}
+
 export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
   // oxlint-disable-next-line complexity
   return async function upgrade(options: ConsumerUpgradeOptions): Promise<RestorableConsumerUpgradeExecution> {
-    if (![1, 2, 3].includes(options.targetGeneration)) {
+    const targetGeneration = options.targetGeneration;
+    if (!isConsumerUpgradeTargetGeneration(targetGeneration)) {
       return blocked(issue(
         "DOCS_CONSUMER_TARGET_GENERATION_REQUIRED",
         options.to,
@@ -249,7 +268,7 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     if (inspection.state !== "idle") {
       return blocked(issue(inspection.code, "foundation-transaction", inspection.message));
     }
-    const input = await ports.input.read({ consumerRoot: options.consumerRoot, runtimeAssessment: "upgrade-source" });
+    const input = await readUpgradeSource(ports, options.consumerRoot, targetGeneration);
     const restorationIssue = restorationOptionIssue(options, input.desired, ports.restoration);
     if (restorationIssue !== undefined) {return restorationIssue;}
     const source = compileConsumerIntegration({
@@ -287,9 +306,9 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
       ));
     }
     const authority = await ports.authority.read({ cohortId: options.to,
-      generation: options.targetGeneration, repository: input.desired.repository,
+      generation: targetGeneration, repository: input.desired.repository,
       ...(options.authorityRevision === undefined ? {} : { revision: options.authorityRevision }) });
-    if (authority.cohort.schemaVersion !== options.targetGeneration) {
+    if (authority.cohort.schemaVersion !== targetGeneration) {
       return blocked(incompatibleGeneration(input.desired, authority), authority);
     }
     const supportedGeneration =
@@ -343,7 +362,7 @@ export function createConsumerUpgradeUseCase(ports: ConsumerUpgradePorts) {
     }
     const confirmedAuthority = await ports.authority.read({
       cohortId: options.to,
-      generation: options.targetGeneration,
+      generation: targetGeneration,
       repository: input.desired.repository,
       revision: authority.revision
     });

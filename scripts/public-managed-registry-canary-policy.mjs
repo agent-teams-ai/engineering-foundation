@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 
 import { publishablePackageByName } from "./publishable-packages.mjs";
+import { normalizePackedRuntimePolicy } from "./public-managed-registry-canary-runtime-policy.mts";
 import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
 const SHA512_SRI = /^sha512-([A-Za-z0-9+/]+={0,2})$/u;
@@ -40,10 +41,24 @@ async function fetchAuthorityJson(url, fetcher) {
 }
 
 async function defaultProjectAuthority(input) {
-  const { projectDocsProtocolQualificationV3Authority } = await import(
-    "../packages/docs-protocol-agent-teams/dist/qualification/index.js"
+  const matches = input.registry.cohorts.filter(
+    ({ cohort_id: cohortId }) => cohortId === input.cohortId
   );
-  return projectDocsProtocolQualificationV3Authority(input);
+  const generation = matches.length === 1 ? matches[0].cohort_generation : undefined;
+  const {
+    projectDocsProtocolQualificationCohortV3Authority,
+    projectDocsProtocolQualificationV3Authority
+  } = await import("../packages/docs-protocol-agent-teams/dist/qualification/index.js");
+  if (generation !== 3) {
+    return projectDocsProtocolQualificationV3Authority(input);
+  }
+  const projected = projectDocsProtocolQualificationCohortV3Authority(input);
+  const { lifecycleState, canaryRepositoryIds, ...cohort } = projected.cohort;
+  if (!["QUALIFIED", "CANARY"].includes(lifecycleState) ||
+      !canaryRepositoryIds.includes(input.repository.id)) {
+    fail("Cohort v3 is not eligible for this canary repository");
+  }
+  return { ...projected, cohort };
 }
 
 export async function observeCentralCohortAuthority(
@@ -84,6 +99,41 @@ const FORBIDDEN_PORTABLE_TERMS = [
   "rundocsprotocolqualificationv2",
   "rundocsprotocolqualificationv3",
 ];
+const COHORT_V3_KEYS = [
+  "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
+  "eligibleAfter", "upgradeFrom", "rollbackTo", "candidateDigest", "packages", "workflow",
+  "assets", "schemas", "runtime",
+];
+const COHORT_V3_SCHEMA_BINDINGS = Object.freeze({
+  consumerIntegration: 4,
+  managedState: 3,
+  qualificationReceipt: 1,
+  docsProtocol: 1,
+});
+const COHORT_V3_RUNTIME = Object.freeze({
+  selectedLane: "node-26-managed-qualified",
+  node: ">=26.0.0 <27",
+  pnpm: ">=11.17.0 <12",
+  qualificationRuntime: Object.freeze({
+    nodeVersion: "26.11.1",
+    pnpmVersion: "11.20.0",
+    platform: "linux",
+    architecture: "x64",
+  }),
+});
+const runtimePolicySchemaPath = new URL(
+  "../packages/docs-protocol-agent-teams/schemas/managed-runtime-policy/v1.schema.json", import.meta.url,
+);
+const runtimePolicyAssetPath = new URL(
+  "../packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json", import.meta.url,
+);
+const runtimePolicySourcePath = new URL(
+  "../architecture/foundation/docs-protocol-current-policy-v3.json", import.meta.url,
+);
+const runtimePolicySchema = JSON.parse(readFileSync(runtimePolicySchemaPath, "utf8"));
+const runtimePolicyAsset = JSON.parse(readFileSync(runtimePolicyAssetPath, "utf8"));
+const runtimePolicySourceDigest =
+  `sha256:${createHash("sha256").update(readFileSync(runtimePolicySourcePath)).digest("hex")}`;
 
 function fail(message) {
   throw new Error(`Public managed registry canary policy rejected: ${message}`);
@@ -108,6 +158,20 @@ function canonicalJson(value) {
       .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
   }
   return JSON.stringify(value);
+}
+
+function expectedCanaryReceiptSchemaVersion(receipt) {
+  const cohortSchemaVersion = receipt?.authority?.cohort?.schemaVersion;
+  if (cohortSchemaVersion === 2) { return 1; }
+  if (cohortSchemaVersion === 3) { return 2; }
+  fail("receipt generation must correspond to Cohort v2 or Cohort v3");
+}
+
+function assertCanaryReceiptGeneration(receipt) {
+  const expected = expectedCanaryReceiptSchemaVersion(receipt);
+  if (receipt?.schemaVersion !== expected) {
+    fail(`receipt schemaVersion must be ${expected} for its Cohort generation`);
+  }
 }
 
 export function canonicalReceiptDigest(receiptWithoutDigest) {
@@ -155,6 +219,13 @@ function validateCohortTransitions(cohort) {
   }
 }
 
+function validateCohortV3Transitions(cohort) {
+  validateCohortTransitions(cohort);
+  if (cohort.upgradeFrom.length === 0 || cohort.rollbackTo.length === 0) {
+    fail("Cohort v3 transition authority is invalid");
+  }
+}
+
 function cohortCoordinates(packages) {
   exactKeys(packages, COHORT_PACKAGES.map(({ key }) => key), "Cohort packages");
   return COHORT_PACKAGES.map(({ key, name, direct }) => {
@@ -165,6 +236,33 @@ function cohortCoordinates(packages) {
     }
     return Object.freeze({ direct, integrity: canonicalIntegrity(coordinate.integrity, name), key, name, version: coordinate.version });
   });
+}
+
+function validateCohortV3Bindings(cohort, packedPolicy) {
+  exactKeys(cohort.assets, ["skillDigest", "callerWorkflowDigest", "assetCatalogDigest", "transitionCatalogDigest"], "Cohort assets");
+  if (!Object.values(cohort.assets).every((digest) => SHA256.test(digest))) {
+    fail("Cohort asset authority is invalid");
+  }
+  exactKeys(cohort.schemas, ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"], "Cohort schemas");
+  if (canonicalJson(cohort.schemas) !== canonicalJson(COHORT_V3_SCHEMA_BINDINGS)) {
+    fail("Cohort schema tuple must be exactly 4/3/1/qualificationReceipt1");
+  }
+  exactKeys(cohort.runtime, ["policy", "selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"], "Cohort runtime");
+  exactKeys(cohort.runtime.policy, ["id", "version", "digest"], "Cohort runtime policy");
+  exactKeys(cohort.runtime.qualificationRuntime, ["nodeVersion", "pnpmVersion", "platform", "architecture"],
+    "Cohort qualification runtime");
+  exactKeys(cohort.runtime.runtimeClosure, ["domain", "digest"], "Cohort runtime closure");
+  if (cohort.runtime.policy.id !== packedPolicy.policyId ||
+      cohort.runtime.policy.version !== packedPolicy.policyVersion ||
+      cohort.runtime.policy.digest !== packedPolicy.sourceDigest ||
+      cohort.runtime.selectedLane !== COHORT_V3_RUNTIME.selectedLane ||
+      cohort.runtime.node !== COHORT_V3_RUNTIME.node ||
+      cohort.runtime.pnpm !== COHORT_V3_RUNTIME.pnpm ||
+      canonicalJson(cohort.runtime.qualificationRuntime) !== canonicalJson(COHORT_V3_RUNTIME.qualificationRuntime) ||
+      cohort.runtime.runtimeClosure.domain !== "agent-teams.docs-runtime-closure/v2" ||
+      !SHA256.test(cohort.runtime.runtimeClosure.digest ?? "")) {
+    fail("Cohort v3 runtime authority is invalid");
+  }
 }
 
 function validateCohortWorkflow(workflow) {
@@ -213,6 +311,40 @@ export function createCanaryAuthority(projected, inputs) {
     fail("projected Cohort is not bound to the requested central authority revision");
   }
   const cohort = projected.cohort;
+  if (cohort?.schemaVersion === 3) {
+    const packedPolicy = normalizePackedRuntimePolicy(runtimePolicyAsset, {
+      expected: COHORT_V3_RUNTIME,
+      schema: runtimePolicySchema,
+      sourceDigest: runtimePolicySourceDigest,
+    });
+    exactKeys(cohort, COHORT_V3_KEYS, "Cohort v3 authority");
+    if (cohort.schemaVersion !== 3 || !COHORT_ID.test(cohort.cohortId ?? "") ||
+        !["rc", "stable"].includes(cohort.channel) || !SHA256.test(cohort.recordDigest ?? "") ||
+        !SHA256.test(cohort.qualificationEventDigest ?? "") || !SHA256.test(cohort.candidateDigest ?? "")) {
+      fail("Cohort v3 identity or authority digests are invalid");
+    }
+    canonicalUtcSeconds(cohort.eligibleAfter, "eligibleAfter");
+    validateCohortV3Transitions(cohort);
+    const coordinates = cohortCoordinates(cohort.packages);
+    validateCohortWorkflow(cohort.workflow);
+    validateCohortV3Bindings(cohort, packedPolicy);
+    if (cohort.cohortId !== inputs.cohortId) {
+      fail("projected Cohort identity differs from the requested Cohort");
+    }
+    return Object.freeze({
+      cohort: Object.freeze(structuredClone(cohort)),
+      coordinates: Object.freeze(coordinates),
+      roots: Object.freeze(coordinates.filter(({ direct }) => direct)),
+      central: Object.freeze({ ...CENTRAL_AUTHORITY, revision: inputs.authorityRevision }),
+      expectedCommit: inputs.expectedCommit,
+      registry: "https://registry.npmjs.org/",
+      source: Object.freeze({
+        ref: "refs/heads/main",
+        repository: "https://github.com/agent-teams-ai/engineering-foundation",
+        workflow: ".github/workflows/release.yml",
+      }),
+    });
+  }
   exactKeys(cohort, [
     "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
     "eligibleAfter", "upgradeFrom", "rollbackTo", "packages", "workflow", "assets",
@@ -365,7 +497,8 @@ export function hostilePolicyMatrix(authority) {
 }
 
 export function finalizeCanaryReceipt(body) {
-  // The reusable receipt schema owns shape; this release-owned boundary owns identity.
+  // The reusable receipt schemas own shape; this boundary owns generation and identity.
+  assertCanaryReceiptGeneration(body);
   const supporting = body.supportingReleasePrecondition;
   const coordinate = supportingMcpCoordinate({
     "dist-tags": { latest: supporting?.package?.latest },
@@ -381,6 +514,7 @@ export function finalizeCanaryReceipt(body) {
 }
 
 export function assertCanaryReceiptDigest(receipt) {
+  assertCanaryReceiptGeneration(receipt);
   const { receiptDigest, ...body } = receipt;
   if (receiptDigest !== canonicalReceiptDigest(body)) {
     fail("receipt digest does not match canonical receipt body");

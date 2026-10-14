@@ -4,7 +4,8 @@ import {
   canonicalConsumerIntegrationJson,
   QUALIFIED_DOCS_COHORT_V2_EDGES,
   qualifiedDocsCohortV2PackageEntries,
-  type QualifiedDocsCohortBindingV2
+  type QualifiedDocsCohortBindingV2,
+  type UnselectedCohortV3
 } from "../application-api.js";
 import { PnpmRuntimeClosureError } from "./pnpm-runtime-closure-v1.js";
 
@@ -197,7 +198,7 @@ function projectSnapshotOptionality(
 /** V2 binds raw peer-qualified snapshots with cohort-relative optional reachability. */
 export function computePnpmRuntimeClosureDigestV2(
   lock: JsonRecord,
-  cohort: QualifiedDocsCohortBindingV2
+  cohort: Pick<QualifiedDocsCohortBindingV2, "packages"> | Pick<UnselectedCohortV3, "packages">
 ): `sha256:${string}` {
   if (String(lock["lockfileVersion"]) !== LOCKFILE_VERSION) {
     fail("Runtime closure requires pnpm lockfileVersion 9.0.");

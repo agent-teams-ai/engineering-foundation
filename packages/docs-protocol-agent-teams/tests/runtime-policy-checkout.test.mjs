@@ -7,17 +7,24 @@ import { join } from "node:path";
 import test from "node:test";
 
 const root = new URL("../../../", import.meta.url);
-const policyPath = "architecture/foundation/docs-protocol-current-policy-v2.json";
+const policyPath = "architecture/foundation/docs-protocol-current-policy-v3.json";
+const schemaPath = "architecture/contracts/docs-protocol-current-policy/v3.schema.json";
 const assetPath = "packages/docs-protocol-agent-teams/assets/runtime-policy.v1.json";
 const historicalDigests = new Map([
   ["architecture/foundation/docs-protocol-current-policy.json",
     "sha256:b446075de07aa2655561e0cba7d15ed13cc2062b91303e961f06b6afddb18efc"],
   ["architecture/contracts/docs-protocol-current-policy/v1.schema.json",
     "sha256:3067433b3e5b8f964049f5b83dc29ac06bb32d6c88ac3d39eee3ad7769bd6f70"],
+  ["architecture/foundation/docs-protocol-current-policy-v2.json",
+    "sha256:4db0b267a08c75d22eeddde9bdf69b70c0da0b165bb13e18d6e685df4a5cd801"],
+  ["architecture/contracts/docs-protocol-current-policy/v2.schema.json",
+    "sha256:2c764ddd8065ca06ee55b1e7a09947d4fe8ab70125c1533bc5d9213e79842733"],
 ]);
 const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
-test("Windows-style CRLF checkout preserves current and historical policy digests", async () => {
+test("Windows-style CRLF checkout preserves current policy and exact historical bytes", async () => {
+  assert.equal(policyPath, "architecture/foundation/docs-protocol-current-policy-v3.json");
+  assert.equal(schemaPath, "architecture/contracts/docs-protocol-current-policy/v3.schema.json");
   const directory = await mkdtemp(join(tmpdir(), "foundation-policy-checkout-"));
   const git = (...args) => execFileSync("git", args, { cwd: directory, stdio: "pipe" });
   try {

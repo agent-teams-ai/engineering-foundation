@@ -11,7 +11,7 @@ import { parseJsonRecord } from "../dist/consumer-integration/adapters/strict-js
 const read = async (path) => JSON.parse(await readFile(new URL(path, import.meta.url), "utf8"));
 const digest = (digit) => `sha256:${digit.repeat(64)}`;
 const policy = await read("../assets/runtime-policy.v1.json"), packageCoordinate = { version: "1.0.0", integrity: `sha512-${"A".repeat(86)}==` };
-const cohort = () => ({
+const cohort = () => JSON.parse(JSON.stringify({
   schemaVersion: 3, cohortId: "candidate-v3", channel: "rc", recordDigest: digest("1"), qualificationEventDigest: digest("2"),
   eligibleAfter: "2026-09-28T00:00:00Z", upgradeFrom: ["prior-v2"], rollbackTo: ["prior-v2"], candidateDigest: digest("9"),
   packages: Object.fromEntries(["repositoryMutation", "documentAuthoring", "docsProtocol", "docsProtocolAgentTeams", "engineeringFoundation"].map((key) => [key, packageCoordinate])),
@@ -21,7 +21,7 @@ const cohort = () => ({
   runtime: { policy: { id: policy.policyId, version: policy.policyVersion, digest: policy.sourceDigest }, selectedLane: "node-26-managed-qualified", node: ">=26.0.0 <27",
     pnpm: policy.managedRuntime.pnpm, qualificationRuntime: policy.managedRuntime.lanes["node-26-managed-qualified"].qualificationRuntime,
     runtimeClosure: { domain: "agent-teams.docs-runtime-closure/v2", digest: digest("7") } }
-});
+}));
 const profile = () => ({
   schemaVersion: 4, repository: { provider: "github", id: "123", nameWithOwner: "example/docs" }, integrationRoot: ".", packageManager: "pnpm",
   profilePath: "architecture/foundation/docs-protocol.yaml", skillPath: ".agents/skills/docs-authoring/SKILL.md", callerWorkflowPath: ".github/workflows/docs-protocol.yml",
@@ -38,16 +38,24 @@ const canonical = (value) => value === null || typeof value !== "object" ? JSON.
 const sha = (value) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
 test("packed successor refs compile and profile4 remains unselected", async () => {
   const manifest = await read("../package.json"); assert.equal(manifest.exports["./schemas/*"], "./schemas/*"); assert.ok(manifest.files.includes("schemas"));
+  assert.equal(policy.policyVersion, "3.0.0");
+  assert.equal(policy.managedCandidate.status, "candidate-unqualified");
+  assert.notEqual(policy.productionDefault.status, "QUALIFIED");
+  assert.notEqual(policy.productionDefault.status, "CANARY");
   const ajv = new Ajv2020({ strict: true }); ajv.addSchema(await read("../schemas/qualified-docs-cohort/v3.schema.json"));
   const validateState = ajv.compile(await read("../schemas/docs-consumer-managed-state/v3.schema.json"));
   const selected = await loadUnselectedManagedProfileV4(JSON.stringify(profile()));
   assert.deepEqual(Object.keys(selected.cohort).toSorted(), Object.keys(cohort()).toSorted());
-  await assert.rejects(assertConsumerIntegrationProfileSchema(selected), /exactly 1, 2, or 3/);
+  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(selected));
+  await assert.rejects(
+    assertConsumerIntegrationProfileSchema({ ...selected, schemaVersion: 5 }),
+    /schemaVersion must be exactly 1, 2, 3, or 4/u
+  );
   const state = JSON.parse(projectManagedSuccessorState(selected, assets()));
   assert.equal(validateState(state), true, JSON.stringify(validateState.errors)); assert.equal(state.assets.agentsRouteDigest, sha(route));
   assert.equal(state.assets.docsScriptsDigest, sha(canonical(scripts)));
   const { stateDigest, ...body } = state;
-  assert.equal(stateDigest, "sha256:f12a16bc343e2b6773ade9c2bf042c4254ea0fd480d800ab26cb7eece03ec9bf");
+  assert.equal(stateDigest, "sha256:5a770c522f4c642fdb1fb6344b77e5304a8541b8e88d6c4ad04c701c26d2e754");
   assert.equal(stateDigest, sha(canonical({ domain: "agent-teams.docs-protocol.managed-state/v3", body })));
   assert.equal(state.cohortAuthority.candidateDigest, selected.cohort.candidateDigest); assert.deepEqual(state.workflow, selected.cohort.workflow);
   for (const change of [
@@ -56,14 +64,39 @@ test("packed successor refs compile and profile4 remains unselected", async () =
   const old = new Ajv2020({ strict: true }); old.addSchema(await read("../schemas/qualified-docs-cohort/v2.schema.json"));
   assert.equal(old.compile(await read("../schemas/docs-consumer-managed-state/v2.schema.json"))(state), false);
 });
+test("generic profile4 dispatch binds the actual packed policy digest and runtime tuple", async () => {
+  const valid = profile();
+  assert.notEqual(valid.cohort.packages.repositoryMutation, valid.cohort.packages.documentAuthoring);
+  await assert.doesNotReject(assertConsumerIntegrationProfileSchema(valid));
+  for (const [name, mutate] of [
+    ["forged nonzero policy digest", (p) => { p.cohort.runtime.policy.digest = digest("f"); }],
+    ["wrong exact qualification runtime", (p) => { p.cohort.runtime.qualificationRuntime.pnpmVersion = "11.19.0"; }]
+  ]) {
+    const invalid = profile();
+    mutate(invalid);
+    const expected = /runtime differs from the packed managed policy lane/u;
+    await assert.rejects(assertConsumerIntegrationProfileSchema(invalid), expected, name);
+    await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid)), expected, name);
+  }
+});
 test("profile refuses mixed generations and policy swaps", async () => {
   for (const mutate of [
-    (p) => { p.schemaVersion = 3; }, (p) => { p.cohort.schemas.managedState = 2; },
+    (p) => { p.schemaVersion = 3; }, (p) => { p.schemaVersion = 5; },
+    (p) => { p.cohort.schemaVersion = 2; }, (p) => { p.cohort.schemas.managedState = 2; },
+    (p) => { p.cohort.schemas.qualificationReceipt = 2; },
+    (p) => { delete p.cohort.recordDigest; }, (p) => { p.cohort.recordDigest = `sha512:${"1".repeat(64)}`; },
+    (p) => { delete p.cohort.qualificationEventDigest; },
+    (p) => { p.cohort.qualificationEventDigest = digest("2").slice(1); },
     (p) => { p.cohort.runtime.selectedLane = "node-24-production-default"; }, (p) => { p.cohort.runtime.policy.digest = digest("f"); },
     (p) => { p.cohort.packages.docsProtocolMcp = packageCoordinate; }, (p) => { p.cohort.candidateDigest = digest("0"); },
     (p) => { p.cohort.rollbackTo = ["unrelated"]; }, (p) => { p.cohort.lifecycleState = "QUALIFIED"; },
     (p) => { p.cohort.canaryRepositoryIds = ["1"]; },
-  ]) { const invalid = profile(); mutate(invalid); await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid))); }
+  ]) {
+    const invalid = profile();
+    mutate(invalid);
+    await assert.rejects(assertConsumerIntegrationProfileSchema(invalid));
+    await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(invalid)));
+  }
   await assert.rejects(loadUnselectedManagedProfileV4(JSON.stringify(profile()).replace('"selectedLane":"node-26-managed-qualified"',
     '"selectedLane":"node-26-managed-qualified","selected\\u004cane":"node-24-production-default"')));
   await assert.rejects(loadUnselectedManagedProfileV4("x".repeat(1024 * 1024 + 1)), /bounded input size/);

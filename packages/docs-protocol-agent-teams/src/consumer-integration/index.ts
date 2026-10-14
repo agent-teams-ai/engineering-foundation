@@ -9,7 +9,10 @@ export {
   describeCanonicalConsumerAssets
 } from "./application-api.js";
 export type {
-  CanonicalManagedAssetDigests
+  CanonicalManagedAssetDigests,
+  ManagedSuccessorAssetDigests,
+  ManagedSuccessorProfile,
+  UnselectedCohortV3
 } from "./application-api.js";
 export { planConsumerIntegration } from "./composition/consumer-integration-planner.js";
 export { planAgentsRouteV1 } from "./adapters/agents-route-adapter-v1.js";

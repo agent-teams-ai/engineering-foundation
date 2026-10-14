@@ -8,9 +8,7 @@ transition projectors, managed workflows, managed qualification, and historical
 managed assets. It depends on the portable package through that package's public
 Node contracts; the portable package never discovers or imports this adapter.
 
-The current managed contract uses Qualified Cohort v2, integration profile v3,
-managed state v2, and qualification receipt v3. A Cohort binds exactly five npm
-coordinates and their exact versions and SHA-512 integrities:
+The retained contract keeps profile 3 / Cohort 2 / state 2 / receipt 3 and the same public sync overload adds profile 4 / Cohort 3 / state 3 / `docs-protocol-cohort-v3-qualification-receipt/v1` receipt 1 / packed policy 3. A Cohort binds exactly five npm
 
 - `@agent-teams/repository-mutation`;
 - `@agent-teams/document-authoring`;
@@ -22,6 +20,21 @@ A consumer declares only Docs Protocol, Docs Protocol Agent Teams, and
 Engineering Foundation as root development dependencies. Repository Mutation
 and Document Authoring remain exact transitive coordinates verified against the
 lockfile. Independent floating package updates are not Cohort authority.
+
+The current runtime policy is policy 3.0.0 with an artifact-protected support
+claim. It records Node 26.11.1 as the production default and Node 24.21.0 as the
+compatibility lane. This nominal default and cutover metadata does not claim
+physical Node 26 qualification, and it does not make the managed candidate
+`QUALIFIED` or `CANARY`.
+
+The managed runtime projection retains `node-24-production-default` and
+`node-26-managed-qualified` as nominal historical lane IDs. The retained Node 24
+ID has `default: false` and does not claim that Node 24 is the current default.
+The Node 26 lane has `default: true` and records the actual 26.11.1 / pnpm
+11.20.0 / Linux / x64 qualification runtime tuple, but the Cohort v3 candidate
+remains unselected with status `candidate-unqualified` until genuine registry
+qualification. The operational Profile 3 / Cohort 2 / receipt 3 contract remains
+explicitly Node 24 and unchanged.
 
 Managed operations use the distinct executable:
 
@@ -61,11 +74,9 @@ Qualify the successor Docs Protocol reader before selecting v4: v3-only readers
 reject it. Review the returned bytes and use the existing known-file transaction
 Plan/Apply workflow with the exact saved v3 preimage. Finish or preserve any
 pending transaction through its exact recorded recovery artifact first. Cohort
-upgrade commands do not automatically invoke this migration. Managed integration
-profile v3, Cohort v2, managed state v2 and qualification receipt v3 retain their
-identities; historical state, asset catalogs and recovery evidence are not
-rewritten or reinterpreted. A portable profile is not an additional managed-state
-asset or a new qualification-receipt generation.
+upgrade commands do not automatically invoke this migration. Profile 4 / Cohort 3 / state 3
+uses the sync overload, exact namespace and packed policy 3, and actual Node 26.11.1 / pnpm
+11.20.0 / Linux / x64 observation; `selected: false` until genuine published `QUALIFIED` authority, and a supporting receipt is not `CANARY`.
 
 The qualification fixture selects portable v4 explicitly and is tested against
 the reviewed portable producer candidate. Existing canonical asset generation

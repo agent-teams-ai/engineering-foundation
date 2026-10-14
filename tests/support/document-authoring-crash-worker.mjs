@@ -27,6 +27,10 @@ await applyNodeDocumentationPlanPrivately(
           }
         });
       });
+      setTimeout(() => {
+        process.stderr.write(`CHECKPOINT_TIMEOUT:${point.phase}\n`);
+        process.exitCode = 124;
+      }, 30_000);
       await new Promise(() => {});
     }
   }

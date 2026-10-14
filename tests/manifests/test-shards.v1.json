@@ -147,6 +147,7 @@
         "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
         "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
         "tests/capability-public-api.test.mjs"
       ]
@@ -222,6 +223,7 @@
         "tests/coverage-workflow.test.mjs",
         "tests/test-timing.test.mjs",
         "tests/public-managed-registry-canary.test.mjs",
+        "tests/public-managed-registry-canary-generation3.test.mts",
         "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs"
       ]
     },

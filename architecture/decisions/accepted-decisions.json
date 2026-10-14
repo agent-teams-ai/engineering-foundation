@@ -271,6 +271,21 @@
       "id": "ADR-0057",
       "path": "docs/decisions/0057-ci-input-proof-leaf-type-contract.md",
       "immutableDigest": "sha256:b05d5568ebfec29b51b9fb3b45b31d1ccd8b0b69f7d956927f90589ba9fd2613"
+    },
+    {
+      "id": "ADR-0058",
+      "path": "docs/decisions/0058-node26-current-policy-public-api-evolution.md",
+      "immutableDigest": "sha256:9436c5bf13a999272b69922f9a158e81c2955bc1873057d13ab1437e3bbcb7a9"
+    },
+    {
+      "id": "ADR-0059",
+      "path": "docs/decisions/0059-node26-current-policy-coherent-behavior-unit.md",
+      "immutableDigest": "sha256:a07726acf3b8e76c991190ddbcde895b36fdd79ad059987ad9568824d523fd8b"
+    },
+    {
+      "id": "ADR-0060",
+      "path": "docs/decisions/0060-node26-cohort3-projector-public-api-evolution.md",
+      "immutableDigest": "sha256:c07b8c29ff8362a866d4196e6abed41f10ca2d9b05a148aba17a6f7a3270d49c"
     }
   ]
 }

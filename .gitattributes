@@ -19,6 +19,7 @@ packages/docs-protocol-agent-teams/assets/** text eol=lf
 packages/docs-protocol-agent-teams/skills/** text eol=lf
 packages/docs-protocol-agent-teams/src/consumer-integration/generated/canonical-assets.ts text eol=lf
 packages/*/schemas/**/*.json text eol=lf
+architecture/foundation/schemas/*.schema.json text eol=lf
 tests/fixtures/document-authoring-contracts/*.json text eol=lf
 tests/fixtures/document-authoring-canonical-markdown/*.md text eol=lf
 tests/fixtures/document-authoring-contracts/orchestrator-golden-v1/*.md text eol=lf
@@ -41,3 +42,5 @@ architecture/foundation/docs-protocol-current-policy.json text eol=lf
 architecture/contracts/docs-protocol-current-policy/v1.schema.json text eol=lf
 architecture/contracts/docs-protocol-current-policy/v2.schema.json text eol=lf
 packages/docs-protocol-agent-teams/tests/fixtures/restoration-lock-v1/** -text
+architecture/foundation/docs-protocol-current-policy-v3.json text eol=lf
+architecture/contracts/docs-protocol-current-policy/v3.schema.json text eol=lf

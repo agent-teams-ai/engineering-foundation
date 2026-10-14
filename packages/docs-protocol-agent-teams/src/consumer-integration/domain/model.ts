@@ -94,6 +94,54 @@ export type QualifiedDocsCohortBindingV2 = Omit<
   "canaryRepositoryIds" | "lifecycleState"
 >;
 
+/** Candidate shape and lane consistency; validation grants no lifecycle selection. */
+export interface UnselectedCohortV3 {
+  readonly schemaVersion: 3;
+  readonly cohortId: string;
+  readonly channel: "rc" | "stable";
+  readonly recordDigest: string;
+  readonly qualificationEventDigest: string;
+  readonly eligibleAfter: string;
+  readonly upgradeFrom: readonly string[];
+  readonly rollbackTo: readonly string[];
+  readonly candidateDigest: string;
+  readonly lifecycleState: "QUALIFIED" | "CANARY" | "RECOMMENDED";
+  readonly canaryRepositoryIds: readonly string[];
+  readonly packages: Readonly<Record<"repositoryMutation" | "documentAuthoring" | "docsProtocol" |
+    "docsProtocolAgentTeams" | "engineeringFoundation", { readonly version: string; readonly integrity: `sha512-${string}` }>>;
+  readonly workflow: { readonly repository: "agent-teams-ai/.github"; readonly path: ".github/workflows/docs-protocol-check.yml";
+    readonly revision: string; readonly blobSha: string };
+  readonly assets: { readonly skillDigest: string; readonly callerWorkflowDigest: string;
+    readonly assetCatalogDigest: string; readonly transitionCatalogDigest: string };
+  readonly schemas: {
+    readonly consumerIntegration: 4;
+    readonly managedState: 3;
+    readonly qualificationReceipt: 1;
+    readonly docsProtocol: 1;
+  };
+  readonly runtime: {
+    readonly policy: { readonly id: "agent-teams.docs-protocol-current-policy"; readonly version: "3.0.0"; readonly digest: string };
+    readonly selectedLane: "node-24-production-default" | "node-26-managed-qualified";
+    readonly node: string;
+    readonly pnpm: string;
+    readonly qualificationRuntime: {
+      readonly nodeVersion: string;
+      readonly pnpmVersion: string;
+      readonly platform: string;
+      readonly architecture: string;
+    };
+    readonly runtimeClosure: { readonly domain: "agent-teams.docs-runtime-closure/v2"; readonly digest: string };
+  };
+}
+
+/** Read-only qualification projection; it grants no consumer upgrade or admission authority. */
+export interface ConsumerQualificationAuthorityV3 {
+  readonly repository: "agent-teams-ai/.github";
+  readonly path: "governance/docs-qualified-cohorts.json";
+  readonly revision: string;
+  readonly cohort: UnselectedCohortV3;
+}
+
 export interface ConsumerIntegrationDesiredStateV1 {
   readonly schemaVersion: 1;
   readonly repository: {
@@ -129,9 +177,34 @@ export interface ConsumerIntegrationDesiredStateV3 {
   readonly cohort: QualifiedDocsCohortBindingV2;
 }
 
+/** Closed unselected Profile4 binding over Cohort3; it grants no lifecycle selection. */
+export interface ManagedSuccessorProfile {
+  readonly schemaVersion: 4;
+  readonly repository: { readonly provider: "github"; readonly id: string; readonly nameWithOwner: string };
+  readonly integrationRoot: ".";
+  readonly packageManager: "pnpm";
+  readonly profilePath: string;
+  readonly skillPath: string;
+  readonly callerWorkflowPath: string;
+  readonly managedStatePath: string;
+  readonly qualification: { readonly contractPath: string; readonly gateCommand: string };
+  readonly governedDocsRoots?: readonly string[];
+  readonly cohort: Omit<UnselectedCohortV3, "lifecycleState" | "canaryRepositoryIds">;
+}
+
+export interface ManagedSuccessorAssetDigests {
+  readonly skillDigest: string;
+  readonly callerWorkflowDigest: string;
+  readonly assetCatalogDigest: string;
+  readonly transitionCatalogDigest: string;
+  readonly agentsRouteDigest: string;
+  readonly docsScriptsDigest: string;
+}
+
 export type ConsumerIntegrationDesiredState =
   | ConsumerIntegrationDesiredStateV1
-  | ConsumerIntegrationDesiredStateV3;
+  | ConsumerIntegrationDesiredStateV3
+  | ManagedSuccessorProfile;
 
 export type ConsumerIntegrationFileObservation =
   | { readonly state: "absent" }

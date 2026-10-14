@@ -5,11 +5,18 @@ import {
 } from "./node-consumer-repository-files.js";
 import { projectQualifiedCohortAuthority } from
   "./github-cohort-authority-reader.js";
+import {
+  projectCohortV3Authority,
+  type CohortV3AuthorityProjectorRequest
+} from "./cohort-v3-authority-projector.js";
+import { createLazyPackedManagedRuntimePolicyObserver } from "./unselected-cohort-v3-loader.js";
 import type {
+  ConsumerQualificationAuthorityV3,
   ConsumerIntegrationDesiredStateV1,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2
 } from "../application-api.js";
+import { bindUnselectedCohortV3 } from "../application-api.js";
 
 export function projectQualificationAuthorityV2(input: {
   readonly cohortId: string;
@@ -22,6 +29,23 @@ export function projectQualificationAuthorityV2(input: {
     throw new TypeError("Qualification authority projector requires Cohort generation 2.");
   }
   return authority;
+}
+
+const observePackedManagedRuntimePolicy = createLazyPackedManagedRuntimePolicyObserver();
+
+/** Curated read-only qualification seam; ordinary upgrade readers remain generation1/2-only. */
+export function projectQualificationAuthorityV3(
+  input: CohortV3AuthorityProjectorRequest
+): ConsumerQualificationAuthorityV3 {
+  return Object.freeze({
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: input.revision,
+    cohort: bindUnselectedCohortV3(
+      projectCohortV3Authority(input),
+      observePackedManagedRuntimePolicy()
+    )
+  });
 }
 
 function isAuthorityV2(

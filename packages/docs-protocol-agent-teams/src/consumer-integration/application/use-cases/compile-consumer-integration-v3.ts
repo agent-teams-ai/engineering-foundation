@@ -11,7 +11,8 @@ import type {
   ConsumerIntegrationFileObservation,
   ConsumerIntegrationIssue,
   ConsumerIntegrationPlanV1,
-  ConsumerIntegrationSnapshot
+  ConsumerIntegrationSnapshot,
+  ManagedSuccessorProfile
 } from "../../domain/model.js";
 import {
   CANONICAL_DOCS_SKILL_V2,
@@ -27,8 +28,14 @@ import {
 } from "../policies/consumer-integration-assets.js";
 import { consumerIntegrationAuthorityGuards } from
   "../policies/consumer-integration-authority-guards.js";
-import { assertConsumerIntegrationDesiredStateV3 } from
-  "../policies/consumer-integration-desired-state.js";
+import {
+  assertConsumerIntegrationDesiredStateV3,
+  assertManagedSuccessorProfileV4
+} from "../policies/consumer-integration-desired-state.js";
+
+type CurrentConsumerIntegrationDesiredState =
+  | ConsumerIntegrationDesiredStateV3
+  | ManagedSuccessorProfile;
 
 export interface FullAssetResult {
   readonly plan: ConsumerIntegrationAssetPlan;
@@ -216,10 +223,12 @@ export function partialAsset(input: {
 }
 
 function cohortIssuesV3(
-  desired: ConsumerIntegrationDesiredStateV3,
+  desired: CurrentConsumerIntegrationDesiredState,
   historical: KnownPriorCohortCatalogEntryV2 | undefined
 ): readonly ConsumerIntegrationIssue[] {
-  const canonical = describeCanonicalConsumerAssets(desired.cohort);
+  const canonical = describeCanonicalConsumerAssets(
+    desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"]
+  );
   if ((canonical.skillDigest === desired.cohort.assets.skillDigest &&
     canonical.callerWorkflowDigest === desired.cohort.assets.callerWorkflowDigest &&
     canonical.assetCatalogDigest === desired.cohort.assets.assetCatalogDigest &&
@@ -237,22 +246,33 @@ function cohortIssuesV3(
 }
 
 function planFullAssetsV3(input: {
-  readonly desired: ConsumerIntegrationDesiredStateV3;
+  readonly desired: CurrentConsumerIntegrationDesiredState;
   readonly snapshot: ConsumerIntegrationSnapshot;
   readonly historical?: KnownPriorCohortCatalogEntryV2;
 }): readonly FullAssetResult[] {
   const skillBytes = input.historical?.skill ?? Buffer.from(CANONICAL_DOCS_SKILL_V2, "utf8");
   const callerBytes = input.historical?.callerWorkflow ??
-    Buffer.from(canonicalCallerWorkflow(input.desired.cohort), "utf8");
+    Buffer.from(canonicalCallerWorkflow(
+      input.desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"]
+    ), "utf8");
   const routeBytes = Buffer.from(canonicalManagedRoute(input.desired.skillPath), "utf8");
-  const managedStateBytes = Buffer.from(canonicalManagedState(input.desired, {
-    skillDigest: digestBytes(skillBytes),
-    callerWorkflowDigest: digestBytes(callerBytes),
-    assetCatalogDigest: input.desired.cohort.assets.assetCatalogDigest,
-    transitionCatalogDigest: input.desired.cohort.assets.transitionCatalogDigest,
-    agentsRouteDigest: digestBytes(routeBytes),
-    docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
-  }), "utf8");
+  const managedStateBytes = input.desired.schemaVersion === 3
+    ? Buffer.from(canonicalManagedState(input.desired, {
+        skillDigest: digestBytes(skillBytes),
+        callerWorkflowDigest: digestBytes(callerBytes),
+        assetCatalogDigest: input.desired.cohort.assets.assetCatalogDigest,
+        transitionCatalogDigest: input.desired.cohort.assets.transitionCatalogDigest,
+        agentsRouteDigest: digestBytes(routeBytes),
+        docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
+      }), "utf8")
+    : Buffer.from(canonicalManagedState(input.desired, {
+        skillDigest: digestBytes(skillBytes),
+        callerWorkflowDigest: digestBytes(callerBytes),
+        assetCatalogDigest: input.desired.cohort.assets.assetCatalogDigest,
+        transitionCatalogDigest: input.desired.cohort.assets.transitionCatalogDigest,
+        agentsRouteDigest: digestBytes(routeBytes),
+        docsScriptsDigest: canonicalDocsScriptsDigest(input.desired.profilePath)
+      }), "utf8");
   return [
     fullAsset({
       id: "skill",
@@ -279,14 +299,18 @@ function planFullAssetsV3(input: {
 }
 
 export function compileConsumerIntegrationV3(input: {
-  readonly desired: ConsumerIntegrationDesiredStateV3;
+  readonly desired: CurrentConsumerIntegrationDesiredState;
   readonly snapshot: ConsumerIntegrationSnapshot;
   readonly assetCatalog?: ConsumerAssetCatalogV1;
 }, ports: ConsumerIntegrationPlanningPorts): {
   readonly plan: ConsumerIntegrationPlanV1;
   readonly mutationPlan?: ReturnType<typeof compileKnownFileTransactionPlan>;
 } {
-  assertConsumerIntegrationDesiredStateV3(input.desired);
+  if (input.desired.schemaVersion === 3) {
+    assertConsumerIntegrationDesiredStateV3(input.desired);
+  } else {
+    assertManagedSuccessorProfileV4(input.desired);
+  }
   assertSnapshotRuntime(input.snapshot);
   const desired = input.desired;
   const historical = input.assetCatalog?.historicalV2Bundles?.find(({ cohort }) =>
@@ -296,7 +320,7 @@ export function compileConsumerIntegrationV3(input: {
   const manifest = ports.packageManifest.plan({
     observation: input.snapshot.packageManifest,
     profilePath: desired.profilePath,
-    cohort: desired.cohort
+    cohort: desired.cohort as ConsumerIntegrationDesiredStateV3["cohort"]
   });
   issues.push(...manifest.issues);
   const route = ports.agentsRoute.plan({

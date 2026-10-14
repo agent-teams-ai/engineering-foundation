@@ -79,6 +79,13 @@ async function crashAt(consumerRoot, plan, checkpoint, scratch) {
   const child = spawn(process.execPath, [worker, consumerRoot, planPath, checkpoint], {
     stdio: ["ignore", "pipe", "pipe"]
   });
+  let observedExit;
+  const exited = new Promise((resolve) => {
+    child.once("exit", (code, signal) => {
+      observedExit = { code, signal };
+      resolve(observedExit);
+    });
+  });
   let stdout = "";
   let stderr = "";
   child.stdout.setEncoding("utf8");
@@ -109,10 +116,15 @@ async function crashAt(consumerRoot, plan, checkpoint, scratch) {
       }
     });
   });
+  await new Promise((resolve) => { setTimeout(resolve, 500); });
+  if (observedExit !== undefined) {
+    throw new Error(
+      `Crash worker exited before parent SIGKILL after ${checkpoint}: ` +
+      `code=${observedExit.code} signal=${observedExit.signal} stderr=${stderr}`
+    );
+  }
   assert.equal(child.kill("SIGKILL"), true);
-  const exit = await new Promise((resolve) => {
-    child.once("exit", (code, signal) => resolve({ code, signal }));
-  });
+  const exit = await exited;
   assert.equal(exit.code, null);
   assert.ok(exit.signal === "SIGKILL" || process.platform === "win32");
 }

@@ -30,6 +30,8 @@ import {
   SUPPORTING_MCP_PACKAGE,
   supportingMcpCoordinate,
 } from "../scripts/public-managed-registry-canary-policy.mjs";
+import { runDocsProtocolQualificationV3 } from "../packages/docs-protocol-agent-teams/dist/qualification/index.js";
+import { successorQualificationFixture } from "./public-managed-registry-canary-generation3-fixtures.mts";
 
 const commit = "a".repeat(40);
 const authorityRevision = "b".repeat(40);
@@ -131,6 +133,7 @@ function canonicalJson(value) {
   }
   return JSON.stringify(value);
 }
+
 
 function registryFixture(records = [{ cohort_id: cohort.cohortId, cohort_generation: 2 }]) {
   return {
@@ -575,6 +578,75 @@ test("canonical canary receipt validates central binding and exact unique packag
   assert.equal(validate(falseSupportingClaim), false);
 });
 
+
+test("policy createCanaryAuthority accepts packed policy26 and support receipt is not CANARY", () => {
+  const successor = successorQualificationFixture();
+  const projectedCohort3 = {
+    repository: "agent-teams-ai/.github",
+    path: "governance/docs-qualified-cohorts.json",
+    revision: authorityRevision,
+    cohort: structuredClone(successor.profile.cohort),
+  };
+  const inputs3 = parseCanaryInputs({
+    authorityRevision,
+    cohortId: successor.profile.cohort.cohortId,
+    expectedCommit: commit,
+  });
+  const authority3 = createCanaryAuthority(projectedCohort3, inputs3);
+  assert.deepEqual(Object.keys(authority3.cohort).toSorted(), [
+    "assets",
+    "candidateDigest",
+    "channel",
+    "cohortId",
+    "eligibleAfter",
+    "packages",
+    "qualificationEventDigest",
+    "recordDigest",
+    "rollbackTo",
+    "runtime",
+    "schemaVersion",
+    "schemas",
+    "upgradeFrom",
+    "workflow",
+  ]);
+  for (const field of ["lifecycle", "lifecycleState", "canaryIds", "canaryRepositoryIds"]) {
+    assert.equal(field in projectedCohort3.cohort, false);
+    assert.equal(field in authority3.cohort, false);
+  }
+  assert.deepEqual(authority3.cohort.runtime.policy, {
+    id: "agent-teams.docs-protocol-current-policy",
+    version: "3.0.0",
+    digest: successor.runtimePolicy.sourceDigest,
+  });
+
+  const rejected = structuredClone(projectedCohort3);
+  rejected.cohort.runtime.policy.digest = sha256("a");
+  assert.throws(
+    () => createCanaryAuthority(rejected, inputs3),
+    /Cohort v3 runtime authority is invalid/u,
+  );
+
+  const supportQualification = () => runDocsProtocolQualificationV3({
+    profile: successor.profile,
+    evidence: successor.evidence,
+    lockfileBytes: successor.lockfileBytes,
+  });
+  if (process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64") {
+    const receipt = supportQualification();
+    assert.equal(receipt.cohortAdmissible, true);
+    for (const field of ["state", "canaryState", "canaryRepositoryIds", "canaryEligible"]) {
+      assert.equal(field in receipt, false);
+      assert.equal(field in receipt.cohort, false);
+    }
+  } else {
+    assert.throws(supportQualification, /Qualification Cohort v3 observed Node runtime mismatch\./u);
+    assert.ok(process.versions.node.startsWith("24.") || process.platform === "win32");
+  }
+  assert.equal(successor.runtimePolicy.managedCandidate.selected, false);
+  assert.equal(successor.runtimePolicy.managedCandidate.status, "candidate-unqualified");
+  assert.equal(successor.runtimePolicy.managedRuntime.status, "candidate-unqualified");
+});
+
 test("workflow is manual and capture plus digest precede the earliest installed import", async () => {
   const source = await readFile(new URL("../.github/workflows/public-managed-registry-canary.yml", import.meta.url), "utf8");
   const runnerSource = await readFile(new URL("../scripts/public-managed-registry-canary.mjs", import.meta.url), "utf8");
@@ -582,28 +654,46 @@ test("workflow is manual and capture plus digest precede the earliest installed 
   const workflow = parseYaml(source);
   assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs).toSorted(), ["authority_revision", "cohort_id", "expected_commit"]);
+  for (const input of Object.values(workflow.on.workflow_dispatch.inputs)) {
+    assert.deepEqual(Object.keys(input).toSorted(), ["description", "required", "type"]);
+    assert.equal(input.required, true);
+    assert.equal(input.type, "string");
+  }
   assert.deepEqual(workflow.permissions, { contents: "read" });
+  assert.match(workflow.jobs.qualify.if, /github\.ref == 'refs\/heads\/main' && github\.sha == inputs\.expected_commit/u);
+  assert.match(workflow.jobs.qualify.steps[0].with.ref, /inputs\.expected_commit/u);
   assert.equal(workflow.jobs.qualify.steps[0].with["fetch-depth"], 0);
   assert.equal(JSON.stringify(workflow).includes("secrets."), false);
   assert.doesNotMatch(source, /npm\s+(?:publish|unpublish|deprecate|dist-tag)|pnpm\s+publish/u);
   assert.match(source, /pnpm build/u);
   assert.match(source, /Run read-only six-package public managed registry canary/u);
+  const qualificationSource = await readFile(new URL("../scripts/public-managed-registry-canary-qualification.mts", import.meta.url), "utf8");
   const capture = runnerSource.indexOf("const lockfile = await readFile");
   const copy = runnerSource.indexOf("const lockfileBytes = Buffer.from(lockfile)", capture);
   const digestCapture = runnerSource.indexOf("const lockfileDigest = sha256(lockfileBytes)", copy);
-  const installedImports = [
-    runnerSource.indexOf("await import(${JSON.stringify(coordinate.name)})"),
-    runnerSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams')"),
-    runnerSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams/qualification')"),
-  ].filter((index) => index >= 0);
-  const earliestInstalledImport = Math.min(...installedImports);
-  assert.ok(capture >= 0 && copy > capture && digestCapture > copy && earliestInstalledImport > digestCapture);
-  assert.match(runnerSource, /lockfileBytes: exactLockfileBytes\(\)/u);
+  const rootInstalledImport = runnerSource.indexOf("await import(${JSON.stringify(coordinate.name)})");
+  assert.ok(capture >= 0 && copy > capture && digestCapture > copy && rootInstalledImport > digestCapture);
   assert.doesNotMatch(
-    runnerSource.slice(earliestInstalledImport - 300, earliestInstalledImport),
+    runnerSource.slice(rootInstalledImport - 300, rootInstalledImport),
     /readFile\('pnpm-lock\.yaml'\)/u,
   );
   assert.match(runnerSource, /GITHUB_REPOSITORY_ID/u);
+  const qualificationCapture = qualificationSource.indexOf("const capturedLockfileBytes = Buffer.from(");
+  const qualificationDigest = qualificationSource.indexOf("createHash('sha256').update(capturedLockfileBytes)", qualificationCapture);
+  const qualificationCopy = qualificationSource.indexOf("const exactLockfileBytes = () => Buffer.from(capturedLockfileBytes)", qualificationDigest);
+  const qualificationPackageImport = qualificationSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams')");
+  const qualificationEntryPointImport = qualificationSource.indexOf("await import('@agent-teams/docs-protocol-agent-teams/qualification')");
+  assert.ok(qualificationPackageImport >= 0 && qualificationEntryPointImport >= 0);
+  const earliestQualificationImport = Math.min(qualificationPackageImport, qualificationEntryPointImport);
+  assert.ok(
+    qualificationCapture >= 0 && qualificationDigest > qualificationCapture &&
+    qualificationCopy > qualificationDigest && earliestQualificationImport > qualificationCopy,
+  );
+  assert.doesNotMatch(
+    qualificationSource.slice(qualificationCopy, earliestQualificationImport),
+    /readFile\('(?:pnpm-lock\.yaml|package-lock\.json)'\)/u,
+  );
+  assert.match(qualificationSource, /lockfileBytes: exactLockfileBytes\(\)/u);
   const supportingInstall = mcpRunnerSource.indexOf("async function installSupportingMcp");
   const supportingCapture = mcpRunnerSource.indexOf("const lockfile = await readFile", supportingInstall);
   const supportingCopy = mcpRunnerSource.indexOf("const lockfileBytes = Buffer.from(lockfile)", supportingCapture);

@@ -9,7 +9,9 @@ export type {
 } from "./application/model/restoration-lock.js";
 export type {
   DocsProtocolQualificationAuthorityV3,
-  DocsProtocolQualificationAuthorityV3Request
+  DocsProtocolQualificationAuthorityV3Request,
+  DocsProtocolQualificationCohortV3Authority,
+  DocsProtocolQualificationCohortV3AuthorityRequest
 } from "./application/model/qualification-authority-v3.js";
 export type {
   DocsProtocolQualificationContractV2,
@@ -19,6 +21,10 @@ export type {
 } from "./application/model/v2-contract.js";
 export type {
   DocsProtocolQualificationCheckV3,
+  DocsProtocolQualificationCheckCohortV3,
+  DocsProtocolQualificationCohortEvidenceV3,
+  DocsProtocolQualificationCohortV3Receipt,
+  DocsProtocolQualificationCohortV3Request,
   DocsProtocolQualificationEvidenceV3,
   DocsProtocolQualificationLockfileObservationV3,
   DocsProtocolQualificationLockfileObservationV3Request,
@@ -27,6 +33,10 @@ export type {
   DocsProtocolQualificationPackageReceiptV3,
   DocsProtocolQualificationReceiptV3,
   DocsProtocolQualificationV3Request
+} from "./application/model/v3-contract.js";
+export type {
+  DocsProtocolQualificationRuntimeObservation,
+  DocsProtocolQualificationRuntimeObserver
 } from "./application/model/v3-contract.js";
 export {
   createDocsProtocolQualificationV3Observer

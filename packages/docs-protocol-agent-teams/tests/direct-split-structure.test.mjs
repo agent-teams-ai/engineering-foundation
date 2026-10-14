@@ -148,12 +148,22 @@ test("managed application owns the barrier observation used by its lifecycle por
 
 test("managed root retains every existing runtime and type export", async () => {
   const expected = JSON.parse(await readFile(new URL("./fixtures/managed-public-surface.json", import.meta.url), "utf8"));
+  const expectedAll = [
+    ...expected.all,
+    "DocsProtocolQualificationCheckCohortV3",
+    "DocsProtocolQualificationCohortEvidenceV3",
+    "DocsProtocolQualificationCohortV3Receipt",
+    "DocsProtocolQualificationCohortV3Request",
+    "ManagedSuccessorAssetDigests",
+    "ManagedSuccessorProfile",
+    "UnselectedCohortV3"
+  ].toSorted();
   const actual = await import("../dist/index.js");
   assert.deepEqual(Object.keys(actual).toSorted(), expected.runtime);
   const source = await readFile(join(adapterRoot, "src/index.ts"), "utf8");
   const declared = [...source.matchAll(/export(?:\s+type)?\s*\{([^}]+)\}/gu)]
     .flatMap((match) => match[1].split(",").map((name) => name.trim()).filter(Boolean)).toSorted();
-  assert.deepEqual(declared, expected.all);
+  assert.deepEqual(declared, expectedAll);
 });
 
 function unexpectedAuthorityRead() {

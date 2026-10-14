@@ -3,9 +3,9 @@
   "bridges": [
     {
       "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-consumer-integration-repository.ts",
-      "start": 11562,
-      "end": 11804,
-      "sha256": "d3db648a3ea08555222db162f7f1598b1879196ed60e11757ed2f5219ac43c38",
+      "start": 14041,
+      "end": 14315,
+      "sha256": "9ce4d5b04d4cc0537d7b8be0bc96d0b0e87adc1f0ce744eccd2c9a12cb9a6c3d",
       "rationale": "Closed versioned profile schema validation precedes desired-state interpretation.",
       "rejectingTest": "packages/docs-protocol-agent-teams/tests/consumer-upgrade-v3-projectors.test.mjs"
     },

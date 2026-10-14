@@ -46,4 +46,3 @@ export {
 } from "./application/use-cases/qualify-v3.js";
 export { createDocsProtocolQualificationV2 } from "./application/use-cases/qualify-v2.js";
 export type { ManagedIntegrationCandidate, ManagedQualificationEnvironment } from "./application/model/managed-environment.js";
-export type { ConsumerQualificationAuthorityV3 } from "../consumer-integration/application-api.js";

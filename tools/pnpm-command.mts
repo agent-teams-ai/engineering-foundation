@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { realpath } from "node:fs/promises";
 import { delimiter, resolve } from "node:path";
 import { firstExisting, isRegularFile, verifyQualificationNode } from "./executable-policy.mts";
+import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
 
 const allowedArguments = [
   ["--version"],
@@ -36,27 +37,56 @@ function matchesArguments(args: readonly string[]): boolean {
   );
 }
 
-async function pnpmEntrypoint(): Promise<string> {
-  const candidates = [
-    process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"],
-    process.env["npm_execpath"],
-    ...(process.env["PATH"] ?? "").split(delimiter)
-      .filter((path) => path.length > 0)
-      .flatMap((path) => [
-        resolve(path, process.platform === "win32" ? "pnpm.cmd" : "pnpm"),
-        resolve(path, "pnpm.mjs"),
-        resolve(path, "pnpm.cjs")
-      ])
-  ];
+function observesPnpmVersion(
+  node: string,
+  entrypoint: string,
+  expectedVersion: string
+): boolean {
+  const observation = spawnSync(node, [
+    entrypoint,
+    "--pm-on-fail=ignore",
+    "--version"
+  ], { encoding: "utf8", timeout: 10_000 });
+  return observation.status === 0 &&
+    observation.stdout.trim() === expectedVersion &&
+    observation.stderr.trim() === "";
+}
+
+function isJavaScriptEntrypoint(path: string): boolean {
+  return /\.(?:c|m)?js$/u.test(path);
+}
+
+async function pnpmEntrypoint(node: string, expectedVersion: string): Promise<string> {
+  const explicit = process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"];
+  if (explicit !== undefined) {
+    if (!await isRegularFile(explicit)) {
+      throw new Error("The explicit pnpm entrypoint is unavailable.");
+    }
+    const selected = await realpath(explicit);
+    if (!isJavaScriptEntrypoint(selected)) {
+      throw new Error("The explicit pnpm entrypoint is not a JavaScript entrypoint.");
+    }
+    if (!observesPnpmVersion(node, selected, expectedVersion)) {
+      throw new Error(`The explicit manager is not pnpm ${expectedVersion}.`);
+    }
+    return selected;
+  }
+  const candidates = (process.env["PATH"] ?? "").split(delimiter)
+    .filter((path) => path.length > 0)
+    .flatMap((path) => [
+      resolve(path, process.platform === "win32" ? "pnpm.cmd" : "pnpm"),
+      resolve(path, "pnpm.mjs"),
+      resolve(path, "pnpm.cjs")
+    ]);
   for (const candidate of candidates) {
-    if (candidate !== undefined && await isRegularFile(candidate)) {
-      const canonical = await realpath(candidate);
-      if (/\.(?:c|m)?js$/u.test(canonical)) {
-        return canonical;
+    if (await isRegularFile(candidate)) {
+      const selected = await realpath(candidate);
+      if (isJavaScriptEntrypoint(selected) && observesPnpmVersion(node, selected, expectedVersion)) {
+        return selected;
       }
     }
   }
-  throw new Error("The pinned pnpm JavaScript entrypoint is unavailable.");
+  throw new Error(`No admitted pnpm ${expectedVersion} entrypoint was found on PATH.`);
 }
 
 async function verifiedNode(): Promise<string> {
@@ -73,10 +103,11 @@ const args = process.argv.slice(2);
 if (!matchesArguments(args)) {
   throw new Error("pnpm-command accepts only the closed pinned pnpm operations.");
 }
-const pnpmArguments = args[0] === "peers"
-  ? ["--pm-on-fail=ignore", ...args]
-  : args;
-const result = spawnSync(await verifiedNode(), [await pnpmEntrypoint(), ...pnpmArguments], {
+const pnpmArguments = ["--pm-on-fail=ignore", ...args];
+const policy = await readRepositoryRuntimePolicy(repositoryRoot);
+const node = await verifiedNode();
+const entrypoint = await pnpmEntrypoint(node, policy.toolchain.pnpm.version);
+const result = spawnSync(node, [entrypoint, ...pnpmArguments], {
   cwd: process.cwd(),
   env: process.env,
   stdio: "inherit"

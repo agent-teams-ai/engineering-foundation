@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
-import { lstat, realpath } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
 import { basename, isAbsolute } from "node:path";
 
 async function regularFile(path: string): Promise<boolean> {
@@ -8,30 +8,71 @@ async function regularFile(path: string): Promise<boolean> {
   return metadata?.isFile() === true;
 }
 
-async function verifyNode(path: string): Promise<boolean> {
-  if (!isAbsolute(path) || !await regularFile(path)) {
-    return false;
-  }
-  const observation = spawnSync(path, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name})"], {
+interface NodeIdentity {
+  readonly execPath: string;
+  readonly version: string;
+  readonly releaseName: string;
+  readonly bunVersion: string | null;
+  readonly hasBunGlobal: boolean;
+}
+
+const nodeIdentityArguments = [
+  "-p",
+  "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name,bunVersion:Object.prototype.hasOwnProperty.call(process.versions,\"bun\")?process.versions.bun:null,hasBunGlobal:typeof globalThis.Bun!==\"undefined\"})"
+] as const;
+
+function observeNodeIdentity(path: string): NodeIdentity | null {
+  const observation = spawnSync(path, nodeIdentityArguments, {
     encoding: "utf8",
     timeout: 10_000
   });
   if (observation.status !== 0) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(observation.stdout) as Partial<NodeIdentity>;
+    if (
+      typeof parsed.execPath !== "string" ||
+      typeof parsed.version !== "string" ||
+      typeof parsed.releaseName !== "string" ||
+      (parsed.bunVersion !== null && typeof parsed.bunVersion !== "string") ||
+      typeof parsed.hasBunGlobal !== "boolean"
+    ) {
+      return null;
+    }
+    return {
+      execPath: parsed.execPath,
+      version: parsed.version,
+      releaseName: parsed.releaseName,
+      bunVersion: parsed.bunVersion ?? null,
+      hasBunGlobal: parsed.hasBunGlobal
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isActualNode(identity: NodeIdentity, path: string): boolean {
+  return identity.releaseName === "node" &&
+    identity.bunVersion === null &&
+    !identity.hasBunGlobal &&
+    /^node(?:\.exe)?$/iu.test(basename(identity.execPath)) &&
+    realpathSync(identity.execPath) === realpathSync(path);
+}
+
+async function verifyNode(path: string): Promise<boolean> {
+  if (!isAbsolute(path) || !await regularFile(path)) {
     return false;
   }
   try {
-    const observed = JSON.parse(observation.stdout) as {
-      readonly execPath: string;
-      readonly version: string;
-      readonly releaseName: string;
-    };
+    const observed = observeNodeIdentity(path);
+    if (observed === null) {
+      return false;
+    }
     const match = /^(\d+)\.(\d+)\.\d+$/u.exec(observed.version);
     const major = match === null ? 0 : Number(match[1]);
     const minor = match === null ? 0 : Number(match[2]);
-    return observed.releaseName === "node" &&
-      (major === 26 || (major === 24 && minor >= 18)) &&
-      await realpath(observed.execPath) === await realpath(path) &&
-      /^node(?:\.exe)?$/iu.test(basename(observed.execPath));
+    return isActualNode(observed, path) && (major === 26 || (major === 24 && minor >= 18));
   } catch {
     return false;
   }
@@ -61,29 +102,17 @@ export function requireAdmittedNodeExecutable(
 ): string {
   const explicit = environment["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"];
   const candidate = explicit ?? currentExecutablePath;
-  const observation = isAbsolute(candidate)
-    ? spawnSync(candidate, ["-p", "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name})"], {
-        encoding: "utf8",
-        timeout: 10_000
-      })
-    : undefined;
-  if (observation?.status !== 0) {
+  const observed = isAbsolute(candidate) ? observeNodeIdentity(candidate) : null;
+  if (observed === null) {
     throw new Error("An explicit admitted Node executable is required.");
   }
   try {
-    const observed = JSON.parse(observation?.stdout ?? "") as {
-      readonly execPath: string;
-      readonly version: string;
-      readonly releaseName: string;
-    };
     const match = /^(\d+)\.(\d+)\.\d+$/u.exec(observed.version);
     const major = match === null ? 0 : Number(match[1]);
     const minor = match === null ? 0 : Number(match[2]);
     if (
-      observed.releaseName !== "node" ||
-      !(major === 26 || (major === 24 && minor >= 18)) ||
-      realpathSync(observed.execPath) !== realpathSync(candidate) ||
-      !/^node(?:\.exe)?$/iu.test(basename(observed.execPath))
+      !isActualNode(observed, candidate) ||
+      !(major === 26 || (major === 24 && minor >= 18))
     ) {
       throw new Error("The selected executable is not a supported public Node runtime.");
     }

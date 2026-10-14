@@ -2,6 +2,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
 import { resolveQualificationExecutables } from "./executable-policy.mts";
 import { assertOwnedProfileRoot } from "./profile-root.mts";
@@ -53,13 +54,47 @@ async function executable(profile: Profile): Promise<{ readonly node: string; re
   return { node, ...(profile === "bun" ? { bun } : {}), manager };
 }
 
+const excludedSourceDirectories = new Set([
+  ".git",
+  ".worker-tmp",
+  ".cache",
+  "node_modules",
+  ".pnpm-store",
+  "coverage",
+  ".coverage-evidence"
+]);
+
+function isExcludedSourceEntry(
+  sourceRoot: string,
+  path: string,
+  entry: {
+    readonly name: string;
+    readonly isDirectory: () => boolean;
+    readonly isFile: () => boolean;
+  }
+): boolean {
+  if (excludedSourceDirectories.has(entry.name)) {
+    return true;
+  }
+  if (entry.isFile() && entry.name.endsWith(".tsbuildinfo")) {
+    return true;
+  }
+  const pathParts = relative(sourceRoot, path).split(/[\\/]/u);
+  return entry.isDirectory() &&
+    pathParts.length === 3 &&
+    pathParts[0] === "packages" &&
+    pathParts[2] === "dist";
+}
+
 async function copyTree(source: string, destination: string): Promise<void> {
   await mkdir(destination, { recursive: true });
-  for (const entry of await readdir(source, { withFileTypes: true })) {
-    if (entry.name === ".git" || entry.name === "node_modules" || entry.name === ".worker-tmp" || entry.name === ".pnpm-store") {
+  const entries = (await readdir(source, { withFileTypes: true }))
+    .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  for (const entry of entries) {
+    const from = resolve(source, entry.name);
+    if (isExcludedSourceEntry(source, from, entry)) {
       continue;
     }
-    const from = resolve(source, entry.name);
     const to = resolve(destination, entry.name);
     if (entry.isDirectory()) {
       await copyTree(from, to);
@@ -219,23 +254,30 @@ async function writeProfileEvidence(
   }, null, 2)}\n`, "utf8");
 }
 
-async function sourceTreeDigest(): Promise<string> {
+export async function sourceTreeDigest(sourceRoot: string = repositoryRoot): Promise<string> {
   const hash = createHash("sha256");
+  const files: string[] = [];
   const walk = async (directory: string): Promise<void> => {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if ([".git", ".worker-tmp", ".cache", "node_modules"].includes(entry.name)) {
+    const entries = (await readdir(directory, { withFileTypes: true }))
+      .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+    for (const entry of entries) {
+      const path = resolve(directory, entry.name);
+      if (isExcludedSourceEntry(sourceRoot, path, entry)) {
         continue;
       }
-      const path = resolve(directory, entry.name);
       if (entry.isDirectory()) {
         await walk(path);
       } else if (entry.isFile()) {
-        hash.update(`${relative(repositoryRoot, path)}\0`);
-        hash.update(await readFile(path));
+        files.push(relative(sourceRoot, path));
       }
     }
   };
-  await walk(repositoryRoot);
+  await walk(sourceRoot);
+  files.sort();
+  for (const path of files) {
+    hash.update(`${path}\0`);
+    hash.update(await readFile(resolve(sourceRoot, path)));
+  }
   return hash.digest("hex");
 }
 
@@ -263,12 +305,18 @@ async function execute(profile: Profile, command: string): Promise<number> {
   return status;
 }
 
-const parsed = parseArguments(process.argv.slice(2));
-if (parsed.command === "install") {
-  process.exitCode = await install(parsed.profile);
-} else if (parsed.command === "build") {
-  process.exitCode = await build(parsed.profile);
-} else {
+async function main(): Promise<number> {
+  const parsed = parseArguments(process.argv.slice(2));
+  if (parsed.command === "install") {
+    return install(parsed.profile);
+  }
+  if (parsed.command === "build") {
+    return build(parsed.profile);
+  }
   const before = await build(parsed.profile);
-  process.exitCode = before === 0 ? await execute(parsed.profile, parsed.command) : before;
+  return before === 0 ? execute(parsed.profile, parsed.command) : before;
+}
+
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = await main();
 }

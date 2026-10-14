@@ -37,10 +37,12 @@ function observeNode(path: string): {
   readonly execPath: string;
   readonly version: string;
   readonly releaseName: string;
+  readonly bunVersion: string | null;
+  readonly hasBunGlobal: boolean;
 } {
   const observation = spawnSync(path, [
     "-p",
-    "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name})"
+    "JSON.stringify({execPath:process.execPath,version:process.versions.node,releaseName:process.release.name,bunVersion:Object.prototype.hasOwnProperty.call(process.versions,\"bun\")?process.versions.bun:null,hasBunGlobal:typeof globalThis.Bun!==\"undefined\"})"
   ], { encoding: "utf8", timeout: 10_000 });
   if (observation.status !== 0) {
     throw new Error(`Node executable did not run: ${path}`);
@@ -50,18 +52,24 @@ function observeNode(path: string): {
       readonly execPath?: unknown;
       readonly version?: unknown;
       readonly releaseName?: unknown;
+      readonly bunVersion?: unknown;
+      readonly hasBunGlobal?: unknown;
     };
     if (
       typeof parsed.execPath !== "string" ||
       typeof parsed.version !== "string" ||
-      typeof parsed.releaseName !== "string"
+      typeof parsed.releaseName !== "string" ||
+      (parsed.bunVersion !== null && typeof parsed.bunVersion !== "string") ||
+      typeof parsed.hasBunGlobal !== "boolean"
     ) {
       throw new Error("Malformed Node observation.");
     }
     return {
       execPath: parsed.execPath,
       version: parsed.version,
-      releaseName: parsed.releaseName
+      releaseName: parsed.releaseName,
+      bunVersion: parsed.bunVersion ?? null,
+      hasBunGlobal: parsed.hasBunGlobal
     };
   } catch (error) {
     throw new Error(`Node executable returned invalid identity: ${path}`, { cause: error });
@@ -78,13 +86,24 @@ function supportedPublicNode(version: string): boolean {
   return major === 26 || (major === 24 && minor >= 18);
 }
 
+function isActualNode(observed: {
+  readonly execPath: string;
+  readonly releaseName: string;
+  readonly bunVersion: string | null;
+  readonly hasBunGlobal: boolean;
+}): boolean {
+  return observed.releaseName === "node" &&
+    observed.bunVersion === null &&
+    !observed.hasBunGlobal;
+}
+
 export async function verifyQualificationNode(path: string): Promise<string> {
   if (!isAbsolute(path) || !await isRegularFile(path)) {
     throw new Error(`Node executable is unavailable: ${path}`);
   }
   const observed = observeNode(path);
   if (
-    observed.releaseName !== "node" ||
+    !isActualNode(observed) ||
     observed.version !== "26.11.1" ||
     await realpath(observed.execPath) !== await realpath(path) ||
     !/(?:^|[\\/])node(?:\.exe)?$/u.test(observed.execPath)
@@ -100,7 +119,7 @@ export async function verifySupportedNode(path: string): Promise<string> {
   }
   const observed = observeNode(path);
   if (
-    observed.releaseName !== "node" ||
+    !isActualNode(observed) ||
     !supportedPublicNode(observed.version) ||
     await realpath(observed.execPath) !== await realpath(path) ||
     !/(?:^|[\\/])node(?:\.exe)?$/u.test(observed.execPath)

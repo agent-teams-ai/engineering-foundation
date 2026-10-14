@@ -107,8 +107,9 @@ function validateRuntimeClosure(value: unknown): Record<string, unknown> {
     closure["package_manager"] !== "pnpm@11.20.0" || closure["lockfile_version"] !== "9.0") {
     invalid("Qualification Cohort v3 runtime closure is invalid.");
   }
-  assertPositiveInteger(closure["package_count"], "Runtime closure package count");
-  if (Number(closure["package_count"]) < 5) {
+  const packageCount = closure["package_count"];
+  assertPositiveInteger(packageCount, "Runtime closure package count");
+  if (packageCount < 5) {
     invalid("Qualification Cohort v3 runtime closure must contain at least five packages.");
   }
   assertPattern(closure["digest"], SHA256, "Runtime closure digest");
@@ -177,11 +178,13 @@ function validateCohortV3Source(
 export function projectCohortV3Authority(
   input: CohortV3AuthorityProjectorRequest
 ): UnselectedCohortV3 {
+  const repository = record(input.repository, "Qualification repository");
   if (input.registry["schema_version"] !== 1) {
     invalid("Central Cohort registry must use contract schema_version 1.");
   }
-  if (input.repository.provider !== "github" || !COHORT_ID.test(input.repository.id) ||
-    input.repository.nameWithOwner.length === 0) {
+  if (repository["provider"] !== "github" ||
+    typeof repository["id"] !== "string" || !COHORT_ID.test(repository["id"]) ||
+    typeof repository["nameWithOwner"] !== "string" || repository["nameWithOwner"].length === 0) {
     invalid("Qualification repository identity is invalid.");
   }
   assertPattern(input.revision, GIT_SHA, "Central authority revision");

@@ -111,6 +111,25 @@ async function observeRealisticCohort3(
   );
 }
 
+interface Generation2DefaultReconstruction {
+  readonly source: string;
+  readonly replacement: string;
+}
+
+function reconstructGeneration2DefaultModule(
+  input: Generation2DefaultReconstruction,
+): string {
+  const source = input.source.replaceAll("\r\n", "\n");
+  const start = source.indexOf("async function defaultProjectAuthority(input) {");
+  const end = source.indexOf(
+    "\n}\n\nexport async function observeCentralCohortAuthority",
+    start,
+  );
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(0, start) + input.replacement + source.slice(end + 2);
+}
+
 async function assertRetainedCohortBinding(
   cohort: Record<string, unknown>,
 ): Promise<void> {
@@ -511,14 +530,8 @@ test("disposable generation2 DEFAULT wiring is red for Cohort3 while production 
     "../scripts/public-managed-registry-canary-policy.mjs",
     import.meta.url,
   );
-  const source = await readFile(policyPath, "utf8");
-  const start = source.indexOf("async function defaultProjectAuthority(input) {");
-  const end = source.indexOf(
-    "\n}\n\nexport async function observeCentralCohortAuthority",
-    start,
-  );
-  assert.notEqual(start, -1);
-  assert.notEqual(end, -1);
+  const checkoutSource = await readFile(policyPath, "utf8");
+  const crlfSource = checkoutSource.replaceAll("\r\n", "\n").replaceAll("\n", "\r\n");
   const qualificationModule = pathToFileURL(join(
     process.cwd(),
     "packages/docs-protocol-agent-teams/dist/qualification/index.js",
@@ -527,34 +540,40 @@ test("disposable generation2 DEFAULT wiring is red for Cohort3 while production 
   const { projectDocsProtocolQualificationV3Authority } = await import(${JSON.stringify(qualificationModule)});
   return projectDocsProtocolQualificationV3Authority(input);
 }`;
-  const disposablePath = join(
-    process.cwd(),
-    "scripts",
-    `.public-managed-registry-canary-generation2-default-${process.pid}.mjs`,
-  );
-  await writeFile(
-    disposablePath,
-    source.slice(0, start) + generation2Default + source.slice(end + 2),
-    "utf8",
-  );
-  try {
-    const generation2Policy = await import(
-      `${pathToFileURL(disposablePath).href}?test=${process.pid}`
+  const sourceVariants = [
+    { label: "checkout", source: checkoutSource },
+    { label: "crlf", source: crlfSource },
+  ] as const;
+  for (const { label, source } of sourceVariants) {
+    const disposablePath = join(
+      process.cwd(),
+      "scripts",
+      `.public-managed-registry-canary-generation2-default-${process.pid}-${label}.mjs`,
     );
-    const inputs = parseCanaryInputs({
-      authorityRevision: fixture.revision,
-      cohortId: fixture.cohort.cohortId,
-      expectedCommit: "a".repeat(40),
-    });
-    await assert.rejects(
-      generation2Policy.observeCentralCohortAuthority(
-        { inputs, repository: fixture.repository },
-        { fetcher: cohort3NetworkFetcher(fixture, fixture.registry) },
-      ),
-      /generation/iu,
+    await writeFile(
+      disposablePath,
+      reconstructGeneration2DefaultModule({ source, replacement: generation2Default }),
+      "utf8",
     );
-  } finally {
-    await rm(disposablePath, { force: true });
+    try {
+      const generation2Policy = await import(
+        `${pathToFileURL(disposablePath).href}?test=${process.pid}-${label}`
+      );
+      const inputs = parseCanaryInputs({
+        authorityRevision: fixture.revision,
+        cohortId: fixture.cohort.cohortId,
+        expectedCommit: "a".repeat(40),
+      });
+      await assert.rejects(
+        generation2Policy.observeCentralCohortAuthority(
+          { inputs, repository: fixture.repository },
+          { fetcher: cohort3NetworkFetcher(fixture, fixture.registry) },
+        ),
+        /generation/iu,
+      );
+    } finally {
+      await rm(disposablePath, { force: true });
+    }
   }
 });
 

@@ -41,7 +41,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
     id: "docs-protocol-agent-teams.adapters",
     roots: [
       "agents-route-adapter-v1.ts", "bounded-repository-topology.ts",
-      "cohort-v2-authority-validator.ts", "consumer-integration-node-error.ts",
+      "cohort-v2-authority-validator.ts", "cohort-v3-authority-projector.ts",
+      "consumer-integration-node-error.ts",
       "consumer-integration-schema-validator.ts", "consumer-upgrade-file-projectors.ts",
       "foundation-known-file-transaction.ts", "github-cohort-authority-reader.ts",
       "managed-qualification-input.ts", "node-consumer-clock.ts",
@@ -88,7 +89,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       runtimeReferences: [],
     },
     entrypoints: [
-      "agents-route-adapter-v1.ts", "consumer-integration-schema-validator.ts",
+      "agents-route-adapter-v1.ts", "cohort-v3-authority-projector.ts",
+      "consumer-integration-schema-validator.ts",
       "consumer-upgrade-file-projectors.ts", "foundation-known-file-transaction.ts",
       "github-cohort-authority-reader.ts", "inbound/consumer-integration-cli.ts",
       "inbound/managed-cli.ts", "managed-qualification-input.ts",

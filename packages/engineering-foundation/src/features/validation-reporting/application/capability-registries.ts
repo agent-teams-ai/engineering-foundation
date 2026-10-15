@@ -28,8 +28,16 @@ interface RuleContribution {
   readonly rules: ReadonlyMap<string, RuleExplanation>;
 }
 
-interface OwnedRuleContribution extends RuleContribution {
+export interface OwnedRuleContribution extends RuleContribution {
   readonly definition: Pick<CapabilityDefinition, "id">;
+}
+
+/** Rule owners for `explain`: the `check` capabilities plus command-only modules, which run through their own commands. */
+export function createRuleOwners(
+  capabilities: readonly OwnedRuleContribution[],
+  commandModules: readonly OwnedRuleContribution[]
+): readonly OwnedRuleContribution[] {
+  return Object.freeze([...capabilities, ...commandModules]);
 }
 
 export function createCapabilityRegistry(

@@ -21,6 +21,12 @@ import { loadCapabilityConfig, type FindingsBaselineConfigurationDependencies } 
 export { FINDINGS_BASELINE_RULES_BY_ID };
 export type { FindingsBaselineWriteResult };
 
+/** The rules of this command-only module; it is not in the `check` capability registry but `explain` shows them. */
+export const FINDINGS_BASELINE_COMMAND_RULES = Object.freeze({
+  definition: Object.freeze({ id: CAPABILITY_ID }),
+  rules: FINDINGS_BASELINE_RULES_BY_ID
+});
+
 type Environment = Readonly<Record<string, string | undefined>>;
 
 interface FindingsBaselineModuleInput {

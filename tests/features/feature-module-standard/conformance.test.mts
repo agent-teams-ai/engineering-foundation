@@ -29,6 +29,8 @@ void test('the report does not depend on input order and leaves the input untouc
 });
 
 
+const key = (record: ImportRecord): string => `${record.from} ${record.to} ${record.mode} ${String(record.reexport === true)}`;
+
 // A minimal reader for the three statement forms of the materialized example: the runner's parser would take this place.
 function readImports(sources: Readonly<Record<string, string>>): ImportRecord[] {
   return Object.entries(sources).flatMap(([from, text]) => text.split('\n').flatMap((line, index) => {
@@ -44,7 +46,6 @@ void test('the materialized example tree reads back to the same edges and the sa
   const module = exampleModule();
   const sources = exampleSources();
   assert.deepEqual(Object.keys(sources).toSorted(), module.files.toSorted());
-  const key = (record: ImportRecord): string => `${record.from} ${record.to} ${record.mode} ${String(record.reexport === true)}`;
   assert.deepEqual(readImports(sources).map(key).toSorted(), module.imports.map(key).toSorted());
   assert.deepEqual(checkFeatureModule({ ...module, imports: readImports(sources) }), checkFeatureModule(module));
 });

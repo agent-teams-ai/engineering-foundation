@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "packageName": "@agent-teams/feature-module-standard",
+  "packageVersion": "0.0.0",
+  "extractorVersion": "7.58.12",
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Diagnostic:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Diagnostic = Readonly<{\n    code: DiagnosticCode;\n    severity: Severity;\n    message: string;\n    path?: string;\n    line?: number;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!DiagnosticCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DiagnosticCode = (typeof ERROR_CODES)[number] | (typeof WARNING_CODES)[number];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ERROR_CODES:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "ERROR_CODES: readonly ['assembly-misplaced', 'assembly-missing', 'composition-contract-layer', 'composition-contract-misplaced', 'container-empty', 'container-file', 'deep-import', 'entry-unmapped', 'feature-cycle', 'feature-duplicate', 'feature-root-placement', 'feature-undeclared', 'invalid-path', 'layer-direction', 'load-cycle', 'not-visible', 'republication-invalid', 'republication-mismatch', 'republication-not-sub-feature', 'republication-skips-level', 'republication-undeclared', 'surface-unowned', 'use-edge-invalid', 'use-undeclared']"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Edge:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Edge = readonly [from: string, to: string];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureMetric:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureMetric = Readonly<{\n    id: string;\n    depth: number;\n    subFeatures: number;\n    sourceFiles: number;\n    testFiles: number;\n    groups: Readonly<Record<string, number>>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureModuleInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureModuleInput = Readonly<{\n    featuresRoot: string;\n    files: readonly string[];\n    featureRoots?: readonly string[];\n    emptyDirectories?: readonly string[];\n    roleDirectories: Readonly<Record<string, LayerRole>>;\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    testFiles?: readonly string[];\n    surfaces?: SurfaceMap;\n    imports: readonly ImportRecord[];\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, (path: string) => boolean>>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureModuleReport:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureModuleReport = Readonly<{\n    ok: boolean;\n    features: readonly FeatureNode[];\n    diagnostics: readonly Diagnostic[];\n    metrics: readonly FeatureMetric[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureNode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureNode = Readonly<{\n    id: string;\n    name: string;\n    root: string;\n    parent?: string;\n    depth: number;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureTree:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureTree = Readonly<{\n    nodes: readonly FeatureNode[];\n    node: (id: string) => FeatureNode | undefined;\n    ownerOf: (path: string) => FeatureNode | undefined;\n    roleOf: (path: string) => LayerRole | undefined;\n    testOwnerOf: (path: string) => FeatureNode | undefined;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureTreeAnalysis:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureTreeAnalysis = Readonly<{\n    tree: FeatureTree;\n    diagnostics: readonly Diagnostic[];\n    testsOwned: ReadonlyMap<string, number>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ImportMode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ImportMode = 'runtime' | 'type-only';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ImportRecord:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ImportRecord = Readonly<{\n    from: string;\n    to: string;\n    mode: ImportMode;\n    line: number;\n    reexport?: boolean;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!LayerRole:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type LayerRole = 'domain' | 'application' | 'contracts' | 'adapters' | 'composition' | 'testing';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!LayerScope:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type LayerScope = 'same-feature' | 'other-feature';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Republication:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Republication = Readonly<{\n    from: string;\n    to: string;\n    surface: RepublishedSurface;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!RepublishedSurface:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!STANDARD:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "STANDARD: {\n    readonly id: 'agent-teams.feature-module-standard';\n    readonly version: 'v1.1';\n    readonly digest: 'sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c';\n}"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Severity:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Severity = 'error' | 'warning';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!SurfaceKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type SurfaceKind = 'public' | 'internal-api' | 'composition-contract' | 'composition-surface' | 'testing';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!SurfaceMap:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type SurfaceMap = Readonly<{\n    public?: readonly string[];\n    internalApi?: readonly string[];\n    compositionContract?: readonly string[];\n    compositionSurface?: readonly string[];\n    testing?: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!UseEdge:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type UseEdge = Readonly<{\n    from: string;\n    to: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!WARNING_CODES:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "WARNING_CODES: readonly ['depth-warning', 'test-misplaced', 'test-unowned']"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!analyzeFeatureTree:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function analyzeFeatureTree(input: FeatureModuleInput): FeatureTreeAnalysis;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!checkFeatureModule:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function checkFeatureModule(input: FeatureModuleInput): FeatureModuleReport;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!cyclicComponents:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function cyclicComponents(edges: readonly Edge[]): string[][];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!findCycles:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function findCycles(edges: Iterable<Edge>): string[][];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!findOverlappingRoots:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function findOverlappingRoots(roots: readonly string[]): Array<readonly [string, string]>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!isWithin:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "isWithin: (path: string, root: string) => boolean"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!layerDirectionAllowed:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function layerDirectionAllowed(from: LayerRole, to: LayerRole, scope: LayerScope): boolean;"
+        }
+      ]
+    },
+    {
+      "exportPath": "./fixtures",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ConformanceCase:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ConformanceCase = Readonly<{\n    id: string;\n    source: string;\n    description: string;\n    input: FeatureModuleInput;\n    expect: readonly string[];\n    ok: boolean;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureModuleInput:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureModuleInput = Readonly<{\n    featuresRoot: string;\n    files: readonly string[];\n    featureRoots?: readonly string[];\n    emptyDirectories?: readonly string[];\n    roleDirectories: Readonly<Record<string, LayerRole>>;\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    testFiles?: readonly string[];\n    surfaces?: SurfaceMap;\n    imports: readonly ImportRecord[];\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, (path: string) => boolean>>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ImportMode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ImportMode = 'runtime' | 'type-only';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ImportRecord:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ImportRecord = Readonly<{\n    from: string;\n    to: string;\n    mode: ImportMode;\n    line: number;\n    reexport?: boolean;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!LayerRole:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type LayerRole = 'domain' | 'application' | 'contracts' | 'adapters' | 'composition' | 'testing';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Republication:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Republication = Readonly<{\n    from: string;\n    to: string;\n    surface: RepublishedSurface;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!RepublishedSurface:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!SurfaceMap:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type SurfaceMap = Readonly<{\n    public?: readonly string[];\n    internalApi?: readonly string[];\n    compositionContract?: readonly string[];\n    compositionSurface?: readonly string[];\n    testing?: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!UseEdge:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type UseEdge = Readonly<{\n    from: string;\n    to: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!conformanceCases:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "conformanceCases: readonly ConformanceCase[]"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!exampleModule:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function exampleModule(): FeatureModuleInput;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!exampleSources:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function exampleSources(): Readonly<Record<string, string>>;"
+        }
+      ]
+    }
+  ]
+}

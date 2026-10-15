@@ -1,8 +1,13 @@
 import { WARNING_CODES } from '../../feature-model/domain/model.js';
-import type { FeatureModuleInput, ImportRecord } from '../../feature-model/domain/model.js';
+import type {
+  FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, SurfaceMap, UseEdge,
+} from '../../feature-model/domain/model.js';
 import {
   FEATURES_ROOT, MODULE_COMPOSITION, TEST_FEATURES_ROOT, exampleModule, exampleRoots, fileOf, importOf, roleDirectories,
 } from './example-tree.js';
+
+// A fixture's `input` is a kernel input; the fixtures entry point republishes the types that describe it.
+export type { FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, SurfaceMap, UseEdge };
 
 /** One fixture: a complete module description and the exact diagnostic codes the kernel must report for it. */
 export type ConformanceCase = Readonly<{

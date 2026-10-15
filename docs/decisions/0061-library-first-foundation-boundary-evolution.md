@@ -21,22 +21,28 @@ that gate: Foundation is designed for many consumers, and the fact that a second
 consumer does not exist yet does not mean the code will not be reused. Waiting
 grows the concern inside one consumer and turns its later extraction into a
 costly migration. This aligns Foundation with the organization's
-[Library-first design and deliberate evolution](https://github.com/agent-teams-ai/.github/blob/main/docs/engineering-quality-standard.md#library-first-design-and-deliberate-evolution)
+[Library-first design and deliberate evolution](https://github.com/agent-teams-ai/.github/blob/66d6d3d2c2643edac414ded48c0ee0586774dd07/docs/engineering-quality-standard.md#library-first-design-and-deliberate-evolution)
 rule. The other points of ADR-0035 stay valid and are restated here so one
 decision is the authority.
 
 ## Decision
 
-1. Foundation is designed for many consumers. A concern that is expected to
-   serve more than one repository is implemented in Foundation as a shared
-   component from the start, instead of growing inside one consumer and being
-   extracted later. The number of consumers that exist today is not an admission
-   gate. Every admission ships shared parity fixtures and a conformance test in
-   every adopting consumer, and the adoption sequence deletes the superseded
-   consumer implementations; an old and a new implementation do not stay side by
-   side without an owner and a dated removal step. Similar-looking code alone is
-   not evidence for a shared abstraction: a shared contract generalizes only the
-   semantics it defines, and product policy stays in the consumer.
+1. Foundation is designed for many consumers. A reusable engineering-tooling
+   concern within Foundation's ownership boundary that is expected to serve
+   more than one repository is implemented in Foundation as a shared component
+   from the start, instead of growing inside one consumer and being extracted
+   later. The number of consumers that exist today is not an admission gate.
+   The admission states why reuse is expected and how the contract will
+   evolve, and the same delivery validates the contract with disposable test
+   projects and at least one real consumer; that consumer proves the contract
+   and is not an incubator for it. A component carries only mechanism with a
+   concrete need. Every admission ships shared parity fixtures and a
+   conformance test in every adopting consumer, and the adoption sequence
+   deletes the superseded consumer implementations; an old and a new
+   implementation do not stay side by side without an owner and a removal
+   step. Similar-looking code alone is not evidence for a shared abstraction:
+   a shared contract generalizes only the semantics it defines, and product
+   policy stays in the consumer.
 2. Shared contracts describe stable domain behavior, not provider lifecycle,
    runtime injection, or a generic plugin framework. Provider-specific policy
    remains in the owning consumer.
@@ -93,10 +99,10 @@ decision is the authority.
 ## Rejected alternatives
 
 - Remove all concrete exports immediately to obtain a cleaner snapshot.
-- Publish a generic provider or plugin framework without a concrete shared
-  contract.
+- Publish a generic provider or plugin framework.
 - Move similar code into Foundation while retaining duplicate consumer copies.
 - Rewrite every capability loader in one cross-cutting migration.
 - Make published Foundation packages depend on their own previously published
+  copy to build.
 - Keep the two-consumer gate of ADR-0035: it grows expected shared concerns
   inside one consumer and makes their extraction a later migration.

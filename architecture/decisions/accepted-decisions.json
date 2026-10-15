@@ -290,7 +290,7 @@
     {
       "id": "ADR-0061",
       "path": "docs/decisions/0061-library-first-foundation-boundary-evolution.md",
-      "immutableDigest": "sha256:265508fba91df837adc8d78ae9e89aa9dfdb6aa3cbf12b25cf6bef5b1c0b1c89"
+      "immutableDigest": "sha256:6ae637669146a88e302e5a458f3bc6245af4811c18075a1f0128891ea148acbe"
     }
   ]
 }

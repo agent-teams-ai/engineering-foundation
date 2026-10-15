@@ -43,8 +43,8 @@ the [open-source Docs Protocol workflow](docs/reference/open-source-docs-protoco
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 
-Shared concerns are built here library-first, for many consumers; every
-capability ships with parity fixtures and a conformance test in each adopting
+Shared concerns are built here library-first, for many consumers; each
+new capability ships with parity fixtures and a conformance test in each adopting
 consumer (see the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)).
 `workspace.dependency-declarations` is active.
 `architecture.source-dependencies` is active and dogfooded with its accepted

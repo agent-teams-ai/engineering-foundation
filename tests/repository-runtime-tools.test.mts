@@ -73,7 +73,7 @@ test("profile roots reject root, siblings, nesting and symlink escapes", async (
 });
 
 test("actual Node 24/26 pass public checks while actual Bun named node is rejected", async (context) => {
-  const bun = resolve(repositoryRoot, ".cache/public-toolchains/bun/bun");
+  const bun = resolve(repositoryRoot, ".cache/admitted-tools/bun-1.4.3/bun-linux-x64/bun");
   const node24 = resolve(
     repositoryRoot,
     ".cache/public-toolchains/node24/node-v24.18.0-linux-x64/bin/node"
@@ -118,8 +118,8 @@ test("actual Node 24/26 pass public checks while actual Bun named node is reject
 });
 
 test("pnpm launcher verifies the actual manager and ignores ambient npm_execpath", async (context) => {
-  const pnpm = resolve(repositoryRoot, ".cache/public-toolchains/pnpm/pnpm.mjs");
-  const bun = resolve(repositoryRoot, ".cache/public-toolchains/bun/bun");
+  const pnpm = resolve(repositoryRoot, ".cache/admitted-tools/pnpm/pnpm.mjs");
+  const bun = resolve(repositoryRoot, ".cache/admitted-tools/bun-1.4.3/bun-linux-x64/bun");
   if (!await isFile(pnpm) || !await isFile(bun)) {
     context.skip("owned pnpm and Bun TEST toolchains are unavailable");
     return;
@@ -271,21 +271,22 @@ test("extensionless fixed JS tools use the explicitly admitted Node executable",
   const poisonMarker = join(root, "poison-node-ran");
   const fixture = join(root, "fixture");
   try {
-    const { bun } = await resolveQualificationExecutables("bun");
-    assert.ok(bun !== undefined, "repository executable policy must supply admitted Bun");
+    const bun = resolve(repositoryRoot, ".cache/admitted-tools/bun-1.4.3/bun-linux-x64/bun");
+    assert.equal(await isFile(bun), true, "the owned admitted Bun fixture must be available");
     await mkdir(poisonBin);
     await mkdir(fixture);
     await writeFile(join(poisonBin, "node"), [
-      "#!/bin/sh",
-      `printf poisoned > ${JSON.stringify(poisonMarker)}`,
-      "exit 97"
+      `#!${process.execPath}`,
+      `import { writeFileSync } from "node:fs";`,
+      `writeFileSync(${JSON.stringify(poisonMarker)}, "poisoned");`,
+      "process.exit(97);"
     ].join("\n"), { mode: 0o755 });
     await writeFile(join(fixture, "tsconfig.ci-tooling.json"), JSON.stringify({
       compilerOptions: { strict: true, noEmit: true, target: "ES2024", module: "NodeNext", moduleResolution: "NodeNext" },
       files: ["index.ts"]
     }, null, 2));
     await writeFile(join(fixture, "index.ts"), "export const value: number = 1;\n");
-    const tscEntry = resolve(repositoryRoot, "node_modules/typescript/bin/tsc");
+    const tscEntry = resolve(repositoryRoot, ".cache/ci-test-deps/node_modules/typescript/bin/tsc");
     const typecheckArgs = ["--project", "tsconfig.ci-tooling.json"];
     const environment = {
       ...process.env,
@@ -324,12 +325,18 @@ test("extensionless fixed JS tools use the explicitly admitted Node executable",
   }
 });
 
-test("esbuild qualification uses its supported package entry in an isolated owner layout", async () => {
+test("esbuild qualification uses its supported package entry in an isolated owner layout", async context => {
   const fixture = await mkdtemp(join(profilesTemporaryParent(), "esbuild-owner-"));
   const supportedEntry = join(fixture, "node_modules/esbuild/bin/esbuild");
   try {
     const testRequire = createRequire(import.meta.url);
-    const esbuildManifestPath = testRequire.resolve("esbuild/package.json");
+    let esbuildManifestPath: string;
+    try {
+      esbuildManifestPath = testRequire.resolve("esbuild/package.json");
+    } catch {
+      context.skip("the owned esbuild graph is not materialized in this thin job");
+      return;
+    }
     const esbuildRoot = dirname(esbuildManifestPath);
     const esbuildRequire = createRequire(esbuildManifestPath);
     const esbuildManifest = JSON.parse(await readFile(esbuildManifestPath, "utf8")) as {

@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { assertPnpmProfileQualificationRoot } from "../tools/dev.mts";
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 import { assertPackedDocsAdapterHistory } from "./pack-docs-adapter-history.mjs";
 import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
@@ -543,6 +544,11 @@ export function qualifyPackedConsumers(handle, group) {
   packageQualificationPhaseIds("packed", group);
   return runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts, temporaryRoot, checkpoint }) => {
     const runPnpm = createPnpmRunner();
+    const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
+    if (sourceRoot === undefined || sourceRoot === "") {
+      throw new Error("Package qualification requires an explicit source root.");
+    }
+    await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
     const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
     const packageManager = packageManagerVersion(repositoryManifest);
     const timedPhase = (name, run) => runPackedPhase(name, run, checkpoint);

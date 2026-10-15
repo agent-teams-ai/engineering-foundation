@@ -105,6 +105,7 @@
       "tests/source-dependency-source-coverage.test.mjs",
       "packages/docs-protocol/tests/qualification-application.test.mjs",
       "tests/request-full-pr-ci.test.mts",
+      "tests/repository-ci-runtime.test.mts",
       "tests/merge-reviewed-pr.test.mts",
       "packages/repository-mutation/tests/known-file-node-api.test.mjs",
       "tests/document-authoring-observation-boundary.test.mjs",

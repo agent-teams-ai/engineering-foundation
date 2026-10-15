@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
 import { resolveQualificationExecutables } from "./executable-policy.mts";
+import {
+  assertExplicitSourceGitAuthority,
+  assertPnpmProfileQualificationRoot
+} from "./dev.mts";
 
 type RuntimeProfile = "bun" | "node";
 type ToolRole = "runtime" | "node-qualification" | "node-tool" | "native-tool";
@@ -57,6 +61,11 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "dead-code:check": { entry: "node_modules/knip/bin/knip.js", args: ["--config", "knip.json", "--no-progress"], role: "node-tool" },
   "docs:terminology:check": { entry: "scripts/check-documentation-terminology.mjs", args: [], role: "runtime" },
   "nx:graph:check": { entry: "node_modules/nx/dist/bin/nx.js", args: ["show", "projects"], role: "node-tool" },
+  "npm-package-bootstrap:candidate-evidence": {
+    entry: "scripts/npm-package-bootstrap-candidate-evidence.mjs",
+    args: [],
+    role: "node-qualification"
+  },
   "test:built": { entry: "scripts/run-built-tests.mjs", args: [], role: "node-qualification" },
   "test:coverage:built": { entry: "scripts/run-test-coverage.mjs", args: [], role: "node-qualification" },
   "test:manifests:check": { entry: "scripts/check-test-manifests.mjs", args: [], role: "runtime" },
@@ -127,9 +136,14 @@ export function resolveNodeToolInvocation(
   return resolveToolInvocation("node-tool", entry, args, paths, { profile: "node", node });
 }
 
-function run(command: string, args: readonly string[], cwd: string): Promise<number> {
+function run(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  environment: NodeJS.ProcessEnv = process.env
+): Promise<number> {
   return new Promise((_resolve, reject) => {
-    const child = spawn(command, [...args], { cwd, env: process.env, shell: false, stdio: "inherit" });
+    const child = spawn(command, [...args], { cwd, env: environment, shell: false, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
       if (signal !== null) {
@@ -153,7 +167,11 @@ async function invokeScript(id: string): Promise<number> {
   return run(command ?? (() => { throw new Error("Selected manager executable is unavailable."); })(), args, process.cwd());
 }
 
-async function invokeTool(id: string, paths: readonly string[]): Promise<number> {
+async function invokeTool(
+  id: string,
+  paths: readonly string[],
+  toolArguments: readonly string[] = []
+): Promise<number> {
   const profile = await selectedRuntimeProfile();
   const command = id === "dependencies:peers:check" && profile === "bun"
     ? TOOL_COMMANDS["dependencies:installed:check"]
@@ -171,9 +189,29 @@ async function invokeTool(id: string, paths: readonly string[]): Promise<number>
   if (!await isFile(entry)) {
     throw new Error(`Tool entrypoint is unavailable: ${command.entry}`);
   }
+  if (id === "npm-package-bootstrap:candidate-evidence") {
+    const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
+    if (sourceRoot === undefined || sourceRoot === "") {
+      throw new Error("Bootstrap candidate evidence requires an explicit source root.");
+    }
+    await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
+    const sourceAuthority = await assertExplicitSourceGitAuthority(sourceRoot);
+    const invocation = resolveToolInvocation(
+      command.role,
+      entry,
+      [...command.args, ...toolArguments],
+      paths,
+      runtime
+    );
+    return run(invocation.command, invocation.args, process.cwd(), {
+      ...process.env,
+      ...sourceAuthority.environment,
+      AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: sourceRoot
+    });
+  }
   const effectiveArgs = id === "check:fast"
     ? ["gate", "run", `${runtime.profile}-check-fast`, "--consumer", ".", "--format", "text"]
-    : command.args;
+    : [...command.args, ...toolArguments];
   const invocation = resolveToolInvocation(command.role, entry, effectiveArgs, paths, runtime);
   return run(invocation.command, invocation.args, process.cwd());
 }
@@ -183,11 +221,18 @@ if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(
   if (operation !== "script" && operation !== "tool") {
     throw new Error("Usage: repository-command.mts (script|tool) <known-id> [--paths <path>...]");
   }
-  if (id === undefined || rest.some((value, index) => value === "--paths" ? index !== 0 : index < 1)) {
+  if (id === undefined || (id !== "npm-package-bootstrap:candidate-evidence" &&
+    rest.some((value, index) => value === "--paths" ? index !== 0 : index < 1))) {
     throw new Error("Repository command arguments are malformed.");
   }
   const paths = rest[0] === "--paths" ? rest.slice(1) : [];
+  const toolArguments = id === "npm-package-bootstrap:candidate-evidence" ? rest : [];
+  if (id === "npm-package-bootstrap:candidate-evidence" &&
+    (toolArguments.length !== 2 || toolArguments[0] !== "--output" ||
+      !isAbsolute(toolArguments[1] ?? ""))) {
+    throw new Error("Bootstrap candidate evidence requires one absolute --output path.");
+  }
   process.exitCode = operation === "script"
     ? await invokeScript(id)
-    : await invokeTool(id, paths);
+    : await invokeTool(id, paths, toolArguments);
 }

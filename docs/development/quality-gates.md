@@ -634,8 +634,9 @@ no product module boundary, capability contract or CMS adoption change.
 ### Trusted owner merge operation
 
 This is the optional stricter path for a change whose review ran as a hosted
-job. Without `ci:merge`, the owner merge uses `merge-owner-pr.mjs` directly with
-`--expected-head` after the required checks and the recorded independent review.
+job. Without `ci:merge`, perform the revalidation described above (live PR
+head/base, complete native evidence and the recorded independent review), then
+run `merge-owner-pr.mjs` directly with `--expected-head`.
 
 Invoke the reviewed, pinned operator tool from outside the candidate checkout,
 with a trusted Node binary and without `NODE_OPTIONS` or `NODE_PATH` injection:

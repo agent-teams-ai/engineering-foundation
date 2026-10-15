@@ -41,11 +41,12 @@ Hard rules:
   candidate checkout, binding the actual protected hosted receipt and complete
   source tree to the final head/base/ref; do not substitute a caller-supplied
   review JSON;
-- record the independent review in the pull request (description or comment)
-  with the reviewer, the reviewed head SHA and the verdict. The merging agent
-  chooses the review form (for example a separate local reviewer agent or a
-  hosted review job); a completed independent review of the current head is
-  sufficient, so no additional hosted review is required. `ReviewGate` is
+- the merging agent records the independent review in the pull request
+  (description or comment) with the reviewer role (not a model or tool name),
+  the reviewed head SHA and the verdict. It chooses the review form (for example
+  a separate local reviewer agent or a hosted review job); a completed
+  independent review of the current head is sufficient, so no additional hosted
+  review is required. `ReviewGate` is
   retired and review must not become a self-attested Actions status. Before an
   owner squash, revalidate the current PR head/base, merge intent, complete native
   evidence and independent review, then use the canonical organization

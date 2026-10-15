@@ -1,3 +1,4 @@
+import { inferDirectoryLayout } from '../../feature-layout/application/infer-directory-layout.js';
 import type { FeatureModuleInput, ImportMode, ImportRecord, LayerRole } from '../../feature-model/domain/model.js';
 
 /** The informative example tree of Feature Module Standard v1.1, section "Sub-features", as one valid module. */
@@ -45,6 +46,8 @@ const parentOf = (feature: ExampleFeature): ExampleFeature | undefined =>
 
 /** A valid module: every parent wires the composition surface of each direct sub-feature, the module wires the top level. */
 export function exampleModule(): FeatureModuleInput {
+  const files = [MODULE_COMPOSITION, ...features.flatMap((feature) => parts.map((part) => fileOf(feature, part)))];
+  const subFeatureRoots = exampleRoots.filter((root) => root.includes(`/${'features'}/`, FEATURES_ROOT.length + 1));
   const assembly = features.flatMap((feature) => {
     const parent = parentOf(feature);
     return parent === undefined
@@ -52,10 +55,8 @@ export function exampleModule(): FeatureModuleInput {
       : [importOf(fileOf(parent, 'composition'), fileOf(feature, 'group'))];
   });
   return {
-    featuresRoot: FEATURES_ROOT,
-    featureRoots: exampleRoots,
-    files: [MODULE_COMPOSITION, ...features.flatMap((feature) => parts.map((part) => fileOf(feature, part)))],
-    roleDirectories,
+    ...inferDirectoryLayout({ featuresRoot: FEATURES_ROOT, files, roleDirectories, subFeatureRoots }),
+    files,
     testFeaturesRoot: TEST_FEATURES_ROOT,
     surfaces: {
       public: features.map((feature) => fileOf(feature, 'public')),

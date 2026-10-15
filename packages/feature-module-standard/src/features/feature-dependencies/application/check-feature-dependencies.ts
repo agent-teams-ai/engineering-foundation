@@ -17,6 +17,8 @@ type Context = Readonly<{
   uses: Map<string, UseEdge>;
   wired: Set<string>;
   republished: ReadonlySet<string>;
+  /** Whether the module declares a sub-feature; republication is a rule of such modules only. */
+  nested: boolean;
 }>;
 
 const isAncestor = (ancestor: FeatureNode, node: FeatureNode): boolean => node.id.startsWith(`${ancestor.id}/`);
@@ -78,7 +80,7 @@ function republication(ctx: Context, view: View): boolean {
   const { record, from, to, kinds } = view;
   const own = republishable(ctx.surfaces.get(record.from));
   const target = republishable(kinds);
-  if (from === undefined || record.reexport !== true || own.length === 0 || target.length === 0) { return false; }
+  if (!ctx.nested || from === undefined || record.reexport !== true || own.length === 0 || target.length === 0) { return false; }
   const surface = own.find((kind) => target.includes(kind));
   if (to.parent !== from.id) {
     ctx.problems.push(isAncestor(from, to)
@@ -205,6 +207,7 @@ export function checkFeatureDependencies(input: FeatureModuleInput, tree: Featur
   const problems: Diagnostic[] = [];
   const ctx: Context = {
     input, tree, problems, surfaces: indexSurfaces(input, tree, problems), uses: new Map(), wired: new Set(),
+    nested: tree.nodes.some((node) => node.parent !== undefined),
     republished: new Set((input.republications ?? []).map(({ from, to, surface }) => pairKey(from, to, surface))),
   };
   const loadEdges: Edge[] = [];

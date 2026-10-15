@@ -1,3 +1,4 @@
+import { inferDirectoryLayout } from '../../feature-layout/application/infer-directory-layout.js';
 import { WARNING_CODES } from '../../feature-model/domain/model.js';
 import type {
   FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, SurfaceMap, UseEdge,
@@ -49,6 +50,26 @@ const billingApi = `${FEATURES_ROOT}/billing/application/internal-api.ts`;
 const testRoot = `${TEST_FEATURES_ROOT}/orders`;
 const discountsTest = `${testRoot}/features/discounts/discount.test.ts`;
 const billingKit = `${FEATURES_ROOT}/billing/application/kit.ts`;
+// A repository whose layout is not the default declares its roots and role mapping itself.
+const reports = 'src/capabilities/reports';
+const billing2 = 'src/features/billing';
+const reportsApi = `${reports}/api.ts`;
+const reportsAdapter = `${reports}/adapters/store.ts`;
+const billingApi2 = `${billing2}/api.ts`;
+const files = [reportsApi, `${reports}/module.ts`, reportsAdapter, billingApi2, `${billing2}/contracts.ts`];
+const v1Files = [`${FEATURES_ROOT}/legacy/domain/model.ts`, `${FEATURES_ROOT}/legacy/features/helper.ts`];
+const profileCase = (id: string, expect: readonly string[], imports: readonly ImportRecord[], description: string): ConformanceCase => ({
+  id, source: 'Abstract repository layout', description, expect, ok: expect.length === 0,
+  input: {
+    files, imports, featureRoots: [reports, billing2],
+    roleRoots: [
+      { root: reportsApi, role: 'application' }, { root: `${reports}/module.ts`, role: 'composition' },
+      { root: `${reports}/adapters`, role: 'adapters' }, { root: billingApi2, role: 'application' },
+      { root: `${billing2}/contracts.ts`, role: 'contracts' },
+    ],
+    surfaces: { public: [reportsApi, billingApi2] },
+  },
+});
 const withApi = { files: [billingApi], input: { surfaces: { ...exampleModule().surfaces, internalApi: [billingApi] } } };
 
 export const conformanceCases: readonly ConformanceCase[] = [
@@ -168,14 +189,6 @@ export const conformanceCases: readonly ConformanceCase[] = [
     files: [billingKit], input: { testFiles: [discountsTest], surfaces: { ...exampleModule().surfaces, testing: [billingKit] } },
     imports: [importOf(discountsTest, billingKit)],
   }),
-  {
-    id: 'v1-features-directory-keeps-its-meaning', source: 'Sub-features: introduction', ok: true, expect: [],
-    description: 'Without a declared sub-feature, a directory named features inside a feature keeps its v1 meaning.',
-    input: {
-      featuresRoot: FEATURES_ROOT, roleDirectories, imports: [],
-      files: [`${FEATURES_ROOT}/legacy/domain/model.ts`, `${FEATURES_ROOT}/legacy/features/helper.ts`],
-    },
-  },
   define('lateral-reexport-is-no-republication', 'Growth guardrails 13', 'A sibling cannot republish the contracts of another sibling.', ['republication-not-sub-feature'], {
     imports: [importOf(f('orders/pricing', 'public'), f('orders/discounts', 'public'), 'runtime', true)],
   }),
@@ -210,4 +223,17 @@ export const conformanceCases: readonly ConformanceCase[] = [
     imports: [importOf(f('orders/discounts', 'composition'), f(odCoupons, 'group'), type)],
   }),
   define('path-outside-the-repository', 'Sub-features: Placement and layout', 'A path that escapes the repository is reported and never trusted.', ['invalid-path'], { files: ['../outside.ts'] }),
+  {
+    id: 'v1-features-directory-keeps-its-meaning', source: 'Sub-features: introduction', ok: true, expect: [],
+    description: 'Without a declared sub-feature, a directory named features inside a feature keeps its v1 meaning.',
+    input: {
+      imports: [], files: v1Files,
+      ...inferDirectoryLayout({ featuresRoot: FEATURES_ROOT, files: v1Files, roleDirectories }),
+    },
+  },
+  profileCase('profile-mapped-layout-conforms', [], [importOf(billingApi2, reportsApi)], 'Roles mapped to files and to a directory with another name, in two feature roots, conform.'),
+  profileCase('v1-reexport-is-an-ordinary-use', [], [{ ...importOf(billingApi2, reportsApi, 'runtime', true) }], 'Republication is a rule of modules with sub-features; in any other module a re-export is a use.'),
+  profileCase('profile-mapped-adapter-direction', ['layer-direction'], [importOf(reportsAdapter, billingApi2)], 'An adapter in a feature directory still reaches siblings only through its application core.'),
+  profileCase('profile-mapped-deep-import', ['deep-import'], [importOf(billingApi2, reportsAdapter)], 'A file mapped to a role is not a public entrypoint unless the profile says so.'),
+  profileCase('profile-mapped-cycle', ['feature-cycle', 'load-cycle'], [importOf(billingApi2, reportsApi), importOf(reportsApi, billingApi2)], 'Features under different roots form a cycle like any others.'),
 ];

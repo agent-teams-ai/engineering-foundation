@@ -28,23 +28,27 @@ export type Republication = Readonly<{ from: string; to: string; surface: Republ
 /** A declared use edge between feature identities such as `orders/discounts`. */
 export type UseEdge = Readonly<{ from: string; to: string }>;
 
+/** A directory or a single file that the profile maps to a role of the feature layout. The deepest mapped root wins. */
+export type RoleRoot = Readonly<{ root: string; role: LayerRole }>;
+
 export type FeatureModuleInput = Readonly<{
-  /** Directory that holds the top-level feature directories. */
-  featuresRoot: string;
+  /**
+   * The profile's declaration of the tree: the root of every feature at any depth. A feature is the deepest declared root
+   * that contains a path, and its parent is the declared root that directly contains it. A sub-feature exists only where
+   * a root is declared inside another, so in any other module a `features` directory inside a feature keeps its v1 meaning.
+   */
+  featureRoots: readonly string[];
+  /** Directories that hold the top-level feature directories. When given, a top-level root must sit directly in one. */
+  featuresRoots?: readonly string[];
   /** Production files of the module, repository-relative with `/` separators. */
   files: readonly string[];
-  /**
-   * Roots of every feature at any depth: the profile's declaration of the tree. When absent, the top-level features
-   * are derived from `files` and no sub-feature exists, so a `features` directory inside a feature keeps its v1 meaning.
-   */
-  featureRoots?: readonly string[];
   /** Directories without any file, so that an empty sub-feature container can be seen. */
   emptyDirectories?: readonly string[];
-  /** Name of a directory directly below a feature root, mapped to its abstract role. */
-  roleDirectories: Readonly<Record<string, LayerRole>>;
+  /** Directories and files the profile maps to the roles of the abstract layout; they need not be named after the role. */
+  roleRoots: readonly RoleRoot[];
   /** Names of files the profile maps directly below a feature root, such as a README. */
   mappedFiles?: readonly string[];
-  /** Directory of the feature test roots, mirroring `featuresRoot`. */
+  /** Directory of the feature test roots: `<root>/<feature>` and, below a feature, `features/<sub-feature>`. */
   testFeaturesRoot?: string;
   testFiles?: readonly string[];
   surfaces?: SurfaceMap;

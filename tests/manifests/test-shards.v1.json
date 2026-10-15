@@ -45,7 +45,8 @@
         "tests/features/feature-module-standard/conformance.test.mts",
         "tests/features/feature-module-standard/dependencies.test.mts",
         "tests/features/feature-module-standard/layout.test.mts",
-        "tests/features/feature-module-standard/module-check.test.mts"
+        "tests/features/feature-module-standard/module-check.test.mts",
+        "tests/feature-module-kernel-adapter.test.mjs"
       ]
     },
     {

@@ -4035,6 +4035,7 @@ boundaries:
     entrypoints:
       - packages/feature-module-standard/src/features/feature-layout/application/analyze-feature-tree.ts
       - packages/feature-module-standard/src/features/feature-layout/application/find-overlapping-roots.ts
+      - packages/feature-module-standard/src/features/feature-layout/application/infer-directory-layout.ts
     allow:
       boundaries:
         - feature-module-standard.model.domain
@@ -4078,6 +4079,7 @@ boundaries:
     allow:
       boundaries:
         - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
       packages: []
       builtins: []
       runtimeReferences: []

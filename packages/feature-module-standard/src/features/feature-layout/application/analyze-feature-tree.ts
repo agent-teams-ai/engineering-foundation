@@ -15,22 +15,15 @@ export type FeatureTree = Readonly<{
 const segments = (path: string): string[] => path.split('/');
 const lastSegment = (path: string): string => segments(path).at(-1) ?? path;
 
-// Without a declaration only top-level features exist: a sub-feature is a declared fact, never inferred from a name.
-function deriveRoots(featuresRoot: string, files: readonly string[]): string[] {
-  const roots = new Set<string>();
-  for (const file of files) {
-    const rest = file.startsWith(`${featuresRoot}/`) ? segments(file.slice(featuresRoot.length + 1)) : [];
-    if (rest.length >= 2) { roots.add(`${featuresRoot}/${rest[0] ?? ''}`); }
-  }
-  return [...roots];
+const dirname = (path: string): string => segments(path).slice(0, -1).join('/');
+
+function placement(root: string, parent: string | undefined, featuresRoots: readonly string[] | undefined): boolean {
+  if (parent !== undefined) { return dirname(root) === `${parent}/${FEATURE_CONTAINER}`; }
+  return featuresRoots === undefined || featuresRoots.includes(dirname(root));
 }
 
-function placement(root: string, parent: string | undefined, featuresRoot: string): boolean {
-  const base = parent === undefined ? `${featuresRoot}/` : `${parent}/${FEATURE_CONTAINER}/`;
-  return root.startsWith(base) && root.length > base.length && !root.slice(base.length).includes('/');
-}
-
-function buildNodes(featuresRoot: string, declared: readonly string[], problems: Diagnostic[]): FeatureNode[] {
+function buildNodes(input: FeatureModuleInput, problems: Diagnostic[]): FeatureNode[] {
+  const declared = input.featureRoots;
   const roots = [...new Set(declared)].toSorted((a, b) => segments(a).length - segments(b).length || (a < b ? -1 : 1));
   for (const root of roots.filter((candidate) => declared.indexOf(candidate) !== declared.lastIndexOf(candidate))) {
     problems.push(diagnostic('feature-duplicate', `${root}: a feature root is declared more than once.`, { path: root }));
@@ -38,16 +31,18 @@ function buildNodes(featuresRoot: string, declared: readonly string[], problems:
   const nodes: FeatureNode[] = [];
   for (const root of roots) {
     const parentRoot = nodes.filter((node) => root.startsWith(`${node.root}/`)).at(-1);
-    if (!placement(root, parentRoot?.root, featuresRoot)) {
+    if (!placement(root, parentRoot?.root, input.featuresRoots)) {
       problems.push(diagnostic('feature-root-placement', parentRoot === undefined
-        ? `${root}: a feature root must be ${featuresRoot}/<name>.`
+        ? `${root}: a feature root must sit directly in ${(input.featuresRoots ?? []).join(' or ')}.`
         : `${root}: a sub-feature root must be ${parentRoot.root}/${FEATURE_CONTAINER}/<name>.`, { path: root }));
     }
     const name = lastSegment(root);
-    nodes.push({
-      id: parentRoot === undefined ? name : `${parentRoot.id}/${name}`, name, root,
-      ...(parentRoot === undefined ? {} : { parent: parentRoot.id }), depth: (parentRoot?.depth ?? 0) + 1,
-    });
+    const id = parentRoot === undefined ? name : `${parentRoot.id}/${name}`;
+    if (nodes.some((node) => node.id === id)) {
+      problems.push(diagnostic('feature-duplicate', `${root}: the feature name ${id} is used twice.`, { path: root }));
+      continue;
+    }
+    nodes.push({ id, name, root, ...(parentRoot === undefined ? {} : { parent: parentRoot.id }), depth: (parentRoot?.depth ?? 0) + 1 });
   }
   return nodes;
 }
@@ -90,12 +85,12 @@ function checkEntries(
   node: FeatureNode, entries: readonly Entry[], input: FeatureModuleInput, nested: boolean, problems: Diagnostic[],
 ): void {
   for (const { name, directory } of entries) {
-    const mapped = directory
-      ? (nested && name === FEATURE_CONTAINER) || Object.hasOwn(input.roleDirectories, name)
-      : (input.mappedFiles ?? []).includes(name);
+    const path = `${node.root}/${name}`;
+    const covered = input.roleRoots.some(({ root }) => isWithin(path, root) || isWithin(root, path));
+    const mapped = covered || (directory ? nested && name === FEATURE_CONTAINER : (input.mappedFiles ?? []).includes(name));
     if (nested && !mapped) {
       problems.push(diagnostic('entry-unmapped',
-        `${node.root}/${name}: not a role directory, the sub-feature container or a mapped file.`, { path: `${node.root}/${name}` }));
+        `${node.root}/${name}: not mapped to a role, the sub-feature container or a mapped file.`, { path: `${node.root}/${name}` }));
     }
   }
 }
@@ -156,7 +151,9 @@ function checkDirectories(
   input: FeatureModuleInput, nodes: readonly FeatureNode[], files: readonly string[], nested: boolean, problems: Diagnostic[],
 ): void {
   const emptyDirectories = (input.emptyDirectories ?? []).filter((path) => isPortablePath(path));
-  checkContainer(input.featuresRoot, nodes, entriesOf(input.featuresRoot, files, emptyDirectories), problems, { top: true });
+  for (const featuresRoot of input.featuresRoots ?? []) {
+    checkContainer(featuresRoot, nodes, entriesOf(featuresRoot, files, emptyDirectories), problems, { top: true });
+  }
   for (const node of nodes) {
     const entries = entriesOf(node.root, files, emptyDirectories);
     checkEntries(node, entries, input, nested, problems);
@@ -173,11 +170,14 @@ export function analyzeFeatureTree(input: FeatureModuleInput): FeatureTreeAnalys
   const problems: Diagnostic[] = [];
   const files = input.files.filter((path) => isPortablePath(path));
   const surfaces = Object.values(input.surfaces ?? {}).flat();
-  const declared = [input.featuresRoot, ...(input.testFeaturesRoot === undefined ? [] : [input.testFeaturesRoot]), ...(input.featureRoots ?? [])];
+  const declared = [
+    ...(input.featuresRoots ?? []), ...(input.testFeaturesRoot === undefined ? [] : [input.testFeaturesRoot]),
+    ...input.featureRoots, ...input.roleRoots.map(({ root }) => root),
+  ];
   for (const path of [...declared, ...surfaces, ...input.files, ...(input.emptyDirectories ?? []), ...(input.testFiles ?? [])]) {
     if (!isPortablePath(path)) { problems.push(diagnostic('invalid-path', `${path}: not a repository-relative path with / separators.`, { path })); }
   }
-  const nodes = buildNodes(input.featuresRoot, input.featureRoots ?? deriveRoots(input.featuresRoot, files), problems);
+  const nodes = buildNodes(input, problems);
   const nested = nodes.some((node) => node.parent !== undefined);
   checkDirectories(input, nodes, files, nested, problems);
   const byId = new Map(nodes.map((node) => [node.id, node]));
@@ -190,9 +190,8 @@ export function analyzeFeatureTree(input: FeatureModuleInput): FeatureTreeAnalys
     ownerOf: (path) => deepest(path, nodes, (node) => node.root),
     roleOf: (path) => {
       const owner = deepest(path, nodes, (node) => node.root);
-      const parts = owner === undefined ? [] : segments(path.slice(owner.root.length + 1));
-      const role = parts.length > 1 ? input.roleDirectories[parts[0] ?? ''] : undefined;
-      return role !== undefined && Object.hasOwn(input.roleDirectories, parts[0] ?? '') ? role : undefined;
+      const mapped = input.roleRoots.filter(({ root }) => owner !== undefined && isWithin(path, root) && isWithin(root, owner.root));
+      return mapped.toSorted((a, b) => b.root.length - a.root.length).at(0)?.role;
     },
     testOwnerOf: (path) => (testRoot === undefined || !path.startsWith(`${testRoot}/`) ? undefined : testOwner(path, testRoot, byId, nested).owner),
   };

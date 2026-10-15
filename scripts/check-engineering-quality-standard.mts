@@ -25,7 +25,9 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
   }
 }
 
-if (process.argv[1] !== undefined && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+const entry = process.argv.at(1);
+const invoked = entry === undefined ? undefined : pathToFileURL(resolve(entry)).href;
+if (invoked === import.meta.url) {
   await checkEngineeringQualityStandard(fileURLToPath(new URL('../', import.meta.url)));
   process.stdout.write('Retained Engineering Quality Standard pin verified.\n');
 }

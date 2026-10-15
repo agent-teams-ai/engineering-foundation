@@ -55,8 +55,13 @@ ownership.
 The external process-library wiring is a second fixed adapter boundary at
 `packages/engineering-foundation/src/process-execution/node-process-runner.ts`.
 It imports the accepted technical adapter and supplies the existing Host-owned
-`acquire`/`cleanup` custody pair. It is not an independently assembled module,
-does not use lifecycle-kernel and introduces no Assembly node.
+`acquire`/`cleanup` custody pair. The exact helper
+`packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts`
+is an existing Foundation process adapter helper: it verifies the admitted Node
+executable environment for the Windows managed bootstrap and does not select
+runtime profiles. Both files remain in the existing
+`foundation.process-execution` adapter roots. None is an independently assembled
+module, uses lifecycle-kernel or introduces an Assembly node.
 
 Review trigger: add a new independently assembled capability, make the selected
 runtime graph configurable beyond these closed profiles, or give selected
@@ -65,9 +70,14 @@ exact Host scope through Core/Assembly before merge. Until then the status stays
 `not-adopted`.
 
 The independently implemented process library boundary remains outside this
-runtime-profile seam. Functional managed-process delegation binds the accepted
-library implementation through the existing Host custody pair, while an owned
-TEST overlay supplies the unpublished archive for implementation proof. No
-placeholder or unpublished registry pin is present; the supported coordinate
-and lock/SRI/provenance remain publication gates. The Bun/default profile seam
-above remains owned by the separate runtime-profile delivery.
+runtime-profile seam. Functional managed-process delegation binds published
+`@agent-teams/process-runtime@0.1.0` through the existing Host custody pair.
+The root verified its signature and provenance and the registry archive SHA-256
+`bbcff7dcabcc35a1de296ba52fe2b73ae0f060591dc86d474308df667bd3b0c3`; its library
+main is `26f9b99ecb002b5362d020cc662ba3c62b93badd`. The existing published
+package owns reusable process mechanism, while node-runtime-verifier is
+Foundation-local environment verification; no additional reusable package or
+abstraction is justified. Historical pins, this record's `not-adopted`/static
+scope, the absence of Assembly and dynamic scope, and the separate Bun/default
+delivery remain unchanged. The Bun/default profile seam above remains owned by
+the separate runtime-profile delivery.

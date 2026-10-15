@@ -35,7 +35,7 @@ boundaries:
         - docs-protocol.portable-documentation.composition
         - docs-protocol.qualification
         - docs-protocol.qualification.composition
-      packages: [ "@agent-teams/process-runtime" ]
+      packages: []
       builtins: []
       runtimeReferences: []
     entrypoints: []
@@ -2247,6 +2247,7 @@ boundaries:
   - id: foundation.process-execution
     roots:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts
       - packages/engineering-foundation/src/process-execution/windows-process-host.ts

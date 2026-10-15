@@ -43,6 +43,13 @@ test("prune only lowers and removes, and a producer verifies only its own namesp
   assert.throws(() => checkFindings({ baseline, observed: [foreign], namespace }), /outside the oxlint namespace/u);
 });
 
+test("prune drops a recorded maximum once the finding no longer carries one", () => {
+  const pruned = pruneBaseline({ baseline: [size], observed: [{ path: size.path, rule: size.rule, count: 1 }], namespace });
+  assert.deepEqual(pruned.entries, [{ path: size.path, rule: size.rule, count: 1 }]);
+  assert.equal(pruned.lowered, 1);
+  assert.deepEqual(pruned.remaining, []);
+});
+
 test("init refuses over an existing baseline", () => {
   assert.deepEqual(initBaseline({ observed: [size, style] }), [style, size]);
   assert.throws(() => initBaseline({ observed: baseline, existing: formatBaseline(baseline) }), /already exists/u);
@@ -73,4 +80,13 @@ test("budgets only warn, prefer a subject threshold and escape annotations", () 
   assert.deepEqual(warnings, [{ subject: "src/a", metric: "files", value: 12, max: 10 }]);
   assert.equal(formatBudgetAnnotations([{ subject: "a,b\n%", metric: "m:x", value: 2, max: 1 }]),
     "::warning title=m%3Ax budget::a,b%0A%25: m:x is 2, budget 1\n");
+});
+
+test("budgets reject a duplicate threshold and non-finite numbers", () => {
+  const measurements = [{ subject: "src/a", metric: "files", value: 12 }];
+  assert.throws(() => checkBudgets({ measurements, thresholds: [{ metric: "files", max: 10 }, { metric: "files", max: 20 }] }), /more than once/u);
+  assert.throws(() => checkBudgets({ measurements, thresholds: [{ metric: "files", subject: "src/a", max: 1 }, { metric: "files", subject: "src/a", max: 2 }] }), /more than once/u);
+  assert.throws(() => checkBudgets({ measurements, thresholds: [{ metric: "files", max: Number.NaN }] }), /finite/u);
+  assert.throws(() => checkBudgets({ measurements: [{ ...measurements[0], value: Number.POSITIVE_INFINITY }], thresholds: [] }), /finite/u);
+  assert.deepEqual(checkBudgets({ measurements, thresholds: [{ metric: "files", max: 10 }, { metric: "files", subject: "src/a", max: 20 }] }), []);
 });

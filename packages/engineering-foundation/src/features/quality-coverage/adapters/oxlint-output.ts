@@ -1,4 +1,4 @@
-import { qualityDiagnostic, type OxlintFinding } from "../api.js";
+import { CapabilityInputError, qualityDiagnostic, type OxlintFinding } from "../api.js";
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -72,7 +72,14 @@ export function parseOxlintFindings(stdout: string, exitCode: number, measuredRu
     group.count += 1;
     if (measuredRules.has(rule)) {
       const measured = /\((\d{1,15})\)/u.exec(message)?.[1];
-      if (measured === undefined) { malformed(); }
+      if (measured === undefined) {
+        throw new CapabilityInputError({
+          code: "FINDINGS_BASELINE_CONFIG_INVALID",
+          message: `Measured rule ${rule} has no parenthesized value in its Oxlint message.`,
+          phase: "findings-baseline-config",
+          retryable: false
+        });
+      }
       group.max = Math.max(group.max ?? 0, Number(measured));
     }
     groups.set(key, group);

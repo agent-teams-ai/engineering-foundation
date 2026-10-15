@@ -11,6 +11,7 @@ import { createSourceTreeReader } from "../../source-inventory/module.js";
 import { pathTraversesSymbolicLink, readContainedRegularFile } from "../../source-inventory/node.js";
 import { createWorkspaceInventoryReader } from "../../workspace-inventory/module.js";
 import type { FindingsBaselineDependencies, FindingsProducer } from "./application/model.js";
+import { inputFailure } from "./application/configuration-input.js";
 import { FINDINGS_BASELINE_RULES_BY_ID } from "./application/rules.js";
 import { checkFindingsBaseline, writeFindingsBaseline, type FindingsBaselineWriteResult } from "./application/use-cases/findings-baseline.js";
 import { FilesystemFindingsBaselineStore } from "./adapters/outbound/filesystem/filesystem-findings-baseline-store.js";
@@ -24,19 +25,19 @@ type Environment = Readonly<Record<string, string | undefined>>;
 
 interface FindingsBaselineModuleInput {
   readonly assertSchema: FindingsBaselineConfigurationDependencies["assertSchema"];
-  /** Environment of the pinned Oxlint process; the process environment when absent. */
-  readonly environment?: Environment;
+  /** Environment of the pinned Oxlint process, supplied by the command host. */
+  readonly environment: Environment;
 }
 
 /** Runs the consumer's pinned Oxlint through the quality coverage session; its findings are `oxlint/<plugin>/<rule>`. */
-function createOxlintFindingsProducer(environment: Environment | undefined): FindingsProducer {
+function createOxlintFindingsProducer(environment: Environment): FindingsProducer {
   const inventoryReader = createWorkspaceInventoryReader();
   const sourceReader = createSourceTreeReader();
   return {
     async observe({ consumerRoot, policy, signal }) {
       const inventory = await inventoryReader.read(consumerRoot, "pnpm-workspace.yaml", signal);
       const rootPackage = inventory.packages.find(({ manifestPath }) => manifestPath === "package.json");
-      if (rootPackage === undefined) { throw new Error("The consumer root package is missing from workspace observations."); }
+      if (rootPackage === undefined) { inputFailure("FINDINGS_BASELINE_CONSUMER_INVALID", "The consumer root package is missing from workspace observations.", "findings-baseline-execution"); }
       const tools = await inspectConsumerToolchain({
         consumerRoot, dependencies: rootPackage.dependencies, read: readContainedRegularFile,
         ...(signal === undefined ? {} : { signal })
@@ -44,7 +45,7 @@ function createOxlintFindingsProducer(environment: Environment | undefined): Fin
       const files = await sourceReader.read(consumerRoot, policy.oxlint.roots, signal);
       const session = createOxlintSession({
         consumerRoot, ...tools, nodeExecutable: process.execPath,
-        environment: { ...(environment ?? process.env), OXLINT_TSGOLINT_PATH: tools.typedEntrypoint },
+        environment: { ...environment, OXLINT_TSGOLINT_PATH: tools.typedEntrypoint },
         configPath: policy.oxlint.configPath, sourceRoots: files.map(({ path }) => path), projects: []
       }, createManagedProcessExecutor());
       const findings = await session.findings(new Set(policy.oxlint.measuredRules), signal);

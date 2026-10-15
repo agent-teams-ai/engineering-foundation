@@ -44,18 +44,23 @@ function diagnostic(violation: FindingViolation): FoundationDiagnostic {
   };
 }
 
-async function load(input: Input, dependencies: FindingsBaselineDependencies): Promise<{ readonly text: string | undefined; readonly observed: readonly Finding[] }> {
-  const text = await dependencies.store.read(input.consumerRoot, input.policy.baselinePath, input.signal);
+const readBaseline = (input: Input, dependencies: FindingsBaselineDependencies): Promise<string | undefined> =>
+  dependencies.store.read(input.consumerRoot, input.policy.baselinePath, input.signal);
+
+function missingBaseline(path: string): never {
+  return inputError("FINDINGS_BASELINE_MISSING", `Findings baseline ${path} does not exist; create it once with baseline init.`);
+}
+
+async function observe(input: Input, dependencies: FindingsBaselineDependencies): Promise<readonly Finding[]> {
   const observed = await dependencies.producer.observe(input);
   assertNotCancelled(input.signal);
-  return { text, observed };
+  return observed;
 }
 
 export async function checkFindingsBaseline(input: Input, dependencies: FindingsBaselineDependencies): Promise<readonly FoundationDiagnostic[]> {
-  const { text, observed } = await load(input, dependencies);
-  if (text === undefined) {
-    inputError("FINDINGS_BASELINE_MISSING", `Findings baseline ${input.policy.baselinePath} does not exist; create it once with baseline init.`);
-  }
+  // A missing baseline fails before the expensive Oxlint run.
+  const text = await readBaseline(input, dependencies) ?? missingBaseline(input.policy.baselinePath);
+  const observed = await observe(input, dependencies);
   return checkFindings({ baseline: baselineEntries(text), observed, namespace: OXLINT_NAMESPACE }).map(diagnostic);
 }
 
@@ -74,9 +79,10 @@ export async function writeFindingsBaseline(
   input: Input & { readonly action: "init" | "prune" },
   dependencies: FindingsBaselineDependencies
 ): Promise<FindingsBaselineWriteResult> {
-  const { text, observed } = await load(input, dependencies);
   const path = input.policy.baselinePath;
+  const text = await readBaseline(input, dependencies);
   if (input.action === "init") {
+    const observed = await observe(input, dependencies);
     let entries: readonly Finding[];
     try { entries = initBaseline({ observed, ...(text === undefined ? {} : { existing: text }) }); } catch (error) {
       if (error instanceof FindingsBaselineError) { inputError("FINDINGS_BASELINE_EXISTS", `${error.message} (${path})`); }
@@ -85,7 +91,8 @@ export async function writeFindingsBaseline(
     await dependencies.store.create(input.consumerRoot, path, formatBaseline(entries));
     return { action: "init", path, entries: entries.length, lowered: 0, removed: 0, remaining: [] };
   }
-  if (text === undefined) { inputError("FINDINGS_BASELINE_MISSING", `Findings baseline ${path} does not exist; create it once with baseline init.`); }
+  if (text === undefined) { missingBaseline(path); }
+  const observed = await observe(input, dependencies);
   const pruned = pruneBaseline({ baseline: baselineEntries(text), observed, namespace: OXLINT_NAMESPACE });
   const next = formatBaseline(pruned.entries);
   if (next !== text) { await dependencies.store.replace(input.consumerRoot, path, next, text); }

@@ -94,3 +94,12 @@ test("baseline requires --config and its rules are explained", async () => {
   assert.match((await run("baseline", "check")).stderr, /--config/u);
   assert.match((await run("explain", "quality.findings-baseline.stale-entry")).stdout, /baseline prune/u);
 });
+
+test("a measured rule without a value in its message is a configuration error, not an unexpected failure", async (t) => {
+  const { put, run } = await fixture(t);
+  await put("findings.yaml", { schemaVersion: 1, baselinePath, oxlint: { configPath: "lint.json", roots: ["src"], measuredRules: ["typescript/method-signature-style"] } });
+  const result = await run("baseline", "init");
+  assert.notEqual(result.code, 0);
+  assert.match(JSON.stringify(result.output), /FINDINGS_BASELINE_CONFIG_INVALID/u);
+  assert.match(JSON.stringify(result.output), /no parenthesized value/u);
+});

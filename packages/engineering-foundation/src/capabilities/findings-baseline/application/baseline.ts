@@ -164,7 +164,7 @@ export function pruneBaseline(input: {
       removed += 1;
     } else if (exceeds(entry, finding)) {
       const count = Math.min(entry.count, finding.count);
-      const max = entry.max === undefined || finding.max === undefined ? entry.max : Math.min(entry.max, finding.max);
+      const max = entry.max === undefined || finding.max === undefined ? undefined : Math.min(entry.max, finding.max);
       kept.push(max === undefined ? { path: entry.path, rule: entry.rule, count } : { path: entry.path, rule: entry.rule, count, max });
       lowered += 1;
     } else {

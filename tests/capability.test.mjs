@@ -23,6 +23,7 @@ import {
   createCapabilityRegistry,
 } from "../packages/engineering-foundation/dist/composition/capability-registry.js";
 import { CAPABILITY_MODULES } from "../packages/engineering-foundation/dist/composition/capability-modules.js";
+import { FINDINGS_BASELINE_RULES_BY_ID } from "../packages/engineering-foundation/dist/capabilities/findings-baseline/module.js";
 import {
   createRuleRegistry,
   RULE_REGISTRIES,
@@ -89,7 +90,7 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
     (count, { rules }) => count + rules.size,
     0,
   );
-  assert.equal(RULE_REGISTRY.size, registeredRuleCount);
+  assert.equal(RULE_REGISTRY.size, registeredRuleCount + FINDINGS_BASELINE_RULES_BY_ID.size);
   for (const { rules } of CAPABILITY_MODULES) {
     for (const [ruleId, metadata] of rules) {
       assert.equal(metadata.id, ruleId);

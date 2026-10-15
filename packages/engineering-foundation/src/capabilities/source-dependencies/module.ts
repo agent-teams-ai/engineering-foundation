@@ -30,7 +30,7 @@ const fileReader: SourceWorkspaceFileReader = { read: readContainedRegularFile }
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
 export { createSourceCensusReader } from "./adapters/outbound/node/source-census-reader.js";
 export { stronglyConnectedComponents } from "./application/use-cases/observe-source-graph.js";
-export type { ObserveSourceGraphInput, SourceGraph, SourceGraphEdge, SourceGraphUnresolved } from "./application/use-cases/observe-source-graph.js";
+export type { ObserveSourceGraphInput, SourceGraph, SourceGraphEdge, SourceGraphExternal, SourceGraphUnresolved } from "./application/use-cases/observe-source-graph.js";
 export { createSourceArchitecturePolicyReader } from "./adapters/inbound/configuration/load-capability-config.js";
 
 export interface SourceDependenciesCapabilityDependencies {

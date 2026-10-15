@@ -1140,6 +1140,10 @@
               "owner": "engineering-foundation/source-dependencies"
             },
             {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/observe-source-graph.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
               "path": "packages/engineering-foundation/src/capabilities/suppression-governance/adapters/outbound/oxc/oxc-suppression-scanner.ts",
               "owner": "engineering-foundation/suppression-governance"
             },

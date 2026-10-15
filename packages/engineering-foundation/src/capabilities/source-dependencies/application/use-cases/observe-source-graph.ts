@@ -3,6 +3,7 @@ import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
 import type { ArchitectureBoundaryPolicy, ClassifiedSourceFile } from "../model/source-workspace.js";
 import { normalizeRepositoryPath } from "../model/repository-path.js";
 import { stronglyConnectedComponents as components } from "../policies/evaluate-source-dependency-cycles.js";
+import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type { SourceDependencyParser } from "../ports/source-dependency-parser.js";
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 import { buildObservedSourceGraph } from "./build-observed-source-graph.js";
@@ -21,13 +22,21 @@ export interface SourceGraphUnresolved {
   readonly line: number;
 }
 
+/** An import of a bare specifier: a Node.js builtin, a package, a workspace package or a tsconfig paths alias. */
+export type SourceGraphExternal = SourceGraphUnresolved;
+
 export interface SourceGraph {
   /** Repository-relative files under the requested roots, in binary order. */
   readonly files: readonly string[];
   /** Resolved imports between those files, one per import, in binary order. */
   readonly edges: readonly SourceGraphEdge[];
-  /** Relative or aliased imports that did not resolve to a file in `files`. */
+  /** Relative imports that did not resolve to a file in `files`, and specifiers the resolver does not support (subpath imports, URLs). */
   readonly unresolved: readonly SourceGraphUnresolved[];
+  /**
+   * Bare specifiers (builtins, packages, workspace packages, tsconfig paths aliases) are reported here, not as edges;
+   * consumers that need alias resolution resolve them themselves.
+   */
+  readonly external: readonly SourceGraphExternal[];
   /** Files the parser could not read. Their imports are absent from `edges`. */
   readonly parseFailures: readonly string[];
 }
@@ -49,8 +58,8 @@ const workspacePackage: WorkspacePackage = Object.freeze({
   dependencies: [], bundledDependencies: [], exportSurface: { explicit: false, entries: [] }
 });
 
-// UTF-16 code unit order, the order of compareBinaryStrings; only the consumers admitted by ADR-0047 may import that primitive.
-const compareText = (left: string, right: string): number => (left < right ? -1 : left > right ? 1 : 0);
+const compareImports = (left: SourceGraphUnresolved, right: SourceGraphUnresolved): number =>
+  compareBinaryStrings(left.from, right.from) || left.line - right.line || compareBinaryStrings(left.specifier, right.specifier);
 
 function lineAt(source: string, offset: number): number {
   let line = 1;
@@ -83,17 +92,21 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
   const line = (path: string, offset: number) => lineAt(sources.get(path) ?? "", offset);
   const edges: SourceGraphEdge[] = [];
   const unresolved: SourceGraphUnresolved[] = [];
+  const external: SourceGraphExternal[] = [];
   for (const edge of graph.edges) {
     if (edge.resolution.kind === "local-file") {
       edges.push({ from: edge.fromPath, to: edge.resolution.path, mode: edge.mode, line: line(edge.fromPath, edge.start) });
     } else if (edge.resolution.kind === "unresolved" || edge.resolution.kind === "unsupported") {
       unresolved.push({ from: edge.fromPath, specifier: edge.specifier, line: line(edge.fromPath, edge.start) });
+    } else if (edge.resolution.kind === "builtin" || edge.resolution.kind === "external-package") {
+      external.push({ from: edge.fromPath, specifier: edge.specifier, line: line(edge.fromPath, edge.start) });
     }
   }
   return Object.freeze({
-    files: Object.freeze(graph.nodes.map(({ path }) => path).toSorted(compareText)),
-    edges: Object.freeze(edges.toSorted((left, right) => compareText(left.from, right.from) || compareText(left.to, right.to) || left.line - right.line)),
-    unresolved: Object.freeze(unresolved),
+    files: Object.freeze(graph.nodes.map(({ path }) => path).toSorted(compareBinaryStrings)),
+    edges: Object.freeze(edges.toSorted((left, right) => compareBinaryStrings(left.from, right.from) || compareBinaryStrings(left.to, right.to) || left.line - right.line)),
+    unresolved: Object.freeze(unresolved.toSorted(compareImports)),
+    external: Object.freeze(external.toSorted(compareImports)),
     parseFailures: Object.freeze(graph.parseFailures.map(({ path }) => path))
   });
 }

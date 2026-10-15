@@ -3,6 +3,7 @@ import { assertSchema, readFoundationSchema } from "../schema-catalog.js";
 import { createSourceTreeReader } from "../source-inventory/module.js";
 import { createWorkspaceInventoryReader } from "../workspace-inventory/module.js";
 import { qualityCoverageCapability } from "./quality-coverage.js";
+import { createFindingsBaselineCapability, FINDINGS_BASELINE_RULES_BY_ID } from "../capabilities/findings-baseline/module.js";
 import { QUALITY_COVERAGE_RULES_BY_ID } from "../features/quality-coverage/api.js";
 import { createCapabilityModule, createCapabilityModules } from "../features/validation-reporting/api.js";
 import type { CapabilityModuleDescriptor } from "../features/validation-reporting/api.js";
@@ -111,6 +112,7 @@ export const CAPABILITY_MODULES: readonly CapabilityModuleDescriptor[] =
       createSuppressionGovernanceCapability({ sourceReader: createSourceTreeReader(), assertSchema }),
       SUPPRESSION_GOVERNANCE_RULES_BY_ID
     ),
+    createCapabilityModule(createFindingsBaselineCapability({ assertSchema }), FINDINGS_BASELINE_RULES_BY_ID),
     createCapabilityModule(
       createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), readFoundationSchema),
       WORKSPACE_RULES_BY_ID

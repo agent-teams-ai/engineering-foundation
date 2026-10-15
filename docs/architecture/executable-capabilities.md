@@ -94,8 +94,8 @@ packages.
   visibility rules of one architecture, for example what a feature, a
   sub-feature, a layer or a contract surface is.
 - Known exception: `quality.source-coverage` reads its production topology only
-  from a Feature Module Standard v1 profile (`featureProfilePath`) and rejects
-  other profiles. It is not architecture-neutral until a neutral consumer-owned
+  from a Feature Module Standard v1 or v1.1 profile (`featureProfilePath`) and
+  rejects other profiles. It is not architecture-neutral until a neutral consumer-owned
   topology input replaces that profile and the Feature Module Standard mapping
   moves to the standard's opt-in package. That migration is a breaking change
   of a released capability. Until then, changes to it may keep that dependency

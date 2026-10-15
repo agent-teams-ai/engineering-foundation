@@ -26,6 +26,7 @@ export interface CommandHostDependencies<SchemaId extends string> {
     & PublicApiAuditSchemaAssertion
     & Parameters<typeof createNodeAgentWorkflowCommands>[2]
     & Parameters<typeof qualifyProtobufBreakingEvidence>[2];
+  readonly createFindingsBaselineCommand: (environment: Readonly<NodeJS.ProcessEnv>) => FoundationCommandServices["findingsBaseline"];
   readonly loadFoundationConfig: FoundationCommandServices["readConfig"];
   readonly runFoundationCheck: FoundationCommandServices["check"];
   readonly RULE_REGISTRY: FoundationCommandServices["rules"];
@@ -54,6 +55,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     localMode: new FoundationLocalModeService({ runner: createNodeProcessRunner(environment), now: systemNow }),
     qualityGate: (input) => qualityGate(input, environment),
     qualityCoverage: dependencies.createQualityCommand(processExecutor, process.execPath, environment),
+    findingsBaseline: dependencies.createFindingsBaselineCommand(environment),
     agentWorkflow: createNodeAgentWorkflowCommands({
       ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),

@@ -43,6 +43,10 @@ packages:
         declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/index.d.ts
       - exportPath: "./scaffolding/qualification"
         declarationEntryPoint: packages/engineering-foundation/dist/scaffolding/qualification.d.ts
+      - exportPath: "./ratchet"
+        declarationEntryPoint: packages/engineering-foundation/dist/ratchet.d.ts
+      - exportPath: "./source-graph"
+        declarationEntryPoint: packages/engineering-foundation/dist/source-graph.d.ts
       - exportPath: "./sdk-growth-authority"
         declarationEntryPoint: packages/engineering-foundation/dist/sdk-growth-authority.d.ts
     nonTypeExports:

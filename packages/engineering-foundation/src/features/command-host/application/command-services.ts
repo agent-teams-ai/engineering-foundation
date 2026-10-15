@@ -24,6 +24,15 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
   };
   readonly qualityGate: (input: CommandInvocation) => Promise<boolean>;
   readonly qualityCoverage: (input: CapabilityInvocation & { readonly scopeOnly: boolean }) => Promise<CapabilityReport>;
+  /** `baseline init` and `baseline prune`: write the findings baseline of `quality.findings-baseline`. */
+  readonly findingsBaseline: (input: CapabilityInvocation & { readonly action: "init" | "prune" }) => Promise<{
+    readonly action: "init" | "prune";
+    readonly path: string;
+    readonly entries: number;
+    readonly lowered: number;
+    readonly removed: number;
+    readonly remaining: readonly { readonly kind: string; readonly path: string; readonly rule: string }[];
+  }>;
   readonly agentWorkflow: {
     changed(input: CapabilityInvocation & { readonly format: "json" | "text"; readonly baseRef?: string }): Promise<void>;
     instructions(input: { readonly consumerRoot: string; readonly targetPath: string; readonly format: "json" | "text"; readonly signal?: AbortSignal }): Promise<void>;

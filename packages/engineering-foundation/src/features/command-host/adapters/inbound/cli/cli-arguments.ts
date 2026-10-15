@@ -17,6 +17,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "assert-registry": 0,
   "agent-workflow": 2,
   "architecture-decisions-promote-baseline": 0,
+  baseline: 1,
   attach: 1,
   check: 1,
   quality: 1,

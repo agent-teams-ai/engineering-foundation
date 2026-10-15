@@ -68,3 +68,12 @@ export interface QualityCoverageReader {
 export interface QualityToolProvider {
   prepare(consumerRoot: string, configPath: string, sourcePaths: readonly string[], signal?: AbortSignal): Promise<QualityToolSession>;
 }
+
+/** One lint rule of one file: how often it fired and, for a measured rule, the largest measured value. */
+export interface OxlintFinding {
+  readonly path: string;
+  /** `<plugin>/<rule>`, for example `eslint/max-lines`. */
+  readonly rule: string;
+  readonly count: number;
+  readonly max?: number;
+}

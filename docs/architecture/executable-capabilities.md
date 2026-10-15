@@ -75,7 +75,47 @@ a second JSON Schema family support claim.
 - a third-party plugin ecosystem;
 - a replacement for package managers, compilers, Nx, or specialized linters;
 - consumer business concepts, bounded-context catalogs, or authorization policy;
-- affected-only checks as a substitute for complete CI coverage.
+- affected-only checks as a substitute for complete CI coverage;
+- a mandated consumer architecture or source layout (see
+  [Architecture neutrality](#architecture-neutrality)).
+
+## Architecture neutrality
+
+Foundation serves repositories with different architectures. In this section,
+core means every package of this repository except opt-in architecture
+packages.
+
+- Core capabilities are limited to architecture-neutral mechanisms. Current
+  examples are dependency graphs and cycles, boundaries, and size and growth
+  budgets; a future shrink-only baseline for existing violations of any rule
+  belongs to the same class. They read every architecture fact (layers,
+  features, roles, allowed edges) from consumer-owned data.
+- A new or changed core capability never encodes the layout, vocabulary or
+  visibility rules of one architecture, for example what a feature, a
+  sub-feature, a layer or a contract surface is.
+- Known exception: `quality.source-coverage` reads its production topology only
+  from a Feature Module Standard v1 profile (`featureProfilePath`) and rejects
+  other profiles. It is not architecture-neutral until a neutral consumer-owned
+  topology input replaces that profile and the Feature Module Standard mapping
+  moves to the standard's opt-in package. That migration is a breaking change
+  of a released capability. Until then, changes to it may keep that dependency
+  and accept later versions of the same standard, but must not extend it to
+  another standard or capability.
+- Checks for a standard that defines one architecture's layout or vocabulary,
+  such as the organization Feature Module Standard, ship only as a separate
+  opt-in package named after that standard. The normative text stays with the
+  standard's owner. A consumer that does not adopt the standard never loads the
+  package. No core package or capability depends on it; the dependency points
+  only from the standard's package to the neutral core.
+- A standard that defines no architecture of its own, such as the Agent
+  Architecture Standard, is not covered by the previous rule; its dependency
+  direction is the one accepted in
+  [ADR-0036](../decisions/0036-incubate-agent-architecture-standard.md).
+- This repository's own [Feature Module Standard adoption](feature-module-standard.md)
+  governs its own source layout as a consumer of that standard. It is not a
+  requirement for other consumers.
+- A proposal for a shared check states which part is the neutral mechanism and
+  which part belongs to an opt-in architecture package.
 
 ## Extraction admission invariant
 
@@ -272,9 +312,11 @@ behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parse
 adapter after comparison with a TypeScript 6 oracle. Parser-native types never
 cross into application policy or public contracts.
 
-Documentation ownership, DDD feature layout, LikeC4, security classification,
-reliability catalogs, and scaffolding are separate capabilities or remain local
-consumer checks. They cannot be added to either dependency capability.
+Documentation ownership, LikeC4, security classification, reliability catalogs,
+and scaffolding are separate capabilities or remain local consumer checks. DDD
+feature layout belongs to an opt-in architecture package or a local consumer
+check (see [Architecture neutrality](#architecture-neutrality)). None of them
+can be added to either dependency capability.
 
 ### Governance capabilities
 

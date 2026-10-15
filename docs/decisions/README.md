@@ -12,6 +12,7 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0061: Library-First Foundation Boundary Evolution](0061-library-first-foundation-boundary-evolution.md)
 - [ADR-0060: Node 26 Cohort3 Projector Public API Evolution](0060-node26-cohort3-projector-public-api-evolution.md)
 - [ADR-0059: Node 26 Current Policy Coherent Behavior Unit](0059-node26-current-policy-coherent-behavior-unit.md)
 - [ADR-0058: Node 26 Current Policy Public API Evolution](0058-node26-current-policy-public-api-evolution.md)
@@ -44,7 +45,6 @@ editing the accepted decision.
 - [ADR-0032: Qualified Runtime and Source-Owned Cohort Transitions](0032-qualified-runtime-and-source-owned-cohort-transitions.md)
 - [ADR-0033: Freeze the Legacy Foundation Docs CLI](0033-freeze-legacy-foundation-docs-cli.md)
 - [ADR-0034: Fix-Forward Stable Cohort Admission](0034-fix-forward-stable-cohort-admission.md)
-- [ADR-0035: Evidence-Gated Foundation Boundary Evolution](0035-evidence-gated-foundation-boundary-evolution.md)
 - [ADR-0036: Incubate the Agent Architecture Standard](0036-incubate-agent-architecture-standard.md)
 - [ADR-0037: One-Command Qualified Cohort Upgrades](0037-one-command-qualified-cohort-upgrades.md)
 - [ADR-0038: Approve Docs Consumer Upgrade API](0038-approve-docs-consumer-upgrade-api.md)
@@ -73,6 +73,7 @@ editing the accepted decision.
 - [ADR-0027: Stage Docs Protocol Publication After Foundation](0027-staged-docs-protocol-publication.md)
 - [ADR-0028: Fail-Closed Docs Protocol Bootstrap](0028-fail-closed-docs-protocol-bootstrap.md)
 - [ADR-0031: Managed Docs Protocol Consumer Integration](0031-managed-docs-consumer-integration.md)
+- [ADR-0035: Evidence-Gated Foundation Boundary Evolution](0035-evidence-gated-foundation-boundary-evolution.md)
 - [ADR-0040: Closed-Catalog npm Namespace Bootstrap](0040-closed-catalog-npm-namespace-bootstrap.md)
 - [ADR-0041: Non-Default npm Bootstrap Quarantine](0041-non-default-npm-bootstrap-quarantine.md)
 - [ADR-0042: First-Publish Default-Tag Quarantine](0042-first-publish-default-tag-quarantine.md)

@@ -43,8 +43,9 @@ the [open-source Docs Protocol workflow](docs/reference/open-source-docs-protoco
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 
-Capabilities are extracted incrementally from proven repositories. A capability
-moves here only with parity fixtures and a consumer conformance test.
+Shared concerns are built here library-first, for many consumers; every
+capability ships with parity fixtures and a conformance test in each adopting
+consumer (see the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)).
 `workspace.dependency-declarations` is active.
 `architecture.source-dependencies` is active and dogfooded with its accepted
 Oxc adapter. This monorepo uses schema v2 with the explicit `packages` package

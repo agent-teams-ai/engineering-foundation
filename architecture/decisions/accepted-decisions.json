@@ -286,6 +286,11 @@
       "id": "ADR-0060",
       "path": "docs/decisions/0060-node26-cohort3-projector-public-api-evolution.md",
       "immutableDigest": "sha256:c07b8c29ff8362a866d4196e6abed41f10ca2d9b05a148aba17a6f7a3270d49c"
+    },
+    {
+      "id": "ADR-0061",
+      "path": "docs/decisions/0061-library-first-foundation-boundary-evolution.md",
+      "immutableDigest": "sha256:265508fba91df837adc8d78ae9e89aa9dfdb6aa3cbf12b25cf6bef5b1c0b1c89"
     }
   ]
 }

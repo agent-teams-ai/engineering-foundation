@@ -6,7 +6,7 @@ import { runFoundationCli } from "../adapters/inbound/cli/foundation-cli.js";
 import { nodeCommandCancellation } from "../adapters/inbound/cli/node-process-lifecycle.js";
 import { foundationCommandFailureJson } from "../application/command-failure.js";
 import { createNodeCommandHost, readNodeProcessInputs } from "../adapters/inbound/cli/node-command-host.js";
-import { createManagedProcessExecutor } from "../../../process-execution/module.js";
+import { createManagedProcessExecutor, requireAdmittedNodeExecutable } from "../../../process-execution/module.js";
 import { promoteArchitectureDecisionBaseline, readAcceptedArchitectureDecisionEvidence } from "../../../capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "../../../capabilities/public-api-compatibility/module.js";
 import { createNodeAgentWorkflowCommands } from "../../../capabilities/repository-agent-workflow/command-module.js";
@@ -53,7 +53,11 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     readConfig: loadFoundationConfig,
     localMode: new FoundationLocalModeService({ runner: createNodeProcessRunner(environment), now: systemNow }),
     qualityGate: (input) => qualityGate(input, environment),
-    qualityCoverage: dependencies.createQualityCommand(processExecutor, process.execPath, environment),
+    qualityCoverage: dependencies.createQualityCommand(
+      processExecutor,
+      requireAdmittedNodeExecutable(environment, process.execPath),
+      environment
+    ),
     agentWorkflow: createNodeAgentWorkflowCommands({
       ...(environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE === undefined
         ? {}

@@ -16,5 +16,5 @@
     "types": ["node"],
     "verbatimModuleSyntax": true
   },
-  "include": ["scripts/**/*.mts", "scripts/materialize-validated-coverage.mjs", "tests/**/*.mts"]
+  "include": ["scripts/**/*.mts", "tools/**/*.mts", "scripts/materialize-validated-coverage.mjs", "tests/**/*.mts"]
 }

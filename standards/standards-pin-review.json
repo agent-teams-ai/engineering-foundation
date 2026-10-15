@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "engineeringQualityStandard": {
+    "currentRevision": "f9f4c8ad381254fb07cba737d6443542348395c1",
+    "currentSha256": "d55f9f498da213dfa7b14aeac5df5b2fcf37b2cfed4c63dd88b51bde6f56ebe8",
+    "previousRevision": "66d6d3d2c2643edac414ded48c0ee0586774dd07",
+    "delta": "bytes-identical"
+  },
+  "consumerModuleStandard": {
+    "currentRevision": "7d6535dd86533566620040233290869825000d2b",
+    "currentSha256": "859fbca1e8a0c61b6ae873bea0057735a55b80230100e6e73a74de22e123165a",
+    "sameBytesPreviousRevision": "5287ef4ebae3dce19feb9378a9a0ac9267b30878",
+    "retainedFoundationRevision": "81063add7de50ffe2b91cc74bf7271b298624c21",
+    "deltaFromRetained": "reviewed-profile-completion-examples-property-contract-lint-codemod-namespace-tests-composition-root-evidence"
+  },
+  "classification": {
+    "featureModuleStandard": "adopted-v1-through-ADR-0046",
+    "consumerModuleStandard": "not-adopted",
+    "assembly": "not-adopted",
+    "runtimeSeam": "docs/architecture/runtime-profile-static-seam.md"
+  }
+}

@@ -10,9 +10,8 @@ import { FilesystemEffectiveInstructionsReader } from "../adapters/outbound/file
 import { loadAgentWorkflowPolicy, type AgentWorkflowConfigurationDependencies } from "../adapters/inbound/configuration/load-agent-workflow-policy.js";
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { resolveRepositoryRuntimeExecutables } from "../../../process-execution/application/runtime-selection.js";
+import { verifyAdmittedRuntimeExecutable } from "../../../process-execution/node-runtime-verifier.js";
 import { createPackageManagerScriptRunner } from "./select-package-script-runner.js";
-import { lstat } from "node:fs/promises";
-import { isAbsolute } from "node:path";
 
 export function createNodeAgentWorkflowCommands(
   environment: PnpmProcessEnvironment & BunProcessEnvironment,
@@ -43,13 +42,7 @@ export function createNodeAgentWorkflowCommands(
           typeof process.versions["bun"] === "string"
             ? "bun"
             : "node",
-        verifyExecutable: async (path) => {
-          if (!isAbsolute(path)) {
-            return false;
-          }
-          const metadata = await lstat(path).catch(() => null);
-          return metadata?.isFile() === true;
-        }
+        verifyExecutable: verifyAdmittedRuntimeExecutable
       });
       return createPackageManagerScriptRunner({
         bun: new BunPackageScriptRunner(

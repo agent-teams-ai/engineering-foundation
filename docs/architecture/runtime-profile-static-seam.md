@@ -15,7 +15,9 @@ The complete current Consumer Module Standard input is Get Modular
 `859fbca1e8a0c61b6ae873bea0057735a55b80230100e6e73a74de22e123165a`.
 The previously reviewed retained revision
 `5287ef4ebae3dce19feb9378a9a0ac9267b30878` is byte-identical to that input
-and remains historical evidence. The latest retained Foundation record uses modifying commit
+and remains historical evidence. The zero-byte revision delta is reviewed
+historical evidence, not a semantic change to the current Consumer Module
+Standard bytes. The latest retained Foundation record uses modifying commit
 `81063add7de50ffe2b91cc74bf7271b298624c21`, SHA-256
 `49d08b6d1762e94308157fb59b3aa82ac1630c91f529f6efcd4915dfffee7ba7`.
 The reviewed delta completes profiles in `prepare` under ADR-0035, updates the
@@ -28,10 +30,11 @@ authority. Foundation's current organization Engineering Quality Standard pin
 is `f9f4c8ad381254fb07cba737d6443542348395c1`, SHA-256
 `d55f9f498da213dfa7b14aeac5df5b2fcf37b2cfed4c63dd88b51bde6f56ebe8`.
 The prior `66d6d3d2c2643edac414ded48c0ee0586774dd07` pin is byte-identical and
-is retained as historical evidence in the current provenance record. This
-checkpoint updates current guidance provenance without changing standard
-content or accepted ADR bytes. Installing packages or adding a closed
-TypeScript switch does not adopt CMS or change release authority.
+is retained with operator revision `05b30bcc00cdf07cfde9ba60a1136bb9df7f7571`
+as current-byte historical evidence in the current provenance record. This
+checkpoint reconciles current and historical guidance provenance without
+changing standard content or accepted ADR bytes. Installing packages or adding
+a closed TypeScript switch does not adopt CMS or change release authority.
 
 ## Closed seam
 
@@ -52,10 +55,20 @@ policy validation. It has no registry, plugin API, generic service bag,
 independently managed module instance, dynamic dependency graph or lifecycle
 ownership.
 
-The external process-library wiring is a second fixed adapter boundary at
-`packages/engineering-foundation/src/process-execution/node-process-runner.ts`.
-It imports the accepted technical adapter and supplies the existing Host-owned
-`acquire`/`cleanup` custody pair. It is not an independently assembled module,
+The accepted process-delegation boundary is retained at these exact paths:
+
+- `packages/engineering-foundation/src/process-execution/module.ts`;
+- `packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts`;
+- `packages/engineering-foundation/src/process-execution/node-process-runner.ts`;
+- `packages/engineering-foundation/src/process-execution/windows-managed-process.ts`;
+- `packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts`;
+- and `packages/engineering-foundation/src/process-execution/windows-process-host.ts`.
+
+The external process-library wiring at `node-process-runner.ts` imports the
+accepted technical adapter and supplies the existing Host-owned
+`acquire`/`cleanup` custody pair. `node-runtime-verifier.ts` retains the sync
+Host custody check and the async profile runtime check over one actual Node
+observation policy. This delegation is not an independently assembled module,
 does not use lifecycle-kernel and introduces no Assembly node.
 
 Review trigger: add a new independently assembled capability, make the selected

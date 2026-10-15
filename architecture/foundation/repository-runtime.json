@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "defaultProfile": "bun",
+  "profiles": {
+    "bun": {
+      "manager": "bun",
+      "runtime": "bun"
+    },
+    "node": {
+      "manager": "pnpm",
+      "runtime": "node"
+    }
+  },
+  "toolchain": {
+    "bun": {
+      "version": "1.4.3",
+      "linuxX64ArchiveSha256": "3e730528d89775f03f87f05c06787c4df4099d0a37f3f252e7b829cb23816e18"
+    },
+    "node": {
+      "version": "26.11.1"
+    },
+    "pnpm": {
+      "version": "11.20.0"
+    }
+  },
+  "install": {
+    "dependencyScripts": false,
+    "nativeInitialization": ["@ast-grep/cli", "nx"],
+    "disabledDependencyScripts": ["esbuild"]
+  }
+}

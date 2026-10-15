@@ -1,3 +1,4 @@
+import { findCycles, layerDirectionAllowed } from "../../packages/feature-module-standard/dist/index.js";
 import { classify, consumerIdentity, executableSources, problem, within } from "./profile.mjs";
 import { indexSurfaces, surfaceBindings } from "./surfaces.mjs";
 import { invalidAssemblyStatements } from "./assembly.mjs";
@@ -62,45 +63,17 @@ function boundaryFor(path, policy) {
   return matches.length === 1 ? matches[0] : undefined;
 }
 const sameFeature = (a, b) => a.module.id === b.module.id && a.feature?.id === b.feature?.id;
-const layerTargets = {
-  domain: ["domain"], application: ["domain", "application"],
-  contracts: ["contracts"], adapters: ["adapters", "application", "domain", "contracts"],
-  composition: ["domain", "application", "contracts", "adapters", "composition"],
-  testing: ["domain", "application", "contracts", "adapters", "composition", "testing"]
-};
+// Layer direction and cycle search are Feature Module Standard kernel semantics. EF keeps two local strengthenings
+// on top of the standard: contracts never import another feature, and another module's exported API is judged
+// with the inside-one-feature table.
 function allowedDirection(from, to) {
   const role = from.layer.role;
   const target = to.layer?.role;
   if (to.kind === "primitive") {return target === "domain";}
   if (to.kind !== "feature") {return false;}
-  // The sibling-feature restriction does not prohibit a module's integration
-  // adapter from consuming another module's explicitly exported API.
-  if (from.module.id !== to.module.id) {return layerTargets[role]?.includes(target) ?? false;}
-  if (!sameFeature(from, to)) {
-    if (role === "domain") {return target === "domain";}
-    if (role === "application") {return ["domain", "application"].includes(target);}
-    return ["composition", "testing"].includes(role);
-  }
-  return layerTargets[role]?.includes(target) ?? false;
-}
-export function cycles(edges) {
-  const graph = new Map();
-  for (const [from, to] of edges) {
-    if (from === to) {continue;}
-    if (!graph.has(from)) {graph.set(from, new Set());}
-    graph.get(from).add(to);
-  }
-  const active = [], complete = new Set(), found = [];
-  function visit(node) {
-    if (active.includes(node)) { found.push([...active.slice(active.indexOf(node)), node]); return; }
-    if (complete.has(node)) {return;}
-    active.push(node);
-    for (const target of [...(graph.get(node) ?? [])].toSorted()) {visit(target);}
-    active.pop();
-    complete.add(node);
-  }
-  for (const node of [...graph.keys()].toSorted()) {visit(node);}
-  return found;
+  if (from.module.id !== to.module.id) {return layerDirectionAllowed(role, target, "same-feature");}
+  if (!sameFeature(from, to)) {return role !== "contracts" && layerDirectionAllowed(role, target, "other-feature");}
+  return layerDirectionAllowed(role, target, "same-feature");
 }
 const key = (owner) => `${owner?.module.id}/${owner?.feature?.id}/${owner?.layer?.role}/${owner?.kind}`;
 export function validateTopology(profile, policy, problems) {
@@ -126,7 +99,7 @@ export function validateTopology(profile, policy, problems) {
       }
     }
   }
-  for (const cycle of cycles(edges)) {problem(problems, "feature-cycle", `Declared feature graph: ${cycle.join(" -> ")}`);}
+  for (const cycle of findCycles(edges)) {problem(problems, "feature-cycle", `Declared feature graph: ${cycle.join(" -> ")}`);}
 }
 function validateExternal(from, { path, result, reference }, problems, sources) {
       const pureHash = result.kind === "builtin" && result.specifier === "node:crypto" &&
@@ -181,7 +154,7 @@ export function validateObservations(profile, policy, observations, problems, su
     }
     if (from.kind === "feature" && to.kind === "feature" && !sameFeature(from, to)) {edges.push([`${from.module.id}/${from.feature.id}`, `${to.module.id}/${to.feature.id}`]);}
   }
-  for (const cycle of cycles(edges)) {problem(problems, "feature-cycle", `Observed feature graph: ${cycle.join(" -> ")}`);}
+  for (const cycle of findCycles(edges)) {problem(problems, "feature-cycle", `Observed feature graph: ${cycle.join(" -> ")}`);}
   validatePrimitiveConsumers(profile, observations, bindings, problems);
 }
 function validatePrimitiveConsumers(profile, observations, bindings, problems) {

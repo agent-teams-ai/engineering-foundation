@@ -7,6 +7,7 @@ packageRoots:
   - spikes
 governedRoots:
   - packages/ci-input-proof/src
+  - packages/feature-module-standard/src
   - packages/repository-mutation/src
   - packages/repository-mutation/tests
   - packages/document-authoring/src
@@ -4014,6 +4015,97 @@ boundaries:
     allow:
       boundaries:
         - ci-input-proof.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+
+  - id: feature-module-standard.model.domain
+    roots:
+      - packages/feature-module-standard/src/features/feature-model/domain
+    entrypoints:
+      - packages/feature-module-standard/src/features/feature-model/domain/model.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.layout.application
+    roots:
+      - packages/feature-module-standard/src/features/feature-layout/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/feature-layout/application/analyze-feature-tree.ts
+      - packages/feature-module-standard/src/features/feature-layout/application/find-overlapping-roots.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.dependencies.application
+    roots:
+      - packages/feature-module-standard/src/features/feature-dependencies/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/feature-dependencies/application/check-feature-dependencies.ts
+      - packages/feature-module-standard/src/features/feature-dependencies/application/feature-graphs.ts
+      - packages/feature-module-standard/src/features/feature-dependencies/application/layer-direction.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.check.application
+    roots:
+      - packages/feature-module-standard/src/features/module-check/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/module-check/application/check-feature-module.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+        - feature-module-standard.dependencies.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.fixtures.testing
+    roots:
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing
+    entrypoints:
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/conformance-cases.ts
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-tree.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.public
+    roots:
+      - packages/feature-module-standard/src/index.ts
+    entrypoints:
+      - packages/feature-module-standard/src/index.ts
+    packageExports:
+      - .
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+        - feature-module-standard.dependencies.application
+        - feature-module-standard.check.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.fixtures
+    roots:
+      - packages/feature-module-standard/src/fixtures.ts
+    entrypoints:
+      - packages/feature-module-standard/src/fixtures.ts
+    packageExports:
+      - ./fixtures
+    allow:
+      boundaries:
+        - feature-module-standard.fixtures.testing
       packages: []
       builtins: []
       runtimeReferences: []

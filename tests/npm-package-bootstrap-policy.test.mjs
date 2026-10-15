@@ -148,9 +148,12 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
       { id: "docs-protocol-agent-teams", state: "historical" },
       { id: "docs-protocol-mcp", state: "historical" },
       { id: "ci-input-proof", state: "historical" },
+      { id: "feature-module-standard", state: "candidate" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
+  assert.equal(bootstrapPackageById("feature-module-standard").approval, null);
+  assert.throws(() => bootstrapPackageById("feature-module-standard", { approved: true }), /not approved/u);
   const inputProof = bootstrapPackageById("ci-input-proof");
   assert.deepEqual(inputProof.approval, {
     archiveIntegrity: "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",

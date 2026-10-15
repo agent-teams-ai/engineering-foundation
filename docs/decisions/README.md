@@ -6,7 +6,7 @@ editing the accepted decision.
 
 ## Proposed
 
-
+- [ADR-0062: Feature Module Standard Package Admission](0062-feature-module-standard-package-admission.md)
 - [ADR-0056: Bounded Qualified Managed Node 26 Transition](0056-bounded-qualified-managed-node-26-transition.md)
 - [ADR-0052: Bounded Managed V1 Restoration](0052-bounded-managed-v1-restoration.md)
 

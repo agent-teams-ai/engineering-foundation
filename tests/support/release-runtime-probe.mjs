@@ -22,8 +22,8 @@ globalThis.readProbeFile = async (path, options) => {
   const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
   // Model Changesets' staged release only in this child. The source package's
   // unreleased changelog must remain unreleased outside the intercepted read.
-  const stagedNotes = info.name === '@agent-teams/ci-input-proof'
-    ? `# CI Input Proof\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
+  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/feature-module-standard'].includes(info.name)
+    ? `# Staged package\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
   const notes = scenario.startsWith('notes-')
     ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : stagedNotes;
   return notes.replace(/\r?\n/gu, changelogEol === 'crlf' ? '\r\n' : '\n');
@@ -40,6 +40,7 @@ const packages = PUBLISHABLE_PACKAGES.map(entry => ({ ...entry, ...JSON.parse(re
 const versions = new Map(packages.map(info => [info.name, info.version]));
 const expectedPublications = [
   '@agent-teams/ci-input-proof',
+  '@agent-teams/feature-module-standard',
   '@agent-teams/repository-mutation',
   '@agent-teams/document-authoring',
   '@agent-teams/docs-protocol',

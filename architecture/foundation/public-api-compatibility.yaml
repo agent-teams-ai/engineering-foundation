@@ -173,3 +173,17 @@ packages:
     approvedBreakingChanges:
       - fingerprint: sha256:779147090ac75f16946d44f6c865574e0bd35be7a302d1e51c9180b21c68ce01
         decisionId: ADR-0057
+  - packageName: "@agent-teams/feature-module-standard"
+    packageRoot: packages/feature-module-standard
+    manifestPath: packages/feature-module-standard/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/feature-module-standard/dist/index.d.ts
+      - exportPath: "./fixtures"
+        declarationEntryPoint: packages/feature-module-standard/dist/fixtures.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+    tsconfigPath: packages/feature-module-standard/tsconfig.json
+    releasedBaselinePath: architecture/public-api/feature-module-standard.json
+    approvedBreakingChanges: []

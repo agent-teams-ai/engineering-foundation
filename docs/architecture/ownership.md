@@ -62,6 +62,10 @@ authority for its dependency DAG:
 
 - `@agent-teams/ci-input-proof` owns pure CI leaf comparison; consumer Hosts retain
   completeness, classification, source admission and execution/merge authority;
+- `@agent-teams/feature-module-standard` owns the opt-in Feature Module Standard
+  checks (pure kernel and shared conformance fixtures); no other package depends
+  on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
+  records its graph node;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

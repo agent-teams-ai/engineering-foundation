@@ -1,6 +1,7 @@
 schemaVersion: 1
 governedRoots:
   - packages/ci-input-proof/src
+  - packages/feature-module-standard/src
   - packages/docs-protocol-mcp/src
   - packages/document-authoring/src
   - packages/repository-mutation/src

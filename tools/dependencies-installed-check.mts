@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { mkdir, readdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parsePnpmWorkspaceAuthority } from "./runtime-policy.mts";
 
@@ -72,7 +72,17 @@ async function manifestAt(path: string): Promise<Manifest | undefined> {
   }
 }
 
+function belongsToCanonicalRoot(root: string, path: string): boolean {
+  const relativePath = relative(root, path);
+  return relativePath === "" || (
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${sep}`) &&
+    !isAbsolute(relativePath)
+  );
+}
+
 async function resolveInstalled(
+  canonicalRoot: string,
   issuer: string,
   name: string
 ): Promise<string | undefined> {
@@ -80,7 +90,13 @@ async function resolveInstalled(
   while (true) {
     const candidate = join(current, "node_modules", ...name.split("/"));
     if (await manifestAt(candidate) !== undefined) {
-      return await realpath(candidate);
+      const installed = await realpath(candidate);
+      if (!belongsToCanonicalRoot(canonicalRoot, installed)) {
+        throw new Error(
+          `Installed package resolution is outside canonical graph root: ${name} from ${issuer} resolves to ${installed}.`
+        );
+      }
+      return installed;
     }
     const parent = dirname(current);
     if (parent === current) {
@@ -123,6 +139,7 @@ function checkEngine(
 }
 
 async function inspectPeers(
+  canonicalRoot: string,
   issuer: string,
   manifest: Manifest
 ): Promise<readonly PeerAssignment[]> {
@@ -130,7 +147,7 @@ async function inspectPeers(
   for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
     const normalized = validRange(range, `${name} peer from ${issuer}`);
     const optional = manifest.peerDependenciesMeta?.[name]?.optional === true;
-    const installed = await resolveInstalled(issuer, name);
+    const installed = await resolveInstalled(canonicalRoot, issuer, name);
     if (installed === undefined) {
       if (!optional) {
         throw new Error(`Required peer dependency is unresolved: ${name} from ${issuer}.`);
@@ -163,21 +180,22 @@ export async function inspectInstalledDependencies(
   nodeVersion = "26.11.1",
   bunVersion = "1.4.3"
 ): Promise<Inventory> {
-  const rootManifest = await manifestAt(root);
+  const canonicalRoot = await realpath(resolve(root));
+  const rootManifest = await manifestAt(canonicalRoot);
   if (rootManifest === undefined) {
     throw new Error("Installed graph root manifest is missing.");
   }
   const authority = parsePnpmWorkspaceAuthority(
-    await readFile(resolve(root, "pnpm-workspace.yaml"), "utf8")
+    await readFile(resolve(canonicalRoot, "pnpm-workspace.yaml"), "utf8")
   );
   const packageContexts = new Set<string>();
   const packages = new Set<string>();
   const peerAssignments = new Set<string>();
-  const queue: string[] = [...await packageDirectories(root, authority.workspaces)];
-  const workspaceIssuers = new Set(queue.map((path) => resolve(path)));
+  const queue: string[] = [...await packageDirectories(canonicalRoot, authority.workspaces)];
+  const workspaceIssuers = new Set(await Promise.all(queue.map((path) => realpath(path))));
   const seenIssuers = new Set<string>();
   while (queue.length > 0) {
-    const issuer = await realpath(queue.shift() ?? root);
+    const issuer = await realpath(queue.shift() ?? canonicalRoot);
     if (seenIssuers.has(issuer)) {
       continue;
     }
@@ -186,21 +204,22 @@ export async function inspectInstalledDependencies(
     if (manifest === undefined) {
       throw new Error(`Installed package manifest is missing at ${issuer}.`);
     }
-    const issuerCoordinate = coordinate(manifest, relative(root, issuer) || "root");
+    const issuerCoordinate = coordinate(manifest, relative(canonicalRoot, issuer) || "root");
     checkEngine(manifest, issuerCoordinate, nodeVersion, bunVersion);
-    const peers = await inspectPeers(issuer, manifest);
+    const peers = await inspectPeers(canonicalRoot, issuer, manifest);
     for (const peer of peers) {
       peerAssignments.add(`${issuerCoordinate} -> ${peer.name}@${peer.range}=${peer.resolution}`);
       if (peer.resolution !== "missing-optional") {
-        const peerManifest = await manifestAt(await resolveInstalled(issuer, peer.name) ?? issuer);
+        const peerPath = await resolveInstalled(canonicalRoot, issuer, peer.name);
+        const peerManifest = await manifestAt(peerPath ?? issuer);
         if (peerManifest !== undefined) {
-          queue.push(await resolveInstalled(issuer, peer.name) ?? issuer);
+          queue.push(peerPath ?? issuer);
         }
       }
     }
     for (const name of dependencyNames(manifest, workspaceIssuers.has(issuer))) {
       const optional = Object.hasOwn(manifest.optionalDependencies ?? {}, name);
-      const installed = await resolveInstalled(issuer, name);
+      const installed = await resolveInstalled(canonicalRoot, issuer, name);
       if (installed === undefined) {
         if (!optional) {
           throw new Error(`Required dependency is unresolved: ${name} from ${issuer}.`);
@@ -213,7 +232,7 @@ export async function inspectInstalledDependencies(
       }
       const targetCoordinate = coordinate(installedManifest, name);
       checkEngine(installedManifest, targetCoordinate, nodeVersion, bunVersion);
-      const targetPeers = await inspectPeers(installed, installedManifest);
+      const targetPeers = await inspectPeers(canonicalRoot, installed, installedManifest);
       const peerProjection = targetPeers.map((peer) =>
         `${peer.name}@${peer.range}=${peer.resolution}`
       ).join(",");
@@ -222,7 +241,7 @@ export async function inspectInstalledDependencies(
         `${issuerCoordinate} -> ${name}@${targetCoordinate} [${peerProjection}]`
       );
       queue.push(installed);
-      await enqueuePeerTargets(targetPeers, installed, queue);
+      await enqueuePeerTargets(canonicalRoot, targetPeers, installed, queue);
     }
   }
   return {
@@ -234,6 +253,7 @@ export async function inspectInstalledDependencies(
 }
 
 async function enqueuePeerTargets(
+  canonicalRoot: string,
   peers: readonly PeerAssignment[],
   issuer: string,
   queue: string[]
@@ -242,7 +262,7 @@ async function enqueuePeerTargets(
     if (peer.resolution === "missing-optional") {
       continue;
     }
-    const peerPath = await resolveInstalled(issuer, peer.name);
+    const peerPath = await resolveInstalled(canonicalRoot, issuer, peer.name);
     if (peerPath !== undefined) {
       queue.push(peerPath);
     }

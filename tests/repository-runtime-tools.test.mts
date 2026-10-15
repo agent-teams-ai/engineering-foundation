@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFile, cp, link, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { copyFile, cp, link, mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -401,7 +401,199 @@ async function writeManifest(path: string, manifest: unknown): Promise<void> {
   await writeFile(join(path, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
+async function assertInstalledGuardRejects(root: string, expected: RegExp): Promise<void> {
+  try {
+    const inventory = await inspectInstalledDependencies(root);
+    assert.fail(`Installed guard falsely passed: ${JSON.stringify(inventory)}`);
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, expected);
+  }
+}
+
+for (const optional of [false, true]) {
+  test(`installed guard rejects ancestor borrowing for ${optional ? "optional" : "required"} peers`, async () => {
+    await mkdir(profilesTemporaryParent(), { recursive: true });
+    const fixture = await mkdtemp(
+      join(profilesTemporaryParent(), `TEST-installed-ancestor-${optional ? "optional" : "required"}-`)
+    );
+    const sourceRoot = join(fixture, "source");
+    const profile = join(sourceRoot, ".worker-tmp/profiles/node-profile");
+    const provider = join(sourceRoot, "node_modules/ambient-peer");
+    const consumer = join(profile, "node_modules/consumer");
+    try {
+      await writeManifest(provider, {
+        name: "ambient-peer",
+        version: "1.0.0",
+        main: "index.js",
+        engines: { node: ">=1.0.0" }
+      });
+      await writeFile(join(provider, "index.js"), "module.exports = 'ambient';\n", "utf8");
+      await writeManifest(consumer, {
+        name: "consumer",
+        version: "1.0.0",
+        main: "index.js",
+        peerDependencies: { "ambient-peer": "^1.0.0" },
+        ...(optional ? { peerDependenciesMeta: { "ambient-peer": { optional: true } } } : {})
+      });
+      await writeFile(join(consumer, "index.js"), "module.exports = 'consumer';\n", "utf8");
+      await writeManifest(profile, {
+        name: "nested-profile",
+        version: "1.0.0",
+        dependencies: { consumer: "1.0.0" }
+      });
+      await writeFile(
+        join(profile, "pnpm-workspace.yaml"),
+        "packages:\n  - \"packages/*\"\n",
+        "utf8"
+      );
+
+      const runtimeResolution = createRequire(join(consumer, "index.js")).resolve("ambient-peer");
+      assert.equal(await realpath(runtimeResolution), join(await realpath(provider), "index.js"));
+      await assertInstalledGuardRejects(
+        profile,
+        /outside canonical graph root|resolves outside canonical graph root/u
+      );
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  });
+}
+
+test("installed guard rejects ancestor optional peer without root entry", async () => {
+  await mkdir(profilesTemporaryParent(), { recursive: true });
+  const fixture = await mkdtemp(
+    join(profilesTemporaryParent(), "TEST-installed-ancestor-export-only-")
+  );
+  const sourceRoot = join(fixture, "source");
+  const profile = join(sourceRoot, ".worker-tmp/profiles/node-profile");
+  const provider = join(sourceRoot, "node_modules/ambient-peer");
+  const consumer = join(profile, "node_modules/consumer");
+  try {
+    await writeManifest(provider, {
+      name: "ambient-peer",
+      version: "1.0.0",
+      exports: { "./feature": "./feature.js" },
+      engines: { node: ">=1.0.0" }
+    });
+    await writeFile(join(provider, "feature.js"), "module.exports = \"ambient\";\n", "utf8");
+    await writeManifest(consumer, {
+      name: "consumer",
+      version: "1.0.0",
+      main: "index.js",
+      peerDependencies: { "ambient-peer": "^1.0.0" },
+      peerDependenciesMeta: { "ambient-peer": { optional: true } }
+    });
+    await writeFile(join(consumer, "index.js"), "module.exports = \"consumer\";\n", "utf8");
+    await writeManifest(profile, {
+      name: "nested-profile",
+      version: "1.0.0",
+      dependencies: { consumer: "1.0.0" }
+    });
+    await writeFile(
+      join(profile, "pnpm-workspace.yaml"),
+      "packages:\n  - \"packages/*\"\n",
+      "utf8"
+    );
+
+    const featureResolution = createRequire(join(consumer, "index.js")).resolve(
+      "ambient-peer/feature"
+    );
+    assert.equal(await realpath(featureResolution), join(await realpath(provider), "feature.js"));
+    let rootEntryError: unknown;
+    try {
+      createRequire(join(consumer, "index.js")).resolve("ambient-peer");
+      assert.fail("The export-only package unexpectedly exposed a root entry");
+    } catch (error) {
+      rootEntryError = error;
+    }
+    assert.ok(rootEntryError instanceof Error);
+    assert.equal((rootEntryError as NodeJS.ErrnoException).code, "ERR_PACKAGE_PATH_NOT_EXPORTED");
+    await assertInstalledGuardRejects(profile, /outside canonical graph root/u);
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+test("installed guard rejects an in-root link to a foreign physical package", async () => {
+  await mkdir(profilesTemporaryParent(), { recursive: true });
+  const fixture = await mkdtemp(join(profilesTemporaryParent(), "TEST-installed-foreign-link-"));
+  const root = join(fixture, "profile");
+  const foreign = join(fixture, "foreign/linked-peer");
+  try {
+    await writeManifest(foreign, {
+      name: "linked-peer",
+      version: "1.0.0",
+      main: "index.js"
+    });
+    await writeFile(join(foreign, "index.js"), "module.exports = 'foreign';\n", "utf8");
+    await writeManifest(root, {
+      name: "foreign-link-root",
+      version: "1.0.0",
+      dependencies: { "linked-peer": "1.0.0" }
+    });
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\n", "utf8");
+    await mkdir(join(root, "node_modules"), { recursive: true });
+    await symlink(foreign, join(root, "node_modules/linked-peer"));
+
+    const runtimeResolution = createRequire(join(root, "index.js")).resolve("linked-peer");
+    assert.equal(await realpath(runtimeResolution), join(await realpath(foreign), "index.js"));
+    await assertInstalledGuardRejects(root, /outside canonical graph root/u);
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+test("installed guard accepts deterministic in-root workspace peer links", async () => {
+  await mkdir(profilesTemporaryParent(), { recursive: true });
+  const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-installed-workspace-link-"));
+  try {
+    const workspacePeer = join(root, "packages/workspace-peer");
+    await writeManifest(root, {
+      name: "workspace-link-root",
+      version: "1.0.0",
+      dependencies: { host: "1.0.0", "workspace-peer": "1.0.0" }
+    });
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\n", "utf8");
+    await writeManifest(join(root, "node_modules/host"), {
+      name: "host",
+      version: "1.0.0",
+      peerDependencies: { "workspace-peer": "^1.0.0" }
+    });
+    await writeManifest(workspacePeer, {
+      name: "workspace-peer",
+      version: "1.0.0",
+      main: "index.js"
+    });
+    await writeFile(join(workspacePeer, "index.js"), "module.exports = 'workspace';\n", "utf8");
+    await mkdir(join(root, "node_modules"), { recursive: true });
+    await symlink(workspacePeer, join(root, "node_modules/workspace-peer"));
+
+    const runtimeResolution = createRequire(join(root, "node_modules/host", "index.js")).resolve(
+      "workspace-peer"
+    );
+    assert.equal(await realpath(runtimeResolution), join(await realpath(workspacePeer), "index.js"));
+    const first = await inspectInstalledDependencies(root);
+    const second = await inspectInstalledDependencies(root);
+    assert.deepEqual(second, first);
+    assert.deepEqual(first, {
+      outcome: "passed",
+      packageContexts: [
+        "workspace-link-root@1.0.0 -> host@host@1.0.0 [workspace-peer@>=1.0.0 <2.0.0-0=workspace-peer@1.0.0]",
+        "workspace-link-root@1.0.0 -> workspace-peer@workspace-peer@1.0.0 []"
+      ],
+      packages: ["host@1.0.0", "workspace-peer@1.0.0"],
+      peerAssignments: [
+        "host@1.0.0 -> workspace-peer@>=1.0.0 <2.0.0-0=workspace-peer@1.0.0"
+      ]
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("installed guard validates optional peer ranges and follows peer-only engine context", async () => {
+  await mkdir(profilesTemporaryParent(), { recursive: true });
   const root = await mkdtemp(join(profilesTemporaryParent(), "installed-guard-"));
   try {
     await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\n", "utf8");
@@ -439,6 +631,25 @@ test("installed guard validates optional peer ranges and follows peer-only engin
     await assert.rejects(
       inspectInstalledDependencies(root),
       /Installed engine mismatch.*peer@2\.0\.0/u
+    );
+    await writeManifest(join(root, "node_modules/host/node_modules/peer"), {
+      name: "peer",
+      version: "2.0.0",
+      engines: { node: ">=1.0.0" }
+    });
+    const first = await inspectInstalledDependencies(root);
+    const second = await inspectInstalledDependencies(root);
+    assert.deepEqual(second, first);
+    assert.ok(first.peerAssignments.includes(
+      "optional-host@1.0.0 -> absent@>=1.0.0 <2.0.0-0=missing-optional"
+    ));
+    await writeManifest(join(root, "node_modules/optional-host/node_modules/absent"), {
+      name: "absent",
+      version: "2.0.0"
+    });
+    await assert.rejects(
+      inspectInstalledDependencies(root),
+      /Incompatible installed peer.*absent@2\.0\.0/u
     );
   } finally {
     await rm(root, { recursive: true, force: true });

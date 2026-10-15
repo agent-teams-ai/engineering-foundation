@@ -4074,6 +4074,7 @@ boundaries:
     entrypoints:
       - packages/feature-module-standard/src/features/conformance-fixtures/testing/conformance-cases.ts
       - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-tree.ts
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-sources.ts
     allow:
       boundaries:
         - feature-module-standard.model.domain

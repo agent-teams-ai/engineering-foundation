@@ -27,7 +27,9 @@ export function findCycles(edges: Iterable<Edge>): string[][] {
 export function cyclicComponents(edges: readonly Edge[]): string[][] {
   const graph = new Map<string, string[]>();
   for (const [from, to] of edges) {
-    graph.set(from, [...(graph.get(from) ?? []), to]);
+    const targets = graph.get(from) ?? [];
+    targets.push(to);
+    graph.set(from, targets);
     if (!graph.has(to)) { graph.set(to, []); }
   }
   const order = new Map<string, number>();

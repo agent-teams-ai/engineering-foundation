@@ -35,26 +35,21 @@ and consumers load a dependency-free kernel.
    neutral core, as
    [Architecture neutrality](../architecture/executable-capabilities.md#architecture-neutrality)
    requires.
-2. Amend the package dependency DAG of
-   [ADR-0043](0043-new-only-portable-documentation-package-boundary.md), which
-   stays accepted and unchanged and remains the sole authority for that graph,
-   with one node and no other edge changed:
+2. Package graph. Like `@agent-teams/ci-input-proof`, the package is an
+   independent source package outside the documentation Cohort of
+   [ADR-0043](0043-new-only-portable-documentation-package-boundary.md). ADR-0043
+   stays accepted and unchanged; this record is the authority for the package's
+   own node. The accepted target is:
+   - `.` and `./fixtures` have no package dependency of any kind;
+   - the runner `./node` has exactly one edge, a peer dependency on the public
+     subpaths of `@agent-teams/engineering-foundation`, optional for users of `.`
+     alone;
+   - the neutral core gains no edge.
 
-   ```mermaid
-   flowchart LR
-       FMS["@agent-teams/feature-module-standard"]
-       FMS -. "./node only, peer dependency, lands with the runner" .-> Foundation["@agent-teams/engineering-foundation"]
-   ```
-
-   - `.` and `./fixtures` have no monorepo package dependency and no runtime
-     dependency at all. This delivery ships only these two subpaths, so today the
-     node has no edge.
-   - The runner `./node` follows once the public source graph of Engineering
-     Foundation is merged. It adds exactly one edge, a peer dependency on the
-     public subpaths of `@agent-teams/engineering-foundation`, optional for users
-     of `.` alone. The runner's delivery updates this record's graph from target
-     to implemented.
-   - The core `@agent-teams/engineering-foundation` gains no edge.
+   The edge is accepted now as the target. Whether it is implemented is recorded
+   in [ownership](../architecture/ownership.md) and the
+   [release notes](../release.md), never by editing this record. Until the runner
+   lands, the package has no edge at all.
 3. Admission under [ADR-0061](0061-library-first-foundation-boundary-evolution.md)
    point 1:
    - Why reuse is expected: Agent Runtime and the Get Modular test project adopt
@@ -64,38 +59,46 @@ and consumers load a dependency-free kernel.
      mapping, curated surfaces, republications, declared use edges, import
      records) and the output is diagnostics with stable codes plus per-feature
      metrics. The kernel reads no files, runs no parser and widens no policy.
+     It exports the identity and digest of the exact standard text it implements.
      A change of an API or of a diagnostic code is a minor release of the 0.x
      package with a changelog entry and a migration note.
-   - Same-delivery validation: shared conformance fixtures
-     (`./fixtures`) run as the kernel's own tests and as the conformance test of
-     Engineering Foundation's checker. The disposable project is the example tree
-     of the standard (the fixtures' base module). The real consumer is the
-     Engineering Foundation checker, moved onto the kernel before the first
-     publication. Agent Runtime and the Get Modular test project adopt later and
-     run the same fixtures.
-4. Adoption sequence. Engineering Foundation's checker
-   (`scripts/feature-modules/profile.mjs`, `dependencies.mjs`) takes ownership
+   - Same-delivery validation: shared conformance fixtures (`./fixtures`) run as
+     the kernel's own tests. The disposable project is the example tree of the
+     standard, exported both as a module description and as materialized source
+     files. The real consumer is the Engineering Foundation checker, see point 4.
+4. Adoption sequence and its current state. Engineering Foundation's checker
+   (`scripts/feature-modules/profile.mjs`, `dependencies.mjs`) already takes
    path containment, ownership-root overlap, v1 layer direction and cycle search
-   from the kernel and deletes its own copies. Repository-specific rules stay
-   in Engineering Foundation: module roles, factory purity, surface indexing,
-   assembly facts and the repository profile. Engineering Foundation's own
-   profile stays on v1 and declares no sub-feature. Consumers delete the code of
-   every rule they hand to the kernel; an old and a new implementation do not
-   stay side by side.
-5. Two local strengthenings of Engineering Foundation's profile stay outside the
-   kernel and are applied on top of it: a contracts layer never imports another
-   feature, and another module's exported API is judged with the
-   inside-one-feature table.
+   from the kernel and has deleted its own copies. Two local strengthenings stay
+   on top of the kernel: a contracts layer never imports another feature, and
+   another module's exported API is judged with the inside-one-feature table.
+   Not done yet: calling `checkFeatureModule` for deep-import and ownership
+   rules. Engineering Foundation declares its features by layer roots per file or
+   directory (several feature roots, role files such as `api.ts`), while the
+   kernel derives ownership from a `features` directory and role directory names.
+   Closing that gap needs a kernel input for profile-declared layer roots, a
+   dual-run of the old and the new rules with a normalized comparison of rule,
+   subject and location, and then deletion of the duplicated deep-import and
+   ownership code, with the checker running `./fixtures` as its conformance test.
+   This is a condition of the first publication: ADR-0061 requires the real
+   consumer to be moved onto the contract before the package is released.
+   Agent Runtime and the Get Modular test project adopt later and run the same
+   fixtures; an old and a new implementation never stay side by side.
+5. Engineering Foundation's own profile stays on v1 and declares no sub-feature.
 6. Admission is for source use. The first publication of the new npm name is a
-   separate owner step. This record authorizes no publication.
+   separate owner step and this record authorizes none. The package is a bootstrap
+   candidate in `architecture/foundation/npm-package-bootstrap.json` with no
+   approval. The owner's bootstrap approval is needed right after the merge that
+   adds the package, and before any `release:publish` of Engineering Foundation,
+   because the closed publishable catalog now includes it.
 
 ## Consequences
 
 - One implementation of the nested-feature rules, with one set of fixtures that
   every adopting checker runs.
 - v1.1 can change while it settles without an Engineering Foundation major.
-- Engineering Foundation's own checker proves the kernel on a real profile
-  before anyone else depends on it.
 - What remains for the runner: feature root discovery and import reading
   through the public source graph, growth warnings through the budgets, the peer
-  dependency and the graph update of point 2.
+  dependency and the implemented status of the edge in point 2.
+- What remains for the real consumer: the kernel input for profile-declared
+  layer roots and the move of deep-import and ownership checks of point 4.

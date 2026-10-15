@@ -30,7 +30,7 @@ export function checkFeatureModule(input: FeatureModuleInput): FeatureModuleRepo
   const analysis = analyzeFeatureTree(input);
   const problems = [...analysis.diagnostics, ...checkFeatureDependencies(input, analysis.tree)];
   for (const node of input.depthWarning === undefined ? [] : analysis.tree.nodes.filter(({ depth }) => depth > (input.depthWarning ?? 0))) {
-    problems.push(diagnostic('depth-warning', `${node.id}: depth ${node.depth} exceeds ${input.depthWarning}.`, { path: node.root }, 'warning'));
+    problems.push(diagnostic('depth-warning', `${node.id}: depth ${node.depth} exceeds ${input.depthWarning}.`, { path: node.root }));
   }
   const diagnostics = problems.toSorted(compare);
   return {

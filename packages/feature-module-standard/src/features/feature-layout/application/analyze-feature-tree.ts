@@ -93,7 +93,7 @@ function checkEntries(
     const mapped = directory
       ? (nested && name === FEATURE_CONTAINER) || Object.hasOwn(input.roleDirectories, name)
       : (input.mappedFiles ?? []).includes(name);
-    if (!mapped) {
+    if (nested && !mapped) {
       problems.push(diagnostic('entry-unmapped',
         `${node.root}/${name}: not a role directory, the sub-feature container or a mapped file.`, { path: `${node.root}/${name}` }));
     }
@@ -130,7 +130,14 @@ function checkTests(
 ): Map<string, number> {
   const testsOwned = new Map<string, number>();
   const testRoot = input.testFeaturesRoot;
-  const inRoot = (input.testFiles ?? []).filter((file) => isPortablePath(file) && testRoot !== undefined && file.startsWith(`${testRoot}/`));
+  const portable = (input.testFiles ?? []).filter((file) => isPortablePath(file));
+  const inRoot = portable.filter((file) => testRoot !== undefined && file.startsWith(`${testRoot}/`));
+  // A test colocated with its source belongs to the deepest feature whose source root contains it.
+  const inRootSet = new Set(inRoot);
+  for (const file of portable.filter((candidate) => !inRootSet.has(candidate))) {
+    const owner = deepest(file, [...byId.values()], (node) => node.root);
+    if (owner !== undefined) { testsOwned.set(owner.id, (testsOwned.get(owner.id) ?? 0) + 1); }
+  }
   for (const path of inRoot) {
     const { owner, rest, unowned } = testOwner(path, testRoot ?? '', byId, nested);
     if (unowned !== undefined) { problems.push(diagnostic('test-unowned', `${path}: ${unowned}.`, { path })); }
@@ -165,7 +172,9 @@ function checkDirectories(
 export function analyzeFeatureTree(input: FeatureModuleInput): FeatureTreeAnalysis {
   const problems: Diagnostic[] = [];
   const files = input.files.filter((path) => isPortablePath(path));
-  for (const path of [...input.files, ...(input.emptyDirectories ?? []), ...(input.testFiles ?? [])]) {
+  const surfaces = Object.values(input.surfaces ?? {}).flat();
+  const declared = [input.featuresRoot, ...(input.testFeaturesRoot === undefined ? [] : [input.testFeaturesRoot]), ...(input.featureRoots ?? [])];
+  for (const path of [...declared, ...surfaces, ...input.files, ...(input.emptyDirectories ?? []), ...(input.testFiles ?? [])]) {
     if (!isPortablePath(path)) { problems.push(diagnostic('invalid-path', `${path}: not a repository-relative path with / separators.`, { path })); }
   }
   const nodes = buildNodes(input.featuresRoot, input.featureRoots ?? deriveRoots(input.featuresRoot, files), problems);

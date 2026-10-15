@@ -2051,7 +2051,7 @@
             }
           ],
           "testRoots": [
-            "tests/features/feature-module-standard"
+            "tests/features/feature-module-standard/module-check.test.mts"
           ]
         },
         {
@@ -2066,7 +2066,7 @@
             }
           ],
           "testRoots": [
-            "tests/features/feature-module-standard"
+            "tests/features/feature-module-standard/layout.test.mts"
           ]
         },
         {
@@ -2081,7 +2081,7 @@
             }
           ],
           "testRoots": [
-            "tests/features/feature-module-standard"
+            "tests/features/feature-module-standard/dependencies.test.mts"
           ]
         },
         {
@@ -2096,7 +2096,7 @@
             }
           ],
           "testRoots": [
-            "tests/features/feature-module-standard"
+            "tests/features/feature-module-standard/module-check.test.mts"
           ]
         },
         {
@@ -2111,12 +2111,15 @@
             }
           ],
           "testRoots": [
-            "tests/features/feature-module-standard"
+            "tests/features/feature-module-standard/conformance.test.mts"
           ]
         }
       ],
       "testRoots": [
-        "tests/features/feature-module-standard"
+        "tests/features/feature-module-standard/conformance.test.mts",
+        "tests/features/feature-module-standard/dependencies.test.mts",
+        "tests/features/feature-module-standard/layout.test.mts",
+        "tests/features/feature-module-standard/module-check.test.mts"
       ]
     }
   ],

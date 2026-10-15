@@ -58,9 +58,20 @@ export type FeatureModuleInput = Readonly<{
   fileGroups?: Readonly<Record<string, (path: string) => boolean>>;
 }>;
 
+/** Every diagnostic code the kernel can report. A SHOULD of the standard is a warning, a MUST an error. */
+export const ERROR_CODES = [
+  'assembly-misplaced', 'assembly-missing', 'composition-contract-layer', 'composition-contract-misplaced', 'container-empty',
+  'container-file', 'deep-import', 'entry-unmapped', 'feature-cycle', 'feature-duplicate', 'feature-root-placement',
+  'feature-undeclared', 'invalid-path', 'layer-direction', 'load-cycle', 'not-visible', 'republication-invalid',
+  'republication-mismatch', 'republication-not-sub-feature', 'republication-skips-level', 'republication-undeclared',
+  'surface-unowned', 'use-edge-invalid', 'use-undeclared',
+] as const;
+export const WARNING_CODES = ['depth-warning', 'test-misplaced', 'test-unowned'] as const;
+export type DiagnosticCode = (typeof ERROR_CODES)[number] | (typeof WARNING_CODES)[number];
+
 export type Severity = 'error' | 'warning';
 export type Diagnostic = Readonly<{
-  code: string;
+  code: DiagnosticCode;
   severity: Severity;
   message: string;
   path?: string;
@@ -96,14 +107,28 @@ export const FEATURE_CONTAINER = 'features';
 
 export const isWithin = (path: string, root: string): boolean => path === root || path.startsWith(`${root}/`);
 
-const hasForbiddenCharacter = (path: string): boolean =>
-  [...path].some((character) => character === '\\' || character <= '\u001f' || character === '\u007f');
+const hasForbiddenCharacter = (path: string): boolean => {
+  for (let index = 0; index < path.length; index += 1) {
+    const code = path.charCodeAt(index);
+    if (code === 0x5c || code <= 0x1f || code === 0x7f) { return true; }
+  }
+  return false;
+};
 
 export const isPortablePath = (path: string): boolean =>
   path !== '' && !path.startsWith('/') && !hasForbiddenCharacter(path) &&
   path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
 
+const warnings: ReadonlySet<string> = new Set(WARNING_CODES);
+
+/** The severity follows the code: only the codes of a SHOULD are warnings. */
 export const diagnostic = (
-  code: string, message: string, location: Readonly<{ path?: string; line?: number }> = {},
-  severity: Severity = 'error',
-): Diagnostic => ({ code, severity, message, ...location });
+  code: DiagnosticCode, message: string, location: Readonly<{ path?: string; line?: number }> = {},
+): Diagnostic => ({ code, severity: warnings.has(code) ? 'warning' : 'error', message, ...location });
+
+/** The standard this kernel implements, as the profile of an adopting repository pins it. */
+export const STANDARD = {
+  id: 'agent-teams.feature-module-standard',
+  version: 'v1.1',
+  digest: 'sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c',
+} as const;

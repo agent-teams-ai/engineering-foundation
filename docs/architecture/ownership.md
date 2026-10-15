@@ -65,7 +65,9 @@ authority for its dependency DAG:
 - `@agent-teams/feature-module-standard` owns the opt-in Feature Module Standard
   checks (pure kernel and shared conformance fixtures); no other package depends
   on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
-  records its graph node;
+  owns its place outside the ADR-0043 graph. Implementation status: the pure
+  kernel and fixtures exist and have no package dependency; the `./node` runner and
+  its one accepted peer edge to the neutral core are not implemented yet;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

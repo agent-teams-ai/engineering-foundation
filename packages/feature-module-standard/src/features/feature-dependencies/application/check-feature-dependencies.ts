@@ -70,35 +70,40 @@ function sameFeatureEdge(ctx: Context, view: View): void {
   }
 }
 
-// A re-export of the same surface from a feature to a descendant is a republication, not a use edge.
+const republishable = (kinds: ReadonlySet<SurfaceKind> | undefined): readonly ('public' | 'composition-contract')[] =>
+  (['public', 'composition-contract'] as const).filter((kind) => kinds?.has(kind) === true);
+
+// A re-export from a public or composition-contract surface to such a surface is a republication, never a use edge.
 function republication(ctx: Context, view: View): boolean {
   const { record, from, to, kinds } = view;
-  const own = ctx.surfaces.get(record.from);
-  const surface = (['public', 'composition-contract'] as const).find((kind) => own?.has(kind) === true && kinds.has(kind));
-  if (from === undefined || record.reexport !== true || !isAncestor(from, to)) { return false; }
-  if (surface === undefined) {
-    const mixed = [...(own ?? [])].some((kind) => kind === 'public' || kind === 'composition-contract') &&
-      (kinds.has('public') || kinds.has('composition-contract'));
-    if (mixed) {
-      ctx.problems.push(diagnostic('republication-mismatch',
-        `${arrow(view)}: a republication re-exports the same surface of its parent, not another one.`, at(view)));
-    }
-    return mixed;
-  }
+  const own = republishable(ctx.surfaces.get(record.from));
+  const target = republishable(kinds);
+  if (from === undefined || record.reexport !== true || own.length === 0 || target.length === 0) { return false; }
+  const surface = own.find((kind) => target.includes(kind));
   if (to.parent !== from.id) {
-    ctx.problems.push(diagnostic('republication-skips-level',
-      `${arrow(view)}: ${from.id} republishes only from its direct sub-features, not from ${to.id}.`, at(view)));
+    ctx.problems.push(isAncestor(from, to)
+      ? diagnostic('republication-skips-level', `${arrow(view)}: ${from.id} republishes only from its direct sub-features, not from ${to.id}.`, at(view))
+      : diagnostic('republication-not-sub-feature', `${arrow(view)}: ${from.id} republishes only from its direct sub-features, and ${to.id} is not one.`, at(view)));
+  } else if (surface === undefined) {
+    ctx.problems.push(diagnostic('republication-mismatch', `${arrow(view)}: a republication re-exports the same surface of its parent, not another one.`, at(view)));
   } else if (!ctx.republished.has(pairKey(from.id, to.id, surface))) {
-    ctx.problems.push(diagnostic('republication-undeclared',
-      `${arrow(view)}: ${from.id} republishes the ${surface} of ${to.id} without a declaration.`, at(view)));
+    ctx.problems.push(diagnostic('republication-undeclared', `${arrow(view)}: ${from.id} republishes the ${surface} of ${to.id} without a declaration.`, at(view)));
   }
   return true;
 }
 
 function assemblyEdge(ctx: Context, view: View): void {
   const { from, to } = view;
-  if (to.parent === undefined) { return; }
-  if (from?.id === to.parent && view.fromRole === 'composition') { ctx.wired.add(to.id); return; }
+  if (to.parent === undefined) {
+    if (view.fromRole !== 'composition' && from !== undefined) {
+      ctx.problems.push(diagnostic('deep-import', `${arrow(view)}: only composition code wires the composition surface of ${to.id}.`, at(view)));
+    }
+    return;
+  }
+  if (from?.id === to.parent && view.fromRole === 'composition') {
+    if (view.record.mode === 'runtime') { ctx.wired.add(to.id); }
+    return;
+  }
   ctx.problems.push(diagnostic('assembly-misplaced', `${arrow(view)}: only the feature composition of ${to.parent} wires ${to.id}.`, at(view)));
 }
 
@@ -166,6 +171,8 @@ function checkDeclarations(ctx: Context): void {
     const [source, target] = [tree.node(from), tree.node(to)];
     if (source === undefined || target === undefined) {
       problems.push(diagnostic('use-edge-invalid', `${from} -> ${to}: a declared use edge names an unknown feature.`));
+    } else if (!visible(source, target)) {
+      problems.push(diagnostic('not-visible', `${from} -> ${to}: ${to} is not visible to ${from}.`));
     } else if (directionOf(source, target) !== 'upward') { declared.push([from, to]); }
   }
   for (const cycle of findCycles(declared)) {
@@ -210,7 +217,7 @@ export function checkFeatureDependencies(input: FeatureModuleInput, tree: Featur
     const [from, to] = [tree.ownerOf(record.from), tree.ownerOf(record.to)];
     if (to === undefined) { continue; }
     if (testFiles.has(record.from)) {
-      const owner = tree.testOwnerOf(record.from);
+      const owner = tree.testOwnerOf(record.from) ?? from;
       if (owner !== undefined) { testEdge(ctx, record, owner, to); }
       continue;
     }

@@ -347,7 +347,7 @@ Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. The integration
 owner must add required `full-ci` only after observing a successful actual PR
 request on the final implementation; each new head must then supply that check. Independent
-hosted-review evidence belongs in pull-request comments; it is not converted
+review evidence belongs in the pull request (description or comment); it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 
 The current GitHub Free organization cannot configure the required-workflow
@@ -361,8 +361,12 @@ candidate. Independently protected workflow authority remains an unavailable
 capability under the current plan and requires separate owner action; this
 delivery must not be described as establishing it.
 
-Independent hosted technical review remains mandatory for the current head,
-alongside complete native evidence and all required checks. Immediately before
+Independent technical review remains mandatory for the current head,
+alongside complete native evidence and all required checks. The merging agent
+chooses its form (a separate local reviewer agent, a hosted review job, or
+another independent review), and a completed review of the current head is
+sufficient. A review that did not run as a hosted job has no machine-verified
+receipt; its record in the pull request is the evidence. Immediately before
 an owner squash, revalidate the live PR head/base, intended target and reviewed
 change, native qualification and independent review. Use the canonical
 organization
@@ -628,6 +632,10 @@ no product module boundary, capability contract or CMS adoption change.
 
 
 ### Trusted owner merge operation
+
+This is the optional stricter path for a change whose review ran as a hosted
+job. Without `ci:merge`, the owner merge uses `merge-owner-pr.mjs` directly with
+`--expected-head` after the required checks and the recorded independent review.
 
 Invoke the reviewed, pinned operator tool from outside the candidate checkout,
 with a trusted Node binary and without `NODE_OPTIONS` or `NODE_PATH` injection:

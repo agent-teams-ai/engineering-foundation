@@ -166,6 +166,7 @@
         "tests/repository-mutation-qualification-api.test.mjs",
         "tests/npm-package-bootstrap-workflow.test.mjs",
         "tests/release-workflow.test.mjs",
+        "tests/repository-release-runtime.test.mts",
         "tests/ci-input-proof-rc.test.mts",
         "tests/scaffolding-journal-store.test.mjs",
         "packages/engineering-foundation/tests/workspace-dependency-declarations.test.mjs",

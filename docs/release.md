@@ -22,7 +22,11 @@ The sole exception is the reviewed one-time namespace bootstrap in ADR-0044;
 it cannot publish a supported release.
 
 Changesets maintains versions and release notes. The release workflow publishes
-only from protected `main`.
+only from protected `main`. It keeps Changesets versioning in the tracked Bun
+source worktree and uses the clean Node/pnpm projection for package, registry,
+and publication qualification. `tools/release-profile.mts` is the closed private
+route between those two roles; it never changes the tracked root
+`packageManager`.
 
 Release agents derive every exact current version from the reviewed manifests,
 Changesets state, and registry evidence; this runbook intentionally carries no
@@ -142,6 +146,12 @@ order with a fresh token for each package. Disable the bootstrap repository
 variable after the approved batch and confirm cleanup before merging the release
 PR.
 
+The bootstrap workflow installs and runs package operations exclusively in the
+clean Node/pnpm projection. Its package commands inherit explicit
+`GIT_DIR`/`GIT_WORK_TREE` bindings to the checked-out source repository, so the
+projection cannot acquire Git authority by ascent and the recorded package tree
+continues to identify the original tracked source tree.
+
 Ordinary `published-compatibility:e2e`, including CI and `pnpm verify`, checks
 bootstrap baselines, pinned old Foundation transaction barriers, published
 document authoring, and scaffolding compatibility. It explicitly defers current
@@ -213,6 +223,11 @@ at that immutable revision, explicitly requests generation 2, and projects the
 single canary-eligible record. The workflow has read-only repository permission,
 receives no secrets or OIDC authority, and never publishes, deprecates,
 unpublishes, or moves a dist-tag.
+
+The private builder profile is installed and built separately with admitted Node
+26.11.1. Only the read-only public canary executes under the cohort-selected
+Node 24.21.0 or 26.11.1; a historical cohort is never checked through Bun, and
+the builder Node is never substituted for the selected public runtime.
 
 The canary installs exactly Foundation, Docs Protocol, and the managed adapter as
 three roots in fresh npm and pnpm projects; Repository Mutation and Document
@@ -426,9 +441,9 @@ Release run regenerates the pull request. Protected `main` also requires the
 pull request branch to remain current, closing the final merge race after
 attestation.
 
-The attestation job provisions the repository's pinned Node and pnpm versions,
-then installs the frozen lockfile with dependency lifecycle scripts disabled
-before running its local evidence validators. A dependency bootstrap failure is
+The attestation job provisions the repository's pinned Bun and Node versions,
+then installs the actual tracked Bun source worktree with dependency lifecycle
+scripts disabled before running its local evidence validators. A dependency bootstrap failure is
 therefore an attestation failure and retains the same fail-closed status path.
 After Changesets creates or updates the release pull request, the release job
 polls for a bounded period until the owner PR, remote release branch, PR number,
@@ -440,8 +455,13 @@ Publication packages accepted implementations; it does not activate a capability
 inside any consumer. Consumers retain exact pins and adopt a capability in a
 separate reviewed change after its consumer-owned gates pass.
 
-`pnpm release:version` runs Changesets, rebuilds declarations, and invokes
-`public-api-promote-release`. Promotion requires a newer sufficient package
+`node tools/release-profile.mts version` runs `release:version` through the
+Bun-installed tracked source worktree. It then refreshes `bun.lock` and the
+authoritative `pnpm-lock.yaml` through the isolated Node projection before the
+Changesets action commits the resulting Git tree. The route preserves the root
+`packageManager`, source Git authority, and complete version/changelog output.
+`release:version` rebuilds declarations and invokes `public-api-promote-release`.
+Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
 baselines are mutable only in `changeset-release/main`; first-time baseline
 creation is allowed during capability adoption only for a declared package at
@@ -450,6 +470,12 @@ the real declarations and uses create-no-replace publication; missing baselines
 for any later version fail closed. Multi-package promotion is validation-first
 and replay-safe after a partial process failure: an unchanged already-promoted
 package is skipped, while same-version API drift fails closed.
+
+The Changesets publish route prepares a fresh Node/pnpm projection from the
+current source tree and executes the existing ordered `release:publish` gate
+there with explicit source Git authority. The pinned Changesets action revision,
+`setupGitUser: false`, owner identity, npm 11.19.0, Node 26.11.1, OIDC,
+environment, ordered publication, artifact, and consumer gates remain unchanged.
 
 The organization and Foundation disable GitHub Actions pull-request creation
 and approval. Changesets may push the generated branch and update an existing

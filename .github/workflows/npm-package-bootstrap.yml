@@ -56,17 +56,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ inputs.expected_commit }}
+      - name: Bind explicit source Git authority
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git_dir="$(git rev-parse --absolute-git-dir)"
+          printf 'GIT_DIR=%s\nGIT_WORK_TREE=%s\nGIT_CEILING_DIRECTORIES=%s\nAGENT_TEAMS_FOUNDATION_SOURCE_ROOT=%s\n' \
+            "${git_dir}" "${GITHUB_WORKSPACE}" "$(dirname "${GITHUB_WORKSPACE}")" "${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
       # `pnpm check` reaches pack-test: managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.21.0" }
       - name: Retain Node 24 for managed generation2 consumer gates
         run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: pnpm
           registry-url: https://registry.npmjs.org
       - name: Validate reviewed bootstrap authority
         id: authority
@@ -82,8 +89,13 @@ jobs:
           node scripts/npm-package-bootstrap-cli.mjs token-window \
             "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           node scripts/npm-package-bootstrap-cli.mjs prepare "${PACKAGE_ID}" "${GITHUB_OUTPUT}"
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install the clean Node/pnpm package-operation projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ inputs.expected_commit }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
+        run: node tools/dev.mts --profile node install
       - run: pnpm check
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Build and bind the exact tarball
         id: pack
         env:
@@ -109,12 +121,14 @@ jobs:
             "${evidence_root}/packed-package.json" "${evidence_root}/tar-entries.txt" \
             "${archive_path}" "${GITHUB_OUTPUT}" "${package_tree}" \
             "${evidence_root}/tar-verbose.txt"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Verify registry preconditions
         id: registry
         env:
           ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: node scripts/npm-package-bootstrap-cli.mjs registry-preflight "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${GITHUB_OUTPUT}"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove an existing artifact before reuse
         if: ${{ inputs.operation == 'bootstrap' && steps.registry.outputs.action == 'reuse' }}
         env:
@@ -126,7 +140,8 @@ jobs:
           evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
           node scripts/npm-package-bootstrap-cli.mjs reuse-proof \
             "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
-            "${evidence_root}/reuse-audit.json"
+              "${evidence_root}/reuse-audit.json"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove an exact uncertain artifact before quarantine
         if: ${{ inputs.operation == 'quarantine' }}
         env:
@@ -137,7 +152,8 @@ jobs:
           evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
           node scripts/npm-package-bootstrap-cli.mjs quarantine-proof \
             "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
-            "${evidence_root}/quarantine-before.json"
+              "${evidence_root}/quarantine-before.json"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Publish, resume, or quarantine the exact bootstrap artifact
         env:
           ARCHIVE_PATH: ${{ steps.pack.outputs.archivePath }}
@@ -250,6 +266,7 @@ jobs:
                 npm deprecate "${PACKAGE_TAG}" "${DEPRECATION_MESSAGE}"
             fi
           fi
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove registry postconditions and provenance
         if: ${{ inputs.operation == 'bootstrap' }}
         env:
@@ -262,6 +279,7 @@ jobs:
           node scripts/npm-package-bootstrap-cli.mjs postconditions \
             "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
             "${evidence_root}/audit.json"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove quarantine postconditions
         if: ${{ inputs.operation == 'quarantine' }}
         env:
@@ -273,11 +291,12 @@ jobs:
           node scripts/npm-package-bootstrap-cli.mjs quarantine-postconditions \
             "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" \
             "${evidence_root}/quarantine-after.json"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Retain bootstrap evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: npm-package-bootstrap-evidence-${{ inputs.package_id }}-${{ github.sha }}
+          name: npm-package-bootstrap-evidence-${{ inputs.package_id }}-${{ inputs.expected_commit }}
           path: ${{ runner.temp }}/npm-package-bootstrap
           if-no-files-found: error
           retention-days: 30
@@ -318,7 +337,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: npm-package-github-reconciliation-${{ inputs.package_id }}-${{ github.sha }}
+          name: npm-package-github-reconciliation-${{ inputs.package_id }}-${{ inputs.expected_commit }}
           path: ${{ runner.temp }}/npm-package-github-reconciliation
           if-no-files-found: error
           retention-days: 30

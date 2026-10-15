@@ -1916,14 +1916,14 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(releaseJob["timeout-minutes"], 60);
   const attestationIndex = attestationSteps.indexOf(attestation);
-  const attestationPnpmSetupIndex = attestationSteps.findIndex(
-    ({ uses }) => uses?.startsWith("pnpm/setup@"),
+  const attestationBunSetupIndex = attestationSteps.findIndex(
+    ({ uses }) => uses?.startsWith("oven-sh/setup-bun@"),
   );
   const attestationNodeSetupIndex = attestationSteps.findIndex(
     ({ uses }) => uses?.startsWith("actions/setup-node@"),
   );
   const attestationInstallIndex = attestationSteps.findIndex(
-    ({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts",
+    ({ run }) => run === "node tools/dev.mts install",
   );
 
   assert.equal(releaseJob.outputs.pullRequestNumber, "${{ steps.release-pr.outputs.number }}");
@@ -1944,7 +1944,18 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     releaseBinding.run.indexOf("check-release-pr-files.mjs") <
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
-  assert.deepEqual([releaseJob.permissions["id-token"], releaseJob.permissions.contents, releaseJob.steps.find(({ run }) => run?.startsWith("pnpm install"))?.run, releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases], ["write", "write", "pnpm install --frozen-lockfile --ignore-scripts", false]);
+  assert.deepEqual([
+    releaseJob.permissions["id-token"],
+    releaseJob.permissions.contents,
+    releaseJob.steps.find(({ name }) => name === "Install the actual Bun source worktree")?.run,
+    releaseJob.steps.find(({ name }) => name === "Install the clean Node/pnpm qualification projection")?.run,
+    releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases
+  ], ["write", "write", "node tools/dev.mts install", "node tools/dev.mts --profile node install", false]);
+  const changesets = releaseJob.steps.find((step) => step.id === "changesets");
+  assert.equal(changesets.uses, "changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d");
+  assert.equal(changesets.with.setupGitUser, false);
+  assert.equal(changesets.with.version, "node tools/release-profile.mts version");
+  assert.equal(changesets.with.publish, "node tools/release-profile.mts publish");
   const releaseNodeIndex = releaseJob.steps.findIndex(({ uses }) => uses?.startsWith("actions/setup-node@"));
   const releaseNpmIndex = releaseJob.steps.findIndex(({ run }) => run === "npm install --global npm@11.19.0 --ignore-scripts");
   const releaseNpmGuardIndex = releaseJob.steps.findIndex(({ run }) => /assertNpmVersion\(\)/u.test(run ?? ""));
@@ -1952,17 +1963,17 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     "release must provision the qualified npm 11.19.0 after Node setup and before its version guard");
   assert.ok(releaseNpmGuardIndex < releaseJob.steps.findIndex((step) => step.id === "changesets"));
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
-  assert.ok(attestationPnpmSetupIndex > 0);
-  assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);
+  assert.ok(attestationBunSetupIndex > 0);
+  assert.ok(attestationNodeSetupIndex > attestationBunSetupIndex);
   assert.ok(attestationInstallIndex > attestationNodeSetupIndex);
   assert.ok(attestationIndex > attestationInstallIndex);
   assert.equal(
-    attestationSteps[attestationPnpmSetupIndex].uses,
-    "pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b",
+    attestationSteps[attestationBunSetupIndex].uses,
+    "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
   );
   assert.deepEqual(
-    attestationSteps[attestationPnpmSetupIndex].with,
-    { install: false },
+    attestationSteps[attestationBunSetupIndex].with,
+    { "bun-version": "1.4.3" },
   );
   assert.equal(
     attestationSteps[attestationNodeSetupIndex].uses,

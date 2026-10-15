@@ -38,6 +38,25 @@ async function workflow(name: string): Promise<Workflow> {
   return parseYaml(await readFile(join(repositoryRoot, ".github/workflows", name), "utf8")) as Workflow;
 }
 
+test("job TMPDIR uses valid runtime placement with finite named paths", async () => {
+  const ci = await workflow("ci.yml");
+  for (const id of [
+    "node26-compatibility", "linux-package", "linux-registry", "linux-published",
+    "windows-package", "windows-registry", "windows-published", "macos-package"
+  ]) {
+    assert.equal(ci.jobs[id]?.env?.["TMPDIR"], undefined, id);
+    const temporarySetup = ci.jobs[id]?.steps.find((step) =>
+      typeof step["run"] === "string" &&
+      (step["run"].includes("tmpdir=\"${RUNNER_TEMP}/") || step["run"].includes("$tmpdir = Join-Path $env:RUNNER_TEMP"))
+    );
+    assert.ok(temporarySetup, id);
+    assert.ok(temporarySetup["shell"] === "bash" || temporarySetup["shell"] === "pwsh", id);
+  }
+  const source = await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8");
+  assert.doesNotMatch(source, /^\s+TMPDIR: \$\{\{ runner\.temp \}\}\s*$/mu);
+  assert.match(source, /TMPDIR: \$\{\{ runner\.temp \}\}\/producer-4/u);
+});
+
 function runs(step: Record<string, unknown>, command: string): boolean {
   return step["run"] === command;
 }

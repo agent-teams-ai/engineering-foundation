@@ -305,7 +305,8 @@ export function projectPackageManager(manifestSource: string, packageManager: st
 
 export async function assertPnpmProfileQualificationRoot(
   root: string,
-  sourceRoot: string
+  sourceRoot: string,
+  requireVirtualStore: boolean = true
 ): Promise<ProfileEvidence> {
   const evidenceSource = await readFile(resolve(root, ".agent-teams-runtime-profile.json"), "utf8");
   const parsed = JSON.parse(evidenceSource) as Partial<ProfileEvidence>;
@@ -352,10 +353,12 @@ export async function assertPnpmProfileQualificationRoot(
   if (await sourceTreeDigest(sourceRoot) !== evidence.sourceDigest) {
     throw new Error("Node profile source digest evidence is stale.");
   }
-  const virtualStoreLock = resolve(root, "node_modules/.pnpm/lock.yaml");
-  const virtualStoreMetadata = await stat(virtualStoreLock).catch(() => null);
-  if (virtualStoreMetadata?.isFile() !== true) {
-    throw new Error("Node profile qualification requires the actual pnpm virtual store.");
+  if (requireVirtualStore) {
+    const virtualStoreLock = resolve(root, "node_modules/.pnpm/lock.yaml");
+    const virtualStoreMetadata = await stat(virtualStoreLock).catch(() => null);
+    if (virtualStoreMetadata?.isFile() !== true) {
+      throw new Error("Node profile qualification requires the actual pnpm virtual store.");
+    }
   }
   return evidence;
 }

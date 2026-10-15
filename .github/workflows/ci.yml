@@ -78,7 +78,6 @@ jobs:
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
-      TMPDIR: ${{ runner.temp }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -94,6 +93,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/node26-compatibility"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
@@ -315,10 +321,16 @@ jobs:
     timeout-minutes: 20
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/linux-package"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
@@ -365,10 +377,16 @@ jobs:
     timeout-minutes: 30
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/linux-registry"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
@@ -433,10 +451,16 @@ jobs:
     timeout-minutes: 12
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/linux-published"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
@@ -703,7 +727,6 @@ jobs:
     timeout-minutes: 50
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
@@ -725,10 +748,9 @@ jobs:
       - name: Use runner temporary directory
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+          $tmpdir = Join-Path $env:RUNNER_TEMP "windows-package"
+          New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$tmpdir", "TMP=$tmpdir", "TMPDIR=$tmpdir")
       - name: Install the clean Node/pnpm package projection
         env:
           AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
@@ -751,7 +773,6 @@ jobs:
     timeout-minutes: 50
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
@@ -767,10 +788,9 @@ jobs:
       - name: Use runner temporary directory
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+          $tmpdir = Join-Path $env:RUNNER_TEMP "windows-registry"
+          New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$tmpdir", "TMP=$tmpdir", "TMPDIR=$tmpdir")
       - name: Install the clean Node/pnpm registry projection
         env:
           AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
@@ -791,7 +811,6 @@ jobs:
     timeout-minutes: 30
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -803,10 +822,9 @@ jobs:
       - name: Use runner temporary directory
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
+          $tmpdir = Join-Path $env:RUNNER_TEMP "windows-published"
+          New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$tmpdir", "TMP=$tmpdir", "TMPDIR=$tmpdir")
       - name: Install the clean Node/pnpm published-consumer projection
         env:
           AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
@@ -889,7 +907,6 @@ jobs:
     timeout-minutes: 45
     env:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
-      TMPDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
@@ -899,6 +916,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/macos-package-${QUALIFICATION_PROFILE}"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
+        env:
+          QUALIFICATION_PROFILE: ${{ matrix.profile }}
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
         id: setup-pnpm
         with: { version: "11.20.0", install: false }

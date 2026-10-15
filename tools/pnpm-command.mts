@@ -32,6 +32,15 @@ function matchesArguments(args: readonly string[]): boolean {
   ) {
     return true;
   }
+  if (
+    args.length === 4 &&
+    args[0] === "install" &&
+    args[1] === "--lockfile-only" &&
+    args[2] === "--ignore-scripts" &&
+    args[3] === "--engine-strict"
+  ) {
+    return true;
+  }
   return allowedArguments.some((allowed) =>
     allowed.length === args.length &&
     allowed.every((value, index) => value === args[index])

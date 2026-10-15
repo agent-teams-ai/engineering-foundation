@@ -10,7 +10,9 @@ import { readProcessFailureFacts } from "../packages/engineering-foundation/dist
 import { NODE_EXECUTABLE_ENVIRONMENT_VARIABLE, requireAdmittedNodeExecutable } from "../packages/engineering-foundation/dist/process-execution/node-runtime-verifier.js";
 
 const explicitNode = process.env["PROCESS_RUNTIME_DELEGATION_NODE"];
-if (typeof explicitNode !== "string") throw new Error("Explicit Node is required for the Bun transport proof.");
+if (typeof explicitNode !== "string") {
+  throw new Error("Explicit Node is required for the Bun transport proof.");
+}
 assert.ok("bun" in process.versions, "this fixture must execute under Bun");
 assert.equal(requireAdmittedNodeExecutable({ AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: explicitNode }, process.execPath), explicitNode);
 const explicitNodePath: string = explicitNode;
@@ -86,7 +88,7 @@ async function waitForFixtureMarker(marker: string, fixtureProcess: Promise<Mana
     while (Date.now() < deadline) {
       try {
         await readFile(marker, "utf8");
-        return undefined;
+        return;
       } catch (error) {
         failure = error;
       }
@@ -95,7 +97,9 @@ async function waitForFixtureMarker(marker: string, fixtureProcess: Promise<Mana
     return new Error(`Fixture marker readiness timed out: ${marker}`, { cause: failure });
   })();
   const failure = await Promise.race([readiness, earlySettlement]);
-  if (failure !== undefined) throw failure;
+  if (failure !== undefined) {
+    throw failure;
+  }
 }
 
 async function observeOwnedPid(pid: number): Promise<Observation> {
@@ -105,7 +109,9 @@ async function observeOwnedPid(pid: number): Promise<Observation> {
     const closingName = stat.lastIndexOf(")");
     processState = closingName < 0 ? "unknown" : stat.slice(closingName + 2, closingName + 3);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
   }
   let signalProbe: Observation["signalProbe"];
   try {
@@ -144,24 +150,34 @@ function probeOwnedGroup(parentPid: number): boolean {
     process.kill(-parentPid, 0);
     return true;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ESRCH") return true;
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") {
+      return true;
+    }
     return false;
   }
 }
 
 async function cleanupOwnedGroup(parentPid: number | undefined): Promise<void> {
-  if (parentPid === undefined || !probeOwnedGroup(parentPid)) return;
+  if (parentPid === undefined || !probeOwnedGroup(parentPid)) {
+    return;
+  }
   fallbackCleanupUsed = true;
   for (const signal of ["SIGTERM", "SIGKILL"] as const) {
     try {
       process.kill(-parentPid, signal);
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ESRCH") return;
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") {
+        return;
+      }
       throw error;
     }
     const deadline = Date.now() + 1_000;
-    while (Date.now() < deadline && probeOwnedGroup(parentPid)) await delay(25);
-    if (!probeOwnedGroup(parentPid)) return;
+    while (Date.now() < deadline && probeOwnedGroup(parentPid)) {
+      await delay(25);
+    }
+    if (!probeOwnedGroup(parentPid)) {
+      return;
+    }
   }
 }
 
@@ -198,7 +214,9 @@ async function proveDescendantCleanup(mode: "normal" | "cancel"): Promise<Eviden
     managedRequest(retainedFixtureSource(markers.identity, markers.ready, undefined, mode === "normal" ? markers.release : undefined), mode === "cancel" ? controller.signal : undefined),
     runtimeContext
   );
-  void run.catch(() => undefined);
+  void run.catch(() => {
+    return;
+  });
   let identity: Identity | undefined;
   let outcome: Outcome | undefined;
   try {
@@ -222,7 +240,9 @@ async function proveDescendantCleanup(mode: "normal" | "cancel"): Promise<Eviden
     } else {
       controller.abort(new Error("cancel-while-retained-descendant-is-live"));
       await assert.rejects(run, (error: unknown) => {
-        if (!(error instanceof ProcessCancellationError)) return false;
+        if (!(error instanceof ProcessCancellationError)) {
+          return false;
+        }
         assert.deepEqual({ ...readProcessFailureFacts(error) }, { reason: "cancelled" });
         outcome = { kind: "cancelled", className: error.name, reason: "cancelled" };
         return true;
@@ -236,12 +256,23 @@ async function proveDescendantCleanup(mode: "normal" | "cancel"): Promise<Eviden
     assert.ok(outcome);
     return { identity, before, after, groupBefore, groupAfter, outcome };
   } finally {
-    if (mode === "normal") await writeFile(markers.release, "release").catch(() => undefined);
-    else if (!controller.signal.aborted) controller.abort(new Error("cancel-during-fixture-cleanup"));
+    if (mode === "normal") {
+      await writeFile(markers.release, "release").catch(() => {
+        return;
+      });
+    } else if (!controller.signal.aborted) {
+      controller.abort(new Error("cancel-during-fixture-cleanup"));
+    }
     const settlement = await settleWithin(run, cleanupSettlementMs);
-    if (identity === undefined) identity = await readOwnedIdentity(markers.identity).catch(() => undefined);
+    if (identity === undefined) {
+      identity = await readOwnedIdentity(markers.identity).catch((): Identity | undefined => {
+        return;
+      });
+    }
     if (identity !== undefined && (!settlement.settled || probeOwnedGroup(identity.parent))) {
-      await cleanupOwnedGroup(identity.parent).catch(() => undefined);
+      await cleanupOwnedGroup(identity.parent).catch(() => {
+        return;
+      });
     }
     await Promise.all(Object.values(markers).map(marker => rm(marker, { force: true })));
   }
@@ -256,10 +287,12 @@ async function proveFailedReadinessCleanup(): Promise<FailedReadinessEvidence> {
   };
   const controller = new AbortController();
   const run = executeManagedProcess(
-    managedRequest(retainedFixtureSource(markers.identity, markers.childReady, undefined), controller.signal),
+    managedRequest(retainedFixtureSource(markers.identity, markers.childReady), controller.signal),
     runtimeContext
   );
-  void run.catch(() => undefined);
+  void run.catch(() => {
+    return;
+  });
   let identity: Identity | undefined;
   let markerFailure = "";
   let outcome: FailedReadinessEvidence["outcome"] | undefined;
@@ -281,7 +314,9 @@ async function proveFailedReadinessCleanup(): Promise<FailedReadinessEvidence> {
     assert.equal(atMarkerFailure[0]?.terminal, false, "failed readiness must preserve the live managed parent");
     assert.equal(atMarkerFailure[1]?.terminal, false, "failed readiness must preserve the live retained descendant");
     await assert.rejects(run, (error: unknown) => {
-      if (!(error instanceof ProcessTimeoutError)) return false;
+      if (!(error instanceof ProcessTimeoutError)) {
+        return false;
+      }
       assert.deepEqual({ ...readProcessFailureFacts(error) }, { reason: "timeout", timeoutMs: managedLifetimeMs });
       outcome = { kind: "timeout", className: error.name, timeoutMs: error.timeoutMs };
       return true;
@@ -305,11 +340,19 @@ async function proveFailedReadinessCleanup(): Promise<FailedReadinessEvidence> {
       qualifiesTransportSuccess: false
     };
   } finally {
-    if (!controller.signal.aborted) controller.abort(new Error("cancel-during-failed-readiness-cleanup"));
+    if (!controller.signal.aborted) {
+      controller.abort(new Error("cancel-during-failed-readiness-cleanup"));
+    }
     const settlement = await settleWithin(run, cleanupSettlementMs);
-    if (identity === undefined) identity = await readOwnedIdentity(markers.identity).catch(() => undefined);
+    if (identity === undefined) {
+      identity = await readOwnedIdentity(markers.identity).catch((): Identity | undefined => {
+        return;
+      });
+    }
     if (identity !== undefined && (!settlement.settled || probeOwnedGroup(identity.parent))) {
-      await cleanupOwnedGroup(identity.parent).catch(() => undefined);
+      await cleanupOwnedGroup(identity.parent).catch(() => {
+        return;
+      });
     }
     await Promise.all(Object.values(markers).map(marker => rm(marker, { force: true })));
   }

@@ -95,9 +95,15 @@ function createLaunchAbortBridge(
   if (source === undefined) {
     return Object.freeze({
       signal: controller.signal,
-      fail: () => undefined,
-      succeed: () => undefined,
-      dispose: () => undefined
+      fail: () => {
+        return;
+      },
+      succeed: () => {
+        return;
+      },
+      dispose: () => {
+        return;
+      }
     });
   }
   let state: "pending" | "failed" | "succeeded" = "pending";

@@ -460,7 +460,7 @@ release attester fails closed on ambiguous
 selection, a rerun attempt, a terminal approval-blocked run, changed provenance,
 an unexpected PR, forbidden diff, missing result, timeout, head change, or failed
 conclusion.
-Independent hosted review is recorded in pull-request comments and is not
+Independent review is recorded in the pull request and is not
 self-attested into a repository status. The obsolete `ReviewGate` workflow and
 required context were retired when repository governance decoupled hosted review
 from ReviewRouter OAuth. The stable required contexts remain `CodeQL`, `analyze`,

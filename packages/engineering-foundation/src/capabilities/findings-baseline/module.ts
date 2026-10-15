@@ -24,7 +24,7 @@ type Environment = Readonly<Record<string, string | undefined>>;
 
 interface FindingsBaselineModuleInput {
   readonly assertSchema: FindingsBaselineConfigurationDependencies["assertSchema"];
-  /** Environment of the pinned Oxlint process; the capability inside `check` uses the process environment. */
+  /** Environment of the pinned Oxlint process; the process environment when absent. */
   readonly environment?: Environment;
 }
 
@@ -90,19 +90,23 @@ export function createFindingsBaselineCapability(input: FindingsBaselineModuleIn
   });
 }
 
-/** The `baseline init` and `baseline prune` commands. */
-export function createFindingsBaselineCommand(input: FindingsBaselineModuleInput) {
+/** The `baseline check`, `baseline init` and `baseline prune` commands. */
+export function createFindingsBaselineCommands(input: FindingsBaselineModuleInput) {
   const dependencies = dependenciesFor(input);
-  return async (command: CapabilityInvocation & { readonly action: "init" | "prune" }): Promise<FindingsBaselineWriteResult> => {
-    const policy = await loadCapabilityConfig(configuration(input), command.consumerRoot, command.configPath, command.signal);
-    return writeFindingsBaseline(
-      { consumerRoot: command.consumerRoot, policy, action: command.action, ...(command.signal === undefined ? {} : { signal: command.signal }) },
-      dependencies
-    );
+  const capability = createFindingsBaselineCapability(input);
+  return {
+    check: (command: CapabilityInvocation) => capability.run(command),
+    async write(command: CapabilityInvocation & { readonly action: "init" | "prune" }): Promise<FindingsBaselineWriteResult> {
+      const policy = await loadCapabilityConfig(configuration(input), command.consumerRoot, command.configPath, command.signal);
+      return writeFindingsBaseline(
+        { consumerRoot: command.consumerRoot, policy, action: command.action, ...(command.signal === undefined ? {} : { signal: command.signal }) },
+        dependencies
+      );
+    }
   };
 }
 
 /** Selects the schema assertion once; the command host supplies the environment per invocation. */
-export function createFindingsBaselineCommandFactory(assertSchema: FindingsBaselineConfigurationDependencies["assertSchema"]) {
-  return (environment: Environment) => createFindingsBaselineCommand({ assertSchema, environment });
+export function createFindingsBaselineCommandsFactory(assertSchema: FindingsBaselineConfigurationDependencies["assertSchema"]) {
+  return (environment: Environment) => createFindingsBaselineCommands({ assertSchema, environment });
 }

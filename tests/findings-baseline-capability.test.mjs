@@ -25,19 +25,17 @@ async function fixture(t) {
   await put("pnpm-workspace.yaml", "packages: []\n");
   await put("lint.json", { rules: { "max-lines": ["error", { max: 3 }], "typescript/method-signature-style": "error" } });
   await put("findings.yaml", { schemaVersion: 1, baselinePath, oxlint: { configPath: "lint.json", roots: ["src"], measuredRules: ["eslint/max-lines"] } });
-  await put("foundation.config.yaml", { schemaVersion: 2, project: { id: "findings-baseline-test" },
-    capabilities: { "quality.findings-baseline": { configPath: "findings.yaml" } } });
   await put("src/big.ts", lines(6));
   await put("src/shape.ts", methodStyle);
   await put("src/small.ts", lines(2));
   const run = async (...args) => {
     try {
-      const { stdout } = await promisify(execFile)(process.execPath, [cli, ...args, "--consumer", root, "--format", "json"], { cwd: root });
+      const { stdout } = await promisify(execFile)(process.execPath, [cli, ...args, "--config", "findings.yaml", "--consumer", root, "--format", "json"], { cwd: root });
       return { code: 0, output: JSON.parse(stdout) };
     } catch (error) { return { code: error.code, output: JSON.parse(error.stdout) }; }
   };
   const diagnostics = async () => {
-    const { code, output } = await run("check", "quality.findings-baseline");
+    const { code, output } = await run("baseline", "check");
     return { code, outcome: output.outcome, rules: output.capabilities[0].diagnostics.map(({ ruleId, location }) => `${ruleId.split(".").pop()} ${location.path}`).toSorted() };
   };
   return { root, put, run, diagnostics, baseline: () => readFile(join(root, baselinePath), "utf8") };
@@ -88,4 +86,11 @@ test("a hand-edited baseline that is not canonical is rejected", async (t) => {
   assert.equal((await run("baseline", "init")).code, 0);
   await put(baselinePath, '{"findingsBaseline":1}\n{"path":"src/big.ts","rule":"oxlint/eslint/max-lines","count":1,"max":600,"expires":"2027-01-01"}\n');
   assert.equal((await diagnostics()).outcome, "invalid-input");
+});
+
+test("baseline requires --config and its rules are explained", async () => {
+  const run = (...args) => promisify(execFile)(process.execPath, [cli, ...args]).then((r) => ({ code: 0, ...r }), (e) => ({ code: e.code, stdout: e.stdout, stderr: e.stderr }));
+  assert.equal((await run("baseline", "check")).code, 2);
+  assert.match((await run("baseline", "check")).stderr, /--config/u);
+  assert.match((await run("explain", "quality.findings-baseline.stale-entry")).stdout, /baseline prune/u);
 });

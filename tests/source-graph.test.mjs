@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { observeSourceGraph, stronglyConnectedComponents } from "../packages/engineering-foundation/dist/source-graph.js";
 
@@ -43,4 +44,12 @@ test("a file that does not parse is reported and contributes no edges", async (t
   const graph = await observeSourceGraph({ consumerRoot, roots: ["src"] });
   assert.deepEqual(graph.parseFailures, ["src/bad.ts"]);
   assert.deepEqual(graph.edges, []);
+});
+
+test("the Foundation source tree is a real consumer: it parses completely and has no runtime import cycle", async () => {
+  const consumerRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const graph = await observeSourceGraph({ consumerRoot, roots: ["packages/engineering-foundation/src"] });
+  assert.deepEqual(graph.parseFailures, []);
+  assert.ok(graph.files.length > 300 && graph.edges.length > 1000);
+  assert.deepEqual(stronglyConnectedComponents(graph.edges.filter(({ mode }) => mode === "runtime")), []);
 });

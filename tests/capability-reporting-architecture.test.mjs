@@ -75,6 +75,7 @@ test("selected modules retain construction order and registry projection identit
     ["capabilities/repository-security-baseline/module", "REPOSITORY_SECURITY_RULES_BY_ID"],
     ["capabilities/source-dependencies/module", "SOURCE_DEPENDENCY_RULES_BY_ID"],
     ["capabilities/suppression-governance/module", "SUPPRESSION_GOVERNANCE_RULES_BY_ID"],
+    ["capabilities/findings-baseline/module", "FINDINGS_BASELINE_RULES_BY_ID"],
     ["capabilities/workspace-dependency-declarations/module", "RULES_BY_ID"]
   ];
   assert.equal(CAPABILITY_MODULES.length, selections.length);
@@ -85,7 +86,7 @@ test("selected modules retain construction order and registry projection identit
     "governance.architecture-decisions", "package.public-api-compatibility",
     "quality.gate-runner", "repository.agent-workflow", "repository.security-baseline",
     "architecture.source-dependencies", "quality.suppression-governance",
-    "workspace.dependency-declarations"
+    "quality.findings-baseline", "workspace.dependency-declarations"
   ]);
   assert.ok(Object.isFrozen(CAPABILITY_MODULES));
   const capabilities = createCapabilityRegistry(CAPABILITY_MODULES);

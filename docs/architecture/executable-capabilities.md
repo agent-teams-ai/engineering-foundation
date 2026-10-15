@@ -39,6 +39,7 @@ These terms describe different facts and must not be used interchangeably:
 | `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
 | `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.findings-baseline` | Yes, through the `baseline` commands | No | No | Only by explicit configuration file; not yet declarable in `foundation.config.yaml` |
 | `quality.executable-specifications` | Yes | Yes, since 0.10.0 | No donor catalog owned here | Only by explicit declaration after consumer qualification |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |

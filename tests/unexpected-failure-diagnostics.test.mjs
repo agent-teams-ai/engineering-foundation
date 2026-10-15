@@ -125,7 +125,7 @@ test("shares bounded diagnostics through the released v1 report contract", async
   assert.equal(ajv.validate(v1.$id, report), true, JSON.stringify(ajv.errors));
 });
 
-test("keeps all 12 capability wrappers on the exact bounded phase inventory", async () => {
+test("keeps all 13 capability wrappers on the exact bounded phase inventory", async () => {
   const capabilitiesRoot = new URL(
     "../packages/engineering-foundation/src/capabilities/",
     import.meta.url,
@@ -135,6 +135,7 @@ test("keeps all 12 capability wrappers on the exact bounded phase inventory", as
     ["contract-protobuf-evolution", "protobuf-evolution-execution"],
     ["documentation-local-references", "documentation-local-references-execution"],
     ["executable-specifications", "executable-specification-execution"],
+    ["findings-baseline", "findings-baseline-execution"],
     ["governance-architecture-decisions", "architecture-decision-governance-execution"],
     ["public-api-compatibility", "public-api-compatibility-execution"],
     ["quality-gate-runner", "quality-gate-runner-execution"],

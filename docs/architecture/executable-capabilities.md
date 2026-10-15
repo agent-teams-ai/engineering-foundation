@@ -98,16 +98,18 @@ packages.
   other profiles. It is not architecture-neutral until a neutral consumer-owned
   topology input replaces that profile and the Feature Module Standard mapping
   moves to the standard's opt-in package. That migration is a breaking change
-  of a released capability.
+  of a released capability. Until then, changes to it may keep that dependency
+  and accept later versions of the same standard, but must not extend it to
+  another standard or capability.
 - Checks for a standard that defines one architecture's layout or vocabulary,
   such as the organization Feature Module Standard, ship only as a separate
   opt-in package named after that standard. The normative text stays with the
   standard's owner. A consumer that does not adopt the standard never loads the
   package. No core package or capability depends on it; the dependency points
   only from the standard's package to the neutral core.
-- A language-neutral standard that defines no architecture of its own, such as
-  the Agent Architecture Standard, is not covered by the previous rule; its
-  dependency direction is the one accepted in
+- A standard that defines no architecture of its own, such as the Agent
+  Architecture Standard, is not covered by the previous rule; its dependency
+  direction is the one accepted in
   [ADR-0036](../decisions/0036-incubate-agent-architecture-standard.md).
 - This repository's own [Feature Module Standard adoption](feature-module-standard.md)
   governs its own source layout as a consumer of that standard. It is not a

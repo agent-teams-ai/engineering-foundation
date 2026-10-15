@@ -1,6 +1,8 @@
 node_modules/
 .nx/
 .cache/
+.worker-tmp/
+/.agent-teams-runtime-profile.json
 .agent-teams-local/
 coverage/
 .coverage-evidence/

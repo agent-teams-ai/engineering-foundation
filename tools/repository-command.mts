@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
 import { resolveQualificationExecutables } from "./executable-policy.mts";
 
 type RuntimeProfile = "bun" | "node";
-type ToolRole = "runtime" | "node-qualification" | "native-tool";
+type ToolRole = "runtime" | "node-qualification" | "node-tool" | "native-tool";
 
 interface ToolCommand {
   readonly entry: string;
@@ -53,22 +54,22 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "package:qualification:built": { entry: "scripts/qualify-package-artifacts.mts", args: [], role: "node-qualification" },
   "release-owned-files:check": { entry: "scripts/check-release-owned-files.mjs", args: [], role: "runtime" },
   "release-graph:check": { entry: "scripts/check-release-graph-projections.mjs", args: [], role: "runtime" },
-  "dead-code:check": { entry: "node_modules/.bin/knip", args: ["--config", "knip.json", "--no-progress"], role: "native-tool" },
+  "dead-code:check": { entry: "node_modules/knip/bin/knip.js", args: ["--config", "knip.json", "--no-progress"], role: "node-tool" },
   "docs:terminology:check": { entry: "scripts/check-documentation-terminology.mjs", args: [], role: "runtime" },
-  "nx:graph:check": { entry: "node_modules/.bin/nx", args: ["show", "projects"], role: "native-tool" },
+  "nx:graph:check": { entry: "node_modules/nx/dist/bin/nx.js", args: ["show", "projects"], role: "node-tool" },
   "test:built": { entry: "scripts/run-built-tests.mjs", args: [], role: "node-qualification" },
   "test:coverage:built": { entry: "scripts/run-test-coverage.mjs", args: [], role: "node-qualification" },
   "test:manifests:check": { entry: "scripts/check-test-manifests.mjs", args: [], role: "runtime" },
   "test:qgr:lifecycle:built": { entry: "scripts/run-selected-tests.mjs", args: ["tests/quality-gate-runner.test.mjs", "tests/quality-gate-runner-lifecycle.test.mjs", "tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs", "tests/quality-gate-runner-remediation.test.mjs"], role: "node-qualification" },
-  "typecheck": { entry: "node_modules/typescript/bin/tsc", args: ["--build", "tsconfig.json", "--pretty", "false"], role: "native-tool" },
-  "typecheck:ci-tooling": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.ci-tooling.json"], role: "native-tool" },
-  "typecheck:restoration-lock-inputs": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.restoration-lock-inputs-tests.json", "--skipLibCheck", "false"], role: "native-tool" },
-  "typecheck:restoration-lock": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.restoration-lock-tests.json", "--skipLibCheck", "false"], role: "native-tool" },
-  "typecheck:managed-runtime-tests": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.managed-runtime-tests.json", "--pretty", "false"], role: "native-tool" },
-  "lint:fast": { entry: "node_modules/.bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config", "."], role: "native-tool" },
-  "lint:fast:files": { entry: "node_modules/.bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "native-tool", acceptsPaths: true },
-  "lint:typed": { entry: "node_modules/.bin/oxlint", args: ["--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config", "."], role: "native-tool" },
-  "lint:typed:files": { entry: "node_modules/.bin/oxlint", args: ["--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config"], role: "native-tool", acceptsPaths: true },
+  "typecheck": { entry: "node_modules/typescript/bin/tsc", args: ["--build", "tsconfig.json", "--pretty", "false"], role: "node-tool" },
+  "typecheck:ci-tooling": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.ci-tooling.json"], role: "node-tool" },
+  "typecheck:restoration-lock-inputs": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.restoration-lock-inputs-tests.json", "--skipLibCheck", "false"], role: "node-tool" },
+  "typecheck:restoration-lock": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.restoration-lock-tests.json", "--skipLibCheck", "false"], role: "node-tool" },
+  "typecheck:managed-runtime-tests": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.managed-runtime-tests.json", "--pretty", "false"], role: "node-tool" },
+  "lint:fast": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config", "."], role: "node-tool" },
+  "lint:fast:files": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool", acceptsPaths: true },
+  "lint:typed": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config", "."], role: "node-tool" },
+  "lint:typed:files": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool", acceptsPaths: true },
   "architecture:patterns": { entry: "scripts/run-ast-grep.mjs", args: ["scan", "--config", "sgconfig.yml", "--error=unused-suppression"], role: "runtime" },
   "architecture:patterns:test": { entry: "scripts/run-ast-grep.mjs", args: ["test", "--config", "sgconfig.yml", "--skip-snapshot-tests"], role: "runtime" },
   "quality:scope:check": { entry: "scripts/check-production-quality.mjs", args: [], role: "runtime" },
@@ -86,11 +87,44 @@ async function isFile(path: string): Promise<boolean> {
   return metadata?.isFile() === true;
 }
 
-async function runtimeExecutables(): Promise<{ readonly profile: RuntimeProfile; readonly node: string; readonly bun?: string }> {
+async function selectedRuntimeProfile(): Promise<RuntimeProfile> {
   const policy = await readRepositoryRuntimePolicy();
   const marker = process.env["AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE"];
-  const profile: RuntimeProfile = marker === undefined ? policy.defaultProfile : marker === "bun" || marker === "node" ? marker : (() => { throw new Error(`Unknown runtime profile: ${marker}`); })();
-  return resolveQualificationExecutables(profile);
+  return marker === undefined ? policy.defaultProfile : marker === "bun" || marker === "node" ? marker : (() => { throw new Error(`Unknown runtime profile: ${marker}`); })();
+}
+
+async function runtimeExecutables(): Promise<{ readonly profile: RuntimeProfile; readonly node: string; readonly bun?: string }> {
+  return resolveQualificationExecutables(await selectedRuntimeProfile());
+}
+
+export function resolveToolInvocation(
+  role: ToolRole,
+  entry: string,
+  args: readonly string[],
+  paths: readonly string[],
+  runtime: { readonly profile: RuntimeProfile; readonly node: string; readonly bun?: string }
+): { readonly command: string; readonly args: readonly string[] } {
+  const roleCommand = role === "node-qualification" || role === "node-tool"
+    ? runtime.node
+    : role === "runtime"
+      ? runtime.profile === "bun" ? runtime.bun : runtime.node
+      : entry;
+  if (roleCommand === undefined) {
+    throw new Error("Tool runtime executable is unavailable.");
+  }
+  return {
+    command: roleCommand,
+    args: role === "native-tool" ? [...args, ...paths] : [entry, ...args, ...paths]
+  };
+}
+
+export function resolveNodeToolInvocation(
+  entry: string,
+  args: readonly string[],
+  paths: readonly string[],
+  node: string
+): { readonly command: string; readonly args: readonly string[] } {
+  return resolveToolInvocation("node-tool", entry, args, paths, { profile: "node", node });
 }
 
 function run(command: string, args: readonly string[], cwd: string): Promise<number> {
@@ -120,8 +154,8 @@ async function invokeScript(id: string): Promise<number> {
 }
 
 async function invokeTool(id: string, paths: readonly string[]): Promise<number> {
-  const command = id === "dependencies:peers:check" &&
-    (await runtimeExecutables()).profile === "bun"
+  const profile = await selectedRuntimeProfile();
+  const command = id === "dependencies:peers:check" && profile === "bun"
     ? TOOL_COMMANDS["dependencies:installed:check"]
     : TOOL_COMMANDS[id];
   if (command === undefined) {
@@ -130,33 +164,30 @@ async function invokeTool(id: string, paths: readonly string[]): Promise<number>
   if (paths.length > 0 && command.acceptsPaths !== true) {
     throw new Error(`Tool ${id} does not accept file paths.`);
   }
-  const runtime = await runtimeExecutables();
+  const runtime = command.role === "node-tool" || command.role === "node-qualification"
+    ? await resolveQualificationExecutables("node")
+    : await resolveQualificationExecutables(profile);
   const entry = resolve(repositoryRoot, command.entry);
   if (!await isFile(entry)) {
     throw new Error(`Tool entrypoint is unavailable: ${command.entry}`);
   }
-  const roleCommand = command.role === "node-qualification"
-    ? runtime.node
-    : command.role === "runtime"
-      ? runtime.profile === "bun" ? runtime.bun : runtime.node
-      : /\.(?:c|m)?js$/u.test(entry) ? runtime.node : entry;
   const effectiveArgs = id === "check:fast"
     ? ["gate", "run", `${runtime.profile}-check-fast`, "--consumer", ".", "--format", "text"]
     : command.args;
-  const roleArgs = command.role === "native-tool" && !/\.(?:c|m)?js$/u.test(entry)
-    ? [...effectiveArgs, ...paths]
-    : [entry, ...effectiveArgs, ...paths];
-  return run(roleCommand ?? (() => { throw new Error("Tool runtime executable is unavailable."); })(), roleArgs, process.cwd());
+  const invocation = resolveToolInvocation(command.role, entry, effectiveArgs, paths, runtime);
+  return run(invocation.command, invocation.args, process.cwd());
 }
 
-const [operation, id, ...rest] = process.argv.slice(2);
-if (operation !== "script" && operation !== "tool") {
-  throw new Error("Usage: repository-command.mts (script|tool) <known-id> [--paths <path>...]");
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [operation, id, ...rest] = process.argv.slice(2);
+  if (operation !== "script" && operation !== "tool") {
+    throw new Error("Usage: repository-command.mts (script|tool) <known-id> [--paths <path>...]");
+  }
+  if (id === undefined || rest.some((value, index) => value === "--paths" ? index !== 0 : index < 1)) {
+    throw new Error("Repository command arguments are malformed.");
+  }
+  const paths = rest[0] === "--paths" ? rest.slice(1) : [];
+  process.exitCode = operation === "script"
+    ? await invokeScript(id)
+    : await invokeTool(id, paths);
 }
-if (id === undefined || rest.some((value, index) => value === "--paths" ? index !== 0 : index < 1)) {
-  throw new Error("Repository command arguments are malformed.");
-}
-const paths = rest[0] === "--paths" ? rest.slice(1) : [];
-process.exitCode = operation === "script"
-  ? await invokeScript(id)
-  : await invokeTool(id, paths);

@@ -58,6 +58,7 @@ const excludedSourceDirectories = new Set([
   ".git",
   ".worker-tmp",
   ".cache",
+  ".nx",
   "node_modules",
   ".pnpm-store",
   "coverage",
@@ -80,28 +81,39 @@ function isExcludedSourceEntry(
     return true;
   }
   const pathParts = relative(sourceRoot, path).split(/[\\/]/u);
+  if (
+    entry.isFile() &&
+    pathParts.length === 1 &&
+    pathParts[0] === ".agent-teams-runtime-profile.json"
+  ) {
+    return true;
+  }
   return entry.isDirectory() &&
     pathParts.length === 3 &&
     pathParts[0] === "packages" &&
     pathParts[2] === "dist";
 }
 
-async function copyTree(source: string, destination: string): Promise<void> {
+async function copyTree(source: string, destination: string, sourceRoot: string): Promise<void> {
   await mkdir(destination, { recursive: true });
   const entries = (await readdir(source, { withFileTypes: true }))
     .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
   for (const entry of entries) {
     const from = resolve(source, entry.name);
-    if (isExcludedSourceEntry(source, from, entry)) {
+    if (isExcludedSourceEntry(sourceRoot, from, entry)) {
       continue;
     }
     const to = resolve(destination, entry.name);
     if (entry.isDirectory()) {
-      await copyTree(from, to);
+      await copyTree(from, to, sourceRoot);
     } else if (entry.isFile()) {
       await copyFile(from, to);
     }
   }
+}
+
+export async function copySourceTree(source: string, destination: string): Promise<void> {
+  await copyTree(source, destination, source);
 }
 
 async function freshProfileRoot(profile: Profile): Promise<string> {
@@ -142,7 +154,7 @@ async function freshProfileRoot(profile: Profile): Promise<string> {
   }
   await rm(target, { recursive: true, force: true });
   await mkdir(target, { recursive: true });
-  await copyTree(repositoryRoot, target);
+  await copySourceTree(repositoryRoot, target);
   return target;
 }
 
@@ -204,10 +216,18 @@ async function install(profile: Profile): Promise<number> {
       const initStatus = await run(tools.node, args, profileRoot);
       if (initStatus !== 0) { return initStatus; }
     }
-    const selectedRuntime = tools.bun ?? tools.node;
-    const qualified = await run(selectedRuntime, [resolve(profileRoot, "tools/qualify-native-tools.mts")], profileRoot);
+    const qualified = await run(
+      tools.node,
+      [resolve(profileRoot, "tools/qualify-native-tools.mts")],
+      profileRoot,
+      {
+        ...process.env,
+        AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: tools.node,
+        ...(tools.bun === undefined ? {} : { AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: tools.bun })
+      }
+    );
     return qualified === 0
-      ? run(selectedRuntime, [resolve(profileRoot, "tools/dependencies-installed-check.mts")], profileRoot, {
+      ? run(tools.bun ?? tools.node, [resolve(profileRoot, "tools/dependencies-installed-check.mts")], profileRoot, {
           ...process.env,
           AGENT_TEAMS_FOUNDATION_INSTALLED_INVENTORY: resolve(profileRoot, ".worker-tmp/installed-dependencies.json")
         })

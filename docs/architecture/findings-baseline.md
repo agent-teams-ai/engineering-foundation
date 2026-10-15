@@ -26,7 +26,17 @@ shrinks.
 - Each producer owns a rule namespace (`oxlint/...`) and verifies only its own
   entries. Other producers, for example checks a consumer runs in its own
   tests, use the pure functions of `@agent-teams/engineering-foundation/ratchet`
-  with their own namespace and file or share the file.
+  with their own namespace. One baseline file per producer: `init` refuses an
+  existing file, so a repository with several producers keeps one file each.
+- A move updates the entry path in the same commit; the file must stay
+  canonical (sorted), and the diff then shows a pure rename.
+- Accepted limit: a canonical hand edit that raises or adds an entry passes
+  `check`. Shrink-only is enforced by the commands and by review, like the
+  accepted limits of the active gate in
+  [public API compatibility](public-api-compatibility.md).
+- Adding a rule to `measuredRules` after `init` makes its entries "worse"
+  (they now carry a measured value) and `prune` cannot accept that, so it needs
+  a reviewed re-init.
 
 ### Oxlint producer and commands
 
@@ -46,7 +56,12 @@ oxlint:
 It runs the consumer's pinned Oxlint through the same session as
 `quality.source-coverage`. Findings are recorded as `oxlint/<plugin>/<rule>`.
 A measured rule carries its value in the first parenthesized integer of its
-message.
+message; a rule whose message has none fails as `FINDINGS_BASELINE_CONFIG_INVALID`.
+The verified measured rules are the ESLint `max-lines`, `max-lines-per-function`,
+`max-params`, `max-depth`, `max-nested-callbacks`, `max-statements` and
+`max-classes-per-file`. Point `roots` at source directories or ignore build
+outputs in the Oxlint configuration, and keep the baseline LF-only, for example
+`<path> text eol=lf` in `.gitattributes`.
 
 ```text
 agent-teams-foundation baseline check --config <file> [--consumer <path>]
@@ -71,9 +86,13 @@ or modules.
 
 `observeSourceGraph` returns the files under the given roots and their resolved
 import edges (`from`, `to`, `mode` runtime or type-only, `line`), the imports
-that did not resolve to a file in the roots and the files that did not parse.
+that did not resolve to a file in the roots, the bare specifiers in `external`
+and the files that did not parse. Bare specifiers (packages, workspace
+packages, tsconfig paths aliases) are reported in `external`, not as edges;
+consumers that need alias resolution resolve them themselves.
 `stronglyConnectedComponents` returns the components of any edge set; filter
-the edges first for a runtime-only or type-only view. It reuses the parser and
+the edges first for a runtime-only or type-only view. Only components with more
+than one file are returned; a self-import is visible in edges. It reuses the parser and
 resolver of `architecture.source-dependencies` with one synthetic boundary and
 no feature or role vocabulary.
 
@@ -89,8 +108,77 @@ over existing code needs the same ratchet, every checker of module structure
 needs the same file graph, and the Feature Module Standard package and its
 runner build on both. The contract stays minimal (records and pure functions,
 no feature or role vocabulary) because Foundation is 1.x and a later break
-needs a major version. Validation in this delivery: disposable test projects
-(`tests/findings-baseline-*.test.mjs`, `tests/source-graph.test.mjs`) and the
-Foundation source tree itself as a real consumer of the source graph. The
-baseline commands are adopted first by agent-runtime when it moves to this
-release; its interim Oxlint legacy lists are deleted in that adoption.
+needs a major version.
+
+Validation in this delivery (the contract is proven here, not incubated here):
+
+- Disposable test projects: `tests/findings-baseline-*.test.mjs` and
+  `tests/source-graph.test.mjs`.
+- Real-data parity for the source graph: the Foundation source tree parses
+  completely and has no runtime import cycle. This is parity on real data, not
+  a second consumer. The real consumer of the source graph is the N3b runner
+  (same monorepo, workspace consumption of `./source-graph`, PR #398), required
+  before the 1.8.0 release.
+- Real consumer of the findings baseline: agent-runtime, run against a
+  disposable detached checkout of `origin/main` at
+  `efd3348f361fa6af84953325af5c0d2d8677d14a` with this branch's CLI, the
+  consumer's pinned Oxlint 1.83.0 and oxlint-tsgolint 7.0.2001, and a
+  size-rules-only configuration (`max-lines` 300, `max-lines-per-function` 60,
+  `max-params` 4 with blank lines and comments skipped, `max-lines` 80 for
+  `*.module.ts`, `typescript/method-signature-style`), roots `packages`, test
+  files, fixtures, generated and vendored code ignored.
+
+| Rule | Entries (path and rule pairs) | Findings |
+| --- | --- | --- |
+| `oxlint/eslint/max-lines` | 84 | 84 |
+| `oxlint/eslint/max-lines-per-function` | 184 | 237 |
+| `oxlint/eslint/max-params` | 70 | 92 |
+| `oxlint/typescript/method-signature-style` | 216 | 785 |
+| Total | 554 | 1198 |
+
+  The order of magnitude matches the agent-runtime handoff (about 265 size
+  path and rule pairs, 45 method-signature-style findings at an older commit;
+  here the stricter 80-line limit for module files and a newer commit give 338
+  size pairs and more method-signature-style findings). Measured values
+  (largest `max` per entry, up to 500 lines) were parsed from real messages
+  without a failure. Commands, all run from the checkout root:
+
+  ```text
+  agent-teams-foundation baseline init  --config foundation.baseline-probe.yaml --consumer <checkout>   # 554 entries, about 12 s
+  agent-teams-foundation baseline check --config foundation.baseline-probe.yaml --consumer <checkout>   # passed, about 4.5 s
+  ```
+
+  One edited file (an appended five-parameter function and twelve extra lines
+  in a file already at 500 lines) failed `check` as two `worse-finding`
+  diagnostics; a five-parameter function appended to a clean file failed as
+  `new-finding`; `prune` refused both (exit 1) and listed them under "Not
+  accepted"; after restoring the files `check` passed. Raising four recorded
+  maxima by hand made them `stale-entry`; `prune` lowered exactly those four
+  entries (exit 0) and `check` passed again. A file that no longer parses makes
+  the pinned Oxlint return an error envelope, which stays an unexpected failure
+  rather than a baseline diagnostic.
+- Agent-runtime adoption is follow-up work and is not part of this delivery:
+  adopting the commands, deleting its interim Oxlint legacy lists and its
+  conformance test belong to the agent-runtime refactoring agent (wave 0b).
+  Cost of the deviation: agent-runtime's CI contract rejects new or changed leaf
+  commands in `check` and `check:fast` until CI-CONTRACT-1
+  (`scripts/ci/policy.ts`), so CLI-only adoption there waits for CI-CONTRACT-1
+  or an exception owned by its integrator. The capability is a command module,
+  not a key of `foundation.config.yaml` (see above), which is what that
+  deviation costs a consumer.
+
+How the contract evolves:
+
+- The baseline file carries a version line (`{"findingsBaseline":1}`); a change
+  of its shape is a new file version read by the same functions, never a second
+  parallel format.
+- The producer namespace (`oxlint/...`) is the extension point for new
+  producers. A producer owns its file; shared code stays the pure functions of
+  `./ratchet`. A second producer is added when a second consumer needs it.
+- The subpath is named `./ratchet` because it covers the findings baseline and
+  the growth budgets. Both are records and pure functions, so additive fields
+  (for example `external` in the source graph) are minor changes. While the
+  package is 1.x a breaking change needs a major version, which is why the
+  surface stays small.
+- Declaring the capability in `foundation.config.yaml` needs a new
+  configuration version and its own decision.

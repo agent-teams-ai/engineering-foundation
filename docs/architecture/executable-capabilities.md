@@ -88,8 +88,8 @@ packages.
 
 - Core capabilities are limited to architecture-neutral mechanisms. Current
   examples are dependency graphs and cycles, boundaries, and size and growth
-  budgets; a future shrink-only baseline for existing violations of any rule
-  belongs to the same class. They read every architecture fact (layers,
+  budgets; the shrink-only [findings baseline](findings-baseline.md) for existing
+  violations of any rule belongs to the same class. They read every architecture fact (layers,
   features, roles, allowed edges) from consumer-owned data.
 - A new or changed core capability never encodes the layout, vocabulary or
   visibility rules of one architecture, for example what a feature, a

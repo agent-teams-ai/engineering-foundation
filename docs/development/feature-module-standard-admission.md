@@ -27,8 +27,10 @@ This note records what the source checkpoint contains and what is still pending.
 | Shared fixtures run by the kernel | done |
 | Disposable project: the example tree, as a module and as source files | done |
 | Real consumer: Engineering Foundation's checker uses the kernel for path containment, ownership-root overlap, v1 layer direction and cycle search, and the replaced code is deleted | done |
-| Real consumer: deep-import and ownership rules through `checkFeatureModule`, dual-run comparison, `./fixtures` as conformance test | pending, needs a kernel input for profile-declared layer roots |
+| Real consumer: feature-to-feature deep imports, layer direction and cycles through `checkFeatureModule` per module, built from the profile and the observed source graph | done |
+| Real consumer: shared flat fixtures run against the repository checker | done (`tests/feature-module-kernel-adapter.test.mjs`) |
+| Old and new checker compared on the real graph and on synthetic edges | see the pull request |
 | `./node` runner on the public source graph | pending the source graph delivery |
 | First npm publication and bootstrap approval | owner step |
 
-The first publication waits for the pending real-consumer row.
+The first publication waits for the pending rows.

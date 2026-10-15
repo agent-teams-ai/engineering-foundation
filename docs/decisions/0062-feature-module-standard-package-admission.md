@@ -66,24 +66,28 @@ and consumers load a dependency-free kernel.
      the kernel's own tests. The disposable project is the example tree of the
      standard, exported both as a module description and as materialized source
      files. The real consumer is the Engineering Foundation checker, see point 4.
-4. Adoption sequence and its current state. Engineering Foundation's checker
-   (`scripts/feature-modules/profile.mjs`, `dependencies.mjs`) already takes
-   path containment, ownership-root overlap, v1 layer direction and cycle search
-   from the kernel and has deleted its own copies. Two local strengthenings stay
-   on top of the kernel: a contracts layer never imports another feature, and
-   another module's exported API is judged with the inside-one-feature table.
-   Not done yet: calling `checkFeatureModule` for deep-import and ownership
-   rules. Engineering Foundation declares its features by layer roots per file or
-   directory (several feature roots, role files such as `api.ts`), while the
-   kernel derives ownership from a `features` directory and role directory names.
-   Closing that gap needs a kernel input for profile-declared layer roots, a
-   dual-run of the old and the new rules with a normalized comparison of rule,
-   subject and location, and then deletion of the duplicated deep-import and
-   ownership code, with the checker running `./fixtures` as its conformance test.
-   This is a condition of the first publication: ADR-0061 requires the real
-   consumer to be moved onto the contract before the package is released.
-   Agent Runtime and the Get Modular test project adopt later and run the same
-   fixtures; an old and a new implementation never stay side by side.
+4. Adoption sequence and its current state. The kernel takes the structure the
+   profile declares as input: the root of every feature, and directories or
+   single files mapped to roles. Feature layout is not a mandatory folder
+   template, so the kernel does not infer owners from directory names;
+   `inferDirectoryLayout` builds the same input for a tree that follows the
+   default layout. Engineering Foundation's checker builds that input from
+   `architecture/foundation/feature-modules.json` and its observed source graph
+   (`scripts/feature-modules/kernel.mjs`) and calls `checkFeatureModule` once per
+   module. The kernel now owns feature-to-feature deep imports, layer direction
+   and cycles inside a module, together with path containment and ownership-root
+   overlap, and the repository's duplicated code for them is deleted. The shared
+   flat fixtures run against the repository checker as its conformance test
+   (`tests/feature-module-kernel-adapter.test.mjs`).
+   Local rules stay in Engineering Foundation and are strengthenings, not copies:
+   a contracts layer never imports another feature; another module's exported
+   API is judged with the inside-one-feature table; primitives, module assembly
+   files and cross-module edges keep their repository rules. Cycles between
+   features of different modules are package cycles, which the source-dependency
+   policy already rejects. Fixtures with sub-features cannot be written as a
+   repository profile, so only the flat ones run there; Agent Runtime and the Get
+   Modular test project adopt later and run the same fixtures. An old and a new
+   implementation never stay side by side.
 5. Engineering Foundation's own profile stays on v1 and declares no sub-feature.
 6. Admission is for source use. The first publication of the new npm name is a
    separate owner step and this record authorizes none. The package is a bootstrap
@@ -100,5 +104,3 @@ and consumers load a dependency-free kernel.
 - What remains for the runner: feature root discovery and import reading
   through the public source graph, growth warnings through the budgets, the peer
   dependency and the implemented status of the edge in point 2.
-- What remains for the real consumer: the kernel input for profile-declared
-  layer roots and the move of deep-import and ownership checks of point 4.

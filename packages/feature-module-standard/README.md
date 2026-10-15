@@ -22,9 +22,10 @@ use edges) is input, and the consumer repository keeps its profile and decisions
 import { checkFeatureModule } from '@agent-teams/feature-module-standard';
 
 const report = checkFeatureModule({
-  featuresRoot: 'src/features',
+  // The profile's declared structure: every feature root and the directories or files mapped to roles.
+  featureRoots: ['src/features/orders', 'src/features/billing'],
+  roleRoots: [{ root: 'src/features/orders/domain', role: 'domain' }, { root: 'src/features/orders/api.ts', role: 'application' }],
   files, // production files, repository-relative, `/` separators
-  roleDirectories: { domain: 'domain', application: 'application', contracts: 'contracts', composition: 'composition' },
   surfaces: { public: [...], compositionContract: [...], compositionSurface: [...] },
   imports, // resolved edges: { from, to, mode: 'runtime' | 'type-only', line, reexport? }
 });
@@ -55,6 +56,9 @@ a `features` directory inside a feature keeps its v1 meaning.
 Every code is in `ERROR_CODES` or `WARNING_CODES`; a MUST of the standard is an error and a SHOULD a warning
 that does not fail the module. Diagnostics are sorted and stable. `invalid-path` reports any input path that is
 not a repository-relative path with `/` separators.
+
+For a tree that follows the default layout (`<features root>/<feature>/<role directory>`), `inferDirectoryLayout`
+builds `featureRoots`, `featuresRoots` and `roleRoots` from the file list and a role-directory map.
 
 Smaller pieces for repository-owned checkers: `layerDirectionAllowed`,
 `findCycles`, `cyclicComponents`, `findOverlappingRoots`, `analyzeFeatureTree`.

@@ -8,8 +8,11 @@ used by this repository. In particular, authority is claim-specific, evidence is
 bounded to an observation, and qualification must name its subject.
 
 This repository contains reusable development tooling only. Product runtime code
-must not import it. Each consumer remains authoritative for its own domain model,
-package catalog, dependency permissions, security classifications, and ADRs.
+must not import it. Its capabilities are architecture-neutral: architecture-specific
+standards ship only as opt-in packages (see
+[Architecture neutrality](docs/architecture/executable-capabilities.md#architecture-neutrality)).
+Each consumer remains authoritative for its own domain model, package catalog,
+dependency permissions, security classifications, and ADRs.
 
 The current integration implements the accepted new-only, independently
 versioned portable package boundary. Exact-head artifact qualification,

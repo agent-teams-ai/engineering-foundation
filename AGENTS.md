@@ -8,6 +8,9 @@ Hard rules:
 - never import this package from production runtime code;
 - keep consumer-specific catalogs, bounded contexts, classifications, and ADRs in
   the consumer repository;
+- keep core capabilities architecture-neutral; the semantics of a named
+  architecture standard ship only as an opt-in package named after it (see
+  [Architecture neutrality](docs/architecture/executable-capabilities.md#architecture-neutrality));
 - follow the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)
   before moving consumer implementations into Foundation;
 - keep registry mode reproducible and local mode explicit;

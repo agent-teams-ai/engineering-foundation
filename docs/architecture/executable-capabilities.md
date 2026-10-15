@@ -75,7 +75,31 @@ a second JSON Schema family support claim.
 - a third-party plugin ecosystem;
 - a replacement for package managers, compilers, Nx, or specialized linters;
 - consumer business concepts, bounded-context catalogs, or authorization policy;
-- affected-only checks as a substitute for complete CI coverage.
+- affected-only checks as a substitute for complete CI coverage;
+- a mandated consumer architecture or source layout (see
+  [Architecture neutrality](#architecture-neutrality)).
+
+## Architecture neutrality
+
+Foundation serves repositories with different architectures.
+
+- Core capabilities implement architecture-neutral mechanisms, such as
+  dependency graphs and cycles, boundaries, size and growth budgets, and
+  shrink-only baselines for any rule. They read every architecture fact (layers,
+  features, roles, allowed edges) from consumer-owned data.
+- A core capability never encodes the layout, vocabulary or visibility rules of
+  one architecture, for example what a feature, a sub-feature, a layer or a
+  contract surface is.
+- The semantics of a named architecture standard, such as the organization
+  Feature Module Standard, ship only as a separate opt-in package named after
+  that standard. A consumer that does not adopt the standard never loads it. No
+  core package or capability depends on such a package; the dependency points
+  only from the standard's package to the neutral core.
+- This repository's own adoption of the Feature Module Standard (see the
+  [README](../../README.md)) governs its own source layout as a consumer of that
+  standard. It is not a requirement for other consumers.
+- A proposal for a shared check states which part is the neutral mechanism and
+  which part belongs to an opt-in architecture package.
 
 ## Extraction admission invariant
 

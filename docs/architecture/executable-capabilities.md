@@ -119,16 +119,28 @@ packages.
 
 ## Extraction admission invariant
 
-A consumer-owned implementation moves into Foundation only after two real
-consumers demonstrate the same semantics. The extraction must include shared
-parity fixtures and a conformance test in every adopting consumer. The adoption
-sequence must also delete the superseded consumer implementations; merely
-wrapping or copying them into Foundation does not satisfy DRY.
+Foundation is designed for many consumers. When a reusable engineering-tooling
+concern within Foundation's [ownership boundary](ownership.md) is expected to
+serve more than one repository, it is implemented here as a shared library from
+the start, instead of growing inside one consumer and being extracted later.
+The number of consumers that exist today is not an admission gate: expected
+reuse as the organization grows is the reason to build it here. The same
+delivery validates the contract with disposable test projects and at least one
+real consumer, which proves the contract rather than incubating it. This follows
+the organization's
+[library-first rule](https://github.com/agent-teams-ai/.github/blob/main/docs/engineering-quality-standard.md#library-first-design-and-deliberate-evolution)
+and [ADR-0061](../decisions/0061-library-first-foundation-boundary-evolution.md).
 
-This is an admission rule for shared extractions, not a requirement to invent a
-second copy of a Foundation-owned mechanism. Similar syntax, a possible future
-consumer, or a shared dependency alone are insufficient evidence. Generalize
-the reason for change only after the repeated semantics are proved.
+Every admission still ships shared parity fixtures and a conformance test in
+every adopting consumer. The adoption sequence deletes the superseded consumer
+implementations; wrapping or copying them into Foundation does not satisfy DRY,
+and an old and a new implementation do not stay side by side without an owner
+and a removal step.
+
+Similar syntax or a shared dependency alone does not prove shared semantics:
+the shared contract generalizes only the semantics it defines, and product
+policy stays in the consumer. The Agent Architecture Standard keeps its own
+accepted admission rule ([ADR-0036](../decisions/0036-incubate-agent-architecture-standard.md)).
 
 ## Ownership and flow
 

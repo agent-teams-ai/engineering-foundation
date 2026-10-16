@@ -106,6 +106,8 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
         break;
       case "builtin":
       case "external-package":
+      case "workspace-package":
+      case "self-workspace-package":
         external.push(at);
         break;
       // Anything that is neither an edge nor a bare specifier is visible rather than dropped, including a
@@ -113,8 +115,6 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
       case "generated-output-candidate":
       case "unsupported":
       case "unresolved":
-      case "workspace-package":
-      case "self-workspace-package":
         unresolved.push(at);
         break;
       default: {

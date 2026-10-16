@@ -70,6 +70,7 @@ test("an import of build output is reported as unresolved, not dropped", async (
   const consumerRoot = await tree(t, {
     "package.json": '{"name":"app","type":"module"}\n',
     "src/a.ts": "export const a = 1;\n",
+    "dist/index.js": "export const b = 1;\n",
     "tests/a.test.ts": 'import { a } from "../src/a.js";\nimport { b } from "../dist/index.js";\nexport const t = [a, b];\n'
   });
   const graph = await observeSourceGraph({ consumerRoot, roots: ["src", "tests"] });

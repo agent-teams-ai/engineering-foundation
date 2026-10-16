@@ -1,4 +1,4 @@
-export { conformanceCases } from './features/conformance-fixtures/testing/conformance-cases.js';
+export { ERROR_CODES, WARNING_CODES, conformanceCases } from './features/conformance-fixtures/testing/conformance-cases.js';
 export type {
   ConformanceCase, DiagnosticCode, FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge,
 } from './features/conformance-fixtures/testing/conformance-cases.js';

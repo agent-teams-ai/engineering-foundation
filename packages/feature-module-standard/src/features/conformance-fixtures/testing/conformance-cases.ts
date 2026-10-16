@@ -1,5 +1,5 @@
 import { inferDirectoryLayout } from '../../feature-layout/application/infer-directory-layout.js';
-import { WARNING_CODES } from '../../feature-model/domain/model.js';
+import { ERROR_CODES, WARNING_CODES } from '../../feature-model/domain/model.js';
 import type {
   DiagnosticCode, FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge,
 } from '../../feature-model/domain/model.js';
@@ -7,6 +7,7 @@ import {
   FEATURES_ROOT, MODULE_COMPOSITION, TEST_FEATURES_ROOT, exampleModule, exampleRoots, fileOf, importOf, roleDirectories,
 } from './example-tree.js';
 
+export { ERROR_CODES, WARNING_CODES };
 // A fixture's `input` is a kernel input; the fixtures entry point republishes the types that describe it.
 export type { DiagnosticCode, FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge };
 

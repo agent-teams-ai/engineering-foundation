@@ -82,10 +82,11 @@ jobs:
           node scripts/npm-package-bootstrap-cli.mjs token-window \
             "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           node scripts/npm-package-bootstrap-cli.mjs prepare "${PACKAGE_ID}" "${GITHUB_OUTPUT}"
-      # The registry-url setup above writes an npmrc that needs NODE_AUTH_TOKEN, which these steps do not have; every child
-      # package manager would print a warning about it. Install and check use an empty user npmrc, as normal CI does.
+      # The registry-url setup above writes an npmrc that needs NODE_AUTH_TOKEN and points NPM_CONFIG_USERCONFIG at it. These steps
+      # have no token, so every pnpm process prints a warning about the unset variable, and tests that read pnpm output see it.
+      # Normal CI does not override the user npmrc at all; here install and check point it at an empty file instead.
       - name: Use an empty user npmrc for install and check
-        run: touch "${RUNNER_TEMP}/check.npmrc"
+        run: ': > "${RUNNER_TEMP}/check.npmrc"'
       - run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/check.npmrc

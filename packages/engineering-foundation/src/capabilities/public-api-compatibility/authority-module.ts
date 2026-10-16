@@ -13,7 +13,7 @@ import { ReviewRouterGrowthAuthorityAcl } from "./adapters/outbound/reviewrouter
 import { VerifiedGrowthInputContext } from "./adapters/outbound/reviewrouter/verified-growth-input-context.js";
 import type { SdkGrowthAuthorityTransport } from "./adapters/inbound/authority/growth-authority-contract.js";
 import type { GrowthAuthorityBinding, GrowthAuthorityReceipt, GrowthPromotionPlan } from "./application/model/growth-authority.js";
-import { growthAuthoritySchemaVersion } from "./application/model/growth-authority.js";
+import { growthAuthoritySchemaVersion, growthGitTimeoutMs } from "./application/model/growth-authority.js";
 import { GrowthObservationInvariantError } from "./application/model/growth-observation.js";
 import type { JsonSchemaSetInspector } from "./application/ports/package-artifact-inventory.js";
 import { hashGrowthPayload } from "./application/policies/compare-growth-surfaces.js";
@@ -64,7 +64,7 @@ export function createSdkGrowthAuthorityModule(dependencies: SdkGrowthAuthorityM
     const inventory = await createWorkspaceGrowthReader(createWorkspaceInventoryReader()).read(input.consumerRoot, "pnpm-workspace.yaml", input.signal);
     assertGrowthReportDestination(policy.sdkGrowth.reportPath, inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]));
     const identityInputs = { files, runGit: (args: readonly string[], signal?: AbortSignal) => processes.run({
-      command: "git", args, cwd: input.consumerRoot, timeoutMs: 10_000, ...(signal === undefined ? {} : { signal })
+      command: "git", args, cwd: input.consumerRoot, timeoutMs: growthGitTimeoutMs, ...(signal === undefined ? {} : { signal })
     }) };
     const binding = validateGrowthAuthorityBinding(input.binding);
     const mapInvocation = async (signal?: AbortSignal) => {

@@ -2752,6 +2752,7 @@ boundaries:
         - foundation.validation-reporting.application
         - foundation.configuration-input.composition
         - foundation.quality-coverage.adapters
+        - foundation.quality-coverage.application
         - foundation.process-execution.composition
         - foundation.source-inventory.composition
         - foundation.workspace-inventory.composition

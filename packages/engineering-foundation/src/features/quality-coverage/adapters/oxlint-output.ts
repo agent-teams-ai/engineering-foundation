@@ -1,4 +1,4 @@
-import { CapabilityInputError, qualityDiagnostic, type OxlintFinding } from "../api.js";
+import { OxlintMeasuredValueMissingError, qualityDiagnostic, type OxlintFinding, type OxlintFindings } from "../api.js";
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,12 +31,12 @@ interface OxlintEntry {
 }
 
 /** The exit status and JSON envelope must agree; a tool failure is never a lint finding. */
-function parseOxlintEnvelope(stdout: string, exitCode: number): { readonly files: number; readonly entries: readonly OxlintEntry[] } {
+function parseOxlintEnvelope(stdout: string, exitCode: number, minimumFiles = 1): { readonly files: number; readonly entries: readonly OxlintEntry[] } {
   let value: unknown;
   try { value = JSON.parse(stdout); } catch { malformed(); }
   if (!record(value) || !Array.isArray(value["diagnostics"]) ||
     typeof value["number_of_files"] !== "number" || !Number.isSafeInteger(value["number_of_files"]) ||
-    value["number_of_files"] < 1 || ![0, 1].includes(exitCode)) { malformed(); }
+    value["number_of_files"] < minimumFiles || ![0, 1].includes(exitCode)) { malformed(); }
   const entries = value["diagnostics"].map((input: unknown): OxlintEntry => {
     if (!record(input) || typeof input["filename"] !== "string" ||
       typeof input["code"] !== "string" || !/^[a-z][a-z-]*\([a-z][a-z0-9-]*\)$/u.test(input["code"]) ||
@@ -60,29 +60,25 @@ export function parseOxlintDiagnostics(stdout: string, exitCode: number): {
 }
 
 /**
- * Counts findings per file and rule. A measured rule carries its value in the first
+ * Counts findings per file and rule; a batch whose files are all ignored by the configuration lints zero files.
+ * Rule codes must match `^[a-z][a-z-]*\(` (a plugin name with a digit or an uppercase letter is not supported).
+ * A measured rule carries its value in the first
  * parenthesized integer of its message ("... too many lines (612). Maximum allowed is 500.").
  */
-export function parseOxlintFindings(stdout: string, exitCode: number, measuredRules: ReadonlySet<string>): readonly OxlintFinding[] {
+export function parseOxlintFindings(stdout: string, exitCode: number, measuredRules: ReadonlySet<string>): OxlintFindings {
   const groups = new Map<string, { path: string; rule: string; count: number; max?: number }>();
-  for (const { path, code, message } of parseOxlintEnvelope(stdout, exitCode).entries) {
+  const { files, entries } = parseOxlintEnvelope(stdout, exitCode, 0);
+  for (const { path, code, message } of entries) {
     const rule = code.replace("(", "/").slice(0, -1);
     const key = `${path}\u0000${rule}`;
     const group = groups.get(key) ?? { path, rule, count: 0 };
     group.count += 1;
     if (measuredRules.has(rule)) {
       const measured = /\((\d{1,15})\)/u.exec(message)?.[1];
-      if (measured === undefined) {
-        throw new CapabilityInputError({
-          code: "FINDINGS_BASELINE_CONFIG_INVALID",
-          message: `Measured rule ${rule} has no parenthesized value in its Oxlint message.`,
-          phase: "findings-baseline-config",
-          retryable: false
-        });
-      }
+      if (measured === undefined) { throw new OxlintMeasuredValueMissingError(rule); }
       group.max = Math.max(group.max ?? 0, Number(measured));
     }
     groups.set(key, group);
   }
-  return [...groups.values()];
+  return { files, findings: [...groups.values()] };
 }

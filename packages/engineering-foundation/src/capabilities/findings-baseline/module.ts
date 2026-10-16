@@ -5,6 +5,7 @@ import {
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+import { OxlintMeasuredValueMissingError } from "../../features/quality-coverage/api.js";
 import { createOxlintSession, inspectConsumerToolchain } from "../../features/quality-coverage/node.js";
 import { createManagedProcessExecutor } from "../../process-execution/module.js";
 import { createSourceTreeReader } from "../../source-inventory/module.js";
@@ -31,12 +32,23 @@ type Environment = Readonly<Record<string, string | undefined>>;
 
 interface FindingsBaselineModuleInput {
   readonly assertSchema: FindingsBaselineConfigurationDependencies["assertSchema"];
+  /** Node.js executable that runs the pinned Oxlint, supplied by the command host. */
+  readonly nodeExecutable: string;
   /** Environment of the pinned Oxlint process, supplied by the command host. */
   readonly environment: Environment;
 }
 
 /** Runs the consumer's pinned Oxlint through the quality coverage session; its findings are `oxlint/<plugin>/<rule>`. */
-function createOxlintFindingsProducer(environment: Environment): FindingsProducer {
+async function observeFindings(session: ReturnType<typeof createOxlintSession>, measuredRules: ReadonlySet<string>, signal: AbortSignal | undefined) {
+  try { return await session.findings(measuredRules, signal); } catch (error) {
+    if (error instanceof OxlintMeasuredValueMissingError) {
+      return inputFailure("FINDINGS_BASELINE_CONFIG_INVALID", error.message, "findings-baseline-config");
+    }
+    throw error;
+  }
+}
+
+function createOxlintFindingsProducer(nodeExecutable: string, environment: Environment): FindingsProducer {
   const inventoryReader = createWorkspaceInventoryReader();
   const sourceReader = createSourceTreeReader();
   return {
@@ -50,11 +62,14 @@ function createOxlintFindingsProducer(environment: Environment): FindingsProduce
       });
       const files = await sourceReader.read(consumerRoot, policy.oxlint.roots, signal);
       const session = createOxlintSession({
-        consumerRoot, ...tools, nodeExecutable: process.execPath,
+        consumerRoot, ...tools, nodeExecutable,
         environment: { ...environment, OXLINT_TSGOLINT_PATH: tools.typedEntrypoint },
         configPath: policy.oxlint.configPath, sourceRoots: files.map(({ path }) => path), projects: []
       }, createManagedProcessExecutor());
-      const findings = await session.findings(new Set(policy.oxlint.measuredRules), signal);
+      const { files: linted, findings } = await observeFindings(session, new Set(policy.oxlint.measuredRules), signal);
+      if (linted === 0) {
+        inputFailure("FINDINGS_BASELINE_CONFIG_INVALID", "Oxlint linted no file under the configured roots.", "findings-baseline-execution");
+      }
       return findings.map(({ path, rule, count, max }) => ({ path, rule: `oxlint/${rule}`, count, ...(max === undefined ? {} : { max }) }));
     }
   };
@@ -62,7 +77,7 @@ function createOxlintFindingsProducer(environment: Environment): FindingsProduce
 
 function dependenciesFor(input: FindingsBaselineModuleInput): FindingsBaselineDependencies {
   return Object.freeze({
-    producer: createOxlintFindingsProducer(input.environment),
+    producer: createOxlintFindingsProducer(input.nodeExecutable, input.environment),
     store: new FilesystemFindingsBaselineStore({ read: readContainedRegularFile, pathTraversesSymbolicLink })
   });
 }
@@ -115,5 +130,5 @@ export function createFindingsBaselineCommands(input: FindingsBaselineModuleInpu
 
 /** Selects the schema assertion once; the command host supplies the environment per invocation. */
 export function createFindingsBaselineCommandsFactory(assertSchema: FindingsBaselineConfigurationDependencies["assertSchema"]) {
-  return (environment: Environment) => createFindingsBaselineCommands({ assertSchema, environment });
+  return (nodeExecutable: string, environment: Environment) => createFindingsBaselineCommands({ assertSchema, nodeExecutable, environment });
 }

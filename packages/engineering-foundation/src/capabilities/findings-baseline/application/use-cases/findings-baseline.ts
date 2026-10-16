@@ -82,12 +82,9 @@ export async function writeFindingsBaseline(
   const path = input.policy.baselinePath;
   const text = await readBaseline(input, dependencies);
   if (input.action === "init") {
-    const observed = await observe(input, dependencies);
-    let entries: readonly Finding[];
-    try { entries = initBaseline({ observed, ...(text === undefined ? {} : { existing: text }) }); } catch (error) {
-      if (error instanceof FindingsBaselineError) { inputError("FINDINGS_BASELINE_EXISTS", `${error.message} (${path})`); }
-      throw error;
-    }
+    // An existing baseline is refused before the expensive Oxlint run.
+    if (text !== undefined) { inputError("FINDINGS_BASELINE_EXISTS", `A findings baseline already exists; use prune to lower it. (${path})`); }
+    const entries = initBaseline({ observed: await observe(input, dependencies) });
     await dependencies.store.create(input.consumerRoot, path, formatBaseline(entries));
     return { action: "init", path, entries: entries.length, lowered: 0, removed: 0, remaining: [] };
   }

@@ -103,3 +103,31 @@ test("a measured rule without a value in its message is a configuration error, n
   assert.match(JSON.stringify(result.output), /FINDINGS_BASELINE_CONFIG_INVALID/u);
   assert.match(JSON.stringify(result.output), /no parenthesized value/u);
 });
+
+const ignoredFiles = async (put) => {
+  await put("lint.json", { ignorePatterns: ["dist/**"], rules: { "max-lines": ["error", { max: 3 }] } });
+  // More than 8000 characters of paths: the ignored files fill whole Oxlint batches.
+  for (let index = 0; index < 120; index += 1) {
+    await put(`dist/${"generated-file-with-a-long-name-".repeat(2)}${String(index).padStart(3, "0")}.ts`, lines(6));
+  }
+};
+
+test("batches that hold only ignored files do not fail the producer", async (t) => {
+  const { put, run, baseline } = await fixture(t);
+  await ignoredFiles(put);
+  await put("findings.yaml", { schemaVersion: 1, baselinePath, oxlint: { configPath: "lint.json", roots: ["src", "dist"], measuredRules: ["eslint/max-lines"] } });
+  const created = await run("baseline", "init");
+  assert.equal(created.code, 0, JSON.stringify(created));
+  assert.equal(created.output.baseline.entries, 1);
+  assert.doesNotMatch(await baseline(), /dist\//u);
+  assert.equal((await run("baseline", "check")).code, 0);
+});
+
+test("roots that hold only ignored files are an input error", async (t) => {
+  const { put, run } = await fixture(t);
+  await ignoredFiles(put);
+  await put("findings.yaml", { schemaVersion: 1, baselinePath, oxlint: { configPath: "lint.json", roots: ["dist"], measuredRules: ["eslint/max-lines"] } });
+  const result = await run("baseline", "init");
+  assert.notEqual(result.code, 0);
+  assert.match(JSON.stringify(result.output), /Oxlint linted no file/u);
+});

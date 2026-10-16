@@ -106,6 +106,7 @@
       "tests/capability-reporting-architecture.test.mjs",
       "tests/known-file-transaction-characterization.test.mjs",
       "tests/npm-package-bootstrap-workflow.test.mjs",
+      "tests/npm-package-bootstrap-ci-proof.test.mjs",
       "tests/scaffolding-adversarial.test.mjs",
       "tests/contract-protobuf-evolution.test.mjs",
       "tests/scaffolding-frozen-baseline.test.mjs",

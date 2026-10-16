@@ -46,7 +46,7 @@ a `features` directory inside a feature keeps its v1 meaning.
 | Test ownership: a test belongs to the deepest feature, sub-feature tests live in the mirrored test root, and a test uses another visible feature only through public, internal API and testing surfaces | `test-unowned`, `test-misplaced` (warnings: the standard says SHOULD), `not-visible`, `deep-import` |
 | Visibility and curated surfaces: a sub-feature is visible to its parent and the parent's descendants; no deep imports | `not-visible`, `deep-import`, `surface-unowned` |
 | Layer direction (v1): domain and application never import contracts; adapters reach siblings through the application core | `layer-direction` |
-| Composition contracts: they are composition code, only composition code depends on them, visible features only | `composition-contract-misplaced`, `composition-contract-layer`, `not-visible` |
+| Composition contracts (module-level composition is named by `moduleComposition`): they are composition code, only composition code depends on them, visible features only | `composition-contract-misplaced`, `composition-contract-layer`, `not-visible` |
 | Assembly: only a parent's composition wires its direct sub-feature, and it wires every one that exposes a composition surface | `assembly-misplaced`, `assembly-missing` |
 | Republication: declared, from a direct sub-feature, one level at a time | `republication-undeclared`, `republication-skips-level`, `republication-invalid`, `republication-mismatch`, `republication-not-sub-feature` |
 | Declared use edges, when the consumer has a profile | `use-undeclared`, `use-edge-invalid` |
@@ -61,7 +61,7 @@ For a tree that follows the default layout (`<features root>/<feature>/<role dir
 builds `featureRoots`, `featuresRoots` and `roleRoots` from the file list and a role-directory map.
 
 Smaller pieces for repository-owned checkers: `layerDirectionAllowed`,
-`findCycles`, `cyclicComponents`, `findOverlappingRoots`, `analyzeFeatureTree`.
+`findCycles`, `findOverlappingRoots`, `analyzeFeatureTree`.
 
 ## Fixtures
 

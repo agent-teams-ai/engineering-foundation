@@ -57,6 +57,7 @@ export function exampleModule(): FeatureModuleInput {
   return {
     ...inferDirectoryLayout({ featuresRoot: FEATURES_ROOT, files, roleDirectories, subFeatureRoots }),
     files,
+    moduleComposition: [MODULE_COMPOSITION],
     testFeaturesRoot: TEST_FEATURES_ROOT,
     surfaces: {
       public: features.map((feature) => fileOf(feature, 'public')),

@@ -94,10 +94,15 @@ function republication(ctx: Context, view: View): boolean {
   return true;
 }
 
+// Composition code is the composition role of a feature and, outside every feature, the module-level files the profile names.
+const composes = (ctx: Context, view: View): boolean =>
+  view.fromRole === 'composition' ||
+  (view.from === undefined && (ctx.input.moduleComposition === undefined || ctx.input.moduleComposition.includes(view.record.from)));
+
 function assemblyEdge(ctx: Context, view: View): void {
   const { from, to } = view;
   if (to.parent === undefined) {
-    if (view.fromRole !== 'composition' && from !== undefined) {
+    if (!composes(ctx, view)) {
       ctx.problems.push(diagnostic('deep-import', `${arrow(view)}: only composition code wires the composition surface of ${to.id}.`, at(view)));
     }
     return;
@@ -111,8 +116,7 @@ function assemblyEdge(ctx: Context, view: View): void {
 
 function layerOfUse(ctx: Context, view: View): void {
   const { from, fromRole, kinds } = view;
-  const composes = fromRole === 'composition' || from === undefined;
-  if (kinds.has('composition-contract') && !composes) {
+  if (kinds.has('composition-contract') && !composes(ctx, view)) {
     ctx.problems.push(diagnostic('composition-contract-layer', `${arrow(view)}: only composition code may depend on a composition contract.`, at(view)));
     return;
   }

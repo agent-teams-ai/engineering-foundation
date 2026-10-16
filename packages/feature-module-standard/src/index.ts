@@ -6,7 +6,7 @@ export type { DirectoryLayout } from './features/feature-layout/application/infe
 export { findOverlappingRoots } from './features/feature-layout/application/find-overlapping-roots.js';
 export { layerDirectionAllowed } from './features/feature-dependencies/application/layer-direction.js';
 export type { LayerScope } from './features/feature-dependencies/application/layer-direction.js';
-export { cyclicComponents, findCycles } from './features/feature-dependencies/application/feature-graphs.js';
+export { findCycles } from './features/feature-dependencies/application/feature-graphs.js';
 export type { Edge } from './features/feature-dependencies/application/feature-graphs.js';
 export { ERROR_CODES, STANDARD, WARNING_CODES, isWithin } from './features/feature-model/domain/model.js';
 export type {

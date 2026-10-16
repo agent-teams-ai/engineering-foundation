@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  cyclicComponents, findCycles, findOverlappingRoots, layerDirectionAllowed,
+  findCycles, findOverlappingRoots, layerDirectionAllowed,
 } from '../../../packages/feature-module-standard/dist/index.js';
+// The strongly connected components are internal to the kernel; the test reaches them in the built output.
+import { cyclicComponents } from '../../../packages/feature-module-standard/dist/features/feature-dependencies/application/feature-graphs.js';
 import type { LayerRole } from '../../../packages/feature-module-standard/dist/index.js';
 
 const allowed = (from: string, to: string, scope: 'same-feature' | 'other-feature'): boolean => layerDirectionAllowed(from as LayerRole, to as LayerRole, scope);

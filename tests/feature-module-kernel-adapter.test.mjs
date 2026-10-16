@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { posix } from "node:path";
 import test from "node:test";
+import { WARNING_CODES } from "../packages/feature-module-standard/dist/index.js";
 import { conformanceCases } from "../packages/feature-module-standard/dist/fixtures.js";
 import { within } from "../scripts/feature-modules/profile.mjs";
 import { kernelProblems } from "../scripts/feature-modules/kernel.mjs";
@@ -39,7 +40,23 @@ for (const fixture of expressible) {
     const { profile, policy, observations } = repository(fixture);
     const problems = [];
     kernelProblems(profile, policy, fixture.input.files, observations, problems);
-    const expected = fixture.expect.filter((code) => overlap.has(code)).map((code) => overlap.get(code)).toSorted();
+    // An error the adapter cannot translate fails closed as one feature-root problem.
+    const expected = fixture.expect.filter((code) => !WARNING_CODES.includes(code))
+      .map((code) => overlap.get(code) ?? "feature-root").toSorted();
     assert.deepEqual(problems.map(({ code }) => code).toSorted(), expected, fixture.description);
   });
 }
+
+test("the adapter fails closed on a feature name shared by two roots and on an untranslated kernel error", () => {
+  const input = { featureRoots: ["src/a/x", "src/b/x"], roleRoots: [], files: [], imports: [] };
+  const { profile, policy, observations } = repository({ input: { ...input, roleRoots: [
+    { root: "src/a/x/api.ts", role: "application" }, { root: "src/b/x/api.ts", role: "application" }] } });
+  const duplicate = [];
+  kernelProblems(profile, policy, [], observations, duplicate);
+  assert.deepEqual(duplicate.map(({ code }) => code), ["feature-root"]);
+  const cycle = conformanceCases.find(({ id }) => id === "profile-mapped-cycle");
+  const loop = [];
+  const { profile: loopProfile, policy: loopPolicy, observations: loopObservations } = repository(cycle);
+  kernelProblems(loopProfile, loopPolicy, cycle.input.files, loopObservations, loop);
+  assert.deepEqual(loop.map(({ code }) => code).toSorted(), ["feature-cycle", "feature-root"]);
+});

@@ -46,8 +46,15 @@ function moduleInput(module, files, observations, policy, profile) {
   };
 }
 
-function translate(module, roots, report) {
+// The kernel names a feature by the last segment of its root, so two features of one module may not share it.
+const basename = (root) => root.slice(root.lastIndexOf("/") + 1);
+
+function translate(module, roots, report, problems) {
   const names = new Map(roots.map(({ feature, root }) => [report.features.find((node) => node.root === root)?.id, feature.id]));
+  // Fail closed: an error the adapter does not translate is a mapping the repository profile cannot express.
+  for (const { code, message, severity } of report.diagnostics) {
+    if (severity === "error" && !codes.has(code)) {problem(problems, "feature-root", `${module.id}: kernel ${code}: ${message}`);}
+  }
   return report.diagnostics.filter(({ code }) => codes.has(code)).map((diagnostic) => {
     if (diagnostic.code === "feature-cycle") {
       const path = diagnostic.message.slice(observedCycle.length).split(" -> ").map((name) => `${module.id}/${names.get(name) ?? name}`);
@@ -62,10 +69,10 @@ export function kernelProblems(profile, policy, files, observations, problems) {
   for (const module of profile.modules) {
     const { roots, input } = moduleInput(module, files, observations, policy, profile);
     const distinct = new Set(roots.map(({ root }) => root));
-    if (distinct.size !== roots.length || roots.some(({ root }) => roots.some((other) => other.root !== root && within(root, other.root)))) {
-      problem(problems, "feature-root", `${module.id}: feature layer roots do not resolve to distinct, non-nested feature roots.`);
+    if (distinct.size !== roots.length || new Set(roots.map(({ root }) => basename(root))).size !== roots.length || roots.some(({ root }) => roots.some((other) => other.root !== root && within(root, other.root)))) {
+      problem(problems, "feature-root", `${module.id}: feature layer roots do not resolve to distinct, non-nested feature roots with distinct names.`);
       continue;
     }
-    for (const found of translate(module, roots, checkFeatureModule(input))) {problem(problems, found.code, found.message);}
+    for (const found of translate(module, roots, checkFeatureModule(input), problems)) {problem(problems, found.code, found.message);}
   }
 }

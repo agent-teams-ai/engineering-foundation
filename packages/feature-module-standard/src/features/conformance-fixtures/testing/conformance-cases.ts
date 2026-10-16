@@ -1,14 +1,14 @@
 import { inferDirectoryLayout } from '../../feature-layout/application/infer-directory-layout.js';
 import { WARNING_CODES } from '../../feature-model/domain/model.js';
 import type {
-  FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge,
+  DiagnosticCode, FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge,
 } from '../../feature-model/domain/model.js';
 import {
   FEATURES_ROOT, MODULE_COMPOSITION, TEST_FEATURES_ROOT, exampleModule, exampleRoots, fileOf, importOf, roleDirectories,
 } from './example-tree.js';
 
 // A fixture's `input` is a kernel input; the fixtures entry point republishes the types that describe it.
-export type { FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge };
+export type { DiagnosticCode, FeatureModuleInput, ImportMode, ImportRecord, LayerRole, Republication, RepublishedSurface, RoleRoot, SurfaceMap, UseEdge };
 
 /** One fixture: a complete module description and the exact diagnostic codes the kernel must report for it. */
 export type ConformanceCase = Readonly<{
@@ -18,7 +18,7 @@ export type ConformanceCase = Readonly<{
   description: string;
   input: FeatureModuleInput;
   /** Sorted diagnostic codes, duplicates kept; empty when the module conforms. */
-  expect: readonly string[];
+  expect: readonly DiagnosticCode[];
   /** False only when an error code is among `expect`; a warning does not fail. */
   ok: boolean;
 }>;
@@ -31,7 +31,7 @@ type Change = Readonly<{
 }>;
 
 const warnings: ReadonlySet<string> = new Set(WARNING_CODES);
-const define = (id: string, source: string, description: string, expect: readonly string[], change: Change = {}): ConformanceCase => {
+const define = (id: string, source: string, description: string, expect: readonly DiagnosticCode[], change: Change = {}): ConformanceCase => {
   const base = exampleModule();
   const input: FeatureModuleInput = {
     ...base, ...change.input,
@@ -58,7 +58,7 @@ const reportsAdapter = `${reports}/adapters/store.ts`;
 const billingApi2 = `${billing2}/api.ts`;
 const files = [reportsApi, `${reports}/module.ts`, reportsAdapter, billingApi2, `${billing2}/contracts.ts`];
 const v1Files = [`${FEATURES_ROOT}/legacy/domain/model.ts`, `${FEATURES_ROOT}/legacy/features/helper.ts`];
-const profileCase = (id: string, expect: readonly string[], imports: readonly ImportRecord[], description: string): ConformanceCase => ({
+const profileCase = (id: string, expect: readonly DiagnosticCode[], imports: readonly ImportRecord[], description: string): ConformanceCase => ({
   id, source: 'Abstract repository layout', description, expect, ok: expect.length === 0,
   input: {
     files, imports, featureRoots: [reports, billing2],
@@ -191,6 +191,21 @@ export const conformanceCases: readonly ConformanceCase[] = [
   }),
   define('cycle-through-a-deep-import', 'Sub-features: Dependency graph and cycles', 'A deep import is rejected and still closes a cycle.', ['deep-import', 'feature-cycle'], {
     imports: [importOf(f('orders/pricing', 'composition'), f('orders/discounts', 'domain')), importOf(f('orders/discounts', 'composition'), f('orders/pricing', 'public'))],
+  }),
+  define('contracts-cannot-use-a-composition-contract', 'Composition contracts', 'Code of the contracts role never depends on a composition contract.', ['composition-contract-layer'], {
+    imports: [importOf(f('billing', 'public'), f('orders', 'contract'))],
+  }),
+  define('adapters-cannot-use-a-composition-contract', 'Composition contracts', 'Code of the adapters role never depends on a composition contract.', ['composition-contract-layer'], {
+    files: [`${FEATURES_ROOT}/billing/adapters/gateway.ts`], imports: [importOf(`${FEATURES_ROOT}/billing/adapters/gateway.ts`, f('orders', 'contract'))],
+  }),
+  define('module-code-outside-composition-cannot-use-a-composition-contract', 'Composition contracts', 'Only module-level composition may depend on a composition contract.', ['composition-contract-layer'], {
+    files: ['src/other.ts'], imports: [importOf('src/other.ts', f('orders', 'contract'))],
+  }),
+  define('module-code-outside-composition-cannot-wire-a-composition-surface', 'Sub-features: Assembly', 'Only module-level composition wires the composition surface of a top-level feature.', ['deep-import'], {
+    files: ['src/other.ts'], imports: [importOf('src/other.ts', f('billing', 'group'))],
+  }),
+  define('module-composition-uses-a-top-level-composition-contract', 'Composition contracts', 'Module composition depends on the composition contract of a top-level feature.', [], {
+    imports: [importOf(MODULE_COMPOSITION, f('orders', 'contract'))],
   }),
   define('lateral-reexport-is-no-republication', 'Growth guardrails 13', 'A sibling cannot republish the contracts of another sibling.', ['republication-not-sub-feature'], {
     imports: [importOf(f('orders/pricing', 'public'), f('orders/discounts', 'public'), 'runtime', true)],

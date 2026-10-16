@@ -52,6 +52,11 @@ export type FeatureModuleInput = Readonly<{
   testFeaturesRoot?: string;
   testFiles?: readonly string[];
   surfaces?: SurfaceMap;
+  /**
+   * Module-level files that are composition. When given, any other module-level file is not composition and may not depend on a
+   * composition contract or wire a composition surface; when absent, every module-level file is taken to be composition.
+   */
+  moduleComposition?: readonly string[];
   imports: readonly ImportRecord[];
   republications?: readonly Republication[];
   /** Declared use edges. When present, every observed use edge must be among them. */

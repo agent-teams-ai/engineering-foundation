@@ -1,11 +1,20 @@
 {
   "name": "@agent-teams/feature-module-standard",
   "version": "0.0.0",
-  "description": "Pure, opt-in checks for the Feature Module Standard: feature tree, visibility, edges, composition contracts and cycles.",
+  "description": "Opt-in checks for the Feature Module Standard: a pure kernel, shared fixtures and a Node runner over the Foundation file graph.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
+  "peerDependencies": {
+    "@agent-teams/engineering-foundation": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@agent-teams/engineering-foundation": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@agent-teams/engineering-foundation": "workspace:*",
     "typescript": "catalog:"
   },
   "scripts": {
@@ -19,6 +28,10 @@
     "./fixtures": {
       "types": "./dist/fixtures.d.ts",
       "import": "./dist/fixtures.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
     },
     "./package.json": "./package.json"
   },

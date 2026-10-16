@@ -211,6 +211,23 @@ test("projection and staging validation fail closed", async (t) => {
       requiredArtifactPaths: { [target.name]: ["dist/index.js"] },
     }), /unresolved internal support package/u);
   });
+  await t.test("an optional peer range with its workspace link is one ordering edge; other ranges and pairs are rejected", () => {
+    const a = catalogEntry("@fixture/a");
+    const b = catalogEntry("@fixture/b");
+    const derive = (manifest) => derivePublishablePackageProjection({
+      catalog: [a, b],
+      manifestsByName: new Map([[a.name, { name: a.name }], [b.name, { name: b.name, ...manifest }]]),
+    });
+    const peer = derive({ devDependencies: { [a.name]: "workspace:*" }, peerDependencies: { [a.name]: "workspace:^" } });
+    assert.deepEqual(peer.declarations[b.name], [{ name: a.name, section: "peerDependencies" }]);
+    assert.deepEqual(peer.dependencies[b.name], []);
+    assert.deepEqual(peer.packages.map(({ name }) => name), [a.name, b.name]);
+    assert.throws(() => derive({ peerDependencies: { [a.name]: "workspace:^" } }), /as workspace:\*/u);
+    assert.throws(() => derive({ dependencies: { [a.name]: "workspace:^" } }), /as workspace:\*/u);
+    assert.throws(() => derive({ devDependencies: { [a.name]: "workspace:^" } }), /as workspace:\*/u);
+    assert.throws(() => derive({ devDependencies: { [a.name]: "workspace:*" }, peerDependencies: { [a.name]: "workspace:*" } }), /multiple dependency sections/u);
+    assert.throws(() => derive({ dependencies: { [a.name]: "workspace:*" }, devDependencies: { [a.name]: "workspace:*" } }), /multiple dependency sections/u);
+  });
   await t.test("cycle from manifest authority", () => {
     const a = catalogEntry("@fixture/a");
     const b = catalogEntry("@fixture/b");

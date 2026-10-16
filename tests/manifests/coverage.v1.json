@@ -7,23 +7,23 @@
   "processBootstrap": "scripts/coverage-process-bootstrap.mjs",
   "include": [
     "packages/ci-input-proof/dist/**/*.js",
-    "packages/feature-module-standard/dist/**/*.js",
     "packages/repository-mutation/dist/**/*.js",
     "packages/document-authoring/dist/**/*.js",
     "packages/docs-protocol/dist/**/*.js",
     "packages/docs-protocol-agent-teams/dist/**/*.js",
     "packages/docs-protocol-mcp/dist/**/*.js",
-    "packages/engineering-foundation/dist/**/*.js"
+    "packages/engineering-foundation/dist/**/*.js",
+    "packages/feature-module-standard/dist/**/*.js"
   ],
   "exclude": [
     "packages/ci-input-proof/dist/**/*.d.ts",
-    "packages/feature-module-standard/dist/**/*.d.ts",
     "packages/repository-mutation/dist/**/*.d.ts",
     "packages/document-authoring/dist/**/*.d.ts",
     "packages/docs-protocol/dist/**/*.d.ts",
     "packages/docs-protocol-agent-teams/dist/**/*.d.ts",
     "packages/docs-protocol-mcp/dist/**/*.d.ts",
-    "packages/engineering-foundation/dist/**/*.d.ts"
+    "packages/engineering-foundation/dist/**/*.d.ts",
+    "packages/feature-module-standard/dist/**/*.d.ts"
   ],
   "additionalTestsByShard": {
     "1": [

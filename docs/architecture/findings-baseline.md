@@ -126,8 +126,8 @@ Validation in this delivery (the contract is proven here, not incubated here):
 - Real-data parity for the source graph: the Foundation source tree parses
   completely and has no runtime import cycle. This is parity on real data, not
   a second consumer. PR #398 does not import `./source-graph`. The real
-  consumer of the source graph is the follow-up `./node` runner of the Feature
-  Module Standard package (after PR #398; not yet opened). Hold: the Version PR
+  consumer of the source graph is the `./node` runner of the Feature Module
+  Standard package, delivered in the follow-up pull request after PR #398. Hold: the Version PR
   for 1.8.0 must not be merged before that runner merges. The consumer of
   `checkBudgets` is the agent-runtime growth budgets (wave 0b, later).
 - Real consumer of the findings baseline: agent-runtime, run against a

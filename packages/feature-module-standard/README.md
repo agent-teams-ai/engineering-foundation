@@ -73,9 +73,32 @@ composition-contract cases as complete module descriptions with their expected
 diagnostic codes. The kernel tests, and every adopting checker as its
 conformance test, run the same data.
 
-## Not here yet
+## Runner
 
-The `./node` runner for repositories without their own checker (feature root discovery through the Foundation source graph) is a follow-up change. The first release of this package and the Foundation release that publishes the source graph wait for it.
+`@agent-teams/feature-module-standard/node` checks a module on disk. It reads the declared roots through
+`@agent-teams/engineering-foundation/source-graph`, runs the kernel and compares the per-feature metrics with
+growth budgets from `@agent-teams/engineering-foundation/ratchet` (warnings only). Engineering Foundation `^1.8.0` is an
+optional peer dependency: users of `.` and `./fixtures` do not need it.
+
+```ts
+import { checkFeatureModuleOnDisk, formatNodeReport } from '@agent-teams/feature-module-standard/node';
+
+const report = await checkFeatureModuleOnDisk({
+  consumerRoot: process.cwd(),
+  sourceRoots: ['src'],
+  testRoots: ['tests'],
+  structure: { featuresRoot: 'src/features', roleDirectories: { domain: 'domain', application: 'application' } },
+  surfaces: { public: ['src/features/orders/contracts/public.ts'] },
+  budgets: [{ metric: 'sourceFiles', max: 40 }],
+});
+process.stdout.write(formatNodeReport(report));
+```
+
+The configuration is data. `structure` is either the default layout (`featuresRoot`, `roleDirectories`, declared
+`subFeatureRoots`) or the profile's own mapping (`featureRoots`, `roleRoots`). Metrics available to budgets are `depth`,
+`subFeatures`, `sourceFiles`, `testFiles` and every name of `fileGroups` (regular expression sources). A file the parser
+cannot read fails the run, because its imports would be missing from the check. A bare specifier is not an edge: the
+file graph reports packages and aliases as external, so a tsconfig alias that points into a feature is not seen.
 
 ## Stability
 

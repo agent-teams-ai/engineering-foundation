@@ -246,6 +246,10 @@ package outside that Cohort, admitted by
 [ADR-0062](decisions/0062-feature-module-standard-package-admission.md); it has
 no registry version, and its npm bootstrap approval is an owner step that must
 complete before any `release:publish` that includes it.
+An internal package is declared once, as `workspace:*`. The one exception is an
+optional peer range (`peerDependencies` `workspace:^`) together with the workspace
+link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
+one edge for the closed DAG and publishes as `^<workspace version>`.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version

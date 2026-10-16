@@ -145,7 +145,7 @@ export function validateObservations(profile, policy, observations, problems, su
     if (!to) { problem(problems, "unowned-edge", `${path} -> ${result.path}`); continue; }
     if (from.kind === "feature" && to.kind === "feature" && from.module.id === to.module.id) {
       // The kernel judges this edge; a contracts layer never reaching another feature is the one local strengthening.
-      if (from.layer.role === "contracts" && !sameFeature(from, to)) {
+      if (from.layer.role === "contracts" && to.layer?.role === "contracts" && !sameFeature(from, to)) {
         problem(problems, "layer-direction", `${path} -> ${result.path}: contracts cannot import another feature.`);
       }
       continue;

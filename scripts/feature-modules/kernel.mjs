@@ -40,6 +40,7 @@ function moduleInput(module, files, edges, policy, profile) {
       roleRoots: module.features.flatMap((feature) => feature.layers.flatMap((layer) => layer.roots.map((root) => ({ root, role: layer.role })))),
       files: files.filter((file) => within(file, module.sourceRoot)),
       surfaces: { public: entrypoints.filter((path) => isFeature(classify(path, profile))) },
+      moduleComposition: module.moduleAssembly,
       imports
     }
   };

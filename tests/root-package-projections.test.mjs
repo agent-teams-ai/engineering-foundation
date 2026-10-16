@@ -92,6 +92,7 @@ test("manifest projection rejects cycles, unknown workspace targets, and malform
 test("current projection preserves the ADR-0043 DAG and independent CI input package", () => {
   assert.deepEqual(PUBLISHABLE_PACKAGES.map(({ name }) => name), [
     "@agent-teams/ci-input-proof",
+    "@agent-teams/feature-module-standard",
     "@agent-teams/repository-mutation",
     "@agent-teams/document-authoring",
     "@agent-teams/docs-protocol",
@@ -100,6 +101,7 @@ test("current projection preserves the ADR-0043 DAG and independent CI input pac
     "@agent-teams/engineering-foundation",
   ]);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/ci-input-proof"], []);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/feature-module-standard"], []);
   assert.deepEqual(
     PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/document-authoring"],
     ["@agent-teams/repository-mutation"],

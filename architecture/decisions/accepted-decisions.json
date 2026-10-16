@@ -291,6 +291,11 @@
       "id": "ADR-0061",
       "path": "docs/decisions/0061-library-first-foundation-boundary-evolution.md",
       "immutableDigest": "sha256:6ae637669146a88e302e5a458f3bc6245af4811c18075a1f0128891ea148acbe"
+    },
+    {
+      "id": "ADR-0062",
+      "path": "docs/decisions/0062-feature-module-standard-package-admission.md",
+      "immutableDigest": "sha256:d8e820f6f4209dadc5b35d6f859dfee4d8331f3a210b8047c20c7541fb41d4b0"
     }
   ]
 }

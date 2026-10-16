@@ -148,9 +148,23 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
       { id: "docs-protocol-agent-teams", state: "historical" },
       { id: "docs-protocol-mcp", state: "historical" },
       { id: "ci-input-proof", state: "historical" },
+      { id: "feature-module-standard", state: "approved" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
+  const standard = bootstrapPackageById("feature-module-standard", { approved: true });
+  assert.deepEqual(standard.approval, {
+    archiveIntegrity: "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
+    packageTree: "d2686d208af115b731ba135fc1980aa9355ff747",
+  });
+  const candidate = structuredClone(NPM_PACKAGE_BOOTSTRAP);
+  const candidateStandard = candidate.packages.find(({ id }) => id === "feature-module-standard");
+  candidateStandard.state = "candidate";
+  candidateStandard.approval = null;
+  assert.throws(
+    () => bootstrapPackageById("feature-module-standard", { approved: true, catalog: parseBootstrapCatalog(candidate) }),
+    /not approved/u,
+  );
   const inputProof = bootstrapPackageById("ci-input-proof");
   assert.deepEqual(inputProof.approval, {
     archiveIntegrity: "sha512-TfvqvgodFFHk8ZuM9rRByn+2WQIrL/lw08s7XlqzI8Ww1O9DU5S9cpaggylbmUjbyiqm7T2itDBmEF33C8DO4A==",

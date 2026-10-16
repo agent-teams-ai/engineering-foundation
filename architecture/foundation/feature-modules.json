@@ -2059,6 +2059,107 @@
         "tests/features/input-comparison/ci-input-proof.test.mts",
         "tests/features/input-comparison/ci-input-proof-process.test.mts"
       ]
+    },
+    {
+      "id": "feature-module-standard",
+      "packageName": "@agent-teams/feature-module-standard",
+      "root": "packages/feature-module-standard",
+      "sourceRoot": "packages/feature-module-standard/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/feature-module-standard/src/features",
+      "publicEntrypoints": [
+        "packages/feature-module-standard/src/index.ts",
+        "packages/feature-module-standard/src/fixtures.ts"
+      ],
+      "moduleAssembly": [
+        "packages/feature-module-standard/src/index.ts",
+        "packages/feature-module-standard/src/fixtures.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "feature-model",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "domain",
+              "roots": [
+                "packages/feature-module-standard/src/features/feature-model/domain"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/module-check.test.mts"
+          ]
+        },
+        {
+          "id": "feature-layout",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/feature-layout/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/layout.test.mts"
+          ]
+        },
+        {
+          "id": "feature-dependencies",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/feature-dependencies/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/dependencies.test.mts"
+          ]
+        },
+        {
+          "id": "module-check",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/module-check/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/module-check.test.mts"
+          ]
+        },
+        {
+          "id": "conformance-fixtures",
+          "role": "testing",
+          "layers": [
+            {
+              "role": "testing",
+              "roots": [
+                "packages/feature-module-standard/src/features/conformance-fixtures/testing"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/conformance.test.mts"
+          ]
+        }
+      ],
+      "testRoots": [
+        "tests/features/feature-module-standard/conformance.test.mts",
+        "tests/features/feature-module-standard/dependencies.test.mts",
+        "tests/features/feature-module-standard/layout.test.mts",
+        "tests/features/feature-module-standard/module-check.test.mts"
+      ]
     }
   ],
   "productionRoots": [

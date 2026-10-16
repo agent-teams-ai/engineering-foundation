@@ -234,13 +234,18 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-seven-package DAG owned solely by `scripts/publishable-packages.mjs`.
+eight-package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
 source package outside that documentation Cohort. Its `0.1.0-rc.0` registry
 adoption is complete, and the narrow predecessor policy above governs ordinary
 successors as recorded in
 [CI Input Proof source admission](development/ci-input-proof-admission.md).
+The opt-in Feature Module Standard package is a second independent source
+package outside that Cohort, admitted by
+[ADR-0062](decisions/0062-feature-module-standard-package-admission.md); it has
+no registry version, and its npm bootstrap approval is an owner step that must
+complete before any `release:publish` that includes it.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version

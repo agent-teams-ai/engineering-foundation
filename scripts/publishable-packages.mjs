@@ -18,6 +18,12 @@ export const PUBLISHABLE_PACKAGE_CATALOG = Object.freeze([
     root: "packages/ci-input-proof",
   }),
   Object.freeze({
+    changelogPath: "packages/feature-module-standard/CHANGELOG.md",
+    manifestPath: "packages/feature-module-standard/package.json",
+    name: "@agent-teams/feature-module-standard",
+    root: "packages/feature-module-standard",
+  }),
+  Object.freeze({
     changelogPath: "packages/repository-mutation/CHANGELOG.md",
     manifestPath: "packages/repository-mutation/package.json",
     name: "@agent-teams/repository-mutation",

@@ -56,16 +56,18 @@ meaning, body rules, relationships, and prose or diagram tools. Profiles are
 data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
-[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md)
+[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md),
+with the one-node amendment of
+[ADR-0062](../decisions/0062-feature-module-standard-package-admission.md),
 defines the implemented new-only package ownership boundary and is the sole
-authority for its dependency DAG:
+authority for the package dependency DAG:
 
 - `@agent-teams/ci-input-proof` owns pure CI leaf comparison; consumer Hosts retain
   completeness, classification, source admission and execution/merge authority;
 - `@agent-teams/feature-module-standard` owns the opt-in Feature Module Standard
   checks (pure kernel and shared conformance fixtures); no other package depends
   on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
-  owns its place outside the ADR-0043 graph. Implementation status: the pure
+  adds its node to the ADR-0043 graph. Implementation status: the pure
   kernel, fixtures and the `./node` runner exist; the runner's one accepted edge, an
   optional peer dependency on the public subpaths of Engineering Foundation, is
   implemented, and no Foundation package depends on this one;

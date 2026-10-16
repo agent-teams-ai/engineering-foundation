@@ -16,7 +16,7 @@ This note records what the source checkpoint contains and what is still pending.
   source graph, runs the kernel and reports growth budget warnings. Foundation `^1.8.0` is an optional peer dependency.
 - `./fixtures`: the informative examples of v1.1, the cycle cases, the
   composition-contract cases and the republication cases as data with expected
-  codes, plus the example tree as real source files.
+  codes, plus the example tree as source texts.
 - Tests: the kernel runs every fixture, checks that every diagnostic code is
   exercised, that the report does not depend on input order, that the
   materialized example reads back to the same edges and the same report, and that
@@ -27,20 +27,42 @@ This note records what the source checkpoint contains and what is still pending.
 | Evidence | State |
 | --- | --- |
 | Shared fixtures run by the kernel | done |
-| Disposable project: the example tree, as a module and as source files | done |
+| Disposable project: the example tree, as a module and as source texts | done |
 | Real consumer: Engineering Foundation's checker uses the kernel for path containment, ownership-root overlap, v1 layer direction and cycle search, and the replaced code is deleted | done |
+<<<<<<< HEAD
 | Real consumer: feature-to-feature deep imports, layer direction and cycles through `checkFeatureModule` per module, built from the profile and the observed source graph | done |
 | Real consumer: shared flat fixtures run against the repository checker | done (`tests/feature-module-kernel-adapter.test.mjs`) |
 | Old and new checker compared on the real graph and on synthetic edges (normalized rule, subject and location) | done: real graph 0 against 0 problems; 300 random feature-to-feature edges (109 flagged by the old checker) and 60 batches of 25 edges (45 cycle reports) with no difference |
 | `./node` runner on the public source graph | done: example tree materialized on disk gives the kernel's answer (`tests/features/feature-module-standard/node-runner.test.mts`) |
 | First npm publication and bootstrap approval | owner step |
+=======
+| Real consumer: feature-to-feature deep imports, layer direction and cycles through `checkFeatureModule` per module, built from the profile and the observed source graph, failing closed on an untranslated kernel error | done |
+| Real consumer: the shared fixtures that a flat profile can express run through the repository checker's kernel adapter | done (`tests/feature-module-kernel-adapter.test.mjs`) |
+| Old and new checker compared on the real graph and on synthetic edges | done, see below |
+| Packed archive imported by name (`.` and `./fixtures`) in a disposable consumer | pending, closed with the runner |
+| `./node` runner on the public source graph | follow-up PR; the source graph is on `main` since `73c3814d1` |
+| Engineering Foundation 1.8.0 Version PR (#392) | held until the runner merges, so that 1.8.0 and the first release of this package ship together |
+| Bootstrap approval and bootstrap publication of the npm name | owner step; until both exist every `release:publish` of this repository fails closed |
+>>>>>>> n3b-fixes
 
 The first publication waits for the pending rows.
 
-The comparison ran the checker of the base commit against the current one on the
-same observed source graph. It found and fixed three kernel differences before it
-reached zero: a deep import also reports the direction rule, a deep import counts
-as an edge of the cycle graph, and the local contracts strengthening applies only
-where the kernel allows the edge. Cycles are compared as the set of features in
-them, because the two implementations start the search from differently ordered
-names and may report different paths of the same cycle.
+## Comparison of the old and the new checker
+
+The checker of base `5a4efcf75` was compared with the checker of this branch on
+the same observed source graph and the same surfaces. On the real graph both
+report 0 problems. An independent rerun on the same repository state, with 300
+random feature-to-feature edges and 60 batches of 25 edges, agrees on rejection
+or acceptance in all 360 trials, and the deep-import and layer-direction
+findings match everywhere. In 10 trials, all in `docs-protocol`, the two
+checkers list different cycle paths of the same strongly connected component.
+
+Cycles are compared by the strongly connected components they lie in and by the
+pass or fail of each case. The old checker searched one graph of all modules, so
+it could list more elementary cycles of the same component than the per-module
+kernel; the listed cycle paths differ, the rejection does not.
+
+The comparison found and fixed three kernel differences on the way: a deep
+import also reports the direction rule, a deep import counts as an edge of the
+cycle graph, and the local contracts strengthening applies only where the kernel
+allows the edge. The comparison scripts are not retained.

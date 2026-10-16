@@ -1,6 +1,4 @@
-import { realpathSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
+// Library only, no side effects on import: the command is `npm-package-bootstrap-ci-proof-cli.mjs`.
 // Proof that the exact commit to bootstrap passed the repository's full CI. It reads only the jobs of one `ci.yml` workflow
 // run that GitHub Actions itself created for a push of this commit to main: a check run with the same name from another app
 // is never read, so it cannot count. It never waits: no run, a running run or a red context is an error.
@@ -89,19 +87,4 @@ export function githubRequest(token, fetchImplementation = fetch) {
     if (!response.ok) {refuse("CI_PROOF_API", `GitHub answered ${String(response.status)} for ${path.split("?")[0]}.`);}
     return response.json();
   };
-}
-
-// Compare real paths: a symlinked checkout path (for example /tmp on macOS) must not turn the command into a silent no-op.
-if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
-  try {
-    const token = process.env.GH_TOKEN;
-    if (token === undefined || token === "") {refuse("CI_PROOF_INPUT", "GH_TOKEN is not set.");}
-    const proof = await proveCommitCi({
-      repository: process.env.GITHUB_REPOSITORY ?? "", commit: process.argv[2] ?? "", request: githubRequest(token),
-    });
-    process.stdout.write(`CI proof: run ${String(proof.runId)} at ${proof.commit} is green for ${proof.contexts.join(", ")}.\n`);
-  } catch (error) {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exitCode = 1;
-  }
 }

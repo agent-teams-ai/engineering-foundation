@@ -162,7 +162,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.ok(ciDefaultNode, "CI writer must select the repository default Node through .node-version");
   assert.equal(ciDefaultNode.with["node-version-file"], job.steps[2].with["node-version-file"]);
   // The tests are not re-run in the privileged job: the exact commit must have a green CI run, proven before any install.
-  const proof = job.steps.findIndex(({ run }) => run === 'node scripts/npm-package-bootstrap-ci-proof.mjs "${EXPECTED_COMMIT}"');
+  const proof = job.steps.findIndex(({ run }) => run === 'node scripts/npm-package-bootstrap-ci-proof-cli.mjs "${EXPECTED_COMMIT}"');
   const install = job.steps.findIndex(({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts");
   const authority = job.steps.findIndex(({ id }) => id === "authority");
   assert.ok(authority >= 0 && authority < proof && proof < install);

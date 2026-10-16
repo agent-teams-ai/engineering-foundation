@@ -82,7 +82,7 @@ jobs:
         env:
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/npm-package-bootstrap-ci-proof.mjs "${EXPECTED_COMMIT}"
+        run: node scripts/npm-package-bootstrap-ci-proof-cli.mjs "${EXPECTED_COMMIT}"
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm build
       - name: Build and bind the exact tarball

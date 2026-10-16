@@ -94,7 +94,7 @@ test("the proof contexts are the release attestation contexts", async () => {
   assert.equal(CI_PROOF_CONTEXTS.at(-1), "linux-package");
 });
 
-test("the command runs, and refuses without a token, when started through a symlinked path", async () => {
+test("the command always runs: through a symlinked path, and not at all as a side effect of importing the library", async () => {
   const { mkdtemp, symlink, rm } = await import("node:fs/promises");
   const { spawnSync } = await import("node:child_process");
   const { tmpdir } = await import("node:os");
@@ -103,7 +103,7 @@ test("the command runs, and refuses without a token, when started through a syml
   const directory = await mkdtemp(join(tmpdir(), "ci-proof-link-"));
   try {
     const link = join(directory, "proof.mjs");
-    await symlink(fileURLToPath(new URL("../scripts/npm-package-bootstrap-ci-proof.mjs", import.meta.url)), link);
+    await symlink(fileURLToPath(new URL("../scripts/npm-package-bootstrap-ci-proof-cli.mjs", import.meta.url)), link);
     const env = { ...process.env };
     delete env.GH_TOKEN;
     const result = spawnSync(process.execPath, [link, commit], { encoding: "utf8", env });
@@ -112,4 +112,8 @@ test("the command runs, and refuses without a token, when started through a syml
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+  // Importing the library must neither run the proof nor change the exit code.
+  const imported = spawnSync(process.execPath, ["--input-type=module", "-e", 'await import(process.argv[1]);', new URL("../scripts/npm-package-bootstrap-ci-proof.mjs", import.meta.url).href], { encoding: "utf8" });
+  assert.equal(imported.status, 0);
+  assert.equal(imported.stderr, "");
 });

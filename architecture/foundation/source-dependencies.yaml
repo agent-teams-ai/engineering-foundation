@@ -821,12 +821,8 @@ boundaries:
       - packages/engineering-foundation/src/index.ts
       - packages/engineering-foundation/src/public-api-surface.ts
       - packages/engineering-foundation/src/sdk-growth-authority.ts
-      - packages/engineering-foundation/src/ratchet.ts
-      - packages/engineering-foundation/src/source-graph.ts
     allow:
       boundaries:
-        - capability.findings-baseline.application
-        - capability.source-dependencies.composition
         - foundation.local-mode.adapters
         - foundation.local-mode.application
         - foundation.local-mode.composition
@@ -841,6 +837,30 @@ boundaries:
         - capability.public-api-compatibility.adapters
         - capability.public-api-compatibility.application
         - capability.public-api-compatibility.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
+  - id: foundation.ratchet
+    roots:
+      - packages/engineering-foundation/src/ratchet.ts
+    packageExports:
+      - ./ratchet
+    allow:
+      boundaries:
+        - capability.findings-baseline.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
+  - id: foundation.source-graph
+    roots:
+      - packages/engineering-foundation/src/source-graph.ts
+    packageExports:
+      - ./source-graph
+    allow:
+      boundaries:
+        - capability.source-dependencies.composition
       packages: []
       builtins: []
       runtimeReferences: []
@@ -4188,6 +4208,45 @@ boundaries:
     allow:
       boundaries:
         - feature-module-standard.fixtures.testing
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.node-runner.application
+    roots:
+      - packages/feature-module-standard/src/features/node-runner/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/node-runner/application/run-feature-module-check.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+        - feature-module-standard.check.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.node-runner.composition
+    roots:
+      - packages/feature-module-standard/src/features/node-runner/composition
+    entrypoints:
+      - packages/feature-module-standard/src/features/node-runner/composition/check-feature-module-on-disk.ts
+    allow:
+      boundaries:
+        - feature-module-standard.node-runner.application
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.node
+    roots:
+      - packages/feature-module-standard/src/node.ts
+    entrypoints:
+      - packages/feature-module-standard/src/node.ts
+    packageExports:
+      - ./node
+    allow:
+      boundaries:
+        - feature-module-standard.node-runner.application
+        - feature-module-standard.node-runner.composition
       packages: []
       builtins: []
       runtimeReferences: []

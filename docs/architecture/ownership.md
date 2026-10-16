@@ -66,8 +66,9 @@ authority for its dependency DAG:
   checks (pure kernel and shared conformance fixtures); no other package depends
   on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
   owns its place outside the ADR-0043 graph. Implementation status: the pure
-  kernel and fixtures exist and have no package dependency; the `./node` runner and
-  its one accepted peer edge to the neutral core are not implemented yet;
+  kernel, fixtures and the `./node` runner exist; the runner's one accepted edge, an
+  optional peer dependency on the public subpaths of Engineering Foundation, is
+  implemented, and no Foundation package depends on this one;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

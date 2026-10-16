@@ -16,6 +16,19 @@ async function tree(t, files) {
   return root;
 }
 
+test("source graph marks an export-from edge as a re-export", async (t) => {
+  const consumerRoot = await tree(t, {
+    "src/a.ts": 'export * from "./b.js";\nexport type { B } from "./c.js";\nimport { d } from "./d.js";\nexport const a = d;\n',
+    "src/b.ts": "export const b = 1;\n", "src/c.ts": "export type B = 1;\n", "src/d.ts": "export const d = 1;\n"
+  });
+  const { edges } = await observeSourceGraph({ consumerRoot, roots: ["src"] });
+  assert.deepEqual(edges, [
+    { from: "src/a.ts", to: "src/b.ts", mode: "runtime", line: 1, reexport: true },
+    { from: "src/a.ts", to: "src/c.ts", mode: "type-only", line: 2, reexport: true },
+    { from: "src/a.ts", to: "src/d.ts", mode: "runtime", line: 3 }
+  ]);
+});
+
 test("source graph returns runtime and type-only edges with lines, unresolved imports and cycles", async (t) => {
   const consumerRoot = await tree(t, {
     "src/a.ts": 'import { b } from "./b.js";\nimport type { C } from "./c.js";\nimport { fs } from "node:fs";\nimport "../outside.js";\nexport const a = b;\n',

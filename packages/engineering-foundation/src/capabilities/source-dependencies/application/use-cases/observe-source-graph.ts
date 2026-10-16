@@ -14,6 +14,8 @@ export interface SourceGraphEdge {
   readonly mode: "runtime" | "type-only";
   /** One-based line of the import. */
   readonly line: number;
+  /** Present on an `export ... from` statement, which re-exports instead of importing for local use. */
+  readonly reexport?: true;
 }
 
 export interface SourceGraphUnresolved {
@@ -102,7 +104,10 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
     const { resolution } = edge;
     switch (resolution.kind) {
       case "local-file":
-        edges.push({ from: edge.fromPath, to: resolution.path, mode: edge.mode, line: at.line });
+        edges.push({
+          from: edge.fromPath, to: resolution.path, mode: edge.mode, line: at.line,
+          ...(edge.kind === "export" || edge.kind === "export-type" ? { reexport: true as const } : {})
+        });
         break;
       case "builtin":
       case "external-package":

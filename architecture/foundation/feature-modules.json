@@ -2069,11 +2069,13 @@
       "preferredFeatureRoot": "packages/feature-module-standard/src/features",
       "publicEntrypoints": [
         "packages/feature-module-standard/src/index.ts",
-        "packages/feature-module-standard/src/fixtures.ts"
+        "packages/feature-module-standard/src/fixtures.ts",
+        "packages/feature-module-standard/src/node.ts"
       ],
       "moduleAssembly": [
         "packages/feature-module-standard/src/index.ts",
-        "packages/feature-module-standard/src/fixtures.ts"
+        "packages/feature-module-standard/src/fixtures.ts",
+        "packages/feature-module-standard/src/node.ts"
       ],
       "generatedRoots": [],
       "exceptions": [],
@@ -2152,13 +2154,35 @@
           "testRoots": [
             "tests/features/feature-module-standard/conformance.test.mts"
           ]
+        },
+        {
+          "id": "node-runner",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/node-runner/application"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/feature-module-standard/src/features/node-runner/composition"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/node-runner.test.mts"
+          ]
         }
       ],
       "testRoots": [
         "tests/features/feature-module-standard/conformance.test.mts",
         "tests/features/feature-module-standard/dependencies.test.mts",
         "tests/features/feature-module-standard/layout.test.mts",
-        "tests/features/feature-module-standard/module-check.test.mts"
+        "tests/features/feature-module-standard/module-check.test.mts",
+        "tests/features/feature-module-standard/node-runner.test.mts"
       ]
     }
   ],

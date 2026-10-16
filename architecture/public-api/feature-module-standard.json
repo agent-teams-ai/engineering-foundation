@@ -342,6 +342,179 @@
           "signature": "export declare function exampleSources(): Readonly<Record<string, string>>;"
         }
       ]
+    },
+    {
+      "exportPath": "./node",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!BudgetMeasurement:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type BudgetMeasurement = Readonly<{\n    subject: string;\n    metric: string;\n    value: number;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!BudgetThreshold:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type BudgetThreshold = Readonly<{\n    metric: string;\n    max: number;\n    subject?: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!BudgetWarning:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type BudgetWarning = BudgetMeasurement & Readonly<{\n    max: number;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!DeclaredStructure:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DeclaredStructure = Readonly<{\n    featureRoots: readonly string[];\n    roleRoots: readonly RoleRoot[];\n    featuresRoots?: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Diagnostic:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Diagnostic = Readonly<{\n    code: DiagnosticCode;\n    severity: Severity;\n    message: string;\n    path?: string;\n    line?: number;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!DiagnosticCode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DiagnosticCode = (typeof ERROR_CODES)[number] | (typeof WARNING_CODES)[number];"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!DirectoryStructure:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DirectoryStructure = Readonly<{\n    featuresRoot: string;\n    roleDirectories: Readonly<Record<string, LayerRole>>;\n    subFeatureRoots?: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ERROR_CODES:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "ERROR_CODES: readonly ['assembly-misplaced', 'assembly-missing', 'composition-contract-layer', 'composition-contract-misplaced', 'container-empty', 'container-file', 'deep-import', 'entry-unmapped', 'feature-cycle', 'feature-duplicate', 'feature-root-placement', 'feature-undeclared', 'invalid-path', 'layer-direction', 'load-cycle', 'not-visible', 'republication-invalid', 'republication-mismatch', 'republication-not-sub-feature', 'republication-skips-level', 'republication-undeclared', 'surface-unowned', 'use-edge-invalid', 'use-undeclared']"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureMetric:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureMetric = Readonly<{\n    id: string;\n    depth: number;\n    subFeatures: number;\n    sourceFiles: number;\n    testFiles: number;\n    groups: Readonly<Record<string, number>>;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!FeatureNode:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FeatureNode = Readonly<{\n    id: string;\n    name: string;\n    root: string;\n    parent?: string;\n    depth: number;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!GraphEdge:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type GraphEdge = Readonly<{\n    from: string;\n    to: string;\n    mode: 'runtime' | 'type-only';\n    line: number;\n    reexport?: true;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!LayerRole:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type LayerRole = 'domain' | 'application' | 'contracts' | 'adapters' | 'composition' | 'testing';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!NodeCheckConfig:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type NodeCheckConfig = Readonly<{\n    consumerRoot: string;\n    sourceRoots: readonly string[];\n    testRoots?: readonly string[];\n    structure: DirectoryStructure | DeclaredStructure;\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    surfaces?: SurfaceMap;\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, string>>;\n    budgets?: readonly BudgetThreshold[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!NodeReport:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type NodeReport = Readonly<{\n    ok: boolean;\n    features: readonly FeatureNode[];\n    diagnostics: readonly Diagnostic[];\n    metrics: readonly FeatureMetric[];\n    parseFailures: readonly string[];\n    budgetWarnings: readonly BudgetWarning[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!ObservedGraph:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type ObservedGraph = Readonly<{\n    files: readonly string[];\n    edges: readonly GraphEdge[];\n    parseFailures: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Republication:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Republication = Readonly<{\n    from: string;\n    to: string;\n    surface: RepublishedSurface;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!RepublishedSurface:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!RoleRoot:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RoleRoot = Readonly<{\n    root: string;\n    role: LayerRole;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!Severity:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Severity = 'error' | 'warning';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!SurfaceMap:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type SurfaceMap = Readonly<{\n    public?: readonly string[];\n    internalApi?: readonly string[];\n    compositionContract?: readonly string[];\n    compositionSurface?: readonly string[];\n    testing?: readonly string[];\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!UseEdge:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type UseEdge = Readonly<{\n    from: string;\n    to: string;\n}>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!WARNING_CODES:var",
+          "kind": "Variable",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "WARNING_CODES: readonly ['depth-warning', 'test-misplaced', 'test-unowned']"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!checkFeatureModuleOnDisk:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "checkFeatureModuleOnDisk: (config: NodeCheckConfig) => Promise<NodeReport>"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!formatNodeReport:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function formatNodeReport(report: NodeReport): string;"
+        }
+      ]
     }
   ]
 }

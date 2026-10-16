@@ -346,6 +346,9 @@ importers:
 
   packages/feature-module-standard:
     devDependencies:
+      '@agent-teams/engineering-foundation':
+        specifier: workspace:*
+        version: link:../engineering-foundation
       typescript:
         specifier: 'catalog:'
         version: 7.0.2

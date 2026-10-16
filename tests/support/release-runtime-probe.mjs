@@ -40,13 +40,13 @@ const packages = PUBLISHABLE_PACKAGES.map(entry => ({ ...entry, ...JSON.parse(re
 const versions = new Map(packages.map(info => [info.name, info.version]));
 const expectedPublications = [
   '@agent-teams/ci-input-proof',
-  '@agent-teams/feature-module-standard',
   '@agent-teams/repository-mutation',
   '@agent-teams/document-authoring',
   '@agent-teams/docs-protocol',
   '@agent-teams/docs-protocol-agent-teams',
   '@agent-teams/docs-protocol-mcp',
   '@agent-teams/engineering-foundation',
+  '@agent-teams/feature-module-standard',
 ];
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.

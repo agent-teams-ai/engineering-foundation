@@ -40,6 +40,12 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
       }), expected);
     });
   }
+  await t.test("turns an internal peer range into a caret range of the workspace version", () => {
+    const context = { catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", "1.8.0"]]) };
+    assert.deepEqual(canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, context).peerDependencies, { "@fixture/core": "^1.8.0" });
+    assert.throws(() => canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, { catalogVersions: new Map(), internalPackageVersions: new Map() }), /cannot resolve workspace version/u);
+    assert.throws(() => canonicalPublishManifest({ optionalDependencies: { "@fixture/core": "workspace:^" } }, context), /requires workspace:\*/u);
+  });
   await t.test("rejects unresolved exact authorities", () => {
     assert.throws(() => canonicalPublishManifest({ dependencies: { dependency: "workspace:*" } }, {
       catalogVersions: new Map(), internalPackageVersions: new Map(),

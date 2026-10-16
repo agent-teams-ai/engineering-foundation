@@ -68,3 +68,24 @@ export interface QualityCoverageReader {
 export interface QualityToolProvider {
   prepare(consumerRoot: string, configPath: string, sourcePaths: readonly string[], signal?: AbortSignal): Promise<QualityToolSession>;
 }
+
+/** A measured rule fired with a message that carries no value; the producer maps it to its own input error. */
+export class OxlintMeasuredValueMissingError extends Error {
+  override readonly name = "OxlintMeasuredValueMissingError";
+  constructor(readonly rule: string) {
+    super(`Measured rule ${rule} has no parenthesized value in its Oxlint message.`);
+  }
+}
+
+/** The findings of all batches and the number of files Oxlint linted. */
+export interface OxlintFindings {
+  readonly files: number;
+  /** One lint rule of one file: how often it fired and, for a measured rule, the largest measured value. */
+  readonly findings: readonly {
+    readonly path: string;
+    /** `<plugin>/<rule>`, for example `eslint/max-lines`. */
+    readonly rule: string;
+    readonly count: number;
+    readonly max?: number;
+  }[];
+}

@@ -1,10 +1,12 @@
 import {
+  createRuleOwners,
   createRuleRegistries,
-  createRuleRegistry as createRegistry
+  createRuleRegistry as createRegistry,
+  type OwnedRuleContribution
 } from "../features/validation-reporting/api.js";
+import { FINDINGS_BASELINE_COMMAND_RULES } from "../capabilities/findings-baseline/module.js";
 import {
   CAPABILITY_MODULES,
-  type CapabilityModuleDescriptor,
   type RuleExplanation
 } from "./capability-modules.js";
 
@@ -16,10 +18,10 @@ export const RULE_REGISTRIES: readonly ReadonlyMap<
 >[] = createRuleRegistries(CAPABILITY_MODULES);
 
 export function createRuleRegistry(
-  modules: readonly CapabilityModuleDescriptor[]
+  modules: readonly OwnedRuleContribution[]
 ): ReadonlyMap<string, RuleExplanation> {
   return createRegistry(modules);
 }
 
 export const RULE_REGISTRY: ReadonlyMap<string, RuleExplanation> =
-  createRuleRegistry(CAPABILITY_MODULES);
+  createRuleRegistry(createRuleOwners(CAPABILITY_MODULES, [FINDINGS_BASELINE_COMMAND_RULES]));

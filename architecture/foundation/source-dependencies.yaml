@@ -821,8 +821,12 @@ boundaries:
       - packages/engineering-foundation/src/index.ts
       - packages/engineering-foundation/src/public-api-surface.ts
       - packages/engineering-foundation/src/sdk-growth-authority.ts
+      - packages/engineering-foundation/src/ratchet.ts
+      - packages/engineering-foundation/src/source-graph.ts
     allow:
       boundaries:
+        - capability.findings-baseline.application
+        - capability.source-dependencies.composition
         - foundation.local-mode.adapters
         - foundation.local-mode.application
         - foundation.local-mode.composition
@@ -880,6 +884,7 @@ boundaries:
         - capability.repository-security.composition
         - capability.source-dependencies.composition
         - capability.suppression-governance.composition
+        - capability.findings-baseline.composition
         - capability.workspace-dependencies.composition
         - foundation.core
         - foundation.schema-validation
@@ -2360,6 +2365,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-file-snapshot.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-tree-reader.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/observe-source-graph.ts
   - id: capability.public-api-compatibility.application
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application
@@ -2695,6 +2701,67 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
+  - id: capability.findings-baseline.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application
+    allow:
+      boundaries:
+        - foundation.validation-reporting.application
+        - foundation.source-inventory.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/baseline.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/budgets.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/configuration-input.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/model.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/use-cases/findings-baseline.ts
+  - id: capability.findings-baseline.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/contract
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/contract/config.ts
+  - id: capability.findings-baseline.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/adapters
+    allow:
+      boundaries:
+        - capability.findings-baseline.application
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/adapters/inbound/configuration/load-capability-config.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/adapters/outbound/filesystem/filesystem-findings-baseline-store.ts
+  - id: capability.findings-baseline.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/module.ts
+    allow:
+      boundaries:
+        - capability.findings-baseline.adapters
+        - capability.findings-baseline.application
+        - capability.findings-baseline.contract
+        - foundation.validation-reporting.application
+        - foundation.configuration-input.composition
+        - foundation.quality-coverage.adapters
+        - foundation.quality-coverage.application
+        - foundation.process-execution.composition
+        - foundation.source-inventory.composition
+        - foundation.workspace-inventory.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/module.ts
   - id: foundation.dependency-aliases.tests
     dependencyMode: development
     roots:
@@ -3385,6 +3452,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.quality-coverage.composition
+        - capability.findings-baseline.composition
         - capability.contract-json-schema.composition
         - foundation.source-inventory.composition
         - foundation.command-host.composition
@@ -3420,6 +3488,7 @@ boundaries:
         - foundation.schema-contribution.executable-specifications
         - foundation.schema-contribution.quality-gate-runner
         - foundation.schema-contribution.suppression-governance
+        - foundation.schema-contribution.findings-baseline
         - foundation.schema-contribution.repository-agent-workflow
         - foundation.schema-contribution.repository-security-baseline
         - foundation.schema-contribution.scaffolding
@@ -3552,6 +3621,16 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/suppression-governance/schemas.ts
     entrypoints:
       - packages/engineering-foundation/src/capabilities/suppression-governance/schemas.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: foundation.schema-contribution.findings-baseline
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/schemas.ts
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/schemas.ts
     allow:
       boundaries: []
       packages: []

@@ -43,8 +43,13 @@ const assertCandidateSources = async candidate => {
       const currentPackages = parseCapabilityConfig(parse(await readFile(path, "utf8"))).packages;
       const evidencedFoundationPolicy = foundationPackage(historicalPackages);
       assert.ok(evidencedFoundationPolicy);
-      assert.deepEqual(foundationPackage(currentPackages), evidencedFoundationPolicy,
+      const { entrypoints: currentEntrypoints, ...currentRest } = foundationPackage(currentPackages);
+      const { entrypoints: evidencedEntrypoints, ...evidencedRest } = evidencedFoundationPolicy;
+      assert.deepEqual(currentRest, evidencedRest,
         "SDK v2 qualification policy must preserve the evidenced Foundation package configuration");
+      assert.ok(evidencedEntrypoints.every((entry) => currentEntrypoints.some((current) =>
+        current.exportPath === entry.exportPath && current.declarationEntryPoint === entry.declarationEntryPoint)),
+      "SDK v2 qualification policy may only add Foundation entrypoints");
     } else {
       await assertSnapshot(candidate.currentSources[role]);
     }

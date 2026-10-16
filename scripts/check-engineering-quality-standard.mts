@@ -6,10 +6,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const expected = Object.freeze({
   repository: 'agent-teams-ai/.github', path: 'docs/engineering-quality-standard.md',
-  commit: '66d6d3d2c2643edac414ded48c0ee0586774dd07',
-  blob: '705f14cd5048e24b7d61e1d8102b86395d7b014d',
-  sha256: 'd55f9f498da213dfa7b14aeac5df5b2fcf37b2cfed4c63dd88b51bde6f56ebe8',
-  size: 18080, identicalOperatorRevision: '05b30bcc00cdf07cfde9ba60a1136bb9df7f7571',
+  commit: 'f5653f5630057524a4ee44e50c16e138442a9b42',
+  blob: '86b82be3e5bd212e7d78e50d92349e323026347e',
+  sha256: 'a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e72f5587',
+  size: 18134,
 });
 
 /** Retained upstream bytes are input evidence, never a consumer-owned policy. */
@@ -25,7 +25,9 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
   }
 }
 
-if (process.argv[1] !== undefined && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+const entry = process.argv.at(1);
+const invoked = entry === undefined ? undefined : pathToFileURL(resolve(entry)).href;
+if (invoked === import.meta.url) {
   await checkEngineeringQualityStandard(fileURLToPath(new URL('../', import.meta.url)));
   process.stdout.write('Retained Engineering Quality Standard pin verified.\n');
 }

@@ -247,7 +247,7 @@ opens a PR with `gh` before a failed-run rerun/current-input attestation.
 
 | Topic | Canonical entrypoint |
 | --- | --- |
-| Feature ownership, layers and dependency mechanisms | [Feature Module Standard index](architecture/feature-module-standard/README.md) and [v1](architecture/feature-module-standard/v1.md); the consumer's local adoption profile owns its exact scope |
+| Feature ownership, layers and dependency mechanisms | [Feature Module Standard index](architecture/feature-module-standard/README.md), [v1](architecture/feature-module-standard/v1.md) and [v1.1](architecture/feature-module-standard/v1.1.md); the consumer's local adoption profile owns its exact scope |
 | Get Modular construction and consumer adoption, when applicable | [Consumer Module Standard](https://github.com/agent-teams-ai/get-modular/blob/main/docs/architecture/common-assembly.md#consumer-module-standard); use the consumer's reviewed pin |
 | Reusable development tooling and checks | [Engineering Foundation](https://github.com/agent-teams-ai/engineering-foundation); repository profiles own applicability and actual commands |
 | Commit and PR authorship | [Maintained owner policy](../GOVERNANCE.md#commit-and-pull-request-authorship) and [canonical identity/status rule](../governance/commit-author-identity.json); preserve external human authorship |

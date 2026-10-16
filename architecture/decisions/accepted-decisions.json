@@ -295,7 +295,7 @@
     {
       "id": "ADR-0062",
       "path": "docs/decisions/0062-feature-module-standard-package-admission.md",
-      "immutableDigest": "sha256:12560b57efb526329e354629a589d5d0327b4ef4ef2363f3f6b5961f19db5f8d"
+      "immutableDigest": "sha256:d8e820f6f4209dadc5b35d6f859dfee4d8331f3a210b8047c20c7541fb41d4b0"
     }
   ]
 }

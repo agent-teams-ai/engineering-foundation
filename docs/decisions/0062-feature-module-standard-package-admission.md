@@ -117,9 +117,8 @@ and consumers load a dependency-free kernel.
    profile's v1 pin and digest remain its conformance claim. Moving to v1.1
    needs its own profile change and decision.
 6. Admission is for source use. This record authorizes no publication and no
-   bootstrap approval. The package enters
-   `architecture/foundation/npm-package-bootstrap.json` as a candidate without
-   approval, and the owner's approval is recorded there, never here. Because
+   bootstrap approval. Its bootstrap state and the owner's approval are recorded
+   in `architecture/foundation/npm-package-bootstrap.json`, never here. Because
    the closed publishable catalog includes the package, every `release:publish`
    of this repository fails closed until that approval and the bootstrap
    publication exist; the admission note records the release order.

@@ -39,7 +39,7 @@ The first publication waits for the pending rows.
 
 ## Comparison of the old and the new checker
 
-The checker of base `5a4efcf75` was compared with the checker of this branch on
+The checker of base `5a4efcf75` was compared with the checker of `3f8713e2d` (this branch after merging `main`) on
 the same observed source graph and the same surfaces. On the real graph both
 report 0 problems. An independent rerun on the same repository state, with 300
 random feature-to-feature edges and 60 batches of 25 edges, agrees on rejection
@@ -56,3 +56,12 @@ The comparison found and fixed three kernel differences on the way: a deep
 import also reports the direction rule, a deep import counts as an edge of the
 cycle graph, and the local contracts strengthening applies only where the kernel
 allows the edge. The comparison scripts are not retained.
+
+## Release impact until the bootstrap publication
+
+Until the bootstrap publication of the npm name exists, the Release step
+"Guard public package bootstrap baselines" (`.github/workflows/release.yml`)
+fails on every push to `main`, because the closed publishable catalog includes
+this package. The bootstrap workflow runs only while the repository variable
+`NPM_PACKAGE_BOOTSTRAP_ENABLED` is `true`, so it must be enabled temporarily for
+the bootstrap publication, as for the earlier packages.

@@ -102,10 +102,11 @@ function execute(
         return;
       }
       // pnpm writes ERR_PNPM_* to stdout and configuration warnings to stderr: keep the tail of both, labelled.
-      const detail = [["stderr", stderr], ["stdout", stdout]]
-        .map(([label, text]) => [label, text.trim().slice(-2000)])
-        .filter(([, text]) => text !== "")
-        .map(([label, text]) => `${label}: ${text}`)
+      const streams: readonly (readonly [string, string])[] = [["stderr", stderr], ["stdout", stdout]];
+      const detail = streams
+        .map(([label, text]) => ({ label, tail: text.trim().slice(-2000) }))
+        .filter(({ tail }) => tail !== "")
+        .map(({ label, tail }) => `${label}: ${tail}`)
         .join("\n");
       reject(new ConsumerIntegrationNodeError(
         "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED",

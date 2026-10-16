@@ -1850,7 +1850,8 @@ test("real pnpm offline install failure preserves prior modules inode and bytes 
       await assert.rejects(sandbox[method]({ consumerRoot, current, authority: prior }), (error) => {
         assert.equal(error.code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
         assert.match(error.message, /ENOENT|ERR_PNPM/u);
-        assert.match(error.message, /ERR_PNPM_/u);
+        assert.match(error.message, /stderr: .*DOCS_TEST_UNSET_VARIABLE/u);
+        assert.match(error.message, /stdout: [\s\S]*(ENOENT|ERR_PNPM_)/u);
         return true;
       });
       assert.equal((await lstat(modules)).ino, modulesBefore.ino);

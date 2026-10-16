@@ -23,15 +23,14 @@ export function featureRoot(feature) {
 }
 const arrowOf = (message) => message.slice(0, message.indexOf(":"));
 
-function moduleInput(module, files, observations, policy, profile) {
+function moduleInput(module, files, edges, policy, profile) {
   const roots = module.features.map((feature) => ({ feature, root: featureRoot(feature) }));
   const isFeature = (owner) => owner?.kind === "feature" && owner.module.id === module.id;
   const entrypoints = policy.boundaries.flatMap((boundary) => boundary.entrypoints ?? []);
   const imports = [];
-  for (const { path, reference, result } of observations) {
-    if (result.kind !== "local-file") {continue;}
+  for (const { path, reference, result, from, to } of edges) {
     const kind = reference?.kind ?? "static";
-    if (!isFeature(classify(path, profile)) || !isFeature(classify(result.path, profile))) {continue;}
+    if (!isFeature(from) || !isFeature(to)) {continue;}
     imports.push({ from: path, to: result.path, line: 1, mode: /type/u.test(kind) ? "type-only" : "runtime", ...(kind.startsWith("export") ? { reexport: true } : {}) });
   }
   return {
@@ -66,8 +65,11 @@ function translate(module, roots, report, problems) {
 
 // Runs the kernel once per module over the module's feature-owned local edges and reports its overlapping rules.
 export function kernelProblems(profile, policy, files, observations, problems) {
+  // Each observation is classified once, not once per module.
+  const edges = observations.filter(({ result }) => result.kind === "local-file")
+    .map((observation) => ({ ...observation, from: classify(observation.path, profile), to: classify(observation.result.path, profile) }));
   for (const module of profile.modules) {
-    const { roots, input } = moduleInput(module, files, observations, policy, profile);
+    const { roots, input } = moduleInput(module, files, edges, policy, profile);
     const distinct = new Set(roots.map(({ root }) => root));
     if (distinct.size !== roots.length || new Set(roots.map(({ root }) => basename(root))).size !== roots.length || roots.some(({ root }) => roots.some((other) => other.root !== root && within(root, other.root)))) {
       problem(problems, "feature-root", `${module.id}: feature layer roots do not resolve to distinct, non-nested feature roots with distinct names.`);

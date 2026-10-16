@@ -75,9 +75,7 @@ conformance test, run the same data.
 
 ## Not here yet
 
-The `./node` runner for repositories without their own checker (feature root
-discovery through the Foundation source graph) follows the Foundation release
-that publishes the source graph.
+The `./node` runner for repositories without their own checker (feature root discovery through the Foundation source graph) is a follow-up change. The first release of this package and the Foundation release that publishes the source graph wait for it.
 
 ## Stability
 

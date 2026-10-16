@@ -97,7 +97,7 @@ function republication(ctx: Context, view: View): boolean {
 // Composition code is the composition role of a feature and, outside every feature, the module-level files the profile names.
 const composes = (ctx: Context, view: View): boolean =>
   view.fromRole === 'composition' ||
-  (view.from === undefined && (ctx.input.moduleComposition === undefined || ctx.input.moduleComposition.includes(view.record.from)));
+  (view.from === undefined && ctx.input.moduleComposition?.includes(view.record.from) === true);
 
 function assemblyEdge(ctx: Context, view: View): void {
   const { from, to } = view;

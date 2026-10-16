@@ -208,6 +208,9 @@ export const conformanceCases: readonly ConformanceCase[] = [
   define('module-composition-uses-a-top-level-composition-contract', 'Composition contracts', 'Module composition depends on the composition contract of a top-level feature.', [], {
     imports: [importOf(MODULE_COMPOSITION, f('orders', 'contract'))],
   }),
+  define('module-code-is-not-composition-unless-listed', 'Composition contracts', 'Without a listed module composition, module-level code may not depend on a composition contract or wire a composition surface.', ['composition-contract-layer', 'deep-import', 'deep-import'], {
+    input: { moduleComposition: [] }, imports: [importOf(MODULE_COMPOSITION, f('orders', 'contract'))],
+  }),
   define('lateral-reexport-is-no-republication', 'Growth guardrails 13', 'A sibling cannot republish the contracts of another sibling.', ['republication-not-sub-feature'], {
     imports: [importOf(f('orders/pricing', 'public'), f('orders/discounts', 'public'), 'runtime', true)],
   }),

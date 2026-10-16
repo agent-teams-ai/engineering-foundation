@@ -53,8 +53,8 @@ export type FeatureModuleInput = Readonly<{
   testFiles?: readonly string[];
   surfaces?: SurfaceMap;
   /**
-   * Module-level files that are composition. When given, any other module-level file is not composition and may not depend on a
-   * composition contract or wire a composition surface; when absent, every module-level file is taken to be composition.
+   * Module-level files that are composition. Module-level code outside this list is not composition, so it may not depend on a
+   * composition contract or wire a composition surface; a module that lists none has no module-level composition.
    */
   moduleComposition?: readonly string[];
   imports: readonly ImportRecord[];

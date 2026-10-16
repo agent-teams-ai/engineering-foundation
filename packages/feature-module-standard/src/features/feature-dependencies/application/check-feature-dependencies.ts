@@ -140,7 +140,9 @@ function crossFeatureEdge(ctx: Context, view: View): void {
   if (!visible(view.from, view.to)) {
     ctx.problems.push(diagnostic('not-visible', `${arrow(view)}: ${view.to.id} is not visible to its dependent.`, at(view)));
   } else if (!curated) {
+    // A deep import breaks the surface rule and may break the direction rule too; both are reported.
     ctx.problems.push(diagnostic('deep-import', `${arrow(view)}: not a curated surface of ${view.to.id}.`, at(view)));
+    layerOfUse(ctx, view);
   } else {
     layerOfUse(ctx, view);
     if (view.from !== undefined) { recordUse(ctx, view, view.from); }

@@ -234,6 +234,6 @@ export const conformanceCases: readonly ConformanceCase[] = [
   profileCase('profile-mapped-layout-conforms', [], [importOf(billingApi2, reportsApi)], 'Roles mapped to files and to a directory with another name, in two feature roots, conform.'),
   profileCase('v1-reexport-is-an-ordinary-use', [], [{ ...importOf(billingApi2, reportsApi, 'runtime', true) }], 'Republication is a rule of modules with sub-features; in any other module a re-export is a use.'),
   profileCase('profile-mapped-adapter-direction', ['layer-direction'], [importOf(reportsAdapter, billingApi2)], 'An adapter in a feature directory still reaches siblings only through its application core.'),
-  profileCase('profile-mapped-deep-import', ['deep-import'], [importOf(billingApi2, reportsAdapter)], 'A file mapped to a role is not a public entrypoint unless the profile says so.'),
+  profileCase('profile-mapped-deep-import', ['deep-import', 'layer-direction'], [importOf(billingApi2, reportsAdapter)], 'A file mapped to a role is not a public entrypoint unless the profile says so.'),
   profileCase('profile-mapped-cycle', ['feature-cycle', 'load-cycle'], [importOf(billingApi2, reportsApi), importOf(reportsApi, billingApi2)], 'Features under different roots form a cycle like any others.'),
 ];

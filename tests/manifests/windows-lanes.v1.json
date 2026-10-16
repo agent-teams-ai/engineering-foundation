@@ -70,6 +70,7 @@
     ],
     "b": [
       "tests/findings-baseline-ratchet.test.mjs",
+      "tests/findings-baseline-rules.test.mjs",
       "tests/source-graph.test.mjs",
       "tests/document-command-renderer.test.mjs",
       "tests/npm-package-bootstrap-successor-policy.test.mts",

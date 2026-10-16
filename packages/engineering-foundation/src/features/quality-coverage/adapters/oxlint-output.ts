@@ -1,4 +1,4 @@
-import { OxlintMeasuredValueMissingError, qualityDiagnostic, type OxlintFinding, type OxlintFindings } from "../api.js";
+import { OxlintMeasuredValueMissingError, qualityDiagnostic, type OxlintFindings } from "../api.js";
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

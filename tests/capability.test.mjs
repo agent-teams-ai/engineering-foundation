@@ -23,7 +23,6 @@ import {
   createCapabilityRegistry,
 } from "../packages/engineering-foundation/dist/composition/capability-registry.js";
 import { CAPABILITY_MODULES } from "../packages/engineering-foundation/dist/composition/capability-modules.js";
-import { FINDINGS_BASELINE_RULES_BY_ID } from "../packages/engineering-foundation/dist/capabilities/findings-baseline/module.js";
 import {
   createRuleRegistry,
   RULE_REGISTRIES,
@@ -90,16 +89,13 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
     (count, { rules }) => count + rules.size,
     0,
   );
-  assert.equal(RULE_REGISTRY.size, registeredRuleCount + FINDINGS_BASELINE_RULES_BY_ID.size);
+  // Command-only modules add their rules on top; tests/findings-baseline-rules.test.mjs pins the exact set.
+  assert.ok(RULE_REGISTRY.size > registeredRuleCount);
   for (const { rules } of CAPABILITY_MODULES) {
     for (const [ruleId, metadata] of rules) {
       assert.equal(metadata.id, ruleId);
       assert.equal(RULE_REGISTRY.get(ruleId), metadata);
     }
-  }
-  // The findings baseline is a command module: its rules are explained but it is not a check capability.
-  for (const [ruleId, metadata] of FINDINGS_BASELINE_RULES_BY_ID) {
-    assert.equal(RULE_REGISTRY.get(ruleId), metadata);
   }
 });
 

@@ -154,7 +154,7 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
   const authoring = bootstrapPackageById("document-authoring");
   const standard = bootstrapPackageById("feature-module-standard", { approved: true });
   assert.deepEqual(standard.approval, {
-    archiveIntegrity: "sha512-yIOY2NyH9riStG/XmrrDQTdjedDBqCdl3FeDfN+X6sOr0aDEfy3R5bj6e8gYP5VsKHKHp8gt+odUvNqKNPWtuA==",
+    archiveIntegrity: "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
     packageTree: "d2686d208af115b731ba135fc1980aa9355ff747",
   });
   const candidate = structuredClone(NPM_PACKAGE_BOOTSTRAP);

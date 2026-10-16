@@ -123,10 +123,10 @@ function layerOfUse(ctx: Context, view: View): void {
   }
 }
 
-function recordUse(ctx: Context, view: View, from: FeatureNode): void {
+function recordUse(ctx: Context, view: View, from: FeatureNode, declared = true): void {
   const key = pairKey(from.id, view.to.id);
   if (!ctx.uses.has(key)) { ctx.uses.set(key, { from, to: view.to, direction: directionOf(from, view.to), ...at(view) }); }
-  if (ctx.input.useEdges !== undefined && !ctx.input.useEdges.some((edge) => edge.from === from.id && edge.to === view.to.id)) {
+  if (declared && ctx.input.useEdges !== undefined && !ctx.input.useEdges.some((edge) => edge.from === from.id && edge.to === view.to.id)) {
     ctx.problems.push(diagnostic('use-undeclared', `${from.id} -> ${view.to.id}: a use edge missing from the declared feature graph.`, at(view)));
   }
 }
@@ -143,6 +143,8 @@ function crossFeatureEdge(ctx: Context, view: View): void {
     // A deep import breaks the surface rule and may break the direction rule too; both are reported.
     ctx.problems.push(diagnostic('deep-import', `${arrow(view)}: not a curated surface of ${view.to.id}.`, at(view)));
     layerOfUse(ctx, view);
+    // The edge still exists: it counts for cycles, though it needs no declaration to be rejected.
+    if (view.from !== undefined) { recordUse(ctx, view, view.from, false); }
   } else {
     layerOfUse(ctx, view);
     if (view.from !== undefined) { recordUse(ctx, view, view.from); }

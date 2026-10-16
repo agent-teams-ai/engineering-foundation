@@ -189,6 +189,9 @@ export const conformanceCases: readonly ConformanceCase[] = [
     files: [billingKit], input: { testFiles: [discountsTest], surfaces: { ...exampleModule().surfaces, testing: [billingKit] } },
     imports: [importOf(discountsTest, billingKit)],
   }),
+  define('cycle-through-a-deep-import', 'Sub-features: Dependency graph and cycles', 'A deep import is rejected and still closes a cycle.', ['deep-import', 'feature-cycle'], {
+    imports: [importOf(f('orders/pricing', 'composition'), f('orders/discounts', 'domain')), importOf(f('orders/discounts', 'composition'), f('orders/pricing', 'public'))],
+  }),
   define('lateral-reexport-is-no-republication', 'Growth guardrails 13', 'A sibling cannot republish the contracts of another sibling.', ['republication-not-sub-feature'], {
     imports: [importOf(f('orders/pricing', 'public'), f('orders/discounts', 'public'), 'runtime', true)],
   }),

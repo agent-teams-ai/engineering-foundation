@@ -391,7 +391,7 @@
     },
     {
       "id": "feature-module-standard",
-      "state": "candidate",
+      "state": "approved",
       "name": "@agent-teams/feature-module-standard",
       "root": "packages/feature-module-standard",
       "manifestPath": "packages/feature-module-standard/package.json",
@@ -428,7 +428,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-yIOY2NyH9riStG/XmrrDQTdjedDBqCdl3FeDfN+X6sOr0aDEfy3R5bj6e8gYP5VsKHKHp8gt+odUvNqKNPWtuA==",
+        "packageTree": "d2686d208af115b731ba135fc1980aa9355ff747"
+      }
     }
   ]
 }

@@ -156,7 +156,10 @@ Topology normalization accepts the flat FMS `modules` form and the nested
 `scope.productionModules` / `adoption.abstractLayout.modules` form. Nested
 workspace containers define discovery, while explicit layout records supply
 test roots. Structural adoption status does not remove modules from quality
-coverage. Layout/source-root disagreement is an input error.
+coverage. Layout/source-root disagreement is an input error. Both forms accept
+Feature Module Standard v1 and v1.1 (a v1.1 sub-feature or composition contract
+does not change the module-level topology); every other version or standard is
+rejected.
 
 
 Native C source and headers stay in the production census, including files

@@ -69,6 +69,15 @@ agent-teams-foundation baseline init  --config <file> [--consumer <path>]
 agent-teams-foundation baseline prune --config <file> [--consumer <path>]
 ```
 
+Requirements of the Oxlint producer: `pnpm-workspace.yaml` at the consumer root;
+the exact root devDependencies `oxlint` 1.83.0, `oxlint-tsgolint` 7.0.2001 and
+`typescript` 7.0.2, installed; an Oxlint upgrade needs a reviewed re-init.
+Count and `max` are per file and rule. Rule codes must match `^[a-z][a-z-]*\(`,
+so a plugin whose name has a digit, such as `jsx-a11y`, is not supported.
+If every file under the roots is ignored by the Oxlint configuration the
+commands fail as an input error ("Oxlint linted no file under the configured
+roots"); batches that hold only ignored files are fine.
+
 The commands take the configuration path directly. The capability is not yet a
 key of `foundation.config.yaml`: the released `foundation-config/v2` schema is a
 closed, digest-protected artifact, so declaring it there needs a new
@@ -116,32 +125,38 @@ Validation in this delivery (the contract is proven here, not incubated here):
   `tests/source-graph.test.mjs`.
 - Real-data parity for the source graph: the Foundation source tree parses
   completely and has no runtime import cycle. This is parity on real data, not
-  a second consumer. The real consumer of the source graph is the N3b runner
-  (same monorepo, workspace consumption of `./source-graph`, PR #398), required
-  before the 1.8.0 release.
+  a second consumer. PR #398 does not import `./source-graph`. The real
+  consumer of the source graph is the follow-up `./node` runner of the Feature
+  Module Standard package (after PR #398; not yet opened). Hold: the Version PR
+  for 1.8.0 must not be merged before that runner merges. The consumer of
+  `checkBudgets` is the agent-runtime growth budgets (wave 0b, later).
 - Real consumer of the findings baseline: agent-runtime, run against a
   disposable detached checkout of `origin/main` at
   `efd3348f361fa6af84953325af5c0d2d8677d14a` with this branch's CLI, the
   consumer's pinned Oxlint 1.83.0 and oxlint-tsgolint 7.0.2001, and a
-  size-rules-only configuration (`max-lines` 300, `max-lines-per-function` 60,
-  `max-params` 4 with blank lines and comments skipped, `max-lines` 80 for
-  `*.module.ts`, `typescript/method-signature-style`), roots `packages`, test
-  files, fixtures, generated and vendored code ignored.
+  size-rules-only configuration (`max-lines` 300 and `max-lines-per-function`
+  60, both skipping blank lines and comments, `max-params` 4,
+  `typescript/method-signature-style`), roots `packages`, test files, fixtures,
+  generated and vendored code ignored. At that commit there is no `*.module.ts`
+  under `packages`, so the 80-line override for module files never applied.
 
-| Rule | Entries (path and rule pairs) | Findings |
-| --- | --- | --- |
-| `oxlint/eslint/max-lines` | 84 | 84 |
-| `oxlint/eslint/max-lines-per-function` | 184 | 237 |
-| `oxlint/eslint/max-params` | 70 | 92 |
-| `oxlint/typescript/method-signature-style` | 216 | 785 |
-| Total | 554 | 1198 |
+  | Rule | Entries (path and rule pairs) | Findings |
+  | --- | --- | --- |
+  | `oxlint/eslint/max-lines` | 84 | 84 |
+  | `oxlint/eslint/max-lines-per-function` | 184 | 237 |
+  | `oxlint/eslint/max-params` | 70 | 92 |
+  | `oxlint/typescript/method-signature-style` | 216 | 785 |
+  | Total | 554 | 1198 |
 
-  The order of magnitude matches the agent-runtime handoff (about 265 size
-  path and rule pairs, 45 method-signature-style findings at an older commit;
-  here the stricter 80-line limit for module files and a newer commit give 338
-  size pairs and more method-signature-style findings). Measured values
-  (largest `max` per entry, up to 500 lines) were parsed from real messages
-  without a failure. Commands, all run from the checkout root:
+  This first probe also counted support files under `tests/` directories. A
+  re-measurement without them gives 77 `max-lines`, 172
+  `max-lines-per-function` and 81 `max-params` findings and 265 path and rule
+  pairs, exactly the numbers of the agent-runtime handoff. For
+  `method-signature-style` the production code shows 760 findings in 202 files
+  against 45 in the handoff; the scope of the handoff for that rule is unknown,
+  so those two numbers are not comparable. Measured values (largest `max` per
+  entry, up to 500 lines) were parsed from real messages without a failure.
+  Commands, all run from the checkout root:
 
   ```text
   agent-teams-foundation baseline init  --config foundation.baseline-probe.yaml --consumer <checkout>   # 554 entries, about 12 s
@@ -156,12 +171,15 @@ Validation in this delivery (the contract is proven here, not incubated here):
   maxima by hand made them `stale-entry`; `prune` lowered exactly those four
   entries (exit 0) and `check` passed again. A file that no longer parses makes
   the pinned Oxlint return an error envelope, which stays an unexpected failure
-  rather than a baseline diagnostic.
+  rather than a baseline diagnostic. The probe ran on a checkout without build
+  output; a run after a build, where `dist` directories exist, could not be
+  repeated on the machine of this delivery and is covered by the regression
+  test for ignored files instead.
 - Agent-runtime adoption is follow-up work and is not part of this delivery:
-  adopting the commands, deleting its interim Oxlint legacy lists and its
-  conformance test belong to the agent-runtime refactoring agent (wave 0b).
-  Cost of the deviation: agent-runtime's CI contract rejects new or changed leaf
-  commands in `check` and `check:fast` until CI-CONTRACT-1
+  adopting the commands, deleting its interim Oxlint legacy lists and adding its
+  conformance test (ADR-0061) belong to the agent-runtime refactoring agent
+  (wave 0b). Cost of the deviation: agent-runtime's CI contract rejects new or
+  changed leaf commands in `check` and `check:fast` until CI-CONTRACT-1
   (`scripts/ci/policy.ts`), so CLI-only adoption there waits for CI-CONTRACT-1
   or an exception owned by its integrator. The capability is a command module,
   not a key of `foundation.config.yaml` (see above), which is what that

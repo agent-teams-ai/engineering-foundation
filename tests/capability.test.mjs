@@ -97,6 +97,10 @@ test("keeps schema, capability, rule, and explain registries drift-free", async 
       assert.equal(RULE_REGISTRY.get(ruleId), metadata);
     }
   }
+  // The findings baseline is a command module: its rules are explained but it is not a check capability.
+  for (const [ruleId, metadata] of FINDINGS_BASELINE_RULES_BY_ID) {
+    assert.equal(RULE_REGISTRY.get(ruleId), metadata);
+  }
 });
 
 test("rejects duplicate capability and rule IDs before registry use", () => {

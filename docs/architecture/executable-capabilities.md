@@ -603,6 +603,10 @@ The private composition root binds each capability definition to its owned rule
 metadata in one typed immutable module descriptor. Capability execution and
 `explain` registries are projections of that ordered descriptor list, so adding
 a capability does not require a second synchronized rule-registration list.
+Command-only modules, such as the [findings baseline](findings-baseline.md), are
+not capabilities of the `check` registry: their rules are added to the
+`explain` registry through one separate command-module list, and the
+capability registry stays equal to the keys of the root configuration schema.
 Composition rejects metadata/key drift and rule IDs outside the owning
 capability's `<capability-id>.` namespace before either registry can be used.
 The public root configuration schema remains the immutable wire contract and a

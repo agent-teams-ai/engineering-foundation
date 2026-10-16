@@ -93,3 +93,23 @@ test("the proof contexts are the release attestation contexts", async () => {
   assert.deepEqual(CI_PROOF_CONTEXTS.slice(0, CI_CONTEXTS.length), CI_CONTEXTS);
   assert.equal(CI_PROOF_CONTEXTS.at(-1), "linux-package");
 });
+
+test("the command runs, and refuses without a token, when started through a symlinked path", async () => {
+  const { mkdtemp, symlink, rm } = await import("node:fs/promises");
+  const { spawnSync } = await import("node:child_process");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const directory = await mkdtemp(join(tmpdir(), "ci-proof-link-"));
+  try {
+    const link = join(directory, "proof.mjs");
+    await symlink(fileURLToPath(new URL("../scripts/npm-package-bootstrap-ci-proof.mjs", import.meta.url)), link);
+    const env = { ...process.env };
+    delete env.GH_TOKEN;
+    const result = spawnSync(process.execPath, [link, commit], { encoding: "utf8", env });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /CI_PROOF_INPUT/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

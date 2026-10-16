@@ -1,4 +1,5 @@
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // Proof that the exact commit to bootstrap passed the repository's full CI. It reads only the jobs of one `ci.yml` workflow
 // run that GitHub Actions itself created for a push of this commit to main: a check run with the same name from another app
@@ -90,7 +91,8 @@ export function githubRequest(token, fetchImplementation = fetch) {
   };
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Compare real paths: a symlinked checkout path (for example /tmp on macOS) must not turn the command into a silent no-op.
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   try {
     const token = process.env.GH_TOKEN;
     if (token === undefined || token === "") {refuse("CI_PROOF_INPUT", "GH_TOKEN is not set.");}

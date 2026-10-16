@@ -332,7 +332,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function exampleModule(): FeatureModuleInput;"
+          "signature": "export declare function exampleModule(namesModuleComposition?: boolean): FeatureModuleInput;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!exampleSources:function(1)",

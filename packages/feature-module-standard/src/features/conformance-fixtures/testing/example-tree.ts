@@ -45,7 +45,7 @@ const parentOf = (feature: ExampleFeature): ExampleFeature | undefined =>
   features.filter((candidate) => feature.startsWith(`${candidate}/`)).at(-1);
 
 /** A valid module: every parent wires the composition surface of each direct sub-feature, the module wires the top level. */
-export function exampleModule(): FeatureModuleInput {
+export function exampleModule(namesModuleComposition = true): FeatureModuleInput {
   const files = [MODULE_COMPOSITION, ...features.flatMap((feature) => parts.map((part) => fileOf(feature, part)))];
   const subFeatureRoots = exampleRoots.filter((root) => root.includes('/features/', FEATURES_ROOT.length + 1));
   const assembly = features.flatMap((feature) => {
@@ -57,7 +57,7 @@ export function exampleModule(): FeatureModuleInput {
   return {
     ...inferDirectoryLayout({ featuresRoot: FEATURES_ROOT, files, roleDirectories, subFeatureRoots }),
     files,
-    moduleComposition: [MODULE_COMPOSITION],
+    ...(namesModuleComposition ? { moduleComposition: [MODULE_COMPOSITION] } : {}),
     testFeaturesRoot: TEST_FEATURES_ROOT,
     surfaces: {
       public: features.map((feature) => fileOf(feature, 'public')),

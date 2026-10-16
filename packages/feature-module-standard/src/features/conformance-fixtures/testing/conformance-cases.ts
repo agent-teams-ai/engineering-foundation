@@ -215,11 +215,7 @@ export const conformanceCases: readonly ConformanceCase[] = [
     id: 'absent-module-composition-rejects', source: 'Composition contracts', ok: false,
     description: 'Without any moduleComposition, module-level code is not composition.',
     expect: ['composition-contract-layer', 'deep-import', 'deep-import'],
-    input: (() => {
-      const base = exampleModule();
-      const rest = Object.fromEntries(Object.entries(base).filter(([key]) => key !== 'moduleComposition'));
-      return { ...rest, imports: [...base.imports, importOf(MODULE_COMPOSITION, f('orders', 'contract'))] } as FeatureModuleInput;
-    })(),
+    input: { ...exampleModule(false), imports: [...exampleModule().imports, importOf(MODULE_COMPOSITION, f('orders', 'contract'))] },
   },
   define('lateral-reexport-is-no-republication', 'Growth guardrails 13', 'A sibling cannot republish the contracts of another sibling.', ['republication-not-sub-feature'], {
     imports: [importOf(f('orders/pricing', 'public'), f('orders/discounts', 'public'), 'runtime', true)],

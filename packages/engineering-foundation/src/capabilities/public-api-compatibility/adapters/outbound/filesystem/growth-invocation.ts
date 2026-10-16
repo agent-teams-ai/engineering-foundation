@@ -7,7 +7,7 @@ import { Extractor } from "@microsoft/api-extractor";
 import { assertNotCancelled, publicApiInputError, publicApiFileFailure } from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
 import type { GrowthDigest, GrowthInvocation } from "../../../application/model/growth-observation.js";
-import type { ProcessRunner } from "../../../../../process-execution/api.js";
+import type { ManagedProcessExecutor } from "../../../../../process-execution/api.js";
 import { growthCanonicalJson, normalizeGrowthInvocation } from "../../../application/policies/normalize-growth-observation.js";
 
 /** The deadline of one source-identity git call. On Windows it also covers the Job Object wrapper (the PowerShell bootstrap that
@@ -15,7 +15,7 @@ import { growthCanonicalJson, normalizeGrowthInvocation } from "../../../applica
 const GROWTH_GIT_TIMEOUT_MS = 60_000;
 
 /** The git runner of the growth identity reads, bound to one repository root. */
-export const createGrowthGitRunner = (processes: Pick<ProcessRunner, "run">, consumerRoot: string) =>
+export const createGrowthGitRunner = (processes: ManagedProcessExecutor, consumerRoot: string) =>
   (args: readonly string[], signal?: AbortSignal) => processes.run({
     command: "git", args, cwd: consumerRoot, timeoutMs: GROWTH_GIT_TIMEOUT_MS, ...(signal === undefined ? {} : { signal })
   });

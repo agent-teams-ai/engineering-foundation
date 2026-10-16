@@ -30,7 +30,7 @@ catalog:
   knip: 6.31.0
   minisearch: 7.2.0
   mdast-util-to-string: 4.0.0
-  nx: 23.1.1
+  nx: 23.2.1
   oxlint: 1.83.0
   oxlint-tsgolint: 7.0.2001
   oxc-parser: 0.142.0

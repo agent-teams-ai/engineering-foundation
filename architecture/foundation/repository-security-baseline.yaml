@@ -68,6 +68,7 @@ privilegedJobs:
   - workflowPath: .github/workflows/npm-package-bootstrap.yml
     jobId: bootstrap
     permissions:
+      actions: read
       contents: read
       id-token: write
   - workflowPath: .github/workflows/npm-package-bootstrap.yml

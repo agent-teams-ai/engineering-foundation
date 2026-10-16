@@ -47,7 +47,7 @@ const parentOf = (feature: ExampleFeature): ExampleFeature | undefined =>
 /** A valid module: every parent wires the composition surface of each direct sub-feature, the module wires the top level. */
 export function exampleModule(): FeatureModuleInput {
   const files = [MODULE_COMPOSITION, ...features.flatMap((feature) => parts.map((part) => fileOf(feature, part)))];
-  const subFeatureRoots = exampleRoots.filter((root) => root.includes(`/${'features'}/`, FEATURES_ROOT.length + 1));
+  const subFeatureRoots = exampleRoots.filter((root) => root.includes('/features/', FEATURES_ROOT.length + 1));
   const assembly = features.flatMap((feature) => {
     const parent = parentOf(feature);
     return parent === undefined

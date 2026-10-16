@@ -65,3 +65,15 @@ test("bare specifiers are reported as external in a stable order and never becom
   assert.deepEqual(graph.external.map(({ from, line, specifier }) => `${from}:${line} ${specifier}`),
     ["src/a.ts:1 pkg", "src/a.ts:2 node:path", "src/z.ts:1 zod", "src/z.ts:2 @scope/pkg/sub", "src/z.ts:3 @/alias"]);
 });
+
+test("an import of build output is reported as unresolved, not dropped", async (t) => {
+  const consumerRoot = await tree(t, {
+    "package.json": '{"name":"app","type":"module"}\n',
+    "src/a.ts": "export const a = 1;\n",
+    "tests/a.test.ts": 'import { a } from "../src/a.js";\nimport { b } from "../dist/index.js";\nexport const t = [a, b];\n'
+  });
+  const graph = await observeSourceGraph({ consumerRoot, roots: ["src", "tests"] });
+  assert.deepEqual(graph.edges, [{ from: "tests/a.test.ts", to: "src/a.ts", mode: "runtime", line: 1 }]);
+  assert.deepEqual(graph.unresolved, [{ from: "tests/a.test.ts", specifier: "../dist/index.js", line: 2 }]);
+  assert.deepEqual(graph.external, []);
+});

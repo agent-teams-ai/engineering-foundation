@@ -30,7 +30,11 @@ export interface SourceGraph {
   readonly files: readonly string[];
   /** Resolved imports between those files, one per import, in binary order. */
   readonly edges: readonly SourceGraphEdge[];
-  /** Relative imports that did not resolve to a file in `files`, and specifiers the resolver does not support (subpath imports, URLs). */
+  /**
+   * Imports that are neither an edge nor a bare specifier: relative imports that did not resolve to a file in `files`
+   * (including build output such as `../dist/index.js`) and specifiers the resolver does not support (subpath imports, URLs).
+   * Non-literal loaders such as `import(variable)` are not reported.
+   */
   readonly unresolved: readonly SourceGraphUnresolved[];
   /**
    * Bare specifiers (builtins, packages, workspace packages, tsconfig paths aliases) are reported here, not as edges;
@@ -94,12 +98,29 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
   const unresolved: SourceGraphUnresolved[] = [];
   const external: SourceGraphExternal[] = [];
   for (const edge of graph.edges) {
-    if (edge.resolution.kind === "local-file") {
-      edges.push({ from: edge.fromPath, to: edge.resolution.path, mode: edge.mode, line: line(edge.fromPath, edge.start) });
-    } else if (edge.resolution.kind === "unresolved" || edge.resolution.kind === "unsupported") {
-      unresolved.push({ from: edge.fromPath, specifier: edge.specifier, line: line(edge.fromPath, edge.start) });
-    } else if (edge.resolution.kind === "builtin" || edge.resolution.kind === "external-package") {
-      external.push({ from: edge.fromPath, specifier: edge.specifier, line: line(edge.fromPath, edge.start) });
+    const at = { from: edge.fromPath, specifier: edge.specifier, line: line(edge.fromPath, edge.start) };
+    const { resolution } = edge;
+    switch (resolution.kind) {
+      case "local-file":
+        edges.push({ from: edge.fromPath, to: resolution.path, mode: edge.mode, line: at.line });
+        break;
+      case "builtin":
+      case "external-package":
+        external.push(at);
+        break;
+      // Anything that is neither an edge nor a bare specifier is visible rather than dropped, including a
+      // target that exists only as build output (for example "../dist/index.js").
+      case "generated-output-candidate":
+      case "unsupported":
+      case "unresolved":
+      case "workspace-package":
+      case "self-workspace-package":
+        unresolved.push(at);
+        break;
+      default: {
+        const exhaustive: never = resolution;
+        throw new Error(`Unhandled source dependency resolution: ${JSON.stringify(exhaustive)}.`);
+      }
     }
   }
   return Object.freeze({

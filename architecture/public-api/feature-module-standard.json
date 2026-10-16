@@ -22,6 +22,13 @@
           "signature": "export type DiagnosticCode = (typeof ERROR_CODES)[number] | (typeof WARNING_CODES)[number];"
         },
         {
+          "canonicalReference": "@agent-teams/feature-module-standard!DirectoryLayout:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DirectoryLayout = Readonly<{\n    featuresRoot: string;\n    files: readonly string[];\n    roleDirectories: Readonly<Record<string, LayerRole>>;\n    subFeatureRoots?: readonly string[];\n}>;"
+        },
+        {
           "canonicalReference": "@agent-teams/feature-module-standard!ERROR_CODES:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
@@ -47,7 +54,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type FeatureModuleInput = Readonly<{\n    featuresRoot: string;\n    files: readonly string[];\n    featureRoots?: readonly string[];\n    emptyDirectories?: readonly string[];\n    roleDirectories: Readonly<Record<string, LayerRole>>;\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    testFiles?: readonly string[];\n    surfaces?: SurfaceMap;\n    imports: readonly ImportRecord[];\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, (path: string) => boolean>>;\n}>;"
+          "signature": "export type FeatureModuleInput = Readonly<{\n    featureRoots: readonly string[];\n    featuresRoots?: readonly string[];\n    files: readonly string[];\n    emptyDirectories?: readonly string[];\n    roleRoots: readonly RoleRoot[];\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    testFiles?: readonly string[];\n    surfaces?: SurfaceMap;\n    imports: readonly ImportRecord[];\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, (path: string) => boolean>>;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!FeatureModuleReport:type",
@@ -118,6 +125,13 @@
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
           "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!RoleRoot:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RoleRoot = Readonly<{\n    root: string;\n    role: LayerRole;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!STANDARD:var",
@@ -197,6 +211,13 @@
           "signature": "export declare function findOverlappingRoots(roots: readonly string[]): Array<readonly [string, string]>;"
         },
         {
+          "canonicalReference": "@agent-teams/feature-module-standard!inferDirectoryLayout:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function inferDirectoryLayout(layout: DirectoryLayout): Pick<FeatureModuleInput, 'featureRoots' | 'featuresRoots' | 'roleRoots'>;"
+        },
+        {
           "canonicalReference": "@agent-teams/feature-module-standard!isWithin:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/feature-module-standard!",
@@ -227,7 +248,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type FeatureModuleInput = Readonly<{\n    featuresRoot: string;\n    files: readonly string[];\n    featureRoots?: readonly string[];\n    emptyDirectories?: readonly string[];\n    roleDirectories: Readonly<Record<string, LayerRole>>;\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    testFiles?: readonly string[];\n    surfaces?: SurfaceMap;\n    imports: readonly ImportRecord[];\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, (path: string) => boolean>>;\n}>;"
+          "signature": "export type FeatureModuleInput = Readonly<{\n    featureRoots: readonly string[];\n    featuresRoots?: readonly string[];\n    files: readonly string[];\n    emptyDirectories?: readonly string[];\n    roleRoots: readonly RoleRoot[];\n    mappedFiles?: readonly string[];\n    testFeaturesRoot?: string;\n    testFiles?: readonly string[];\n    surfaces?: SurfaceMap;\n    imports: readonly ImportRecord[];\n    republications?: readonly Republication[];\n    useEdges?: readonly UseEdge[];\n    depthWarning?: number;\n    fileGroups?: Readonly<Record<string, (path: string) => boolean>>;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!ImportMode:type",
@@ -263,6 +284,13 @@
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
           "signature": "export type RepublishedSurface = 'public' | 'composition-contract';"
+        },
+        {
+          "canonicalReference": "@agent-teams/feature-module-standard!RoleRoot:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/feature-module-standard!",
+          "parentKind": "EntryPoint",
+          "signature": "export type RoleRoot = Readonly<{\n    root: string;\n    role: LayerRole;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!SurfaceMap:type",

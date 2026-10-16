@@ -1,3 +1,5 @@
+import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";
+
 interface PackageScriptExecution {
   readonly exitCode: number | null;
   readonly signal: NodeJS.Signals | null;
@@ -7,6 +9,7 @@ interface PackageScriptExecution {
 
 export interface PackageScriptExecutor {
   run(input: {
+    readonly packageManager: RepositoryPackageManager;
     readonly consumerRoot: string;
     readonly scriptId: string;
     readonly timeoutMs?: number;

@@ -6,6 +6,7 @@ import { rejectWorkflowExecutor } from "../../../application/policies/workflow-i
 import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
 
 export interface PnpmProcessEnvironment {
+  readonly nodeExecutablePath?: string;
   readonly npmExecPath?: string;
   readonly pnpmHome?: string;
   readonly pathValue?: string;
@@ -49,7 +50,10 @@ async function resolvePnpmInvocation(
     pnpmPackageEntrypoint
   ]);
   if (entrypoint !== undefined) {
-    return { command: process.execPath, argsPrefix: [entrypoint] };
+    if (environment.nodeExecutablePath === undefined) {
+      rejectWorkflowExecutor();
+    }
+    return { command: environment.nodeExecutablePath, argsPrefix: [entrypoint] };
   }
   if (process.platform !== "win32") {
     return { command: "pnpm", argsPrefix: [] };
@@ -80,11 +84,15 @@ export class PnpmPackageScriptRunner implements PackageScriptRunner {
   ) {}
 
   async run(input: {
+    readonly packageManager: "bun" | "pnpm";
     readonly consumerRoot: string;
     readonly script: string;
     readonly paths: readonly string[];
     readonly signal?: AbortSignal;
   }) {
+    if (input.packageManager !== "pnpm") {
+      rejectWorkflowExecutor();
+    }
     const args = [
       "run",
       input.script,

@@ -1,5 +1,78 @@
+import { processCleanupFailure } from "./application/process-failure-policy.js";
+import type { ProcessRequest } from "./api.js";
+
 const MAXIMUM_DIAGNOSTIC_ERROR_NODES = 32;
-const MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES = 64 * 1024;
+export const MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES = 64 * 1024;
+
+export interface WrapperStderrDiagnostics {
+  chunks: Buffer[];
+  bytes: number;
+}
+
+export function createWrapperStderrDiagnostics(): WrapperStderrDiagnostics {
+  return { chunks: [], bytes: 0 };
+}
+
+function byteView(chunk: Uint8Array): Buffer {
+  return Buffer.isBuffer(chunk)
+    ? chunk
+    : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+}
+
+function copyBytes(bytes: Uint8Array): Buffer {
+  return Buffer.from(bytes);
+}
+
+/** Retains only a sliding copy of the latest Windows protocol suffix. */
+export function appendWrapperStderr(
+  diagnostics: WrapperStderrDiagnostics,
+  chunk: Uint8Array
+): void {
+  const source = byteView(chunk);
+  if (source.length === 0) {
+    return;
+  }
+  if (source.length >= MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES) {
+    diagnostics.chunks.splice(0);
+    diagnostics.bytes = 0;
+    const suffix = copyBytes(source.subarray(
+      source.length - MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES
+    ));
+    diagnostics.chunks.push(suffix);
+    diagnostics.bytes = suffix.length;
+    return;
+  }
+
+  const accepted = copyBytes(source);
+  diagnostics.chunks.push(accepted);
+  diagnostics.bytes += accepted.length;
+  while (diagnostics.bytes > MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES) {
+    const overflow = diagnostics.bytes - MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES;
+    const oldest = diagnostics.chunks[0];
+    if (oldest === undefined) {
+      diagnostics.bytes = 0;
+      return;
+    }
+    if (oldest.length <= overflow) {
+      diagnostics.chunks.shift();
+      diagnostics.bytes -= oldest.length;
+      continue;
+    }
+    diagnostics.chunks[0] = copyBytes(oldest.subarray(overflow));
+    diagnostics.bytes -= overflow;
+  }
+}
+
+/** Forwards each observed chunk exactly once while retaining its bounded suffix. */
+export async function* observeWrapperStderr(
+  source: AsyncIterable<Uint8Array>,
+  diagnostics: WrapperStderrDiagnostics
+): AsyncIterable<Uint8Array> {
+  for await (const chunk of source) {
+    appendWrapperStderr(diagnostics, chunk);
+    yield chunk;
+  }
+}
 
 const WINDOWS_CONTAINMENT_FAILURE_MESSAGES = [
   ["invalid-confirmation", "Windows Job Object wrapper sent an invalid containment confirmation."],
@@ -130,5 +203,3 @@ export function managedProcessCleanupFailure(
   const description = describeManagedProcessCleanupFailure(error, wrapperStderr, windows);
   return processCleanupFailure(request, description, error, windows);
 }
-import { processCleanupFailure } from "./application/process-failure-policy.js";
-import type { ProcessRequest } from "./api.js";

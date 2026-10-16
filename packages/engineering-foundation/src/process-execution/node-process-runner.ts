@@ -1,6 +1,20 @@
-import { spawn } from "node:child_process";
-import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+
+import {
+  createNodeProcessAdapter,
+  type NodeAcquireHook,
+  type NodeCleanupHook,
+  type NodeRetain
+} from "@agent-teams/process-runtime/node";
+import {
+  createProcessExecutor,
+  isProcessRuntimeError,
+  type CompletionCause,
+  type ProcessAdapter,
+  type ProcessRuntimeError,
+  type Request as ProcessRuntimeRequest
+} from "@agent-teams/process-runtime";
 
 import {
   processFailure,
@@ -12,12 +26,19 @@ import {
   isProcessFailure
 } from "./application/process-failure-policy.js";
 import {
-  cleanUpWindowsManagedProcessLaunchFailure,
   managedProcessCleanupFailure,
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess,
   waitForWindowsManagedProcessContainment
 } from "./windows-managed-process.js";
+import {
+  createWrapperStderrDiagnostics,
+  observeWrapperStderr,
+  type WrapperStderrDiagnostics
+} from "./windows-managed-process-diagnostics.js";
+import {
+  NODE_EXECUTABLE_ENVIRONMENT_VARIABLE
+} from "./node-runtime-verifier.js";
 import type {
   ManagedProcessRequest,
   ManagedProcessResult,
@@ -26,38 +47,91 @@ import type {
   ProcessRunner
 } from "./api.js";
 
-const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
-
-
-interface ObservedProcessExit {
-  readonly exitCode: number | null;
-  readonly signal: NodeJS.Signals | null;
-}
 
 export interface NodeManagedProcessRequest extends ProcessRequest {
   /** Exact inherited environment for a private Node process-adapter boundary. */
   readonly environment?: Readonly<NodeJS.ProcessEnv>;
+  /** Explicitly verified Node for the Windows bootstrap host. */
+  readonly nodeExecutable?: string;
+  /** Private environment used only to launch the trusted Windows wrapper. */
+  readonly launcherEnvironment?: Readonly<NodeJS.ProcessEnv>;
 }
 
-async function waitForExit(
-  child: ReturnType<typeof spawn>,
-  timeoutMs: number
-): Promise<boolean> {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return true;
+export interface NodeManagedProcessRuntimeContext {
+  /** Explicitly verified Node used by the Windows bootstrap when Bun is current. */
+  readonly nodeExecutable?: string;
+  /** Private environment used only to launch the trusted Windows wrapper. */
+  readonly launcherEnvironment?: Readonly<NodeJS.ProcessEnv>;
+}
+
+function runtimeContext(
+  environment: Readonly<NodeJS.ProcessEnv>
+): NodeManagedProcessRuntimeContext {
+  const nodeExecutable = environment[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
+  return Object.freeze({
+    ...(nodeExecutable === undefined ? {} : { nodeExecutable }),
+    launcherEnvironment: environment
+  });
+}
+
+interface LaunchAbortBridge {
+  readonly signal: AbortSignal;
+  fail(): void;
+  succeed(): void;
+  dispose(): void;
+}
+
+/**
+ * Holds an abort only across native launch settlement so an observed launch
+ * failure keeps its existing precedence. After successful custody the bridge
+ * forwards cancellation immediately and the generic executor remains the sole
+ * completion arbiter.
+ */
+function createLaunchAbortBridge(
+  source: AbortSignal | undefined
+): LaunchAbortBridge {
+  const controller = new AbortController();
+  if (source === undefined) {
+    return Object.freeze({
+      signal: controller.signal,
+      fail: () => {
+        return;
+      },
+      succeed: () => {
+        return;
+      },
+      dispose: () => {
+        return;
+      }
+    });
   }
-  const cancellation = new AbortController();
-  const exit = once(child, "exit", { signal: cancellation.signal }).then(
-    () => true,
-    () => false
-  );
-  const timeout = delay(timeoutMs, false, { signal: cancellation.signal }).catch(
-    () => false
-  );
-  const exited = await Promise.race([exit, timeout]);
-  cancellation.abort();
-  return exited;
+  let state: "pending" | "failed" | "succeeded" = "pending";
+  let sourceAborted = source.aborted;
+  let sourceReason: unknown = source.reason;
+  const onAbort = () => {
+    sourceAborted = true;
+    sourceReason = source.reason;
+    if (state === "succeeded") {
+      controller.abort(sourceReason);
+    }
+  };
+  source.addEventListener("abort", onAbort, { once: true });
+  return Object.freeze({
+    signal: controller.signal,
+    fail: () => {
+      state = "failed";
+    },
+    succeed: () => {
+      state = "succeeded";
+      if (sourceAborted) {
+        controller.abort(sourceReason);
+      }
+    },
+    dispose: () => {
+      source.removeEventListener("abort", onAbort);
+    }
+  });
 }
 
 function isMissingProcessGroupError(error: unknown): boolean {
@@ -100,27 +174,6 @@ async function waitForPosixProcessGroupExit(pid: number): Promise<boolean> {
   return !isPosixProcessGroupRunning(pid);
 }
 
-async function terminateWindowsProcessTree(
-  child: ReturnType<typeof spawn>
-): Promise<void> {
-  // The wrapper owns both the suspended pre-assignment handle and the assigned
-  // Job Object. It confirms the applicable containment boundary is empty before
-  // the outer process may treat wrapper exit as safe.
-  await requestWindowsManagedProcessTermination(child);
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return;
-  }
-  if (await waitForExit(child, TERMINATION_GRACE_MS)) {
-    return;
-  }
-  // Containment is already confirmed, so forcing a stuck wrapper cannot orphan
-  // the suspended host or any assigned Job Object descendant.
-  child.kill("SIGKILL");
-  if (!await waitForExit(child, TERMINATION_GRACE_MS)) {
-    throw new Error("Windows Job Object wrapper did not exit after forced shutdown.");
-  }
-}
-
 export async function terminatePosixProcessGroup(
   processGroupId: number
 ): Promise<void> {
@@ -140,43 +193,80 @@ export async function terminatePosixProcessGroup(
 }
 
 export async function terminateNodeManagedProcess(
-  child: ReturnType<typeof spawn>
+  child: ChildProcess
 ): Promise<void> {
   if (child.pid === undefined) {
     return;
   }
   if (process.platform === "win32") {
-    await terminateWindowsProcessTree(child);
+    // The Windows helper owns its containment, wrapper-exit and forced-wrapper
+    // protocol. It is one bounded cleanup path, not a second Host exit arbiter.
+    await requestWindowsManagedProcessTermination(child);
     return;
   }
   await terminatePosixProcessGroup(child.pid);
 }
 
-async function waitForCloseWithinCleanupDeadline(
-  closed: Promise<unknown>
-): Promise<void> {
-  const cancellation = new AbortController();
-  const cleanupDeadline = delay(
-    TERMINATION_GRACE_MS,
-    undefined,
-    { signal: cancellation.signal }
-  ).then(() => {
-    throw new Error("Process streams did not close after tree termination.");
-  });
-  try {
-    await Promise.race([closed, cleanupDeadline]);
-  } finally {
-    cancellation.abort();
+function normalizedEnvironment(
+  environment: Readonly<NodeJS.ProcessEnv> | undefined
+): Readonly<Record<string, string>> | undefined {
+  if (environment === undefined) {
+    return undefined;
   }
+  return Object.freeze(Object.fromEntries(
+    Object.entries(environment).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined
+    )
+  ));
+}
+
+function runtimeRequest(
+  request: ManagedProcessRequest,
+  signal: AbortSignal | undefined
+): ProcessRuntimeRequest {
+  const environment = normalizedEnvironment(request.environment);
+  return {
+    command: request.command,
+    args: request.args,
+    cwd: request.cwd,
+    ...(signal === undefined ? {} : { signal }),
+    ...(request.timeoutMs === undefined ? {} : { timeoutMs: request.timeoutMs }),
+    ...(request.strictUtf8 === undefined ? {} : { strictUtf8: request.strictUtf8 }),
+    ...(environment === undefined ? {} : { environment })
+  };
+}
+
+function windowsRequest(
+  request: ProcessRuntimeRequest,
+  context: NodeManagedProcessRuntimeContext
+): NodeManagedProcessRequest {
+  const explicitNodeExecutable =
+    context.nodeExecutable ??
+    request.environment?.[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
+  return {
+    command: request.command,
+    args: request.args,
+    cwd: request.cwd,
+    ...(request.environment === undefined
+      ? {}
+      : { environment: request.environment }),
+    ...(explicitNodeExecutable === undefined
+      ? {}
+      : { nodeExecutable: explicitNodeExecutable }),
+    ...(context.launcherEnvironment === undefined
+      ? {}
+      : { launcherEnvironment: context.launcherEnvironment })
+  };
 }
 
 export function spawnNodeManagedProcess(
-  request: NodeManagedProcessRequest
-): ReturnType<typeof spawn> {
+  request: NodeManagedProcessRequest,
+  retain?: NodeRetain
+): ChildProcess {
   if (process.platform === "win32") {
-    return spawnWindowsManagedProcess(request);
+    return spawnWindowsManagedProcess(request, retain);
   }
-  return spawn(request.command, [...request.args], {
+  const child = spawn(request.command, [...request.args], {
     cwd: request.cwd,
     detached: true,
     ...(request.environment === undefined ? {} : { env: request.environment }),
@@ -184,299 +274,122 @@ export function spawnNodeManagedProcess(
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true
   });
+  retain?.(child);
+  return child;
 }
 
-async function cleanUpAfterNormalExit(
-  child: ReturnType<typeof spawn>
+async function cleanupManagedChild(
+  child: ChildProcess,
+  cause: CompletionCause
 ): Promise<void> {
-  if (process.platform === "win32") {
+  if (process.platform === "win32" && cause === "exited") {
     await waitForWindowsManagedProcessContainment(child);
     return;
   }
   await terminateNodeManagedProcess(child);
 }
 
-function decodeProcessOutput(
-  request: ManagedProcessRequest,
-  stdout: readonly Buffer[],
-  stderr: readonly Buffer[]
-): { readonly stdout: string; readonly stderr: string } | ReturnType<typeof processFailure> {
-  const decode = (chunks: readonly Buffer[]) => {
-    const bytes = Buffer.concat(chunks);
-    const text = bytes.toString("utf8");
-    if (request.strictUtf8 === true && !Buffer.from(text, "utf8").equals(bytes)) {
-      throw new TypeError("Process output is not valid UTF-8.");
+function createManagedNodeAdapter(
+  context: NodeManagedProcessRuntimeContext,
+  diagnostics: WrapperStderrDiagnostics,
+  launchAbort: LaunchAbortBridge
+): ProcessAdapter {
+  const acquire: NodeAcquireHook = (request, retain) => {
+    spawnNodeManagedProcess(windowsRequest(request, context), retain);
+  };
+  const cleanup: NodeCleanupHook = (child, cause) =>
+    cleanupManagedChild(child, cause);
+  const nativeAdapter = createNodeProcessAdapter({ acquire, cleanup });
+  return {
+    launch: async (request) => {
+      let running: Awaited<ReturnType<ProcessAdapter["launch"]>>;
+      try {
+        running = await nativeAdapter.launch(request);
+      } catch (error) {
+        launchAbort.fail();
+        throw error;
+      }
+      launchAbort.succeed();
+      return {
+        ...running,
+        stderr: observeWrapperStderr(running.stderr, diagnostics)
+      };
     }
-    return text;
   };
-  try {
-    return { stdout: decode(stdout), stderr: decode(stderr) };
-  } catch (error) {
-    return processFailure(
-      request,
-      "returned output that is not valid UTF-8.",
-      error,
-      { reason: "invalid-output" }
-    );
-  }
 }
 
-function observedFailureAfterCancellation(
+function mapProcessRuntimeError(
   request: ManagedProcessRequest,
-  completionFailure: ReturnType<typeof processFailure> | undefined,
-  observedExit: ObservedProcessExit | undefined,
-  stdout: readonly Buffer[],
-  stderr: readonly Buffer[]
-): ManagedProcessResult | ReturnType<typeof processFailure> | undefined {
-  const decoded = decodeProcessOutput(request, stdout, stderr);
-  if (isProcessFailure(decoded)) {
-    return decoded;
-  }
-  if (completionFailure !== undefined) {
-    return completionFailure;
-  }
-  if (
-    observedExit?.exitCode === null ||
-    observedExit?.exitCode === undefined ||
-    observedExit.exitCode === 0
-  ) {
-    return undefined;
-  }
-  const result = {
-    exitCode: observedExit.exitCode,
-    signal: observedExit.signal,
-    stdout: decoded.stdout,
-    stderr: decoded.stderr
-  };
-  return processExitResult(result, observedExit.exitCode, observedExit.signal);
-}
-
-function combinedTerminationFailure(
-  request: ProcessRequest,
-  failure: ReturnType<typeof processFailure>,
-  error: unknown
+  error: ProcessRuntimeError,
+  diagnostics: WrapperStderrDiagnostics
 ): ReturnType<typeof processFailure> {
-  return processFailure(
-    request,
-    "could not be terminated after failure.",
-    new AggregateError([failure, error], "Process execution and termination failed."),
-    { reason: "cleanup" }
-  );
-}
-
-async function normalExitResult(input: {
-  readonly request: ManagedProcessRequest;
-  readonly child: ReturnType<typeof spawn>;
-  readonly closed: Promise<unknown>;
-  readonly stdout: readonly Buffer[];
-  readonly stderr: readonly Buffer[];
-  readonly completionFailure: () => ReturnType<typeof processFailure> | undefined;
-  readonly exit: ObservedProcessExit;
-}): Promise<ManagedProcessResult | ReturnType<typeof processFailure>> {
-  try {
-    await cleanUpAfterNormalExit(input.child);
-    await (process.platform === "win32" ? input.closed : waitForCloseWithinCleanupDeadline(input.closed));
-  } catch (error) {
-    return managedProcessCleanupFailure(
-      input.request, error, input.stderr,
-      process.platform === "win32"
-    );
+  switch (error.code) {
+    case "invalid-input":
+    case "launch":
+      return processFailure(request, "could not be started.", error, { reason: "launch" });
+    case "output-limit":
+      return processFailure(request, "exceeded its captured output limit.", error, {
+        reason: "output-limit"
+      });
+    case "invalid-output":
+      return processFailure(request, "returned output that is not valid UTF-8.", error, {
+        reason: "invalid-output"
+      });
+    case "stream":
+      return processFailure(request, "experienced an output stream failure.", error, {
+        reason: "stream"
+      });
+    case "timeout":
+      return processTimedOut(request, request.timeoutMs ?? 1);
+    case "cancelled":
+      return processCancelled(request, "was cancelled.", request.signal?.reason);
+    case "cleanup":
+      return managedProcessCleanupFailure(
+        request,
+        error,
+        diagnostics.chunks,
+        process.platform === "win32"
+      );
   }
-  const decoded = decodeProcessOutput(
-    input.request,
-    input.stdout,
-    input.stderr
-  );
-  if (isProcessFailure(decoded)) {
-    return decoded;
-  }
-  const completionFailure = input.completionFailure();
-  if (completionFailure !== undefined) {
-    return completionFailure;
-  }
-  const result = {
-    exitCode: input.exit.exitCode ?? 1,
-    signal: input.exit.signal,
-    stdout: decoded.stdout,
-    stderr: decoded.stderr
-  };
-  return processExitResult(result, input.exit.exitCode, input.exit.signal);
-}
-
-function observeProcessOutputErrors(
-  child: ReturnType<typeof spawn>,
-  onError: (stream: "stdout" | "stderr", error: Error) => void
-): void {
-  child.stdout?.once("error", (error) => {
-    onError("stdout", error);
-  });
-  child.stderr?.once("error", (error) => {
-    onError("stderr", error);
-  });
 }
 
 export async function executeManagedProcess(
-  request: ManagedProcessRequest
+  request: ManagedProcessRequest,
+  context: NodeManagedProcessRuntimeContext = runtimeContext(process.env)
 ): Promise<ManagedProcessResult> {
-    const timeoutMs = prepareProcessRequest(request);
-    return await new Promise((resolve, reject) => {
-      let child: ReturnType<typeof spawn>;
-      try {
-        child = spawnNodeManagedProcess(request);
-      } catch (error) {
-        reject(processFailure(request, "could not be started.", error, { reason: "launch" }));
-        return;
-      }
-      const stdout: Buffer[] = [];
-      const stderr: Buffer[] = [];
-      const closed = once(child, "close").catch(() => []);
-      let stdoutBytes = 0;
-      let stderrBytes = 0;
-      let settled = false;
-      let terminating = false;
-      let completionFailure: ReturnType<typeof processFailure> | undefined;
-      let observedExit: ObservedProcessExit | undefined;
-      const deadlineSignal = timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs);
-
-      const finish = (result: ManagedProcessResult | ReturnType<typeof processFailure>) => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        deadlineSignal?.removeEventListener("abort", onTimeout);
-        request.signal?.removeEventListener("abort", onAbort);
-        if (isProcessFailure(result)) {
-          reject(result);
-          return;
-        }
-        resolve(result);
-      };
-
-      const failAfterTermination = (
-        failure: ReturnType<typeof processFailure>,
-        preferObservedFailure = false
-      ) => {
-        if (settled || terminating) {
-          return;
-        }
-        terminating = true;
-        void (async () => {
-          try {
-            await terminateNodeManagedProcess(child);
-            await waitForCloseWithinCleanupDeadline(closed);
-            if (preferObservedFailure) {
-              const observedFailure = observedFailureAfterCancellation(
-                request,
-                completionFailure,
-                observedExit,
-                stdout,
-                stderr
-              );
-              if (observedFailure !== undefined) {
-                finish(observedFailure);
-                return;
-              }
-            }
-            finish(failure);
-          } catch (error) {
-            finish(combinedTerminationFailure(request, failure, error));
-          }
-        })();
-      };
-
-      const onAbort = () => {
-        failAfterTermination(
-          processCancelled(request, "was cancelled.", request.signal?.reason),
-          true
-        );
-      };
-
-      const onTimeout = () => {
-        if (timeoutMs !== undefined) {
-          failAfterTermination(processTimedOut(request, timeoutMs));
-        }
-      };
-
-      const completeAfterExit = (
-        exitCode: number | null,
-        signal: NodeJS.Signals | null
-      ) => {
-        observedExit = { exitCode, signal };
-        if (settled || terminating) {
-          return;
-        }
-        terminating = true;
-        deadlineSignal?.removeEventListener("abort", onTimeout);
-        request.signal?.removeEventListener("abort", onAbort);
-        void normalExitResult({
-          request,
-          child,
-          closed,
-          stdout,
-          stderr,
-          completionFailure: () => completionFailure,
-          exit: observedExit
-        }).then(finish);
-      };
-
-      const appendOutput = (
-        destination: Buffer[],
-        chunk: Buffer,
-        stream: "stdout" | "stderr"
-      ) => {
-        const nextSize = (stream === "stdout" ? stdoutBytes : stderrBytes) + chunk.length;
-        if (nextSize > MAX_OUTPUT_BYTES) {
-          const failure = processFailure(
-            request,
-            `exceeded the ${stream} output limit of ${MAX_OUTPUT_BYTES} bytes.`,
-            undefined,
-            { reason: "output-limit" }
-          );
-          if (terminating) {
-            completionFailure ??= failure;
-            return;
-          }
-          failAfterTermination(failure);
-          return;
-        }
-        if (stream === "stdout") {
-          stdoutBytes = nextSize;
-        } else {
-          stderrBytes = nextSize;
-        }
-        destination.push(chunk);
-      };
-
-      observeProcessOutputErrors(child, (stream, error) => {
-        const failure = processFailure(request, `${stream} stream failed.`, error, { reason: "stream" });
-        completionFailure ??= failure;
-        if (!terminating) {
-          failAfterTermination(failure);
-        }
-      });
-      child.stdout?.on("data", (chunk: Buffer) => {
-        appendOutput(stdout, chunk, "stdout");
-      });
-      child.stderr?.on("data", (chunk: Buffer) => {
-        appendOutput(stderr, chunk, "stderr");
-      });
-      child.once("error", (error) => {
-        cleanUpWindowsManagedProcessLaunchFailure(child);
-        failAfterTermination(completionFailure ??= processFailure(request, "could not be started.", error, { reason: "launch" }));
-      });
-      child.once("exit", completeAfterExit);
-
-      deadlineSignal?.addEventListener("abort", onTimeout, { once: true });
-      request.signal?.addEventListener("abort", onAbort, { once: true });
-      if (request.signal?.aborted === true) {
-        onAbort();
-      }
-    });
+  prepareProcessRequest(request);
+  const launchAbort = createLaunchAbortBridge(request.signal);
+  const input = runtimeRequest(request, request.signal === undefined ? undefined : launchAbort.signal);
+  const diagnostics = createWrapperStderrDiagnostics();
+  const executor = createProcessExecutor(
+    createManagedNodeAdapter(context, diagnostics, launchAbort)
+  );
+  try {
+    const result = await executor.run(input);
+    const signal = result.signal === null ? null : result.signal as NodeJS.Signals;
+    const managedResult = {
+      exitCode: result.exitCode ?? 1,
+      signal,
+      stdout: result.stdout,
+      stderr: result.stderr
+    };
+    return processExitResult(managedResult, result.exitCode, signal);
+  } catch (error) {
+    if (isProcessRuntimeError(error)) {
+      throw mapProcessRuntimeError(request, error, diagnostics);
+    }
+    if (isProcessFailure(error)) {
+      throw error;
+    }
+    throw processFailure(request, "could not be completed.", error);
+  } finally {
+    launchAbort.dispose();
+  }
 }
 
 export class NodeProcessRunner implements ProcessRunner {
   async run(request: ProcessRequest): Promise<ProcessResult> {
-    const result = await executeManagedProcess(request);
+    const result = await executeManagedProcess({ ...request } as ManagedProcessRequest);
     if (result.exitCode !== 0) {
       throw processExitFailure(
         request,

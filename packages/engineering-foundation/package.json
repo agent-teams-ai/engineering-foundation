@@ -117,6 +117,7 @@
   },
   "dependencies": {
     "@agent-teams/document-authoring": "workspace:*",
+    "@agent-teams/process-runtime": "0.1.0",
     "@agent-teams/repository-mutation": "workspace:*",
     "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",

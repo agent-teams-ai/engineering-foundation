@@ -80,6 +80,7 @@ export function parseAgentWorkflowPolicy(input: unknown, configPath: string): Re
     inputError("changedChecks must be an array.");
   }
   const result = Object.freeze({
+    packageManager: "pnpm" as const,
     instructions: instructions(root["instructions"]),
     scripts: scripts(root["scripts"]),
     changedChecks: Object.freeze(checksInput.map(changedCheck)),

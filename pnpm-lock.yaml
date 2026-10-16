@@ -123,12 +123,6 @@ pnpmfileChecksum: sha256-QaZoGkoapTRcxbf3tl10MVvcbpsQhOtkG4+cTPNGWeg=
 
 importers:
 
-  packages/ci-input-proof:
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 7.0.2
-
   .:
     devDependencies:
       '@arethetypeswrong/cli':
@@ -191,6 +185,12 @@ importers:
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
+
+  packages/ci-input-proof:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/docs-protocol:
     dependencies:
@@ -309,6 +309,9 @@ importers:
       '@agent-teams/document-authoring':
         specifier: workspace:*
         version: link:../document-authoring
+      '@agent-teams/process-runtime':
+        specifier: 0.1.0
+        version: 0.1.0
       '@agent-teams/repository-mutation':
         specifier: workspace:*
         version: link:../repository-mutation
@@ -363,6 +366,10 @@ importers:
         version: 6.0.3
 
 packages:
+
+  '@agent-teams/process-runtime@0.1.0':
+    resolution: {integrity: sha512-xVKT/+kgXHqDfh3O5wjP5y3Z9II2rzhNaE9AyvcOVQ7FHAT0rzX+woPW5vGM+x268KWIBii4uIykgOG9faZ32g==}
+    engines: {bun: '>=1.4.3', node: ^24.18.0 || ^26.0.0}
 
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
@@ -3706,6 +3713,8 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  '@agent-teams/process-runtime@0.1.0': {}
 
   '@andrewbranch/untar.js@1.0.3': {}
 

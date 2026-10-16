@@ -29,8 +29,8 @@ import {
 
 function policy() {
   return {
-    packageManager: "pnpm",
     profiles: [{
+      packageManager: "pnpm",
       concurrency: 1,
       id: "verify",
       tasks: [{ after: [], id: "slow", needs: [] }],
@@ -272,6 +272,7 @@ test("QGR binds one immutable exact child environment in the pnpm adapter", asyn
     clock: { nowMs: () => 0 },
     executor: new PnpmQualityGateScriptExecutor({
       childEnvironment,
+      nodeExecutablePath: process.execPath,
       npmExecPath: fileURLToPath(import.meta.url),
     }, {
       async run(request) {
@@ -504,17 +505,72 @@ setInterval(() => {}, 60000);
 });
 
 test("Windows watchdog contract retains Job Object ownership and awaits descendants", async () => {
-  const [cleanupSource, nodeAdapterSource, windowsManagedProcessSource] = await Promise.all([
+  const [
+    cleanupSource,
+    nodeAdapterSource,
+    managedLauncherSource,
+    windowsManagedProcessSource,
+  ] = await Promise.all([
     readFile(join(process.cwd(), "tests", "support", "quality-gate-runner-cleanup.mjs"), "utf8"),
     readFile(join(process.cwd(), "packages", "engineering-foundation", "src", "process-execution", "node-process-runner.ts"), "utf8"),
+    readFile(join(process.cwd(), "packages", "engineering-foundation", "src", "process-execution", "windows-managed-process.ts"), "utf8"),
     readFile(join(process.cwd(), "packages", "engineering-foundation", "assets", "windows-managed-process", "WindowsManagedProcess.cs"), "utf8"),
   ]);
   assert.match(cleanupSource, /spawnNodeManagedProcess/u);
   assert.match(cleanupSource, /terminateNodeManagedProcess/u);
   assert.match(cleanupSource, /terminatePosixProcessGroup/u);
-  assert.match(nodeAdapterSource, /return spawnWindowsManagedProcess\(request\)/u);
+  assert.match(
+    nodeAdapterSource,
+    /export function spawnNodeManagedProcess\(\s*request: NodeManagedProcessRequest,\s*retain\?: NodeRetain\s*\): ChildProcess/u
+  );
+  assert.match(
+    nodeAdapterSource,
+    /const acquire: NodeAcquireHook = \(request, retain\) => \{\s*spawnNodeManagedProcess\(windowsRequest\(request, context\), retain\);/u
+  );
+  const windowsBranch = nodeAdapterSource.indexOf("if (process.platform === \"win32\") {");
+  const windowsRetainRoute = nodeAdapterSource.indexOf(
+    "return spawnWindowsManagedProcess(request, retain);",
+    windowsBranch
+  );
+  const posixSpawn = nodeAdapterSource.indexOf("const child = spawn(", windowsRetainRoute);
+  const posixRetain = nodeAdapterSource.indexOf("retain?.(child);", posixSpawn);
+  assert.ok(windowsBranch >= 0);
+  assert.ok(windowsBranch < windowsRetainRoute);
+  assert.ok(windowsRetainRoute < posixSpawn);
+  assert.ok(posixSpawn < posixRetain);
+
+  assert.match(
+    managedLauncherSource,
+    /export function spawnWindowsManagedProcess\(\s*request: WindowsManagedProcessRequest,\s*retain\?: WindowsManagedProcessRetain\s*\): ChildProcess/u
+  );
+  const controlOwnership = managedLauncherSource.indexOf("windowsProcessControls.set(child, control);");
+  const retainedChild = managedLauncherSource.indexOf("retain?.(child);", controlOwnership);
+  const postRetentionSetup = managedLauncherSource.indexOf("child.once(\"error\"", retainedChild);
+  assert.ok(controlOwnership >= 0);
+  assert.ok(controlOwnership < retainedChild);
+  assert.ok(retainedChild < postRetentionSetup);
+
   assert.match(nodeAdapterSource, /Windows Job Object wrapper did not exit after forced shutdown/u);
   assert.match(windowsManagedProcessSource, /JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u);
+  assert.match(
+    windowsManagedProcessSource,
+    /limits\.BasicLimitInformation\.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE/u
+  );
+  const jobListAssignment = windowsManagedProcessSource.indexOf("PROC_THREAD_ATTRIBUTE_JOB_LIST,");
+  const processCreation = windowsManagedProcessSource.indexOf("if (!CreateProcess(", jobListAssignment);
+  const assignedAfterCreation = windowsManagedProcessSource.indexOf("assigned = true;", processCreation);
+  assert.ok(jobListAssignment >= 0);
+  assert.ok(jobListAssignment < processCreation);
+  assert.ok(processCreation < assignedAfterCreation);
   assert.match(windowsManagedProcessSource, /TerminateRemainingProcessesAndWait\(job\)/u);
-  assert.match(windowsManagedProcessSource, /while \(ActiveProcessCount\(job\) > 0\)/u);
+  const assignedJobTermination = windowsManagedProcessSource.slice(
+    windowsManagedProcessSource.indexOf("private static void TerminateRemainingProcessesAndWait"),
+    windowsManagedProcessSource.indexOf("private static void ConfirmContainment")
+  );
+  assert.match(assignedJobTermination, /TerminateJobObject\(job, 1\)/u);
+  assert.match(assignedJobTermination, /while \(ActiveProcessCount\(job\) > 0\)/u);
+  assert.match(
+    windowsManagedProcessSource,
+    /TerminateRemainingProcessesAndWait\(job\);\s*ConfirmContainment\(confirmationPath\)/u
+  );
 });

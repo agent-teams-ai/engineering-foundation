@@ -49,6 +49,20 @@ The complete contract, compatibility, and migration rules are defined by
 The foundation is not a production dependency and is not a shared business
 kernel.
 
+Runtime selection is a narrow outer-composition concern. Engineering Foundation
+owns the minimal executable/profile selection policy and the closed Bun/pnpm
+package-script adapters. `quality.gate-runner` owns profile-manager semantics;
+`repository-agent-workflow` retains its existing policy-selected manager.
+Application request contracts carry the selected manager but never import a
+concrete package-manager adapter. The independently delivered process library
+remains a separate mechanism boundary. Functional process delegation may use an
+independently accepted TEST artifact in an owned overlay, but this checkout does
+not contain a placeholder or unpublished registry pin. A supported dependency
+coordinate remains pending exact publication, archive, lock, SRI and provenance
+verification.
+The exact closed static seam and its `not-adopted` Assembly classification are
+recorded in [Runtime profile static seam](runtime-profile-static-seam.md).
+
 Document authoring follows the same ownership boundary but remains a separate
 top-level mutation protocol rather than an executable capability. Consumers own
 document types, lifecycle, metadata, owner meaning, templates, placement

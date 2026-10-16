@@ -1,5 +1,5 @@
 import { associateProcessFailureFacts, readProcessFailureFacts, type ProcessFailureFacts } from "../../features/validation-reporting/process-failure-facts.js";
-import { FoundationError } from "../../features/validation-reporting/api.js";
+import { FoundationError } from "../../features/validation-reporting/foundation-error.js";
 import { ProcessCancellationError, ProcessTimeoutError } from "./errors.js";
 import type { ManagedProcessResult, ProcessRequest } from "./process.js";
 

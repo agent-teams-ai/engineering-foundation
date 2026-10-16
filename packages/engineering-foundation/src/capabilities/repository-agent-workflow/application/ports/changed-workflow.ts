@@ -2,6 +2,7 @@ import type {
   RepositoryChanges,
   ScriptExecutionResult
 } from "../model/changed-workflow.js";
+import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";
 
 export interface RepositoryChangesReader {
   collect(input: {
@@ -13,6 +14,7 @@ export interface RepositoryChangesReader {
 
 export interface PackageScriptRunner {
   run(input: {
+    readonly packageManager: RepositoryPackageManager;
     readonly consumerRoot: string;
     readonly script: string;
     readonly paths: readonly string[];

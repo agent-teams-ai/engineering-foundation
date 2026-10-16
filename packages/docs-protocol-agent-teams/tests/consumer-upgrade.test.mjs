@@ -1842,12 +1842,15 @@ test("real pnpm offline install failure preserves prior modules inode and bytes 
     const sandbox = new NodeConsumerUpgradeSandbox(() => {
       installAttempts += 1;
       assert.throws(() => readFileSync(cli), { code: "ENOENT" }, "prior modules moved before pnpm starts");
-      return { ...process.env, CI: "true" };
+      // A user npmrc that names an unset variable makes every pnpm print a warning on stderr; the cause must still be reported.
+      return { ...process.env, CI: "true", NPM_CONFIG_USERCONFIG: join(root, "unset-variable.npmrc") };
     });
+    await writeFile(join(root, "unset-variable.npmrc"), "//registry.npmjs.org/:_authToken=${DOCS_TEST_UNSET_VARIABLE}\n");
     for (const method of ["activateAndVerifyV1", "restoreAndVerifyV1"]) {
       await assert.rejects(sandbox[method]({ consumerRoot, current, authority: prior }), (error) => {
         assert.equal(error.code, "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED");
         assert.match(error.message, /ENOENT|ERR_PNPM/u);
+        assert.match(error.message, /ERR_PNPM_/u);
         return true;
       });
       assert.equal((await lstat(modules)).ino, modulesBefore.ino);

@@ -381,3 +381,20 @@ test("shared reconciliation rejects tag drift on its final read", async () => {
   );
   assert.equal(reads, 2);
 });
+
+test("bootstrap install and check use an empty user npmrc and the publish steps keep the setup npmrc", async () => {
+  const { steps } = (await workflow("npm-package-bootstrap.yml")).jobs.bootstrap;
+  const empty = steps.findIndex(({ name }) => name === "Use an empty user npmrc for install and check");
+  const install = steps.findIndex(({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts");
+  const check = steps.findIndex(({ run }) => run === "pnpm check");
+  assert.ok(empty >= 0 && empty < install && install < check);
+  assert.equal(steps[empty].run, ': > "${RUNNER_TEMP}/check.npmrc"');
+  for (const index of [install, check]) {
+    assert.equal(steps[index].env.NPM_CONFIG_USERCONFIG, "${{ runner.temp }}/check.npmrc");
+  }
+  const publish = steps.findIndex(({ name }) => name === "Publish, resume, or quarantine the exact bootstrap artifact");
+  assert.ok(publish > check);
+  for (const step of steps.slice(check + 1)) {
+    assert.equal(step.env?.NPM_CONFIG_USERCONFIG, undefined, step.name);
+  }
+});

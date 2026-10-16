@@ -156,8 +156,9 @@ function adjacency(edges: readonly LogicalEdge[]): ReadonlyMap<string, readonly 
   );
 }
 
-function stronglyConnectedComponents(
-  graph: ReadonlyMap<string, readonly LogicalEdge[]>
+/** Components with more than one node, members and components in binary order. */
+export function stronglyConnectedComponents(
+  graph: ReadonlyMap<string, readonly { readonly to: string }[]>
 ): readonly (readonly string[])[] {
   interface TraversalFrame {
     readonly node: string;

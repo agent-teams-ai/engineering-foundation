@@ -39,6 +39,7 @@ These terms describe different facts and must not be used interchangeably:
 | `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
 | `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.findings-baseline` | Yes, through the `baseline` commands | No | No | Only by explicit configuration file; not yet declarable in `foundation.config.yaml` |
 | `quality.executable-specifications` | Yes | Yes, since 0.10.0 | No donor catalog owned here | Only by explicit declaration after consumer qualification |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
@@ -87,15 +88,15 @@ packages.
 
 - Core capabilities are limited to architecture-neutral mechanisms. Current
   examples are dependency graphs and cycles, boundaries, and size and growth
-  budgets; a future shrink-only baseline for existing violations of any rule
-  belongs to the same class. They read every architecture fact (layers,
+  budgets; the shrink-only [findings baseline](findings-baseline.md) for existing
+  violations of any rule belongs to the same class. They read every architecture fact (layers,
   features, roles, allowed edges) from consumer-owned data.
 - A new or changed core capability never encodes the layout, vocabulary or
   visibility rules of one architecture, for example what a feature, a
   sub-feature, a layer or a contract surface is.
 - Known exception: `quality.source-coverage` reads its production topology only
-  from a Feature Module Standard v1 profile (`featureProfilePath`) and rejects
-  other profiles. It is not architecture-neutral until a neutral consumer-owned
+  from a Feature Module Standard v1 or v1.1 profile (`featureProfilePath`) and
+  rejects other profiles. It is not architecture-neutral until a neutral consumer-owned
   topology input replaces that profile and the Feature Module Standard mapping
   moves to the standard's opt-in package. That migration is a breaking change
   of a released capability. Until then, changes to it may keep that dependency
@@ -602,6 +603,10 @@ The private composition root binds each capability definition to its owned rule
 metadata in one typed immutable module descriptor. Capability execution and
 `explain` registries are projections of that ordered descriptor list, so adding
 a capability does not require a second synchronized rule-registration list.
+Command-only modules, such as the [findings baseline](findings-baseline.md), are
+not capabilities of the `check` registry: their rules are added to the
+`explain` registry through one separate command-module list, and the
+capability registry stays equal to the keys of the root configuration schema.
 Composition rejects metadata/key drift and rule IDs outside the owning
 capability's `<capability-id>.` namespace before either registry can be used.
 The public root configuration schema remains the immutable wire contract and a

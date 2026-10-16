@@ -149,7 +149,8 @@
         "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
         "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
-        "tests/capability-public-api.test.mjs"
+        "tests/capability-public-api.test.mjs",
+        "tests/findings-baseline-capability.test.mjs"
       ]
     },
     {
@@ -224,7 +225,9 @@
         "tests/test-timing.test.mjs",
         "tests/public-managed-registry-canary.test.mjs",
         "tests/public-managed-registry-canary-generation3.test.mts",
-        "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs"
+        "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs",
+        "tests/findings-baseline-ratchet.test.mjs",
+        "tests/findings-baseline-rules.test.mjs"
       ]
     },
     {
@@ -302,7 +305,8 @@
         "tests/node-test-execution.test.mjs",
         "tests/root-package-projections.test.mjs",
         "tests/unexpected-failure-diagnostics.test.mjs",
-        "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
+        "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
+        "tests/source-graph.test.mjs"
       ]
     }
   ]

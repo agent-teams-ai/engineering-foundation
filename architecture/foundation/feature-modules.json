@@ -1004,7 +1004,9 @@
         "packages/engineering-foundation/src/local-mode/index.ts",
         "packages/engineering-foundation/src/scaffolding/index.ts",
         "packages/engineering-foundation/src/scaffolding/qualification.ts",
-        "packages/engineering-foundation/src/sdk-growth-authority.ts"
+        "packages/engineering-foundation/src/sdk-growth-authority.ts",
+        "packages/engineering-foundation/src/ratchet.ts",
+        "packages/engineering-foundation/src/source-graph.ts"
       ],
       "moduleAssembly": [
         "packages/engineering-foundation/src/index.ts",
@@ -1018,7 +1020,9 @@
         "packages/engineering-foundation/src/schema-ids.ts",
         "packages/engineering-foundation/src/foundation-state-contract.ts",
         "packages/engineering-foundation/src/scaffolding/qualification.ts",
-        "packages/engineering-foundation/src/sdk-growth-authority.ts"
+        "packages/engineering-foundation/src/sdk-growth-authority.ts",
+        "packages/engineering-foundation/src/ratchet.ts",
+        "packages/engineering-foundation/src/source-graph.ts"
       ],
       "generatedRoots": [],
       "exceptions": [
@@ -1133,6 +1137,10 @@
             },
             {
               "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/build-observed-source-graph.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/observe-source-graph.ts",
               "owner": "engineering-foundation/source-dependencies"
             },
             {
@@ -1780,7 +1788,8 @@
             "tests/source-dependency-v3-observation.test.mjs",
             "tests/source-dependency-v3-review-regressions.test.mjs",
             "tests/source-dependency-workspace-topology.test.mjs",
-            "tests/source-dependency-topology-ports.test.mjs"
+            "tests/source-dependency-topology-ports.test.mjs",
+            "tests/source-graph.test.mjs"
           ]
         },
         {
@@ -1811,6 +1820,36 @@
           ],
           "testRoots": [
             "tests/capability-policy.test.mjs"
+          ]
+        },
+        {
+          "id": "findings-baseline",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/findings-baseline/application",
+                "packages/engineering-foundation/src/capabilities/findings-baseline/contract",
+                "packages/engineering-foundation/src/capabilities/findings-baseline/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/findings-baseline/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/findings-baseline/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/findings-baseline-ratchet.test.mjs",
+            "tests/findings-baseline-capability.test.mjs"
           ]
         },
         {

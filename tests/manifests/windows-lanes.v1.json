@@ -69,6 +69,9 @@
       "tests/registry-package-boundary.test.mjs"
     ],
     "b": [
+      "tests/findings-baseline-ratchet.test.mjs",
+      "tests/findings-baseline-rules.test.mjs",
+      "tests/source-graph.test.mjs",
       "tests/document-command-renderer.test.mjs",
       "tests/npm-package-bootstrap-successor-policy.test.mts",
       "tests/workspace-configuration.test.mjs",
@@ -206,6 +209,7 @@
       "tests/unexpected-failure-diagnostics.test.mjs"
     ],
     "e": [
+      "tests/findings-baseline-capability.test.mjs",
       "tests/foundation-transaction-observation.test.mjs",
       "tests/package-boundary-agent-teams.test.mjs",
       "tests/public-api-bootstrap.test.mjs",

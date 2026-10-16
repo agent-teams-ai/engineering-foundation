@@ -17,6 +17,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "assert-registry": 0,
   "agent-workflow": 2,
   "architecture-decisions-promote-baseline": 0,
+  baseline: 1,
   attach: 1,
   check: 1,
   quality: 1,
@@ -204,6 +205,9 @@ function consumeArgument(
 
 function validateCommandOptions(command: string, state: ArgumentState): void {
   validateNonDocumentCommandOptions(command, state);
+  if (command === "baseline" && !state.configPathProvided) {
+    throw invalidCommand("baseline requires --config <findings-baseline.yaml>.");
+  }
   if (command === "public-api-audit" && (!state.configPathProvided || state.format !== "json")) {
     throw invalidCommand("public-api-audit requires --config and --format json.");
   }
@@ -222,8 +226,8 @@ function validateNonDocumentCommandOptions(
   ) {
     throw invalidCommand("--base is supported only by agent-workflow changed.");
   }
-  if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit") {
-    throw invalidCommand("--config is supported only by scaffold-plan or public-api-audit.");
+  if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit" && command !== "baseline") {
+    throw invalidCommand("--config is supported only by scaffold-plan, public-api-audit or baseline.");
   }
   if (state.write && command !== "protobuf-qualify-breaking") {
     throw invalidCommand("--write is supported only by protobuf-qualify-breaking.");

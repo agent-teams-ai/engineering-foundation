@@ -15,6 +15,7 @@ not repeat their rules.
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
+| Findings baseline, growth budgets, source graph | [Findings baseline](architecture/findings-baseline.md) | Implemented |
 | Executable specifications | [Executable specifications](reference/executable-specifications.md) | Accepted and implemented; activation is explicit |
 | Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
 | SDK growth S2 remediation | [Configuration, projection and evidence](reference/sdk-growth-s2-remediation.md) | Local remediation evidence; packed qualification and S3 authority remain separate |

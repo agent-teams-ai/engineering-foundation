@@ -94,6 +94,14 @@ contract-evolution, suppression, public API, and repository-security checks are
 adopted independently with consumer-owned policy and capability-qualification evidence.
 Installing or upgrading this package never enables them automatically.
 
+Two further subpaths expose architecture-neutral mechanisms:
+`@agent-teams/engineering-foundation/ratchet` (the shrink-only findings baseline
+and growth budgets) and `@agent-teams/engineering-foundation/source-graph`
+(files, import edges, bare specifiers and strongly connected components). The
+findings baseline also has the commands `agent-teams-foundation baseline
+check|init|prune --config <file>`; see
+[findings baseline](../../docs/architecture/findings-baseline.md).
+
 Source-dependency schema v3 is pending combined validation and package
 qualification. Explicit `rootPackage: true` governs only declared root-owned
 source scopes; overlapping package selectors retain direct-child selection and

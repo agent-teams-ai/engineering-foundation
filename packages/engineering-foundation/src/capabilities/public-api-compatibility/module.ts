@@ -1,6 +1,6 @@
 import { createManagedProcessExecutor } from "../../process-execution/module.js";
 import { assertGrowthReportDestination } from "./adapters/inbound/configuration/parse-growth-config.js";
-import { readGrowthInvocation, assertGrowthDestination } from "./adapters/outbound/filesystem/growth-invocation.js";
+import { createGrowthGitRunner, readGrowthInvocation, assertGrowthDestination } from "./adapters/outbound/filesystem/growth-invocation.js";
 import {
   capabilityFailureReport,
   capabilityReport,
@@ -17,7 +17,6 @@ import { preflightPublicApiPromotions } from "./application/use-cases/preflight-
 import { FilesystemPackageArtifactInventory } from "./adapters/outbound/filesystem/filesystem-package-artifact-inventory.js";
 import { ArtifactPublicApiEvidence } from "./adapters/outbound/filesystem/artifact-public-api-evidence.js";
 import type { JsonSchemaSetInspector } from "./application/ports/package-artifact-inventory.js";
-import { growthGitTimeoutMs } from "./application/model/growth-authority.js";
 import { publicApiPolicySchemaVersion } from "./application/model/public-api.js";
 import {
   CAPABILITY_CONFIG_SCHEMA_VERSION,
@@ -105,9 +104,7 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
           await assertGrowthDestination(invocation.consumerRoot, policy.sdkGrowth.reportPath);
           const inventory = await createWorkspaceGrowthReader(createWorkspaceInventoryReader()).read(invocation.consumerRoot, "pnpm-workspace.yaml", invocation.signal);
           assertGrowthReportDestination(policy.sdkGrowth.reportPath, inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]));
-          const identityInputs = { files: evidence.files, runGit: (args: readonly string[], signal?: AbortSignal) =>
-            processes.run({ command: "git", args, cwd: invocation.consumerRoot, timeoutMs: growthGitTimeoutMs,
-              ...(signal === undefined ? {} : { signal }) }) };
+          const identityInputs = { files: evidence.files, runGit: createGrowthGitRunner(processes, invocation.consumerRoot) };
           return await checkSdkGrowth({ consumerRoot: invocation.consumerRoot, policy,
             invocation: await readGrowthInvocation(invocation.consumerRoot, inventory, identityInputs, invocation.signal),
             ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) }, {

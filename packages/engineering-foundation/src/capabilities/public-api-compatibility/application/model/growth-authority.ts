@@ -6,8 +6,6 @@ import type { PackageReleaseEvidence, PublicApiSnapshot } from "./public-api.js"
 /** Version 3 distinguishes authenticated non-release metadata roots from
  * package release obligations. Prior protocol bytes are not reinterpreted. */
 export const growthAuthoritySchemaVersion = "reviewrouter:sdk-growth-authority:3" as const;
-/** The deadline of one git call that reads repository identity; a cold Windows runner can need more than ten seconds. */
-export const growthGitTimeoutMs = 60_000;
 export const growthAuthorityRequiredPhases = ["topology", "observation", "packed", "decision", "trusted-base", "released", "authority"] as const;
 
 export interface GrowthAuthorityRepository {

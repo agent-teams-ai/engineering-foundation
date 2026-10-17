@@ -146,26 +146,34 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(bootstrap.on.workflow_dispatch.inputs.token_created_at.required, true);
   assert.equal(bootstrap.on.workflow_dispatch.inputs.token_expires_at.required, true);
   assert.deepEqual(bootstrap.permissions, { contents: "read" });
-  assert.deepEqual(job.permissions, { contents: "read", "id-token": "write" });
+  assert.deepEqual(job.permissions, { actions: "read", contents: "read", "id-token": "write" });
   assert.equal(job.environment, "npm-package-bootstrap");
   assert.equal(job["runs-on"], "ubuntu-24.04");
   assert.equal(ciWriter["runs-on"], job["runs-on"]);
   assert.equal(repositoryManifest.packageManager, "pnpm@11.20.0");
-  // Steps 1-2 provision the explicit Node 24 for pack-test (reached by `pnpm check`) before the Node 26 default.
-  assert.equal(job.steps[1].uses, ciWriter.steps[2].uses);
-  assert.equal(job.steps[1].with["node-version"], "24.21.0");
-  assert.equal(job.steps[2].run, `printf 'PACK_TEST_GENERATION2_NODE=%s\\n' "$(command -v node)" >> "$GITHUB_ENV"`);
-  assert.equal(job.steps[3].uses, ciWriter.steps[1].uses);
-  assert.equal(job.steps[3].with.install, false);
-  assert.equal(job.steps[4].uses, ciWriter.steps[2].uses);
-  assert.equal(job.steps[4].with["node-version-file"], ".node-version");
+  assert.equal(job.steps[1].uses, ciWriter.steps[1].uses);
+  assert.equal(job.steps[1].with.install, false);
+  assert.equal(job.steps[2].uses, ciWriter.steps[2].uses);
+  assert.equal(job.steps[2].with["node-version-file"], ".node-version");
   // CI also has an explicit Node 24 setup, so select its default setup-node step by its setting, not by index.
   const ciDefaultNode = ciWriter.steps.find(
     ({ uses, with: inputs }) => uses?.startsWith("actions/setup-node@") && inputs?.["node-version-file"] === ".node-version",
   );
   assert.ok(ciDefaultNode, "CI writer must select the repository default Node through .node-version");
-  assert.equal(ciDefaultNode.with["node-version-file"], job.steps[4].with["node-version-file"]);
-  assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 1);
+  assert.equal(ciDefaultNode.with["node-version-file"], job.steps[2].with["node-version-file"]);
+  // The tests are not re-run in the privileged job: the exact commit must have a green CI run, proven before any install.
+  const proof = job.steps.findIndex(({ run }) => run === 'node scripts/npm-package-bootstrap-ci-proof-cli.mjs "${EXPECTED_COMMIT}"');
+  const install = job.steps.findIndex(({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts");
+  const authority = job.steps.findIndex(({ id }) => id === "authority");
+  assert.ok(authority >= 0 && authority < proof && proof < install);
+  assert.equal(job.steps[proof].env.EXPECTED_COMMIT, "${{ inputs.expected_commit }}");
+  assert.equal(job.steps[proof].env.GH_TOKEN, "${{ github.token }}");
+  // The workflow token is exposed to the proof step only, never to the job or to another step.
+  assert.equal(job.env.GH_TOKEN, undefined);
+  assert.deepEqual(job.steps.flatMap(({ env }, index) => (env?.GH_TOKEN === undefined ? [] : [index])), [proof]);
+  assert.equal(job["timeout-minutes"], 45);
+  assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 0);
+  assert.equal(job.steps[install + 1].run, "pnpm build");
   assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
   assert.match(job.if, /NPM_PACKAGE_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
   assert.equal(job.env.NPM_TOKEN, undefined);
@@ -380,21 +388,4 @@ test("shared reconciliation rejects tag drift on its final read", async () => {
     /Final .* not bound to the trusted release commit/u,
   );
   assert.equal(reads, 2);
-});
-
-test("bootstrap install and check use an empty user npmrc and the publish steps keep the setup npmrc", async () => {
-  const { steps } = (await workflow("npm-package-bootstrap.yml")).jobs.bootstrap;
-  const empty = steps.findIndex(({ name }) => name === "Use an empty user npmrc for install and check");
-  const install = steps.findIndex(({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts");
-  const check = steps.findIndex(({ run }) => run === "pnpm check");
-  assert.ok(empty >= 0 && empty < install && install < check);
-  assert.equal(steps[empty].run, ': > "${RUNNER_TEMP}/check.npmrc"');
-  for (const index of [install, check]) {
-    assert.equal(steps[index].env.NPM_CONFIG_USERCONFIG, "${{ runner.temp }}/check.npmrc");
-  }
-  const publish = steps.findIndex(({ name }) => name === "Publish, resume, or quarantine the exact bootstrap artifact");
-  assert.ok(publish > check);
-  for (const step of steps.slice(check + 1)) {
-    assert.equal(step.env?.NPM_CONFIG_USERCONFIG, undefined, step.name);
-  }
 });

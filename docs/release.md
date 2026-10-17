@@ -109,6 +109,15 @@ was created at the dispatch timestamp, expires within 24 hours, and has at least
 15 minutes remaining. Only then may the manual workflow run on the exact reviewed
 protected-main commit.
 
+Dispatch the workflow only after the `ci.yml` push run for that exact commit has
+completed green with all five proof contexts (`check`, `windows-check`,
+`macos-qualification`, `full-ci` and `linux-package`). The workflow no longer runs
+the test suite; its first step after the authority check proves that run through
+the Actions API and never waits, so an early dispatch fails at once with
+`CI_PROOF_PENDING` (or `CI_PROOF_NO_RUN`) and wastes the token window. The token
+is created at dispatch time. Create the token and dispatch only after that push run
+is green.
+
 The workflow performs one publish attempt only after the complete local and npm
 preflight. Public npm may expose only the requested `bootstrap` tag or may also
 create `latest` for a namespace's first version. The workflow never creates,

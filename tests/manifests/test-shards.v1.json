@@ -169,6 +169,7 @@
         "tests/docs-protocol-current-policy.test.mjs",
         "tests/repository-mutation-qualification-api.test.mjs",
         "tests/npm-package-bootstrap-workflow.test.mjs",
+        "tests/npm-package-bootstrap-ci-proof.test.mjs",
         "tests/release-workflow.test.mjs",
         "tests/ci-input-proof-rc.test.mts",
         "tests/scaffolding-journal-store.test.mjs",

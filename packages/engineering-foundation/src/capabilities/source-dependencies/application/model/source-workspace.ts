@@ -41,6 +41,7 @@ export interface SourceRuntimeExport {
 
 export interface UnsupportedSourceExport {
   readonly kind: "binding" | "declaration" | "expression" | "reexport" | "module-format";
+  /** File-level module-format facts use start = end = 0 as a sentinel, not a source span. */
   readonly start: number;
   readonly end: number;
 }

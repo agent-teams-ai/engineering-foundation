@@ -49,6 +49,7 @@ export interface SourceGraphExport {
 
 export interface SourceGraphUnsupportedExport {
   readonly kind: "binding" | "declaration" | "expression" | "reexport" | "module-format";
+  /** One-based source line; file-level module-format facts use 1 as a sentinel, not an export location. */
   readonly line: number;
 }
 

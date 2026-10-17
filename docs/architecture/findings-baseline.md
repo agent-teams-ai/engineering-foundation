@@ -107,14 +107,17 @@ by rejecting the observed dynamic and CommonJS kinds.
 
 `runtimeExports` contains one record per observed file. Its `status` is
 `complete`, `unsupported` or `parse-failure`; only `complete` establishes the
-export count. The records observe direct ESM function declarations, direct
-function/arrow expressions and other direct values such as literals,
-objects, arrays and classes (reported as `value`). Type-only and explicit `declare`
+export count. Direct ESM function declarations and direct function/arrow
+expressions are reported as `function`; other direct values such as literals,
+objects, arrays and classes are reported as `value`. Type-only and explicit `declare`
 declarations are erased. Other ambient forms remain unsupported.
 Calls, local/imported binding exports, re-exports, `let`/`var` exports and other
 unclassified expressions retain an `unsupported` location instead of guessing a
-kind or returning a complete empty list. Script/CommonJS files are outside this
-export subset. Values are not executed and this static declaration inventory
+kind or returning a complete empty list. The closed unsupported kinds are
+`binding`, `declaration`, `expression`, `reexport` and `module-format`.
+Script/CommonJS files are outside this export subset; their `module-format`
+fact uses line 1 as a file-level sentinel, not an export location.
+Values are not executed and this static declaration inventory
 does not establish module execution behavior. Parse failures discard both
 dependency and export facts for that file. Consumers that need export facts
 check each selected file's status before using its count or kinds.

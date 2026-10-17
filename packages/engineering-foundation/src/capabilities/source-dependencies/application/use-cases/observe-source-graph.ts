@@ -1,9 +1,6 @@
 import type { SourceTreeReader } from "../../../../source-inventory/api.js";
 import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
-import type {
-  ArchitectureBoundaryPolicy, ClassifiedSourceFile, SourceDependencyKind,
-  SourceRuntimeExportKind, UnresolvedSourceDependency, UnsupportedSourceExport
-} from "../model/source-workspace.js";
+import type { ArchitectureBoundaryPolicy, ClassifiedSourceFile } from "../model/source-workspace.js";
 import { normalizeRepositoryPath } from "../model/repository-path.js";
 import { stronglyConnectedComponents as components } from "../policies/evaluate-source-dependency-cycles.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
@@ -11,7 +8,10 @@ import type { SourceDependencyParser } from "../ports/source-dependency-parser.j
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 import { buildObservedSourceGraph } from "./build-observed-source-graph.js";
 
-export type SourceGraphReferenceKind = SourceDependencyKind;
+// Public facts name their closed value sets without exposing private parser model types.
+export type SourceGraphReferenceKind =
+  | "commonjs" | "dynamic" | "export" | "export-type" | "import-equals"
+  | "import-equals-type" | "static" | "static-type" | "type-query";
 
 export interface SourceGraphEdge {
   readonly from: string;
@@ -36,19 +36,19 @@ export type SourceGraphExternal = SourceGraphUnresolved;
 
 export interface SourceGraphRuntimeReference {
   readonly from: string;
-  readonly kind: UnresolvedSourceDependency["kind"];
+  readonly kind: "commonjs" | "dynamic" | "type-query";
   readonly line: number;
 }
 
 export interface SourceGraphExport {
   readonly name: string;
   /** Direct function syntax or another direct value (including classes); expressions are not executed. */
-  readonly kind: SourceRuntimeExportKind;
+  readonly kind: "function" | "value";
   readonly line: number;
 }
 
 export interface SourceGraphUnsupportedExport {
-  readonly kind: UnsupportedSourceExport["kind"];
+  readonly kind: "binding" | "declaration" | "expression" | "reexport" | "module-format";
   readonly line: number;
 }
 

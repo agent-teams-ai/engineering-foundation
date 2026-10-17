@@ -168,6 +168,10 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.ok(authority >= 0 && authority < proof && proof < install);
   assert.equal(job.steps[proof].env.EXPECTED_COMMIT, "${{ inputs.expected_commit }}");
   assert.equal(job.steps[proof].env.GH_TOKEN, "${{ github.token }}");
+  // The workflow token is exposed to the proof step only, never to the job or to another step.
+  assert.equal(job.env.GH_TOKEN, undefined);
+  assert.deepEqual(job.steps.flatMap(({ env }, index) => (env?.GH_TOKEN === undefined ? [] : [index])), [proof]);
+  assert.equal(job["timeout-minutes"], 45);
   assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 0);
   assert.equal(job.steps[install + 1].run, "pnpm build");
   assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);

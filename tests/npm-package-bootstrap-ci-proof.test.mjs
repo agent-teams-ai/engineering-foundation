@@ -1,21 +1,22 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { parse as parseYaml } from "yaml";
 import test from "node:test";
 
 import { CI_CONTEXTS, CI_PROOF_CONTEXTS, CI_WORKFLOW_PATH, CiProofError, githubRequest, proveCommitCi } from "../scripts/npm-package-bootstrap-ci-proof.mjs";
 
 const repository = "agent-teams-ai/engineering-foundation";
 const commit = "a".repeat(40);
-const run = { id: 77, head_sha: commit, event: "push", head_branch: "main", path: CI_WORKFLOW_PATH, status: "completed", conclusion: "success",
+const run = { id: 77, run_attempt: 1, head_sha: commit, event: "push", head_branch: "main", path: CI_WORKFLOW_PATH, status: "completed", conclusion: "success",
   repository: { full_name: repository }, head_repository: { full_name: repository } };
-const job = (name, more = {}) => ({ name, run_id: 77, head_sha: commit, status: "completed", conclusion: "success", ...more });
+const job = (name, more = {}) => ({ name, run_id: 77, run_attempt: 1, head_sha: commit, status: "completed", conclusion: "success", ...more });
 const jobs = () => CI_PROOF_CONTEXTS.map((name) => job(name));
 
 function api({ runs = [run], items = jobs() } = {}) {
   const requested = [];
   const request = async (path) => {
     requested.push(path);
-    if (path.includes("/workflows/ci.yml/runs?")) {return { workflow_runs: runs };}
+    if (path.includes("/workflows/ci.yml/runs?")) {return { total_count: runs.length, workflow_runs: runs };}
     if (path.includes("/runs/77/jobs?")) {return { total_count: items.length, jobs: items };}
     throw new Error(`unexpected request ${path}`);
   };
@@ -31,14 +32,15 @@ test("a green push run of ci.yml on main for the exact commit is the proof", asy
   const { request, requested } = api();
   assert.deepEqual(await proveCommitCi({ repository, commit, request }), { runId: 77, commit, contexts: CI_PROOF_CONTEXTS });
   // Only the two Actions run endpoints are read: a check run from another app can never enter the proof.
-  assert.deepEqual(requested.map((path) => path.split("?")[0]), [
-    `repos/${repository}/actions/workflows/ci.yml/runs`, `repos/${repository}/actions/runs/77/jobs`,
+  assert.deepEqual(requested, [
+    `repos/${repository}/actions/workflows/ci.yml/runs?head_sha=${commit}&event=push&branch=main&per_page=100`,
+    `repos/${repository}/actions/runs/77/jobs?filter=latest&per_page=100`,
   ]);
 });
 
 test("no run, a foreign SHA, another event, branch or workflow, or a duplicate is refused", async () => {
   await refused(api({ runs: [] }), "CI_PROOF_NO_RUN");
-  for (const change of [{ head_sha: "b".repeat(40) }, { event: "pull_request" }, { head_branch: "release" }, { path: ".github/workflows/other.yml" },
+  for (const change of [{ head_sha: "b".repeat(40) }, { event: "pull_request" }, { event: "workflow_dispatch" }, { event: "merge_group" }, { head_branch: "release" }, { path: ".github/workflows/other.yml" },
     { repository: { full_name: "someone/fork" } }, { head_repository: { full_name: "someone/fork" } }]) {
     await refused(api({ runs: [{ ...run, ...change }] }), "CI_PROOF_NO_RUN");
   }
@@ -61,6 +63,8 @@ test("every required context must be a single successful job of that run", async
   }
   await refused(api({ items: jobs().map((item, index) => (index === 0 ? { ...item, head_sha: "b".repeat(40) } : item)) }), "CI_PROOF_MALFORMED");
   await refused(api({ items: jobs().map((item, index) => (index === 0 ? { ...item, run_id: 5 } : item)) }), "CI_PROOF_MALFORMED");
+  // A job of another attempt of the same run does not prove the attempt that was selected.
+  await refused(api({ items: jobs().map((item, index) => (index === 0 ? { ...item, run_attempt: 2 } : item)) }), "CI_PROOF_MALFORMED");
 });
 
 test("a same-named check run from another app does not count", async () => {
@@ -74,7 +78,9 @@ test("a same-named check run from another app does not count", async () => {
 test("malformed input and incomplete listings fail closed", async () => {
   await refused({ commit: "abc", request: api().request }, "CI_PROOF_INPUT");
   await refused({ request: async () => ({}) }, "CI_PROOF_MALFORMED");
-  await refused({ request: async (path) => (path.includes("/jobs?") ? { total_count: 999, jobs: jobs() } : { workflow_runs: [run] }) }, "CI_PROOF_MALFORMED");
+  await refused({ request: async (path) => (path.includes("/jobs?") ? { total_count: 999, jobs: jobs() } : { total_count: 1, workflow_runs: [run] }) }, "CI_PROOF_MALFORMED");
+  await refused({ request: async () => ({ total_count: 150, workflow_runs: [run] }) }, "CI_PROOF_MALFORMED");
+  await refused(api({ items: Array.from({ length: 101 }, (_, index) => job(`job-${String(index)}`)) }), "CI_PROOF_MALFORMED");
   await assert.rejects(proveCommitCi({ repository: "bad repository", commit, request: api().request }), { code: "CI_PROOF_INPUT" });
 });
 
@@ -116,4 +122,17 @@ test("the command always runs: through a symlinked path, and not at all as a sid
   const imported = spawnSync(process.execPath, ["--input-type=module", "-e", 'await import(process.argv[1]);', new URL("../scripts/npm-package-bootstrap-ci-proof.mjs", import.meta.url).href], { encoding: "utf8" });
   assert.equal(imported.status, 0);
   assert.equal(imported.stderr, "");
+});
+
+test("ci.yml really has one job for every proof context on a push to main", async () => {
+  const ci = parseYaml(await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"));
+  assert.ok(Object.keys(ci.on).includes("push"));
+  for (const context of CI_PROOF_CONTEXTS) {
+    // A name is a literal or an expression whose push branch is the context, such as `... && 'check' || 'ci-not-requested'`.
+    const named = Object.values(ci.jobs).filter(({ name }) => name === context || (typeof name === "string" && name.includes(`&& '${context}' ||`)));
+    assert.equal(named.length, 1, context);
+    const [definition] = named;
+    // The job must be able to run on a push: no condition, or one that admits any event but a pull request or is always true.
+    assert.ok(definition.if === undefined || /github\.event_name != 'pull_request'|always\(\)/u.test(String(definition.if)), `${context} runs on push`);
+  }
 });

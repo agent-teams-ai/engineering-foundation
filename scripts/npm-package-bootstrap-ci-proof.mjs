@@ -9,7 +9,8 @@ export const CI_PROOF_CONTEXTS = Object.freeze([...CI_CONTEXTS, "linux-package"]
 
 const SHA = /^[0-9a-f]{40}$/u;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
-const MAXIMUM_JOBS = 300;
+// One page, no pagination: a listing that does not fit is refused instead of being read partially.
+const PAGE_SIZE = 100;
 
 export class CiProofError extends Error {
   constructor(code, message) {
@@ -49,8 +50,8 @@ function checkContexts(jobs, run, commit) {
     if (named.length === 0) {refuse("CI_PROOF_CONTEXT_MISSING", `run ${String(run.id)} has no job ${context}.`);}
     if (named.length > 1) {refuse("CI_PROOF_AMBIGUOUS", `run ${String(run.id)} has ${named.length} jobs named ${context}.`);}
     const [job] = named;
-    if (job.run_id !== run.id || job.head_sha !== commit) {
-      refuse("CI_PROOF_MALFORMED", `job ${context} does not belong to run ${String(run.id)} at ${commit}.`);
+    if (job.run_id !== run.id || job.head_sha !== commit || job.run_attempt !== run.run_attempt) {
+      refuse("CI_PROOF_MALFORMED", `job ${context} does not belong to attempt ${String(run.run_attempt)} of run ${String(run.id)} at ${commit}.`);
     }
     if (job.status !== "completed" || job.conclusion !== "success") {
       refuse("CI_PROOF_CONTEXT_NOT_SUCCESS", `job ${context} is ${String(job.status)} / ${String(job.conclusion)}.`);
@@ -66,12 +67,14 @@ export async function proveCommitCi({ repository, commit, request }) {
   if (typeof repository !== "string" || !REPOSITORY.test(repository)) {refuse("CI_PROOF_INPUT", "repository is malformed.");}
   if (typeof commit !== "string" || !SHA.test(commit)) {refuse("CI_PROOF_INPUT", "commit must be an exact 40-hex SHA.");}
   const base = `repos/${repository}/actions`;
-  const runs = await request(`${base}/workflows/ci.yml/runs?head_sha=${commit}&event=push&branch=main&per_page=100`);
-  const run = selectRun(list(runs, "workflow_runs", "the run listing"), { commit, repository });
-  const jobs = await request(`${base}/runs/${String(run.id)}/jobs?filter=latest&per_page=100`);
+  const runs = await request(`${base}/workflows/ci.yml/runs?head_sha=${commit}&event=push&branch=main&per_page=${PAGE_SIZE}`);
+  const candidates = list(runs, "workflow_runs", "the run listing");
+  if (runs.total_count !== candidates.length) {refuse("CI_PROOF_MALFORMED", "the run listing is incomplete.");}
+  const run = selectRun(candidates, { commit, repository });
+  const jobs = await request(`${base}/runs/${String(run.id)}/jobs?filter=latest&per_page=${PAGE_SIZE}`);
   const items = list(jobs, "jobs", "the job listing");
-  if (items.length > MAXIMUM_JOBS || jobs.total_count !== items.length) {
-    refuse("CI_PROOF_MALFORMED", "the job listing is incomplete.");
+  if (items.length > PAGE_SIZE || jobs.total_count !== items.length) {
+    refuse("CI_PROOF_MALFORMED", `the job listing is incomplete (more than one page of ${String(PAGE_SIZE)} jobs).`);
   }
   checkContexts(items, run, commit);
   return Object.freeze({ runId: run.id, commit, contexts: CI_PROOF_CONTEXTS });

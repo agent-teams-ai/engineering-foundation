@@ -44,7 +44,7 @@ jobs:
       id-token: write
     environment: npm-package-bootstrap
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 45
     outputs:
       tag: ${{ steps.authority.outputs.tag }}
       title: ${{ steps.authority.outputs.title }}

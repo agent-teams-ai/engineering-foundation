@@ -127,6 +127,7 @@ test("the command always runs: through a symlinked path, and not at all as a sid
 test("ci.yml really has one job for every proof context on a push to main", async () => {
   const ci = parseYaml(await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"));
   assert.ok(Object.keys(ci.on).includes("push"));
+  assert.ok(ci.on.push.branches.includes("main"));
   for (const context of CI_PROOF_CONTEXTS) {
     // A name is a literal or an expression whose push branch is the context, such as `... && 'check' || 'ci-not-requested'`.
     const named = Object.values(ci.jobs).filter(({ name }) => name === context || (typeof name === "string" && name.includes(`&& '${context}' ||`)));

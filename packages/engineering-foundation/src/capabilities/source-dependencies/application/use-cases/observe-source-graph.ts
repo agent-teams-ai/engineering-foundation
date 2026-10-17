@@ -1,6 +1,9 @@
 import type { SourceTreeReader } from "../../../../source-inventory/api.js";
 import type { WorkspacePackage } from "../../../../workspace-inventory/api.js";
-import type { ArchitectureBoundaryPolicy, ClassifiedSourceFile } from "../model/source-workspace.js";
+import type {
+  ArchitectureBoundaryPolicy, ClassifiedSourceFile, SourceDependencyKind,
+  SourceRuntimeExportKind, UnresolvedSourceDependency, UnsupportedSourceExport
+} from "../model/source-workspace.js";
 import { normalizeRepositoryPath } from "../model/repository-path.js";
 import { stronglyConnectedComponents as components } from "../policies/evaluate-source-dependency-cycles.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
@@ -8,9 +11,13 @@ import type { SourceDependencyParser } from "../ports/source-dependency-parser.j
 import type { SourceDependencyResolver } from "../ports/source-dependency-resolver.js";
 import { buildObservedSourceGraph } from "./build-observed-source-graph.js";
 
+export type SourceGraphReferenceKind = SourceDependencyKind;
+
 export interface SourceGraphEdge {
   readonly from: string;
   readonly to: string;
+  /** Observed syntax, not a claim that every runtime reference executes at load time. */
+  readonly kind: SourceGraphReferenceKind;
   readonly mode: "runtime" | "type-only";
   /** One-based line of the import. */
   readonly line: number;
@@ -19,11 +26,39 @@ export interface SourceGraphEdge {
 export interface SourceGraphUnresolved {
   readonly from: string;
   readonly specifier: string;
+  readonly kind: SourceGraphReferenceKind;
+  readonly mode: "runtime" | "type-only";
   readonly line: number;
 }
 
 /** An import of a bare specifier: a Node.js builtin, a package, a workspace package or a tsconfig paths alias. */
 export type SourceGraphExternal = SourceGraphUnresolved;
+
+export interface SourceGraphRuntimeReference {
+  readonly from: string;
+  readonly kind: UnresolvedSourceDependency["kind"];
+  readonly line: number;
+}
+
+export interface SourceGraphExport {
+  readonly name: string;
+  /** Direct function syntax or another direct value (including classes); expressions are not executed. */
+  readonly kind: SourceRuntimeExportKind;
+  readonly line: number;
+}
+
+export interface SourceGraphUnsupportedExport {
+  readonly kind: UnsupportedSourceExport["kind"];
+  readonly line: number;
+}
+
+export interface SourceGraphFileExports {
+  readonly path: string;
+  readonly status: "complete" | "unsupported" | "parse-failure";
+  /** A complete count only when status is complete. Type-only and explicit declare exports are erased. */
+  readonly exports: readonly SourceGraphExport[];
+  readonly unsupported: readonly SourceGraphUnsupportedExport[];
+}
 
 export interface SourceGraph {
   /** Repository-relative files under the requested roots, in binary order. */
@@ -33,7 +68,7 @@ export interface SourceGraph {
   /**
    * Imports that are neither an edge nor a bare specifier: relative imports that did not resolve to a file in `files`
    * (including build output such as `../dist/index.js`) and specifiers the resolver does not support (subpath imports, URLs).
-   * Non-literal loaders such as `import(variable)` are not reported.
+   * Non-literal loaders are retained separately in unresolvedRuntimeReferences.
    */
   readonly unresolved: readonly SourceGraphUnresolved[];
   /**
@@ -41,8 +76,12 @@ export interface SourceGraph {
    * consumers that need alias resolution resolve them themselves.
    */
   readonly external: readonly SourceGraphExternal[];
+  /** Computed or otherwise unprovable loader references from the existing dependency parser. */
+  readonly unresolvedRuntimeReferences: readonly SourceGraphRuntimeReference[];
   /** Files the parser could not read. Their imports are absent from `edges`. */
   readonly parseFailures: readonly string[];
+  /** Per-file direct ESM runtime export facts; unsupported syntax never establishes a complete count. */
+  readonly runtimeExports: readonly SourceGraphFileExports[];
 }
 
 export interface ObserveSourceGraphInput {
@@ -69,6 +108,18 @@ function lineAt(source: string, offset: number): number {
   let line = 1;
   for (let index = source.indexOf("\n"); index !== -1 && index < offset; index = source.indexOf("\n", index + 1)) { line += 1; }
   return line;
+}
+
+function fileExports(file: ClassifiedSourceFile): SourceGraphFileExports {
+  const { parsed } = file;
+  return Object.freeze({
+    path: file.path,
+    status: parsed.parseErrorCount > 0 ? "parse-failure" : parsed.unsupportedExports.length > 0 ? "unsupported" : "complete",
+    exports: Object.freeze(parsed.runtimeExports.map(({ name, kind, start }) =>
+      Object.freeze({ name, kind, line: lineAt(file.source, start) }))),
+    unsupported: Object.freeze(parsed.unsupportedExports.map(({ kind, start }) =>
+      Object.freeze({ kind, line: lineAt(file.source, start) })))
+  });
 }
 
 export interface SourceGraphDependencies {
@@ -98,11 +149,11 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
   const unresolved: SourceGraphUnresolved[] = [];
   const external: SourceGraphExternal[] = [];
   for (const edge of graph.edges) {
-    const at = { from: edge.fromPath, specifier: edge.specifier, line: line(edge.fromPath, edge.start) };
+    const at = { from: edge.fromPath, specifier: edge.specifier, kind: edge.kind, mode: edge.mode, line: line(edge.fromPath, edge.start) };
     const { resolution } = edge;
     switch (resolution.kind) {
       case "local-file":
-        edges.push({ from: edge.fromPath, to: resolution.path, mode: edge.mode, line: at.line });
+        edges.push({ from: edge.fromPath, to: resolution.path, kind: edge.kind, mode: edge.mode, line: at.line });
         break;
       case "builtin":
       case "external-package":
@@ -128,7 +179,10 @@ export async function observeSourceGraph(input: ObserveSourceGraphInput, depende
     edges: Object.freeze(edges.toSorted((left, right) => compareBinaryStrings(left.from, right.from) || compareBinaryStrings(left.to, right.to) || left.line - right.line)),
     unresolved: Object.freeze(unresolved.toSorted(compareImports)),
     external: Object.freeze(external.toSorted(compareImports)),
-    parseFailures: Object.freeze(graph.parseFailures.map(({ path }) => path))
+    unresolvedRuntimeReferences: Object.freeze(graph.unresolvedRuntimeReferences.map(({ path, kind, start }) =>
+      Object.freeze({ from: path, kind, line: line(path, start) }))),
+    parseFailures: Object.freeze(graph.parseFailures.map(({ path }) => path)),
+    runtimeExports: Object.freeze(classifiedFiles.map(fileExports).toSorted((left, right) => compareBinaryStrings(left.path, right.path)))
   });
 }
 

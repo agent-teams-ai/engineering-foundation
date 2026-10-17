@@ -94,11 +94,31 @@ or modules.
 ## Source graph
 
 `observeSourceGraph` returns the files under the given roots and their resolved
-import edges (`from`, `to`, `mode` runtime or type-only, `line`), the imports
+import edges (`from`, `to`, `kind`, `mode` runtime or type-only, `line`), the imports
 that did not resolve to a file in the roots, the bare specifiers in `external`
 and the files that did not parse. Bare specifiers (packages, workspace
 packages, tsconfig paths aliases) are reported in `external`, not as edges;
 consumers that need alias resolution resolve them themselves.
+Resolved, unresolved and external imports retain the parser's reference kind
+and mode. Computed or otherwise unprovable loaders remain visible in
+`unresolvedRuntimeReferences`; they are not resolved edges. A runtime mode alone
+does not prove load-time execution: consumers may enforce a static-import subset
+by rejecting the observed dynamic and CommonJS kinds.
+
+`runtimeExports` contains one record per observed file. Its `status` is
+`complete`, `unsupported` or `parse-failure`; only `complete` establishes the
+export count. The records observe direct ESM function declarations, direct
+function/arrow expressions and other direct values such as literals,
+objects, arrays and classes (reported as `value`). Type-only and explicit `declare`
+declarations are erased. Other ambient forms remain unsupported.
+Calls, local/imported binding exports, re-exports, `let`/`var` exports and other
+unclassified expressions retain an `unsupported` location instead of guessing a
+kind or returning a complete empty list. Script/CommonJS files are outside this
+export subset. Values are not executed and this static declaration inventory
+does not establish module execution behavior. Parse failures discard both
+dependency and export facts for that file. Consumers that need export facts
+check each selected file's status before using its count or kinds.
+
 `stronglyConnectedComponents` returns the components of any edge set; filter
 the edges first for a runtime-only or type-only view. Only components with more
 than one file are returned; a self-import is visible in edges. It reuses the parser and

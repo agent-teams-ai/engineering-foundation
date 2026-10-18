@@ -19,6 +19,7 @@ import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
+import { verifyPackedFeatureModuleStandard } from "./packed-feature-module-standard.mjs";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
   createPnpmRunner,
@@ -599,6 +600,8 @@ export function qualifyPackedConsumers(handle, group) {
         await verifyPackedCiInputProof(
           artifacts["@agent-teams/ci-input-proof"], temporaryRoot, repositoryRoot, runPnpm,
         );
+        await verifyPackedFeatureModuleStandard({ artifacts, temporaryRoot, packageManager, runPnpm,
+          typescript: (await toolingVersions()).typescript });
       }),
       consumerPhase("SDK growth qualification", current =>
         testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact })),

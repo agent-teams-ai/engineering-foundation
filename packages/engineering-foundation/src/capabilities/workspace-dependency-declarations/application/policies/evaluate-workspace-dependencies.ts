@@ -247,6 +247,12 @@ function evaluateDeclaration(input: {
   return diagnostics;
 }
 
+// A peer range and the development copy that builds and tests against it are one intent, not a duplicate.
+const isPeerWithDevelopmentLink = (declarations: readonly { readonly section: string }[]): boolean =>
+  declarations.length === 2 &&
+  declarations.some(({ section }) => section === "peerDependencies") &&
+  declarations.some(({ section }) => section === "devDependencies");
+
 function evaluateDeclarations(
   snapshot: WorkspaceSnapshot,
   policy: WorkspaceDependencyPolicy
@@ -274,7 +280,7 @@ function evaluateDeclarations(
       (declaration) => declaration.dependencyName
     );
     for (const [dependencyName, declarations] of grouped) {
-      if (declarations.length > 1) {
+      if (declarations.length > 1 && !isPeerWithDevelopmentLink(declarations)) {
         diagnostics.push(
           diagnostic({
             rule: RULES.dependencyDeclaredMultipleTimes,

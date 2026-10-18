@@ -185,6 +185,8 @@ packages:
         declarationEntryPoint: packages/feature-module-standard/dist/index.d.ts
       - exportPath: "./fixtures"
         declarationEntryPoint: packages/feature-module-standard/dist/fixtures.d.ts
+      - exportPath: "./node"
+        declarationEntryPoint: packages/feature-module-standard/dist/node.d.ts
     nonTypeExports:
       - exportPath: "./package.json"
         kind: data

@@ -391,7 +391,7 @@
     },
     {
       "id": "feature-module-standard",
-      "state": "approved",
+      "state": "historical",
       "name": "@agent-teams/feature-module-standard",
       "root": "packages/feature-module-standard",
       "manifestPath": "packages/feature-module-standard/package.json",

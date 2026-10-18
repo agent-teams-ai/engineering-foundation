@@ -68,12 +68,12 @@ test("publishes the exact derived eight-package dependency graph in order", asyn
   const foundationFinalInspect = runtime.calls.lastIndexOf(`inspect:${FOUNDATION_PACKAGE}`);
   const docsFinalInspect = runtime.calls.lastIndexOf(`inspect:${DOCS_PACKAGE}`);
   assert.deepEqual(runtime.calls.filter((entry) => entry.startsWith("publish:")), [
-    CI_INPUT_PROOF_PACKAGE, FEATURE_MODULE_STANDARD_PACKAGE, MUTATION_PACKAGE, DOCUMENT_AUTHORING_PACKAGE,
-    DOCS_PACKAGE, DOCS_ADAPTER_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE,
+    CI_INPUT_PROOF_PACKAGE, MUTATION_PACKAGE, DOCUMENT_AUTHORING_PACKAGE,
+    DOCS_PACKAGE, DOCS_ADAPTER_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE, FEATURE_MODULE_STANDARD_PACKAGE,
   ].map((name) => `publish:${name}:latest`));
   assert.ok(ciInputProofPublish >= 0 && ciInputProofPublish < ciInputProofSignature);
-  assert.ok(ciInputProofSignature < standardPublish);
-  assert.ok(standardPublish >= 0 && standardPublish < standardSignature && standardSignature < mutationPublish);
+  assert.ok(ciInputProofSignature < mutationPublish);
+  assert.ok(foundationSignature < standardPublish && standardPublish < standardSignature);
   assert.ok(mutationPublish >= 0 && mutationPublish < mutationSignature);
   assert.ok(mutationSignature < authoringPublish && authoringPublish < authoringSignature);
   assert.ok(authoringSignature < foundationPublish && foundationPublish < foundationSignature);
@@ -365,13 +365,13 @@ test("Docs-only ancestor state is quarantined before any Foundation npm write", 
   await assert.rejects(run(runtime, { source: laterSource }), /quarantine before releasing/u);
   assert.deepEqual(runtime.calls, [
     `inspect:${CI_INPUT_PROOF_PACKAGE}`,
-    `inspect:${FEATURE_MODULE_STANDARD_PACKAGE}`,
     `inspect:${MUTATION_PACKAGE}`,
     `inspect:${DOCUMENT_AUTHORING_PACKAGE}`,
     `inspect:${DOCS_PACKAGE}`,
     `inspect:${DOCS_ADAPTER_PACKAGE}`,
     `inspect:${DOCS_MCP_PACKAGE}`,
     `inspect:${FOUNDATION_PACKAGE}`,
+    `inspect:${FEATURE_MODULE_STANDARD_PACKAGE}`,
   ]);
 });
 
@@ -552,13 +552,13 @@ test("reconciles a partial GitHub release boundary exactly once per package", as
   await run(runtime);
   assert.deepEqual(writes, [
     CI_INPUT_PROOF_PACKAGE,
-    FEATURE_MODULE_STANDARD_PACKAGE,
     MUTATION_PACKAGE,
     DOCUMENT_AUTHORING_PACKAGE,
     DOCS_PACKAGE,
     DOCS_ADAPTER_PACKAGE,
     DOCS_MCP_PACKAGE,
     FOUNDATION_PACKAGE,
+    FEATURE_MODULE_STANDARD_PACKAGE,
   ]);
   assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 8);
 });

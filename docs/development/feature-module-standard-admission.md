@@ -30,12 +30,13 @@ This note records what the source checkpoint contains and what is still pending.
 | Real consumer: feature-to-feature deep imports, layer direction and cycles through `checkFeatureModule` per module, built from the profile and the observed source graph, failing closed on an untranslated kernel error | done |
 | Real consumer: the shared fixtures that a flat profile can express run through the repository checker's kernel adapter | done (`tests/feature-module-kernel-adapter.test.mjs`) |
 | Old and new checker compared on the real graph and on synthetic edges | done, see below |
-| Packed archive imported by name (`.` and `./fixtures`) in a disposable consumer | pending, closed with the runner |
-| `./node` runner on the public source graph | follow-up PR; the source graph is on `main` since `73c3814d1` |
+| Packed archive imported by name (`.`, `./fixtures` and `./node`) in a disposable consumer | covered by the runner package qualification |
+| `./node` runner on the public source graph | implemented; materialized examples, module composition and runtime/type-only republication regressions run in `tests/features/feature-module-standard/node-runner.test.mts` |
 | Engineering Foundation 1.8.0 Version PR (#392) | held until the runner merges, so that 1.8.0 and the first release of this package ship together |
-| Bootstrap approval and bootstrap publication of the npm name | owner step; until both exist every `release:publish` of this repository fails closed |
+| Bootstrap approval and bootstrap publication of the npm name | completed for the deprecated `0.0.0` artifact; retained catalog approval and published evidence remain historical, separate from the supported release |
 
-The first publication waits for the pending rows.
+The first supported publication waits for the normal release gates; the deprecated
+bootstrap artifact is not a consumer adoption candidate.
 
 ## Comparison of the old and the new checker
 
@@ -57,11 +58,9 @@ import also reports the direction rule, a deep import counts as an edge of the
 cycle graph, and the local contracts strengthening applies only where the kernel
 allows the edge. The comparison scripts are not retained.
 
-## Release impact until the bootstrap publication
+## Release impact
 
-Until the bootstrap publication of the npm name exists, the Release step
-"Guard public package bootstrap baselines" (`.github/workflows/release.yml`)
-fails on every push to `main`, because the closed publishable catalog includes
-this package. The bootstrap workflow runs only while the repository variable
-`NPM_PACKAGE_BOOTSTRAP_ENABLED` is `true`, so it must be enabled temporarily for
-the bootstrap publication, as for the earlier packages.
+The namespace bootstrap completed on 2026-10-17. The catalog preserves its exact
+reviewed archive integrity and package tree as historical evidence. The normal
+release still verifies that published baseline; adding the runner does not
+authorize a second bootstrap or change those immutable artifact identities.

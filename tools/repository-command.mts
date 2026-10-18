@@ -3,7 +3,7 @@ import { stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
-import { resolveQualificationExecutables } from "./executable-policy.mts";
+import { resolveQualificationExecutables, type RuntimeExecutables } from "./executable-policy.mts";
 import {
   assertExplicitSourceGitAuthority,
   assertPnpmProfileQualificationRoot
@@ -87,8 +87,8 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "quality:coverage:scope": { entry: "packages/engineering-foundation/dist/cli.js", args: ["quality", "check", "--consumer", ".", "--scope-only"], role: "runtime" },
   "foundation:check:built": { entry: "packages/engineering-foundation/dist/cli.js", args: ["check", "--consumer", "."], role: "runtime" },
   "runtime-observe": { entry: "tests/support/record-repository-runtime.mts", args: [], role: "runtime" },
-  "parser-spike:check": { entry: "tools/pnpm-command.mts", args: ["--filter", "@agent-teams/source-dependency-parser-spike", "run", "check"], role: "node-qualification" },
-  "spike:source-parser": { entry: "tools/pnpm-command.mts", args: ["--filter", "@agent-teams/source-dependency-parser-spike", "run", "spike"], role: "node-qualification" }
+  "parser-spike:check": { entry: "spikes/source-dependency-parser/run.mjs", args: ["--verify-only"], role: "node-qualification" },
+  "spike:source-parser": { entry: "spikes/source-dependency-parser/run.mjs", args: [], role: "node-qualification" }
 });
 
 async function isFile(path: string): Promise<boolean> {
@@ -155,6 +155,18 @@ function run(
   });
 }
 
+/** Carry verified executable identities across the child-process boundary. */
+function runtimeEnvironment(
+  runtime: RuntimeExecutables,
+  environment: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv {
+  return {
+    ...environment,
+    AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: runtime.node,
+    ...(runtime.bun === undefined ? {} : { AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: runtime.bun })
+  };
+}
+
 async function invokeScript(id: string): Promise<number> {
   if (!SCRIPT_IDS.has(id)) {
     throw new Error(`Unknown repository script ID: ${id}`);
@@ -164,7 +176,7 @@ async function invokeScript(id: string): Promise<number> {
   const args = runtime.profile === "bun"
     ? ["run", id]
     : [resolve(repositoryRoot, "tools/pnpm-command.mts"), "run", id];
-  return run(command ?? (() => { throw new Error("Selected manager executable is unavailable."); })(), args, process.cwd());
+  return run(command ?? (() => { throw new Error("Selected manager executable is unavailable."); })(), args, process.cwd(), runtimeEnvironment(runtime));
 }
 
 async function invokeTool(
@@ -203,17 +215,17 @@ async function invokeTool(
       paths,
       runtime
     );
-    return run(invocation.command, invocation.args, process.cwd(), {
+    return run(invocation.command, invocation.args, process.cwd(), runtimeEnvironment(runtime, {
       ...process.env,
       ...sourceAuthority.environment,
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: sourceRoot
-    });
+    }));
   }
   const effectiveArgs = id === "check:fast"
     ? ["gate", "run", `${runtime.profile}-check-fast`, "--consumer", ".", "--format", "text"]
     : [...command.args, ...toolArguments];
   const invocation = resolveToolInvocation(command.role, entry, effectiveArgs, paths, runtime);
-  return run(invocation.command, invocation.args, process.cwd());
+  return run(invocation.command, invocation.args, process.cwd(), runtimeEnvironment(runtime));
 }
 
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

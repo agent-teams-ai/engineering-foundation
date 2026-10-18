@@ -4,7 +4,7 @@ import { copyFile, cp, link, mkdir, mkdtemp, readFile, realpath, rm, stat, symli
 import { createRequire } from "node:module";
 import { delimiter, dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { assertOwnedProfileRoot } from "../tools/profile-root.mts";
 import { inspectInstalledDependencies } from "../tools/dependencies-installed-check.mts";
 import { checkEngineeringQualityStandard } from "../scripts/check-engineering-quality-standard.mts";
@@ -771,4 +771,84 @@ test("managed public test tooling rejects wrong or missing runtime policy versio
   await assert.rejects(readManagedTestPnpmVersion(root), /runtime policy identity is invalid/u);
   await rm(policyPath);
   await assert.rejects(readManagedTestPnpmVersion(root), { code: "ENOENT" });
+});
+
+// Exercise the real Bun dispatcher and public Foundation quality command, with
+// the admitted Node available only on PATH rather than supplied by the caller.
+test("Bun quality dispatch binds its admitted PATH Node into the child environment", async (t) => {
+  const runtime = await resolveQualificationExecutables("bun");
+  assert.ok(runtime.bun);
+  const { writeRepositoryQualityFixture } = await import("./support/repository-quality-fixture.mts");
+  const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-bun-quality-binding-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeRepositoryQualityFixture(root, repositoryRoot);
+  const environment: NodeJS.ProcessEnv = { ...process.env,
+    AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun", AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: runtime.bun,
+    PATH: [dirname(runtime.node), process.env["PATH"] ?? ""].join(delimiter) };
+  delete environment["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"];
+  const result = spawnSync(runtime.bun,
+    [join(repositoryRoot, "tools/repository-command.mts"), "tool", "lint:typed"],
+    { cwd: root, env: environment, encoding: "utf8", timeout: 30_000 });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.match(result.stdout, /passed/u);
+  // The manager/script route must preserve the same verified bindings, too.
+  await writeFile(join(root, "observe.mts"), [
+    'import { writeFileSync } from "node:fs";',
+    'writeFileSync("runtime-binding.json", JSON.stringify({',
+    'node: process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"],',
+    'bun: process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"],',
+    'leafNodeVersion: process.versions.node }));'
+  ].join("\n"));
+  const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+  };
+  manifest.scripts["check"] = "node observe.mts";
+  await writeFile(join(root, "package.json"), JSON.stringify(manifest));
+  const scriptResult = spawnSync(runtime.bun,
+    [join(repositoryRoot, "tools/repository-command.mts"), "script", "check"],
+    { cwd: root, env: environment, encoding: "utf8", timeout: 30_000 });
+  assert.equal(scriptResult.error, undefined);
+  assert.equal(scriptResult.status, 0, `${scriptResult.stdout}${scriptResult.stderr}`);
+  assert.deepEqual(JSON.parse(await readFile(join(root, "runtime-binding.json"), "utf8")), {
+    node: runtime.node, bun: runtime.bun, leafNodeVersion: "26.11.1"
+  });
+});
+
+// The private parser spike has no lifecycle hooks or manager work: call its
+// existing ESM entry with admitted Node, even when the repository selects Bun.
+test("parser spike qualification dispatch uses pinned Node without a package manager", async (t) => {
+  const runtime = await resolveQualificationExecutables("bun");
+  assert.ok(runtime.bun);
+  const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-parser-direct-node-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const entry = join(repositoryRoot, "spikes/source-dependency-parser/run.mjs");
+  const observation = join(root, "runtime.json");
+  const observer = join(root, "observe.mts");
+  await writeFile(observer, [
+    'import { writeFileSync } from "node:fs";',
+    `if (process.argv[1] === ${JSON.stringify(entry)}) {`,
+    `writeFileSync(${JSON.stringify(observation)}, JSON.stringify({`,
+    'execPath: process.execPath, node: process.versions.node, bun: process.versions["bun"] ?? null }));',
+    '}'
+  ].join("\n"));
+  const source = await readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8");
+  assert.match(source, /"parser-spike:check": \{ entry: "spikes\/source-dependency-parser\/run\.mjs", args: \["--verify-only"\], role: "node-qualification" \}/u);
+  assert.match(source, /"spike:source-parser": \{ entry: "spikes\/source-dependency-parser\/run\.mjs", args: \[\], role: "node-qualification" \}/u);
+  const result = spawnSync(runtime.bun,
+    [join(repositoryRoot, "tools/repository-command.mts"), "tool", "parser-spike:check"], {
+      cwd: root, encoding: "utf8", timeout: 30_000,
+      env: { ...process.env, AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun",
+        AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: runtime.node,
+        AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: runtime.bun,
+        NODE_OPTIONS: `--import=${pathToFileURL(observer).href}` }
+    });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  const report = JSON.parse(result.stdout) as { corpusCases: number; endToEndExtractionBenchmark?: unknown };
+  assert.ok(report.corpusCases > 0);
+  assert.equal(report.endToEndExtractionBenchmark, undefined);
+  assert.deepEqual(JSON.parse(await readFile(observation, "utf8")), {
+    execPath: runtime.node, node: "26.11.1", bun: null
+  });
 });

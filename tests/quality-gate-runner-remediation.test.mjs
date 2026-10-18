@@ -525,9 +525,11 @@ test("Windows watchdog contract retains Job Object ownership and awaits descenda
   );
   assert.match(
     nodeAdapterSource,
-    /const acquire: NodeAcquireHook = \(request, retain\) => \{\s*spawnNodeManagedProcess\(windowsRequest\(request, context\), retain\);/u
+    /const acquire: NodeAcquireHook = \(request, retain\) => \{\s*acquiredChild = spawnNodeManagedProcess\(windowsRequest\(request, context\), retain\);/u
   );
-  const windowsBranch = nodeAdapterSource.indexOf("if (process.platform === \"win32\") {");
+  const spawnStart = nodeAdapterSource.indexOf("export function spawnNodeManagedProcess(");
+  assert.ok(spawnStart >= 0);
+  const windowsBranch = nodeAdapterSource.indexOf("if (process.platform === \"win32\") {", spawnStart);
   const windowsRetainRoute = nodeAdapterSource.indexOf(
     "return spawnWindowsManagedProcess(request, retain);",
     windowsBranch

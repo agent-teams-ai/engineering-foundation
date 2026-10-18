@@ -9,7 +9,7 @@ export function createPackageManagerScriptRunner(
   }
 ): PackageScriptRunner {
   return Object.freeze({
-    run(input: {
+    async run(input: {
       readonly packageManager: RepositoryPackageManager;
       readonly consumerRoot: string;
       readonly script: string;

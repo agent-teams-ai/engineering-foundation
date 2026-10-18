@@ -36,6 +36,14 @@ const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
   "dist/process-execution/node-runtime-verifier.d.ts.map",
   "dist/process-execution/node-runtime-verifier.js",
   "dist/process-execution/node-runtime-verifier.js.map",
+  "dist/capabilities/quality-gate-runner/adapters/outbound/package-script-process.d.ts",
+  "dist/capabilities/quality-gate-runner/adapters/outbound/package-script-process.d.ts.map",
+  "dist/capabilities/quality-gate-runner/adapters/outbound/package-script-process.js",
+  "dist/capabilities/quality-gate-runner/adapters/outbound/package-script-process.js.map",
+  "dist/process-execution/windows-command-launch.d.ts",
+  "dist/process-execution/windows-command-launch.d.ts.map",
+  "dist/process-execution/windows-command-launch.js",
+  "dist/process-execution/windows-command-launch.js.map",
 ]);
 
 function archiveWithEntries(count) {
@@ -51,15 +59,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_649);
+  const atFoundationLimit = archiveWithEntries(2_657);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_649,
+    2_657,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_650), FOUNDATION_PACKAGE),
-    /too many entries: 2650/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_658), FOUNDATION_PACKAGE),
+    /too many entries: 2658/u,
   );
 });
 
@@ -89,7 +97,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_646 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_654 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -104,7 +112,7 @@ test("applies the same Foundation budget to archive listings", () => {
       { length: 1 },
       (_, index) => `package/dist/extra-${index}.js`,
     )].join("\n"),
-  }), /too many entries: 2650/u);
+  }), /too many entries: 2658/u);
 });
 
 test("admits the complete built Foundation package inventory and rejects one additional member", async () => {
@@ -123,7 +131,7 @@ test("admits the complete built Foundation package inventory and rejects one add
     }
   }
   for (const path of manifest.files) { await visit(path); }
-  assert.equal(paths.size, 2_649, "Requalify the complete package inventory when its membership changes");
+  assert.equal(paths.size, 2_657, "Requalify the complete package inventory when its membership changes");
   for (const path of EXPECTED_NEW_MODULE_ARTIFACTS) {
     assert.ok(paths.has(path), `Expected compiled module artifact is missing from actual inventory: ${path}`);
   }
@@ -132,5 +140,5 @@ test("admits the complete built Foundation package inventory and rejects one add
     requiredArtifactPaths: [...paths], allowedArtifactPaths: manifest.files, verboseListing: "" };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
   assert.throws(() => assertArchiveSafety({ ...input,
-    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2650/u);
+    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2658/u);
 });

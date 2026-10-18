@@ -2275,6 +2275,7 @@ boundaries:
   - id: foundation.process-execution
     roots:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/windows-command-launch.ts
       - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts

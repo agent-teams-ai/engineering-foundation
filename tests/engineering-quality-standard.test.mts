@@ -41,6 +41,7 @@ test('runtime seam requires authenticated CMS inputs and unique current guidance
     'packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition/select-package-script-runner.ts',
     'packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition/node-commands.ts',
     'packages/engineering-foundation/src/process-execution/node-process-runner.ts',
+    'packages/engineering-foundation/src/process-execution/windows-command-launch.ts',
     'packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts',
   ];
   await Promise.all(paths.map(async path => {
@@ -86,5 +87,5 @@ test('runtime seam requires authenticated CMS inputs and unique current guidance
   await assert.rejects(checkEngineeringQualityStandard(root), /current guidance/);
   await writeFile(join(root, seamPath), seam);
   await rm(join(root, paths.at(-1)!));
-  await assert.rejects(checkEngineeringQualityStandard(root), { code: 'ENOENT' });
+  await assert.rejects(checkEngineeringQualityStandard(root), /Runtime profile seam path is missing or unclassified/);
 });

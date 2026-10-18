@@ -6,6 +6,7 @@ import test, { after } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { ProcessRuntimeError } from "node-or-bun";
+import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/application/command-failure.js";
 import {
   ProcessCancellationError,
   ProcessTimeoutError
@@ -21,7 +22,7 @@ import {
   observeWrapperStderr
 } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
 import { readProcessFailureFacts } from "../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js";
-import { requireAdmittedNodeExecutable, verifyRepositoryRuntimeExecutable } from "../packages/engineering-foundation/dist/process-execution/node-runtime-verifier.js";
+import { SUPPORTED_NODE_VERSIONS, requireAdmittedNodeExecutable, verifyRepositoryRuntimeExecutable } from "../packages/engineering-foundation/dist/process-execution/node-runtime-verifier.js";
 
 import { createNodeQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/composition/node-quality-gate-command.js";
 import { createNodeAgentWorkflowCommands } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/composition/node-commands.js";
@@ -377,6 +378,11 @@ test("Windows cancellation protocol proves containment across Job assignment", a
   assert.ok(requestTermination >= 0);
   assert.doesNotMatch(nodeAdapterSource, /child\.kill\("SIGKILL"\)/u);
   assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
+  const nativeLaunch = nodeAdapterSource.indexOf("running = await nativeAdapter.launch(request);");
+  const forwardAbort = nodeAdapterSource.indexOf("launchAbort.succeed();", nativeLaunch);
+  const commandGate = nodeAdapterSource.indexOf("await waitForWindowsManagedProcessLaunch(", forwardAbort);
+  assert.ok(nativeLaunch >= 0 && forwardAbort > nativeLaunch && commandGate > forwardAbort);
+
   assert.match(managedLauncherSource, /forceAndWaitForWrapperExit/u);
   assert.match(managedLauncherSource, /requireAdmittedNodeExecutable/u);
   assert.match(windowsManagedProcessSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
@@ -403,10 +409,10 @@ test("Windows cancellation protocol proves containment across Job assignment", a
     windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
     /LaunchSucceeded\(launchPath\)[\s\S]*CancelAssignedIfRequested/u
   );
-  assert.equal(
-    windowsManagedProcessSource.match(/return 0;/gu)?.length,
-    1,
-    "the wrapper-consumed cancellation path must be neutral"
+  assert.match(
+    windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
+    /if \(LaunchSucceeded\(launchPath\) &&\s*CancelAssignedIfRequested\(cancellationPath, confirmationPath, job\)\)\s*\{\s*return 0;/u,
+    "the wrapper-consumed cancellation branch must be neutral"
   );
 });
 
@@ -486,8 +492,8 @@ test("wrapper diagnostics forward once and retain a sliding copied last 64KiB", 
   assert.notEqual(diagnostics.chunks[0]?.buffer, backing.buffer);
   assert.equal(
     describeManagedProcessCleanupFailure(new Error("failed"), diagnostics.chunks, true)
-      .includes("wrapper-phase=managed-run"),
-    false
+      .includes("wrapper-phase=unreported"),
+    true
   );
 });
 
@@ -514,7 +520,11 @@ test("quality gate composition rejects Node as Bun before script effects", async
   } }, assertSchema);
   await assert.rejects(command({
     consumerRoot: await runtimeGateFixture(), configPath: "gate.yaml", profileId: "check"
-  }), /explicit Bun executable is unavailable/u);
+  }), (error: unknown) => {
+    assert.match(String(error), /explicit Bun executable is unavailable/u);
+    assert.equal(foundationCommandFailure(error).envelope.error.code, "QUALITY_GATE_RUNNER_RUNTIME_INVALID");
+    return true;
+  });
   assert.equal(requests.length, 0);
 });
 
@@ -541,7 +551,11 @@ test("agent workflow composition rejects Node as Bun before script effects", asy
   } }, assertSchema);
   await assert.rejects(commands.changed({
     consumerRoot: root, configPath: "workflow.yaml", format: "json"
-  }), /explicit Bun executable is unavailable/u);
+  }), (error: unknown) => {
+    assert.match(String(error), /explicit Bun executable is unavailable/u);
+    assert.equal(foundationCommandFailure(error).envelope.error.code, "REPOSITORY_AGENT_WORKFLOW_RUNTIME_INVALID");
+    return true;
+  });
   assert.equal(scriptRequests.length, 0);
 });
 
@@ -584,6 +598,11 @@ test("runtime verifier accepts real Node and rejects symlinks and non-executable
     const alias = join(fixtureRoot, "node-alias");
     await symlink(childRuntime, alias);
     assert.equal(await verifyRepositoryRuntimeExecutable(alias, "node"), false);
+    // The Windows bootstrap's separate admission path launches the canonical
+    // target it probed, never a mutable alias supplied by the caller.
+    assert.equal(requireAdmittedNodeExecutable({
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: alias
+    }, childRuntime), childRuntime);
   }
 });
 
@@ -624,4 +643,65 @@ test("runtime verifier and quality gate composition accept installed Bun in its 
   });
   assert.equal(report.outcome, "passed", JSON.stringify(report));
   assert.equal(report.tasks[0]?.exitCode, 0);
+});
+
+// Public engines and the Host admission policy must evolve in the same change.
+test("Node admission versions match both published and repository engines", async () => {
+  const expected = SUPPORTED_NODE_VERSIONS.map(({ major, minimumMinor }) => `^${major}.${minimumMinor}.0`).join(" || ");
+  for (const path of ["../package.json", "../packages/engineering-foundation/package.json"]) {
+    const manifest = JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { engines: { node: string } };
+    assert.equal(manifest.engines.node, expected);
+  }
+});
+
+// Trusted control markers, rather than the wrapper exit or captured stderr,
+// distinguish a command launch failure from an ordinary command failure.
+test("Windows launch handshake preserves exit-one commands and startup deadlines", {
+  skip: process.platform !== "win32" ? "native Windows handshake" : false,
+  timeout: 30_000
+}, async () => {
+  const result = await executeManagedProcess({
+    command: childRuntime,
+    args: ["-e", "process.stderr.write('Managed command could not be started: FAILED');process.exitCode=1"],
+    cwd: fixtureRoot
+  });
+  assert.equal(result.exitCode, 1);
+  assert.equal(readProcessFailureFacts(result)?.reason, "exit");
+  await assert.rejects(executeManagedProcess({
+    command: childRuntime,
+    args: ["-e", "setTimeout(()=>{},60000)"],
+    cwd: fixtureRoot,
+    timeoutMs: 10
+  }), ProcessTimeoutError);
+  const cancellation = new AbortController();
+  const cancelTimer = setTimeout(() => cancellation.abort(new Error("earlier Windows cancellation")), 1);
+  try {
+    await assert.rejects(executeManagedProcess({
+      command: childRuntime,
+      args: ["-e", "setTimeout(()=>{},60000)"],
+      cwd: fixtureRoot,
+      timeoutMs: 5,
+      signal: cancellation.signal
+    }), ProcessCancellationError);
+  } finally {
+    clearTimeout(cancelTimer);
+  }
+});
+
+test("Windows command launch protocol validates markers and yields interrupted waits", async () => {
+  const { waitForWindowsCommandLaunch } = await import("../packages/engineering-foundation/dist/process-execution/windows-command-launch.js");
+  const root = mkdtempSync(join(fixtureRoot, "launch-protocol-"));
+  const marker = join(root, "launched");
+  const child = { exitCode: null, signalCode: null };
+  await writeFile(marker, "STARTED");
+  await waitForWindowsCommandLaunch(child, marker, () => false);
+  await writeFile(marker, "FAILED");
+  await assert.rejects(waitForWindowsCommandLaunch(child, marker, () => false), /could not be started/u);
+  await writeFile(marker, "unrecognized");
+  await assert.rejects(waitForWindowsCommandLaunch(child, marker, () => false), /invalid launch confirmation/u);
+  await rm(marker);
+  let polls = 0;
+  await waitForWindowsCommandLaunch(child, marker, () => ++polls >= 2);
+  assert.equal(polls, 2);
+  await assert.rejects(waitForWindowsCommandLaunch({ exitCode: 1, signalCode: null }, marker, () => false), /without a command launch confirmation/u);
 });

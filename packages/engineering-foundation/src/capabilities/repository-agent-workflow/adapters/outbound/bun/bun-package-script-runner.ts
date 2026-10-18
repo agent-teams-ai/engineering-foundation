@@ -1,4 +1,4 @@
-import { rejectWorkflowExecutor } from "../../../application/policies/workflow-input.js";
+import { rejectWorkflowBunExecutor } from "../../../application/policies/workflow-input.js";
 import type {
   ExecuteWorkflowProcess
 } from "../../../application/ports/process-execution.js";
@@ -25,7 +25,7 @@ export class BunPackageScriptRunner implements PackageScriptRunner {
       input.packageManager !== "bun" ||
       this.environment.bunExecutablePath === undefined
     ) {
-      rejectWorkflowExecutor();
+      rejectWorkflowBunExecutor();
     }
     return this.execute(
       this.environment.bunExecutablePath,

@@ -1,3 +1,4 @@
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { readContainedRegularFile } from "../../../source-inventory/node.js";
 import { createQualityGateCommand, type QualityGateCommand } from "../api.js";
 import { FilesystemPackageScriptCatalogReader } from "../adapters/outbound/filesystem/filesystem-package-script-catalog-reader.js";
@@ -28,6 +29,13 @@ export function createNodeQualityGateCommand(
           ? "bun"
           : "node",
       verifyExecutable: verifyRepositoryRuntimeExecutable
+    }).catch((error: unknown) => {
+      throw new CapabilityInputError({
+        code: "QUALITY_GATE_RUNNER_RUNTIME_INVALID",
+        message: error instanceof Error ? error.message : "Repository runtime selection failed.",
+        phase: "quality-gate-runner-runtime",
+        retryable: false
+      });
     });
     const childEnvironment = Object.freeze({
       ...snapshot,

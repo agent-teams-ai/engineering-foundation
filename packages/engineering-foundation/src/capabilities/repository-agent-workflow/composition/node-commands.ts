@@ -1,3 +1,4 @@
+import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
 import { inspectContainedRegularFile, readContainedRegularFile } from "../../../source-inventory/node.js";
 import { createProcessExecution } from "../adapters/outbound/process/process-execution.js";
 import type { WorkflowProcessExecutor } from "../application/ports/process-execution.js";
@@ -43,6 +44,13 @@ export function createNodeAgentWorkflowCommands(
             ? "bun"
             : "node",
         verifyExecutable: verifyRepositoryRuntimeExecutable
+      }).catch((error: unknown) => {
+        throw new CapabilityInputError({
+          code: "REPOSITORY_AGENT_WORKFLOW_RUNTIME_INVALID",
+          message: error instanceof Error ? error.message : "Repository runtime selection failed.",
+          phase: "repository-agent-workflow-runtime",
+          retryable: false
+        });
       });
       return createPackageManagerScriptRunner({
         bun: new BunPackageScriptRunner(

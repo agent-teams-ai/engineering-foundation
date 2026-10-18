@@ -7,6 +7,7 @@ import { join, win32 } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
+import { waitForWindowsCommandLaunch } from "./windows-command-launch.js";
 import { requireAdmittedNodeExecutable } from "./node-runtime-verifier.js";
 
 export {
@@ -292,17 +293,19 @@ export function cleanUpWindowsManagedProcessLaunchFailure(child: ChildProcess): 
   }
 }
 
-async function readContainmentConfirmation(
-  control: WindowsProcessControl
-): Promise<string | undefined> {
+async function readPrivateControlMarker(path: string): Promise<string | undefined> {
   try {
-    return await fileSystemPromises.readFile(control.confirmationPath, "utf8");
+    return await fileSystemPromises.readFile(path, "utf8");
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return undefined;
     }
     throw error;
   }
+}
+
+function readContainmentConfirmation(control: WindowsProcessControl): Promise<string | undefined> {
+  return readPrivateControlMarker(control.confirmationPath);
 }
 
 async function readContainmentConfirmationAfterWrapperExit(
@@ -437,6 +440,13 @@ export async function requestWindowsManagedProcessTermination(
     );
   }
   await waitForWindowsManagedProcessContainment(child);
+}
+
+/** Uses only the private control path belonging to this retained wrapper. */
+export function waitForWindowsManagedProcessLaunch(
+  child: ChildProcess, shouldStopWaiting: () => boolean
+): Promise<void> {
+  return waitForWindowsCommandLaunch(child, controlFor(child).launchPath, shouldStopWaiting);
 }
 
 export async function waitForWindowsManagedProcessContainment(

@@ -9,10 +9,11 @@ import {
 } from "node-or-bun/node";
 import {
   createProcessExecutor,
+  PROCESS_CLEANUP_STEP_MS,
   isProcessRuntimeError,
   type CompletionCause,
   type ProcessAdapter,
-  type ProcessRuntimeError,
+  ProcessRuntimeError,
   type Request as ProcessRuntimeRequest
 } from "node-or-bun";
 
@@ -29,6 +30,7 @@ import {
   managedProcessCleanupFailure,
   requestWindowsManagedProcessTermination,
   spawnWindowsManagedProcess,
+  waitForWindowsManagedProcessLaunch,
   waitForWindowsManagedProcessContainment
 } from "./windows-managed-process.js";
 import {
@@ -287,10 +289,14 @@ async function cleanupManagedChild(
 function createManagedNodeAdapter(
   context: NodeManagedProcessRuntimeContext,
   diagnostics: WrapperStderrDiagnostics,
-  launchAbort: LaunchAbortBridge
+  launchAbort: LaunchAbortBridge,
+  launchRequest: Pick<ManagedProcessRequest, "signal" | "timeoutMs">
 ): ProcessAdapter {
+  const deadline = launchRequest.timeoutMs === undefined
+    ? undefined : performance.now() + launchRequest.timeoutMs;
+  let acquiredChild: ChildProcess | undefined;
   const acquire: NodeAcquireHook = (request, retain) => {
-    spawnNodeManagedProcess(windowsRequest(request, context), retain);
+    acquiredChild = spawnNodeManagedProcess(windowsRequest(request, context), retain);
   };
   const cleanup: NodeCleanupHook = (child, cause) =>
     cleanupManagedChild(child, cause);
@@ -304,7 +310,41 @@ function createManagedNodeAdapter(
         launchAbort.fail();
         throw error;
       }
+      // Native custody is settled; the generic executor must observe aborts
+      // immediately while the Host checks the inner-command launch protocol.
       launchAbort.succeed();
+      if (process.platform === "win32") {
+        try {
+          if (acquiredChild === undefined) { throw new Error("Windows wrapper custody is unavailable."); }
+          await waitForWindowsManagedProcessLaunch(acquiredChild, () =>
+            launchRequest.signal?.aborted === true ||
+            (deadline !== undefined && performance.now() >= deadline)
+          );
+        } catch (cause) {
+          const captureDeadline = new AbortController();
+          const captureTimeout = delay(PROCESS_CLEANUP_STEP_MS, undefined, { signal: captureDeadline.signal })
+            .then(() => { throw new Error("Windows launch capture closure timed out.", { cause }); });
+          const settlements = await Promise.allSettled([
+            running.cleanup("failed"),
+            Promise.race([running.closeCapture(), captureTimeout])
+          ]);
+          captureDeadline.abort();
+          const failures = settlements.flatMap((settlement) =>
+            settlement.status === "rejected" ? [settlement.reason as unknown] : []
+          );
+          const initiatingError = new ProcessRuntimeError("launch", "Windows command launch failed.", {
+            cause, facts: { initiatingCause: "launch" }
+          });
+          if (failures.length > 0) {
+            throw new ProcessRuntimeError("cleanup", "Windows command launch rollback failed.", {
+              cause: new AggregateError(failures, "Windows launch rollback did not complete."),
+              initiatingError,
+              incompleteCustody: true
+            });
+          }
+          throw initiatingError;
+        }
+      }
       return {
         ...running,
         stderr: observeWrapperStderr(running.stderr, diagnostics)
@@ -399,7 +439,7 @@ export async function executeManagedProcess(
   const input = runtimeRequest(request, request.signal === undefined ? undefined : launchAbort.signal);
   const diagnostics = createWrapperStderrDiagnostics();
   const executor = createProcessExecutor(
-    createManagedNodeAdapter(context, diagnostics, launchAbort)
+    createManagedNodeAdapter(context, diagnostics, launchAbort, request)
   );
   try {
     const result = await executor.run(input);

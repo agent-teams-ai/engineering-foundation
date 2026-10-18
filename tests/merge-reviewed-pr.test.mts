@@ -97,10 +97,10 @@ test("operator prompt construction uses current exact source metadata and perfor
   state.diff += "changed after independent review\n";
   await assert.rejects(verifyReviewedPr(args, port), /prompt\/checkout/u);
 });
-test("rendered review prompt assesses the declared Node/Bun policy and preserves admitted Node lanes", () => {
+test("rendered review prompt preserves repository Node default and admitted compatibility lanes", () => {
   const prompt = renderMergeReviewPrompt(binding, diff);
-  assert.match(prompt, /declared closed Node\/Bun repository runtime policy, explicit admitted Node 26\.11\.1 qualification, retained Node 24 compatibility and the explicit historical Node 24 qualification lanes and Node 26 qualification/u);
-  assert.doesNotMatch(prompt, /repository Node 26\.11\.1 default/u);
+  assert.match(prompt, /repository Node 26\.11\.1 default, retained Node 24 compatibility and the explicit historical Node 24 qualification lanes and Node 26 qualification/u);
+  assert.doesNotMatch(prompt, /declared closed Node\/Bun repository runtime policy|Bun default/u);
   assert.doesNotMatch(prompt, /Node 24 default/u);
 });
 test("input traversal, option injection and arbitrary receipt files fail before any IO", async () => {

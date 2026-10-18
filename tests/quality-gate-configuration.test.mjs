@@ -120,8 +120,8 @@ test("Bun package-script adapter invokes exactly bun run <id>", async () => {
   ]);
 });
 
-// Catches manager dispatch occurring before policy validation or through a generic command.
-test("closed manager switch dispatches after validation and rejects mismatches before effects", async () => {
+// Catches unknown managers or generic-command dispatch before adapter effects.
+test("closed manager switch dispatches known managers and rejects mismatches before effects", async () => {
   let effects = 0;
   const executor = createPackageManagerScriptExecutor({
     bun: { async run(input) {
@@ -194,4 +194,61 @@ test("quality gate configuration preserves graph errors after schema validation"
     return true;
   });
   assert.equal(validated, true);
+});
+
+// Reject future versions before selecting either existing schema family.
+test("quality gate configuration rejects unsupported versions before schema validation", async () => {
+  let schemaCalls = 0;
+  await assert.rejects(loadQualityGatePolicy({
+    async readYaml() { return { schemaVersion: 3 }; },
+    async assertSchema() { schemaCalls += 1; }
+  }, "explicit-memory-consumer", "quality-gates.yaml"), (error) => {
+    assert.ok(error instanceof CapabilityInputError);
+    assert.equal(error.problem.code, "QUALITY_GATE_RUNNER_CONFIG_INVALID");
+    assert.equal(error.message, "schemaVersion must be 1 or 2.");
+    return true;
+  });
+  assert.equal(schemaCalls, 0);
+});
+
+// Both concrete managers must preserve the same Host containment failure semantics.
+test("shared package-script execution translates only timeout and completed cancellation", async () => {
+  const { runPackageScriptProcess } = await import("../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/package-script-process.js");
+  const { ProcessCancellationError, ProcessTimeoutError } = await import("../packages/engineering-foundation/dist/process-execution/api.js");
+  const { PackageScriptCancellationError, PackageScriptTimeoutError } = await import("../packages/engineering-foundation/dist/capabilities/quality-gate-runner/application/ports/package-script-executor.js");
+  const request = { command: "owned-runtime", args: [], cwd: "TEST-only" };
+  for (const [cause, translated] of [
+    [new ProcessCancellationError("cancelled"), PackageScriptCancellationError],
+    [new ProcessTimeoutError(250), PackageScriptTimeoutError]
+  ]) {
+    await assert.rejects(runPackageScriptProcess({ async run() { throw cause; } }, request), error => {
+      assert.ok(error instanceof translated);
+      assert.equal(error.cause, cause);
+      if (cause instanceof ProcessTimeoutError) { assert.equal(error.timeoutMs, 250); }
+      return true;
+    });
+  }
+  const incompleteCleanup = new Error("incomplete cleanup");
+  await assert.rejects(runPackageScriptProcess({ async run() { throw incompleteCleanup; } }, request), error => error === incompleteCleanup);
+  const result = await runPackageScriptProcess(new RecordingManagedProcessExecutor({
+    exitCode: 1, signal: "SIGTERM", stdout: "observed", stderr: "detail"
+  }), request);
+  assert.deepEqual(result, { exitCode: null, signal: "SIGTERM", stdout: "observed", stderr: "detail" });
+});
+
+test("workflow runner rejects a missing manager through its Promise contract", async () => {
+  const { createPackageManagerScriptRunner } = await import("../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/composition/select-package-script-runner.js");
+  let result;
+  assert.doesNotThrow(() => { result = createPackageManagerScriptRunner({}).run({
+    packageManager: "bun", consumerRoot: "TEST-only", script: "check", paths: []
+  }); });
+  assert.ok(result instanceof Promise);
+  await assert.rejects(result, /Package manager/u);
+});
+
+test("Bun workflow rejection names the missing Bun executable", async () => {
+  const { BunPackageScriptRunner } = await import("../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/bun/bun-package-script-runner.js");
+  await assert.rejects(new BunPackageScriptRunner({}, async () => { throw new Error("must not execute"); }).run({
+    packageManager: "bun", consumerRoot: "TEST-only", script: "check", paths: []
+  }), /verified Bun executable/u);
 });

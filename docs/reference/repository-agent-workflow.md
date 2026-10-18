@@ -140,9 +140,8 @@ them in `fullScanPaths`.
 Invoke the changed workflow through its policy-selected package script. Version
 1 deliberately normalizes to pnpm and supplies the cross-platform pnpm entrypoint
 without invoking a shell or interpolating repository paths. A concrete Bun
-adapter is available beside pnpm for the closed outer switch, but v1 does not
-authorize selecting it. A future policy version must select Bun explicitly;
-this checkpoint changes neither the v1 schema bytes nor its meaning. JavaScript
+adapter is available beside pnpm, but v1 selects pnpm only. A future policy
+version must explicitly select Bun. The v1 schema bytes and meaning are unchanged. JavaScript
 pnpm entrypoints use the explicit verified Node executable rather than
 `process.execPath` under Bun.
 

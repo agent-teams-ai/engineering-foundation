@@ -58,7 +58,9 @@ export function appendWrapperStderr(
       diagnostics.bytes -= oldest.length;
       continue;
     }
-    diagnostics.chunks[0] = copyBytes(oldest.subarray(overflow));
+    // Every retained chunk was copied on admission and is at most 64 KiB.
+    // A suffix view keeps that bounded owned allocation without recopying it.
+    diagnostics.chunks[0] = oldest.subarray(overflow);
     diagnostics.bytes -= overflow;
   }
 }

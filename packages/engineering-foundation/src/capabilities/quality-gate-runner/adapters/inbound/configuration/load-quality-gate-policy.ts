@@ -1,4 +1,5 @@
 import type { QualityGatePolicy } from "../../../application/model/quality-gate.js";
+import { configurationInputError as inputError } from "../../../application/configuration-input.js";
 import { parseQualityGatePolicy } from "./parse-quality-gate-policy.js";
 
 export interface QualityGateConfigurationDependencies {
@@ -11,6 +12,9 @@ function schemaVersion(input: unknown): 1 | 2 {
     return 1;
   }
   const version = (input as Record<string, unknown>)["schemaVersion"];
+  if (version !== undefined && version !== 1 && version !== 2) {
+    inputError("schemaVersion must be 1 or 2.");
+  }
   return version === 2 ? 2 : 1;
 }
 

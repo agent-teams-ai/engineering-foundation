@@ -92,14 +92,18 @@ The external process-library wiring is a second fixed adapter boundary at
 It imports the accepted technical adapter and supplies the existing Host-owned
 `acquire`/`cleanup` custody pair. The exact helper
 `packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts`
-is an existing Foundation process adapter helper. It verifies admitted Node for
+is a newly added Foundation process adapter helper. It verifies admitted Node for
 the Windows managed bootstrap and verifies the explicitly selected Node or Bun
 executable identity for QGR and repository-agent-workflow. The existing
 composition callbacks pass the explicit `node`/`bun` kind; the helper does not
 select or detect runtime profiles. The QGR and workflow composition roots obtain
 the verifier through the existing `process-execution/module.ts` entrypoint and
 declare their dependency on `foundation.process-execution.composition`. The
-process composition owns the concrete adapter dependency. Both files remain in the existing
+process composition owns the concrete adapter dependency. The private helper
+`packages/engineering-foundation/src/process-execution/windows-command-launch.ts`
+checks the Host-owned STARTED/FAILED protocol before exposing a command as
+launched; interruptions return to the generic executor for classification and
+cleanup. These helpers belong to the existing
 `foundation.process-execution` adapter roots. None is an independently assembled
 module, uses lifecycle-kernel or introduces an Assembly node.
 

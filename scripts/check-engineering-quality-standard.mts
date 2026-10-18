@@ -45,6 +45,7 @@ const runtimeSeam = Object.freeze({
     'packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition/select-package-script-runner.ts',
     'packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition/node-commands.ts',
     'packages/engineering-foundation/src/process-execution/node-process-runner.ts',
+    'packages/engineering-foundation/src/process-execution/windows-command-launch.ts',
     'packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts',
   ]),
 });
@@ -85,7 +86,8 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
     throw new Error('Runtime profile seam does not retain the reviewed current and historical guidance records');
   }
   for (const path of runtimeSeam.paths) {
-    if (!seam.includes(path) || (await stat(resolve(root, path))).isFile() === false) {
+    const isFile = await stat(resolve(root, path)).then((info) => info.isFile(), () => false);
+    if (!seam.includes(path) || !isFile) {
       throw new Error(`Runtime profile seam path is missing or unclassified: ${path}`);
     }
   }

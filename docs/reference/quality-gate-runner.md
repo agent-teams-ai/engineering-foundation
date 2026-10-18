@@ -89,12 +89,14 @@ performs any task effect. Bun uses one verified Bun executable. A JavaScript
 pnpm entrypoint uses one explicit verified Node executable and never treats
 `process.execPath` as Node while Bun is executing.
 
-Manager selection and ordinary leaf runtime selection are separate. The outer
-snapshot may carry `AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE`,
+Manager selection and ordinary leaf runtime selection are separate. The QGR
+composition root reads and forwards `AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE`,
 `AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE` and
-`AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE` for later repository-command routing.
-This checkpoint does not add the root dispatcher or rewrite root package
-scripts.
+`AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE` to select and verify runtime executables.
+The repository-agent-workflow composition root selects and verifies executables
+from its explicit Node and Bun executable inputs; it does not forward the QGR
+runtime-profile marker. Root package scripts continue to use the repository Node default;
+there is no root repository-command dispatcher.
 
 - `needs` waits for the referenced tasks and runs only if all passed. Otherwise
   the task is `blocked`.

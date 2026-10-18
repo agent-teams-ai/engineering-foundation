@@ -8,6 +8,11 @@ import type { RepositoryRuntimeProfile } from "./application/runtime-selection.j
 export const NODE_EXECUTABLE_ENVIRONMENT_VARIABLE =
   "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE";
 
+export const SUPPORTED_NODE_VERSIONS = Object.freeze([
+  Object.freeze({ major: 24, minimumMinor: 18 }),
+  Object.freeze({ major: 26, minimumMinor: 0 })
+]);
+
 interface RuntimeIdentity {
   readonly execPath: string;
   readonly version: string;
@@ -24,6 +29,7 @@ const runtimeIdentityArguments = [
 function observeRuntimeIdentity(path: string): RuntimeIdentity | null {
   const observation = spawnSync(path, runtimeIdentityArguments, {
     encoding: "utf8",
+    windowsHide: true,
     timeout: 10_000,
     killSignal: "SIGKILL",
     maxBuffer: 16 * 1024
@@ -67,7 +73,7 @@ function isSupportedNode(identity: RuntimeIdentity, path: string): boolean {
   const major = match === null ? 0 : Number(match[1]);
   const minor = match === null ? 0 : Number(match[2]);
   return isActualNode(identity, path) &&
-    (major === 26 || (major === 24 && minor >= 18));
+    SUPPORTED_NODE_VERSIONS.some((range) => major === range.major && minor >= range.minimumMinor);
 }
 
 /** Host identity check for the explicitly selected, closed repository runtime. */
@@ -108,15 +114,22 @@ export function requireAdmittedNodeExecutable(
 ): string {
   const explicit = environment[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
   const candidate = explicit ?? currentExecutablePath;
-  const observed = isAbsolute(candidate) ? observeRuntimeIdentity(candidate) : null;
+  let resolved: string;
+  try {
+    if (!isAbsolute(candidate)) { throw new Error("Node executable must be absolute."); }
+    resolved = realpathSync(candidate);
+  } catch (error) {
+    throw new Error("An explicit admitted Node executable is required.", { cause: error });
+  }
+  const observed = observeRuntimeIdentity(resolved);
   if (observed === null) {
     throw new Error("An explicit admitted Node executable is required.");
   }
   try {
-    if (!isSupportedNode(observed, candidate)) {
+    if (!isSupportedNode(observed, resolved)) {
       throw new Error("The selected executable is not a supported public Node runtime.");
     }
-    return candidate;
+    return resolved;
   } catch (error) {
     throw new Error("A supported public Node executable is required.", { cause: error });
   }

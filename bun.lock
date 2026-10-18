@@ -112,7 +112,7 @@
     },
     "packages/engineering-foundation": {
       "name": "@agent-teams/engineering-foundation",
-      "version": "1.8.0",
+      "version": "1.9.0",
       "bin": {
         "agent-teams-foundation": "./dist/cli.js",
         "agent-teams-node-test": "./dist/node-test-cli.js",

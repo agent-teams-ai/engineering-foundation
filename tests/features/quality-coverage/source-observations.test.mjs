@@ -585,3 +585,27 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   await rm(join(root, nativeScript));
   return { nativePath, nativeProfile, nativeScript, nativeScripts };
 }
+
+const fmsStandard = (version) => ({ id: "agent-teams.feature-module-standard", version });
+
+test("a v1.1 production mapping with a sub-feature and a composition contract reads the same topology as its v1 twin", () => {
+  const nested = (version, extra = {}) => ({
+    schemaVersion: 1, authority: fmsStandard(version),
+    scope: { workspaceContainers: ["packages"], productionRoots: [sourceRoot], productionModules: [{ moduleRoot, sourceRoot }] },
+    adoption: { applicationRoots: [], excludedRoots: ["spikes"], abstractLayout: { modules: [{ moduleRoot, sourceRoot, testRoot: `${moduleRoot}/tests` }] } },
+    ...extra
+  });
+  const flat = (version, extra = {}) => ({
+    schemaVersion: 1, standard: fmsStandard(version), topology: { sourcePolicy: "source.yaml" },
+    productionRoots: ["packages"], applicationRoots: [], excludedRoots: ["spikes"],
+    modules: [{ root: moduleRoot, sourceRoot, testRoots: [`${moduleRoot}/tests`] }], ...extra
+  });
+  const subFeature = { features: [{ id: "orders", root: `${sourceRoot}/features/orders`, features: [{ id: "discounts", root: `${sourceRoot}/features/orders/features/discounts` }],
+    compositionContract: `${sourceRoot}/features/orders/composition/orders.contracts.ts` }] };
+  for (const [profile, source] of [[nested, "source.yaml"], [flat, "source.yaml"]]) {
+    assert.deepEqual(mapQualityTopology(profile("v1.1", subFeature), source), mapQualityTopology(profile("v1"), source));
+    assert.throws(() => mapQualityTopology(profile("v1.2"), source), /FMS v1 or v1\.1/u);
+    assert.throws(() => mapQualityTopology(profile("v2"), source), /FMS v1 or v1\.1/u);
+  }
+  assert.throws(() => mapQualityTopology({ ...nested("v1.1"), authority: { id: "agent-teams.other-standard", version: "v1.1" } }, "source.yaml"), /FMS v1 or v1\.1/u);
+});

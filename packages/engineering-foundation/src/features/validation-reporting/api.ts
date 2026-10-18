@@ -29,10 +29,11 @@ export {
   createCapabilityModule,
   createCapabilityModules,
   createCapabilityRegistry,
+  createRuleOwners,
   createRuleRegistries,
   createRuleRegistry
 } from "./application/capability-registries.js";
-export type { CapabilityModuleDescriptor } from "./application/capability-registries.js";
+export type { CapabilityModuleDescriptor, OwnedRuleContribution } from "./application/capability-registries.js";
 export { FoundationError } from "./foundation-error.js";
 export type { FoundationErrorCode } from "./foundation-error.js";
 export { assertNotCancelled } from "./application/cancellation.js";

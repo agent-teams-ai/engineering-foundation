@@ -70,12 +70,20 @@ meaning, body rules, relationships, and prose or diagram tools. Profiles are
 data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
-[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md)
+[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md),
+with the one-node amendment of
+[ADR-0062](../decisions/0062-feature-module-standard-package-admission.md),
 defines the implemented new-only package ownership boundary and is the sole
-authority for its dependency DAG:
+authority for the package dependency DAG:
 
 - `@agent-teams/ci-input-proof` owns pure CI leaf comparison; consumer Hosts retain
   completeness, classification, source admission and execution/merge authority;
+- `@agent-teams/feature-module-standard` owns the opt-in Feature Module Standard
+  checks (pure kernel and shared conformance fixtures); no other package depends
+  on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
+  adds its node to the ADR-0043 graph. Implementation status: the pure kernel
+  and fixtures have no package dependency; the `./node` runner implements its
+  accepted optional peer edge to the public Foundation source graph and budgets;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

@@ -11,10 +11,12 @@ not repeat their rules.
 | Core terminology | [Foundation glossary](reference/glossary.md) | Active terminology contract for current documentation |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
 | CI input comparison | [Source admission](development/ci-input-proof-admission.md) | Initial source checkpoint; consumer conformance, package qualification and registry adoption pending |
+| Feature Module Standard checks | [Package admission](development/feature-module-standard-admission.md) | Kernel and runner implemented; deprecated bootstrap retained; supported release and consumer registry adoption pending |
 | Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Implemented and released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
+| Findings baseline, growth budgets, source graph | [Findings baseline](architecture/findings-baseline.md) | Implemented |
 | Executable specifications | [Executable specifications](reference/executable-specifications.md) | Accepted and implemented; activation is explicit |
 | Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
 | SDK growth S2 remediation | [Configuration, projection and evidence](reference/sdk-growth-s2-remediation.md) | Local remediation evidence; packed qualification and S3 authority remain separate |
@@ -49,7 +51,7 @@ not repeat their rules.
 | Agent architecture standard delivery | [Implementation plan](research/agent-architecture-standard-implementation-plan.md) | Accepted overlay-first vertical plan; irreversible contracts remain gated by neutral ADRs and conformance |
 | Agent architecture standard decisions | [Product decision brief](research/agent-architecture-standard-product-decisions.md) | D0-D11 accepted; D5 resolved overlay-first and D9 selects public non-latest RCs |
 | Agent architecture standard D5 evidence | [Operation spike](research/agent-architecture-standard-operation-spike.md) | Complete; independent adversarial review rejected three initial public operations |
-| Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0035 |
+| Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0061, which superseded ADR-0035 |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |

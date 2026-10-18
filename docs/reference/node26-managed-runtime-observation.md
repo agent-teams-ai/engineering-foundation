@@ -53,8 +53,9 @@ Repository Mutation's public `/serialization` owns strict JSON; identity and
 process callers have exact primitive admissions in the existing feature profile.
 Portable Docs Protocol retains portable application/qualification ownership.
 Host owns concrete provisioning, processes, effects and resource lifetime.
-There is no demonstrated second conforming consumer for a generic process
-service, so extraction is not admitted by the extraction admission invariant.
+This delivery introduces no generic process service in Foundation; any later
+shared extraction follows the
+[extraction admission invariant](../architecture/executable-capabilities.md#extraction-admission-invariant).
 
 Historical supplied CMS consultation includes Get Modular revision
 `9c722ceff4ede307d06d7a4b63fdebe615f54c53`, full-document SHA-256

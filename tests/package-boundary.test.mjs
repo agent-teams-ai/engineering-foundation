@@ -128,6 +128,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
       docsProtocolAgentTeamsName,
       docsProtocolMcpName,
       foundationName,
+      "@agent-teams/feature-module-standard",
     ],
   );
   const repositoryMutation = await json("packages/repository-mutation/package.json");

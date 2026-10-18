@@ -109,6 +109,15 @@ was created at the dispatch timestamp, expires within 24 hours, and has at least
 15 minutes remaining. Only then may the manual workflow run on the exact reviewed
 protected-main commit.
 
+Dispatch the workflow only after the `ci.yml` push run for that exact commit has
+completed green with all five proof contexts (`check`, `windows-check`,
+`macos-qualification`, `full-ci` and `linux-package`). The workflow no longer runs
+the test suite; its first step after the authority check proves that run through
+the Actions API and never waits, so an early dispatch fails at once with
+`CI_PROOF_PENDING` (or `CI_PROOF_NO_RUN`) and wastes the token window. The token
+is created at dispatch time. Create the token and dispatch only after that push run
+is green.
+
 The workflow performs one publish attempt only after the complete local and npm
 preflight. Public npm may expose only the requested `bootstrap` tag or may also
 create `latest` for a namespace's first version. The workflow never creates,
@@ -234,13 +243,29 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-seven-package DAG owned solely by `scripts/publishable-packages.mjs`.
+eight-package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
 source package outside that documentation Cohort. Its `0.1.0-rc.0` registry
 adoption is complete, and the narrow predecessor policy above governs ordinary
 successors as recorded in
 [CI Input Proof source admission](development/ci-input-proof-admission.md).
+The opt-in Feature Module Standard package is a second independent source
+package outside that Cohort, admitted by
+[ADR-0062](decisions/0062-feature-module-standard-package-admission.md); it has
+only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
+integrity and package tree remain in the historical catalog; the runner and its
+first supported `0.1.0` release pass the normal release gates.
+An internal package is declared once, as `workspace:*`. The one exception is an
+optional peer range (`peerDependencies` `workspace:^`) together with the workspace
+link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
+one edge for the closed DAG and publishes as `^<workspace version>`.
+The pinned Changesets configuration preserves an explicitly selected dependent
+release when the peer update stays within that range. An out-of-range update
+still triggers the planner's compatibility bump and requires review of release
+intent; the existing Changeset coverage tests exercise both cases through the
+installed planner. This keeps the initial Foundation 1.8.0 and FMS 0.1.0 train
+from becoming an unintended FMS 1.0.0 release.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version
@@ -460,7 +485,7 @@ release attester fails closed on ambiguous
 selection, a rerun attempt, a terminal approval-blocked run, changed provenance,
 an unexpected PR, forbidden diff, missing result, timeout, head change, or failed
 conclusion.
-Independent hosted review is recorded in pull-request comments and is not
+Independent review is recorded in the pull request and is not
 self-attested into a repository status. The obsolete `ReviewGate` workflow and
 required context were retired when repository governance decoupled hosted review
 from ReviewRouter OAuth. The stable required contexts remain `CodeQL`, `analyze`,

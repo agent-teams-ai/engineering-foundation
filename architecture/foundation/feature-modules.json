@@ -1004,7 +1004,9 @@
         "packages/engineering-foundation/src/local-mode/index.ts",
         "packages/engineering-foundation/src/scaffolding/index.ts",
         "packages/engineering-foundation/src/scaffolding/qualification.ts",
-        "packages/engineering-foundation/src/sdk-growth-authority.ts"
+        "packages/engineering-foundation/src/sdk-growth-authority.ts",
+        "packages/engineering-foundation/src/ratchet.ts",
+        "packages/engineering-foundation/src/source-graph.ts"
       ],
       "moduleAssembly": [
         "packages/engineering-foundation/src/index.ts",
@@ -1018,7 +1020,9 @@
         "packages/engineering-foundation/src/schema-ids.ts",
         "packages/engineering-foundation/src/foundation-state-contract.ts",
         "packages/engineering-foundation/src/scaffolding/qualification.ts",
-        "packages/engineering-foundation/src/sdk-growth-authority.ts"
+        "packages/engineering-foundation/src/sdk-growth-authority.ts",
+        "packages/engineering-foundation/src/ratchet.ts",
+        "packages/engineering-foundation/src/source-graph.ts"
       ],
       "generatedRoots": [],
       "exceptions": [
@@ -1133,6 +1137,10 @@
             },
             {
               "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/build-observed-source-graph.ts",
+              "owner": "engineering-foundation/source-dependencies"
+            },
+            {
+              "path": "packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/observe-source-graph.ts",
               "owner": "engineering-foundation/source-dependencies"
             },
             {
@@ -1781,7 +1789,8 @@
             "tests/source-dependency-v3-observation.test.mjs",
             "tests/source-dependency-v3-review-regressions.test.mjs",
             "tests/source-dependency-workspace-topology.test.mjs",
-            "tests/source-dependency-topology-ports.test.mjs"
+            "tests/source-dependency-topology-ports.test.mjs",
+            "tests/source-graph.test.mjs"
           ]
         },
         {
@@ -1812,6 +1821,36 @@
           ],
           "testRoots": [
             "tests/capability-policy.test.mjs"
+          ]
+        },
+        {
+          "id": "findings-baseline",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/findings-baseline/application",
+                "packages/engineering-foundation/src/capabilities/findings-baseline/contract",
+                "packages/engineering-foundation/src/capabilities/findings-baseline/schemas.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/findings-baseline/adapters"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/engineering-foundation/src/capabilities/findings-baseline/module.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/findings-baseline-ratchet.test.mjs",
+            "tests/findings-baseline-capability.test.mjs"
           ]
         },
         {
@@ -2020,6 +2059,131 @@
       "testRoots": [
         "tests/features/input-comparison/ci-input-proof.test.mts",
         "tests/features/input-comparison/ci-input-proof-process.test.mts"
+      ]
+    },
+    {
+      "id": "feature-module-standard",
+      "packageName": "@agent-teams/feature-module-standard",
+      "root": "packages/feature-module-standard",
+      "sourceRoot": "packages/feature-module-standard/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/feature-module-standard/src/features",
+      "publicEntrypoints": [
+        "packages/feature-module-standard/src/index.ts",
+        "packages/feature-module-standard/src/fixtures.ts",
+        "packages/feature-module-standard/src/node.ts"
+      ],
+      "moduleAssembly": [
+        "packages/feature-module-standard/src/index.ts",
+        "packages/feature-module-standard/src/fixtures.ts",
+        "packages/feature-module-standard/src/node.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "feature-model",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "domain",
+              "roots": [
+                "packages/feature-module-standard/src/features/feature-model/domain"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/module-check.test.mts"
+          ]
+        },
+        {
+          "id": "feature-layout",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/feature-layout/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/layout.test.mts"
+          ]
+        },
+        {
+          "id": "feature-dependencies",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/feature-dependencies/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/dependencies.test.mts"
+          ]
+        },
+        {
+          "id": "module-check",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/module-check/application"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/module-check.test.mts"
+          ]
+        },
+        {
+          "id": "conformance-fixtures",
+          "role": "testing",
+          "layers": [
+            {
+              "role": "testing",
+              "roots": [
+                "packages/feature-module-standard/src/features/conformance-fixtures/testing"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/conformance.test.mts"
+          ]
+        },
+        {
+          "id": "node-runner",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/feature-module-standard/src/features/node-runner/application"
+              ]
+            },
+            {
+              "role": "composition",
+              "roots": [
+                "packages/feature-module-standard/src/features/node-runner/composition"
+              ]
+            }
+          ],
+          "testRoots": [
+            "tests/features/feature-module-standard/node-runner.test.mts"
+          ]
+        }
+      ],
+      "testRoots": [
+        "tests/features/feature-module-standard/conformance.test.mts",
+        "tests/features/feature-module-standard/dependencies.test.mts",
+        "tests/features/feature-module-standard/layout.test.mts",
+        "tests/features/feature-module-standard/module-check.test.mts",
+        "tests/features/feature-module-standard/node-runner.test.mts"
       ]
     }
   ],

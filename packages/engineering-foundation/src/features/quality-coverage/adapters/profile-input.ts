@@ -80,13 +80,16 @@ function nestedTopology(input: Record<string, unknown>): QualityTopology {
   };
 }
 
+// v1.1 adds sub-features and composition contracts below a module; the module-level topology read here is unchanged.
+const fmsVersions: ReadonlySet<unknown> = new Set(["v1", "v1.1"]);
+
 /** Normalize qualified flat and nested FMS forms; adoption status does not filter production. */
 export function mapQualityTopology(value: unknown, sourcePolicyPath: string): QualityTopology {
   const input = qualityRecord(value);
   const nested = input["authority"] !== undefined;
   const standard = qualityRecord(nested ? input["authority"] : input["standard"]);
-  if (input["schemaVersion"] !== 1 || standard["id"] !== "agent-teams.feature-module-standard" || standard["version"] !== "v1") {
-    invalidQualityInput("Quality coverage requires an FMS v1 production mapping.");
+  if (input["schemaVersion"] !== 1 || standard["id"] !== "agent-teams.feature-module-standard" || !fmsVersions.has(standard["version"])) {
+    invalidQualityInput("Quality coverage requires an FMS v1 or v1.1 production mapping.");
   }
   if (nested) { return nestedTopology(input); }
   const topology = qualityRecord(input["topology"]);

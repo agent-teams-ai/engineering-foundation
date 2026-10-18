@@ -1,7 +1,9 @@
+import { findCycles, layerDirectionAllowed } from "../../packages/feature-module-standard/dist/index.js";
 import { classify, consumerIdentity, executableSources, problem, within } from "./profile.mjs";
 import { indexSurfaces, surfaceBindings } from "./surfaces.mjs";
 import { invalidAssemblyStatements } from "./assembly.mjs";
 import { deterministicHashImport, validatePrimitiveSyntax } from "./purity.mjs";
+import { kernelProblems } from "./kernel.mjs";
 
 const foundation = "../../packages/engineering-foundation/dist/";
 const capability = `${foundation}capabilities/source-dependencies/`;
@@ -62,45 +64,17 @@ function boundaryFor(path, policy) {
   return matches.length === 1 ? matches[0] : undefined;
 }
 const sameFeature = (a, b) => a.module.id === b.module.id && a.feature?.id === b.feature?.id;
-const layerTargets = {
-  domain: ["domain"], application: ["domain", "application"],
-  contracts: ["contracts"], adapters: ["adapters", "application", "domain", "contracts"],
-  composition: ["domain", "application", "contracts", "adapters", "composition"],
-  testing: ["domain", "application", "contracts", "adapters", "composition", "testing"]
-};
+// Layer direction and cycle search are Feature Module Standard kernel semantics. EF keeps two local strengthenings
+// on top of the standard: contracts never import another feature, and another module's exported API is judged
+// with the inside-one-feature table.
 function allowedDirection(from, to) {
   const role = from.layer.role;
   const target = to.layer?.role;
   if (to.kind === "primitive") {return target === "domain";}
   if (to.kind !== "feature") {return false;}
-  // The sibling-feature restriction does not prohibit a module's integration
-  // adapter from consuming another module's explicitly exported API.
-  if (from.module.id !== to.module.id) {return layerTargets[role]?.includes(target) ?? false;}
-  if (!sameFeature(from, to)) {
-    if (role === "domain") {return target === "domain";}
-    if (role === "application") {return ["domain", "application"].includes(target);}
-    return ["composition", "testing"].includes(role);
-  }
-  return layerTargets[role]?.includes(target) ?? false;
-}
-export function cycles(edges) {
-  const graph = new Map();
-  for (const [from, to] of edges) {
-    if (from === to) {continue;}
-    if (!graph.has(from)) {graph.set(from, new Set());}
-    graph.get(from).add(to);
-  }
-  const active = [], complete = new Set(), found = [];
-  function visit(node) {
-    if (active.includes(node)) { found.push([...active.slice(active.indexOf(node)), node]); return; }
-    if (complete.has(node)) {return;}
-    active.push(node);
-    for (const target of [...(graph.get(node) ?? [])].toSorted()) {visit(target);}
-    active.pop();
-    complete.add(node);
-  }
-  for (const node of [...graph.keys()].toSorted()) {visit(node);}
-  return found;
+  if (from.module.id !== to.module.id) {return layerDirectionAllowed(role, target, "same-feature");}
+  if (!sameFeature(from, to)) {return role !== "contracts" && layerDirectionAllowed(role, target, "other-feature");}
+  return layerDirectionAllowed(role, target, "same-feature");
 }
 const key = (owner) => `${owner?.module.id}/${owner?.feature?.id}/${owner?.layer?.role}/${owner?.kind}`;
 export function validateTopology(profile, policy, problems) {
@@ -126,7 +100,7 @@ export function validateTopology(profile, policy, problems) {
       }
     }
   }
-  for (const cycle of cycles(edges)) {problem(problems, "feature-cycle", `Declared feature graph: ${cycle.join(" -> ")}`);}
+  for (const cycle of findCycles(edges)) {problem(problems, "feature-cycle", `Declared feature graph: ${cycle.join(" -> ")}`);}
 }
 function validateExternal(from, { path, result, reference }, problems, sources) {
       const pureHash = result.kind === "builtin" && result.specifier === "node:crypto" &&
@@ -144,27 +118,23 @@ function validateDirection(from, to, path, target, problems) {
     problem(problems, "layer-direction", `${path} -> ${target}: ${from.layer.role} cannot import ${to.layer?.role ?? to.kind}.`);
   }
 }
-function workspaceOwners(from, observation, bindings, problems, edges) {
+function workspaceOwners(from, observation, bindings, problems) {
   const owners = bindings.owners(observation);
   if (owners.some((entry) => !entry?.owner)) {
     problem(problems, "surface-ownership", `${observation.path} -> ${observation.reference.specifier}: unknown or ambiguous exported binding ownership.`);
   }
   for (const entry of owners.filter((item) => item?.owner)) {
     validateDirection(from, entry.owner, observation.path, entry.path, problems);
-    if (from.kind === "feature" && entry.owner.kind === "feature" && !sameFeature(from, entry.owner)) {
-      edges.push([`${from.module.id}/${from.feature.id}`, `${entry.owner.module.id}/${entry.owner.feature.id}`]);
-    }
   }
 }
 export function validateObservations(profile, policy, observations, problems, surfaces) {
   const { sources, bindings } = surfaces;
-  const edges = [];
   for (const observation of observations) {
     const { path, result } = observation;
     const from = classify(path, profile);
     if (!from) {continue;}
     if (result.kind === "workspace-package") {
-      workspaceOwners(from, observation, bindings, problems, edges);
+      workspaceOwners(from, observation, bindings, problems);
       continue;
     }
     if (result.kind !== "local-file") {
@@ -173,15 +143,20 @@ export function validateObservations(profile, policy, observations, problems, su
     }
     const to = classify(result.path, profile);
     if (!to) { problem(problems, "unowned-edge", `${path} -> ${result.path}`); continue; }
+    if (from.kind === "feature" && to.kind === "feature" && from.module.id === to.module.id) {
+      // The kernel judges this edge; a contracts layer never reaching another feature is the one local strengthening.
+      if (from.layer.role === "contracts" && to.layer?.role === "contracts" && !sameFeature(from, to)) {
+        problem(problems, "layer-direction", `${path} -> ${result.path}: contracts cannot import another feature.`);
+      }
+      continue;
+    }
     validateDirection(from, to, path, result.path, problems);
-    const crossesFeature = !sameFeature(from, to) || from.kind !== to.kind;
-    if (crossesFeature && to.kind === "feature") {
+    if (to.kind === "feature" && (!sameFeature(from, to) || from.kind !== to.kind)) {
       const boundary = boundaryFor(result.path, policy);
       if (!boundary?.entrypoints?.includes(result.path)) {problem(problems, "cross-feature-deep-import", `${path} -> ${result.path}`);}
     }
-    if (from.kind === "feature" && to.kind === "feature" && !sameFeature(from, to)) {edges.push([`${from.module.id}/${from.feature.id}`, `${to.module.id}/${to.feature.id}`]);}
   }
-  for (const cycle of cycles(edges)) {problem(problems, "feature-cycle", `Observed feature graph: ${cycle.join(" -> ")}`);}
+  kernelProblems(profile, policy, [...sources.keys()], observations, problems);
   validatePrimitiveConsumers(profile, observations, bindings, problems);
 }
 function validatePrimitiveConsumers(profile, observations, bindings, problems) {

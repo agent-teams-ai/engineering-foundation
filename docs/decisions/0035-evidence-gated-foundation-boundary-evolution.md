@@ -1,8 +1,8 @@
 ---
 id: ADR-0035
-status: accepted
+status: superseded
 supersedes: []
-superseded_by: []
+superseded_by: [ADR-0061]
 ---
 
 # ADR-0035: Evidence-Gated Foundation Boundary Evolution

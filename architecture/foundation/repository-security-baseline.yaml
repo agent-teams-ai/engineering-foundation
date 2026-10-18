@@ -68,6 +68,7 @@ privilegedJobs:
   - workflowPath: .github/workflows/npm-package-bootstrap.yml
     jobId: bootstrap
     permissions:
+      actions: read
       contents: read
       id-token: write
   - workflowPath: .github/workflows/npm-package-bootstrap.yml
@@ -124,3 +125,4 @@ publishablePackageManifests:
   - packages/docs-protocol-agent-teams/package.json
   - packages/docs-protocol-mcp/package.json
   - packages/ci-input-proof/package.json
+  - packages/feature-module-standard/package.json

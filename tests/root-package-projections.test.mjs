@@ -98,8 +98,10 @@ test("current projection preserves the ADR-0043 DAG and independent CI input pac
     "@agent-teams/docs-protocol-agent-teams",
     "@agent-teams/docs-protocol-mcp",
     "@agent-teams/engineering-foundation",
+    "@agent-teams/feature-module-standard",
   ]);
   assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/ci-input-proof"], []);
+  assert.deepEqual(PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/feature-module-standard"], []);
   assert.deepEqual(
     PUBLISHABLE_PACKAGE_DEPENDENCIES["@agent-teams/document-authoring"],
     ["@agent-teams/repository-mutation"],

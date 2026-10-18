@@ -22,8 +22,8 @@ globalThis.readProbeFile = async (path, options) => {
   const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
   // Model Changesets' staged release only in this child. The source package's
   // unreleased changelog must remain unreleased outside the intercepted read.
-  const stagedNotes = info.name === '@agent-teams/ci-input-proof'
-    ? `# CI Input Proof\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
+  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/feature-module-standard'].includes(info.name)
+    ? `# Staged package\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
   const notes = scenario.startsWith('notes-')
     ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : stagedNotes;
   return notes.replace(/\r?\n/gu, changelogEol === 'crlf' ? '\r\n' : '\n');
@@ -46,6 +46,7 @@ const expectedPublications = [
   '@agent-teams/docs-protocol-agent-teams',
   '@agent-teams/docs-protocol-mcp',
   '@agent-teams/engineering-foundation',
+  '@agent-teams/feature-module-standard',
 ];
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.

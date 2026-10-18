@@ -247,6 +247,18 @@ function evaluateDeclaration(input: {
   return diagnostics;
 }
 
+// A peer range and the development copy of the same package are one intent, not a duplicate.
+const isPeerWithDevelopmentLink = (
+  declarations: readonly Pick<DependencyDeclaration, "section" | "targetPackageName">[]
+): boolean => {
+  const peer = declarations.find(({ section }) => section === "peerDependencies");
+  const development = declarations.find(({ section }) => section === "devDependencies");
+  return declarations.length === 2 &&
+    peer !== undefined &&
+    development !== undefined &&
+    peer.targetPackageName === development.targetPackageName;
+};
+
 function evaluateDeclarations(
   snapshot: WorkspaceSnapshot,
   policy: WorkspaceDependencyPolicy
@@ -274,7 +286,7 @@ function evaluateDeclarations(
       (declaration) => declaration.dependencyName
     );
     for (const [dependencyName, declarations] of grouped) {
-      if (declarations.length > 1) {
+      if (declarations.length > 1 && !isPeerWithDevelopmentLink(declarations)) {
         diagnostics.push(
           diagnostic({
             rule: RULES.dependencyDeclaredMultipleTimes,

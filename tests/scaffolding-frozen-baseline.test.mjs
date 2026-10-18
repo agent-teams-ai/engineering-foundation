@@ -250,9 +250,17 @@ test("validates the release-owned public API baseline and freezes the package ex
       types: "./dist/scaffolding/qualification.d.ts",
       import: "./dist/scaffolding/qualification.js"
     },
+    "./ratchet": {
+      types: "./dist/ratchet.d.ts",
+      import: "./dist/ratchet.js"
+    },
     "./sdk-growth-authority": {
       types: "./dist/sdk-growth-authority.d.ts",
       import: "./dist/sdk-growth-authority.js"
+    },
+    "./source-graph": {
+      types: "./dist/source-graph.d.ts",
+      import: "./dist/source-graph.js"
     }
   });
 });
@@ -275,6 +283,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/package-public-api-audit-request/v1.schema.json",
     "schemas/foundation-config/v2.schema.json",
     "schemas/package-public-api-compatibility/v2.schema.json",
+    "schemas/quality-findings-baseline/v1.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
     "schemas/quality-gate-runner/v1.schema.json",
     "schemas/quality-gate-runner/v2.schema.json",

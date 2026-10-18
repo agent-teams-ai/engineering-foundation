@@ -20,6 +20,8 @@ import {
 
 import { loadCapabilityConfig, type SourceArchitectureConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
 import { loadStrictYamlFile } from "../../features/configuration-input/node.js";
+import { createSourceTreeReader } from "../../source-inventory/module.js";
+import { observeSourceGraph as observe, type ObserveSourceGraphInput, type SourceGraph } from "./application/use-cases/observe-source-graph.js";
 import { readContainedRegularFile } from "../../source-inventory/node.js";
 import type { SourceWorkspaceFileReader } from "./api.js";
 
@@ -27,6 +29,11 @@ const fileReader: SourceWorkspaceFileReader = { read: readContainedRegularFile }
 
 export { SOURCE_DEPENDENCY_RULES_BY_ID };
 export { createSourceCensusReader } from "./adapters/outbound/node/source-census-reader.js";
+export { stronglyConnectedComponents } from "./application/use-cases/observe-source-graph.js";
+export type {
+  ObserveSourceGraphInput, SourceGraph, SourceGraphEdge, SourceGraphExport, SourceGraphExternal,
+  SourceGraphFileExports, SourceGraphReferenceKind, SourceGraphRuntimeReference, SourceGraphUnresolved, SourceGraphUnsupportedExport
+} from "./application/use-cases/observe-source-graph.js";
 export { createSourceArchitecturePolicyReader } from "./adapters/inbound/configuration/load-capability-config.js";
 
 export interface SourceDependenciesCapabilityDependencies {
@@ -85,4 +92,9 @@ export function createSourceDependenciesCapability(input: SourceDependenciesCapa
       }
     }
   });
+}
+
+/** The files under `input.roots` and their resolved import edges; no architecture vocabulary. */
+export function observeSourceGraph(input: ObserveSourceGraphInput): Promise<SourceGraph> {
+  return observe(input, { parser: new OxcSourceDependencyParser(), resolver: new NodeSourceDependencyResolver(), sourceReader: createSourceTreeReader() });
 }

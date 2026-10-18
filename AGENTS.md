@@ -8,6 +8,11 @@ Hard rules:
 - never import this package from production runtime code;
 - keep consumer-specific catalogs, bounded contexts, classifications, and ADRs in
   the consumer repository;
+- keep core capabilities architecture-neutral and do not extend the recorded
+  `quality.source-coverage` exception beyond the Feature Module Standard; checks
+  for a standard that defines one architecture's layout or vocabulary ship only
+  as an opt-in package named after it (see
+  [Architecture neutrality](docs/architecture/executable-capabilities.md#architecture-neutrality));
 - follow the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)
   before moving consumer implementations into Foundation;
 - keep registry mode reproducible and local mode explicit;
@@ -36,10 +41,17 @@ Hard rules:
   blindly retry writes. Use the user's authorized credential for a labeled
   request; `GITHUB_TOKEN` labeling suppresses that workflow event. Follow the
   [request and recovery contract](docs/development/quality-gates.md);
-- use the reviewed pinned `ci:merge` operator path outside the candidate checkout,
-  binding the actual protected hosted receipt and complete source tree to the
-  final head/base/ref; do not substitute a caller-supplied review JSON;
-- retain independent hosted technical review in PR comments; `ReviewGate` is
+- `ci:merge` is an optional, stricter operator path for a change whose review
+  ran as a hosted job; when used, run the reviewed pinned tool outside the
+  candidate checkout, binding the actual protected hosted receipt and complete
+  source tree to the final head/base/ref; do not substitute a caller-supplied
+  review JSON;
+- the merging agent records the independent review in the pull request
+  (description or comment) with the reviewer role (not a model or tool name),
+  the reviewed head SHA and the verdict. It chooses the review form (for example
+  a separate local reviewer agent or a hosted review job); a completed
+  independent review of the current head is sufficient, so no additional hosted
+  review is required. `ReviewGate` is
   retired and review must not become a self-attested Actions status. Before an
   owner squash, revalidate the current PR head/base, merge intent, complete native
   evidence and independent review, then use the canonical organization

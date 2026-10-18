@@ -18,6 +18,12 @@ export const PUBLISHABLE_PACKAGE_CATALOG = Object.freeze([
     root: "packages/ci-input-proof",
   }),
   Object.freeze({
+    changelogPath: "packages/feature-module-standard/CHANGELOG.md",
+    manifestPath: "packages/feature-module-standard/package.json",
+    name: "@agent-teams/feature-module-standard",
+    root: "packages/feature-module-standard",
+  }),
+  Object.freeze({
     changelogPath: "packages/repository-mutation/CHANGELOG.md",
     manifestPath: "packages/repository-mutation/package.json",
     name: "@agent-teams/repository-mutation",
@@ -114,8 +120,28 @@ function manifestFor(manifestsByName, entry) {
   return manifest;
 }
 
+// An internal package is declared once, as workspace:*. The one allowed pair is an optional runtime peer range
+// (peerDependencies workspace:^, published as ^<workspace version>) together with the workspace link that builds and tests it
+// (devDependencies workspace:*); the pair is one ordering edge, recorded under peerDependencies.
+function internalDeclaration(ownerName, name, uses, optionalPeer) {
+  const pair = uses.length === 2 &&
+    optionalPeer === true &&
+    uses.some(({ reference, section }) => section === "peerDependencies" && reference === "workspace:^") &&
+    uses.some(({ reference, section }) => section === "devDependencies" && reference === "workspace:*");
+  if (pair) {
+    return Object.freeze({ name, section: "peerDependencies" });
+  }
+  if (uses.length > 1) {
+    fail(`${ownerName} declares an internal package in multiple dependency sections`);
+  }
+  if (uses[0].reference !== "workspace:*") {
+    fail(`${ownerName} must reference internal package ${name} as workspace:*`);
+  }
+  return Object.freeze({ name, section: uses[0].section });
+}
+
 function dependencyDeclarations(manifest, ownerName, qualifiedNames) {
-  const declarations = [];
+  const found = new Map();
   for (const section of DEPENDENCY_SECTIONS) {
     const dependencies = manifest[section];
     if (dependencies === undefined) {
@@ -137,16 +163,11 @@ function dependencyDeclarations(manifest, ownerName, qualifiedNames) {
       if (name === ownerName) {
         fail(`${ownerName} declares a self dependency`);
       }
-      if (reference !== "workspace:*") {
-        fail(`${ownerName} must reference internal package ${name} as workspace:*`);
-      }
-      declarations.push(Object.freeze({ name, section }));
+      found.set(name, [...(found.get(name) ?? []), { reference, section }]);
     }
   }
-  const names = declarations.map(({ name }) => name);
-  if (new Set(names).size !== names.length) {
-    fail(`${ownerName} declares an internal package in multiple dependency sections`);
-  }
+  const declarations = [...found].map(([name, uses]) =>
+    internalDeclaration(ownerName, name, uses, manifest.peerDependenciesMeta?.[name]?.optional));
   return Object.freeze(declarations.toSorted((left, right) =>
     left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }

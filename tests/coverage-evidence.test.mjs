@@ -343,7 +343,7 @@ test("paired evidence materializes canonical URLs and source maps without changi
   }
 
   const reports = join(merged, "reports");
-  await executeFile("pnpm", ["exec", "c8", "report", "--temp-directory", merged,
+  await executeFile(process.execPath, [join(repositoryRoot, "node_modules", "c8", "bin", "c8.js"), "report", "--temp-directory", merged,
     "--reports-dir", reports, "--reporter=json", "--include", productionPath], { cwd: repositoryRoot });
   const coverage = JSON.parse(await readFile(join(reports, "coverage-final.json"), "utf8"));
   assert.equal(coverage[join(repositoryRoot, productionPath)].f["0"], 11);

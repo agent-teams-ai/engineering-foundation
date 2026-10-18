@@ -289,6 +289,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-gate-runner/v2.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
+    "schemas/repository-agent-workflow/v2.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
   assert.deepEqual(
@@ -312,15 +313,15 @@ test("keeps packed and registry-install qualification wired", async () => {
   );
   assert.equal(
     repositoryManifest.scripts["registry-install-e2e:built"],
-    vector.packedE2e.registryInstallBuilt,
+    "node tools/repository-command.mts tool registry-install-e2e:built",
   );
   assert.equal(
     repositoryManifest.scripts["published-compatibility:e2e"],
-    "node scripts/published-compatibility-e2e.mjs",
+    "node tools/repository-command.mts tool published-compatibility:e2e",
   );
   assert.equal(
     repositoryManifest.scripts["public-docs-release:e2e"],
-    "node scripts/public-docs-release-e2e.mjs",
+    "node tools/repository-command.mts tool public-docs-release:e2e",
   );
   assert.match(
     await readFile(join(repositoryRoot, "scripts", "pack-test.mjs"), "utf8"),

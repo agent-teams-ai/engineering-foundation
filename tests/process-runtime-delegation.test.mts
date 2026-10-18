@@ -28,6 +28,8 @@ import { createNodeQualityGateCommand } from "../packages/engineering-foundation
 import { createNodeAgentWorkflowCommands } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/composition/node-commands.js";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import type { ManagedProcessRequest } from "../packages/engineering-foundation/dist/process-execution/api.js";
+import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 
 const childRuntime = process.env["PROCESS_RUNTIME_DELEGATION_NODE"] ?? process.execPath;
 const fixtureParent = process.env["PROCESS_RUNTIME_DELEGATION_TEST_ROOT"] ??
@@ -499,7 +501,13 @@ test("wrapper diagnostics forward once and retain a sliding copied last 64KiB", 
 
 async function runtimeGateFixture(packageManager: "bun" | "pnpm" = "bun"): Promise<string> {
   const root = mkdtempSync(join(fixtureRoot, "runtime-gate-"));
-  await writeFile(join(root, "package.json"), JSON.stringify({ scripts: { check: "node -e \"process.exit(0)\"" } }));
+  const policy = await readRepositoryRuntimePolicy();
+  const managerVersion = packageManager === "bun" ? policy.toolchain.bun.version : policy.toolchain.pnpm.version;
+  await writeFile(join(root, "package.json"), JSON.stringify({
+    private: true, packageManager: `${packageManager}@${managerVersion}`,
+    scripts: { check: "node -e \"process.exit(0)\"" }
+  }));
+  await writeFile(join(root, "pnpm-workspace.yaml"), "packages: []\n");
   await writeFile(join(root, "gate.yaml"), JSON.stringify({
     schemaVersion: 2,
     profiles: [{ id: "check", packageManager, concurrency: 1, tasks: [{ id: "check" }] }]
@@ -607,10 +615,15 @@ test("runtime verifier accepts real Node and rejects symlinks and non-executable
 });
 
 test("quality gate composition runs a real Node/pnpm package script", async () => {
+  const policy = await readRepositoryRuntimePolicy();
+  const manager = await resolvePnpmInvocation(childRuntime, policy.toolchain.pnpm.version);
+  const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
+  assert.ok(pnpm);
   const command = createNodeQualityGateCommand({
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime,
     PATH: process.env["PATH"],
-    npm_execpath: process.env["npm_execpath"],
+    npm_execpath: pnpm,
+    AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpm,
     PNPM_HOME: process.env["PNPM_HOME"],
     SystemRoot: process.env["SystemRoot"],
     ComSpec: process.env["ComSpec"]

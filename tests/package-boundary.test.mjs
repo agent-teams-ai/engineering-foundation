@@ -229,19 +229,19 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
 
 test("Foundation self-dogfood lifecycle is build-gated and source-owned", async () => {
   const workspace = await json("package.json");
-  assert.equal(workspace.scripts["foundation:bootstrap"], "pnpm build");
+  assert.equal(workspace.scripts["foundation:bootstrap"], "node tools/repository-command.mts script build");
   assert.equal(
     workspace.scripts["foundation:dogfood"],
-    "pnpm foundation:bootstrap && pnpm foundation:check:built",
+    "node tools/repository-command.mts script foundation:bootstrap && node tools/repository-command.mts script foundation:check:built",
   );
   assert.equal(
     workspace.scripts["foundation:qualification"],
-    "pnpm foundation:dogfood && pnpm package:check:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e",
+    "node tools/repository-command.mts script foundation:dogfood && node tools/repository-command.mts script package:check:built && node tools/repository-command.mts script registry-install-e2e:built && node tools/repository-command.mts script published-compatibility:e2e",
   );
-  assert.equal(workspace.scripts["foundation:check"], "pnpm foundation:dogfood");
+  assert.equal(workspace.scripts["foundation:check"], "node tools/repository-command.mts script foundation:dogfood");
   assert.equal(
     workspace.scripts["foundation:check:built"],
-    "node packages/engineering-foundation/dist/cli.js check --consumer .",
+    "node tools/repository-command.mts tool foundation:check:built",
   );
   assert.doesNotMatch(
     workspace.scripts["foundation:check:built"],

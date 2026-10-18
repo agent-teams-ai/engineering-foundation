@@ -14,6 +14,9 @@ import { BunQualityGateScriptExecutor } from "../packages/engineering-foundation
 import { createPackageManagerScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/composition/select-package-script-executor.js";
 import { resolveRepositoryRuntimeExecutables } from "../packages/engineering-foundation/dist/process-execution/application/runtime-selection.js";
 import { RecordingManagedProcessExecutor } from "./support/quality-gate-runtime-adapters.mts";
+import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
+import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 
 test("quality gate configuration no longer joins the module schema assembly cycle", async () => {
   await assertFeatureOutsideSchemaCycles("quality-gate-runner");
@@ -59,18 +62,20 @@ test("v1 typed custom policy loaders retain the root pnpm contract", () => {
 });
 
 test("real Bun and pnpm managers preserve their selected ordinary leaf runtime", async () => {
-  const root = await mkdtemp(join(tmpdir(), "foundation-runtime-profiles-"));
-  const bunRoot = join(root, "bun");
-  const nodeRoot = join(root, "node");
   const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
   const cli = join(repositoryRoot, "packages/engineering-foundation/dist/cli.js");
   const dispatcher = join(repositoryRoot, "tools/repository-command.mts");
-  const bun = process.env["AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"] ??
-    join(repositoryRoot, "node_modules/.job-scratch/toolchains/bun/bun-linux-x64/bun");
-  const node = process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"] ?? process.execPath;
+  const runtime = await resolveQualificationExecutables("bun");
+  const { node, bun } = runtime;
+  assert.ok(bun);
   const nodeVersion = spawnSync(node, ["-p", "process.versions.node"], { encoding: "utf8" }).stdout.trim();
-  const pnpm = process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"] ??
-    join(repositoryRoot, "node_modules/.job-scratch/toolchains/pnpm/artifacts/exe/dist/pnpm.mjs");
+  const policy = await readRepositoryRuntimePolicy();
+  const manager = await resolvePnpmInvocation(node, policy.toolchain.pnpm.version);
+  const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
+  assert.ok(pnpm);
+  const root = await mkdtemp(join(tmpdir(), "foundation-runtime-profiles-"));
+  const bunRoot = join(root, "bun");
+  const nodeRoot = join(root, "node");
   const observation = join(root, "observation.ndjson");
   try {
     const writeFixture = async (fixtureRoot, packageManager) => {
@@ -141,11 +146,13 @@ test("public Node 24 constructs the CLI and executes a real pnpm QGR profile", a
   if (node === undefined) {
     return;
   }
-  const root = await mkdtemp(join(tmpdir(), "foundation-public-node24-"));
   const cli = join(repositoryRoot, "packages/engineering-foundation/dist/cli.js");
   const harness = join(repositoryRoot, "tests/support/record-repository-runtime.mts");
-  const pnpm = process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"] ??
-    join(repositoryRoot, "node_modules/.job-scratch/toolchains/pnpm/artifacts/exe/dist/pnpm.mjs");
+  const policy = await readRepositoryRuntimePolicy();
+  const manager = await resolvePnpmInvocation(node, policy.toolchain.pnpm.version);
+  const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
+  assert.ok(pnpm);
+  const root = await mkdtemp(join(tmpdir(), "foundation-public-node24-"));
   const observation = join(root, "observation.ndjson");
   try {
     await writeFile(join(root, "package.json"), `${JSON.stringify({

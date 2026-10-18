@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.7.4",
+  "packageVersion": "1.8.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -44,6 +44,7 @@
         "schemas/package-public-api-compatibility/v2.schema.json",
         "schemas/quality-executable-specification-catalog/v1.schema.json",
         "schemas/quality-executable-specifications/v1.schema.json",
+        "schemas/quality-findings-baseline/v1.schema.json",
         "schemas/quality-gate-run-report/v1.schema.json",
         "schemas/quality-gate-runner/v1.schema.json",
         "schemas/quality-source-coverage/v1.schema.json",
@@ -342,6 +343,16 @@
       "path": "schemas/quality-executable-specifications/v1.schema.json",
       "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-executable-specifications/v1",
       "digest": "sha256:0ef57d391d8f2cb2cc2a7969674966efe2913f31ac9f7c33064db00e48427c2a",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/quality-findings-baseline/v1.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-findings-baseline/v1",
+      "digest": "sha256:dafb236d718bd4565728ae723a9bd0cf1103307c6db97e9142bdac805009f2c9",
       "discriminators": {
         "schemaVersion": {
           "const": 1

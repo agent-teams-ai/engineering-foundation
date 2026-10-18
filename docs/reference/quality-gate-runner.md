@@ -62,8 +62,41 @@ profiles:
 
 Every task `id` is both its graph identity and an allowlisted existing root
 `package.json` script ID. Configuration cannot provide commands, arguments,
-executables, environment variables, working directories, or plugins. The Node
-adapter invokes exactly `pnpm run <id>` without a shell at the process boundary.
+executables, environment variables, working directories, or plugins. The
+package-script adapter invokes exactly `bun run <id>` or `pnpm run <id>` without
+a shell at the process boundary.
+
+Schema v2 places `packageManager: bun | pnpm` on each named profile:
+
+```yaml
+schemaVersion: 2
+profiles:
+  - id: bun-check-fast
+    packageManager: bun
+    concurrency: 3
+    tasks: [{ id: check:fast }]
+  - id: node-check-fast
+    packageManager: pnpm
+    concurrency: 3
+    tasks: [{ id: check:fast }]
+```
+
+Schema v1 remains byte-stable and keeps its root `packageManager: pnpm`. Loading
+v1 normalizes that existing meaning onto every internal profile; it does not
+make the root value optional or permit Bun in v1. The selected profile manager
+is validated with the profile and graph before the closed outer adapter switch
+performs any task effect. Bun uses one verified Bun executable. A JavaScript
+pnpm entrypoint uses one explicit verified Node executable and never treats
+`process.execPath` as Node while Bun is executing.
+
+Manager selection and ordinary leaf runtime selection are separate. The QGR
+composition root reads and forwards `AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE`,
+`AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE` and
+`AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE` to select and verify runtime executables.
+The repository-agent-workflow composition root selects and verifies executables
+from its explicit Node and Bun executable inputs; it does not forward the QGR
+runtime-profile marker. Root package scripts continue to use the repository Node default;
+there is no root repository-command dispatcher.
 
 - `needs` waits for the referenced tasks and runs only if all passed. Otherwise
   the task is `blocked`.
@@ -135,14 +168,16 @@ This runner is an inbound helper owned by the existing
 `quality.gate-runner` feature. It adds no consumer module, capability ID, or
 composition boundary. The consumer retains its test inventory and exceptions;
 Foundation supplies only the reusable contract and Node adapter.
-The current Get Modular Consumer Module Standard input
+The historical Get Modular Consumer Module Standard input
 (`.task-inputs/current-common-assembly.md`, commit
 `6b31f20fe3e5fb8324812aa2ee907905751cde71`, complete-byte SHA-256
 `d5bb71e5a700014f9f0a09b17d1f33d24b30b66c49b273c9fb65584672c51e4f`)
 permits fixed private helpers inside one cohesive feature without an Assembly
 handle. This command uses the existing QGR feature owner, exact public entry
 and process assembly declaration, and the narrowly admitted `node:test` adapter.
-It introduces no new production composition root or lifecycle graph node.
+It introduces no new production composition root or lifecycle graph node. The
+current authority delta and closed-seam classification are recorded in
+[Runtime profile static seam](../architecture/runtime-profile-static-seam.md).
 The existing `architecture/foundation/feature-modules.json` pin is for the
 organization Feature Module Standard v1; it is not a Get Modular Consumer
 Module Standard pin or adoption profile. This comparison records the

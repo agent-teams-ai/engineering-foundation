@@ -57,6 +57,12 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     qualityCoverage: dependencies.createQualityCommand(processExecutor, process.execPath, environment),
     findingsBaseline: dependencies.createFindingsBaselineCommands(process.execPath, environment),
     agentWorkflow: createNodeAgentWorkflowCommands({
+      ...(environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE === undefined
+        ? {}
+        : { bunExecutablePath: environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE }),
+      ...(environment.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE === undefined
+        ? {}
+        : { nodeExecutablePath: environment.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE }),
       ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),
       ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })

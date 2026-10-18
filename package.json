@@ -93,6 +93,7 @@
     "esbuild": "catalog:",
     "fast-check": "catalog:",
     "knip": "catalog:",
+    "node-or-bun": "catalog:",
     "nx": "catalog:",
     "oxc-parser": "catalog:",
     "oxlint": "catalog:",

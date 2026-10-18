@@ -66,6 +66,9 @@ catalogs:
     minisearch:
       specifier: 7.2.0
       version: 7.2.0
+    node-or-bun:
+      specifier: 0.2.1
+      version: 0.2.1
     nx:
       specifier: 23.1.1
       version: 23.1.1
@@ -123,12 +126,6 @@ pnpmfileChecksum: sha256-QaZoGkoapTRcxbf3tl10MVvcbpsQhOtkG4+cTPNGWeg=
 
 importers:
 
-  packages/ci-input-proof:
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 7.0.2
-
   .:
     devDependencies:
       '@arethetypeswrong/cli':
@@ -167,6 +164,9 @@ importers:
       knip:
         specifier: 'catalog:'
         version: 6.31.0
+      node-or-bun:
+        specifier: 'catalog:'
+        version: 0.2.1
       nx:
         specifier: 'catalog:'
         version: 23.1.1
@@ -191,6 +191,12 @@ importers:
       yaml:
         specifier: 'catalog:'
         version: 2.9.0
+
+  packages/ci-input-proof:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/docs-protocol:
     dependencies:
@@ -324,6 +330,9 @@ importers:
       ajv-formats:
         specifier: 'catalog:'
         version: 3.0.1(ajv@8.20.0)
+      node-or-bun:
+        specifier: 'catalog:'
+        version: 0.2.1
       oxc-parser:
         specifier: 'catalog:'
         version: 0.142.0
@@ -2879,6 +2888,10 @@ packages:
     peerDependenciesMeta:
       encoding:
         optional: true
+
+  node-or-bun@0.2.1:
+    resolution: {integrity: sha512-wPvDjVN7lMP929tOAQCxT/mF3G5/J+FCJw1pCh3uLN7qRTt1QWEqiZnoM2f2l3VKUdlo73fwwttZhpPor40W4w==}
+    engines: {bun: '>=1.4.3', node: ^24.18.0 || ^26.0.0}
 
   normalize-url@8.1.1:
     resolution: {integrity: sha512-JYc0DPlpGWB40kH5g07gGTrYuMqV653k3uBKY6uITPWds3M0ov3GaWGp9lbE3Bzngx8+XkfzgvASb9vk9JDFXQ==}
@@ -6252,6 +6265,8 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
+
+  node-or-bun@0.2.1: {}
 
   normalize-url@8.1.1: {}
 

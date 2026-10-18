@@ -36,7 +36,7 @@ import {
 registerQualityGateObservationPortTests();
 
 function policy(tasks, concurrency = 2) {
-  return { packageManager: "pnpm", profiles: [{ id: "verify", concurrency, tasks }] };
+  return { profiles: [{ id: "verify", packageManager: "pnpm", concurrency, tasks }] };
 }
 
 function errorEvidence(error) {
@@ -263,7 +263,11 @@ profiles:
 `, "utf8");
     const requests = [];
     const executor = new PnpmQualityGateScriptExecutor(
-      { childEnvironment: {}, npmExecPath: pnpmEntrypoint },
+      {
+        childEnvironment: {},
+        nodeExecutablePath: "/verified/node",
+        npmExecPath: pnpmEntrypoint
+      },
       {
         async run(request) {
           requests.push(request);
@@ -292,7 +296,7 @@ profiles:
       },
       {
         args: [await realpath(pnpmEntrypoint), "run", "slow"],
-        command: process.execPath,
+        command: "/verified/node",
         cwd: root,
         timeoutMs,
       },
@@ -775,7 +779,9 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
       const result = await new PnpmQualityGateScriptExecutor({
         ...environment,
         childEnvironment: {},
+        nodeExecutablePath: process.execPath,
       }, createManagedProcessExecutor()).run({
+        packageManager: "pnpm",
         consumerRoot: root,
         scriptId: "probe",
       });

@@ -19,6 +19,7 @@ export interface ChangedCheckPolicy {
 }
 
 export interface RepositoryAgentWorkflowPolicy {
+  readonly packageManager: RepositoryPackageManager;
   readonly instructions: AgentInstructionPaths;
   readonly scripts: AgentWorkflowScripts;
   readonly changedChecks: readonly ChangedCheckPolicy[];
@@ -33,3 +34,4 @@ export interface RepositoryAgentWorkflowEvidence {
   readonly instructionFiles: Readonly<Record<keyof AgentInstructionPaths, InstructionFileEvidence>>;
   readonly packageScripts: Readonly<Record<string, string>>;
 }
+import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";

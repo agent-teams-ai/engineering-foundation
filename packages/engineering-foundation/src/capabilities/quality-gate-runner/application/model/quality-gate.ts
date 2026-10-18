@@ -1,3 +1,5 @@
+import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";
+
 export interface QualityGateTask {
   readonly id: string;
   readonly needs: readonly string[];
@@ -7,12 +9,12 @@ export interface QualityGateTask {
 
 export interface QualityGateProfile {
   readonly id: string;
+  readonly packageManager: RepositoryPackageManager;
   readonly concurrency: number;
   readonly tasks: readonly QualityGateTask[];
 }
 
 export interface QualityGatePolicy {
-  readonly packageManager: "pnpm";
   readonly profiles: readonly QualityGateProfile[];
 }
 

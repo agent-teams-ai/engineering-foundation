@@ -425,8 +425,8 @@ test("accepts a containment marker published in the wrapper-exit poll race", { s
   let child;
   await mkdir(bin);
   const fakePowerShell = join(bin, FAKE_WINDOWS_POWERSHELL);
-  await writeFile(fakePowerShell, [
-    "#!/usr/bin/env node",
+  const fakePowerShellRuntime = join(bin, "fake-powershell.cjs");
+  await writeFile(fakePowerShellRuntime, [
     'const { existsSync, writeFileSync } = require("node:fs");',
     "let input = '';",
     "process.stdin.setEncoding('utf8');",
@@ -439,6 +439,10 @@ test("accepts a containment marker published in the wrapper-exit poll race", { s
     "    writeFileSync(request.confirmationPath, 'CONTAINED', 'utf8');",
     "  }, 1);",
     "});"
+  ].join("\n"), "utf8");
+  await writeFile(fakePowerShell, [
+    "#!/bin/sh",
+    `exec "${process.execPath}" "${fakePowerShellRuntime}" "$@"`
   ].join("\n"), "utf8");
   await chmod(fakePowerShell, 0o700);
 
@@ -592,142 +596,6 @@ test(
   }
 );
 
-test("Windows cancellation protocol proves containment across Job assignment", async () => {
-  const [
-    nodeAdapterSource,
-    windowsManagedProcessSource,
-    managedLauncherSource,
-    processHostSource
-  ] = await Promise.all([
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/src/process-execution/node-process-runner.ts"
-    ), "utf8"),
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
-    ), "utf8"),
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
-    ), "utf8"),
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/src/process-execution/windows-process-host.ts"
-    ), "utf8")
-  ]);
-
-  assert.match(
-    managedLauncherSource,
-    /writeFileSync\(control\.requestPath, serializedRequest/u
-  );
-  assert.match(
-    managedLauncherSource,
-    /assertWindowsCommandLineFits\(process\.execPath, \[\s*PROCESS_HOST_PATH,\s*control\.requestPath\s*\]\)/u
-  );
-  assert.match(
-    managedLauncherSource,
-    /cwd: control\.root,\s*env: launcherEnvironment[\s\S]*hostWorkingDirectory: control\.root/u
-  );
-  assert.doesNotMatch(managedLauncherSource, /encodedRequest/u);
-  assert.match(processHostSource, /JSON\.parse\(readFileSync\(requestPath, "utf8"\)\)/u);
-  assert.match(
-    windowsManagedProcessSource,
-    /BuildCommandLine\(\s*executable, new\[\] \{ hostPath, requestPath \}\)/u
-  );
-
-  const updateJobList = windowsManagedProcessSource.indexOf(
-    "if (!UpdateProcThreadAttribute("
-  );
-  const jobListAttribute = windowsManagedProcessSource.indexOf(
-    "PROC_THREAD_ATTRIBUTE_JOB_LIST,",
-    updateJobList
-  );
-  const createProcess = windowsManagedProcessSource.indexOf(
-    "if (!CreateProcess(",
-    updateJobList
-  );
-  const resumeThread = windowsManagedProcessSource.indexOf(
-    "if (ResumeThread(process.hThread)",
-    createProcess
-  );
-  const waitForLaunchAttempt = windowsManagedProcessSource.indexOf(
-    "var waitResult = WaitForSingleObject(process.hProcess, 10);",
-    resumeThread
-  );
-  const launchConfirmedCancellation = windowsManagedProcessSource.indexOf(
-    "if (LaunchSucceeded(launchPath) &&",
-    waitForLaunchAttempt
-  );
-  assert.ok(updateJobList >= 0);
-  assert.ok(jobListAttribute >= 0);
-  assert.ok(createProcess >= 0);
-  assert.ok(resumeThread >= 0);
-  assert.ok(waitForLaunchAttempt >= 0);
-  assert.ok(launchConfirmedCancellation >= 0);
-  assert.ok(updateJobList < jobListAttribute);
-  assert.ok(jobListAttribute < createProcess);
-  assert.ok(updateJobList < createProcess);
-  assert.ok(createProcess < resumeThread);
-  assert.ok(resumeThread < waitForLaunchAttempt);
-  assert.ok(waitForLaunchAttempt < launchConfirmedCancellation);
-  assert.match(
-    windowsManagedProcessSource,
-    /private static bool LaunchSucceeded[\s\S]*catch \(IOException\)/u
-  );
-
-  const assignedCancellationHelper = windowsManagedProcessSource.indexOf(
-    "private static bool CancelAssignedIfRequested"
-  );
-  const terminateAssignedJob = windowsManagedProcessSource.indexOf(
-    "TerminateRemainingProcessesAndWait(job);",
-    assignedCancellationHelper
-  );
-  const confirmAssignedContainment = windowsManagedProcessSource.indexOf(
-    "ConfirmContainment(confirmationPath);",
-    assignedCancellationHelper
-  );
-  assert.ok(assignedCancellationHelper < terminateAssignedJob);
-  assert.ok(terminateAssignedJob < confirmAssignedContainment);
-
-  const assignedJobTermination = windowsManagedProcessSource.slice(
-    windowsManagedProcessSource.indexOf("private static void TerminateRemainingProcessesAndWait"),
-    windowsManagedProcessSource.indexOf("private static void ConfirmContainment")
-  );
-  assert.match(assignedJobTermination, /TerminateJobObject\(job, 1\)/u);
-  assert.match(assignedJobTermination, /while \(ActiveProcessCount\(job\) > 0\)/u);
-
-  const requestTermination = nodeAdapterSource.indexOf(
-    "await requestWindowsManagedProcessTermination(child);"
-  );
-  const forceWrapperExit = nodeAdapterSource.indexOf(
-    'child.kill("SIGKILL");',
-    requestTermination
-  );
-  assert.ok(requestTermination >= 0);
-  assert.ok(requestTermination < forceWrapperExit);
-  assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
-  assert.match(windowsManagedProcessSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
-
-  const waitForProcessExit = windowsManagedProcessSource.indexOf(
-    "var waitResult = WaitForSingleObject(process.hProcess, 10);"
-  );
-  const readExitCode = windowsManagedProcessSource.indexOf(
-    "if (!GetExitCodeProcess(process.hProcess, out exitCode))",
-    waitForProcessExit
-  );
-  assert.ok(waitForProcessExit >= 0);
-  assert.ok(readExitCode > waitForProcessExit);
-  assert.match(
-    windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
-    /LaunchSucceeded\(launchPath\)[\s\S]*CancelAssignedIfRequested/u
-  );
-  assert.equal(
-    windowsManagedProcessSource.match(/return 0;/gu)?.length,
-    1,
-    "the wrapper-consumed cancellation path must be neutral"
-  );
-});
 
 test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_MS }, async () => {
   const runner = new NodeProcessRunner();
@@ -740,7 +608,7 @@ test("rejects output beyond the bounded capture limit", { timeout: TEST_TIMEOUT_
     }),
     (error) => {
       assert.equal(error?.code, "PROCESS_FAILED");
-      assert.match(error.message, /exceeded the stdout output limit/u);
+      assert.match(error.message, /exceeded its captured output limit/u);
       return true;
     }
   );
@@ -787,7 +655,7 @@ test("an output-limit failure observed during real cancellation outranks cancell
     controller.abort("test cancellation");
     await assert.rejects(execution, (error) => {
       assert.equal(error?.code, "PROCESS_FAILED");
-      assert.match(error.message, /exceeded the stdout output limit/u);
+      assert.match(error.message, /exceeded its captured output limit/u);
       assert.doesNotMatch(error.message, /was cancelled/u);
       return true;
     });

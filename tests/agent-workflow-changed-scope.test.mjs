@@ -118,7 +118,11 @@ test("executes pnpm through its shell-free package entrypoint", async () => {
       `require("node:fs").writeFileSync(".fake-pnpm-args.json", JSON.stringify(process.argv.slice(2)));\n`,
       "utf8",
     );
-    const result = await new PnpmPackageScriptRunner({ pnpmHome }, createWorkflowProcess()).run({
+    const result = await new PnpmPackageScriptRunner({
+      pnpmHome,
+      nodeExecutablePath: process.execPath
+    }, createWorkflowProcess()).run({
+      packageManager: "pnpm",
       consumerRoot,
       script: "lint:files",
       paths: ["src/file with space.ts"],

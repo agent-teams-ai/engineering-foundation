@@ -80,6 +80,7 @@
     "schemas/quality-executable-specifications/v1.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
     "schemas/quality-gate-runner/v1.schema.json",
+    "schemas/quality-gate-runner/v2.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-suppression-governance/v1.schema.json",
@@ -131,6 +132,7 @@
     "@microsoft/api-extractor-model": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
+    "node-or-bun": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
     "yaml": "catalog:"

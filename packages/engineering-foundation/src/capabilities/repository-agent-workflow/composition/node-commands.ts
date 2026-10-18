@@ -11,7 +11,7 @@ import { loadAgentWorkflowPolicy, type AgentWorkflowConfigurationDependencies } 
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { resolveRepositoryRuntimeExecutables } from "../../../process-execution/application/runtime-selection.js";
 import { createPackageManagerScriptRunner } from "./select-package-script-runner.js";
-import { verifyRepositoryRuntimeExecutable } from "../../../process-execution/node-runtime-verifier.js";
+import { verifyRepositoryRuntimeExecutable } from "../../../process-execution/module.js";
 
 export function createNodeAgentWorkflowCommands(
   environment: PnpmProcessEnvironment & BunProcessEnvironment,

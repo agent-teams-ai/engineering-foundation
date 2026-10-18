@@ -996,6 +996,7 @@ boundaries:
         - foundation.core
         - foundation.validation-reporting.application
         - foundation.process-execution.application
+        - foundation.process-execution.composition
       packages: []
       builtins:
         - node:fs/promises
@@ -1085,6 +1086,7 @@ boundaries:
         - foundation.core
         - foundation.validation-reporting.application
         - foundation.process-execution.application
+        - foundation.process-execution.composition
       packages: []
       builtins:
         - node:fs/promises
@@ -2296,6 +2298,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
   - id: foundation.workspace-inventory.application
     roots:
       - packages/engineering-foundation/src/workspace-inventory/application

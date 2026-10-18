@@ -8,7 +8,7 @@ import { loadQualityGatePolicy, type QualityGateConfigurationDependencies } from
 import { loadStrictYamlFile } from "../../../features/configuration-input/node.js";
 import { resolveRepositoryRuntimeExecutables } from "../../../process-execution/application/runtime-selection.js";
 import { createPackageManagerScriptExecutor } from "./select-package-script-executor.js";
-import { verifyRepositoryRuntimeExecutable } from "../../../process-execution/node-runtime-verifier.js";
+import { verifyRepositoryRuntimeExecutable } from "../../../process-execution/module.js";
 
 const ACTIVE_GATE_ENVIRONMENT_VARIABLE = "AGENT_TEAMS_FOUNDATION_QUALITY_GATE_ACTIVE";
 

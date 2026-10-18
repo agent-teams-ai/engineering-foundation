@@ -1,16 +1,14 @@
 import { createManagedProcessExecutor } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
-import { constants } from "node:fs";
 import {
-  access,
   mkdir,
   mkdtemp,
-  realpath,
-  stat,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, delimiter, dirname, extname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
+import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 import test from "node:test";
 
 import { PnpmQualityGateScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.js";
@@ -28,90 +26,7 @@ import {
 const roles = ["parent", "descendant"];
 const noOp = () => {};
 const fixtureEnvironmentPattern = /^QGR_FIXTURE_/iu;
-const javaScriptEntrypointPattern = /\.(?:c|m)?js$/iu;
-const windowsShellEntrypointPattern = /\.(?:bat|cmd|ps1)$/iu;
 const defaultWindowsExecutableExtensions = ".COM;.EXE;.BAT;.CMD";
-
-function environmentValue(environment, name) {
-  const exactValue = environment[name];
-  if (exactValue !== undefined) {
-    return exactValue;
-  }
-  const matchingKey = Object.keys(environment).find(
-    (key) => key.toUpperCase() === name,
-  );
-  return matchingKey === undefined ? undefined : environment[matchingKey];
-}
-
-function commandNames(command, environment) {
-  if (process.platform !== "win32" || extname(command) !== "") {
-    return [command];
-  }
-  const pathExt = environmentValue(environment, "PATHEXT") ??
-    defaultWindowsExecutableExtensions;
-  const extensions = pathExt
-    .split(delimiter)
-    .filter((extension) => extension !== "")
-    .map((extension) => extension.startsWith(".") ? extension : `.${extension}`);
-  return [command, ...extensions.map((extension) => `${command}${extension}`)];
-}
-
-function pathDirectory(segment) {
-  if (segment === "") {
-    return process.cwd();
-  }
-  if (
-    process.platform === "win32" &&
-    segment.length >= 2 &&
-    segment.startsWith('"') &&
-    segment.endsWith('"')
-  ) {
-    return segment.slice(1, -1);
-  }
-  return segment;
-}
-
-async function canonicalExecutable(candidate) {
-  try {
-    const candidateStat = await stat(candidate);
-    if (!candidateStat.isFile()) {
-      return null;
-    }
-    await access(candidate, constants.X_OK);
-    const canonical = await realpath(candidate);
-    if (
-      process.platform === "win32" &&
-      windowsShellEntrypointPattern.test(canonical)
-    ) {
-      return null;
-    }
-    return canonical;
-  } catch (error) {
-    if (["EACCES", "ENOENT", "ENOTDIR"].includes(error?.code)) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-async function resolveCommand(command, environment = process.env) {
-  const path = environmentValue(environment, "PATH");
-  assert.equal(
-    typeof path,
-    "string",
-    `Cannot resolve ${JSON.stringify(command)} without PATH.`,
-  );
-  for (const segment of path.split(delimiter)) {
-    const directory = pathDirectory(segment);
-    for (const name of commandNames(command, environment)) {
-      const executable = await canonicalExecutable(resolve(directory, name));
-      if (executable !== null) {
-        return executable;
-      }
-    }
-  }
-  assert.fail(`Could not resolve ${JSON.stringify(command)} through PATH.`);
-}
 
 function fixtureEnvironmentSnapshot(environment = process.env) {
   return new Map(
@@ -145,32 +60,15 @@ function installOneUseFixtureAuthority(environment, authority) {
 }
 
 async function resolveInstalledPnpm() {
-  assert.equal(
-    typeof process.env.npm_execpath,
-    "string",
-    "Run the focused lifecycle script through the installed pnpm.",
-  );
-  const version = /^pnpm\/(?<version>\d+\.\d+\.\d+)\b/u.exec(
-    process.env.npm_config_user_agent ?? "",
-  )?.groups?.version;
-  assert.notEqual(version, undefined, "Installed pnpm did not report its exact version.");
-  assert.notEqual(process.env.npm_execpath, "", "Installed pnpm reported an empty entrypoint.");
-  const entrypoint = basename(process.env.npm_execpath) === process.env.npm_execpath
-    ? await resolveCommand(process.env.npm_execpath)
-    : await realpath(process.env.npm_execpath);
-  const nodeEntrypoint = javaScriptEntrypointPattern.test(entrypoint);
-  assert.equal(
-    process.platform === "win32" &&
-      !nodeEntrypoint &&
-      windowsShellEntrypointPattern.test(entrypoint),
-    false,
-    "Installed pnpm resolved to a shell entrypoint instead of JavaScript or a native executable.",
-  );
-  return {
-    entrypoint,
-    nodeEntrypoint,
-    version,
-  };
+  const policy = await readRepositoryRuntimePolicy();
+  const version = policy.toolchain.pnpm.version;
+  // Admission executes the selected physical pnpm's version probe. Parent npm
+  // metadata is neither required nor synthesized; the actual child must emit it.
+  const invocation = await resolvePnpmInvocation(process.execPath, version);
+  const nodeEntrypoint = invocation.kind === "javascript";
+  const entrypoint = nodeEntrypoint ? invocation.args[0] : invocation.command;
+  assert.equal(typeof entrypoint, "string");
+  return { entrypoint, nodeEntrypoint, version };
 }
 
 async function writeConsumer(root, version) {

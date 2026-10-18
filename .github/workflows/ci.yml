@@ -104,6 +104,9 @@ jobs:
         env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: setup-bun
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node-version }}
@@ -130,6 +133,8 @@ jobs:
         run: pnpm node-compatibility:qualification
         working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - name: Run focused observable compatibility regressions
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.setup-bun.outputs.bun-path }}
         run: node --test --test-concurrency=1 tests/node-test-execution.test.mjs tests/docs-protocol-current-policy.test.mjs tests/registry-install-policy.test.mjs packages/docs-protocol/tests/qualification.test.mjs
         working-directory: .worker-tmp/profiles/node-${{ github.sha }}
 

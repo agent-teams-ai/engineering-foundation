@@ -156,7 +156,9 @@ test("runtime selection requires explicit verified Node under Bun", async () => 
     },
     currentExecutablePath: "/verified/bun",
     currentRuntime: "bun",
-    verifyExecutable: async (path) => path === "/verified/node" || path === "/verified/bun"
+    verifyExecutable: async (path, runtime) =>
+      (runtime === "node" && path === "/verified/node") ||
+      (runtime === "bun" && path === "/verified/bun")
   });
   assert.equal(selection.executables.node, "/verified/node");
   assert.equal(selection.executables.bun, "/verified/bun");

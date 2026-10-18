@@ -10,7 +10,7 @@ export interface RepositoryRuntimeSelectionInput {
   readonly environment: Readonly<Record<string, string | undefined>>;
   readonly currentExecutablePath: string;
   readonly currentRuntime: RepositoryRuntimeProfile;
-  readonly verifyExecutable: (path: string) => Promise<boolean>;
+  readonly verifyExecutable: (path: string, runtime: RepositoryRuntimeProfile) => Promise<boolean>;
 }
 
 export class RepositoryRuntimeSelectionError extends Error {
@@ -56,13 +56,13 @@ function configuredPath(
 }
 
 async function verifiedExecutable(
-  label: string,
+  runtime: RepositoryRuntimeProfile,
   path: string,
-  verify: (path: string) => Promise<boolean>
+  verify: (path: string, runtime: RepositoryRuntimeProfile) => Promise<boolean>
 ): Promise<string> {
-  if (!(await verify(path))) {
+  if (!(await verify(path, runtime))) {
     throw new RepositoryRuntimeSelectionError(
-      `The explicit ${label} executable is unavailable: ${path}`
+      `The explicit ${runtime === "node" ? "Node" : "Bun"} executable is unavailable: ${path}`
     );
   }
   return path;
@@ -103,7 +103,7 @@ export async function resolveRepositoryRuntimeExecutables(
     );
   }
   const node = await verifiedExecutable(
-    "Node",
+    "node",
     nodeCandidate,
     input.verifyExecutable
   );
@@ -118,7 +118,7 @@ export async function resolveRepositoryRuntimeExecutables(
   const bun =
     bunCandidate === undefined
       ? undefined
-      : await verifiedExecutable("Bun", bunCandidate, input.verifyExecutable);
+      : await verifiedExecutable("bun", bunCandidate, input.verifyExecutable);
 
   return Object.freeze({
     profile,

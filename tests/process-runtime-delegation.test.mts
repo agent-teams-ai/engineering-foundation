@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { delimiter, join } from "node:path";
 import test, { after } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -21,7 +21,12 @@ import {
   observeWrapperStderr
 } from "../packages/engineering-foundation/dist/process-execution/windows-managed-process-diagnostics.js";
 import { readProcessFailureFacts } from "../packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js";
-import { requireAdmittedNodeExecutable } from "../packages/engineering-foundation/dist/process-execution/node-runtime-verifier.js";
+import { requireAdmittedNodeExecutable, verifyRepositoryRuntimeExecutable } from "../packages/engineering-foundation/dist/process-execution/node-runtime-verifier.js";
+
+import { createNodeQualityGateCommand } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/composition/node-quality-gate-command.js";
+import { createNodeAgentWorkflowCommands } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/composition/node-commands.js";
+import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
+import type { ManagedProcessRequest } from "../packages/engineering-foundation/dist/process-execution/api.js";
 
 const childRuntime = process.env["PROCESS_RUNTIME_DELEGATION_NODE"] ?? process.execPath;
 const fixtureParent = process.env["PROCESS_RUNTIME_DELEGATION_TEST_ROOT"] ??
@@ -175,6 +180,7 @@ test("preserves launch mapping and timeout-before-preabort validation ordering",
 });
 
 test("verifies the explicit supported Node used by the managed bootstrap", async () => {
+  assert.equal(requireAdmittedNodeExecutable({}, childRuntime), childRuntime);
   assert.equal(
     requireAdmittedNodeExecutable(
       { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime },
@@ -483,4 +489,139 @@ test("wrapper diagnostics forward once and retain a sliding copied last 64KiB", 
       .includes("wrapper-phase=managed-run"),
     false
   );
+});
+
+async function runtimeGateFixture(packageManager: "bun" | "pnpm" = "bun"): Promise<string> {
+  const root = mkdtempSync(join(fixtureRoot, "runtime-gate-"));
+  await writeFile(join(root, "package.json"), JSON.stringify({ scripts: { check: "node -e \"process.exit(0)\"" } }));
+  await writeFile(join(root, "gate.yaml"), JSON.stringify({
+    schemaVersion: 2,
+    profiles: [{ id: "check", packageManager, concurrency: 1, tasks: [{ id: "check" }] }]
+  }));
+  return root;
+}
+
+// A regular executable of the wrong kind must fail before any package script runs.
+// These invoke the real composition roots, rather than a verifier test double.
+test("quality gate composition rejects Node as Bun before script effects", async () => {
+  const requests: ManagedProcessRequest[] = [];
+  const command = createNodeQualityGateCommand({
+    AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime,
+    AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: childRuntime
+  }, { async run(request) {
+    requests.push(request);
+    return { exitCode: 0, signal: null, stdout: "", stderr: "" };
+  } }, assertSchema);
+  await assert.rejects(command({
+    consumerRoot: await runtimeGateFixture(), configPath: "gate.yaml", profileId: "check"
+  }), /explicit Bun executable is unavailable/u);
+  assert.equal(requests.length, 0);
+});
+
+test("agent workflow composition rejects Node as Bun before script effects", async () => {
+  const root = mkdtempSync(join(fixtureRoot, "runtime-workflow-"));
+  await executeManagedProcess({ command: "git", args: ["init", "--quiet"], cwd: root });
+  await writeFile(join(root, "check.ts"), "// disposable runtime identity fixture\n");
+  await writeFile(join(root, "workflow.yaml"), JSON.stringify({
+    schemaVersion: 1,
+    instructions: { canonical: "AGENTS.md", claude: "CLAUDE.md", gemini: "GEMINI.md", copilot: ".github/copilot-instructions.md" },
+    scripts: { changed: "check:changed", fast: "check:fast", full: "check" },
+    changedChecks: [{ id: "check", script: "check", extensions: [".ts"], passPaths: false }],
+    fullScanPaths: ["package.json"]
+  }));
+  const scriptRequests: ManagedProcessRequest[] = [];
+  const commands = createNodeAgentWorkflowCommands({
+    nodeExecutablePath: childRuntime, bunExecutablePath: childRuntime
+  }, { async run(request) {
+    if (request.command === "git") {
+      return executeManagedProcess(request);
+    }
+    scriptRequests.push(request);
+    return { exitCode: 0, signal: null, stdout: "", stderr: "" };
+  } }, assertSchema);
+  await assert.rejects(commands.changed({
+    consumerRoot: root, configPath: "workflow.yaml", format: "json"
+  }), /explicit Bun executable is unavailable/u);
+  assert.equal(scriptRequests.length, 0);
+});
+
+function installedBunExecutable(): string | undefined {
+  const explicit = process.env["PROCESS_RUNTIME_DELEGATION_BUN"];
+  if (explicit !== undefined) {
+    return realpathSync(explicit);
+  }
+  for (const directory of (process.env["PATH"] ?? "").split(delimiter)) {
+    try {
+      return realpathSync(join(directory, process.platform === "win32" ? "bun.exe" : "bun"));
+    } catch {
+      // This PATH entry has no Bun installation.
+    }
+  }
+  return undefined;
+}
+
+const installedBun = installedBunExecutable();
+test("quality gate composition rejects installed Bun as Node before script effects", {
+  skip: installedBun === undefined ? "Bun is not installed" : false
+}, async () => {
+  assert.ok(installedBun);
+  const command = createNodeQualityGateCommand({
+    AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: installedBun
+  }, { async run() { throw new Error("Wrong-runtime script must not run"); } }, assertSchema);
+  await assert.rejects(command({
+    consumerRoot: await runtimeGateFixture(), configPath: "gate.yaml", profileId: "check"
+  }), /explicit Node executable is unavailable/u);
+});
+
+test("runtime verifier accepts real Node and rejects symlinks and non-executables", async () => {
+  assert.equal(await verifyRepositoryRuntimeExecutable(childRuntime, "node"), true);
+  assert.equal(await verifyRepositoryRuntimeExecutable(childRuntime, "bun"), false);
+  const plainFile = join(fixtureRoot, "not-an-executable");
+  await writeFile(plainFile, "a regular file is not runtime identity");
+  assert.equal(await verifyRepositoryRuntimeExecutable(plainFile, "node"), false);
+  assert.equal(await verifyRepositoryRuntimeExecutable("node", "node"), false);
+  if (process.platform !== "win32") {
+    const alias = join(fixtureRoot, "node-alias");
+    await symlink(childRuntime, alias);
+    assert.equal(await verifyRepositoryRuntimeExecutable(alias, "node"), false);
+  }
+});
+
+test("quality gate composition runs a real Node/pnpm package script", async () => {
+  const command = createNodeQualityGateCommand({
+    AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime,
+    PATH: process.env["PATH"],
+    npm_execpath: process.env["npm_execpath"],
+    PNPM_HOME: process.env["PNPM_HOME"],
+    SystemRoot: process.env["SystemRoot"],
+    ComSpec: process.env["ComSpec"]
+  }, { run: executeManagedProcess }, assertSchema);
+  const report = await command({
+    consumerRoot: await runtimeGateFixture("pnpm"), configPath: "gate.yaml", profileId: "check"
+  });
+  assert.equal(report.outcome, "passed", JSON.stringify(report));
+  assert.equal(report.tasks[0]?.exitCode, 0);
+});
+
+test("runtime verifier and quality gate composition accept installed Bun in its own role", {
+  skip: installedBun === undefined ? "Bun is not installed" : false
+}, async () => {
+  assert.ok(installedBun);
+  assert.equal(await verifyRepositoryRuntimeExecutable(installedBun, "bun"), true);
+  assert.equal(await verifyRepositoryRuntimeExecutable(installedBun, "node"), false);
+  assert.throws(() => requireAdmittedNodeExecutable({
+    AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: installedBun
+  }, childRuntime), /supported public Node executable/u);
+  const command = createNodeQualityGateCommand({
+    AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime,
+    AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: installedBun,
+    PATH: process.env["PATH"],
+    SystemRoot: process.env["SystemRoot"],
+    ComSpec: process.env["ComSpec"]
+  }, { run: executeManagedProcess }, assertSchema);
+  const report = await command({
+    consumerRoot: await runtimeGateFixture(), configPath: "gate.yaml", profileId: "check"
+  });
+  assert.equal(report.outcome, "passed", JSON.stringify(report));
+  assert.equal(report.tasks[0]?.exitCode, 0);
 });

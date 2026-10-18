@@ -91,7 +91,7 @@ check. A changeset or a successful native extraction is not baseline authority.
 
 The private repository driver implements one closed eight-package transition.
 It retains the old baseline B from commit
-`88c0853bfe29deca175a9b98d7685e577409f7f1`, observes the exact historical
+`4b9cc2165563361f463ca3c59277edc9af592c55`, observes the exact historical
 declarations as native A, and observes the current candidate as native C. The
 source-owned [input record](../../scripts/native-public-api-migration/intent.json)
 binds the policy, every B/configuration/archive hash, the frozen declaration
@@ -99,14 +99,22 @@ dependency closure, each native A and the complete reviewed B-to-A difference
 packet. It describes content; it grants no write authority.
 
 Seven historical archives have verified npm signature and provenance evidence
-for their exact publication commits. Feature Module Standard `0.1.0` was not
-published: its recovered archive matches both SHA-256 and SRI from the complete
-eight-archive qualification in main release run `39134132899`, attempt 1. That
+for their exact publication commits, including Foundation `1.9.0`. At input
+acquisition, Feature Module Standard `0.1.0` was not published: its recovered
+archive matches both SHA-256 and SRI from the complete eight-archive
+qualification in main release run `39172225427`, attempt 1. That
 run ultimately failed. The driver checks its actual repository, commit,
 workflow, event, attempt and retained qualification payload, and records the
 artifact as a qualified release candidate. npm `11.19.0` installs the frozen
 historical declaration closure with lifecycle scripts disabled. Old package and
 compiler files are data and are never evaluated by this observation.
+
+The earlier Foundation `1.8.0` packet from commit
+`88c0853bfe29deca175a9b98d7685e577409f7f1` and release run `39134132899`
+remains historical evidence. The fixed input refresh observes the actual new
+release; it does not substitute the old FMS archive for the new qualified bytes.
+Only the FMS archive's manifest changed, updating its Foundation dependency to
+`1.9.0`. Its recovered compressed bytes still match the independent new run.
 
 Independent review of the full packet found 256 signature-text differences:
 214 whitespace changes and 42 archive-supported `export declare const` carrier
@@ -125,6 +133,9 @@ the reviewed transition while the ordinary report still says `violations` and
 records exit `1`; no diagnostic is filtered or relabeled as an ordinary pass.
 Once committed baselines use the native tool, the ordinary successful route
 requires no migration inputs or archive lookup.
+The eight actual working baseline files must match the exact reviewed B bytes
+both before archive acquisition and after native observation. A release-version
+change in a baseline cannot reuse qualification for an older B packet.
 
 Baseline replacement belongs to the existing main release workflow's version
 step, described in [release preparation](../release.md#native-public-api-baseline-transition).

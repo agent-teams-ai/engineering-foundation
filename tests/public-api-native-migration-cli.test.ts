@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { assertReportDestination, nativeMigrationMain, ordinaryFailureResult, parseMigrationArguments, qualifyOrdinaryResult } from '../scripts/public-api-native-migration-cli.ts';
+import { assertReportDestination, assertWorkingMigrationBaselines, nativeMigrationMain, ordinaryFailureResult, parseMigrationArguments, qualifyOrdinaryResult } from '../scripts/public-api-native-migration-cli.ts';
 import { capabilityReport, foundationReport } from '../packages/engineering-foundation/dist/features/validation-reporting/api.js';
+import type { PublicApiCompatibilityPolicy } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
+import { migrationBytes, migrationDigest, type NativeMigrationReview } from '../scripts/public-api-native-migration.ts';
+import { nativeMigrationPackageNames } from '../scripts/public-api-native-migration-observation.ts';
 import { assertVersionFiles, assertVersionRunBinding, assertVersionSnapshotUnchanged, parseVersionFileChanges, readVersionRunIdentity } from '../scripts/public-api-native-migration-version.ts';
 import { runCommand } from '../scripts/pack-test-support.mjs';
 
 const sha = 'a'.repeat(40); const repository = 'agent-teams-ai/engineering-foundation';
 const context = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: repository, GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/main', GITHUB_JOB: 'release', GITHUB_SERVER_URL: 'https://github.com', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/release.yml@refs/heads/main`, GITHUB_WORKFLOW_SHA: sha, GITHUB_SHA: sha, GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1' };
+const workingBaselineBytes = (name: string, version = '1.9.0') => migrationBytes({ packageName: name, packageVersion: version, extractorVersion: '7.58.12', entrypoints: [] });
 
 test('driver exposes only the two closed modes and qualify report destinations', () => {
   assert.deepEqual(parseMigrationArguments(['qualify', '--ordinary-report', '/tmp/ordinary.json', '--migration-report', '/tmp/migration.json']), { mode: 'qualify', ordinaryReport: '/tmp/ordinary.json', migrationReport: '/tmp/migration.json' });
@@ -77,4 +82,29 @@ test('version file inspection preserves metadata-only release admission', () => 
 
 test('version metadata cannot change between preparation and application', () => {
   assert.throws(() => assertVersionSnapshotUnchanged('sha256:before', 'sha256:after'), /changed during/u);
+});
+
+test('working B binding rejects version-only content anchor and inventory drift in real files', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'native-working-b-'));
+  const policy: PublicApiCompatibilityPolicy = { schemaVersion: 1, changesetDirectory: '.changeset', acceptedDecisionBaselinePath: 'architecture/decisions/accepted-decisions.json', packages: nativeMigrationPackageNames.map(packageName => {
+    const name = packageName.split('/').at(-1)!;
+    return { packageName, packageRoot: `packages/${name}`, manifestPath: `packages/${name}/package.json`, tsconfigPath: `packages/${name}/tsconfig.json`, releasedBaselinePath: `architecture/public-api/${name}.json`, entrypoints: [], nonTypeExports: [], approvedBreakingChanges: [] };
+  }) };
+  const hash = migrationDigest(Buffer.from('fixture'));
+  const review: NativeMigrationReview = { kind: 'foundation:public-api-native-migration:review:1', from: '7.58.12', to: 'typescript-native/7.0.2', baselineSourceCommit: sha, policyDigest: hash, toolDiffDigest: hash, packages: policy.packages.map(p => ({ packageName: p.packageName, baselinePath: p.releasedBaselinePath, baselineDigest: migrationDigest(workingBaselineBytes(p.packageName)), archiveDigest: hash, archiveIntegrity: 'fixture', configDigest: hash, releasedInputsDigest: hash, nativeReleasedDigest: hash })) };
+  const input = { consumerRoot: root, policy, review };
+  try {
+    for (const p of policy.packages) { await mkdir(dirname(join(root, p.releasedBaselinePath)), { recursive: true }); await writeFile(join(root, p.releasedBaselinePath), workingBaselineBytes(p.packageName)); }
+    await assertWorkingMigrationBaselines(input);
+    const last = policy.packages.at(-1)!; const path = join(root, last.releasedBaselinePath);
+    await writeFile(path, workingBaselineBytes(last.packageName, '1.10.0'));
+    await assert.rejects(assertWorkingMigrationBaselines(input), /exact reviewed B bytes/u);
+    await writeFile(path, Buffer.concat([workingBaselineBytes(last.packageName), Buffer.from(' ')]));
+    await assert.rejects(assertWorkingMigrationBaselines(input), /exact reviewed B bytes/u);
+    await writeFile(path, workingBaselineBytes(last.packageName));
+    await assertWorkingMigrationBaselines(input);
+    await assert.rejects(assertWorkingMigrationBaselines({ ...input, review: { ...review, packages: review.packages.map((p, i) => i === 0 ? { ...p, baselinePath: 'architecture/public-api/other.json' } : p) } }), /anchor/u);
+    await assert.rejects(assertWorkingMigrationBaselines({ ...input, policy: { ...policy, packages: policy.packages.slice(1) } }), /closed eight/u);
+    await assert.rejects(assertWorkingMigrationBaselines({ ...input, review: { ...review, packages: [...review.packages.slice(1), review.packages[1]!] } }), /closed eight/u);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

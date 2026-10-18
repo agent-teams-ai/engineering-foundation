@@ -10,9 +10,9 @@ import { migrationBytes, migrationDigest, type MigrationDigest, type NativeMigra
 import type { PublicApiCompatibilityPolicy } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js";
 
 export const migrationRepository = "agent-teams-ai/engineering-foundation";
-export const migrationSourceCommit = "88c0853bfe29deca175a9b98d7685e577409f7f1";
+export const migrationSourceCommit = "4b9cc2165563361f463ca3c59277edc9af592c55";
 const inputDirectory = "scripts/native-public-api-migration";
-const historicalRun = 39_134_132_899;
+const historicalRun = 39_172_225_427;
 const registry = "https://registry.npmjs.org/";
 const maximumDownload = 32 * 1024 * 1024;
 

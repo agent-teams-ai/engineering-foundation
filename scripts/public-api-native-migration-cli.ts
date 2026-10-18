@@ -11,7 +11,11 @@ import { readAcceptedArchitectureDecisionEvidence } from '../packages/engineerin
 import { AjvJsonSchemaReleaseInspector } from '../packages/engineering-foundation/dist/capabilities/contract-json-schema-releases/module.js';
 import { readContainedRegularFile } from '../packages/engineering-foundation/dist/source-inventory/node.js';
 import type { FoundationCheckReport } from '../packages/engineering-foundation/dist/features/validation-reporting/api.js';
+import type { PublicApiCompatibilityPolicy } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
+import { publicApiBaselineAnchorPath } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
 import { assertNativeMigrationOrdinaryMismatchReport, assertNativeMigrationOrdinaryReport, assertNativeMigrationReview, migrationBytes, migrationDigest, observeNativeMigration, prepareNativeMigrationPromotion } from './public-api-native-migration.ts';
+import type { NativeMigrationReview } from './public-api-native-migration.ts';
+import { nativeMigrationPackageNames } from './public-api-native-migration-observation.ts';
 import { acquireNativeMigrationInputs, readNativeMigrationIntent } from './public-api-native-migration-inputs.ts';
 import { assertVersionSnapshotUnchanged, readVersionRunIdentity, verifyVersionWorkflow } from './public-api-native-migration-version.ts';
 import { runCommand } from './pack-test-support.mjs';
@@ -68,6 +72,21 @@ async function migrationObservation(temporary: string) {
   return { intent, policy, observation };
 }
 
+/** Bind the actual ordinary check's physical B bytes to the reviewed historical
+ * packet. This read-only check is repeated after observation; it grants no writes. */
+export async function assertWorkingMigrationBaselines(options: { readonly consumerRoot: string; readonly policy: PublicApiCompatibilityPolicy; readonly review: NativeMigrationReview }): Promise<void> {
+  const consumerRoot = options.consumerRoot; const packages = structuredClone(options.policy.packages); const pins = structuredClone(options.review.packages);
+  for (const names of [packages.map(p => p.packageName), pins.map(p => p.packageName)]) {
+    if (JSON.stringify(names.toSorted()) !== JSON.stringify(nativeMigrationPackageNames)) { fail('working baseline binding requires the complete closed eight-package inventory'); }
+  }
+  for (const p of packages) {
+    const pin = pins.find(row => row.packageName === p.packageName)!;
+    if (p.releasedBaselinePath !== pin.baselinePath || p.releasedBaselinePath !== publicApiBaselineAnchorPath(p.packageName)) { fail('working baseline anchor differs from the reviewed package'); }
+    const bytes = await readContainedRegularFile({ root: consumerRoot, candidate: join(consumerRoot, p.releasedBaselinePath), maxBytes: 32 * 1024 * 1024 });
+    if (migrationDigest(bytes) !== pin.baselineDigest) { fail(`working baseline differs from the exact reviewed B bytes: ${p.packageName}`); }
+  }
+}
+
 /** Reuse the same exact ordinary diagnostic admission before network acquisition.
  * The injected read-only observer permits testing real non-SDK CLI failures;
  * it does not supply a consumer root or grant any mutation authority. */
@@ -82,10 +101,12 @@ export async function qualifyOrdinaryResult(options: OrdinaryResult, observe: ty
   }
   const intent = await readNativeMigrationIntent(root); const policy = await readPolicy();
   await assertNativeMigrationOrdinaryMismatchReport({ report, exitCode: result.exitCode, policy, expectedCapabilities: intent.expectedCapabilities });
+  await assertWorkingMigrationBaselines({ consumerRoot: root, policy, review: intent.review });
   const temporary = await mkdtemp(join(tmpdir(), 'foundation-native-migration-inputs-'));
   try {
     const packet = await observe(temporary);
     await assertNativeMigrationOrdinaryReport({ policy, observation: packet.observation, review: intent.review, report, exitCode: result.exitCode, expectedCapabilities: intent.expectedCapabilities });
+    await assertWorkingMigrationBaselines({ consumerRoot: root, policy, review: intent.review });
     return { outcome: 'named-migration-qualified' as const, report, packet };
   } finally { await rm(temporary, { recursive: true, force: true }); }
 }

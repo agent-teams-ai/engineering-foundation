@@ -253,8 +253,19 @@ successors as recorded in
 The opt-in Feature Module Standard package is a second independent source
 package outside that Cohort, admitted by
 [ADR-0062](decisions/0062-feature-module-standard-package-admission.md); it has
-no registry version, and its npm bootstrap approval is an owner step that must
-complete before any `release:publish` that includes it.
+only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
+integrity and package tree remain in the historical catalog; the runner and its
+first supported `0.1.0` release pass the normal release gates.
+An internal package is declared once, as `workspace:*`. The one exception is an
+optional peer range (`peerDependencies` `workspace:^`) together with the workspace
+link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
+one edge for the closed DAG and publishes as `^<workspace version>`.
+The pinned Changesets configuration preserves an explicitly selected dependent
+release when the peer update stays within that range. An out-of-range update
+still triggers the planner's compatibility bump and requires review of release
+intent; the existing Changeset coverage tests exercise both cases through the
+installed planner. This keeps the initial Foundation 1.8.0 and FMS 0.1.0 train
+from becoming an unintended FMS 1.0.0 release.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version

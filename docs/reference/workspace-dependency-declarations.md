@@ -16,7 +16,9 @@ The capability enforces:
 - `workspace:` for internal package dependencies;
 - `catalog:` or `catalog:<name>` for external dependencies;
 - reserved-scope references resolving only to local workspace packages;
-- one dependency section per package dependency;
+- one dependency section per package dependency, except a peer contract paired
+  with the development dependency used to build and test that contract; both
+  declarations still obey their version and placement rules;
 - development-only placement for compiler and lint tooling;
 - exact direct registry pins for explicitly listed local-mode tooling such as
   engineering foundation, while ordinary tooling versions remain catalog-owned;

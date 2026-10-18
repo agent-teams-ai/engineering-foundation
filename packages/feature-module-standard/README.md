@@ -46,7 +46,7 @@ a `features` directory inside a feature keeps its v1 meaning.
 | Test ownership: a test belongs to the deepest feature, sub-feature tests live in the mirrored test root, and a test uses another visible feature only through public, internal API and testing surfaces | `test-unowned`, `test-misplaced` (warnings: the standard says SHOULD), `not-visible`, `deep-import` |
 | Visibility and curated surfaces: a sub-feature is visible to its parent and the parent's descendants; no deep imports | `not-visible`, `deep-import`, `surface-unowned` |
 | Layer direction (v1): domain and application never import contracts; adapters reach siblings through the application core | `layer-direction` |
-| Composition contracts (module-level composition is named by `moduleComposition`; unlisted module-level code is not composition): they are composition code, only composition code depends on them, visible features only | `composition-contract-misplaced`, `composition-contract-layer`, `not-visible` |
+| Composition contracts (module-level composition is named by `moduleComposition`): they are composition code, only composition code depends on them, visible features only | `composition-contract-misplaced`, `composition-contract-layer`, `not-visible` |
 | Assembly: only a parent's composition wires its direct sub-feature, and it wires every one that exposes a composition surface | `assembly-misplaced`, `assembly-missing` |
 | Republication: declared, from a direct sub-feature, one level at a time | `republication-undeclared`, `republication-skips-level`, `republication-invalid`, `republication-mismatch`, `republication-not-sub-feature` |
 | Declared use edges, when the consumer has a profile | `use-undeclared`, `use-edge-invalid` |
@@ -73,9 +73,53 @@ composition-contract cases as complete module descriptions with their expected
 diagnostic codes. The kernel tests, and every adopting checker as its
 conformance test, run the same data.
 
-## Not here yet
+## Runner
 
-The `./node` runner for repositories without their own checker (feature root discovery through the Foundation source graph) is a follow-up change. The first release of this package and the Foundation release that publishes the source graph wait for it.
+`@agent-teams/feature-module-standard/node` checks a module on disk. It reads the declared roots through
+`@agent-teams/engineering-foundation/source-graph`, runs the kernel and compares the per-feature metrics with
+growth budgets from `@agent-teams/engineering-foundation/ratchet` (warnings only). Engineering Foundation `^1.8.0` is an
+optional peer dependency: users of `.` and `./fixtures` do not need it.
+
+```ts
+import { checkFeatureModuleOnDisk, formatNodeReport } from '@agent-teams/feature-module-standard/node';
+
+const report = await checkFeatureModuleOnDisk({
+  consumerRoot: process.cwd(),
+  sourceRoots: ['src'],
+  testRoots: ['tests/features'],
+  testFeaturesRoot: 'tests/features',
+  structure: { featuresRoot: 'src/features', roleDirectories: { domain: 'domain', application: 'application' } },
+  surfaces: { public: ['src/features/orders/contracts/public.ts'] },
+  budgets: [{ metric: 'sourceFiles', max: 40 }],
+});
+process.stdout.write(formatNodeReport(report));
+```
+
+The configuration is data. `structure` is either the default layout (`featuresRoot`, `roleDirectories`, declared
+`subFeatureRoots`) or the profile's own mapping (`featureRoots`, `roleRoots`). Metrics available to budgets are `depth`,
+`subFeatures`, `sourceFiles`, `testFiles` and every name of `fileGroups` (regular expression sources). A file the parser
+cannot read fails the run, because its imports would be missing from the check. A bare specifier is not an edge: the
+file graph reports packages and aliases as external, so a tsconfig alias that points into a feature is not seen.
+`moduleComposition` names the module-level files permitted to use composition contracts or wire feature surfaces;
+omitting it or supplying an empty list declares no module-level composition. Runtime and type-only export-from
+references retain their republication provenance when passed to the kernel.
+Unresolved literal targets and computed runtime references remain in `unresolved` and
+`unresolvedRuntimeReferences`; either makes `ok` false. `formatNodeReport` prints these source-coverage errors
+separately from the kernel's architecture diagnostics. Bare external package imports remain outside the internal
+feature graph and need the consumer's dependency policy.
+
+`testRoots` selects entire directories whose files are treated as tests, not production. A selected test file must
+be inside a declared or inferred feature root (a colocated test directory), or below the explicit `testFeaturesRoot`
+that mirrors feature ownership. The runner rejects files outside both mappings instead of silently skipping their
+ownership, metrics and import checks. `mappedFiles` names files directly below a feature root; it does not map an
+external test tree to feature owners. Use dedicated colocated test directories rather than mixed production
+directories. Module-level packaged-artifact and black-box tests outside feature ownership need their own consumer
+checks and are not selected by this example.
+
+The runner observes files, not empty directories, so it cannot by itself qualify empty-role or empty-container
+rules. It supplies resolved references marked `runtime` as the kernel's load graph; that conservative graph is
+not proof of when a dynamic import or CommonJS load executes. Consumers retain their selected syntax profile
+and complementary source checks instead of treating `ok` as complete language or standard conformance.
 
 ## Stability
 

@@ -22,7 +22,14 @@ function compareCodePoints([left], [right]) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function exactPublishSpecifier(packageName, specifier, context) {
+function exactPublishSpecifier(packageName, specifier, context, section) {
+  if (specifier === "workspace:^" && section === "peerDependencies") {
+    const version = context.internalPackageVersions.get(packageName);
+    if (typeof version !== "string" || parseVersion(version) === undefined) {
+      throw new Error(`Staged publish manifest cannot resolve workspace version for ${packageName}.`);
+    }
+    return `^${version}`;
+  }
   if (specifier === "workspace:*") {
     const version = context.internalPackageVersions.get(packageName);
     if (typeof version !== "string" || parseVersion(version) === undefined) {
@@ -74,7 +81,7 @@ export function canonicalPublishManifest(manifest, context) {
         if (typeof specifier !== "string" || specifier === "") {
           throw new Error(`Package manifest has malformed ${section} request for ${name}.`);
         }
-        return [name, exactPublishSpecifier(name, specifier, context)];
+        return [name, exactPublishSpecifier(name, specifier, context, section)];
       })
       .toSorted(compareCodePoints));
   }

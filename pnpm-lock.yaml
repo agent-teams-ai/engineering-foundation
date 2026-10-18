@@ -67,8 +67,8 @@ catalogs:
       specifier: 7.2.0
       version: 7.2.0
     node-or-bun:
-      specifier: 0.2.0
-      version: 0.2.0
+      specifier: 0.2.1
+      version: 0.2.1
     nx:
       specifier: 23.1.1
       version: 23.1.1
@@ -166,7 +166,7 @@ importers:
         version: 6.31.0
       node-or-bun:
         specifier: 'catalog:'
-        version: 0.2.0
+        version: 0.2.1
       nx:
         specifier: 'catalog:'
         version: 23.1.1
@@ -332,7 +332,7 @@ importers:
         version: 3.0.1(ajv@8.20.0)
       node-or-bun:
         specifier: 'catalog:'
-        version: 0.2.0
+        version: 0.2.1
       oxc-parser:
         specifier: 'catalog:'
         version: 0.142.0
@@ -2889,8 +2889,8 @@ packages:
       encoding:
         optional: true
 
-  node-or-bun@0.2.0:
-    resolution: {integrity: sha512-cZOqPso5V2EblrU5bIRoFYuYJOetvj5CL8zQI9dmYR2QMFT7a6UeF57RUS/2L28xHjWUrCy2dfKpvBsNfCiD+g==}
+  node-or-bun@0.2.1:
+    resolution: {integrity: sha512-wPvDjVN7lMP929tOAQCxT/mF3G5/J+FCJw1pCh3uLN7qRTt1QWEqiZnoM2f2l3VKUdlo73fwwttZhpPor40W4w==}
     engines: {bun: '>=1.4.3', node: ^24.18.0 || ^26.0.0}
 
   normalize-url@8.1.1:
@@ -6266,7 +6266,7 @@ snapshots:
     dependencies:
       whatwg-url: 5.0.0
 
-  node-or-bun@0.2.0: {}
+  node-or-bun@0.2.1: {}
 
   normalize-url@8.1.1: {}
 

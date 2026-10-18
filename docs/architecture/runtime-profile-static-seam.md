@@ -71,10 +71,12 @@ exact Host scope through Core/Assembly before merge. Until then the status stays
 
 The independently implemented process library boundary remains outside this
 runtime-profile seam. Functional managed-process delegation binds published
-`node-or-bun@0.2.0` through the existing Host custody pair.
+`node-or-bun@0.2.1` through the existing Host custody pair.
 The root verified its signature and provenance and the registry archive SHA-256
-`7ae9c7b4f5aa77bc4a62ce1780b0bf8a933bec9f1dc92eace15a522dfefe969c`; its library
-main is `62346d6a129d76930d649ee176d7dca363885ce8`. The existing published
+`40e412afca40fe113485a2ae364251202967ad688f0282def5ea5294f8b98b70`; its library
+main is `46f0a8d5c4914e96589c4356ea9be7861eb422a5`. The patch release repairs the
+missing bounded output facet in 0.2.0 so Foundation preserves captured output
+when reconstructing a late observed nonzero result. The existing published
 package owns reusable process mechanism, while node-runtime-verifier is
 Foundation-local environment verification; no additional reusable package or
 abstraction is justified. Historical pins, this record's `not-adopted`/static

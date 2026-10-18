@@ -219,6 +219,7 @@ test("keeps observed nonzero results after cancellation but timeout precedence a
   const controller = new AbortController();
   const script = [
     "process.on('SIGTERM',()=>process.exit(23));",
+    "process.stdout.write('before cancellation');process.stderr.write('failure detail');",
     `require('node:fs').writeFileSync(${JSON.stringify(marker)},'x');`,
     "setTimeout(()=>process.exit(23),1000)"
   ].join("");
@@ -233,6 +234,8 @@ test("keeps observed nonzero results after cancellation but timeout precedence a
     controller.abort(new Error("cancel-after-observation"));
     const observed = await cancelled;
     assert.equal(observed.exitCode, 23);
+    assert.equal(observed.stdout, "before cancellation");
+    assert.equal(observed.stderr, "failure detail");
     assert.deepEqual({ ...readProcessFailureFacts(observed) }, { reason: "exit", exitCode: 23 });
   } finally {
     if (!controller.signal.aborted) {

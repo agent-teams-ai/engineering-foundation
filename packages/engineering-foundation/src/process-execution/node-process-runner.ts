@@ -318,8 +318,8 @@ function createManagedNodeAdapter(
  * neutral facts surface no longer arbitrates late settlement, so a cancelled
  * run reproduces the inherited 0.1.0 order here — decode failure, then a
  * recorded capture failure, then an independently observed numeric nonzero
- * exit (the inherited Foundation heuristic: such an exit settles as a result,
- * whose captured output the facts surface no longer carries). A
+ * exit (the inherited Foundation heuristic: such an exit settles as a result
+ * with the runtime's bounded captured output). A
  * cancellation-induced signal alone stays cancelled.
  */
 function settleProcessRuntimeError(
@@ -366,11 +366,16 @@ function settleProcessRuntimeError(
         });
       }
       if (observedExit !== null && observedExit.exitCode !== null && observedExit.exitCode !== 0) {
+        if (error.output === null) {
+          throw processFailure(request, "experienced an output stream failure.", error, {
+            reason: "stream"
+          });
+        }
         return {
           exitCode: observedExit.exitCode,
           signal: observedExit.signal === null ? null : observedExit.signal as NodeJS.Signals,
-          stdout: "",
-          stderr: ""
+          stdout: error.output.stdout,
+          stderr: error.output.stderr
         };
       }
       throw processCancelled(request, "was cancelled.", request.signal?.reason);

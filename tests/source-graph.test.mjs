@@ -27,14 +27,15 @@ test("source graph returns runtime and type-only edges with lines, unresolved im
   const graph = await observeSourceGraph({ consumerRoot, roots: ["src"] });
   assert.deepEqual(graph.files, ["src/a.ts", "src/b.ts", "src/c.ts", "src/d.ts", "src/e.ts"]);
   assert.deepEqual(graph.edges, [
-    { from: "src/a.ts", to: "src/b.ts", mode: "runtime", line: 1 },
-    { from: "src/a.ts", to: "src/c.ts", mode: "type-only", line: 2 },
-    { from: "src/b.ts", to: "src/a.ts", mode: "runtime", line: 1 },
-    { from: "src/c.ts", to: "src/d.ts", mode: "type-only", line: 1 },
-    { from: "src/d.ts", to: "src/c.ts", mode: "type-only", line: 1 }
+    { from: "src/a.ts", to: "src/b.ts", kind: "static", mode: "runtime", line: 1 },
+    { from: "src/a.ts", to: "src/c.ts", kind: "static-type", mode: "type-only", line: 2 },
+    { from: "src/b.ts", to: "src/a.ts", kind: "static", mode: "runtime", line: 1 },
+    { from: "src/c.ts", to: "src/d.ts", kind: "static-type", mode: "type-only", line: 1 },
+    { from: "src/d.ts", to: "src/c.ts", kind: "static-type", mode: "type-only", line: 1 }
   ]);
-  assert.deepEqual(graph.unresolved, [{ from: "src/a.ts", specifier: "../outside.js", line: 4 }]);
-  assert.deepEqual(graph.external, [{ from: "src/a.ts", specifier: "node:fs", line: 3 }]);
+  assert.deepEqual(graph.unresolved, [{ from: "src/a.ts", specifier: "../outside.js", kind: "static", mode: "runtime", line: 4 }]);
+  assert.deepEqual(graph.external, [{ from: "src/a.ts", specifier: "node:fs", kind: "static", mode: "runtime", line: 3 }]);
+  assert.deepEqual(graph.unresolvedRuntimeReferences, []);
   assert.deepEqual(graph.parseFailures, []);
   assert.deepEqual(stronglyConnectedComponents(graph.edges), [["src/a.ts", "src/b.ts"], ["src/c.ts", "src/d.ts"]]);
   assert.deepEqual(stronglyConnectedComponents(graph.edges.filter(({ mode }) => mode === "runtime")), [["src/a.ts", "src/b.ts"]]);
@@ -45,6 +46,9 @@ test("a file that does not parse is reported and contributes no edges", async (t
   const graph = await observeSourceGraph({ consumerRoot, roots: ["src"] });
   assert.deepEqual(graph.parseFailures, ["src/bad.ts"]);
   assert.deepEqual(graph.edges, []);
+  assert.deepEqual(graph.runtimeExports.find(({ path }) => path === "src/bad.ts"), {
+    path: "src/bad.ts", status: "parse-failure", exports: [], unsupported: []
+  });
 });
 
 test("the Foundation source tree gives real-data parity: it parses completely and has no runtime import cycle", async () => {
@@ -74,7 +78,78 @@ test("an import of build output is reported as unresolved, not dropped", async (
     "tests/a.test.ts": 'import { a } from "../src/a.js";\nimport { b } from "../dist/index.js";\nexport const t = [a, b];\n'
   });
   const graph = await observeSourceGraph({ consumerRoot, roots: ["src", "tests"] });
-  assert.deepEqual(graph.edges, [{ from: "tests/a.test.ts", to: "src/a.ts", mode: "runtime", line: 1 }]);
-  assert.deepEqual(graph.unresolved, [{ from: "tests/a.test.ts", specifier: "../dist/index.js", line: 2 }]);
+  assert.deepEqual(graph.edges, [{ from: "tests/a.test.ts", to: "src/a.ts", kind: "static", mode: "runtime", line: 1 }]);
+  assert.deepEqual(graph.unresolved, [{ from: "tests/a.test.ts", specifier: "../dist/index.js", kind: "static", mode: "runtime", line: 2 }]);
   assert.deepEqual(graph.external, []);
+});
+
+test("runtime export facts observe a real extra export without counting erased TypeScript declarations", async (t) => {
+  const source = 'export async function runJob() { return "ok"; }\nexport interface Request {}\nexport type Result = string;\nexport declare const ambient: string;\n';
+  const consumerRoot = await tree(t, { "src/run-job.ts": source });
+  const before = await observeSourceGraph({ consumerRoot, roots: ["src"] });
+  assert.deepEqual(before.runtimeExports, [{
+    path: "src/run-job.ts", status: "complete", exports: [{ name: "runJob", kind: "function", line: 1 }], unsupported: []
+  }]);
+  await writeFile(join(consumerRoot, "src/run-job.ts"), `${source}export const extra = 1;\n`);
+  const after = await observeSourceGraph({ consumerRoot, roots: ["src"] });
+  assert.deepEqual(after.runtimeExports, [{
+    path: "src/run-job.ts", status: "complete", exports: [
+      { name: "runJob", kind: "function", line: 1 }, { name: "extra", kind: "value", line: 5 }
+    ], unsupported: []
+  }]);
+  assert.ok(Object.isFrozen(after.runtimeExports[0].exports[0]));
+});
+
+test("direct function expressions and non-function values retain their observed names and kinds", async (t) => {
+  const consumerRoot = await tree(t, {
+    "src/direct.ts": 'export const arrow = (() => 1) satisfies (() => number), fn = function () {};\nexport const value = { x: 1 };\nexport default async function () {}\n'
+  });
+  const graph = await observeSourceGraph({ consumerRoot, roots: ["src"] });
+  assert.deepEqual(graph.runtimeExports, [{
+    path: "src/direct.ts", status: "complete", exports: [
+      { name: "arrow", kind: "function", line: 1 }, { name: "fn", kind: "function", line: 1 },
+      { name: "value", kind: "value", line: 2 }, { name: "default", kind: "function", line: 3 }
+    ], unsupported: []
+  }]);
+});
+
+test("unknown export values and republication never establish a complete export count", async (t) => {
+  const consumerRoot = await tree(t, {
+    "src/alias.ts": 'import { run } from "./run.js";\nexport { run };\n',
+    "src/factory.ts": 'declare function factory(): unknown;\nexport const run = factory();\n',
+    "src/local-alias.ts": 'const run = () => 1;\nexport { run };\n',
+    "src/mutable.ts": 'export let run = () => 1;\n',
+    "src/reexport.ts": 'export { run } from "./run.js";\nexport * from "./run.js";\n',
+    "src/run.ts": 'export function run() {}\n',
+    "src/script.cjs": 'module.exports = { run() {} };\n'
+  });
+  const graph = await observeSourceGraph({ consumerRoot, roots: ["src"] });
+  const facts = Object.fromEntries(graph.runtimeExports.map((entry) => [entry.path, entry]));
+  for (const path of ["src/alias.ts", "src/factory.ts", "src/local-alias.ts", "src/mutable.ts", "src/reexport.ts", "src/script.cjs"]) {
+    assert.equal(facts[path].status, "unsupported", path);
+    assert.ok(facts[path].unsupported.length > 0, path);
+  }
+  assert.deepEqual(facts["src/alias.ts"].unsupported, [{ kind: "reexport", line: 2 }]);
+  assert.deepEqual(facts["src/local-alias.ts"].unsupported, [{ kind: "binding", line: 2 }]);
+  assert.deepEqual(facts["src/reexport.ts"].unsupported, [{ kind: "reexport", line: 1 }, { kind: "reexport", line: 2 }]);
+  assert.deepEqual(graph.edges.map(({ from, to, kind }) => ({ from, to, kind })), [
+    { from: "src/alias.ts", to: "src/run.ts", kind: "static" },
+    { from: "src/reexport.ts", to: "src/run.ts", kind: "export" },
+    { from: "src/reexport.ts", to: "src/run.ts", kind: "export" }
+  ]);
+});
+
+test("literal loader kinds and unresolved computed loaders both survive the public graph projection", async (t) => {
+  const consumerRoot = await tree(t, {
+    "src/target.ts": 'export const value = 1;\n',
+    "src/load.ts": 'const target = "./target.js";\nvoid import(target);\nconst load = require;\nload(target);\nvoid import("./target.js");\nload("./target.js");\nexport {};\n'
+  });
+  const graph = await observeSourceGraph({ consumerRoot, roots: ["src"] });
+  assert.deepEqual(graph.unresolvedRuntimeReferences, [
+    { from: "src/load.ts", kind: "dynamic", line: 2 }, { from: "src/load.ts", kind: "commonjs", line: 4 }
+  ]);
+  assert.deepEqual(graph.edges, [
+    { from: "src/load.ts", to: "src/target.ts", kind: "dynamic", mode: "runtime", line: 5 },
+    { from: "src/load.ts", to: "src/target.ts", kind: "commonjs", mode: "runtime", line: 6 }
+  ]);
 });

@@ -30,10 +30,28 @@ export interface UnresolvedSourceDependency {
   readonly end: number;
 }
 
+export type SourceRuntimeExportKind = "function" | "value";
+
+export interface SourceRuntimeExport {
+  readonly name: string;
+  readonly kind: SourceRuntimeExportKind;
+  readonly start: number;
+  readonly end: number;
+}
+
+export interface UnsupportedSourceExport {
+  readonly kind: "binding" | "declaration" | "expression" | "reexport" | "module-format";
+  /** File-level module-format facts use start = end = 0 as a sentinel, not a source span. */
+  readonly start: number;
+  readonly end: number;
+}
+
 export interface ParsedSourceDependencies {
   readonly parseErrorCount: number;
   readonly references: readonly SourceDependencyReference[];
   readonly unresolved: readonly UnresolvedSourceDependency[];
+  readonly runtimeExports: readonly SourceRuntimeExport[];
+  readonly unsupportedExports: readonly UnsupportedSourceExport[];
 }
 
 interface ParsedSourceFile extends SourceFileSnapshot {

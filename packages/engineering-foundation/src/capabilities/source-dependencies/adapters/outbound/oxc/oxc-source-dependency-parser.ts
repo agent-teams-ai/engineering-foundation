@@ -1,6 +1,9 @@
 import { isBuiltin } from "node:module";
 
-import { parseSync, Visitor } from "oxc-parser";
+import {
+  parseSync, Visitor,
+  type Declaration, type Expression, type ParseResult, type Program, type StaticExport
+} from "oxc-parser";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
 import type { SourceFileSnapshot } from "../../../application/model/source-file-snapshot.js";
@@ -8,7 +11,10 @@ import type {
   ParsedSourceDependencies,
   SourceDependencyKind,
   SourceDependencyReference,
-  UnresolvedSourceDependency
+  SourceRuntimeExport,
+  SourceRuntimeExportKind,
+  UnresolvedSourceDependency,
+  UnsupportedSourceExport
 } from "../../../application/model/source-workspace.js";
 import type { SourceDependencyParser } from "../../../application/ports/source-dependency-parser.js";
 
@@ -30,6 +36,71 @@ function unresolved(
   return { kind, start: node.start, end: node.end };
 }
 
+type ExportStatement = Extract<Program["body"][number], { type: "ExportNamedDeclaration" | "ExportDefaultDeclaration" }>;
+
+// Only direct syntactic values are classified. Calls, imported/local aliases and
+// mutable declarations need another producer; their kind is never guessed.
+function runtimeValueKind(node: Declaration | Expression | null): SourceRuntimeExportKind | undefined {
+  if (node === null) { return undefined; }
+  if (["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].includes(node.type)) { return "function"; }
+  if (["Literal", "ObjectExpression", "ArrayExpression", "TemplateLiteral", "ClassDeclaration", "ClassExpression"].includes(node.type)) {
+    return "value";
+  }
+  if (node.type === "ParenthesizedExpression" || node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression" ||
+      node.type === "TSTypeAssertion" || node.type === "TSNonNullExpression") {
+    return runtimeValueKind(node.expression);
+  }
+  return undefined;
+}
+
+function directExportKind(statement: ExportStatement | undefined, name: string): SourceRuntimeExportKind | undefined {
+  const declaration = statement?.declaration;
+  if (declaration === undefined || declaration === null) { return undefined; }
+  if (declaration.type !== "VariableDeclaration") { return runtimeValueKind(declaration); }
+  if (declaration.kind !== "const") { return undefined; }
+  const binding = declaration.declarations.find(({ id }) => id.type === "Identifier" && id.name === name);
+  return runtimeValueKind(binding?.init ?? null);
+}
+
+type ExportObservations = { runtimeExports: SourceRuntimeExport[]; unsupportedExports: UnsupportedSourceExport[] };
+
+function observeStaticExport(statement: ExportStatement | undefined, exported: StaticExport, facts: ExportObservations): void {
+  const declaration = statement?.declaration;
+  if (declaration !== undefined && declaration !== null && "declare" in declaration && declaration.declare) { return; }
+  for (const entry of exported.entries) {
+    if (entry.isType) { continue; }
+    const name = statement?.type === "ExportDefaultDeclaration" ? "default" : entry.exportName.name;
+    const kind = name === null ? undefined : directExportKind(statement, name);
+    if (entry.moduleRequest !== null || name === null) {
+      facts.unsupportedExports.push({ kind: "reexport", start: entry.start, end: entry.end });
+    } else if (kind === undefined) {
+      const reason = declaration === null ? "binding" : statement?.type === "ExportDefaultDeclaration" ? "expression" : "declaration";
+      facts.unsupportedExports.push({ kind: reason, start: entry.start, end: entry.end });
+    } else {
+      facts.runtimeExports.push({ name, kind, start: exported.start, end: exported.end });
+    }
+  }
+}
+
+function observeRuntimeExports(parsed: ParseResult, path: string): ExportObservations {
+  const facts: ExportObservations = { runtimeExports: [], unsupportedExports: [] };
+  const statements = new Map<number, ExportStatement>();
+  for (const statement of parsed.program.body) {
+    if (statement.type === "ExportNamedDeclaration" || statement.type === "ExportDefaultDeclaration") {
+      statements.set(statement.start, statement);
+    } else if (statement.type === "TSExportAssignment") {
+      facts.unsupportedExports.push({ kind: "declaration", start: statement.start, end: statement.end });
+    }
+  }
+  for (const exported of parsed.module.staticExports) {
+    observeStaticExport(statements.get(exported.start), exported, facts);
+  }
+  if (parsed.program.sourceType !== "module" || /\.(?:cjs|cts)$/u.test(path)) {
+    facts.unsupportedExports.push({ kind: "module-format", start: 0, end: 0 });
+  }
+  return facts;
+}
+
 export class OxcSourceDependencyParser implements SourceDependencyParser {
   parse(file: SourceFileSnapshot): ParsedSourceDependencies {
     const parsed = parseSync(file.path, file.source, { astType: "ts" });
@@ -37,7 +108,9 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
       return {
         parseErrorCount: parsed.errors.length,
         references: [],
-        unresolved: []
+        unresolved: [],
+        runtimeExports: [],
+        unsupportedExports: []
       };
     }
 
@@ -128,6 +201,7 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
     }).visit(parsed.program);
     return {
       parseErrorCount: 0,
+      ...observeRuntimeExports(parsed, file.path),
       references: references.toSorted(
         (left, right) =>
           left.start - right.start ||

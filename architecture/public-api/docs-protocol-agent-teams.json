@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-agent-teams",
-  "packageVersion": "0.4.0",
+  "packageVersion": "0.5.0",
   "extractorVersion": "7.58.12",
   "entrypoints": [
     {
@@ -180,7 +180,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
-          "signature": "export type ConsumerIntegrationDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3;"
+          "signature": "export type ConsumerIntegrationDesiredState = ConsumerIntegrationDesiredStateV1 | ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerIntegrationDesiredStateV1#callerWorkflowPath:member",
@@ -694,11 +694,172 @@
           "signature": "export interface ConsumerUpgradeExecutionV1"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCheckCohortV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocsProtocolQualificationCheckCohortV3 = \"profile-v4\" | \"cohort-v3\" | \"cohort-assets\" | \"five-package-closure\" | \"exact-package-versions\" | \"exact-package-integrities\" | \"schema-bindings-4-3-1-qualification-receipt-1\" | \"runtime-closure-digest\" | \"policy-identity-source-digest\" | \"selected-lane-runtime\" | \"observed-node-runtime\";"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCheckV3:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export type DocsProtocolQualificationCheckV3 = \"profile-v3\" | \"cohort-v2\" | \"five-package-closure\" | \"exact-package-versions\" | \"exact-package-integrities\" | \"schema-bindings-3-2-1\" | \"runtime-closure-digest\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: {\n        readonly cohortId: string;\n        readonly recordDigest: `sha256:${string}`;\n        readonly qualificationEventDigest: `sha256:${string}`;\n        readonly candidateDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#packages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packages: Readonly<Record<DocsProtocolQualificationPackageKeyV3, DocsProtocolQualificationObservedPackageV3>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.0.0\";\n        readonly sourceDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#runtime:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtime: {\n        readonly selectedLane: \"node-26-managed-qualified\";\n        readonly node: \">=26.0.0 <27\";\n        readonly pnpm: \">=11.17.0 <12\";\n        readonly qualificationRuntime: {\n            readonly nodeVersion: \"26.11.1\";\n            readonly pnpmVersion: \"11.20.0\";\n            readonly platform: \"linux\";\n            readonly architecture: \"x64\";\n        };\n        readonly runtimeClosureDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#schemas:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemas: {\n        readonly consumerIntegration: 4;\n        readonly managedState: 3;\n        readonly qualificationReceipt: 1;\n        readonly docsProtocol: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortEvidenceV3"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#checks:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly checks: readonly DocsProtocolQualificationCheckCohortV3[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: {\n        readonly schemaVersion: 3;\n        readonly cohortId: string;\n        readonly recordDigest: `sha256:${string}`;\n        readonly qualificationEventDigest: `sha256:${string}`;\n        readonly candidateDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#cohortAdmissible:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohortAdmissible: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#namespace:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly namespace: \"docs-protocol-cohort-v3-qualification-receipt/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#packages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packages: readonly DocsProtocolQualificationPackageReceiptV3[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.0.0\";\n        readonly sourceDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#profileSchemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profileSchemaVersion: 4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#runtime:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtime: {\n        readonly selectedLane: \"node-26-managed-qualified\";\n        readonly node: \">=26.0.0 <27\";\n        readonly pnpm: \">=11.17.0 <12\";\n        readonly qualificationRuntime: {\n            readonly nodeVersion: \"26.11.1\";\n            readonly pnpmVersion: \"11.20.0\";\n            readonly platform: \"linux\";\n            readonly architecture: \"x64\";\n        };\n        readonly runtimeClosure: {\n            readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n            readonly digest: `sha256:${string}`;\n        };\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#schemas:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemas: {\n        readonly consumerIntegration: 4;\n        readonly managedState: 3;\n        readonly qualificationReceipt: 1;\n        readonly docsProtocol: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortV3Receipt"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request#evidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidence: DocsProtocolQualificationCohortEvidenceV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request#lockfileBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lockfileBytes: Uint8Array;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request#profile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profile: ManagedSuccessorProfile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortV3Request"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationContractV2#scenarios:member",
@@ -1051,6 +1212,139 @@
           "signature": "export interface DocsProtocolQualificationV3Request"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests#agentsRouteDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "parentKind": "Interface",
+          "signature": "readonly agentsRouteDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests#assetCatalogDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "parentKind": "Interface",
+          "signature": "readonly assetCatalogDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests#callerWorkflowDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "parentKind": "Interface",
+          "signature": "readonly callerWorkflowDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests#docsScriptsDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "parentKind": "Interface",
+          "signature": "readonly docsScriptsDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests#skillDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "parentKind": "Interface",
+          "signature": "readonly skillDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests#transitionCatalogDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "parentKind": "Interface",
+          "signature": "readonly transitionCatalogDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorAssetDigests:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedSuccessorAssetDigests"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#callerWorkflowPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly callerWorkflowPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: Omit<UnselectedCohortV3, \"lifecycleState\" | \"canaryRepositoryIds\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#governedDocsRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly governedDocsRoots?: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#integrationRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly integrationRoot: \".\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#managedStatePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly managedStatePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#packageManager:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageManager: \"pnpm\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#qualification:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly qualification: {\n        readonly contractPath: string;\n        readonly gateCommand: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: {\n        readonly provider: \"github\";\n        readonly id: string;\n        readonly nameWithOwner: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#skillPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly skillPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedSuccessorProfile"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!PnpmManifestPlanV1#currentDigest:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!PnpmManifestPlanV1:interface",
@@ -1352,6 +1646,125 @@
           "signature": "export interface QualifiedDocsPackageCoordinateV2"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#assets:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly assets: {\n        readonly skillDigest: string;\n        readonly callerWorkflowDigest: string;\n        readonly assetCatalogDigest: string;\n        readonly transitionCatalogDigest: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#canaryRepositoryIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly canaryRepositoryIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#candidateDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly candidateDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#channel:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly channel: \"rc\" | \"stable\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#cohortId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohortId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#eligibleAfter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly eligibleAfter: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#lifecycleState:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lifecycleState: \"QUALIFIED\" | \"CANARY\" | \"RECOMMENDED\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#packages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packages: Readonly<Record<\"repositoryMutation\" | \"documentAuthoring\" | \"docsProtocol\" | \"docsProtocolAgentTeams\" | \"engineeringFoundation\", {\n        readonly version: string;\n        readonly integrity: `sha512-${string}`;\n    }>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#qualificationEventDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly qualificationEventDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#recordDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recordDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#rollbackTo:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rollbackTo: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#runtime:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtime: {\n        readonly policy: {\n            readonly id: \"agent-teams.docs-protocol-current-policy\";\n            readonly version: \"3.0.0\";\n            readonly digest: string;\n        };\n        readonly selectedLane: \"node-24-production-default\" | \"node-26-managed-qualified\";\n        readonly node: string;\n        readonly pnpm: string;\n        readonly qualificationRuntime: {\n            readonly nodeVersion: string;\n            readonly pnpmVersion: string;\n            readonly platform: string;\n            readonly architecture: string;\n        };\n        readonly runtimeClosure: {\n            readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n            readonly digest: string;\n        };\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#schemas:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemas: {\n        readonly consumerIntegration: 4;\n        readonly managedState: 3;\n        readonly qualificationReceipt: 1;\n        readonly docsProtocol: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#upgradeFrom:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly upgradeFrom: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#workflow:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly workflow: {\n        readonly repository: \"agent-teams-ai/.github\";\n        readonly path: \".github/workflows/docs-protocol-check.yml\";\n        readonly revision: string;\n        readonly blobSha: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface UnselectedCohortV3"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!applyConsumerIntegration:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
@@ -1371,6 +1784,20 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export declare function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV2): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!canonicalCallerWorkflow:function(3)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function canonicalCallerWorkflow(cohort: ManagedSuccessorProfile[\"cohort\"]): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!canonicalCallerWorkflow:function(4)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function canonicalCallerWorkflow(cohort: QualifiedDocsCohortBindingV1 | QualifiedDocsCohortBindingV2 | ManagedSuccessorProfile[\"cohort\"]): string;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!canonicalDocsScripts:function(1)",
@@ -1408,6 +1835,13 @@
           "signature": "export declare function canonicalManagedState(desired: ConsumerIntegrationDesiredStateV3, assets: CanonicalManagedAssetDigests): string;"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!canonicalManagedState:function(3)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function canonicalManagedState(desired: ManagedSuccessorProfile, assets: ManagedSuccessorAssetDigests): string;"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!checkConsumerIntegration:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
@@ -1427,6 +1861,13 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export declare function describeCanonicalConsumerAssets(cohort: QualifiedDocsCohortBindingV2): {\n    readonly skillDigest: ConsumerIntegrationDigest;\n    readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n    readonly assetCatalogDigest: ConsumerIntegrationDigest;\n    readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n};"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!describeCanonicalConsumerAssets:function(3)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function describeCanonicalConsumerAssets(cohort: ManagedSuccessorProfile[\"cohort\"]): {\n    readonly skillDigest: ConsumerIntegrationDigest;\n    readonly callerWorkflowDigest: ConsumerIntegrationDigest;\n    readonly assetCatalogDigest: ConsumerIntegrationDigest;\n    readonly transitionCatalogDigest: ConsumerIntegrationDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!planAgentsRouteV1:function(1)",
@@ -1504,6 +1945,13 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export declare function runDocsProtocolQualificationV3(request: DocsProtocolQualificationV3Request): DocsProtocolQualificationReceiptV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!runDocsProtocolQualificationV3:function(2)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function runDocsProtocolQualificationV3(request: DocsProtocolQualificationCohortV3Request): DocsProtocolQualificationCohortV3Receipt;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!runManagedDocsCli:function(1)",
@@ -1693,6 +2141,41 @@
           "signature": "export type ConsumerIntegrationDigest = `sha256:${string}`;"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: UnselectedCohortV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: \"governance/docs-qualified-cohorts.json\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: \"agent-teams-ai/.github\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3#revision:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly revision: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerQualificationAuthorityV3:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ConsumerQualificationAuthorityV3"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ConsumerUpgradeAuthorityV2#cohort:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!ConsumerUpgradeAuthorityV2:interface",
@@ -1770,11 +2253,214 @@
           "signature": "export interface DocsProtocolQualificationAuthorityV3Request"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCheckCohortV3:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocsProtocolQualificationCheckCohortV3 = \"profile-v4\" | \"cohort-v3\" | \"cohort-assets\" | \"five-package-closure\" | \"exact-package-versions\" | \"exact-package-integrities\" | \"schema-bindings-4-3-1-qualification-receipt-1\" | \"runtime-closure-digest\" | \"policy-identity-source-digest\" | \"selected-lane-runtime\" | \"observed-node-runtime\";"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCheckV3:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export type DocsProtocolQualificationCheckV3 = \"profile-v3\" | \"cohort-v2\" | \"five-package-closure\" | \"exact-package-versions\" | \"exact-package-integrities\" | \"schema-bindings-3-2-1\" | \"runtime-closure-digest\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: {\n        readonly cohortId: string;\n        readonly recordDigest: `sha256:${string}`;\n        readonly qualificationEventDigest: `sha256:${string}`;\n        readonly candidateDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#packages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packages: Readonly<Record<DocsProtocolQualificationPackageKeyV3, DocsProtocolQualificationObservedPackageV3>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.0.0\";\n        readonly sourceDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#runtime:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtime: {\n        readonly selectedLane: \"node-26-managed-qualified\";\n        readonly node: \">=26.0.0 <27\";\n        readonly pnpm: \">=11.17.0 <12\";\n        readonly qualificationRuntime: {\n            readonly nodeVersion: \"26.11.1\";\n            readonly pnpmVersion: \"11.20.0\";\n            readonly platform: \"linux\";\n            readonly architecture: \"x64\";\n        };\n        readonly runtimeClosureDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3#schemas:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemas: {\n        readonly consumerIntegration: 4;\n        readonly managedState: 3;\n        readonly qualificationReceipt: 1;\n        readonly docsProtocol: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortEvidenceV3:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortEvidenceV3"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Authority:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export type DocsProtocolQualificationCohortV3Authority = ConsumerQualificationAuthorityV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest#cohortId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohortId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest#registry:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly registry: Record<string, unknown>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: {\n        readonly provider: \"github\";\n        readonly id: string;\n        readonly nameWithOwner: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest#revision:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest:interface",
+          "parentKind": "Interface",
+          "signature": "readonly revision: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3AuthorityRequest:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortV3AuthorityRequest"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#checks:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly checks: readonly DocsProtocolQualificationCheckCohortV3[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: {\n        readonly schemaVersion: 3;\n        readonly cohortId: string;\n        readonly recordDigest: `sha256:${string}`;\n        readonly qualificationEventDigest: `sha256:${string}`;\n        readonly candidateDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#cohortAdmissible:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohortAdmissible: true;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#namespace:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly namespace: \"docs-protocol-cohort-v3-qualification-receipt/v1\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#packages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packages: readonly DocsProtocolQualificationPackageReceiptV3[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#policy:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly policy: {\n        readonly id: \"agent-teams.docs-protocol-current-policy\";\n        readonly version: \"3.0.0\";\n        readonly sourceDigest: `sha256:${string}`;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#profileSchemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profileSchemaVersion: 4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#receiptDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly receiptDigest: `sha256:${string}`;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#runtime:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtime: {\n        readonly selectedLane: \"node-26-managed-qualified\";\n        readonly node: \">=26.0.0 <27\";\n        readonly pnpm: \">=11.17.0 <12\";\n        readonly qualificationRuntime: {\n            readonly nodeVersion: \"26.11.1\";\n            readonly pnpmVersion: \"11.20.0\";\n            readonly platform: \"linux\";\n            readonly architecture: \"x64\";\n        };\n        readonly runtimeClosure: {\n            readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n            readonly digest: `sha256:${string}`;\n        };\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 1;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt#schemas:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemas: {\n        readonly consumerIntegration: 4;\n        readonly managedState: 3;\n        readonly qualificationReceipt: 1;\n        readonly docsProtocol: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Receipt:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortV3Receipt"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request#evidence:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly evidence: DocsProtocolQualificationCohortEvidenceV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request#lockfileBytes:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lockfileBytes: Uint8Array;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request#profile:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profile: ManagedSuccessorProfile;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationCohortV3Request:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface DocsProtocolQualificationCohortV3Request"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!DocsProtocolQualificationContractV2#scenarios:member",
@@ -2407,6 +3093,90 @@
           "signature": "export interface ManagedRestorationSelectionV1"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#callerWorkflowPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly callerWorkflowPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#cohort:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohort: Omit<UnselectedCohortV3, \"lifecycleState\" | \"canaryRepositoryIds\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#governedDocsRoots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly governedDocsRoots?: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#integrationRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly integrationRoot: \".\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#managedStatePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly managedStatePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#packageManager:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packageManager: \"pnpm\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#profilePath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profilePath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#qualification:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly qualification: {\n        readonly contractPath: string;\n        readonly gateCommand: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#repository:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly repository: {\n        readonly provider: \"github\";\n        readonly id: string;\n        readonly nameWithOwner: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 4;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile#skillPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "parentKind": "Interface",
+          "signature": "readonly skillPath: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!ManagedSuccessorProfile:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ManagedSuccessorProfile"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!QualifiedDocsCohortBindingV1:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
@@ -2666,6 +3436,125 @@
           "signature": "export interface QualifiedDocsPackageCoordinateV2"
         },
         {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#assets:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly assets: {\n        readonly skillDigest: string;\n        readonly callerWorkflowDigest: string;\n        readonly assetCatalogDigest: string;\n        readonly transitionCatalogDigest: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#canaryRepositoryIds:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly canaryRepositoryIds: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#candidateDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly candidateDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#channel:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly channel: \"rc\" | \"stable\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#cohortId:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cohortId: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#eligibleAfter:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly eligibleAfter: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#lifecycleState:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lifecycleState: \"QUALIFIED\" | \"CANARY\" | \"RECOMMENDED\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#packages:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly packages: Readonly<Record<\"repositoryMutation\" | \"documentAuthoring\" | \"docsProtocol\" | \"docsProtocolAgentTeams\" | \"engineeringFoundation\", {\n        readonly version: string;\n        readonly integrity: `sha512-${string}`;\n    }>>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#qualificationEventDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly qualificationEventDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#recordDigest:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly recordDigest: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#rollbackTo:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rollbackTo: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#runtime:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtime: {\n        readonly policy: {\n            readonly id: \"agent-teams.docs-protocol-current-policy\";\n            readonly version: \"3.0.0\";\n            readonly digest: string;\n        };\n        readonly selectedLane: \"node-24-production-default\" | \"node-26-managed-qualified\";\n        readonly node: string;\n        readonly pnpm: string;\n        readonly qualificationRuntime: {\n            readonly nodeVersion: string;\n            readonly pnpmVersion: string;\n            readonly platform: string;\n            readonly architecture: string;\n        };\n        readonly runtimeClosure: {\n            readonly domain: \"agent-teams.docs-runtime-closure/v2\";\n            readonly digest: string;\n        };\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#schemaVersion:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemaVersion: 3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#schemas:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly schemas: {\n        readonly consumerIntegration: 4;\n        readonly managedState: 3;\n        readonly qualificationReceipt: 1;\n        readonly docsProtocol: 1;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#upgradeFrom:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly upgradeFrom: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3#workflow:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "parentKind": "Interface",
+          "signature": "readonly workflow: {\n        readonly repository: \"agent-teams-ai/.github\";\n        readonly path: \".github/workflows/docs-protocol-check.yml\";\n        readonly revision: string;\n        readonly blobSha: string;\n    };"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!UnselectedCohortV3:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface UnselectedCohortV3"
+        },
+        {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!checkManagedRestorationLockV1:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
@@ -2678,6 +3567,20 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export declare function observeDocsProtocolQualificationV3Lockfile(request: DocsProtocolQualificationLockfileObservationV3Request): DocsProtocolQualificationLockfileObservationV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!observeDocsProtocolQualificationV3Lockfile:function(2)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function observeDocsProtocolQualificationV3Lockfile(request: Pick<DocsProtocolQualificationCohortV3Request, \"profile\" | \"lockfileBytes\">): DocsProtocolQualificationLockfileObservationV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!projectDocsProtocolQualificationCohortV3Authority:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function projectDocsProtocolQualificationCohortV3Authority(request: DocsProtocolQualificationCohortV3AuthorityRequest): DocsProtocolQualificationCohortV3Authority;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-agent-teams!projectDocsProtocolQualificationV3Authority:function(1)",
@@ -2699,6 +3602,13 @@
           "parentReference": "@agent-teams/docs-protocol-agent-teams!",
           "parentKind": "EntryPoint",
           "signature": "export declare function runDocsProtocolQualificationV3(request: DocsProtocolQualificationV3Request): DocsProtocolQualificationReceiptV3;"
+        },
+        {
+          "canonicalReference": "@agent-teams/docs-protocol-agent-teams!runDocsProtocolQualificationV3:function(2)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/docs-protocol-agent-teams!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function runDocsProtocolQualificationV3(request: DocsProtocolQualificationCohortV3Request): DocsProtocolQualificationCohortV3Receipt;"
         }
       ]
     }

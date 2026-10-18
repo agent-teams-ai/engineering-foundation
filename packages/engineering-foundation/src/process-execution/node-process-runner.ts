@@ -6,7 +6,7 @@ import {
   type NodeAcquireHook,
   type NodeCleanupHook,
   type NodeRetain
-} from "@agent-teams/process-runtime/node";
+} from "node-or-bun/node";
 import {
   createProcessExecutor,
   isProcessRuntimeError,
@@ -14,7 +14,7 @@ import {
   type ProcessAdapter,
   type ProcessRuntimeError,
   type Request as ProcessRuntimeRequest
-} from "@agent-teams/process-runtime";
+} from "node-or-bun";
 
 import {
   processFailure,
@@ -65,15 +65,7 @@ export interface NodeManagedProcessRuntimeContext {
   readonly launcherEnvironment?: Readonly<NodeJS.ProcessEnv>;
 }
 
-function runtimeContext(
-  environment: Readonly<NodeJS.ProcessEnv>
-): NodeManagedProcessRuntimeContext {
-  const nodeExecutable = environment[NODE_EXECUTABLE_ENVIRONMENT_VARIABLE];
-  return Object.freeze({
-    ...(nodeExecutable === undefined ? {} : { nodeExecutable }),
-    launcherEnvironment: environment
-  });
-}
+const NO_RUNTIME_CONTEXT: NodeManagedProcessRuntimeContext = Object.freeze({});
 
 interface LaunchAbortBridge {
   readonly signal: AbortSignal;
@@ -200,8 +192,11 @@ export async function terminateNodeManagedProcess(
   }
   if (process.platform === "win32") {
     // The Windows helper owns its containment, wrapper-exit and forced-wrapper
-    // protocol. It is one bounded cleanup path, not a second Host exit arbiter.
+    // protocol; the Host keeps only the terminal exit post-condition.
     await requestWindowsManagedProcessTermination(child);
+    if (child.exitCode === null && child.signalCode === null) {
+      throw new Error("Windows Job Object wrapper did not exit after forced shutdown.");
+    }
     return;
   }
   await terminatePosixProcessGroup(child.pid);
@@ -318,33 +313,70 @@ function createManagedNodeAdapter(
   };
 }
 
-function mapProcessRuntimeError(
+/**
+ * Maps a settled runtime failure onto the Foundation surface. Plan §3.2: the
+ * neutral facts surface no longer arbitrates late settlement, so a cancelled
+ * run reproduces the inherited 0.1.0 order here — decode failure, then a
+ * recorded capture failure, then an independently observed numeric nonzero
+ * exit (the inherited Foundation heuristic: such an exit settles as a result,
+ * whose captured output the facts surface no longer carries). A
+ * cancellation-induced signal alone stays cancelled.
+ */
+function settleProcessRuntimeError(
   request: ManagedProcessRequest,
   error: ProcessRuntimeError,
   diagnostics: WrapperStderrDiagnostics
-): ReturnType<typeof processFailure> {
+): ManagedProcessResult {
   switch (error.code) {
     case "invalid-input":
     case "launch":
-      return processFailure(request, "could not be started.", error, { reason: "launch" });
+      throw processFailure(request, "could not be started.", error, { reason: "launch" });
     case "output-limit":
-      return processFailure(request, "exceeded its captured output limit.", error, {
+      throw processFailure(request, "exceeded its captured output limit.", error, {
         reason: "output-limit"
       });
     case "invalid-output":
-      return processFailure(request, "returned output that is not valid UTF-8.", error, {
+      throw processFailure(request, "returned output that is not valid UTF-8.", error, {
         reason: "invalid-output"
       });
     case "stream":
-      return processFailure(request, "experienced an output stream failure.", error, {
+      throw processFailure(request, "experienced an output stream failure.", error, {
         reason: "stream"
       });
     case "timeout":
-      return processTimedOut(request, request.timeoutMs ?? 1);
-    case "cancelled":
-      return processCancelled(request, "was cancelled.", request.signal?.reason);
+      throw processTimedOut(request, request.timeoutMs ?? 1);
+    case "cancelled": {
+      const { lateFailureCodes, observedExit } = error.facts;
+      if (lateFailureCodes.includes("invalid-output")) {
+        throw processFailure(request, "returned output that is not valid UTF-8.", error, {
+          reason: "invalid-output"
+        });
+      }
+      const captureFailure = lateFailureCodes.find(
+        (code) => code === "output-limit" || code === "stream"
+      );
+      if (captureFailure === "output-limit") {
+        throw processFailure(request, "exceeded its captured output limit.", error, {
+          reason: "output-limit"
+        });
+      }
+      if (captureFailure === "stream") {
+        throw processFailure(request, "experienced an output stream failure.", error, {
+          reason: "stream"
+        });
+      }
+      if (observedExit !== null && observedExit.exitCode !== null && observedExit.exitCode !== 0) {
+        return {
+          exitCode: observedExit.exitCode,
+          signal: observedExit.signal === null ? null : observedExit.signal as NodeJS.Signals,
+          stdout: "",
+          stderr: ""
+        };
+      }
+      throw processCancelled(request, "was cancelled.", request.signal?.reason);
+    }
     case "cleanup":
-      return managedProcessCleanupFailure(
+      throw managedProcessCleanupFailure(
         request,
         error,
         diagnostics.chunks,
@@ -355,7 +387,7 @@ function mapProcessRuntimeError(
 
 export async function executeManagedProcess(
   request: ManagedProcessRequest,
-  context: NodeManagedProcessRuntimeContext = runtimeContext(process.env)
+  context: NodeManagedProcessRuntimeContext = NO_RUNTIME_CONTEXT
 ): Promise<ManagedProcessResult> {
   prepareProcessRequest(request);
   const launchAbort = createLaunchAbortBridge(request.signal);
@@ -376,7 +408,8 @@ export async function executeManagedProcess(
     return processExitResult(managedResult, result.exitCode, signal);
   } catch (error) {
     if (isProcessRuntimeError(error)) {
-      throw mapProcessRuntimeError(request, error, diagnostics);
+      const settled = settleProcessRuntimeError(request, error, diagnostics);
+      return processExitResult(settled, settled.exitCode, settled.signal);
     }
     if (isProcessFailure(error)) {
       throw error;
@@ -389,7 +422,7 @@ export async function executeManagedProcess(
 
 export class NodeProcessRunner implements ProcessRunner {
   async run(request: ProcessRequest): Promise<ProcessResult> {
-    const result = await executeManagedProcess({ ...request } as ManagedProcessRequest);
+    const result = await executeManagedProcess({ ...request });
     if (result.exitCode !== 0) {
       throw processExitFailure(
         request,

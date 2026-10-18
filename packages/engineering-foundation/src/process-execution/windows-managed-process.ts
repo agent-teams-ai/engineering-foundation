@@ -189,9 +189,11 @@ export function spawnWindowsManagedProcess(
   retain?: WindowsManagedProcessRetain
 ): ChildProcess {
   const launcherEnvironment = request.launcherEnvironment ?? process.env;
+  // Ambient admission stays at this adapter edge: an omitted explicit Node
+  // executable falls back to the ambient setting, then the current runtime.
   const nodeExecutable = requireAdmittedNodeExecutable(
     request.nodeExecutable === undefined
-      ? {}
+      ? process.env
       : { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: request.nodeExecutable },
     process.execPath
   );

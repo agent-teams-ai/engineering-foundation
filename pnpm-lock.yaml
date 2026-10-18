@@ -66,6 +66,9 @@ catalogs:
     minisearch:
       specifier: 7.2.0
       version: 7.2.0
+    node-or-bun:
+      specifier: 0.2.0
+      version: 0.2.0
     nx:
       specifier: 23.1.1
       version: 23.1.1
@@ -161,6 +164,9 @@ importers:
       knip:
         specifier: 'catalog:'
         version: 6.31.0
+      node-or-bun:
+        specifier: 'catalog:'
+        version: 0.2.0
       nx:
         specifier: 'catalog:'
         version: 23.1.1
@@ -309,9 +315,6 @@ importers:
       '@agent-teams/document-authoring':
         specifier: workspace:*
         version: link:../document-authoring
-      '@agent-teams/process-runtime':
-        specifier: 0.1.0
-        version: 0.1.0
       '@agent-teams/repository-mutation':
         specifier: workspace:*
         version: link:../repository-mutation
@@ -327,6 +330,9 @@ importers:
       ajv-formats:
         specifier: 'catalog:'
         version: 3.0.1(ajv@8.20.0)
+      node-or-bun:
+        specifier: 'catalog:'
+        version: 0.2.0
       oxc-parser:
         specifier: 'catalog:'
         version: 0.142.0
@@ -375,10 +381,6 @@ importers:
         version: 6.0.3
 
 packages:
-
-  '@agent-teams/process-runtime@0.1.0':
-    resolution: {integrity: sha512-xVKT/+kgXHqDfh3O5wjP5y3Z9II2rzhNaE9AyvcOVQ7FHAT0rzX+woPW5vGM+x268KWIBii4uIykgOG9faZ32g==}
-    engines: {bun: '>=1.4.3', node: ^24.18.0 || ^26.0.0}
 
   '@andrewbranch/untar.js@1.0.3':
     resolution: {integrity: sha512-Jh15/qVmrLGhkKJBdXlK1+9tY4lZruYjsgkDFj08ZmDiWVBLJcqkok7Z0/R0In+i1rScBpJlSvrTS2Lm41Pbnw==}
@@ -2887,6 +2889,10 @@ packages:
       encoding:
         optional: true
 
+  node-or-bun@0.2.0:
+    resolution: {integrity: sha512-cZOqPso5V2EblrU5bIRoFYuYJOetvj5CL8zQI9dmYR2QMFT7a6UeF57RUS/2L28xHjWUrCy2dfKpvBsNfCiD+g==}
+    engines: {bun: '>=1.4.3', node: ^24.18.0 || ^26.0.0}
+
   normalize-url@8.1.1:
     resolution: {integrity: sha512-JYc0DPlpGWB40kH5g07gGTrYuMqV653k3uBKY6uITPWds3M0ov3GaWGp9lbE3Bzngx8+XkfzgvASb9vk9JDFXQ==}
     engines: {node: '>=14.16'}
@@ -3722,8 +3728,6 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
-
-  '@agent-teams/process-runtime@0.1.0': {}
 
   '@andrewbranch/untar.js@1.0.3': {}
 
@@ -6261,6 +6265,8 @@ snapshots:
   node-fetch@2.7.0:
     dependencies:
       whatwg-url: 5.0.0
+
+  node-or-bun@0.2.0: {}
 
   normalize-url@8.1.1: {}
 

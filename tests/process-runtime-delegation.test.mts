@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test, { after } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { ProcessRuntimeError } from "@agent-teams/process-runtime";
+import { ProcessRuntimeError } from "node-or-bun";
 import {
   ProcessCancellationError,
   ProcessTimeoutError

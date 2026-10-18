@@ -71,13 +71,19 @@ exact Host scope through Core/Assembly before merge. Until then the status stays
 
 The independently implemented process library boundary remains outside this
 runtime-profile seam. Functional managed-process delegation binds published
-`@agent-teams/process-runtime@0.1.0` through the existing Host custody pair.
+`node-or-bun@0.2.0` through the existing Host custody pair.
 The root verified its signature and provenance and the registry archive SHA-256
-`bbcff7dcabcc35a1de296ba52fe2b73ae0f060591dc86d474308df667bd3b0c3`; its library
-main is `26f9b99ecb002b5362d020cc662ba3c62b93badd`. The existing published
+`7ae9c7b4f5aa77bc4a62ce1780b0bf8a933bec9f1dc92eace15a522dfefe969c`; its library
+main is `62346d6a129d76930d649ee176d7dca363885ce8`. The existing published
 package owns reusable process mechanism, while node-runtime-verifier is
 Foundation-local environment verification; no additional reusable package or
 abstraction is justified. Historical pins, this record's `not-adopted`/static
 scope, the absence of Assembly and dynamic scope, and the separate Bun/default
 delivery remain unchanged. The Bun/default profile seam above remains owned by
 the separate runtime-profile delivery.
+
+Foundation's error adapter settles cancelled managed runs by reproducing the
+historical library settlement order from the runtime facts surface (plan v4
+section 3.2). The existing limitation — an independently observed numeric
+nonzero exit after termination settles as a self-standing result — is
+documented here as an inherited Foundation heuristic, not library arbitration.

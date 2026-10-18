@@ -2282,7 +2282,7 @@ boundaries:
         - foundation.process-execution.application
         - foundation.validation-reporting.error
         - foundation.core
-      packages: [ "@agent-teams/process-runtime" ]
+      packages: [ "node-or-bun" ]
       builtins:
         - node:child_process
         - node:events

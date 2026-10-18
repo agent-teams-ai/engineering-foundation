@@ -27,14 +27,14 @@ export function selectClosedPackageManager<T>(
     readonly pnpm?: T;
   }
 ): T {
-  const selected = manager === "bun"
-    ? adapters.bun
-    : manager === "pnpm"
-      ? adapters.pnpm
-      : undefined;
+  const closedAdapters: Readonly<Record<RepositoryPackageManager, T | undefined>> = {
+    bun: adapters.bun,
+    pnpm: adapters.pnpm
+  };
+  const selected = closedAdapters[manager];
   if (selected === undefined) {
     throw new RepositoryRuntimeSelectionError(
-      `Package manager is unavailable or mismatched: ${String(manager)}`
+      `Package manager is unavailable or mismatched: ${manager}`
     );
   }
   return selected;

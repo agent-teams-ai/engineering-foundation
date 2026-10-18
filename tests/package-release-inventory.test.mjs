@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, opendir, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { cp, mkdir, mkdtemp, opendir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { parse as parseYaml } from "yaml";
 
@@ -27,6 +27,28 @@ const repositoryPackageRoot = new URL(
   "../packages/engineering-foundation/",
   import.meta.url,
 );
+
+// The package.json subpath export is not universal (node-or-bun has none), so
+// locate an installed dependency by reading its manifest from disk instead.
+async function installedPackageRoot(name) {
+  let directory = fileURLToPath(repositoryPackageRoot);
+  for (;;) {
+    const manifestPath = join(directory, "node_modules", name, "package.json");
+    try {
+      await readFile(manifestPath, "utf8");
+      return dirname(await realpath(manifestPath));
+    } catch (error) {
+      if (error?.code !== "ENOENT") {
+        throw error;
+      }
+    }
+    const parent = dirname(directory);
+    if (parent === directory) {
+      throw new Error(`Dependency is not installed: ${name}`);
+    }
+    directory = parent;
+  }
+}
 
 function assertInitialBaselineMatchesManifest(baseline, manifest) {
   assert.equal(baseline.packageName, manifest.name);
@@ -526,12 +548,11 @@ test("source v3 schema is required by package and archive inventories", async ()
       filter: (source) => !source.includes("node_modules") && !source.includes("tsconfig.tsbuildinfo"),
     });
     const manifest = JSON.parse(await readFile(new URL("package.json", repositoryPackageRoot), "utf8"));
-    const requireFromPackage = createRequire(new URL("package.json", repositoryPackageRoot));
     // Resolve each installed dependency before linking: it may live at the workspace root.
     for (const name of Object.keys(manifest.dependencies)) {
       const target = join(root, "node_modules", name);
       await mkdir(dirname(target), { recursive: true });
-      await symlink(dirname(requireFromPackage.resolve(`${name}/package.json`)), target, "junction");
+      await symlink(await installedPackageRoot(name), target, "junction");
     }
     await inspectFoundationPackage(root);
     await rm(join(root, schema));

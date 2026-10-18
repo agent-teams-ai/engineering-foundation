@@ -14,7 +14,14 @@ export type {
 
 /** A resolved import between two files, as a source graph reports it. */
 export type GraphEdge = Readonly<{ from: string; to: string; mode: 'runtime' | 'type-only'; line: number; reexport?: true }>;
-export type ObservedGraph = Readonly<{ files: readonly string[]; edges: readonly GraphEdge[]; parseFailures: readonly string[] }>;
+/** A literal reference whose target could not be established by the source producer. */
+export type GraphUnresolved = Readonly<{ from: string; specifier: string; kind: string; mode: 'runtime' | 'type-only'; line: number }>;
+/** A computed loader whose target is unavailable to the source producer. */
+export type GraphRuntimeReference = Readonly<{ from: string; kind: string; line: number }>;
+export type ObservedGraph = Readonly<{
+  files: readonly string[]; edges: readonly GraphEdge[]; parseFailures: readonly string[];
+  unresolved: readonly GraphUnresolved[]; unresolvedRuntimeReferences: readonly GraphRuntimeReference[];
+}>;
 
 export type BudgetMeasurement = Readonly<{ subject: string; metric: string; value: number }>;
 /** A ceiling for a metric; a threshold with a `subject` replaces the general one for that feature. */
@@ -69,6 +76,10 @@ export type NodeReport = Readonly<{
   metrics: readonly FeatureMetric[];
   /** Files the parser could not read; their imports are missing from the check, so the run fails. */
   parseFailures: readonly string[];
+  /** Missing or unsupported literal references keep source coverage incomplete. */
+  unresolved: readonly GraphUnresolved[];
+  /** Computed references cannot establish a complete architecture graph. */
+  unresolvedRuntimeReferences: readonly GraphRuntimeReference[];
   budgetWarnings: readonly BudgetWarning[];
 }>;
 
@@ -121,9 +132,10 @@ export async function runFeatureModuleCheck(config: NodeCheckConfig, ports: Node
   });
   const budgetWarnings = ports.checkBudgets({ measurements: measurementsOf(report.metrics), thresholds: config.budgets ?? [] });
   return {
-    ok: report.ok && graph.parseFailures.length === 0,
+    ok: report.ok && graph.parseFailures.length === 0 && graph.unresolved.length === 0 && graph.unresolvedRuntimeReferences.length === 0,
     features: report.features, diagnostics: report.diagnostics, metrics: report.metrics,
-    parseFailures: graph.parseFailures, budgetWarnings,
+    parseFailures: graph.parseFailures, unresolved: graph.unresolved,
+    unresolvedRuntimeReferences: graph.unresolvedRuntimeReferences, budgetWarnings,
   };
 }
 
@@ -133,6 +145,8 @@ export function formatNodeReport(report: NodeReport): string {
     ...report.diagnostics.map(({ severity, code, path, line, message }) =>
       `${severity} ${code} ${path === undefined ? '' : `${path}${line === undefined ? '' : `:${String(line)}`} `}${message}`),
     ...report.parseFailures.map((path) => `error unreadable-file ${path}`),
+    ...report.unresolved.map(({ from, line, specifier }) => `error unresolved-reference ${from}:${String(line)} ${specifier}`),
+    ...report.unresolvedRuntimeReferences.map(({ from, line, kind }) => `error unresolved-runtime-reference ${from}:${String(line)} ${kind}`),
     ...report.budgetWarnings.map(({ subject, metric, value, max }) => `warning budget ${subject}: ${metric} is ${String(value)}, budget ${String(max)}`),
   ];
   return lines.length === 0 ? '' : `${lines.join('\n')}\n`;

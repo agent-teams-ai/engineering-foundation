@@ -137,3 +137,31 @@ void test('the runner reads only the declared roots', async () => {
     assert.deepEqual(report.parseFailures, []);
   });
 });
+
+void test('unresolved literal and computed references cannot become a successful run', async () => {
+  const file = 'src/features/orders/application/service.ts';
+  for (const [source, expectedKind, computed] of [
+    ['import "./missing.js";\n', 'static', false],
+    ['import "#hidden/domain";\n', 'static', false],
+    ['const target = "./missing.js"; void import(target);\n', 'dynamic', true],
+    ['const load = require; const target = "./missing.js"; load(target);\n', 'commonjs', true],
+  ] as const) {
+    await withExample(async (root) => {
+      const report = await checkFeatureModuleOnDisk(config(root));
+      assert.equal(report.ok, false);
+      assert.deepEqual(report.diagnostics, [], 'source coverage failures are separate from kernel rule diagnostics');
+      const references = computed ? report.unresolvedRuntimeReferences : report.unresolved;
+      assert.deepEqual(references.map(({ from, line, kind }) => ({ from, line, kind })), [{ from: file, line: 1, kind: expectedKind }]);
+      assert.match(formatNodeReport(report), computed ? /^error unresolved-runtime-reference /mu : /^error unresolved-reference /mu);
+    }, sources => { sources[file] = source; });
+  }
+});
+
+void test('external bare specifiers keep the documented resolver scope', async () => {
+  await withExample(async root => {
+    const report = await checkFeatureModuleOnDisk(config(root));
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.unresolved, []);
+    assert.deepEqual(report.unresolvedRuntimeReferences, []);
+  }, sources => { sources['src/features/orders/adapters/external.ts'] = 'import "node:fs";\n'; });
+});

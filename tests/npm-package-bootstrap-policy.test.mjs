@@ -148,15 +148,16 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
       { id: "docs-protocol-agent-teams", state: "historical" },
       { id: "docs-protocol-mcp", state: "historical" },
       { id: "ci-input-proof", state: "historical" },
-      { id: "feature-module-standard", state: "approved" },
+      { id: "feature-module-standard", state: "historical" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
-  const standard = bootstrapPackageById("feature-module-standard", { approved: true });
+  const standard = bootstrapPackageById("feature-module-standard");
   assert.deepEqual(standard.approval, {
     archiveIntegrity: "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
     packageTree: "d2686d208af115b731ba135fc1980aa9355ff747",
   });
+  assert.throws(() => bootstrapPackageById("feature-module-standard", { approved: true }), /not approved/u);
   const candidate = structuredClone(NPM_PACKAGE_BOOTSTRAP);
   const candidateStandard = candidate.packages.find(({ id }) => id === "feature-module-standard");
   candidateStandard.state = "candidate";

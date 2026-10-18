@@ -102,6 +102,15 @@ file graph reports packages and aliases as external, so a tsconfig alias that po
 `moduleComposition` names the module-level files permitted to use composition contracts or wire feature surfaces;
 omitting it or supplying an empty list declares no module-level composition. Runtime and type-only export-from
 references retain their republication provenance when passed to the kernel.
+Unresolved literal targets and computed runtime references remain in `unresolved` and
+`unresolvedRuntimeReferences`; either makes `ok` false. `formatNodeReport` prints these source-coverage errors
+separately from the kernel's architecture diagnostics. Bare external package imports remain outside the internal
+feature graph and need the consumer's dependency policy.
+
+The runner observes files, not empty directories, so it cannot by itself qualify empty-role or empty-container
+rules. It supplies resolved references marked `runtime` as the kernel's load graph; that conservative graph is
+not proof of when a dynamic import or CommonJS load executes. Consumers retain their selected syntax profile
+and complementary source checks instead of treating `ok` as complete language or standard conformance.
 
 ## Stability
 

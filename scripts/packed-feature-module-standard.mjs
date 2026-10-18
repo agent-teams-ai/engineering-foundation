@@ -20,7 +20,7 @@ export async function verifyPackedFeatureModuleStandard({
     ["engineering-foundation", "repository-mutation", "document-authoring"].map(localName =>
       `  "@agent-teams/${localName}": ${JSON.stringify(artifacts[`@agent-teams/${localName}`].archiveFileSpecifier)}`).join("\n")
   }\n`);
-  await runPnpm(["install", "--offline", "--ignore-scripts", "--strict-peer-dependencies"], directory);
+  await runPnpm(["install", "--ignore-scripts", "--strict-peer-dependencies"], directory);
   await writeFile(join(directory, "check.ts"), `
 import { checkFeatureModule, STANDARD } from "@agent-teams/feature-module-standard";
 import { exampleModule, exampleSources } from "@agent-teams/feature-module-standard/fixtures";
@@ -71,21 +71,31 @@ for (const syntax of ["export *", "export type *"]) {
   assert.equal(rejected.ok, false);
   assert.deepEqual(rejected.diagnostics.map(item => item.code), ["republication-undeclared"]);
 }
+await writeFile(join(consumerRoot, path), exampleSources()[path]);
+const unresolvedPath = "src/features/orders/application/service.ts";
+for (const source of ['import "./missing.js";', 'import "#hidden/domain";', 'const target = "./missing.js"; void import(target);']) {
+  await writeFile(join(consumerRoot, unresolvedPath), source);
+  const rejected = await checkFeatureModuleOnDisk(config);
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.unresolved.length + rejected.unresolvedRuntimeReferences.length, 1);
+}
 await assert.rejects(import("@agent-teams/feature-module-standard/dist/node.js"), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
 for (const suffix of ["", "/fixtures", "/node"]) {
   assert.ok(fileURLToPath(import.meta.resolve("@agent-teams/feature-module-standard" + suffix)).startsWith(process.cwd()));
 }
 assert.equal(STANDARD.version, "v1.1");
 console.log(JSON.stringify({ status: "passed", cases: ["public-typed-entries", "actual-source-parity",
-  "explicit-module-composition", "runtime-republication", "type-only-republication", "closed-deep-import"], standard: STANDARD }));
+  "explicit-module-composition", "runtime-republication", "type-only-republication", "closed-deep-import",
+  "missing-relative-reference", "unsupported-literal-reference", "computed-reference"], standard: STANDARD }));
 `);
   const runtime = await runPnpm(["exec", "node", "check.mjs"], directory);
   const report = JSON.parse(runtime.stdout);
-  if (report.status !== "passed" || report.cases.length !== 6) {
+  if (report.status !== "passed" || report.cases.length !== 9) {
     throw new Error("Packed Feature Module Standard did not complete its public source checks.");
   }
   const evidence = { ...report, packageName: artifact.packageName, packageVersion: artifact.packageVersion,
-    archiveSha256: createHash("sha256").update(await readFile(artifact.archivePath)).digest("hex"), typescript };
+    archiveSha256: createHash("sha256").update(await readFile(artifact.archivePath)).digest("hex"), typescript,
+    lockfileSha256: createHash("sha256").update(await readFile(join(directory, "pnpm-lock.yaml"))).digest("hex") };
   process.stdout.write(`Packed Feature Module Standard conformance PASS: ${JSON.stringify(evidence)}\n`);
   return evidence;
 }

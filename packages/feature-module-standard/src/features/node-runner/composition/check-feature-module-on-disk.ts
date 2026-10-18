@@ -5,9 +5,9 @@ import type { NodeCheckConfig, NodeReport, ObservedGraph } from '../application/
 
 // The file graph of the given repository-relative roots, read with the parser and resolver of Engineering Foundation.
 const observeFromDisk = (consumerRoot: string) => async (roots: readonly string[]): Promise<ObservedGraph> => {
-  const { files, edges, parseFailures } = await observeSourceGraph({ consumerRoot, roots });
+  const { files, edges, parseFailures, unresolved, unresolvedRuntimeReferences } = await observeSourceGraph({ consumerRoot, roots });
   return {
-    files, parseFailures,
+    files, parseFailures, unresolved, unresolvedRuntimeReferences,
     edges: edges.map(({ from, to, mode, line, kind }) => ({
       from, to, mode, line, ...(kind === 'export' || kind === 'export-type' ? { reexport: true as const } : {}),
     })),

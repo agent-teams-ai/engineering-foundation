@@ -47,7 +47,6 @@
         "schemas/quality-findings-baseline/v1.schema.json",
         "schemas/quality-gate-run-report/v1.schema.json",
         "schemas/quality-gate-runner/v1.schema.json",
-        "schemas/quality-gate-runner/v2.schema.json",
         "schemas/quality-source-coverage/v1.schema.json",
         "schemas/quality-source-coverage/v2.schema.json",
         "schemas/quality-suppression-governance/v1.schema.json",
@@ -387,16 +386,6 @@
         },
         "schemaVersion": {
           "const": 1
-        }
-      }
-    },
-    {
-      "path": "schemas/quality-gate-runner/v2.schema.json",
-      "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-gate-runner/v2",
-      "digest": "sha256:53b3ac8c2bef0ee3e63e09a1ab7a1de18ac18eec4d6a707dc9a9f3761ab9b342",
-      "discriminators": {
-        "schemaVersion": {
-          "const": 2
         }
       }
     },

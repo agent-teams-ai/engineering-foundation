@@ -63,6 +63,9 @@ test('runtime seam requires authenticated CMS inputs and unique current guidance
   }
 
   const seam = await readFile(join(root, seamPath), 'utf8');
+  await writeFile(join(root, seamPath), seam.replace(/\r?\n/gu, '\r\n'));
+  await checkEngineeringQualityStandard(root);
+  await writeFile(join(root, seamPath), seam);
   for (const [label, stale] of [
     ['CMS guidance commit', '7d6535dd86533566620040233290869825000d2b'],
     ['CMS guidance SHA-256', '859fbca1e8a0c61b6ae873bea0057735a55b80230100e6e73a74de22e123165a'],

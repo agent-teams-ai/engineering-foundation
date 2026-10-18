@@ -76,7 +76,7 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
   }
   const seam = await readFile(resolve(root, 'docs/architecture/runtime-profile-static-seam.md'), 'utf8');
   for (const [label, pin] of Object.entries(runtimeSeam.currentPins)) {
-    const records = seam.split('\n').filter((line) => line.startsWith(`${label}:`));
+    const records = seam.split(/\r?\n/u).filter((line) => line.startsWith(`${label}:`));
     if (records.length !== 1 || records[0] !== `${label}: \`${pin}\``) {
       throw new Error(`Runtime profile seam current guidance does not match the reviewed pin: ${label}`);
     }

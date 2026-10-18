@@ -1,5 +1,20 @@
 # @agent-teams/engineering-foundation
 
+## 1.9.0
+
+### Minor Changes
+
+- [#393](https://github.com/agent-teams-ai/engineering-foundation/pull/393) [`3699a9c`](https://github.com/agent-teams-ai/engineering-foundation/commit/3699a9c941b2fcd3d20b39e9b70f2651413e5233) Thanks [@777genius](https://github.com/777genius)! - Delegate managed process execution to the accepted process runtime while
+  preserving Foundation result facts, error translation, POSIX process-group
+  containment and Windows Job Object cleanup. Retain a bounded Windows diagnostic
+  suffix and require the profile-composed explicit Node executable for the Windows
+  bootstrap when Bun executes Foundation. This does not change the repository's
+  current default runtime.
+
+  Add the version 2 quality-gate runner schema for the explicit runtime profile.
+  The additive exported schema requires a minor release; its artifact baseline is
+  promoted by the ordinary Changesets release workflow.
+
 ## 1.8.0
 
 ### Minor Changes

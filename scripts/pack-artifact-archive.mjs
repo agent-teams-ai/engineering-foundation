@@ -11,13 +11,13 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Full Foundation inventory: 2,591 archive entries. The prior 2,567-entry
-  // qualification grew by exactly 24 artifacts because six TypeScript modules
-  // each emit .js, .js.map, .d.ts, and .d.ts.map under the strict package
-  // tsconfig (declaration, declarationMap, and sourceMap enabled).
+  // Full Foundation inventory: 2,592 archive entries. The prior 2,567-entry
+  // qualification grew by 24 compiled artifacts because six TypeScript
+  // modules each emit .js, .js.map, .d.ts, and .d.ts.map under the strict
+  // package tsconfig, plus the delivered quality-gate-runner v2 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_591,
+  "@agent-teams/engineering-foundation": 2_592,
 });
 const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;

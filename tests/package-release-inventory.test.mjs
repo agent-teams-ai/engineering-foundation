@@ -332,6 +332,10 @@ test("release manifest exactly follows the package self-check allowlist", async 
   for (const schemaId of FOUNDATION_SCHEMA_IDS) {
     assert.ok(manifest.files.includes(`schemas/${schemaId}.schema.json`));
   }
+  for (const schemaId of ["quality-gate-runner/v1", "quality-gate-runner/v2"]) {
+    assert.ok(FOUNDATION_SCHEMA_IDS.includes(schemaId));
+    assert.ok(manifest.files.includes(`schemas/${schemaId}.schema.json`));
+  }
   assert.equal(manifest.exports["./document-authoring"], undefined);
   assert.equal(manifest.exports["./document-authoring/qualification"], undefined);
 });

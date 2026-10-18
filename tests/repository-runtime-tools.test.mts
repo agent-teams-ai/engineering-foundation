@@ -730,3 +730,45 @@ test("standards pin gate accepts reconciled evidence and rejects stale pins, cla
 function profilesTemporaryParent(): string {
   return resolve(repositoryRoot, ".worker-tmp/profiles");
 }
+
+// A Bun repository root must not change the legacy managed test transport's
+// package manager. Its exact pnpm comes from the same validated runtime policy
+// as the explicit Node profile, never from root packageManager or a fallback.
+test("managed public test tooling selects pinned pnpm with a Bun root", async (t) => {
+  const { readManagedTestPnpmVersion } = await import("../scripts/provision-managed-test-tools.mjs");
+  await mkdir(profilesTemporaryParent(), { recursive: true });
+  const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-managed-tool-policy-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "architecture/foundation"), { recursive: true });
+  const manifest = { private: true, packageManager: "bun@1.4.3" };
+  await writeFile(join(root, "package.json"), JSON.stringify(manifest));
+  await copyFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"),
+    join(root, "architecture/foundation/repository-runtime.json"));
+  assert.equal(await readManagedTestPnpmVersion(root), "11.20.0");
+  assert.deepEqual(JSON.parse(await readFile(join(root, "package.json"), "utf8")), manifest);
+});
+
+test("managed public test tooling rejects wrong or missing runtime policy versions", async (t) => {
+  const { readManagedTestPnpmVersion } = await import("../scripts/provision-managed-test-tools.mjs");
+  await mkdir(profilesTemporaryParent(), { recursive: true });
+  const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-managed-tool-policy-invalid-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "architecture/foundation"), { recursive: true });
+  const policyPath = join(root, "architecture/foundation/repository-runtime.json");
+  const policy = JSON.parse(await readFile(join(repositoryRoot,
+    "architecture/foundation/repository-runtime.json"), "utf8")) as {
+      schemaVersion: number;
+      toolchain: { pnpm: { version?: string } };
+    };
+  for (const version of ["11.19.0", undefined]) {
+    const invalid = structuredClone(policy);
+    if (version === undefined) { delete invalid.toolchain.pnpm.version; }
+    else { invalid.toolchain.pnpm.version = version; }
+    await writeFile(policyPath, JSON.stringify(invalid));
+    await assert.rejects(readManagedTestPnpmVersion(root), /runtime policy identity is invalid/u);
+  }
+  await writeFile(policyPath, JSON.stringify({ ...policy, schemaVersion: 2 }));
+  await assert.rejects(readManagedTestPnpmVersion(root), /runtime policy identity is invalid/u);
+  await rm(policyPath);
+  await assert.rejects(readManagedTestPnpmVersion(root), { code: "ENOENT" });
+});

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, copyFile, link, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, copyFile, link, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { delimiter, dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -30,6 +30,7 @@ async function ownedTemporaryRoot(prefix: string): Promise<string> {
 }
 
 interface Workflow {
+  readonly env?: Record<string, string>;
   readonly jobs: Record<string, {
     readonly env?: Record<string, string>;
     readonly steps: readonly Record<string, unknown>[];
@@ -127,6 +128,74 @@ test("retained pnpm authority is explicitly provisioned beside isolated Bun grap
   }
   assert.equal(Object.values(current.jobs).some(job =>
     job.steps.some(step => stepWith(step)["cache"] === "pnpm")), false);
+});
+
+test("pnpm setup scopes its Bun-manifest exception to the preparation step", async () => {
+  const files = (await readdir(join(repositoryRoot, ".github/workflows")))
+    .filter(name => name.endsWith(".yml"));
+  let setupCount = 0;
+  for (const name of files) {
+    const current = await workflow(name);
+    assert.equal(current.env?.["pnpm_config_pm_on_fail"], undefined, name);
+    for (const [id, job] of Object.entries(current.jobs)) {
+      assert.equal(job.env?.["pnpm_config_pm_on_fail"], undefined, `${name}/${id}`);
+      for (const step of job.steps ?? []) {
+        const environment = step["env"] as Record<string, string> | undefined;
+        if (typeof step["uses"] === "string" && step["uses"].startsWith("pnpm/setup@")) {
+          setupCount += 1;
+          assert.equal(step["uses"], pnpmSetup, `${name}/${id}`);
+          assert.deepEqual(stepWith(step), { version: "11.20.0", install: false }, `${name}/${id}`);
+          assert.deepEqual(environment, { pnpm_config_pm_on_fail: "ignore" }, `${name}/${id}`);
+        } else {
+          assert.equal(environment?.["pnpm_config_pm_on_fail"], undefined, `${name}/${id}`);
+        }
+      }
+    }
+  }
+  assert.ok(setupCount > 0);
+});
+
+test("pinned pnpm setup version probe accepts Bun only with its scoped preparation environment", async () => {
+  const runtime = await resolveQualificationExecutables("node");
+  const pnpm = await resolvePnpmInvocation(runtime.node, "11.20.0");
+  const root = await ownedTemporaryRoot("pnpm-setup-probe-");
+  try {
+    await writeFile(join(root, "package.json"), JSON.stringify({
+      name: "TEST-pnpm-setup-probe", private: true, packageManager: "bun@1.4.3"
+    }));
+    const environment = { ...process.env, pnpm_config_pm_on_fail: "error" };
+    const probe = (env: NodeJS.ProcessEnv) => spawnSync(pnpm.command, [...pnpm.args, "--version"], {
+      cwd: root, env, encoding: "utf8", timeout: 10_000
+    });
+    const rejected = probe(environment);
+    assert.notEqual(rejected.status, 0);
+    assert.match(`${rejected.stdout}${rejected.stderr}`, /This project is configured to use bun/u);
+    const ci = await workflow("ci.yml");
+    const setup = ci.jobs["linux-static"]?.steps.find(step => step["uses"] === pnpmSetup);
+    const accepted = probe({ ...environment, ...(setup?.["env"] as NodeJS.ProcessEnv) });
+    assert.equal(accepted.status, 0, `${accepted.stdout}${accepted.stderr}`);
+    assert.equal(accepted.stdout.trim(), "11.20.0");
+    const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { readonly packageManager: string };
+    assert.equal(manifest.packageManager, "bun@1.4.3");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("signed RC preparation retains clean source custody and its owned pnpm projection", async () => {
+  const current = await workflow("ci-input-proof-rc.yml");
+  const steps = current.jobs["prepare"]?.steps ?? [];
+  const bun = steps.find(step => typeof step["uses"] === "string" &&
+    step["uses"].startsWith("oven-sh/setup-bun@"));
+  assert.deepEqual(stepWith(bun ?? {}), { "bun-version": "1.4.3" });
+  assert.ok(steps.some(step => step["run"] === "node tools/dev.mts install"));
+  assert.equal(steps.some(step => stepWith(step)["cache"] === "pnpm"), false);
+  assert.equal(steps.some(step => typeof step["run"] === "string" &&
+    /^pnpm\s+install/u.test(step["run"])), false);
+  const prepare = steps.find(step => step["id"] === "artifact");
+  assert.equal(prepare?.["run"],
+    'node scripts/prepare-ci-input-proof-rc.mts "${RUNNER_TEMP}/ci-input-proof-rc" "${EXPECTED_COMMIT}"');
+  assert.equal(prepare?.["working-directory"], undefined);
 });
 
 test("native pnpm setup output is consumed through exact portable manager paths", async () => {

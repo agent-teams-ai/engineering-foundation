@@ -65,6 +65,7 @@ jobs:
           printf 'GIT_DIR=%s\nGIT_WORK_TREE=%s\nGIT_CEILING_DIRECTORIES=%s\nAGENT_TEAMS_FOUNDATION_SOURCE_ROOT=%s\n' \
             "${git_dir}" "${GITHUB_WORKSPACE}" "$(dirname "${GITHUB_WORKSPACE}")" "${GITHUB_WORKSPACE}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

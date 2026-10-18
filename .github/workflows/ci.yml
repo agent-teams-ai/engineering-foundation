@@ -101,6 +101,7 @@ jobs:
           mkdir -p "${tmpdir}"
           printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -144,6 +145,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -208,6 +210,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         id: setup-bun
@@ -306,6 +309,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -342,6 +346,7 @@ jobs:
           mkdir -p "${tmpdir}"
           printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
@@ -398,6 +403,7 @@ jobs:
           mkdir -p "${tmpdir}"
           printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       # registry-install-e2e reaches pack-test: managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
@@ -428,6 +434,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0, persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -472,6 +479,7 @@ jobs:
           mkdir -p "${tmpdir}"
           printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -519,6 +527,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -558,6 +567,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -596,6 +606,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -639,6 +650,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -674,6 +686,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -712,6 +725,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -753,6 +767,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
@@ -799,6 +814,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -833,6 +849,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -890,6 +907,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         with: { version: "11.20.0", install: false }
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: "1.4.3" }
@@ -952,6 +970,7 @@ jobs:
         env:
           QUALIFICATION_PROFILE: ${{ matrix.profile }}
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
+        env: { pnpm_config_pm_on_fail: ignore }
         id: setup-pnpm
         with: { version: "11.20.0", install: false }
       # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.

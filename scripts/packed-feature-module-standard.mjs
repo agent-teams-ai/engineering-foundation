@@ -99,7 +99,7 @@ for (const syntax of ["export *", "export type *"]) {
   assert.deepEqual(rejected.diagnostics.map(item => item.code), ["republication-undeclared"]);
 }
 await writeFile(join(consumerRoot, path), exampleSources()[path]);
-const unresolvedPath = "src/features/orders/application/service.ts";
+const unresolvedPath = "src/features/orders/application/use-case.ts";
 for (const source of ['import "./missing.js";', 'import "#hidden/domain";', 'const target = "./missing.js"; void import(target);']) {
   await writeFile(join(consumerRoot, unresolvedPath), source);
   const rejected = await checkFeatureModuleOnDisk(config);

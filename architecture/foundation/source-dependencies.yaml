@@ -977,6 +977,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-repository-agent-workflow-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/git/git-repository-changes-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/bun/bun-package-script-runner.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/changed-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/instructions-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/process/process-execution.ts
@@ -994,12 +995,17 @@ boundaries:
         - capability.repository-agent-workflow.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.process-execution.application
+        - foundation.process-execution.composition
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
+        - node:path
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/command-module.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition/select-package-script-runner.ts
   - id: capability.quality-gate-runner.application
     roots:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application
@@ -1062,6 +1068,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/bun/bun-package-script-executor.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/time/performance-monotonic-clock.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.ts
   - id: capability.quality-gate-runner.composition
@@ -1078,12 +1085,17 @@ boundaries:
         - capability.quality-gate-runner.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.process-execution.application
+        - foundation.process-execution.composition
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
+        - node:path
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/module.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/command-module.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/composition/select-package-script-executor.ts
   - id: foundation.core
     roots:
       - packages/engineering-foundation/src/binary-string-comparator.ts
@@ -2263,6 +2275,8 @@ boundaries:
   - id: foundation.process-execution
     roots:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/windows-command-launch.ts
+      - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts
       - packages/engineering-foundation/src/process-execution/windows-process-host.ts
@@ -2271,7 +2285,7 @@ boundaries:
         - foundation.process-execution.application
         - foundation.validation-reporting.error
         - foundation.core
-      packages: []
+      packages: [ "node-or-bun" ]
       builtins:
         - node:child_process
         - node:events
@@ -2285,6 +2299,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
   - id: foundation.workspace-inventory.application
     roots:
       - packages/engineering-foundation/src/workspace-inventory/application
@@ -3801,6 +3816,7 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/process-execution/application/process-failure-policy.ts
       - packages/engineering-foundation/src/process-execution/api.ts
+      - packages/engineering-foundation/src/process-execution/application/runtime-selection.ts
   - id: foundation.process-execution.composition
     roots:
       - packages/engineering-foundation/src/process-execution/module.ts

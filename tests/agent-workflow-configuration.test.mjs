@@ -4,6 +4,7 @@ import { assertFeatureOutsideSchemaCycles, assertSchemaAssemblyImportRejected } 
 import { loadAgentWorkflowPolicy } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/inbound/configuration/load-agent-workflow-policy.js";
 import { parseAgentWorkflowPolicy } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy.js";
 import { CapabilityInputError } from "../packages/engineering-foundation/dist/features/validation-reporting/api.js";
+import { BunPackageScriptRunner } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/bun/bun-package-script-runner.js";
 
 function configuration() {
   return {
@@ -37,6 +38,7 @@ test("agent workflow configuration retains dependency order and changed-check ro
     ["schema", "repository-agent-workflow/v1", input, "repository-agent-workflow-config"]
   ]);
   assert.deepEqual(policy.changedChecks, [{ id: "typescript", script: "lint", extensions: [".ts", ".tsx"], passPaths: true }]);
+  assert.equal(policy.packageManager, "pnpm");
   assert.deepEqual(policy.fullScanPaths, [".github/copilot-instructions.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", "architecture", "foundation.config.yaml", "package.json", "workflow.yaml"]);
   assert.deepEqual(parseAgentWorkflowPolicy(input, "workflow.yaml"), policy);
   assert.ok(Object.isFrozen(policy));
@@ -65,4 +67,27 @@ test("pure agent workflow parsing preserves recursion and path-role diagnostics"
   const duplicate = configuration();
   duplicate.instructions.claude = duplicate.instructions.canonical;
   assert.throws(() => parseAgentWorkflowPolicy(duplicate, "workflow.yaml"), /Instruction file paths must be unique/u);
+});
+
+// Catches Bun workflow checks being passed through pnpm or receiving shell-like arguments.
+test("repository agent workflow Bun adapter runs one declared script and bounded paths", async () => {
+  const calls = [];
+  const result = await new BunPackageScriptRunner(
+    { bunExecutablePath: "/verified/bun" },
+    async (command, args, options) => {
+      calls.push([command, args, options.cwd]);
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  ).run({
+    packageManager: "bun",
+    consumerRoot: "/fixture",
+    script: "lint:fast:files",
+    paths: ["src/a.ts"],
+  });
+  assert.equal(result.exitCode, 0);
+  assert.deepEqual(calls, [[
+    "/verified/bun",
+    ["run", "lint:fast:files", "--", "src/a.ts"],
+    "/fixture"
+  ]]);
 });

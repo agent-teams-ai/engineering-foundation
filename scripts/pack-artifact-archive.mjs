@@ -11,15 +11,18 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Full Foundation inventory: 2,640 archive entries, including the four internal
-  // validation-reporting/process-failure-facts artifacts (.d.ts, .d.ts.map, .js, .js.map)
-  // and the findings baseline, source graph and ratchet modules (.d.ts, .d.ts.map, .js, .js.map
-  // per source file) with the quality-findings-baseline/v1 schema.
-  // The native TypeScript adapter adds a net four modules (16 emitted artifacts)
-  // after removal of the two obsolete compiler/preparation modules.
+  // Full Foundation inventory: previously 2,624 entries, now 2,673 (+49):
+  // the quality-gate-runner v2 schema and 32 compiled artifacts because eight TypeScript
+  // modules each emit .js, .js.map, .d.ts, and .d.ts.map under the strict
+  // package tsconfig, plus 16 artifacts for the native TypeScript adapter
+  // (six new modules minus two obsolete modules). The previous baseline includes
+  // the four internal validation-reporting/process-failure-facts artifacts
+  // (.d.ts, .d.ts.map, .js, .js.map) and the findings baseline, source graph
+  // and ratchet modules (.d.ts, .d.ts.map, .js, .js.map per source file) with
+  // the quality-findings-baseline/v1 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_640,
+  "@agent-teams/engineering-foundation": 2_673,
 });
 const MAX_MEMBER_BYTES = 16 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 64 * 1024 * 1024;

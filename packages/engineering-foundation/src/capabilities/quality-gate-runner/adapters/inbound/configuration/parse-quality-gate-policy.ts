@@ -55,7 +55,11 @@ function task(value: unknown, profileIndex: number, taskIndex: number): QualityG
   });
 }
 
-function profile(value: unknown, index: number): QualityGateProfile {
+function profile(
+  value: unknown,
+  index: number,
+  schemaVersion: 1 | 2
+): QualityGateProfile {
   const field = `profiles[${index}]`;
   const input = record(value, field);
   const tasks = input["tasks"];
@@ -64,20 +68,46 @@ function profile(value: unknown, index: number): QualityGateProfile {
   }
   return Object.freeze({
     id: string(input["id"], `${field}.id`),
+    packageManager: schemaVersion === 1
+      ? "pnpm"
+      : packageManager(input["packageManager"], `${field}.packageManager`),
     concurrency: integer(input["concurrency"], `${field}.concurrency`),
     tasks: Object.freeze(tasks.map((entry, taskIndex) => task(entry, index, taskIndex)))
   });
 }
 
+function packageManager(value: unknown, field: string): "bun" | "pnpm" {
+  if (value !== "bun" && value !== "pnpm") {
+    inputError(`${field} must be "bun" or "pnpm".`);
+  }
+  return value;
+}
+
 export function parseQualityGatePolicy(input: unknown): QualityGatePolicy {
   const root = record(input, "quality gate runner config");
+  const rawSchemaVersion = root["schemaVersion"];
+  const schemaVersionValue = rawSchemaVersion === undefined
+    ? 1
+    : integer(rawSchemaVersion, "schemaVersion");
+  if (schemaVersionValue !== 1 && schemaVersionValue !== 2) {
+    inputError("schemaVersion must be 1 or 2.");
+  }
+  const schemaVersion = schemaVersionValue;
   const profiles = root["profiles"];
   if (!Array.isArray(profiles)) {
     inputError("profiles must be an array.");
   }
   const policy: QualityGatePolicy = Object.freeze({
-    packageManager: "pnpm",
-    profiles: Object.freeze(profiles.map(profile))
+    profiles: Object.freeze(
+      profiles.map((entry, index) => {
+        const parsed = profile(entry, index, schemaVersion);
+        return Object.freeze(
+          schemaVersion === 1
+            ? { ...parsed, packageManager: "pnpm" as const }
+            : parsed
+        );
+      })
+    )
   });
   try {
     validateQualityGatePolicy(policy);

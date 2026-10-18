@@ -1,0 +1,925 @@
+--- a/docs/architecture/common-assembly.md
++++ b/docs/architecture/common-assembly.md
+@@ -13,6 +13,8 @@
+   - ADR-0032
+   - ADR-0033
+   - ADR-0035
++  - ADR-0036
++  - ADR-0037
+   - ARCH-CURRENT-CONTRACT
+   - ARCH-MVP-IMPLEMENTATION-ROADMAP
+ ---
+@@ -25,10 +27,12 @@
+ pure and unchanged. Assembly depends only on the public Core root; Host supplies
+ already selected and authorized factory functions; capability types come from
+ contract descriptors ([ADR-0032](../decisions/0032-give-assembly-an-authoring-builder-and-capability-scoped-handles.md)).
++A module is created as an entry beside its declaration and listed in a static group
++([ADR-0036](../decisions/0036-compose-roots-from-module-entries-and-static-groups.md)).
+ Construction success does not establish readiness, trust or permissions.
+ 
+-One construction feature owns handles, preparation, sequential execution and the
+-authoring builder.
++One construction feature owns module entries and groups, preparation, sequential
++execution and the authoring builder.
+ No service locator, global service registry, discovery, dynamic imports,
+ scheduler, retry, automatic rollback, disposal, readiness, generations or hot
+ replacement. The internal Core emitter remains private and required-only.
+@@ -47,6 +51,9 @@
+ dependency mechanisms and extraction. Its immutable identity is Git blob
+ `d0bfff2033faf544fe65268c1dcdfd524d093015`, SHA-256
+ `851653f96643cf0466b67ab22963661976b00de44840fa3144a48a8c054f95fa`.
++Its published successor v1.1 (Git blob `bd949a9a670862fea851a7791fce772fdef3b4fc`, SHA-256
++`cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c`) adds sub-features and
++composition contracts; a consumer follows the version its profile pins.
+ The linked local profile maps Get Modular itself, not all consumers.
+ 
+ The [current contract](current-contract.md) and this Assembly contract own graph
+@@ -68,7 +75,7 @@
+ ### New composition boundaries
+ 
+ Every new production capability needs a semantic owner. A bounded context,
+-package, feature and Assembly handle need not map one-to-one. Inside accepted
++package, feature and Assembly entry need not map one-to-one. Inside accepted
+ Host scope, independently assembled capabilities, alternative implementations
+ and configurable inter-module relationships must use consumer-owned ports and
+ a single Core/Assembly composition root. A local adoption can make this optional
+@@ -77,12 +84,12 @@
+ Fixed library dependencies and private helpers inside a cohesive feature remain
+ static imports and typed factories. A parser, mapper, DTO, class or endpoint is
+ not a graph node merely because it is new. Cover real composition seams, not a
+-quota of handles. Each wiring relationship uses one organization dependency
++quota of entries. Each wiring relationship uses one organization dependency
+ mechanism. Static composition does not imply runtime plugin discovery; runtime
+ selection, variable dependencies or independently managed lifecycle require an
+ explicit demonstrated need for the runtime mechanism.
+ 
+-Keep declarations, profiles and handle mapping in the outer composition adapter.
++Keep declarations, profiles and entry creation in the outer composition adapter.
+ Domain and application code must not import Core, Assembly, registration types,
+ SDK or transport DTOs, or selected concrete port implementations. Features expose
+ narrow typed factories and consumer-owned dependency records. Preserve owned
+@@ -90,7 +97,7 @@
+ generic repositories are not justified by similar code alone.
+ 
+ There is one production composition authority: the profile, written or completed
+-by Assembly from the bound modules, selects bindings,
++by Assembly from the module entries the root lists, selects bindings,
+ owner-local factories materialize capabilities, and Host receives closed roots.
+ Do not retain a second direct production assembly, instance fallback, string
+ lookup, mutable registry, global container or registration-order semantics.
+@@ -146,14 +153,15 @@
+ | Composition adapter imports | Assembly inside domain/application | Existing source policy and negative import fixture |
+ | Host cleanup for what the Host itself acquires | Duplicate disposal through shared capabilities | Failure, cancellation and handoff tests |
+ | Independent direct test reference | Production fallback or oracle derived from profile | Binding mutant and parity test |
++| Oracle that pins providers and roots and lists every non-completed row | A full row table, or an oracle copied from the plan or `describeWiring` | [`packages/conformance/tests/conformance.test.mjs`](../../packages/conformance/tests/conformance.test.mjs) |
+ | Module resources through `setup`/`use` | Host-written cleanup lists for module-acquired resources | [`tests/resources/assembly-scope.test.mjs`](../../tests/resources/assembly-scope.test.mjs) |
+-| One scope per run through `scoped()` | Parent scope captured at bind time | Same file, two concurrent runs |
+-| Declared run inputs | Closures captured at bind time | [`tests/assembly/inputs.test.mjs`](../../tests/assembly/inputs.test.mjs) |
++| One scope per run through the `scoped` adapter of `implement` | Parent scope captured when an entry is created | Same file, two concurrent runs |
++| Declared run inputs | Closures captured when an entry is created | [`tests/assembly/inputs.test.mjs`](../../tests/assembly/inputs.test.mjs) |
+ | Descriptors and `declareModule` | Hand-written compatibility literals | [`tests/assembly/builder-types.ts`](../../tests/assembly/builder-types.ts) |
+ 
+ Completing a profile in `prepare` ([ADR-0035](../decisions/0035-complete-composition-profiles-in-prepare-and-make-capabilitiesof-linear.md))
+-is not a second resolver: it runs once, before any factory, over the handles the
+-root binds, and writes explicit rows into the compiled plan. It never guesses,
++is not a second resolver: it runs once, before any factory, over the entries the
++root lists, and writes explicit rows into the compiled plan. It never guesses,
+ and no factory receives a resolver, a container or a registry
+ ([ADR-0031](../decisions/0031-pass-a-per-run-scope-and-declared-inputs-to-assembly-runs.md)).
+ 
+@@ -198,8 +206,8 @@
+    recipes that react to the escalation signal.
+ 10. Wrap a thenable resource: `setup: () => ({ proc: execa(...) })`.
+ 11. Domain and application code never sees `Resources`; only the composition or
+-    adapter layer of the module does. Only `scoped()` reads `FactoryContext.scope`;
+-    never cast it.
++    adapter layer of the module does. Only the `scoped` adapter reads
++    `FactoryContext.scope`; never cast it.
+ 12. Never await `close()` of your own or an ancestor scope inside a cleanup.
+ 13. A cleanup that must not run twice guards itself; the Host may retry.
+ 
+@@ -208,7 +216,7 @@
+ <!-- consumer-standard-example: host -->
+ 
+ ```ts
+-import { assemblyFor, declareModule, defineContract, type Assembly, type CapabilitiesOf, type ModuleFactory } from "@get-modular/assembly";
++import { assemblyFor, declareModule, defineContract, implement, type Assembly, type CapabilitiesOf, type ModuleFactory } from "@get-modular/assembly";
+ import { required } from "@get-modular/core";
+ import { scoped, type CloseReport, type ModuleContext, type Resources, type ScopeControl } from "@get-modular/resources";
+ 
+@@ -251,19 +259,21 @@
+   }
+ }
+ 
++// A one-file sketch: in a consumer each entry lives at the top level of its module file (Module template).
++// A Host-local stand-in; module packages export their entry the way `orders` is made here.
++const database = implement<CapabilitiesOf<typeof Db>>()(declareModule({
++  moduleId: "acme/db", implementationId: "acme/db/pg",
++  owner: { authority: "acme", path: ["db"] }, provides: [Db.provide()], slots: [],
++}), async () => ({ instance: undefined, capabilities: { "acme/db": { query: () => 0 } } }));
++const orders = implement<CapabilitiesOf<typeof Db | typeof Orders>>()(ordersDeclaration, createOrders, scoped);
++
+ // The composition root is a function of Assembly, so `smoke` can pass its own api.
+ export function composeOrders(api: Assembly<CapabilitiesOf<typeof Db | typeof Orders>>) {
+-  // A Host-local stand-in; module packages export their factory as createOrders does.
+-  const database = api.bindFactory(declareModule({
+-    moduleId: "acme/db", implementationId: "acme/db/pg",
+-    owner: { authority: "acme", path: ["db"] }, provides: [Db.provide()], slots: [],
+-  }), async () => ({ instance: undefined, capabilities: { "acme/db": { query: () => 0 } } }));
+-  const orders = api.bindFactory(ordersDeclaration, scoped(ordersDeclaration.implementationId, createOrders));
+   // `orders` has one `required` slot and `database` is the only provider of its capability, so Assembly
+   // completes the row; the profile follows the module list.
+-  return api.prepare({ profileId: "acme/orders-host", factories: [database, orders], roots: { orders } });
++  return api.prepare({ profileId: "acme/orders-host", modules: [database, orders], roots: { orders } });
+ }
+-// Bind and prepare once; every run gets its own scope.
++// Prepare once; every run gets its own scope.
+ const preparation = await composeOrders(assemblyFor<CapabilitiesOf<typeof Db | typeof Orders>>());
+ if (preparation.status === "failed") { throw new ConstructionFailed(preparation); }
+ const { prepared } = preparation;
+@@ -280,9 +290,13 @@
+ 
+ Host rules:
+ 
+-- Wrap owning factories with `scoped(implementationId, factory)` and pass one
+-  scope per run: `run({ signal, scope: attempt.resources })`, never the `Scope`
+-  itself. Never capture a scope when binding factories. Close the attempt only
++- Pass `scoped` as the adapter of `implement` for every owning factory
++  (`implement<C>()(declaration, factory, scoped)`); Assembly names the module
++  scope by its implementation id, and `scoped` is the only adapter this standard
++  admits: another adapter could read `scope` or add to the context a module
++  receives, and Assembly cannot tell `scoped` from another function of the same
++  type, so review enforces the rule. Pass one scope per run: `run({ signal, scope: attempt.resources })`,
++  never the `Scope` itself. Never capture a scope when creating entries. Close the attempt only
+   after `run()` settles. Load exactly one copy of `@get-modular/resources` per
+   Host.
+ - Pass construction cancellation to `run({ signal })`. `scoped()` stops a
+@@ -330,9 +344,9 @@
+   closing the old one. A change of any module inside an instance rebuilds the
+   whole instance; split an instance that is too coarse into nested templates.
+ - Pass per-instance data and parent ports as inputs: declarations without
+-  slots bound with `bindInput`, one capability each. Each run supplies them in
++  slots made with `input<C>()(declaration)`, one capability each. Each run supplies them in
+   `run({ inputs })` as plain records keyed by capability ID; a value may be a
+-  port. Never pass them through closures captured at bind time. An input must
++  port. Never pass them through closures captured when an entry is created. An input must
+   outlive every instance that received it. Roots of an instance do not escape
+   its owner except through a facade.
+ - The factory context stays closed: `{ signal, scope }` from Assembly and
+@@ -355,7 +369,7 @@
+ <!-- consumer-standard-example: instances -->
+ 
+ ```ts
+-import { assemblyFor, declareModule, defineContract, type Assembly, type CapabilitiesOf, type ModuleFactory } from "@get-modular/assembly";
++import { assemblyFor, declareModule, defineContract, implement, input, type Assembly, type CapabilitiesOf, type ModuleFactory } from "@get-modular/assembly";
+ import { required } from "@get-modular/core";
+ import { scoped, type ModuleContext, type Resources } from "@get-modular/resources";
+ 
+@@ -381,11 +395,13 @@
+   return { instance: port, capabilities: { "acme/chat": port } };
+ };
+ 
++// A one-file sketch: in a consumer each entry lives at the top level of its module file.
++const session = input<Capabilities>()(sessionInput);
++const chat = implement<Capabilities>()(chatDeclaration, createChat, scoped);
++
+ // The template root is a function of Assembly, so `smoke` can pass its own api.
+ export function composeSessions(api: Assembly<Capabilities>) {
+-  const session = api.bindInput(sessionInput);
+-  const chat = api.bindFactory(chatDeclaration, scoped(chatDeclaration.implementationId, createChat));
+-  return api.prepare({ profileId: "acme/sessions", factories: [chat], roots: { chat }, inputs: { session } });
++  return api.prepare({ profileId: "acme/sessions", modules: [chat], roots: { chat }, inputs: { session } });
+ }
+ // Prepared once; each session is one run with its own scope and input.
+ const preparation = await composeSessions(assemblyFor<Capabilities>());
+@@ -403,12 +419,153 @@
+   }
+   return { chat: outcome.roots.chat, lifetime: instance.control }; // the caller owns the instance
+ }
++```
++
++### Feature layout and implementation form
++
++These rules strengthen a consumer's profile of the organization Feature Module
++Standard and are stated in its roles. Sub-features, republication and composition
++contracts follow [Feature Module Standard v1.1](https://github.com/agent-teams-ai/.github/blob/f5653f5630057524a4ee44e50c16e138442a9b42/docs/architecture/feature-module-standard/v1.1.md)
++(Git blob `bd949a9a670862fea851a7791fce772fdef3b4fc`, SHA-256
++`cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c`), sections
++"Sub-features" and "Composition contracts". Where a consumer's profile constrains
++placement, the profile wins and the consumer records the mapping. A consumer whose
++profile pins v1 does not nest until its profile pins v1.1.
++The [module authoring guide](../guides/module-authoring.md) shows each rule with
++compiled examples and the recipes for growing a feature.
++
++1. A feature lives in `features/<feature>/{contracts, domain, application/{use-cases,
++   ports}, adapters/{inbound, outbound}, composition}`. Create only the directories
++   that hold real files.
++2. A feature may hold sub-features at `features/<parent>/features/<child>/` to any
++   depth, each with the same layout. A sub-feature is private to its parent: code
++   outside the parent reaches it only through contracts the parent republishes from
++   its own `<parent>.contracts.ts` (and port types from its own `contracts/`), one level
++   at a time; every republication is declared where the consumer declares its
++   sub-features. A feature depends on other
++   features only through the public contracts of features it can see: its direct
++   sub-features, its ancestors and the siblings of itself and of its ancestors.
++   Downward and lateral edges stay acyclic, type-only references included; an upward
++   use of an ancestor's contracts never counts. No load-time import cycle may cross
++   features. A parent's map extends its sub-features' maps through `import type`.
++3. `@get-modular/*` is imported only in `composition/` and in tests.
++   `application/` and `domain/` never import `contracts/`, not even their own: a use
++   case types its dependencies only with `application/ports/`, and the module file
++   maps between them.
++4. Descriptors live in `composition/<feature>.contracts.ts`, the feature's
++   composition contract, imported only by composition code and tests. One declaration file per
++   implementation, `composition/<module>.declaration.ts`, imports only
++   `declareModule`, the cardinality helpers and contract descriptors and holds
++   only the declaration. `composition/<module>.module.ts` holds only the `implement`
++   wiring.
++   `composition/` is flat at every depth: it has no subdirectory. A `*.contracts.ts`
++   file exists only as `composition/<own segment>.contracts.ts`, or flat in the Host's
++   `src/composition/`. Every `*.module.ts` imports a declaration of its own feature (a Host-level module: a Host-level declaration) and
++   is owned by exactly one production file: a feature module by its feature's group; a
++   Host-level module outside `features/` by one Host-level group or, when no group lists
++   it, by the one root that lists it as its own entry. A root's import of a module only
++   to name it in `roots` does not count when a group owns that module; several roots
++   importing one Host-level module that no group lists is a violation (`group-count`). Every `*.declaration.ts` is imported by a module file or by
++   `composition/<feature>.inputs.ts`, which holds the feature's input entries. No
++   source file sits directly in `application/`, and a use-case file has exactly one
++   runtime export, its function, and may also export types. `checkModuleLayout` reports
++   each of these rules by code.
++5. A use case is `application/use-cases/<verb-noun>.ts` exporting one function
++   `(deps, input) => result`; `deps` is a narrow record of port types. Pure rules go in
++   `domain/`, DB, SDK and HTTP code in `adapters/`.
++6. A port is an object of arrow functions built by a factory function. A class is
++   allowed only for a stateful adapter or a test fake: arrow-function fields, no
++   prototype method on a port, `static async create` for async setup. Port members
++   are own properties, which `smoke` and `isolate` check on the capabilities a
++   module returns.
++7. Tests, fakes and oracle parts live under the feature's test root at the path that
++   mirrors the feature's path, sub-features included. Oracle parts and fakes are
++   test code.
++8. A feature README SHOULD carry a `## Feature card` section with the fields of the
++   [guide](../guides/module-authoring.md#2-designing-a-feature): Purpose, Parent,
++   Publishes, Consumes, Modules, Sub-features, Expected growth, Likely split seams and
++   Split signals now (modules, use cases and depth against the consumer's
++   thresholds, for example `<n>/12`, and aggregates). The split signals, the depth warning and their thresholds are
++   consumer policy; the [guide](../guides/module-authoring.md#8-when-and-how-to-split)
++   gives the recipes. The size limits below are this standard's.
++
++Enforce the import and size rules with the lint rules below and the Get Modular
++layout checks (`checkModuleLayout` in `@get-modular/conformance`); the oxlint
++preset is not shipped, so a consumer copies this snippet and adapts the paths:
++
++```json
++{ "overrides": [
++  { "files": ["src/features/**/*.ts"], "excludeFiles": ["**/*.test.ts"], "rules": {
++    "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
++    "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
++    "max-params": ["error", { "max": 4 }] } },
++  { "files": ["src/features/**/composition/*.module.ts"], "rules": {
++    "max-lines": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
++  { "files": ["src/features/**/contracts/**", "src/features/**/domain/**", "src/features/**/application/**",
++              "src/features/**/adapters/**"], "rules": {
++    "no-restricted-imports": ["error", { "patterns": [
++      { "group": ["@get-modular/*"], "message": "Get Modular is imported only in composition/ and tests" }] }] } },
++  { "files": ["src/features/**/composition/*.declaration.ts"], "rules": {
++    "no-restricted-imports": ["error", {
++      "patterns": [{ "group": ["*", "!@get-modular/assembly", "!@get-modular/core",
++        "!*.contracts.js", "!*.contracts.ts"],
++        "message": "a declaration imports only declareModule, cardinality helpers and contract descriptors" }],
++      "paths": [
++        { "name": "@get-modular/assembly", "allowImportNames": ["declareModule"] },
++        { "name": "@get-modular/core", "allowImportNames": ["required", "optional", "many"] }] }] } }
++] }
+ ```
+ 
++The size limits are the owner's decision: 80 lines for `*.module.ts`, 300 for any other non-test file of an
++adopted feature, 60 for a function and 4 parameters, with blank lines and comments not
++counted and tests exempt. The rule that `application/` and `domain/` never import
++`contracts/`, not even their own, is not expressed by this snippet and is not part of
++`checkModuleLayout`: the consumer's Feature Module Standard checks enforce it (its own
++checker, or the Feature Module Standard package of Engineering Foundation once
++released), and review covers it until they run.
++
++### Feature groups
++
++A feature exports one static group of its modules. Assembly knows no features:
++the group is [ADR-0036](../decisions/0036-compose-roots-from-module-entries-and-static-groups.md)'s
++`group(name, members)`, and a name is a navigation label that never enters the
++profile, the plan or the digest.
++
++1. `composition/<feature>.group.ts` exports `<feature>Group`, a module-level constant
++   made with `group("<feature segment>", [...])`: one member per line, sorted by imported
++   name, each imported by name, with no conditional member. When an entry of the
++   feature closes over Host-level values, the file instead exports
++   `create<Feature>Group(values)`, which takes only those values and returns the same
++   static list.
++2. The group tree mirrors the feature tree. A parent's group lists its own modules and
++   the groups of its direct sub-features; a group's name is its feature's own path
++   segment, so `groupPath` in an `unresolved-binding` cause reads like the feature path.
++3. A root's `modules` lists the groups of top-level features, Host-level groups and its
++   own entries, and nothing else. It never lists a module of a feature, and never the
++   group of a sub-feature, which is private to its parent. A root file is
++   `src/composition/<root>.root.ts`. Groups own modules: a feature's group owns that
++   feature's modules, and a Host-level group, `src/composition/<name>.group.ts`, owns
++   the Host-level modules it lists, so several roots, such as variants, can share them.
++   A root imports a module file only to name that entry in `roots`; that import does not
++   count when a group owns the module, and the entry stays listed in its group and
++   nowhere else in `modules`. A root owns the Host-level modules outside `features/`
++   that no group lists and that it lists as its own entries
++   (`src/composition/<module>.declaration.ts` and `<module>.module.ts`), directly in
++   its `modules`; one such module belongs to one root.
++4. The list a root passes to `prepare` never depends on run-time values; a variant is
++   a separate root with its own `profileId`. Names are labels, never identities.
++5. An entry listed twice, or two entries with one `implementationId`, fail with
++   `assembly.prepare.duplicate-module` before any factory runs.
++6. A merge conflict in a group keeps both lines.
++
++The [guide](../guides/module-authoring.md#13-groups-and-the-root) shows the group files and the root.
++
+ ### Module packages and contracts
+ 
+ [ADR-0032](../decisions/0032-give-assembly-an-authoring-builder-and-capability-scoped-handles.md)
+-gives Assembly the authoring builder.
++gives Assembly the authoring builder and
++[ADR-0036](../decisions/0036-compose-roots-from-module-entries-and-static-groups.md)
++module entries and groups.
+ 
+ Contracts:
+ 
+@@ -430,8 +587,9 @@
+   from 1.0.
+ - Declare port members as function-typed properties, not methods: TypeScript
+   checks method parameters bivariantly and accepts a breaking change silently.
+-  Enforce it with one oxlint line for every file that declares a contract value
+-  type, or for the whole repository:
++  The line applies to `contracts/` and `application/ports/`. Enforce it with one
++  oxlint line for every file that declares a contract or port value type, or for
++  the whole repository:
+   `"typescript/method-signature-style": ["error", "property"]` (ESLint users: the
+   typescript-eslint rule of the same name). The rule cannot see a value type
+   inferred from an implementation such as `ReturnType<...>`; declare contract
+@@ -443,17 +601,26 @@
+   `Contract.slot(slotId, cardinality)`. Never write `kind`, `schemaVersion` or a
+   `compatibility` literal by hand; the builder emits the current wire
+   generation.
+-- A module package exports its declaration and an unbound factory typed
+-  `ModuleFactory<CapabilitiesOf<its contracts>, typeof declaration, Instance, ModuleContext>`;
+-  the composition root binds it. It never imports the Host's map.
++- A module is a declaration file and one entry made with
++  `implement<its feature map>()(declaration, factory, scoped)` in its module
++  file. The factory is written inline in `implement`, which infers its types, or, when
++  exported on its own, typed
++  `ModuleFactory<its map, typeof declaration, Instance, ModuleContext>`; it takes
++  the `scoped` adapter when it reads `resources`. The entry is created once,
++  at the top level of the module file, and listed in its feature's group
++  ([Feature groups](#feature-groups)). A factory that closes over Host-level values
++  gets its entry from a function of the composition adapter whose module list
++  never depends on them. A module never imports the Host's map. A feature's map
++  is an interface that extends the maps of the features it uses, one member per
++  line, through `import type`.
+ - Name a map derived from many contracts as an interface:
+   `interface HostCapabilities extends CapabilitiesOf<typeof A | typeof B> {}`.
+   A type alias over hundreds of contracts multiplies check time and reaches
+   TS2589 on TypeScript 5.8.3.
+-- A Host prepares with a map that contains every capability any handle uses,
++- A Host prepares with a map that contains every capability any entry uses,
+   with the identical contract.
+ - Module packages list Get Modular packages only in `peerDependencies`, with a
+-  range of one 0.x minor such as `^0.4.0`, and pin exact versions in
++  range of one 0.x minor such as `^0.5.0`, and pin exact versions in
+   `devDependencies` for their own tests. A Host installs one copy of each Get
+   Modular package. Widen a range only when the release notes of the newer
+   minor say that the authoring surface did not change.
+@@ -471,80 +638,212 @@
+ 
+ #### Module template
+ 
+-Copy this for a new module; replace `acme/counter` and `acme/store` with your
+-identities and your own contract packages. The first block is the contract
+-package, the second the module package, the third its test.
++Copy this for a new module in the layout above; replace `acme/counter` and `acme/store`
++with your identities and your own features. The blocks are one project, each
++named by its first line: the store feature's port type and descriptor, then the counter
++feature's port type, its own `application/ports/` type, use case, descriptors,
++declaration, module, group, the oracle part and the module test, the Host-level store
++module (declaration and module, flat in `src/composition/`), the root, and the root test
++with `smoke`, `checkWiring` and `checkNamespaces`. The store feature has no module
++here; the Host supplies a stand-in.
+ 
+-<!-- consumer-standard-example: contracts -->
++<!-- consumer-standard-example: template -->
+ 
+ ```ts
+-// src/counter/contracts.ts (or your contract package)
+-import { defineContract } from "@get-modular/assembly";
+-
+-// Contract packages hold ports with function-typed properties and their descriptors.
++// src/features/store/contracts/store.ts
++// A contract owner publishes port types with function-typed properties.
+ export type StorePort = { readonly bump: (key: string) => number };
++```
++
++```ts
++// src/features/store/composition/store.contracts.ts
++import { defineContract, type CapabilitiesOf } from "@get-modular/assembly";
++import type { StorePort } from "../contracts/store.js";
++
++// The descriptor and the feature's map: composition code imports this file, nothing else does.
++export const Store = defineContract<StorePort>()({ id: "acme/store/store", revision: 1 });
++export interface StoreCapabilities extends CapabilitiesOf<typeof Store> {}
++```
++
++```ts
++// src/features/counter/contracts/counter.ts
+ export type CounterPort = { readonly increment: (key: string) => number };
+-export const Store = defineContract<StorePort>()({ id: "acme/store", revision: 1 });
+-export const Counter = defineContract<CounterPort>()({ id: "acme/counter", revision: 1 });
+ ```
+ 
+-<!-- consumer-standard-example: module -->
++```ts
++// src/features/counter/application/ports/store.ts
++// The use case types what it needs with its own port; the store feature's port satisfies it structurally.
++export type StoreForCounter = { readonly bump: (key: string) => number };
++```
+ 
+ ```ts
+-// src/counter/module.ts
+-import { declareModule, type CapabilitiesOf, type ModuleFactory } from "@get-modular/assembly";
++// src/features/counter/application/use-cases/increment-counter.ts
++import type { StoreForCounter } from "../ports/store.js";
++
++export type IncrementCounterDeps = { readonly store: StoreForCounter };
++
++export function incrementCounter(deps: IncrementCounterDeps, input: { readonly key: string }): number {
++  return deps.store.bump(input.key);
++}
++```
++
++```ts
++// src/features/counter/composition/counter.contracts.ts
++import { defineContract, type CapabilitiesOf } from "@get-modular/assembly";
++import type { CounterPort } from "../contracts/counter.js";
++import type { StoreCapabilities } from "../../store/composition/store.contracts.js";
++
++export const Counter = defineContract<CounterPort>()({ id: "acme/counter/counter", revision: 1 });
++// One member per line: the map extends the maps of the features it uses.
++export interface CounterCapabilities extends
++  StoreCapabilities,
++  CapabilitiesOf<typeof Counter> {}
++```
++
++```ts
++// src/features/counter/composition/counter.declaration.ts
++import { declareModule } from "@get-modular/assembly";
+ import { required } from "@get-modular/core";
+-import type { ModuleContext } from "@get-modular/resources";
+-import { Counter, Store, type CounterPort } from "./contracts.js";
++import { Store } from "../../store/composition/store.contracts.js";
++import { Counter } from "./counter.contracts.js";
+ 
++// Only the declaration: inert, no side effects.
+ export const counterDeclaration = declareModule({
+-  moduleId: "acme/counter", implementationId: "acme/counter/default",
++  moduleId: "acme/counter/counter", implementationId: "acme/counter/counter/default",
+   owner: { authority: "acme", path: ["counter"] },
+   provides: [Counter.provide()], slots: [Store.slot("store", required())],
+ });
++```
+ 
+-// Unbound: the composition root binds it and the module never imports the Host's map.
+-export const createCounter: ModuleFactory<
+-  CapabilitiesOf<typeof Store | typeof Counter>, typeof counterDeclaration, CounterPort, ModuleContext
+-> = async (deps) => {
+-  const port: CounterPort = { increment: (key) => deps.store.bump(key) };
+-  return { instance: port, capabilities: { "acme/counter": port } };
+-};
++```ts
++// src/features/counter/composition/counter.module.ts
++import { implement } from "@get-modular/assembly";
++import { incrementCounter } from "../application/use-cases/increment-counter.js";
++import type { CounterPort } from "../contracts/counter.js";
++import type { CounterCapabilities } from "./counter.contracts.js";
++import { counterDeclaration } from "./counter.declaration.js";
+ 
+-// In the composition root, a function of Assembly that prepares with `{ profileId }`, adding the module
+-// is one line, and Assembly completes the `required` slot when one bound module provides `acme/store`:
+-//   const counter = api.bindFactory(counterDeclaration, scoped(counterDeclaration.implementationId, createCounter));
++// Only wiring: the module file maps ports to use cases. Add `scoped` as the third argument when the
++// factory needs `resources`.
++export const counterModule = implement<CounterCapabilities>()(counterDeclaration, async (deps) => {
++  const port: CounterPort = { increment: (key) => incrementCounter(deps, { key }) };
++  return { instance: port, capabilities: { "acme/counter/counter": port } };
++});
+ ```
+ 
+-<!-- consumer-standard-example: module-test -->
++```ts
++// src/features/counter/composition/counter.group.ts
++import { group } from "@get-modular/assembly";
++import { counterModule } from "./counter.module.js";
+ 
++// One module per line, sorted. The root lists this group, never the module.
++export const counterGroup = group("counter", [
++  counterModule,
++]);
++```
++
+ ```ts
+-// src/counter/module.test.ts
++// src/composition/memory-store.declaration.ts
++import { declareModule } from "@get-modular/assembly";
++import { Store } from "../features/store/composition/store.contracts.js";
++
++// A Host-level module sits flat in src/composition/, listed directly in a root's `modules`.
++export const memoryStoreDeclaration = declareModule({
++  moduleId: "acme/store/memory", implementationId: "acme/store/memory/default",
++  owner: { authority: "acme", path: ["store"] }, provides: [Store.provide()], slots: [],
++});
++```
++
++```ts
++// src/composition/memory-store.module.ts
++import { implement } from "@get-modular/assembly";
++import type { CounterCapabilities } from "../features/counter/composition/counter.contracts.js";
++import { memoryStoreDeclaration } from "./memory-store.declaration.js";
++
++export const memoryStoreModule = implement<CounterCapabilities>()(memoryStoreDeclaration, async () => ({
++  instance: undefined, capabilities: { "acme/store/store": { bump: (key: string) => key.length } },
++}));
++```
++
++```ts
++// src/composition/production.root.ts
++import type { Assembly } from "@get-modular/assembly";
++import type { CounterCapabilities } from "../features/counter/composition/counter.contracts.js";
++import { counterGroup } from "../features/counter/composition/counter.group.js";
++import { counterModule } from "../features/counter/composition/counter.module.js";
++import { memoryStoreModule } from "./memory-store.module.js";
++
++// A root lists feature groups and its own Host-level entries, nothing else, and never builds the list
++// conditionally. It imports `counterModule` only to name that entry in `roots`; the entry stays listed in
++// its feature's group.
++export const productionModules = [counterGroup, memoryStoreModule] as const;
++
++// A root is a function of Assembly, so `smoke` can pass its own api.
++export function composeProduction(api: Assembly<CounterCapabilities>) {
++  return api.prepare({ profileId: "acme/production", modules: productionModules, roots: { counter: counterModule } });
++}
++```
++
++```ts
++// tests/features/counter/counter.wiring.ts
++import type { WiringOracle } from "@get-modular/conformance";
++
++// Written from the decision, never copied from `describeWiring` or from test output.
++export const counterWiring: WiringOracle = {
++  providers: { "acme/counter/counter": "acme/counter/counter/default" },
++};
++```
++
++```ts
++// tests/features/counter/counter.test.ts
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+-import { assemblyFor, type CapabilitiesOf } from "@get-modular/assembly";
+-import { checkNamespaces, isolate } from "@get-modular/conformance";
+-import { Counter, Store, type StorePort } from "./contracts.js";
+-import { counterDeclaration, createCounter } from "./module.js";
++import { isolate } from "@get-modular/conformance";
++import { counterModule } from "../../../src/features/counter/composition/counter.module.js";
+ 
+-// The contract owner's typed fake, never an `any` or a cast.
+-const store: StorePort = { bump: (key) => key.length };
+-
+ test("counts through the real construction path", async () => {
+-  await using counter = await isolate(assemblyFor<CapabilitiesOf<typeof Store | typeof Counter>>(), {
+-    declaration: counterDeclaration, factory: createCounter, dependencies: { store },
+-  });
+-  assert.equal(counter.capabilities["acme/counter"].increment("abc"), 3);
++  // Fakes are typed values from the contract owner, never `any` or a cast.
++  await using counter = await isolate(counterModule, { dependencies: { store: { bump: (key) => key.length } } });
++  assert.equal(counter.capabilities["acme/counter/counter"].increment("abc"), 3);
+ });
++```
+ 
+-test("identities lie in the product namespace", () => {
+-  checkNamespaces({ namespace: "acme", declarations: [counterDeclaration] });
++```ts
++// tests/module/production.root.test.ts
++import assert from "node:assert/strict";
++import { test } from "node:test";
++import { assemblyFor, entriesOf } from "@get-modular/assembly";
++import { checkNamespaces, checkWiring, smoke, type WiringOracle } from "@get-modular/conformance";
++import type { CounterCapabilities } from "../../src/features/counter/composition/counter.contracts.js";
++import { composeProduction, productionModules } from "../../src/composition/production.root.js";
++import { counterWiring } from "../features/counter/counter.wiring.js";
++
++// The root's own decisions: the store provider and the root implementations.
++const rootWiring: WiringOracle = {
++  providers: { "acme/store/store": "acme/store/memory/default" },
++  roots: ["acme/counter/counter/default"],
++};
++const declarations = entriesOf(productionModules).map((entry) => entry.declaration);
++
++test("the root builds and cleans up after a failure at every module", async () => {
++  await smoke({ api: assemblyFor<CounterCapabilities>(), compose: composeProduction });
+ });
+ 
+-// Once a second implementation of Counter exists, run the contract owner's suite against both with
+-// runContractSuite(counterSuite, subject, test).
++test("the root wires what the oracle states", async () => {
++  const preparation = await composeProduction(assemblyFor<CounterCapabilities>());
++  assert.equal(preparation.status, "prepared");
++  if (preparation.status !== "prepared") { return; }
++  checkWiring(preparation.composition, [counterWiring, rootWiring], { declarations });
++});
++
++test("identities lie in the product namespace", () => {
++  checkNamespaces({ namespace: "acme", declarations });
++});
+ ```
+ 
++Once a second implementation of Counter exists, run the contract owner's suite against both with
++`runContractSuite(counterSuite, subject, test)`.
++
+ ### Identity and namespaces
+ 
+ Core validates identity syntax and rejects collisions inside one compilation;
+@@ -565,7 +864,8 @@
+    descriptor and, for a contract that others implement, its suite and fake.
+ 4. A namespace names a stable semantic owner, a product or bounded context,
+    not a team, repository, package or directory. Inside it, use
+-   paths such as `<product>/<context>/<name>`.
++   paths such as `<product>/<context>/<name>`; a module created in a sub-feature
++   uses `<product>/<feature>/<sub-feature>/<name>`.
+ 5. IDs are immutable and never reused. A renamed module or contract is a new
+    identity migrated through complete profiles. Core and Assembly have no
+    aliases and no override by ID.
+@@ -573,19 +873,27 @@
+    `moduleId`. It confers no ownership or permission.
+ 7. Session, tenant and instance IDs never enter module IDs; they name scopes
+    or run inputs.
++8. Id segments are a namespace at creation time, not a path. The FMS identity of a
++   feature (its path) and a Get Modular id are different concepts, and
++   `checkNamespaces` never compares ids with paths. By rule 5 an id does not
++   change when files or features move.
+ 
+ Check rule 1, the namespace part of rule 2 and rule 6 in a test with
+ `checkNamespaces` from `@get-modular/conformance`, over every declaration the
+-product supplies, its input modules and fakes included.
++product supplies, its input modules and fakes included: the declarations of
++`entriesOf(modules)` plus those of the input entries and fakes. That list is wider
++than the one `checkWiring` takes (testing rule 6).
+ 
+ ### Testing modules
+ 
+ [ADR-0033](../decisions/0033-admit-the-module-conformance-kit.md) admits the
+ kit `@get-modular/conformance`.
+ 
+-1. Export each module factory as a named `ModuleFactory` typed by the module's
+-   own contract map, and bind the same function in production, wrapped with
+-   `scoped()` when it takes `ModuleContext`.
++1. Make each module one entry with `implement<feature map>()(declaration,
++   factory, scoped)` at the top level of its module file, with the factory written inline or typed
++   `ModuleFactory` by the module's own contract map, and `scoped` as the adapter
++   when it takes `ModuleContext`. Production, the group and the tests use that
++   one entry.
+ 2. Type fakes with `FactoryDependencies<C, typeof declaration>`. No `any`,
+    `as never` or double cast on a dependency record.
+ 3. The contract owner keeps one fake per contract that others implement and a
+@@ -597,26 +905,65 @@
+    unbound `t.test` crashes. A suite covers errors and cancellation,
+    not only success, and is required once a capability has two implementations,
+    the fake included.
+-4. Test one module with `isolate(api, { declaration, factory, dependencies })`
+-   and release it with `await using`; a debt fails the test.
++4. Test one module with `isolate(entry, { dependencies })` and release it with
++   `await using`; a debt fails the test. `isolate` passes each dependency as a run
++   input: it requires one own property per slot (an array for `many`) and never runs
++   the port check on it.
+ 5. Write each production composition root as a function of `Assembly<C>`. One
+    `smoke` test per root prepares it once, fails and aborts construction at
+-   every module and requires every attempt scope to close complete. Bind every
+-   factory of the root through the `api` that `smoke` passes to `compose`:
+-   `smoke` rejects when a factory is bound elsewhere, because it never sees an
+-   injection. Effectful leaves use their owners' fakes. A root that prepares with
+-   `{ profileId }` lists its handles statically: its handle list does not depend on
+-   run-time values, and a variant is a separate root with its own `profileId`,
+-   `smoke` and oracle.
++   every module and requires every attempt scope to close complete. `smoke`
++   rebuilds every entry and group with `implement` and `group` and prepares the
++   rebuilt tree through the `api` it passes to `compose`; it rejects when
++   `compose` resolves with a preparation that api did not produce. Entries and
++   groups are module-level constants, or are created by a composition-adapter
++   function whose list never depends on run-time values. Effectful leaves use their owners' fakes.
++   A root that prepares with `{ profileId }` lists its modules statically: the
++   list does not depend on run-time values, and a variant is a separate root
++   with its own `profileId`, `smoke` and oracle.
+ 6. `smoke` does not prove wiring. Keep the independent binding oracle from the
+-   table above, and never derive expected bindings from the profile or the
+-   implementation. When Assembly completes bindings, the oracle compares every row
+-   of the prepared plan, with consumer, slot, providers, capability and token,
+-   against a hand-written table.
+-7. `guardHandles` is a per-file diagnostic, and `complete` is not proof of
++   table above, and never derive expected bindings from the profile, the plan,
++   `describeWiring` or the implementation. The oracle states wiring decisions
++   ([ADR-0037](../decisions/0037-pin-providers-not-completed-rows-in-the-binding-oracle.md)):
++   for each capability a selected module provides, the implementation or
++   implementations that provide it; the root implementations; inputs pinned like
++   providers; and every row that completion does not produce (`optional`, `many`
++   and explicit rows) as written. Call
++   `checkWiring(composition, oracles, { declarations })` with the declarations of
++   exactly the plan's selections: those of `entriesOf(modules)` and of the root's
++   input entries. A declaration that is not selected, such as a fake's, fails
++   `declaration-selection`. It fails on: selections that differ from the pinned providers plus the roots
++   (`selection`; a pinned provider that is not selected also fails
++   `capability-provider`); plan roots that differ (`root`); declarations that do not
++   cover the plan selections (`declaration-selection`); a capability a selected
++   module provides that the oracle does not pin to that implementation
++   (`provided-capability`); a pinned implementation that does not
++   provide its pinned capability in its declaration (`pinned-provider`); a
++   listed row that differs from its plan row, order included; an unlisted row
++   that is not a `required` slot bound to the single pinned provider of its
++   capability (`unlisted-row`); and a plan row that uses another slot or
++   capability than its consumer's declaration. A feature may keep its own
++   oracle part; equal duplicates across parts are allowed, a conflict fails.
++   Oracle parts are test code. Roots are the root's decision: keep them in the root
++   test's own part, not in a feature part. A new `required` slot bound to the single pinned
++   provider of its capability needs no oracle change; review it as a
++   declaration change. `describeWiring` is for debugging only.
++7. Port members are own properties. `smoke` and `isolate` check the capabilities a
++   module returns and fail with `conformance.ports.prototype-member` on a function or
++   accessor that lives on a prototype, such as a class method: build the port as an
++   object of arrow functions, or wrap a class instance in one. The check does not
++   see an object-literal method that uses `this`, a method extracted unbound, a
++   nested object, own accessors on the capability itself, a run input or a fake you
++   pass as a dependency; those stay review rules. A `Map` capability passes; a `Map`,
++   `Date` or `Buffer` from another realm is reported. The walk reads descriptors only, but
++   Proxy traps run during it. A negative test is a module whose capability is a class
++   instance with a method.
++8. `guardHandles` is a per-file diagnostic, and `complete` is not proof of
+    physical release. Check real adapters in disposable TEST projects.
+-8. Close every scope a test creates. No sleeps; use the test runner's
++9. Close every scope a test creates. No sleeps; use the test runner's
+    timeouts and mock timers for deadlines.
++10. A feature's tests import only its own code, the public surfaces and
++    `testing.ts` of features it may see, and Get Modular; they live at the path
++    that mirrors the feature, and a sub-feature's at the mirrored path.
+ 
+ ### Scoped acceptance and evidence
+ 
+@@ -667,8 +1014,8 @@
+ and the [packed consumer](../../tests/assembly/packed-consumer.mjs)
+ cover the public carrier. The [resource scope tests](../../tests/resources/assembly-scope.test.mjs),
+ [input tests](../../tests/assembly/inputs.test.mjs), [builder tests](../../tests/assembly/builder.test.mjs),
+-the [template compile test](../../tests/assembly/consumer-standard-examples.test.mjs)
+-for the examples of this document and the [packed conformance consumer](../../packages/conformance/tests/packed-root.test.mjs)
++the [example compile test](../../tests/assembly/consumer-standard-examples.test.mjs)
++for the examples of this document and of the [module authoring guide](../guides/module-authoring.md) and the [packed conformance consumer](../../packages/conformance/tests/packed-root.test.mjs)
+ extend them, with the [profile completion tests](../../tests/assembly/profile-completion.test.mjs). These belong to the existing `pnpm assembly:test`, `pnpm resources:check`
+ and `pnpm conformance:check` commands, invoked by both fast and full gates, after
+ `pnpm assembly:build`.
+@@ -691,45 +1038,60 @@
+ `assemblyFor<C>()` selects capability value and compatibility identities at type
+ level; `C` is a Host map or a module's own map, usually derived with
+ `CapabilitiesOf`. It stores no service registrations or instances.
+-`bindFactory(declaration, asyncFactory)` returns an identity-authenticated handle.
+-A private WeakMap holds handle metadata; copying descriptors, symbols or prototype
+-cannot forge a handle. This is identity checking, not code authorization.
++`implement<C>()(declaration, asyncFactory, adapter?)` returns an
++identity-authenticated module entry, a frozen null-prototype
++`{ declaration, factory }`, and `input<C>()(declaration)` an input entry
++`{ declaration }`. A private WeakSet authenticates each kind; copying descriptors,
++symbols, prototype or fields cannot forge one. This is identity checking, not code
++authorization. The optional `adapter` turns a factory written for another context
++into one for `FactoryContext`: Assembly calls `adapter(implementationId, factory)`
++once, and `scoped` from `@get-modular/resources` is the only admitted adapter.
++`group(name, members)` creates a frozen static list of entries and groups, and
++`entriesOf(modules)` returns the entries of a module list depth first
++([ADR-0036](../decisions/0036-compose-roots-from-module-entries-and-static-groups.md)).
+ 
+-`bindFactory` synchronously snapshots declaration metadata and captures the
++`implement` and `input` synchronously snapshot declaration metadata and capture the
+ function before returning. The original is neither frozen nor read again.
+ Preparation and execution use this same snapshot. Mutation from required to many
+ must never change an existing callback's injection contract. Malformed metadata
+-causes a stable binding error before any factory call; Core owns semantic rules.
++causes a stable binding error before any factory call, `assembly.bind.invalid-declaration`,
++`assembly.bind.limit` or `assembly.bind.invalid-factory`; a broken group fails at
++creation with `assembly.bind.invalid-group`. Core owns semantic rules.
+ 
+-`prepare({ profileId, bindings, factories, roots, inputs })` completes the profile
+-from the bound handles ([ADR-0035](../decisions/0035-complete-composition-profiles-in-prepare-and-make-capabilitiesof-linear.md)):
+-selections are all factory and input handles, roots are the modules of the root
+-handles, and an explicit row in `bindings` is kept as written. A `required` slot
+-without a row binds to the single other bound handle that provides its capability
+-id, at any revision (Core still rejects a revision mismatch as
++`prepare({ profileId, bindings, modules, roots, inputs })` completes the profile
++from the entries ([ADR-0035](../decisions/0035-complete-composition-profiles-in-prepare-and-make-capabilitiesof-linear.md)):
++`modules` is a tuple of entries and groups, so an annotated array is rejected at
++type level; selections are all module and input entries, roots are module entries
++reached through `modules`, and an explicit row in `bindings` is kept as written. A
++`required` slot without a row binds to the single other entry that provides its
++capability id, at any revision (Core still rejects a revision mismatch as
+ `assembly.prepare.core-rejected`). Any other slot without a row (`optional`,
+ `many`, or `required` with zero or several candidates) fails with
+ `assembly.prepare.unresolved-binding` before any factory runs; `error.cause` lists
+-every such slot with its candidates. An `optional` slot always needs a row: `[]`
+-or one provider. Completion does not depend on the order of
+-`factories`, `roots` or `inputs`. A `"prepared"` result also carries the compiled
++every such slot with its candidates and the `groupPath` of its consumer. An
++`optional` slot always needs a row: `[]` or one provider. Completion does not
++depend on the order or the nesting of `modules`, `roots` or `inputs`. A `"prepared"` result also carries the compiled
+ `composition`. Give exactly one of `composition` and `profileId`.
+ From Assembly 0.4.0, production composition roots use `profileId`;
+ `prepare({ composition })` remains for a Host that compiles a profile itself,
+ such as from bytes or a desired profile, and for `isolate`.
+ 
+-`prepare({ composition, factories, roots, inputs })` accepts a successful Core
+-result, the exact selected factory handles, an alias-to-root-handle mapping and an
+-alias-to-input-handle mapping. Factory and input handles together are unique and
+-cover every selection exactly once; an input handle appears only in `inputs`,
+-under one alias, and is never a root (`assembly.prepare.input-handles`); an uncovered
+-selection stays `assembly.prepare.handles`. Each root
+-has exactly one alias and refers to the same supplied handle. No extra handles or
+-alias getters.
++`prepare({ composition, modules, roots, inputs })` accepts a successful Core
++result, the exact selected module entries (a plain `readonly` list is accepted
++here, because a Host that compiles its own profile builds the list at run time and
++Core checks the plan), an alias-to-root-entry mapping and an alias-to-input-entry
++mapping. Module and input entries together are unique and cover every selection
++exactly once; an input entry appears only in `inputs` and is never a root
++(`assembly.prepare.input-handles`); an uncovered or forged selection stays
++`assembly.prepare.handles`. In both forms an entry reached twice, two entries with one
++implementation id, an input entry under two aliases, or an input entry that shares an
++id with a module entry fail with `assembly.prepare.duplicate-module`, whose `cause`
++lists every duplicated id with its group paths and input aliases. Each root has exactly one alias and refers
++to the same supplied entry. No extra entries or alias getters.
+ 
+-A handle is invariant in the capabilities its declaration uses: preparation
++An entry is invariant in the capabilities its declaration uses: preparation
+ accepts it only when each of them has the identical value and compatibility type
+-in the preparing map, and every capability any handle uses is part of that map.
++in the preparing map, and every capability any entry uses is part of that map.
+ Literal declaration inference is controlled by
+ the declaration, not widened by the callback. Required slots yield `T`, optional
+ slots an own field `T | undefined`, and many slots a frozen `readonly T[]`.
+@@ -747,13 +1109,16 @@
+ ## Preparation and resource envelope
+ 
+ Before the first await, capture the successful result or the `profileId` and
+-`bindings`, the handle list, root map and input map.
++`bindings`, the module tree, root map and input map.
+ Inspect own data descriptors, dense arrays and exact shapes without invoking
+ getters. Pre-count individual and aggregate sizes before proportional copying.
+-Reject unexpected keys before projecting the supplied plan into a profile.
++Reject unexpected keys before projecting the supplied plan into a profile. Flatten
++`modules` depth first, counting group nodes and entries against the same
++ceiling.
+ 
+-The local carrier ceiling for the supported Core pair is: 4096 handles, selections and
+-order entries; 1024 roots; 65536 bindings; 1024 providers per row; 262144 provider
++The local carrier ceiling for the supported Core pair is: 4096 entries and group
++nodes, selections and order entries; a group holds at most 4096 members and groups
++nest at most 16 levels with `modules` as level 0; 1024 roots; 65536 bindings; 1024 providers per row; 262144 provider
+ occurrences overall. Declarations have at most 64 provides and 128 slots each,
+ 65536 of each overall; owner paths at most 8 segments. Every metadata identifier
+ has at most 128 UTF-8 bytes. Root and input aliases are each bounded to 128 UTF-8 bytes and 1024
+@@ -761,13 +1126,13 @@
+ ceilings, not another graph engine. No private Core imports. Changes to supported
+ Core require rechecking this table against its successful-plan envelope.
+ 
+-With `profileId`, complete the profile from the captured handles and the captured
++With `profileId`, complete the profile from the captured entries and the captured
+ `bindings`, counting rows and provider occurrences against the same ceilings first,
+ and compile it once through public `compileComposition`; the returned plan is the
+ prepared plan and there is nothing to compare it with.
+ 
+ Otherwise restore a complete profile from the captured plan and invoke public
+-`compileComposition` on captured handle declarations. Compare the entire returned
++`compileComposition` on captured entry declarations. Compare the entire returned
+ plan and digest to the supplied snapshot, including every ordering, capability and
+ compatibility field. Core alone validates grammar, cardinality, graph closure and
+ canonical order. Use fixed-schema comparison, not user `toJSON`/serialization.
+@@ -872,7 +1237,7 @@
+ 
+ ## Definition of done
+ 
+-- Full-plan tampering, missing/duplicate/extra/forged handles, incomplete roots and
++- Full-plan tampering, missing/duplicate/extra/forged entries, incomplete roots and
+   late invalid bindings refuse with zero factory calls. Digest/order/capability
+   changes refuse. Explicit absent optional binding is required.
+ - Snapshot mutation after bind and immediately after prepare cannot change wiring;
+@@ -891,8 +1256,8 @@
+   capability/compatibility, undeclared slots, mutable many, widened declarations,
+   callback inference widening and incompatible mappings. Test minimum TS 5.8.3 and
+   pinned build compiler, resolver modes, and a large literal declaration fixture;
+-  builder-generated declarations, fragment handles bound under different maps,
+-  rejection of unknown capabilities, and a 500-handle fragment fixture on both
++  builder-generated declarations, fragment entries created under different maps,
++  rejection of unknown capabilities, and a 500-entry fixture of 20 groups on both
+   compilers.
+ - Packed-root consumer installs only supported files/dependencies and runs the
+   synthetic Host. Core never imports assembly; no development tooling leaks.

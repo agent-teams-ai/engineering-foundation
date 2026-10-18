@@ -139,7 +139,11 @@ PR.
 
 Ordinary `published-compatibility:e2e`, including CI and `pnpm verify`, checks
 bootstrap baselines, pinned old Foundation transaction barriers, published
-document authoring, and scaffolding compatibility. It explicitly defers current
+document authoring, and scaffolding compatibility at their unchanged public
+operation boundaries. These historical observations do not claim old CLI
+startup or rendered process-output compatibility; see the
+[exact qualification scope](development/quality-gates.md#historical-published-operations).
+It explicitly defers current
 public Docs completion: npm publication may precede the Git tags and GitHub
 releases that the ordered publisher must reconcile. To require current public
 completion explicitly, run `pnpm published-compatibility:e2e --require-public-docs`.
@@ -166,13 +170,51 @@ leaves the release run failed and blocks completion evidence.
 
 ## Current stable procedure
 
+### Native public API baseline transition
+
+The TypeScript 7 adapter uses the closed, reviewed transition in
+[`scripts/native-public-api-migration/intent.json`](../scripts/native-public-api-migration/intent.json).
+Its exact B-to-A comparison and archive origins are documented in
+[public API compatibility](architecture/public-api-compatibility.md#release-qualification-remains-required).
+Feature PRs retain the original release-owned baseline bytes. They qualify the
+transition separately while preserving the entire ordinary tool-mismatch
+report and its exit code.
+
+After the reviewed source and intent reach `main`, the existing Release workflow
+runs Changesets version preparation and the private `apply-version` command.
+The pinned Changesets action resets `changeset-release/main` to the processed
+main SHA before this command. The driver checks the actual current run attempt,
+repository, workflow, event and fresh main ref, then requires that exact checkout
+HEAD, unchanged index and only admitted Changesets metadata. The existing
+release file/content policies remain in force. Every committed old baseline
+must match the reviewed B bytes. Version, API and artifact checks finish before
+any baseline is written, and the run/main/source snapshot is rechecked at the
+write boundary.
+
+The named transition replaces all eight typed anchors, including unchanged
+same-version surfaces that the ordinary promoter normally skips. Its writer
+keeps exact physical preimages and accepts only the reviewed B or exact native
+postimages during typed replay. Preexisting ordinary artifact-baseline dirt is
+not admitted by the private driver. After an interruption that reached artifact
+writes, rerun the existing Changesets workflow from its clean main reset; do not
+manually continue from that dirty checkout. Existing generated release-PR
+metadata checks, fresh-parent binding and full CI remain mandatory.
+
+Once the committed baseline set has migrated, the version command uses the
+ordinary typed/artifact promoter with its existing guards. Neither a local
+qualification report, environment variables nor the input record authorizes
+workstation writes. GitHub Free does not provide required-workflow source
+attestation; live run and main observations retain the repository's existing
+main trust boundary and do not supply cryptographic proof of hosted execution.
+
 ### Private Markdown distribution
 
 Document Authoring keeps its maintained parser dependencies in the source
 manifest. The shared `scripts/markdown-publication.mjs` projection bundles only
 its private Markdown adapter in disposable post-build packages. Clean pack,
-registry qualification, protected publication, publint, and ATTW use that same
-projection; ordinary builds never rewrite the source package.
+registry qualification, protected publication, publint, and native package type
+qualification use that same projection; ordinary builds never rewrite the
+source package.
 
 Before hermetic staging, acquisition uses npm with lifecycle scripts disabled
 and empty authentication configs. Original pnpm-lock v9 identities authenticate

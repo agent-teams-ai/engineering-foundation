@@ -5,7 +5,6 @@
     "prlimit"
   ],
   "ignoreDependencies": [
-    "@arethetypeswrong/cli",
     "@openai/codex",
     "c8",
     "publint",
@@ -17,6 +16,7 @@
         "scripts/*.mts",
         "tests/**/*.test.mts",
         "scripts/*.mjs",
+        "scripts/*.ts",
         "tests/**/*.test.mjs",
         "tests/fixtures/coverage-process-tree.fixture.mjs",
         "tests/fixtures/foundation-transaction-holder.mjs",
@@ -31,6 +31,7 @@
         "scripts/*.mts",
         "tests/**/*.mts",
         "scripts/*.mjs",
+        "scripts/*.ts",
         "scripts/feature-modules/commands.mjs",
         "tests/**/*.mjs",
         "tests/**/*.ts"

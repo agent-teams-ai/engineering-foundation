@@ -34,8 +34,8 @@ Foundation's self-dogfood lifecycle is explicit and ordered:
    preceding build step succeeds.
 3. `pnpm foundation:qualification` first repeats that source dogfood, then runs
    artifact qualification against packed and hermetic-registry artifacts and
-   finally runs the pinned published-
-   version compatibility oracle. Published versions never govern current-source
+   finally runs the pinned published-operation compatibility oracle.
+   Published versions never govern current-source
    checking.
 
 The private root may link Foundation with `workspace:*` for tool resolution. The
@@ -48,6 +48,15 @@ does not claim networked, hosted, or external-tool capability qualification. `pn
 is the single local command matching the union of Linux merge lanes: workflow
 security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
+
+During the single [native API baseline transition](../architecture/public-api-compatibility.md#release-qualification-remains-required),
+the private Foundation driver additionally authenticates fixed historical npm
+archives and the protected-main archive qualification record. This temporary
+migration route requires network access, GitHub Actions read access, and npm
+`11.19.0`; the complete ordinary deterministic report remains separate and
+unchanged. Successful ordinary checking after native baseline promotion skips
+that acquisition entirely. The route is private repository migration tooling,
+not an additional consumer capability or a hosted qualification claim.
 
 Partitioned c8 coverage is the blocking Linux CI coverage authority. Each
 existing Linux test shard writes raw V8 coverage without rerunning its tests. Its
@@ -563,6 +572,66 @@ Record each resumed command separately; platform skips and partial reruns do not
 establish full-suite, supported-platform or release qualification.
 
 ## Private combined artifact qualification
+
+### Native package type qualification
+
+`scripts/check-publishable-packages.mjs` applies publint and the private native
+TypeScript 7.0.2 qualifier to every package in the owner-derived publication
+projection. Each check packs its actual staged package with lifecycle scripts
+disabled. Markdown publication staging remains shared with registry and release
+qualification. The native compiler reads only the inspected archive through a
+closed virtual filesystem; checkout files cannot repair missing packed files.
+
+The admitted package contract is explicit: `type: module`, typed exports with
+exactly a first `types` condition followed by `import`, and JSON data exports or
+bounded JSON wildcards. Every typed export must resolve to its exact declaration
+target in both Node16 ESM and Bundler modes. Every packed code file must use
+ESM format and explicit import/export syntax under `dist`; native observations
+cover JavaScript and declarations. Valid syntax-free ESM, including files with
+only side effects, is outside this current compiled-package domain. Relative,
+self-package and `#` imports must resolve
+to real packed files, and JavaScript runtime references must separately identify
+packed JavaScript or JSON rather than just a declaration sibling.
+
+Exact exports take precedence over bounded JSON wildcard self-imports;
+overlapping wildcard subpath domains reject. Legacy resolution fields,
+alternate condition graphs, CommonJS files, nested
+package scopes, unsupported declaration export forms and unrecognized code
+layouts reject. These executable exclusions remove the CommonJS premises of the
+former ATTW interoperability checks. The former `esm-only` policy did not claim
+CommonJS-consumer support; the native qualifier makes no such claim either.
+Focused fixtures retain the twelve former problem-class premises, including
+missing types, fallback targets, format disagreement and internal resolution.
+This is a bounded ESM package qualifier, not a general ATTW compatibility layer
+or a replacement for the separately required complete declaration typecheck.
+
+### Historical published operations
+
+The mandatory published compatibility route installs exact-SRI Foundation
+`0.11.0`, `0.12.0` and `0.14.0` with lifecycle scripts disabled. Its private
+ordinary TypeScript driver calls their unchanged public scaffolding and local
+mode operations, using the same composition as each published CLI. It retains
+the canonical and orphan-temporary transaction barriers, actual Plan/Receipt
+and output-byte comparisons, and unsupported schema-v3 status and mutation
+refusals. Current candidate CLI qualification remains separate and required.
+
+These are explicitly **published operation-boundary** observations. They do not
+qualify old CLI startup, argument parsing, stdout rendering or process exit
+codes. Those old monolithic CLIs import a compiler below the repository's
+TypeScript 7.0.2 floor. The driver inspects each installed public import closure
+as data before evaluation and admits the original dormant computed import only
+at its exact path and content hash. A deny-only runtime hook rejects compiler
+and API Extractor loading, including aliases and realpaths, before evaluation.
+It never replaces modules or results, and a caught denial still fails the
+qualification. Separate managed-restoration obligations that require an actual
+historical CLI retain their own existing actual-CLI scenarios.
+
+All new tooling and safety tests belong to the required strict TypeScript
+project and complete Linux and Windows test inventories. Negative synthetic
+fixtures test the driver's refusal behavior; the positive compatibility oracle
+is the unchanged published implementation.
+
+### Shared packed and registry artifacts
 
 `pnpm package:qualification:built` prepares and checks publishable manifests,
 then runs the full packed and hermetic-registry consumers sequentially against

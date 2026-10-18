@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "dependencies": {
+    "@agent-teams/ci-input-proof": "0.1.1",
+    "@agent-teams/docs-protocol": "0.6.2",
+    "@agent-teams/docs-protocol-agent-teams": "0.5.0",
+    "@agent-teams/docs-protocol-mcp": "0.2.5",
+    "@agent-teams/document-authoring": "0.3.2",
+    "@agent-teams/engineering-foundation": "1.8.0",
+    "@agent-teams/repository-mutation": "0.2.2",
+    "@types/node": "24.13.3",
+    "undici-types": "7.18.2"
+  },
+  "name": "foundation-native-migration-historical-inputs",
+  "version": "0.0.0",
+  "type": "module"
+}

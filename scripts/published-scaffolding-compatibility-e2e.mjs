@@ -16,10 +16,11 @@ import {
   runCommand,
 } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
+import { publishedFoundationIntegrity } from "./published-foundation-imports.ts";
+import { executePublishedFoundationOperation } from "./published-foundation-operations.ts";
 
 const publishedVersion = "0.12.0";
-const expectedIntegrity =
-  "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==";
+const expectedIntegrity = publishedFoundationIntegrity(publishedVersion);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageName = "@agent-teams/engineering-foundation";
 const authoringPackageName = "@agent-teams/document-authoring";
@@ -52,6 +53,19 @@ async function runScaffolding(cliPath, consumerRoot, args) {
   );
   JSON.parse(stdout);
   return Buffer.from(stdout, "utf8");
+}
+
+async function runPublishedScaffolding(packageRoot, consumerRoot, operation, inputPath) {
+  const observation = await executePublishedFoundationOperation({
+    packageRoot, version: publishedVersion, consumerRoot, operation, inputPath,
+  });
+  if (observation.outcome !== "returned" || (operation === "apply" &&
+    !["applied", "already-applied", "failed-recovered"].includes(observation.value?.outcome))) {
+    throw new Error(`Published Foundation ${publishedVersion} ${operation} operation failed.`, { cause: observation });
+  }
+  // Serialize the actual public operation result as Plan/Receipt protocol data;
+  // this is not an observation of the historical CLI's JSON renderer or exit.
+  return Buffer.from(`${JSON.stringify(observation.value, null, 2)}\n`, "utf8");
 }
 
 async function packCurrentPackage({ expectedName, packageRoot, packRoot }) {
@@ -307,10 +321,7 @@ export async function verifyPublishedScaffoldingCompatibility({
       "scaffold-plan",
       "intents/create-fixture.yaml",
     ]),
-    runScaffolding(published.cliPath, publishedConsumer, [
-      "scaffold-plan",
-      "intents/create-fixture.yaml",
-    ]),
+    runPublishedScaffolding(published.packageRoot, publishedConsumer, "plan", "intents/create-fixture.yaml"),
   ]);
   const currentPlan = JSON.parse(currentPlanBytes);
   const publishedPlan = JSON.parse(publishedPlanBytes);
@@ -347,10 +358,7 @@ export async function verifyPublishedScaffoldingCompatibility({
       "scaffold-apply",
       "plans/compatibility.json",
     ]),
-    runScaffolding(published.cliPath, publishedConsumer, [
-      "scaffold-apply",
-      "plans/compatibility.json",
-    ]),
+    runPublishedScaffolding(published.packageRoot, publishedConsumer, "apply", "plans/compatibility.json"),
   ]);
   const currentReceiptValue = JSON.parse(currentReceipt);
   const publishedReceiptValue = JSON.parse(publishedReceipt);

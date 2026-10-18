@@ -10,7 +10,6 @@ policies:
     - "@agent-teams/"
   developmentOnlyPackages:
     - "@ast-grep/cli"
-    - "@arethetypeswrong/cli"
     - "@changesets/changelog-github"
     - "@changesets/cli"
     - "@types/node"

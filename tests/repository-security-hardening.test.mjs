@@ -385,19 +385,21 @@ test("requires Dependency Review in the declared required CI workflow", async ()
         securityDiagnostics(report).map(({ ruleId }) => ruleId),
         ["repository.security-baseline.dependency-review-missing"],
       );
-      // The Linux CI pipeline must relay a real non-SDK capability failure through tee.
+      // The Linux CI driver must reject an actual non-SDK failure before archive acquisition.
       if (process.platform === "linux") {
         const ci = parseYaml(await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
         const step = ci.jobs["linux-static"].steps.find(candidate => candidate.id === "foundation-check");
-        const pipeline = spawnSync("bash", ["-e", "-c",
-          step.run.replace("--consumer .", '--consumer "$FOUNDATION_TEST_CONSUMER"')], {
-          cwd: repositoryRoot, encoding: "utf8", timeout: 30_000,
-          env: { ...process.env, RUNNER_TEMP: consumerRoot, FOUNDATION_TEST_CONSUMER: consumerRoot },
-        });
-        assert.equal(pipeline.error, undefined);
-        assert.equal(pipeline.status, 1);
-        const retained = JSON.parse(await readFile(join(consumerRoot, "foundation-check.json"), "utf8"));
-        assert.deepEqual(securityDiagnostics(retained).map(({ ruleId }) => ruleId),
+        assert.match(step.run, /node scripts\/public-api-native-migration-cli\.ts qualify --ordinary-report "\$RUNNER_TEMP\/foundation-check\.json" --migration-report "\$RUNNER_TEMP\/native-api-migration\.json"/u);
+        const { qualifyOrdinaryResult } = await import("../scripts/public-api-native-migration-cli.ts");
+        let acquired = false;
+        const original = { stdout: result.stdout, stderr: result.stderr, exitCode: result.status };
+        await assert.rejects(qualifyOrdinaryResult(original, async () => {
+          acquired = true;
+          assert.fail("an unrelated security failure must not acquire migration archives");
+        }), /ordinary full report is not the exact retained mismatch result/u);
+        assert.equal(acquired, false);
+        assert.deepEqual(original, { stdout: result.stdout, stderr: result.stderr, exitCode: 1 });
+        assert.deepEqual(securityDiagnostics(JSON.parse(original.stdout)).map(({ ruleId }) => ruleId),
           ["repository.security-baseline.dependency-review-missing"]);
       }
     },

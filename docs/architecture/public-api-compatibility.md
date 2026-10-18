@@ -89,19 +89,59 @@ promotion still rejects `PUBLIC_API_BASELINE_PROMOTION_TOOL_MISMATCH`, when
 versions differ. Identical declaration text is insufficient to waive either
 check. A changeset or a successful native extraction is not baseline authority.
 
-Before adopting the native adapter, retain the exact released artifacts and B
-baseline, observe the released declarations and candidate with the new tool, and
-review native output differences separately from candidate API changes. Baseline
-replacement belongs to an explicitly reviewed tool migration through the existing
-release-owned route. The read-only A/B/C audit always remains
-`releaseEligible:false`; it cannot authorize this replacement.
+The private repository driver implements one closed eight-package transition.
+It retains the old baseline B from commit
+`88c0853bfe29deca175a9b98d7685e577409f7f1`, observes the exact historical
+declarations as native A, and observes the current candidate as native C. The
+source-owned [input record](../../scripts/native-public-api-migration/intent.json)
+binds the policy, every B/configuration/archive hash, the frozen declaration
+dependency closure, each native A and the complete reviewed B-to-A difference
+packet. It describes content; it grants no write authority.
 
-The complete TypeScript 7 package gate is still blocked by a separate dependency:
-`@arethetypeswrong/cli@0.18.5` uses `@arethetypeswrong/core@0.18.5`, whose runtime
-executes `typescript@5.6.1-rc`. Do not execute that compiler, remove its gate, or
-claim package/full-CI qualification from focused tests. A supported replacement
-must preserve the package checks. Historical published-version oracles require
-the same executed-compiler inventory before they can run under the new floor.
+Seven historical archives have verified npm signature and provenance evidence
+for their exact publication commits. Feature Module Standard `0.1.0` was not
+published: its recovered archive matches both SHA-256 and SRI from the complete
+eight-archive qualification in main release run `39134132899`, attempt 1. That
+run ultimately failed. The driver checks its actual repository, commit,
+workflow, event, attempt and retained qualification payload, and records the
+artifact as a qualified release candidate. npm `11.19.0` installs the frozen
+historical declaration closure with lifecycle scripts disabled. Old package and
+compiler files are data and are never evaluated by this observation.
+
+Independent review of the full packet found 256 signature-text differences:
+214 whitespace changes and 42 archive-supported `export declare const` carrier
+and trailing-semicolon differences. All 2,784 item identities, kinds, parents,
+export paths and signature literal tokens are preserved. The actual A-to-C
+comparison still uses the ordinary classifier, version and Changeset rules,
+accepted-decision evidence and concrete artifact checks. A real API change or
+any different B-to-A packet fails this named transition.
+
+`foundation:check:built` runs the actual ordinary built CLI first. It preserves
+the complete JSON report, stderr and actual exit code. Only the exact full
+eleven-capability report containing the eight expected tool mismatches can
+proceed to native migration qualification. An unrelated capability failure
+rejects before archive acquisition. The separate migration report can qualify
+the reviewed transition while the ordinary report still says `violations` and
+records exit `1`; no diagnostic is filtered or relabeled as an ordinary pass.
+Once committed baselines use the native tool, the ordinary successful route
+requires no migration inputs or archive lookup.
+
+Baseline replacement belongs to the existing main release workflow's version
+step, described in [release preparation](../release.md#native-public-api-baseline-transition).
+Normal typed and artifact preflight completes before mutation. The physical
+writer retains the actual B preimage, and every typed anchor is checked again,
+including exact postimages skipped during replay. This is a sequence of guarded
+writes, not a claim of multi-file atomicity. The public read-only A/B/C audit
+always remains `releaseEligible:false`; it cannot authorize this replacement.
+
+The repository's native package type qualifier replaces the former
+`@arethetypeswrong/cli@0.18.5` route, whose runtime embedded
+`typescript@5.6.1-rc`. It retains publint, the complete publishable package
+projection, and actual packed-byte qualification in Node16 ESM and Bundler
+resolution modes. See the [bounded package contract](../development/quality-gates.md#native-package-type-qualification).
+The [historical published-operation qualification](../development/quality-gates.md#historical-published-operations)
+preserves the three named transaction and scaffolding compatibility scenarios
+without executing old compiler-bearing CLI startup.
 
 The single configuration schema `v1` covers every public export path of a
 package and uses stable `decisionId` approvals. The released baseline must use

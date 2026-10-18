@@ -1,0 +1,185 @@
+{
+  "kind": "foundation:public-api-native-migration:inputs:1",
+  "review": {
+    "kind": "foundation:public-api-native-migration:review:1",
+    "from": "7.58.12",
+    "to": "typescript-native/7.0.2",
+    "baselineSourceCommit": "88c0853bfe29deca175a9b98d7685e577409f7f1",
+    "policyDigest": "sha256:0e50ec93aac48f26c96e35a49708ba704d3844a514bfed2b4c61ab9e7ccee61f",
+    "toolDiffDigest": "sha256:50eb0f44228640fba54d3317cac5430f568f7bc73890e3e4945718ea96521c5c",
+    "packages": [
+      {
+        "packageName": "@agent-teams/repository-mutation",
+        "baselinePath": "architecture/public-api/repository-mutation.json",
+        "baselineDigest": "sha256:9f8c5a4b7f700a51492f8c86c7e51da0e3c76b9a8a84288a008a63f36f9a8d38",
+        "archiveDigest": "sha256:5c0f249322197ae2701b8774f1716705995938d4aa290a065d36a8237c682456",
+        "archiveIntegrity": "sha512-4G6kkQKA7ua4z9mxxn1XNrBUgngWeQ+UufDnQ34YdYv26DZi1/pUYwGoKajFluhUNDXhvqf4fMJQu0nI6m6jdg==",
+        "configDigest": "sha256:9935dce4733c7c89209baf98e11eaecd0724fed72492567d60d8ae579753bc9d",
+        "releasedInputsDigest": "sha256:7b8a33d9774b81c21dd4e98a058281c4376a695a5bdce187a5f81dae40b147bb",
+        "nativeReleasedDigest": "sha256:7a92ea9895fbc6fba282ccdc0c1eaea344d4c6833109131fe16dff7464a7f536"
+      },
+      {
+        "packageName": "@agent-teams/engineering-foundation",
+        "baselinePath": "architecture/public-api/engineering-foundation.json",
+        "baselineDigest": "sha256:d2315a779a992ec755ad45d71e2afe9f8a273f67410eadc3f3dbc24b93fb6ccc",
+        "archiveDigest": "sha256:a93f87f62382df76dc424142d2050b7d756a70751dc8feb67b0900f9da9c10b5",
+        "archiveIntegrity": "sha512-19KGXMEJIUInAUZaEC5Oh1m1ldZbQIzFL880xVG523h0vl7EbkqojqkF0y7JLnRjXi4qIW7vNcChWzam23uUmQ==",
+        "configDigest": "sha256:eea0f6442a304a997982188b3243a0570d5cf47348709e5fca2327532b64aac3",
+        "releasedInputsDigest": "sha256:4dabd352ce6b4296f257e17fee5515efcec1471e2531fdc52547a007cdf74563",
+        "nativeReleasedDigest": "sha256:d1be26298ac5f6f76d917a47e277b9f4c9a856dd8e3e7c69d45419b1a0413848"
+      },
+      {
+        "packageName": "@agent-teams/document-authoring",
+        "baselinePath": "architecture/public-api/document-authoring.json",
+        "baselineDigest": "sha256:97f15fc59faa4a586ee7ab402b784659b9fdfd7e46e770fe244bb6c162fad461",
+        "archiveDigest": "sha256:f584d216f051476be6f5998f3fafb61ab473e0e83b64e9707372c47d3f1c12b2",
+        "archiveIntegrity": "sha512-GzdetjP25KJfThxNk7UhtAZ28rOb6T/rTRrjYSrp2rYaEt0do5XF4pGjIVdeSzh+zXH0ULu58TZsuhOJi0Q0Mw==",
+        "configDigest": "sha256:31263653cac28541ae72fee8da893146cb696a43b1f8f5e04425cac39ec599dc",
+        "releasedInputsDigest": "sha256:7d04af81f1520f9f5a956863dfe5716c7d348d9192a84560c246fb4b8030250b",
+        "nativeReleasedDigest": "sha256:75413b415087c7d0358240c6c03542c9b33c50aa021dd14100e7707d28bddcc2"
+      },
+      {
+        "packageName": "@agent-teams/docs-protocol",
+        "baselinePath": "architecture/public-api/docs-protocol.json",
+        "baselineDigest": "sha256:7edeac0919c67968173f19520986b6ee5a41332d269b172b040fd2f65bc1f926",
+        "archiveDigest": "sha256:ee3ad6ec7f7029aaa4efd6903b86b38bc39a7122c965aadaad0e517d20cf7faa",
+        "archiveIntegrity": "sha512-kqE4pA9/V/MgbOm2nTyfRWU+CuwtAX6pB6WGQauKvvozwS4CzFfJwARTgd91R3yCf6bi5l/kU+mcAe6WVID7aA==",
+        "configDigest": "sha256:6bab6c1d30ccd9765fbd240a0ee69d2c0211f2848bbfe2f5e46278b905cc2da3",
+        "releasedInputsDigest": "sha256:70d8d90cf8af36d881fcd3c756d51dc10a78ec99963e3bce386e2c6e34eecc6c",
+        "nativeReleasedDigest": "sha256:b404dc381f8544f10ec9daa91bc9d00454bb508c779517ceddb803cf35ea853b"
+      },
+      {
+        "packageName": "@agent-teams/docs-protocol-mcp",
+        "baselinePath": "architecture/public-api/docs-protocol-mcp.json",
+        "baselineDigest": "sha256:888410764fecd9e9370c360993f864d5d6f280ce59d28e2da8e1074cff095ec1",
+        "archiveDigest": "sha256:6c0f391684a66cdaec1a347086b83911e4ac24985bb07a95cb97f5e50f8da1be",
+        "archiveIntegrity": "sha512-iKjwDhkfCjguEftx3eFUhTPtROK2FWpeRQb1JB7Dx0EG7DXaI+UNiLCSYysRiQ/xM5D5EZfpKpfiQ07TvrL5/Q==",
+        "configDigest": "sha256:fdeb31bec26518a93397503c52c40cb179013bd76972405b1b278b2e6f1bd6cf",
+        "releasedInputsDigest": "sha256:d16f4645e8158892efa4a9df8a8d8fa34b5bddb003f5c4d7c8b52b4d8c2b47d2",
+        "nativeReleasedDigest": "sha256:09611d4e6515046de3e11e14ce5dea439873624e6dc44c325b128ca6103ba13a"
+      },
+      {
+        "packageName": "@agent-teams/docs-protocol-agent-teams",
+        "baselinePath": "architecture/public-api/docs-protocol-agent-teams.json",
+        "baselineDigest": "sha256:b9f5ebcc44403d6203e98d5ac9ff8286d4c952d70ded349c710c0b4d948cb973",
+        "archiveDigest": "sha256:88986ccf651f26a6b0221359d41c98f8b0c82565a572c6395907d3112c614abf",
+        "archiveIntegrity": "sha512-H1zWJgYrzyNI9tVrzskUl7+i4MVD1vQ/bfM+TnKpyWeQKYFxRYhO9AXSxi6hoFBEwzjXxHFRvssDyPH1l2cKZw==",
+        "configDigest": "sha256:699187bfd75c05c7325fc240a7f5e959d7bf169fbd6c70956232f6e4a62cafc1",
+        "releasedInputsDigest": "sha256:36b26be46493962822a47acb55af3540ebf8d37627d7508ff8d1cd3d27a95e1a",
+        "nativeReleasedDigest": "sha256:0fa86655265c342f3f902ec188fc41f5f7d9eeea7429f441a3d903f73d9bfe54"
+      },
+      {
+        "packageName": "@agent-teams/ci-input-proof",
+        "baselinePath": "architecture/public-api/ci-input-proof.json",
+        "baselineDigest": "sha256:3c56ad27188798981767248f08005c6ca32665b128a1fd9e3b9ac1b677377159",
+        "archiveDigest": "sha256:e51e0cad807ec784aa1513e028828e6f586475c6016b1f46e9107c14df01cdee",
+        "archiveIntegrity": "sha512-gstKO6p5uQIscV4tHE4fY7XxqTk8KIHTJpWm4cbKGJ1LY7t2pXv3jp8s6lK9Fn/m1l3mAG03+Pj929PL4oBRxA==",
+        "configDigest": "sha256:842cf98d405c42eff8ab05d83c138b1fa995a60f2f315eb901c27d5227f813a4",
+        "releasedInputsDigest": "sha256:7b8a33d9774b81c21dd4e98a058281c4376a695a5bdce187a5f81dae40b147bb",
+        "nativeReleasedDigest": "sha256:7a39171db83a48fd84131c4035fddf6aa17b1deb1422bf29df21e100c888bc6c"
+      },
+      {
+        "packageName": "@agent-teams/feature-module-standard",
+        "baselinePath": "architecture/public-api/feature-module-standard.json",
+        "baselineDigest": "sha256:5a9543cb7618213c8a63f2423f76d0d85817280ab7cca180d1c8225e213d4569",
+        "archiveDigest": "sha256:3b144af4e733596aa37e5c0b619dbb772c03c1e0cf7b2f4bb1aa1c3fec9f223b",
+        "archiveIntegrity": "sha512-M3BRrgNmArauynxrJAN1eO33Np6mbP9sUuE5zmAK8ZY6YSE+KqvT3WjXqSzgJ5tDMx/lW2sIwniCn9TIlXszlA==",
+        "configDigest": "sha256:7f20b3efb6f5bffeacc04aeb9bb92c115263e032644ad422eeb7f5e310ec9d59",
+        "releasedInputsDigest": "sha256:eb932f5a2f0a119229363bb2ac46b4a63d07ee76cd3a46eff27c13541218c7df",
+        "nativeReleasedDigest": "sha256:68f6b56ac23acba48f1749d9aa618548a0ff23ee5bdaed8784d523044705c4df"
+      }
+    ]
+  },
+  "origins": [
+    {
+      "name": "@agent-teams/ci-input-proof",
+      "version": "0.1.1",
+      "publicationSourceCommit": "389706989c27f54daea9c23f59cc3647efbd88e7"
+    },
+    {
+      "name": "@agent-teams/docs-protocol",
+      "version": "0.6.2",
+      "publicationSourceCommit": "3cdb6dae33772e3c8623432c5764da69bea5484a"
+    },
+    {
+      "name": "@agent-teams/docs-protocol-agent-teams",
+      "version": "0.5.0",
+      "publicationSourceCommit": "88c0853bfe29deca175a9b98d7685e577409f7f1"
+    },
+    {
+      "name": "@agent-teams/docs-protocol-mcp",
+      "version": "0.2.5",
+      "publicationSourceCommit": "3cdb6dae33772e3c8623432c5764da69bea5484a"
+    },
+    {
+      "name": "@agent-teams/document-authoring",
+      "version": "0.3.2",
+      "publicationSourceCommit": "3cdb6dae33772e3c8623432c5764da69bea5484a"
+    },
+    {
+      "name": "@agent-teams/engineering-foundation",
+      "version": "1.8.0",
+      "publicationSourceCommit": "88c0853bfe29deca175a9b98d7685e577409f7f1"
+    },
+    {
+      "name": "@agent-teams/feature-module-standard",
+      "version": "0.1.0",
+      "publicationSourceCommit": null
+    },
+    {
+      "name": "@agent-teams/repository-mutation",
+      "version": "0.2.2",
+      "publicationSourceCommit": "3cdb6dae33772e3c8623432c5764da69bea5484a"
+    }
+  ],
+  "npmVersion": "11.19.0",
+  "dependencyManifestDigest": "sha256:37820c74ac66d7d62dbd7bf6d0c8b7349a73a6b781f0f2374e37ab76971e062a",
+  "dependencyLockDigest": "sha256:33b88bc3ebcc59877e43c4211dce27bf94701155c32e3d29615ea30b67b4684d",
+  "qualifiedArchiveLogDigest": "sha256:c6e90aff8772e2f661eaa22bdb37c44b9c9fc092e7d3882c622bc5b916553449",
+  "expectedCapabilities": [
+    {
+      "capabilityId": "architecture.source-dependencies",
+      "capabilityConfigSchemaVersion": 2
+    },
+    {
+      "capabilityId": "contract.json-schema-releases",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "documentation.local-references",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "governance.architecture-decisions",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "package.public-api-compatibility",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "quality.gate-runner",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "quality.source-coverage",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "quality.suppression-governance",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "repository.agent-workflow",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "repository.security-baseline",
+      "capabilityConfigSchemaVersion": 1
+    },
+    {
+      "capabilityId": "workspace.dependency-declarations",
+      "capabilityConfigSchemaVersion": 1
+    }
+  ]
+}

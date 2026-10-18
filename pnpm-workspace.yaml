@@ -11,7 +11,6 @@ catalogMode: strict
 
 catalog:
   "@ast-grep/cli": 0.45.0
-  "@arethetypeswrong/cli": 0.18.5
   "@changesets/changelog-github": 0.7.0
   "@changesets/cli": 2.31.1
   "@microsoft/api-extractor-model": 7.33.10

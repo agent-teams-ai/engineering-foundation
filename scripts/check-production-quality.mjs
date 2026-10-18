@@ -21,7 +21,7 @@ export async function checkProductionQuality({ repositoryRoot = defaultRoot, inv
     }
   }
   for (const entry of ["check", "check:fast"]) {
-    if (!executesScript(pkg.scripts, entry, "quality:scope:check", "node scripts/check-production-quality.mjs")) {
+    if (!executesScript(pkg.scripts, entry, "quality:scope:check", "node tools/repository-command.mts tool quality:scope:check")) {
       problem(problems, "scope-command", `${entry} must execute production coverage through literal scripts joined by &&.`);
     }
   }

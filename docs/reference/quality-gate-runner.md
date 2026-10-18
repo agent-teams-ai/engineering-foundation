@@ -95,8 +95,10 @@ composition root reads and forwards `AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE`,
 `AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE` to select and verify runtime executables.
 The repository-agent-workflow composition root selects and verifies executables
 from its explicit Node and Bun executable inputs; it does not forward the QGR
-runtime-profile marker. Root package scripts continue to use the repository Node default;
-there is no root repository-command dispatcher.
+runtime-profile marker. Root package scripts use the closed repository-command
+routing table with the Bun default and explicit Node projection. Runtime roles
+use the selected Bun/Node executable; Node qualification and native-tool roles
+remain explicit and never infer Node from the package-manager caller.
 
 - `needs` waits for the referenced tasks and runs only if all passed. Otherwise
   the task is `blocked`.

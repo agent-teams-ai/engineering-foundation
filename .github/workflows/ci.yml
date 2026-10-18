@@ -40,11 +40,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - name: Observe conservative CI classification
-        run: node scripts/ci-shadow-classifier.mjs --github-event
+        run: bun scripts/ci-shadow-classifier.mjs --github-event
 
   dependency-review:
     name: dependency-review
@@ -76,6 +75,9 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     permissions:
       contents: read
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
+      AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -91,21 +93,44 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/node26-compatibility"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node-version }}
-          cache: pnpm
+      - name: Retain the compatibility test Node executable
+        run: printf "COMPAT_NODE_EXECUTABLE=%s\n" "$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .node-version }
+      - name: Retain the admitted build Node executable
+        run: printf "AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n" "$(command -v node)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "${{ matrix.node-version }}" }
       - name: Require a clean compatibility install
         run: test ! -d node_modules
-      - run: pnpm install --frozen-lockfile --ignore-scripts --engine-strict
+      - name: Install the clean Node/pnpm profile projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
       - run: pnpm dependencies:peers:check
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - run: pnpm rebuild
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - name: Qualify publishable packages in a fresh strict-engine consumer
         run: pnpm node-compatibility:qualification
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - name: Run focused observable compatibility regressions
         run: node --test --test-concurrency=1 tests/node-test-execution.test.mjs tests/docs-protocol-current-policy.test.mjs tests/registry-install-policy.test.mjs packages/docs-protocol/tests/qualification.test.mjs
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
 
   linux-static:
     name: linux-static
@@ -119,39 +144,40 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
       - name: Validate package Changeset coverage
         if: ${{ github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || github.head_ref != 'changeset-release/main') }}
         env:
           FOUNDATION_CHANGESET_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: pnpm changeset:coverage
-      - run: pnpm rebuild
-      - run: pnpm lint
-      - run: pnpm typecheck
+        run: bun scripts/check-changeset-coverage.mjs
+      - run: bun run lint
+      - run: bun run typecheck
       - name: Run Foundation check
         id: foundation-check
         run: |
           set -o pipefail
-          node packages/engineering-foundation/dist/cli.js check --consumer . --format json | tee "$RUNNER_TEMP/foundation-check.json"
+          bun packages/engineering-foundation/dist/cli.js check --consumer . --format json | tee "$RUNNER_TEMP/foundation-check.json"
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
       - name: Show SDK public API report
         if: ${{ always() && steps.foundation-check.outcome != 'skipped' }}
-        run: node scripts/sdk-api-ci-summary.mjs "$RUNNER_TEMP/foundation-check.json"
-      - run: pnpm release-owned-files:check
+        run: bun scripts/sdk-api-ci-summary.mjs "$RUNNER_TEMP/foundation-check.json"
+      - run: bun run release-owned-files:check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-      - run: pnpm architecture:patterns
-      - run: pnpm architecture:patterns:test
-      - run: pnpm nx:graph:check
-      - run: pnpm security:workflows
-      - run: pnpm dead-code:check
-      - run: pnpm parser-spike:check
+      - run: bun run architecture:patterns
+      - run: bun run architecture:patterns:test
+      - run: bun run nx:graph:check
+      - run: bun tools/dev.mts security:workflows
+      - run: bun run dead-code:check
+      - run: node tools/repository-command.mts tool parser-spike:check
   linux-tests:
     name: linux-tests-${{ matrix.pair.first }}-${{ matrix.pair.second }}
     needs: dependency-review
@@ -182,7 +208,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false, working-directory: a }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: setup-bun
+        with: { bun-version: "1.4.3" }
       # Legacy managed generation2 suites (shards 1 and 2 included) run on this Node 24; the default stays Node 26.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.21.0" }
@@ -200,10 +229,20 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: a/.node-version
-          cache: pnpm
-          cache-dependency-path: a/pnpm-lock.yaml
       - name: Build both isolated producers
         run: node a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.setup-bun.outputs.bun-path }}
+      - name: Qualify managed process transport under pinned Bun on Linux
+        if: ${{ matrix.pair.first == '1' }}
+        working-directory: a
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export PROCESS_RUNTIME_DELEGATION_NODE="$(node -p 'process.execPath')"
+          export AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE="${PROCESS_RUNTIME_DELEGATION_NODE}"
+          export AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE="$(bun -p 'process.execPath')"
+          "${AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE}" tests/process-runtime-delegation-under-bun.mts
       - name: Provision public pinned managed test copies
         if: ${{ matrix.pair.second == '4' }}
         working-directory: b
@@ -214,6 +253,8 @@ jobs:
       - name: Run both isolated test shards
         id: test-pair
         run: node a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"
+        env:
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.setup-bun.outputs.bun-path }}
       - name: Upload first raw coverage evidence
         if: ${{ always() && steps.test-pair.outputs.first-status == '0' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -265,12 +306,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
+        with: { node-version-file: .node-version }
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
       - name: Download exact-head shard evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -278,7 +320,7 @@ jobs:
           path: .coverage-evidence/downloaded
           merge-multiple: false
       - name: Validate, merge once, and enforce coverage thresholds
-        run: pnpm test:coverage:evidence:built -- --input .coverage-evidence/downloaded --head-sha "${{ github.sha }}"
+        run: node scripts/merge-test-coverage-evidence.mjs --input .coverage-evidence/downloaded --head-sha "${{ github.sha }}"
 
   linux-package:
     name: linux-package
@@ -287,24 +329,45 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/linux-package"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.21.0" }
       - name: Retain Node 24 for managed generation2 consumer gates
         run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm package:check:built
+        with: { node-version-file: .node-version }
+      - name: Install the clean Node/pnpm package projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+      - run: node scripts/prepare-package.mjs
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
+      - run: node scripts/check-publishable-packages.mjs
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
+      - run: node scripts/pack-test.mjs
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
       - name: Verify approved bootstrap writer evidence
         run: node scripts/npm-package-bootstrap-local-evidence.mjs --output "${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence"
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - name: Retain bootstrap writer evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -312,7 +375,8 @@ jobs:
           name: npm-package-bootstrap-writer-evidence-${{ github.sha }}
           path: ${{ runner.temp }}/npm-package-bootstrap-writer-evidence
           if-no-files-found: error
-      - run: pnpm buf-qualification:e2e:built
+      - run: node tools/repository-command.mts tool buf-qualification:e2e:built
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
 
   linux-registry:
     name: linux-registry
@@ -321,20 +385,38 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/linux-registry"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       # registry-install-e2e reaches pack-test: managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.21.0" }
       - name: Retain Node 24 for managed generation2 consumer gates
         run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm registry-install-e2e
+        with: { node-version-file: .node-version }
+      - name: Install the clean Node/pnpm registry projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+      - run: node tools/repository-command.mts tool registry-install-e2e:built
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
 
   linux-bootstrap-evidence:
     name: linux-bootstrap-evidence
@@ -346,14 +428,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0, persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
+        with: { node-version-file: .node-version }
+      - name: Install the clean Node/pnpm bootstrap projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
       - name: Prepare retained candidate bootstrap evidence
-        run: node scripts/npm-package-bootstrap-candidate-evidence.mjs --output "${RUNNER_TEMP}/npm-package-bootstrap-candidate-evidence"
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/repository-command.mts tool npm-package-bootstrap:candidate-evidence --output "${RUNNER_TEMP}/npm-package-bootstrap-candidate-evidence"
       - name: Upload candidate bootstrap evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -367,16 +459,31 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/linux-published"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm published-compatibility:e2e
+        with: { node-version-file: .node-version }
+      - name: Install the clean Node/pnpm published-consumer projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+      - run: node tools/repository-command.mts tool published-compatibility:e2e
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -412,9 +519,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
@@ -422,8 +531,8 @@ jobs:
             throw "RUNNER_TEMP must be set"
           }
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
       - name: Compile Windows managed-process helpers
         shell: powershell
         run: |
@@ -436,8 +545,8 @@ jobs:
             throw ($syntaxErrors | Out-String)
           }
           Add-Type -Path "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
-      - run: pnpm check:fast
-      - run: pnpm parser-spike:check
+      - run: bun tools/dev.mts check:fast
+      - run: node tools/repository-command.mts tool parser-spike:check
 
   windows-test-a:
     name: windows-test-a
@@ -449,9 +558,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
@@ -459,13 +570,12 @@ jobs:
             throw "RUNNER_TEMP must be set"
           }
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
       # Windows partitions retain the complete canonical inventory in five isolated
       # jobs. Serial execution inside each job preserves fixture ownership.
       - name: Run isolated Windows test partition
-        run: pnpm test:shard:built -- --windows-lane a --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"
+        run: node scripts/run-test-shard.mjs -- --windows-lane a --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-a"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -486,9 +596,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
@@ -496,10 +608,17 @@ jobs:
             throw "RUNNER_TEMP must be set"
           }
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane b --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - name: Qualify managed process transport under pinned Bun on Windows
+        shell: pwsh
+        run: |
+          $env:PROCESS_RUNTIME_DELEGATION_NODE = & node -p 'process.execPath'
+          $env:AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE = $env:PROCESS_RUNTIME_DELEGATION_NODE
+          $env:AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE = & bun -p 'process.execPath'
+          & $env:AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE tests/process-runtime-delegation-under-bun.mts
+          if ($LASTEXITCODE -ne 0) { throw "Bun managed-process qualification failed: $LASTEXITCODE" }
+      - run: node scripts/run-test-shard.mjs -- --windows-lane b --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-b"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -520,9 +639,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
@@ -530,10 +651,9 @@ jobs:
             throw "RUNNER_TEMP must be set"
           }
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane c --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - run: node scripts/run-test-shard.mjs -- --windows-lane c --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-c"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -554,9 +674,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
@@ -564,13 +686,12 @@ jobs:
             throw "RUNNER_TEMP must be set"
           }
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
       # Windows partitions retain the complete canonical inventory in five isolated
       # jobs. Serial execution inside each job preserves fixture ownership.
       - name: Run isolated Windows test partition
-        run: pnpm test:shard:built -- --windows-lane d --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-d"
+        run: node scripts/run-test-shard.mjs -- --windows-lane d --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-d"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -591,9 +712,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, fetch-depth: 0 }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
@@ -601,10 +724,9 @@ jobs:
             throw "RUNNER_TEMP must be set"
           }
           Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm test:shard:built -- --windows-lane e --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-e"
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - run: node scripts/run-test-shard.mjs -- --windows-lane e --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-e"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -621,6 +743,8 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 50
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     strategy:
       fail-fast: false
       matrix:
@@ -629,7 +753,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.21.0" }
@@ -637,20 +762,24 @@ jobs:
         shell: pwsh
         run: Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value "PACK_TEST_GENERATION2_NODE=$((Get-Command node).Source)"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
-      - run: pnpm package:group:built packed "$env:QUALIFICATION_GROUP"
+          $tmpdir = Join-Path $env:RUNNER_TEMP "windows-package"
+          New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$tmpdir", "TMP=$tmpdir", "TMPDIR=$tmpdir")
+      - name: Install the clean Node/pnpm package projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+      - run: node scripts/qualify-package-group.mts packed "$env:QUALIFICATION_GROUP"
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
         env:
           QUALIFICATION_GROUP: ${{ matrix.group }}
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
           # Disposable hosted runner owns final fixture-tree cleanup.
           AGENT_TEAMS_KEEP_PACK_TEST_ARTIFACTS: "1"
 
@@ -660,6 +789,8 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 50
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     strategy:
       fail-fast: false
       matrix:
@@ -668,21 +799,27 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm package:group:built registry "$env:QUALIFICATION_GROUP"
+          $tmpdir = Join-Path $env:RUNNER_TEMP "windows-registry"
+          New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$tmpdir", "TMP=$tmpdir", "TMPDIR=$tmpdir")
+      - name: Install the clean Node/pnpm registry projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+      - run: node scripts/qualify-package-group.mts registry "$env:QUALIFICATION_GROUP"
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
         env:
           QUALIFICATION_GROUP: ${{ matrix.group }}
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
 
   windows-published:
     name: windows-published
@@ -690,23 +827,30 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: windows-2022
     timeout-minutes: 30
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version-file: .node-version, cache: pnpm }
+        with: { node-version-file: .node-version }
       - name: Use runner temporary directory
         shell: pwsh
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) {
-            throw "RUNNER_TEMP must be set"
-          }
-          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP")
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm published-compatibility:e2e
+          $tmpdir = Join-Path $env:RUNNER_TEMP "windows-published"
+          New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$tmpdir", "TMP=$tmpdir", "TMPDIR=$tmpdir")
+      - name: Install the clean Node/pnpm published-consumer projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+      - run: node tools/repository-command.mts tool published-compatibility:e2e
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -746,16 +890,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        with: { version: "11.20.0", install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
+      - run: bun tools/dev.mts install
+      - run: bun tools/dev.mts build
+      - name: Qualify managed process transport under pinned Bun on Darwin
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export PROCESS_RUNTIME_DELEGATION_NODE="$(node -p 'process.execPath')"
+          export AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE="${PROCESS_RUNTIME_DELEGATION_NODE}"
+          export AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE="$(bun -p 'process.execPath')"
+          "${AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE}" tests/process-runtime-delegation-under-bun.mts
       - name: Qualify QGR lifecycle on Darwin
-        run: pnpm test:qgr:lifecycle:built
+        run: bun tools/dev.mts test:qgr:lifecycle:built
       - name: Qualify packaging containment and required Darwin controls
         run: node scripts/run-selected-tests.mjs tests/tooling.test.mjs
       - name: Qualify repository mutation, scaffolding, and durable document writing
@@ -779,6 +931,8 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     strategy:
       fail-fast: false
       matrix:
@@ -788,24 +942,37 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Use a finite job-owned temporary directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tmpdir="${RUNNER_TEMP}/macos-package-${QUALIFICATION_PROFILE}"
+          mkdir -p "${tmpdir}"
+          printf 'TMPDIR=%s\n' "${tmpdir}" >> "$GITHUB_ENV"
+        env:
+          QUALIFICATION_PROFILE: ${{ matrix.profile }}
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       # Managed generation2 consumer gates run on an explicit Node 24; the default Node 26 stays on PATH.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: "24.21.0" }
       - name: Retain Node 24 for managed generation2 consumer gates
         run: printf 'PACK_TEST_GENERATION2_NODE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm rebuild
-      - run: pnpm build
+        with: { node-version-file: .node-version }
+      - name: Install the clean Node/pnpm package projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
       - name: Qualify paired packed and registry-installed boundaries
-        run: pnpm package:qualification:built "$QUALIFICATION_PROFILE"
+        run: node scripts/qualify-package-artifacts.mts "$QUALIFICATION_PROFILE"
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
         env:
           QUALIFICATION_PROFILE: ${{ matrix.profile }}
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
 
   macos-qualification:
     name: ${{ (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) && 'macos-qualification' || 'ci-not-requested-macos-qualification' }}

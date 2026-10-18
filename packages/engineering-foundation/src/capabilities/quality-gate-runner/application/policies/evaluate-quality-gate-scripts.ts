@@ -1,7 +1,7 @@
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type {
   PackageScriptCatalog,
-  QualityGatePolicy
+  QualityGatePolicyInput
 } from "../model/quality-gate.js";
 
 const PACKAGE_SCRIPT_REFERENCE =
@@ -65,7 +65,7 @@ function diagnostic(input: {
 }
 
 export function evaluateQualityGateScripts(
-  policy: QualityGatePolicy,
+  policy: QualityGatePolicyInput,
   catalog: PackageScriptCatalog
 ): readonly FoundationDiagnostic[] {
   const scriptIds = [...new Set(

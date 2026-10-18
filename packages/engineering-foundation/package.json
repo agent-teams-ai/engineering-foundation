@@ -86,6 +86,7 @@
     "schemas/quality-suppression-governance/v1.schema.json",
     "schemas/quality-findings-baseline/v1.schema.json",
     "schemas/repository-agent-workflow/v1.schema.json",
+    "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/repository-security-baseline/v1.schema.json",
     "schemas/scaffold-authority-evidence/v1.schema.json",
     "schemas/scaffold-intent/v1.schema.json",

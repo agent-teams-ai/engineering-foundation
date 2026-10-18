@@ -665,7 +665,11 @@ test("workflow is manual and capture plus digest precede the earliest installed 
   assert.equal(workflow.jobs.qualify.steps[0].with["fetch-depth"], 0);
   assert.equal(JSON.stringify(workflow).includes("secrets."), false);
   assert.doesNotMatch(source, /npm\s+(?:publish|unpublish|deprecate|dist-tag)|pnpm\s+publish/u);
-  assert.match(source, /pnpm build/u);
+  assert.match(source, /node tools\/dev\.mts --profile node install/u);
+  assert.match(source, /node tools\/dev\.mts --profile node build/u);
+  assert.match(source, /PUBLIC_CANARY_NODE_EXECUTABLE/u);
+  assert.match(source, /pnpm\/setup@703c52620218391530e48b9e8870d5c0082e1b9b[\s\S]*?version: "11\.20\.0"/u);
+  assert.doesNotMatch(source, /node-version: \$\{\{ steps\.select-cohort-runtime\.outputs\.node \}\}\s*\n\s+cache: pnpm/u);
   assert.match(source, /Run read-only six-package public managed registry canary/u);
   const qualificationSource = await readFile(new URL("../scripts/public-managed-registry-canary-qualification.mts", import.meta.url), "utf8");
   const capture = runnerSource.indexOf("const lockfile = await readFile");

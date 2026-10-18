@@ -1,5 +1,5 @@
 import type {
-  QualityGateProfile,
+  NormalizedQualityGateProfile,
   QualityGateTask
 } from "../model/quality-gate.js";
 import type {
@@ -129,7 +129,7 @@ function profileOutcome(
 
 export async function runQualityGateProfile(input: {
   readonly consumerRoot: string;
-  readonly profile: QualityGateProfile;
+  readonly profile: NormalizedQualityGateProfile;
   readonly signal?: AbortSignal;
 }, executor: PackageScriptExecutor, clock: MonotonicClock): Promise<QualityGateRunReport> {
   const startedAt = clock.nowMs();
@@ -166,7 +166,7 @@ export async function runQualityGateProfile(input: {
 function scheduleReadyTasks(
   input: {
     readonly consumerRoot: string;
-    readonly profile: QualityGateProfile;
+    readonly profile: NormalizedQualityGateProfile;
     readonly signal?: AbortSignal;
   },
   reports: Map<string, QualityGateTaskReport>,

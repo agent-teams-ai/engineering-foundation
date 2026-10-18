@@ -1,4 +1,5 @@
-schemaVersion: 1
+schemaVersion: 2
+packageManager: bun
 instructions:
   canonical: AGENTS.md
   claude: CLAUDE.md
@@ -31,6 +32,8 @@ fullScanPaths:
   - architecture/foundation
   - knip.json
   - nx.json
+  - bun.lock
+  - tools
   - pnpm-lock.yaml
   - pnpm-workspace.yaml
   - sgconfig.yml

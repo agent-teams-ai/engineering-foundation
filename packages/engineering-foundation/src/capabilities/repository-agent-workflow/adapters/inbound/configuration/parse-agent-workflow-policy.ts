@@ -73,6 +73,21 @@ function changedCheck(value: unknown, index: number): ChangedCheckPolicy {
   });
 }
 
+function packageManager(root: Record<string, unknown>): "bun" | "pnpm" {
+  const version = root["schemaVersion"] ?? 1;
+  if (version === 1) {
+    return "pnpm";
+  }
+  if (version !== 2) {
+    inputError("schemaVersion must be 1 or 2.");
+  }
+  const manager = root["packageManager"];
+  if (manager !== "bun" && manager !== "pnpm") {
+    inputError('packageManager must be "bun" or "pnpm".');
+  }
+  return manager;
+}
+
 export function parseAgentWorkflowPolicy(input: unknown, configPath: string): RepositoryAgentWorkflowPolicy {
   const root = record(input, "repository agent workflow config");
   const checksInput = root["changedChecks"];
@@ -80,7 +95,7 @@ export function parseAgentWorkflowPolicy(input: unknown, configPath: string): Re
     inputError("changedChecks must be an array.");
   }
   const result = Object.freeze({
-    packageManager: "pnpm" as const,
+    packageManager: packageManager(root),
     instructions: instructions(root["instructions"]),
     scripts: scripts(root["scripts"]),
     changedChecks: Object.freeze(checksInput.map(changedCheck)),

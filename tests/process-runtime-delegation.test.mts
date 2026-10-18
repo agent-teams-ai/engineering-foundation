@@ -181,13 +181,13 @@ test("preserves launch mapping and timeout-before-preabort validation ordering",
 });
 
 test("verifies the explicit supported Node used by the managed bootstrap", async () => {
-  assert.equal(requireAdmittedNodeExecutable({}, childRuntime), childRuntime);
+  assert.equal(requireAdmittedNodeExecutable({}, childRuntime), realpathSync(childRuntime));
   assert.equal(
     requireAdmittedNodeExecutable(
       { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime },
       process.execPath
     ),
-    childRuntime
+    realpathSync(childRuntime)
   );
   await assert.rejects((async () => requireAdmittedNodeExecutable(
     { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: join(fixtureRoot, "not-node") },
@@ -602,7 +602,7 @@ test("runtime verifier accepts real Node and rejects symlinks and non-executable
     // target it probed, never a mutable alias supplied by the caller.
     assert.equal(requireAdmittedNodeExecutable({
       AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: alias
-    }, childRuntime), childRuntime);
+    }, childRuntime), realpathSync(childRuntime));
   }
 });
 

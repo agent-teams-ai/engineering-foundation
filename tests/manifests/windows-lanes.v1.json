@@ -116,6 +116,8 @@
       "tests/source-dependency-source-coverage.test.mjs",
       "packages/docs-protocol/tests/qualification-application.test.mjs",
       "tests/request-full-pr-ci.test.mts",
+      "tests/repository-release-runtime.test.mts",
+      "tests/repository-ci-runtime.test.mts",
       "tests/merge-reviewed-pr.test.mts",
       "packages/repository-mutation/tests/known-file-node-api.test.mjs",
       "tests/document-authoring-observation-boundary.test.mjs",
@@ -146,7 +148,8 @@
       "tests/document-authoring-writer-adversarial.test.mjs",
       "tests/m4-disposable-lifecycle.test.mjs",
       "tests/package-release-inventory.test.mjs",
-      "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
+      "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
+      "tests/repository-runtime-tools.test.mts"
     ],
     "c": [
       "tests/source-dependency-loader-cli.test.mjs"
@@ -207,7 +210,7 @@
       "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts",
       "tests/contract-protobuf-qualification.test.mjs",
       "tests/test-manifests-typescript.test.mts",
-        "tests/engineering-quality-standard.test.mts",
+      "tests/engineering-quality-standard.test.mts",
       "tests/source-dependency-v3-observation.test.mjs",
       "tests/source-dependency-workspace-discovery.test.mjs",
       "tests/document-authoring-package-boundary.test.mjs",

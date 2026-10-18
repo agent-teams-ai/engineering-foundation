@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
-import { appendFile, lstat, mkdir, realpath } from "node:fs/promises";
+import { appendFile, lstat, mkdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 
 const pairs = [["1", "2"], ["3", "4"], ["5", "6"], ["7", "8"]] as const;
 
-function run(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<number> {
+function run(command: string, args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<number> {
   return new Promise((resolve, reject) => {
-    const child = spawn("pnpm", [...args], {
+    const child = spawn(command, [...args], {
       cwd, stdio: "inherit",
       env,
     });
@@ -16,6 +16,25 @@ function run(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Prom
       else { resolve(status); }
     });
   });
+}
+
+async function admittedExecutable(
+  environmentName: string,
+  fallback?: string
+): Promise<string> {
+  const candidate = process.env[environmentName] ?? fallback;
+  if (candidate === undefined || !isAbsolute(candidate)) {
+    throw new Error(`${environmentName} must name an absolute runtime executable.`);
+  }
+  const metadata = await stat(candidate).catch(() => null);
+  if (metadata?.isFile() !== true) {
+    throw new Error(`${environmentName} does not name a regular runtime executable.`);
+  }
+  const physical = await realpath(candidate);
+  if (!isAbsolute(physical)) {
+    throw new Error(`${environmentName} does not resolve to an absolute runtime executable.`);
+  }
+  return physical;
 }
 
 async function ciContext() {
@@ -29,7 +48,11 @@ async function ciContext() {
   if (await realpath(temporary) !== resolvePath(temporary) || !(await lstat(temporary)).isDirectory()) {
     throw new Error("CI producers require a physical runner temporary directory.");
   }
-  return { head, temporary, output };
+  const [bun, node] = await Promise.all([
+    admittedExecutable("AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE"),
+    admittedExecutable("AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE", process.execPath)
+  ]);
+  return { head, temporary, output, bun, node };
 }
 
 // Two fixed producers, with separate Git trees, builds and raw evidence. There
@@ -40,7 +63,7 @@ export async function runCiTestPair(args: readonly string[]): Promise<void> {
   if (args.length !== 3 || (phase !== "build" && phase !== "test") || !pair) {
     throw new Error("Usage: run-ci-test-pair.mts build|test 1 2|3 4|5 6|7 8");
   }
-  const { head, temporary, output } = await ciContext();
+  const { head, temporary, output, bun, node } = await ciContext();
   const roots = [resolvePath("a"), resolvePath("b")];
   const entries = await Promise.all(roots.map(root => lstat(root)));
   const physical = await Promise.all(roots.map(root => realpath(root)));
@@ -65,6 +88,8 @@ export async function runCiTestPair(args: readonly string[]): Promise<void> {
   const results = await Promise.allSettled(pair.map(async (shard, index) => {
     const temporaryRoot = temporaryRoots[index];
     const env: NodeJS.ProcessEnv = { ...process.env, NODE_DISABLE_COMPILE_CACHE: "1",
+      AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: bun,
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: node,
       RUNNER_TEMP: temporaryRoot, TMPDIR: temporaryRoot, TMP: temporaryRoot, TEMP: temporaryRoot };
     if (shard !== "4") {
       delete env.MANAGED_TEST_TOOLS_ROOT;
@@ -72,14 +97,17 @@ export async function runCiTestPair(args: readonly string[]): Promise<void> {
       delete env.MANAGED_TEST_NODE24_SOURCE;
       delete env.MANAGED_TEST_NODE26_SOURCE;
     }
-    const commands = phase === "build"
-      ? [["install", "--frozen-lockfile", "--ignore-scripts"], ["rebuild"], ["build"]]
-      : [["test:shard:built", "--", "--shards", shard,
+    const commands: ReadonlyArray<readonly [string, readonly string[]]> = phase === "build"
+      ? [
+          [bun, ["tools/dev.mts", "install"]],
+          [bun, ["tools/dev.mts", "build"]]
+        ]
+      : [[node, ["scripts/run-test-shard.mjs", "--", "--shards", shard,
           "--coverage-evidence-dir", `.coverage-evidence/shard-${shard}`,
-          "--head-sha", head, "--timing-output", join(temporaryRoot, "test-timing", `linux-test-${shard}`)]];
-    for (const command of commands) {
+          "--head-sha", head, "--timing-output", join(temporaryRoot, "test-timing", `linux-test-${shard}`)]]];
+    for (const [command, commandArguments] of commands) {
       statuses[index] = undefined;
-      const status = await run(command, roots[index], env);
+      const status = await run(command, commandArguments, roots[index], env);
       statuses[index] = status;
       if (status !== 0) { throw new Error(`Linux producer ${shard} ${phase} exited ${status}.`); }
     }

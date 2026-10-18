@@ -1,12 +1,14 @@
-schemaVersion: 1
-packageManager: pnpm
+schemaVersion: 2
 profiles:
-  - id: fast
-    concurrency: 3
+  - id: bun-check-fast
+    packageManager: bun
+    concurrency: 1
     tasks:
-      - id: test:manifests:check
-        timeoutMs: 120000
-      - id: lint:fast
-        timeoutMs: 300000
-      - id: typecheck
-        timeoutMs: 300000
+      - id: check:fast
+        timeoutMs: 1800000
+  - id: node-check-fast
+    packageManager: pnpm
+    concurrency: 1
+    tasks:
+      - id: check:fast
+        timeoutMs: 1800000

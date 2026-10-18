@@ -1310,7 +1310,8 @@
           ],
           "testRoots": [
             "tests/local-mode-process-runner.test.mjs",
-            "tests/windows-managed-process.test.mjs"
+            "tests/windows-managed-process.test.mjs",
+            "tests/repository-runtime-tools.test.mts"
           ]
         },
         {

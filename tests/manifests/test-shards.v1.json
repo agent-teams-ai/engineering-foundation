@@ -49,7 +49,8 @@
         "tests/features/feature-module-standard/module-check.test.mts",
         "tests/features/feature-module-standard/node-runner.test.mts",
         "tests/feature-module-kernel-adapter.test.mjs",
-        "tests/workspace-dependency-peer-link.test.mjs"
+        "tests/workspace-dependency-peer-link.test.mjs",
+        "tests/repository-runtime-tools.test.mts"
       ]
     },
     {
@@ -196,7 +197,9 @@
         "packages/docs-protocol/tests/qualification-application.test.mjs",
         "tests/pack-stage-materialization.test.mts",
         "tests/request-full-pr-ci.test.mts",
-        "tests/merge-reviewed-pr.test.mts"
+        "tests/merge-reviewed-pr.test.mts",
+        "tests/repository-release-runtime.test.mts",
+        "tests/repository-ci-runtime.test.mts"
       ]
     },
     {

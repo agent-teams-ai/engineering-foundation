@@ -150,20 +150,20 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(job.environment, "npm-package-bootstrap");
   assert.equal(job["runs-on"], "ubuntu-24.04");
   assert.equal(ciWriter["runs-on"], job["runs-on"]);
-  assert.equal(repositoryManifest.packageManager, "pnpm@11.20.0");
-  assert.equal(job.steps[1].uses, ciWriter.steps[1].uses);
-  assert.equal(job.steps[1].with.install, false);
-  assert.equal(job.steps[2].uses, ciWriter.steps[2].uses);
-  assert.equal(job.steps[2].with["node-version-file"], ".node-version");
+  assert.equal(repositoryManifest.packageManager, "bun@1.4.3");
+  const pnpmSetup = job.steps.find(({ uses }) => uses?.startsWith("pnpm/setup@"));
+  const defaultNode = job.steps.find(({ with: inputs }) => inputs?.["node-version-file"] === ".node-version");
+  assert.equal(pnpmSetup.with.version, "11.20.0");
+  assert.equal(pnpmSetup.with.install, false);
   // CI also has an explicit Node 24 setup, so select its default setup-node step by its setting, not by index.
   const ciDefaultNode = ciWriter.steps.find(
     ({ uses, with: inputs }) => uses?.startsWith("actions/setup-node@") && inputs?.["node-version-file"] === ".node-version",
   );
   assert.ok(ciDefaultNode, "CI writer must select the repository default Node through .node-version");
-  assert.equal(ciDefaultNode.with["node-version-file"], job.steps[2].with["node-version-file"]);
+  assert.equal(ciDefaultNode.with["node-version-file"], defaultNode.with["node-version-file"]);
   // The tests are not re-run in the privileged job: the exact commit must have a green CI run, proven before any install.
   const proof = job.steps.findIndex(({ run }) => run === 'node scripts/npm-package-bootstrap-ci-proof-cli.mjs "${EXPECTED_COMMIT}"');
-  const install = job.steps.findIndex(({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts");
+  const install = job.steps.findIndex(({ run }) => run === "node tools/dev.mts --profile node install");
   const authority = job.steps.findIndex(({ id }) => id === "authority");
   assert.ok(authority >= 0 && authority < proof && proof < install);
   assert.equal(job.steps[proof].env.EXPECTED_COMMIT, "${{ inputs.expected_commit }}");
@@ -175,7 +175,12 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 0);
   assert.equal(job.steps[install + 1].run, "pnpm build");
   assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
-  assert.match(job.if, /NPM_PACKAGE_BOOTSTRAP_ENABLED.*refs\/heads\/main.*expected_commit/u);
+  assert.equal(job.steps.find(({ id }) => id === "pack")["working-directory"],
+    ".worker-tmp/profiles/node-${{ inputs.expected_commit }}");
+  assert.equal(
+    job.if,
+    "${{ vars.NPM_PACKAGE_BOOTSTRAP_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}",
+  );
   assert.equal(job.env.NPM_TOKEN, undefined);
   assert.equal(job.env.NODE_AUTH_TOKEN, undefined);
   assert.equal(publish.env.NODE_AUTH_TOKEN, "${{ secrets.NPM_PACKAGE_BOOTSTRAP_TOKEN }}");
@@ -240,6 +245,10 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     /process\.platform !== "win32"[\s\S]*?await import\([\s\S]*?windows-managed-process\.js/u,
   );
   assert.equal(reconcile.needs, "bootstrap");
+  assert.equal(
+    reconcile.if,
+    "${{ vars.NPM_PACKAGE_BOOTSTRAP_ENABLED == 'true' && inputs.operation == 'bootstrap' && github.ref == 'refs/heads/main' && github.sha == inputs.expected_commit }}",
+  );
   assert.deepEqual(reconcile.permissions, { contents: "write" });
   assert.match(reconcile.steps[0].uses, /^actions\/checkout@[a-f0-9]{40}$/u);
   assert.equal(reconcile.steps[0].with.ref, "${{ inputs.expected_commit }}");

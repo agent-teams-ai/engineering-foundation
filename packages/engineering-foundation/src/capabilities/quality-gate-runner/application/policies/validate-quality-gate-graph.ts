@@ -1,6 +1,6 @@
 import type {
-  QualityGatePolicy,
-  QualityGateProfile,
+  NormalizedQualityGatePolicy,
+  NormalizedQualityGateProfile,
   QualityGateTask
 } from "../model/quality-gate.js";
 
@@ -26,7 +26,7 @@ function dependencies(task: QualityGateTask): readonly string[] {
   return [...task.needs, ...task.after];
 }
 
-function assertAcyclic(profile: QualityGateProfile): void {
+function assertAcyclic(profile: NormalizedQualityGateProfile): void {
   const tasks = new Map(profile.tasks.map((task) => [task.id, task]));
   const visiting = new Set<string>();
   const visited = new Set<string>();
@@ -56,7 +56,7 @@ function assertAcyclic(profile: QualityGateProfile): void {
   }
 }
 
-export function validateQualityGatePolicy(policy: QualityGatePolicy): void {
+export function validateQualityGatePolicy(policy: NormalizedQualityGatePolicy): void {
   const duplicateProfile = duplicate(policy.profiles.map(({ id }) => id));
   if (duplicateProfile !== undefined) {
     throw new QualityGateGraphError(`Duplicate profile ID: ${duplicateProfile}.`);

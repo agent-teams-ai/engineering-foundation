@@ -1,6 +1,6 @@
 import type {
-  QualityGatePolicy,
-  QualityGateProfile,
+  NormalizedQualityGatePolicy,
+  NormalizedQualityGateProfile,
   QualityGateTask
 } from "../../../application/model/quality-gate.js";
 import {
@@ -59,7 +59,7 @@ function profile(
   value: unknown,
   index: number,
   schemaVersion: 1 | 2
-): QualityGateProfile {
+): NormalizedQualityGateProfile {
   const field = `profiles[${index}]`;
   const input = record(value, field);
   const tasks = input["tasks"];
@@ -83,7 +83,7 @@ function packageManager(value: unknown, field: string): "bun" | "pnpm" {
   return value;
 }
 
-export function parseQualityGatePolicy(input: unknown): QualityGatePolicy {
+export function parseQualityGatePolicy(input: unknown): NormalizedQualityGatePolicy {
   const root = record(input, "quality gate runner config");
   const rawSchemaVersion = root["schemaVersion"];
   const schemaVersionValue = rawSchemaVersion === undefined
@@ -97,7 +97,7 @@ export function parseQualityGatePolicy(input: unknown): QualityGatePolicy {
   if (!Array.isArray(profiles)) {
     inputError("profiles must be an array.");
   }
-  const policy: QualityGatePolicy = Object.freeze({
+  const policy: NormalizedQualityGatePolicy = Object.freeze({
     profiles: Object.freeze(
       profiles.map((entry, index) => {
         const parsed = profile(entry, index, schemaVersion);

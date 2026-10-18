@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, extname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
 import {
@@ -19,6 +20,11 @@ const coordinates = [
 ];
 const manifest = (name, fields = {}) => JSON.stringify({ name, version: "1.0.0", ...fields });
 const packageManager = "pnpm@11.20.0";
+
+function bunCli() {
+  return process.env.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE ??
+    fileURLToPath(new URL("../node_modules/.job-scratch/toolchains/bun/bun-linux-x64/bun", import.meta.url));
+}
 
 function pnpmCli() {
   const directories = (process.env.PATH ?? "").split(delimiter);
@@ -58,6 +64,22 @@ function pnpmCli() {
 
 function runPnpm(cli, root, args) {
   return spawnSync(cli.command, [...cli.prefix, ...args], { cwd: root, encoding: "utf8" });
+}
+
+function runBun(root, args) {
+  return spawnSync(bunCli(), args, { cwd: root, encoding: "utf8" });
+}
+
+function runInstalledGuard(root) {
+  const guard = fileURLToPath(new URL("../tools/dependencies-installed-check.mts", import.meta.url));
+  return spawnSync(process.execPath, [guard], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      AGENT_TEAMS_FOUNDATION_INSTALLED_INVENTORY: join(root, "installed-inventory.json")
+    }
+  });
 }
 
 test("registry qualification covers npm and pnpm with docs-only and MCP profiles", () => {
@@ -136,7 +158,8 @@ test("compatibility and release installs check the frozen peer graph before qual
 
 test("pnpm 11 rejects incompatible engines and peers under the repository install policy", async () => {
   const rootManifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  assert.equal(rootManifest.packageManager, packageManager);
+  assert.equal(rootManifest.packageManager, "bun@1.4.3");
+  assert.equal(packageManager, "pnpm@11.20.0");
   const cli = pnpmCli();
   const selected = runPnpm(cli, process.cwd(), ["--version"]);
   assert.equal(selected.status, 0, `${selected.stdout}\n${selected.stderr}`);
@@ -189,6 +212,49 @@ test("pnpm 11 rejects incompatible engines and peers under the repository instal
     const peerGraph = runPnpm(cli, peerRoot, ["peers", "check", "--lockfile-only"]);
     assert.equal(peerGraph.status, 1, `${peerGraph.stdout}\n${peerGraph.stderr}`);
     assert.match(`${peerGraph.stdout}\n${peerGraph.stderr}`, /peer-host|peer-client/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("real Bun frozen installs reuse engine and peer fixtures through the connected installed guard", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation-bun-strict-"));
+  try {
+    const engineRoot = join(root, "engine");
+    await mkdir(join(engineRoot, "engine-dep"), { recursive: true });
+    await writeFile(join(engineRoot, "package.json"), manifest("engine-reject-fixture", {
+      private: true, packageManager: "bun@1.4.3", dependencies: { "engine-dep": "file:./engine-dep" }
+    }));
+    await writeFile(join(engineRoot, "engine-dep", "package.json"), manifest("engine-dep", {
+      engines: { node: ">=27" }
+    }));
+    assert.equal(runBun(engineRoot, ["install", "--lockfile-only", "--ignore-scripts"]).status, 0);
+    assert.equal(runBun(engineRoot, ["install", "--frozen-lockfile", "--ignore-scripts", "--linker=isolated"]).status, 0);
+    const engineGuard = runInstalledGuard(engineRoot);
+    assert.equal(engineGuard.status, 1, engineGuard.stdout + engineGuard.stderr);
+    assert.match(`${engineGuard.stdout}\n${engineGuard.stderr}`, /engine mismatch/iu);
+
+    for (const [name, optional] of [["required-peer", false], ["bad-locked-optional-peer", true]]) {
+      const peerRoot = join(root, name);
+      await mkdir(join(peerRoot, "peer-host"), { recursive: true });
+      await mkdir(join(peerRoot, "peer-client"), { recursive: true });
+      await writeFile(join(peerRoot, "package.json"), manifest(`${name}-fixture`, {
+        private: true, packageManager: "bun@1.4.3", dependencies: {
+          "peer-host": "file:./peer-host", "peer-client": "file:./peer-client"
+        }
+      }));
+      await writeFile(join(peerRoot, "peer-host", "package.json"), manifest("peer-host"));
+      await writeFile(join(peerRoot, "peer-client", "package.json"), manifest("peer-client", {
+        peerDependencies: { "peer-host": ">=2" },
+        ...(optional ? { peerDependenciesMeta: { "peer-host": { optional: true } } } : {})
+      }));
+      assert.equal(runBun(peerRoot, ["install", "--lockfile-only", "--ignore-scripts"]).status, 0);
+      const frozen = runBun(peerRoot, ["install", "--frozen-lockfile", "--ignore-scripts", "--linker=isolated"]);
+      assert.equal(frozen.status, 0, frozen.stdout + frozen.stderr);
+      const guard = runInstalledGuard(peerRoot);
+      assert.equal(guard.status, 1, guard.stdout + guard.stderr);
+      assert.match(`${guard.stdout}\n${guard.stderr}`, /peer-host/u);
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

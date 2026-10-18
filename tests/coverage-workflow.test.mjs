@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -17,18 +16,21 @@ const executeFile = promisify(execFile);
 if (process.platform === "linux") {
   for (const phase of ["build", "test"]) {
     test(`paired Linux ${phase} drains siblings and isolates producer state`, async context => {
-      const root = await realpath(await mkdtemp(join(tmpdir(), "foundation-pair-test-")));
+      const temporaryBase = join(repositoryRoot, ".cache", "ci-test-tmp");
+      await mkdir(temporaryBase, { recursive: true });
+      const root = await realpath(await mkdtemp(join(temporaryBase, "foundation-pair-test-")));
       context.after(() => rm(root, { recursive: true, force: true }));
       const temporary = join(root, "temporary");
       const bin = join(root, "bin");
       const output = join(root, "output");
       const log = join(root, "commands.jsonl");
       await Promise.all(["a", "b", "temporary", "bin"].map(name => mkdir(join(root, name))));
-      // Extensionless stubs use `require`; Node 26 would otherwise interpret them as ESM.
+      // Extensionless runtime stubs use `require`; Node 26 would otherwise interpret them as ESM.
       await writeFile(join(bin, "package.json"), '{"type":"commonjs"}\n');
-      await writeFile(join(bin, "pnpm"), `#!${process.execPath}\n${String.raw`
+      const stub = `#!${process.execPath}\n` + String.raw`
 const fs = require("node:fs");
-const record = { cwd: process.cwd(), args: process.argv.slice(2),
+const record = { tool: require("node:path").basename(process.argv[1]), cwd: process.cwd(), args: process.argv.slice(2),
+  bun: process.env.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE, node: process.env.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE,
   temporary: process.env.RUNNER_TEMP, tmpdir: process.env.TMPDIR,
   tools: process.env.MANAGED_TEST_TOOLS_ROOT, managed: process.env.MANAGED_TEST_ROOT,
   node24: process.env.MANAGED_TEST_NODE24_SOURCE, node26: process.env.MANAGED_TEST_NODE26_SOURCE };
@@ -37,9 +39,12 @@ if (process.cwd().endsWith("/a")) process.exit(7);
 setTimeout(() => {
   fs.writeFileSync(process.env.RUNNER_TEMP + "/sibling-finished", "done");
 }, 80);
-`}`, { mode: 0o755 });
+`;
+      await Promise.all(["bun", "node"].map(name => writeFile(join(bin, name), stub, { mode: 0o755 })));
       const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, GITHUB_SHA: "a".repeat(40),
         RUNNER_TEMP: temporary, GITHUB_OUTPUT: output, PAIR_TEST_LOG: log,
+        AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: join(bin, "bun"),
+        AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: join(bin, "node"),
         MANAGED_TEST_TOOLS_ROOT: "/declared-tools", MANAGED_TEST_ROOT: "/declared-managed",
         MANAGED_TEST_NODE24_SOURCE: "/declared-node24", MANAGED_TEST_NODE26_SOURCE: "/declared-node26" };
       const helper = join(repositoryRoot, "scripts", "run-ci-test-pair.mts");
@@ -49,9 +54,12 @@ setTimeout(() => {
       assert.equal(await readFile(join(temporary, "producer-4", "sibling-finished"), "utf8"), "done");
       const records = (await readFile(log, "utf8")).trim().split("\n").map(line => JSON.parse(line));
       assert.equal(records.filter(record => record.cwd === join(root, "a")).length, 1);
-      assert.equal(records.filter(record => record.cwd === join(root, "b")).length, phase === "build" ? 3 : 1);
+      assert.equal(records.filter(record => record.cwd === join(root, "b")).length, phase === "build" ? 2 : 1);
       for (const record of records) {
         const first = record.cwd === join(root, "a");
+        assert.equal(record.tool, phase === "build" ? "bun" : "node");
+        assert.equal(record.bun, join(bin, "bun"));
+        assert.equal(record.node, join(bin, "node"));
         assert.equal(record.temporary, join(temporary, first ? "producer-3" : "producer-4"));
         assert.equal(record.tmpdir, record.temporary);
         assert.equal(record.tools, first ? undefined : "/declared-tools");
@@ -62,6 +70,15 @@ setTimeout(() => {
           assert.equal(record.args[record.args.indexOf("--shards") + 1], first ? "3" : "4");
           assert.equal(record.args[record.args.indexOf("--head-sha") + 1], "a".repeat(40));
         }
+      }
+      if (phase === "build") {
+        assert.deepEqual(
+          new Set(records.filter(record => record.cwd === join(root, "b")).map(record => JSON.stringify(record.args))),
+          new Set([
+            JSON.stringify(["tools/dev.mts", "install"]),
+            JSON.stringify(["tools/dev.mts", "build"]),
+          ]),
+        );
       }
       const before = await readFile(log, "utf8");
       await assert.rejects(executeFile(process.execPath, [helper, phase, "3", "5"], { cwd: root, env }), /Usage/u);
@@ -137,13 +154,17 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     assert.equal(checkout.with["fetch-depth"], 0);
     assert.equal(checkout.with["persist-credentials"], false);
   }
-  const setup = producer.steps.find(step => step.uses?.startsWith("pnpm/setup@"));
-  assert.equal(setup.with["working-directory"], "a");
-  assert.equal(setup.with.install, false);
+  const setup = producer.steps.find(step => step.uses?.startsWith("oven-sh/setup-bun@"));
+  assert.equal(setup.uses, "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6");
+  assert.deepEqual(setup.with, { "bun-version": "1.4.3" });
   const build = producer.steps.find(step => step.name === "Build both isolated producers");
   assert.equal(build.run, 'node a/scripts/run-ci-test-pair.mts build "$FIRST_SHARD" "$SECOND_SHARD"');
   const run = producer.steps.find(step => step.id === "test-pair");
   assert.equal(run.run, 'node a/scripts/run-ci-test-pair.mts test "$FIRST_SHARD" "$SECOND_SHARD"');
+  assert.equal(build.env.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE,
+    "${{ steps.setup-bun.outputs.bun-path }}");
+  assert.equal(run.env.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE,
+    "${{ steps.setup-bun.outputs.bun-path }}");
   assert.equal(run["continue-on-error"], undefined);
   for (const [key, root] of [["first", "a"], ["second", "b"]]) {
     const identity = "${{ matrix.pair." + key + " }}";
@@ -157,7 +178,7 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
     assert.equal(upload.with["include-hidden-files"], true);
     assert.equal(upload.with.overwrite, true);
   }
-  const managed = producer.steps.filter(step => step.name?.includes("pinned"));
+  const managed = producer.steps.filter(step => step.name?.includes("pinned") && !step.name?.includes("transport"));
   assert.equal(managed.length, 3);
   for (const step of managed) { assert.equal(step.if, "${{ matrix.pair.second == '4' }}"); }
   const provision = managed.find(step => step.run?.includes("provision-managed-test-tools"));
@@ -174,7 +195,8 @@ test("partitioned coverage is the fail-closed blocking coverage authority", asyn
   assert.equal(node26.if, "${{ matrix.pair.second == '4' }}");
   const defaultNode = producer.steps.find(step => step.with?.["node-version-file"]);
   assert.equal(defaultNode.with["node-version-file"], "a/.node-version");
-  assert.equal(defaultNode.with["cache-dependency-path"], "a/pnpm-lock.yaml");
+  assert.equal(defaultNode.with.cache, undefined);
+  assert.equal(defaultNode.with["cache-dependency-path"], undefined);
   assert.ok(producer.steps.indexOf(node24) < producer.steps.indexOf(node26));
   assert.ok(producer.steps.indexOf(node26) < producer.steps.indexOf(defaultNode));
 
@@ -190,6 +212,66 @@ test("every CI job that reaches generation2 pack-test binds an explicit Node 24 
     const defaultNode = steps.findIndex(step => step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version-file"] === ".node-version");
     assert.ok(node24 >= 0 && capture > node24 && defaultNode > capture, `${jobId}: Node 24 setup, capture, then default Node`);
     assert.match(steps[capture].run, /command -v node|Get-Command node/u, jobId);
+  }
+});
+
+test("Node compatibility uses a clean pnpm profile projection without changing the Bun source root", async () => {
+  const ci = parseYaml(await readFile(join(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
+  const steps = ci.jobs["node26-compatibility"].steps;
+  const compatibilityCapture = steps.findIndex(step => /COMPAT_NODE_EXECUTABLE=/u.test(step.run ?? ""));
+  const qualificationNodeSetup = steps.findIndex(step =>
+    step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version-file"] === ".node-version");
+  const qualificationCapture = steps.findIndex(step =>
+    /AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=/u.test(step.run ?? ""));
+  const restoredCompatibilitySetup = steps.findLastIndex(step =>
+    step.uses?.startsWith("actions/setup-node@") && step.with?.["node-version"] === "${{ matrix.node-version }}");
+  assert.ok(compatibilityCapture >= 0 && qualificationNodeSetup > compatibilityCapture &&
+    qualificationCapture > qualificationNodeSetup && restoredCompatibilitySetup > qualificationCapture);
+  const install = steps.find(step => step.run === "node tools/dev.mts --profile node install");
+  assert.deepEqual(install.env, {
+    AGENT_TEAMS_FOUNDATION_SOURCE_SHA: "${{ github.sha }}",
+    AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT:
+      "${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm${{ runner.os == 'Windows' && '.exe' || '' }}"
+  });
+  const pnpmSetup = steps.find(step => step.uses?.startsWith("pnpm/setup@"));
+  assert.equal(pnpmSetup.uses, "pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b");
+  assert.deepEqual(pnpmSetup.with, { version: "11.20.0", install: false });
+  for (const step of steps.filter(candidate =>
+    candidate.run === "pnpm dependencies:peers:check" ||
+    candidate.run === "pnpm rebuild" ||
+    candidate.run === "pnpm node-compatibility:qualification" ||
+    candidate.run?.startsWith("node --test --test-concurrency=1"))) {
+    assert.equal(step["working-directory"], ".worker-tmp/profiles/node-${{ github.sha }}");
+  }
+  assert.equal(steps.some(step => step.run === "pnpm install --frozen-lockfile --ignore-scripts --engine-strict"), false);
+  assert.equal(steps.some(step => step.uses?.startsWith("oven-sh/setup-bun@")), false);
+});
+
+test("ordinary workflows pin Bun 1.4.3 and retain explicit pnpm tools without mixing graphs", async () => {
+  const workflows = await Promise.all(["ci.yml", "pr-feedback.yml", "performance.yml"].map(async name =>
+    parseYaml(await readFile(join(repositoryRoot, ".github/workflows", name), "utf8"))));
+  for (const workflow of workflows) {
+    for (const [jobId, job] of Object.entries(workflow.jobs)) {
+      const steps = job.steps ?? [];
+      const installsBunGraph = steps.some(step => step.run === "bun tools/dev.mts install");
+      const setupBun = steps.find(step => step.uses?.startsWith("oven-sh/setup-bun@"));
+      if (installsBunGraph || setupBun !== undefined) {
+        assert.equal(setupBun?.uses,
+          "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6", `${workflow.name}/${jobId}`);
+        assert.deepEqual(setupBun?.with, { "bun-version": "1.4.3" }, `${workflow.name}/${jobId}`);
+      }
+      const pnpmSetup = steps.find(step => step.uses?.startsWith("pnpm/setup@"));
+      if (pnpmSetup !== undefined) {
+        assert.equal(pnpmSetup.uses, "pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b",
+          `${workflow.name}/${jobId}`);
+        assert.deepEqual(pnpmSetup.with, { version: "11.20.0", install: false },
+          `${workflow.name}/${jobId}`);
+      }
+      if (installsBunGraph) {
+        assert.equal(steps.some(step => step.with?.cache === "pnpm"), false,
+          `${workflow.name}/${jobId} must keep Bun and pnpm dependency caches separate`);
+      }
+    }
   }
 });
 
@@ -219,8 +301,13 @@ test("Automatic PR feedback checks the committed delta independently of full qua
   assert.deepEqual(review, declaredReview,
     "Feedback Dependency Review must preserve the declared blocking security semantics");
   const installIndex = feedback.steps.findIndex(({ run }) =>
-    run === "pnpm install --frozen-lockfile --ignore-scripts");
+    run === "bun tools/dev.mts install");
   assert.ok(installIndex > 0, "Feedback must install pinned dependencies after checkout");
+  const setupBun = feedback.steps.find(step => step.uses?.startsWith("oven-sh/setup-bun@"));
+  assert.ok(feedback.steps.indexOf(setupBun) < installIndex);
+  assert.equal(setupBun.uses,
+    "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6");
+  assert.deepEqual(setupBun.with, { "bun-version": "1.4.3" });
   assert.equal(feedback["timeout-minutes"], 10);
   const checkout = feedback.steps.find(({ uses }) => uses?.startsWith("actions/checkout@"));
   assert.equal(checkout.with["fetch-depth"], 0, "PR base and merge-base history must be available");
@@ -229,7 +316,8 @@ test("Automatic PR feedback checks the committed delta independently of full qua
   assert.deepEqual(changed.env, {
     FOUNDATION_PR_BASE_SHA: "${{ github.event.pull_request.base.sha }}",
   });
-  assert.equal(changed.run, 'pnpm check:changed --base "$FOUNDATION_PR_BASE_SHA"');
+  assert.equal(changed.run,
+    'bun packages/engineering-foundation/dist/cli.js agent-workflow changed --consumer . --base "$FOUNDATION_PR_BASE_SHA"');
   assert.equal(changed["continue-on-error"], undefined);
   assert.equal(preliminary.concurrency.group.replace(/\s+/gu, " "),
     "${{ format('foundation-feedback-{0}', github.event.pull_request.number) }}",

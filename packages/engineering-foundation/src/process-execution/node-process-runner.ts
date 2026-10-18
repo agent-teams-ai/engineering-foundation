@@ -174,15 +174,27 @@ export async function terminatePosixProcessGroup(
   if (!Number.isSafeInteger(processGroupId) || processGroupId <= 0) {
     throw new TypeError("A POSIX process group ID must be a positive safe integer.");
   }
-  signalPosixProcessGroup(processGroupId, "SIGTERM");
-  if (await waitForPosixProcessGroupExit(processGroupId)) {
-    return;
-  }
-  signalPosixProcessGroup(processGroupId, "SIGKILL");
-  if (!await waitForPosixProcessGroupExit(processGroupId)) {
-    throw new Error(
-      `POSIX process group ${String(processGroupId)} did not exit after forced shutdown.`
-    );
+  try {
+    signalPosixProcessGroup(processGroupId, "SIGTERM");
+    if (await waitForPosixProcessGroupExit(processGroupId)) {
+      return;
+    }
+    signalPosixProcessGroup(processGroupId, "SIGKILL");
+    if (!await waitForPosixProcessGroupExit(processGroupId)) {
+      throw new Error(
+        `POSIX process group ${String(processGroupId)} did not exit after forced shutdown.`
+      );
+    }
+  } catch (error) {
+    // Darwin can retain an all-zombie group until its custodian reaps it.
+    // After EPERM, observe only: never signal that group again. Only ESRCH
+    // proves custody is released; persistent denial keeps the original cause.
+    if (process.platform === "darwin" && error instanceof Error &&
+      "code" in error && error.code === "EPERM" &&
+      await waitForPosixProcessGroupExit(processGroupId)) {
+      return;
+    }
+    throw error;
   }
 }
 

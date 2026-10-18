@@ -1,8 +1,7 @@
-import type { QualityGatePolicy } from "../model/quality-gate.js";
+import type { QualityGatePolicyInput } from "../model/quality-gate.js";
 
 export type QualityGatePolicyLoader = (
   consumerRoot: string,
   configPath: string,
   signal?: AbortSignal
-) => Promise<QualityGatePolicy>;
-
+) => Promise<QualityGatePolicyInput>;

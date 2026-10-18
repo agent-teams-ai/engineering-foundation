@@ -122,13 +122,13 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
     PUBLISHABLE_PACKAGES.map((releasePackage) => releasePackage.name),
     [
       "@agent-teams/ci-input-proof",
-      "@agent-teams/feature-module-standard",
       repositoryMutationName,
       documentAuthoringName,
       docsProtocolName,
       docsProtocolAgentTeamsName,
       docsProtocolMcpName,
       foundationName,
+      "@agent-teams/feature-module-standard",
     ],
   );
   const repositoryMutation = await json("packages/repository-mutation/package.json");

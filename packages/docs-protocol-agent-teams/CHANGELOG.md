@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- [#391](https://github.com/agent-teams-ai/engineering-foundation/pull/391) [`59f49ea`](https://github.com/agent-teams-ai/engineering-foundation/commit/59f49ea5574c0a7ecd8ca10cb36682de2cb4357f) Thanks [@777genius](https://github.com/777genius)! - Correct the current Docs Protocol runtime policy to policy 3.0.0 for the accepted
+  Node 26.11.1 production default and Node 24 compatibility lane. Retain exact
+  historical policy bytes and the unselected managed candidate; physical Node 26
+  qualification remains pending. Add the read-only Cohort 3 qualification
+  authority projector used by the public managed registry canary while retaining
+  generation 1/2 consumer upgrade authority and the unselected Profile 4 binding.
+
+### Patch Changes
+
+- [#404](https://github.com/agent-teams-ai/engineering-foundation/pull/404) [`a7e18f7`](https://github.com/agent-teams-ai/engineering-foundation/commit/a7e18f7339eb4b10287e41b9a9e98aa32ab0c8ea) Thanks [@777genius](https://github.com/777genius)! - Report the tail of both output streams, labelled, when a consumer upgrade process
+  fails. pnpm writes `ERR_PNPM_*` to stdout and configuration warnings to stderr, so
+  a consumer with an unset variable in its user npmrc used to see only the warning.
+
 ## 0.4.0
 
 ### Minor Changes

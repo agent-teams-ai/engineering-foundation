@@ -1,5 +1,34 @@
 # @agent-teams/engineering-foundation
 
+## 1.8.0
+
+### Minor Changes
+
+- [#397](https://github.com/agent-teams-ai/engineering-foundation/pull/397) [`73c3814`](https://github.com/agent-teams-ai/engineering-foundation/commit/73c3814d1026750e92c9d2f2aa4e1c3a4d64706b) Thanks [@777genius](https://github.com/777genius)! - Add the architecture-neutral core mechanisms: a shrink-only findings baseline
+  (`baseline check`, `init` and `prune` commands for Oxlint findings, and pure
+  functions on `@agent-teams/engineering-foundation/ratchet`), growth budgets that
+  only warn, and a public source graph with strongly connected components on
+  `@agent-teams/engineering-foundation/source-graph`. `quality.source-coverage`
+  also reads Feature Module Standard v1.1 production mappings; its topology and
+  all existing diagnostics are unchanged.
+
+- [#407](https://github.com/agent-teams-ai/engineering-foundation/pull/407) [`43dbe80`](https://github.com/agent-teams-ai/engineering-foundation/commit/43dbe80844ac639573019312a72393156549714d) Thanks [@777genius](https://github.com/777genius)! - Preserve reference kinds and unresolved computed loaders in the public source
+  graph. Observe direct ESM runtime export names and kinds through the existing
+  Oxc parser, with per-file coverage and explicit unsupported forms instead of
+  fabricated complete counts. Keep unresolved, external and parse-failure lanes.
+
+  Consumers retain ownership of syntax restrictions and CMS/FMS profile mappings.
+  This additive source API changes no dependency-policy schema, architecture
+  standard, consumer pin or release admission.
+
+### Patch Changes
+
+- [#406](https://github.com/agent-teams-ai/engineering-foundation/pull/406) [`dbecf5d`](https://github.com/agent-teams-ai/engineering-foundation/commit/dbecf5d8e9f9886a59d1f0ab289be2217a15b9b7) Thanks [@777genius](https://github.com/777genius)! - Give the git calls that read repository identity in `package.public-api-compatibility`
+  a 60 second deadline instead of 10 seconds. A cold Windows runner could exceed ten
+  seconds and fail with `UNEXPECTED_PROCESS_FAILURE`. On Windows the deadline also covers
+  the Job Object wrapper (the PowerShell bootstrap with its `Add-Type` C# compilation and the
+  Node process host), not only git.
+
 ## 1.7.4
 
 ### Patch Changes

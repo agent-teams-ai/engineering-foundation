@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/feature-module-standard",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Pure, opt-in checks for the Feature Module Standard: feature tree, visibility, edges, composition contracts and cycles.",
   "license": "Apache-2.0",
   "type": "module",

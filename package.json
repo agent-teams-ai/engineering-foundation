@@ -69,7 +69,7 @@
     "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
     "test:qgr:lifecycle:built": "node scripts/run-selected-tests.mjs tests/quality-gate-runner.test.mjs tests/quality-gate-runner-lifecycle.test.mjs tests/quality-gate-runner-real-pnpm-lifecycle.test.mjs tests/quality-gate-runner-remediation.test.mjs",
     "test:shard:built": "node scripts/run-test-shard.mjs",
-    "typecheck": "tsc --build tsconfig.json --pretty false && pnpm typecheck:ci-tooling && pnpm typecheck:restoration-lock-inputs && pnpm typecheck:restoration-lock && pnpm typecheck:managed-runtime-tests",
+    "typecheck": "tsc --build tsconfig.json --pretty false && pnpm typecheck:ci-tooling && pnpm typecheck:restoration-lock-inputs && pnpm typecheck:restoration-lock && pnpm typecheck:managed-runtime-tests && pnpm typecheck:local-mode-oracles && pnpm typecheck:native-api-tests",
     "typecheck:ci-tooling": "tsc --project tsconfig.ci-tooling.json",
     "typecheck:restoration-lock-inputs": "tsc --project tsconfig.restoration-lock-inputs-tests.json --skipLibCheck false",
     "typecheck:restoration-lock": "tsc --project tsconfig.restoration-lock-tests.json --skipLibCheck false",
@@ -78,7 +78,9 @@
     "architecture:features:check": "pnpm build && node scripts/check-feature-modules.mjs",
     "architecture:features:plan": "node scripts/check-feature-modules.mjs plan",
     "quality:coverage:scope": "node packages/engineering-foundation/dist/cli.js quality check --consumer . --scope-only",
-    "package:qualification:built": "node scripts/qualify-package-artifacts.mts"
+    "package:qualification:built": "node scripts/qualify-package-artifacts.mts",
+    "typecheck:local-mode-oracles": "tsc --project tsconfig.local-mode-oracles.json",
+    "typecheck:native-api-tests": "tsc --project tsconfig.native-api-tests.json"
   },
   "devDependencies": {
     "@ast-grep/cli": "catalog:",

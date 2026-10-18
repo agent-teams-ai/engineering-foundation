@@ -2,7 +2,7 @@ import { createVerifiedGrowthObservation } from "../packages/engineering-foundat
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve as resolvePath } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
 import { types } from "node:util";
 
@@ -698,24 +698,4 @@ test("ACL independently observes both released and candidate installations", asy
   assert.deepEqual(calls, ["0.9.0", "1.0.0"]);
   observed.get("0.9.0")[1].bytes = Buffer.from("changed historical installation");
   await assert.rejects(acl.resolve(req, cancellation), /installed-inventory-mismatch/);
-});
-
-
-test("curated SDK authority entrypoint has no forgotten public type exports", async () => {
-  const packageRoot = resolvePath("packages/engineering-foundation");
-  const { preparePublicApiExtractor, invokePublicApiExtractor } = await import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/prepare-public-api-extractor.js");
-  const temporaryRoot = await mkdtemp(join(tmpdir(), "sdk-authority-public-api-"));
-  try {
-    const config = preparePublicApiExtractor({ packageRoot,
-      entryPointPath: join(packageRoot, "dist/sdk-growth-authority.d.ts"),
-      tsconfigPath: join(packageRoot, "tsconfig.json"), manifestPath: join(packageRoot, "package.json"),
-      apiJsonPath: join(temporaryRoot, "authority.api.json"), includeForgottenExports: false });
-    const errors = [];
-    const result = invokePublicApiExtractor(config, undefined, message => {
-      if (message.logLevel === "error") { errors.push({ id: message.messageId, text: message.text }); }
-      message.handled = true;
-    });
-    assert.deepEqual(errors, []);
-    assert.equal(result.succeeded, true);
-  } finally { await rm(temporaryRoot, { recursive: true, force: true }); }
 });

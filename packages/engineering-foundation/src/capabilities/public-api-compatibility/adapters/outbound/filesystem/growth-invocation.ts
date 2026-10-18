@@ -3,7 +3,7 @@ import type { GrowthWorkspaceReader } from "../../../application/ports/growth-wo
 import { createHash } from "node:crypto";
 import { readFile, readdir, lstat, realpath } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { Extractor } from "@microsoft/api-extractor";
+import { NATIVE_EXTRACTOR_VERSION } from "../api-extractor/load-pinned-audit-sdk.js";
 import { assertNotCancelled, publicApiInputError, publicApiFileFailure } from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
 import type { GrowthDigest, GrowthInvocation } from "../../../application/model/growth-observation.js";
@@ -106,9 +106,9 @@ export async function readGrowthInvocation(consumerRoot: string, inventory: Awai
   await git(["diff", "--quiet", "HEAD", "--"]);
   return normalizeGrowthInvocation({ repository: await git(["rev-parse", "--show-toplevel"]), sourceCommit, sourceTree,
     topologyDigest: growthBytesDigest(growthCanonicalJson({ workspace, manifests: manifests.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) })),
-    lockDigest: lock.digest, toolchainDigest: growthBytesDigest(growthCanonicalJson({ node: process.version, extractor: Extractor.version, lock: lock.digest })),
+    lockDigest: lock.digest, toolchainDigest: growthBytesDigest(growthCanonicalJson({ node: process.version, extractor: NATIVE_EXTRACTOR_VERSION, lock: lock.digest })),
     artifactDigests: [growthBytesDigest(growthCanonicalJson(build))],
-    tool: { version: toolManifest.version, artifactDigest: toolArtifactDigest, extractorVersion: Extractor.version } });
+    tool: { version: toolManifest.version, artifactDigest: toolArtifactDigest, extractorVersion: NATIVE_EXTRACTOR_VERSION } });
 }
 
 async function distributionDigest(root: string, reader: PublicApiFileReader, signal?: AbortSignal): Promise<GrowthDigest> {

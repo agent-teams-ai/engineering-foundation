@@ -8,13 +8,22 @@
     "moduleResolution": "NodeNext",
     "noEmit": true,
     "paths": {
-      "@agent-teams/ci-input-proof": ["./packages/ci-input-proof/src/index.ts"]
+      "@agent-teams/ci-input-proof": [
+        "./packages/ci-input-proof/src/index.ts"
+      ]
     },
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "verbatimModuleSyntax": true
   },
-  "include": ["scripts/**/*.mts", "scripts/materialize-validated-coverage.mjs", "tests/**/*.mts"]
+  "include": [
+    "scripts/**/*.mts",
+    "scripts/materialize-validated-coverage.mjs",
+    "tests/**/*.mts",
+    "tests/test-manifests-typescript.test.ts"
+  ]
 }

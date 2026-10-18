@@ -127,17 +127,18 @@
   "dependencies": {
     "@agent-teams/document-authoring": "workspace:*",
     "@agent-teams/repository-mutation": "workspace:*",
-    "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",
+    "@microsoft/tsdoc": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
+    "jsonc-parser": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
+    "typescript": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/proper-lockfile": "catalog:",
-    "typescript": "catalog:"
+    "@types/proper-lockfile": "catalog:"
   }
 }

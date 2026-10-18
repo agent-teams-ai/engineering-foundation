@@ -23,14 +23,16 @@
         "tests/fixtures/scaffolding-crash-worker.mjs",
         "tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts",
         "tests/support/document-authoring-schema-closures.mjs",
-        "tests/fixtures/**/scripts/*.mjs"
+        "tests/fixtures/**/scripts/*.mjs",
+        "tests/**/*.test.ts"
       ],
       "project": [
         "scripts/*.mts",
         "tests/**/*.mts",
         "scripts/*.mjs",
         "scripts/feature-modules/commands.mjs",
-        "tests/**/*.mjs"
+        "tests/**/*.mjs",
+        "tests/**/*.ts"
       ]
     },
     "packages/engineering-foundation": {
@@ -40,10 +42,12 @@
         "src/public-api-surface.ts",
         "tests/**/*.test.mjs",
         "src/foundation-state-contract.ts",
-        "src/schema-ids.ts"
+        "src/schema-ids.ts",
+        "tests/**/*.test.ts"
       ],
       "project": [
-        "src/**/*.ts"
+        "src/**/*.ts",
+        "tests/**/*.ts"
       ]
     },
     "packages/document-authoring": {
@@ -77,7 +81,7 @@
     },
     "spikes/source-dependency-parser": {
       "project": [
-        "*.mjs"
+        "*.ts"
       ]
     }
   }

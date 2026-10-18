@@ -2525,8 +2525,12 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/link-staged-package-node-modules.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-observer.ts
-      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/pinned-audit-compiler.ts
-      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/prepare-public-api-extractor.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-engine.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-inputs.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-model.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-excerpt.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-item.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-reference.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/staged-public-api-input.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts
     allow:
@@ -2537,8 +2541,9 @@ boundaries:
         - foundation.core
       packages:
         - typescript
-        - "@microsoft/api-extractor"
         - "@microsoft/api-extractor-model"
+        - "@microsoft/tsdoc"
+        - jsonc-parser
         - "@agent-teams/repository-mutation"
       builtins:
         - node:fs
@@ -2548,6 +2553,7 @@ boundaries:
         - node:os
         - node:path
         - node:util
+        - node:url
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts
@@ -2576,14 +2582,15 @@ boundaries:
     allow:
       boundaries: []
       packages:
-        - "@microsoft/api-extractor"
         - typescript
-        - "@microsoft/tsdoc-config"
+        - "@microsoft/api-extractor-model"
       builtins:
         - node:module
         - node:path
-      runtimeReferences:
-        - commonjs
+        - node:fs
+        - node:url
+        - node:crypto
+      runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/load-pinned-audit-sdk.ts
   - id: capability.public-api-compatibility.composition
@@ -3265,9 +3272,11 @@ boundaries:
       builtins:
         - node:assert/strict
         - node:perf_hooks
+        - node:path
       runtimeReferences: []
     entrypoints:
-      - spikes/source-dependency-parser/run.mjs
+      - spikes/source-dependency-parser/run.ts
+      - spikes/source-dependency-parser/typescript-parser-oracle.ts
   - id: foundation.scaffolding.parameters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/outbound/ajv-parameter-validation.ts
@@ -4006,20 +4015,27 @@ boundaries:
     roots:
       - packages/engineering-foundation/tests/public-api-audit-command.test.mjs
       - packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs
-      - packages/engineering-foundation/tests/public-api-audit-observer.test.mjs
+      - packages/engineering-foundation/tests/public-api-audit-observer.test.ts
+      - packages/engineering-foundation/tests/public-api-audit-alias.test.ts
       - packages/engineering-foundation/tests/public-api-audit-policy.test.mjs
-      - packages/engineering-foundation/tests/public-api-audit-projection.test.mjs
+      - packages/engineering-foundation/tests/public-api-audit-projection.test.ts
+      - packages/engineering-foundation/tests/public-api-native-extraction.test.ts
+      - packages/engineering-foundation/tests/public-api-native-projection.test.ts
     allow:
       boundaries:
         - capability.public-api-compatibility.application
         - capability.public-api-compatibility.adapters
         - foundation.command-host.adapters
+        - capability.public-api-compatibility.pinned-sdk-loader
+        - capability.public-api-compatibility.contract
+        - foundation.source-inventory.composition
       packages:
         - ajv
-        - "@microsoft/api-extractor"
+        - typescript
         - "@microsoft/api-extractor-model"
       builtins:
         - node:assert/strict
+        - node:child_process
         - node:crypto
         - node:fs
         - node:fs/promises
@@ -4027,6 +4043,7 @@ boundaries:
         - node:os
         - node:path
         - node:test
+        - node:url
       runtimeReferences: []
     entrypoints: []
   - id: foundation.quality-coverage.application

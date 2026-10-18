@@ -338,10 +338,13 @@ The label/gate delivery contract can be shared through the organization `.github
 standard; concrete GitHub orchestration and this product's native matrix belong
 to the repository Host. This helper is private and declares no published API.
 
-New CI tooling and test harnesses use `.mts` and run with the pinned Node's native
-TypeScript stripping. `typecheck:ci-tooling` checks their contracts with the pinned
-compiler as part of `typecheck`; stripping alone is not a typecheck. The blocking
-test inventory admits `.test.mts` with the same exact-once shard requirements.
+New CI tooling and test harnesses use ordinary `.ts` within ESM packages and run
+with the pinned Node's native TypeScript stripping. Every new executable belongs
+to a strict TypeScript project in the required `typecheck` chain; stripping alone
+is not a typecheck. Existing `.mts` tooling retains `typecheck:ci-tooling` coverage.
+The blocking test inventory admits `.test.ts`, `.test.mts`, and `.test.mjs` with
+the same exact-once shard requirements. The native API and local parser tests use
+strict projects with `skipLibCheck:false`.
 
 Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. The integration
@@ -466,9 +469,10 @@ review gates as a handwritten change.
 
 Major `@types/node` updates remain on the accepted Node runtime line until a
 reviewed toolchain decision changes it. Major TypeScript updates are also manual
-because the repository owns a primary compiler and a separate parser-oracle
-compatibility lane. Related non-major API Extractor and Oxc updates are grouped
-so their coupled evidence is reviewed together.
+because the build, public API adapter, and independent parser oracle all use the
+exact TypeScript 7 compiler. The parser oracle and native API tests have strict
+TypeScript projects in the required `typecheck` command. Related non-major API
+model and Oxc updates are reviewed with their coupled evidence.
 
 ## Lint contract
 
@@ -529,7 +533,7 @@ oxlint-tsgolint, and TypeScript versions and proves the published type-aware
 preset, the source graph, documentation links and anchors, idempotent ADR baseline
 promotion, and both contract-evolution capabilities.
 Linux CI separately runs the real Aqua-pinned Buf capability-qualification E2E because the
-normal capability and package checks are intentionally process-free. The E2E
+normal Buf capability checks are intentionally process-free. The E2E
 proves compatible and breaking `FILE` behavior plus rejection of modified
 committed evidence after a fresh Buf rerun.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI

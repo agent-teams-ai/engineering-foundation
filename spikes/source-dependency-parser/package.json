@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node run.mjs --verify-only",
-    "spike": "node run.mjs"
+    "check": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node run.ts --verify-only",
+    "spike": "node run.ts"
   },
   "devDependencies": {
     "oxc-parser": "catalog:",
-    "typescript": "catalog:parser-oracle"
+    "typescript": "catalog:"
   }
 }

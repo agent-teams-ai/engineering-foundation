@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test, { type TestContext } from "node:test";
-import { observeFoundationFeatureGraph, stronglyConnectedComponents } from "./helpers/local-mode-boundaries.mjs";
+import { observeFoundationFeatureGraph, stronglyConnectedComponents } from "./helpers/local-mode-boundaries.ts";
 
 type Edge = { from: string; to: string };
 const edgesOf = (pairs: ReadonlyArray<readonly [string, string]>): Edge[] => pairs.map(([from, to]) => ({ from, to }));

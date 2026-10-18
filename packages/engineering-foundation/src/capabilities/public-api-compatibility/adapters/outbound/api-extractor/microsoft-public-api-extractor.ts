@@ -1,300 +1,76 @@
-import { preparePublicApiExtractor, invokePublicApiExtractor } from "./prepare-public-api-extractor.js";
+import { readFile, realpath, rm } from "node:fs/promises";
+import { ApiDeclaredItem, ApiNamespace, type ApiItem } from "@microsoft/api-extractor-model";
 import type { PublicApiSourceEvidence } from "../../../application/ports/public-api-evidence.js";
-import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-import {
-  CompilerState,
-  Extractor,
-  ExtractorLogLevel
-} from "@microsoft/api-extractor";
-import {
-  ApiDeclaredItem,
-  ApiModel,
-  ApiNamespace,
-  type ApiItem
-} from "@microsoft/api-extractor-model";
-
 import { assertNotCancelled, isPublicApiInputError, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
-import {
-  compareCanonicalReferences,
-  publicApiEntrypoints,
-  type PublicApiEntrypointPolicy,
-  type PublicApiEntrypointSnapshot,
-  type PublicApiItem,
-  type PublicApiPackagePolicy,
-  type PublicApiSnapshot
-} from "../../../application/model/public-api.js";
+import { compareCanonicalReferences, publicApiEntrypoints, type PublicApiEntrypointSnapshot, type PublicApiItem, type PublicApiPackagePolicy, type PublicApiSnapshot } from "../../../application/model/public-api.js";
 import type { PublicApiExtractor } from "../../../application/ports/public-api-extractor.js";
-import {
-  sourcePathFor,
-  stagedPathForSource,
-  stagePackageSnapshot
-} from "./staged-public-api-input.js";
+import { sourcePathFor, stagedPathForSource, stagePackageSnapshot } from "./staged-public-api-input.js";
+import { NATIVE_EXTRACTOR_VERSION, withNativePublicApiProject } from "./native-public-api-engine.js";
+import { captureNativePublicApiInputs } from "./native-public-api-inputs.js";
+import { createNativePublicApiModel } from "./native-public-api-model.js";
 
-function inputError(code: string, message: string, phase: string): never {
-  publicApiInputError(code, message, phase);
+function inputError(code: string, message: string): never {
+  publicApiInputError(code, message, "public-api-extraction");
 }
-
-const MAX_COMPILER_INPUT_BYTES = 128 * 1024 * 1024;
-const MAX_COMPILER_INPUT_FILES = 20_000;
-
-function declaredSignature(item: ApiDeclaredItem): string {
-  const excerpt = item.excerpt.text.replaceAll("\r\n", "\n").trim();
-  if (excerpt.length > 0) {
-    return excerpt;
-  }
-  if (item instanceof ApiNamespace) {
-    return `namespace ${item.displayName}`;
-  }
-  inputError(
-    "PUBLIC_API_SIGNATURE_EMPTY",
-    `API Extractor returned an empty signature for ${item.canonicalReference.toString()}.`,
-    "public-api-extraction"
-  );
-}
-
 function collectItems(item: ApiItem, output: PublicApiItem[]): void {
   if (item instanceof ApiDeclaredItem) {
-    const parent = item.parent;
-    output.push({
-      canonicalReference: item.canonicalReference.toString(),
-      kind: item.kind,
-      ...(parent === undefined
-        ? {}
-        : { parentReference: parent.canonicalReference.toString() }),
-      parentKind: parent?.kind ?? "None",
-      signature: declaredSignature(item)
-    });
+    const signature = item.excerpt.text.replaceAll("\r\n", "\n").trim() || (item instanceof ApiNamespace ? `namespace ${item.displayName}` : "");
+    if (signature.length === 0) { inputError("PUBLIC_API_SIGNATURE_EMPTY", `Native API model returned an empty signature for ${item.canonicalReference.toString()}.`); }
+    if (signature.length > 10_000) { inputError("PUBLIC_API_SURFACE_TOO_LARGE", "Native public API item signature exceeds 10,000 characters."); }
+    output.push({ canonicalReference: item.canonicalReference.toString(), kind: item.kind,
+      ...(item.parent === undefined ? {} : { parentReference: item.parent.canonicalReference.toString() }),
+      parentKind: item.parent?.kind ?? "None", signature });
   }
-  for (const member of item.members) {
-    collectItems(member, output);
-  }
+  for (const member of item.members) { collectItems(member, output); }
 }
-
 function sortedItems(items: readonly PublicApiItem[]): readonly PublicApiItem[] {
-  const output = items.toSorted((left, right) =>
-    compareCanonicalReferences(left.canonicalReference, right.canonicalReference)
-  );
-  if (
-    output.some(
-      (item, index) =>
-        index > 0 && output[index - 1]?.canonicalReference === item.canonicalReference
-    )
-  ) {
-    inputError(
-      "PUBLIC_API_EXTRACTION_FAILED",
-      "API Extractor produced duplicate canonical references for one export path.",
-      "public-api-extraction"
-    );
+  const sorted = items.toSorted((left, right) => compareCanonicalReferences(left.canonicalReference, right.canonicalReference));
+  if (sorted.some((item, index) => index > 0 && sorted[index - 1]?.canonicalReference === item.canonicalReference)) {
+    inputError("PUBLIC_API_EXTRACTION_FAILED", "Native API model produced duplicate canonical references for one export path.");
   }
-  return Object.freeze(output);
+  return Object.freeze(sorted);
 }
 
-interface CompilerSourceFileObservation {
-  readonly fileName: string;
-  readonly text: string;
-}
-
-function compilerSourceFiles(program: unknown): readonly CompilerSourceFileObservation[] {
-  if (
-    typeof program !== "object" ||
-    program === null ||
-    !("getSourceFiles" in program) ||
-    typeof program.getSourceFiles !== "function"
-  ) {
-    inputError(
-      "PUBLIC_API_EXTRACTION_FAILED",
-      "API Extractor did not expose its compiler input set.",
-      "public-api-extraction"
-    );
-  }
-  const inspectedProgram = program as { getSourceFiles(): unknown };
-  const sourceFiles = inspectedProgram.getSourceFiles();
-  if (!Array.isArray(sourceFiles)) {
-    inputError(
-      "PUBLIC_API_EXTRACTION_FAILED",
-      "API Extractor returned an invalid compiler input set.",
-      "public-api-extraction"
-    );
-  }
-  return sourceFiles.map((value) => {
-    if (typeof value !== "object" || value === null) {
-      inputError(
-        "PUBLIC_API_EXTRACTION_FAILED",
-        "API Extractor returned an invalid compiler source file.",
-        "public-api-extraction"
-      );
-    }
-    const sourceFile = value as Readonly<Record<string, unknown>>;
-    if (
-      typeof sourceFile["fileName"] !== "string" ||
-      typeof sourceFile["text"] !== "string"
-    ) {
-      inputError(
-        "PUBLIC_API_EXTRACTION_FAILED",
-        "API Extractor returned an invalid compiler source file.",
-        "public-api-extraction"
-      );
-    }
-    return { fileName: sourceFile["fileName"], text: sourceFile["text"] };
-  });
-}
-
-function assertCompilerInputBudget(compilerState: CompilerState): void {
-  const sourceFiles = compilerSourceFiles(compilerState.program);
-  const totalBytes = sourceFiles.reduce(
-    (total, sourceFile) => total + Buffer.byteLength(sourceFile.text, "utf8"),
-    0
-  );
-  if (
-    sourceFiles.length > MAX_COMPILER_INPUT_FILES ||
-    totalBytes > MAX_COMPILER_INPUT_BYTES
-  ) {
-    inputError(
-      "PUBLIC_API_PATH_INVALID",
-      `Public API compiler input exceeds ${MAX_COMPILER_INPUT_FILES} files or ${MAX_COMPILER_INPUT_BYTES} bytes.`,
-      "public-api-extraction"
-    );
-  }
-}
-
-async function extractEntrypoint(input: {
-  readonly entrypoint: PublicApiEntrypointPolicy;
-  readonly entryPointPath: string;
-  readonly manifestPath: string;
-  readonly packageRoot: string;
-  readonly signal?: AbortSignal;
-  readonly tsconfigPath: string;
-}): Promise<PublicApiEntrypointSnapshot> {
-  const outputRoot = await mkdtemp(join(tmpdir(), "agent-teams-api-extractor-"));
-  try {
-    const apiJsonPath = join(outputRoot, "surface.api.json");
-    const config = preparePublicApiExtractor({
-      ...input,
-      apiJsonPath,
-      includeForgottenExports: false
-    });
-    const compilerState = CompilerState.create(config);
-    assertCompilerInputBudget(compilerState);
-    const errors: string[] = [];
-    const result = invokePublicApiExtractor(config, compilerState, (message) => {
-        if (message.logLevel === ExtractorLogLevel.Error) {
-          errors.push(message.messageId);
-        }
-        message.handled = true;
-    });
-    assertNotCancelled(input.signal);
-    if (!result.succeeded || errors.length > 0) {
-      inputError(
-        "PUBLIC_API_EXTRACTION_FAILED",
-        `API Extractor failed with message(s): ${[...new Set(errors)].toSorted().join(", ") || "unknown"}.`,
-        "public-api-extraction"
-      );
-    }
-    const apiJsonSource = await readFile(apiJsonPath, "utf8");
-    if (apiJsonSource.length > 32 * 1024 * 1024) {
-      inputError(
-        "PUBLIC_API_SURFACE_TOO_LARGE",
-        "Generated public API surface exceeds 32 MiB.",
-        "public-api-extraction"
-      );
-    }
-    const model = new ApiModel();
-    const apiPackage = model.loadPackage(apiJsonPath);
-    const items: PublicApiItem[] = [];
-    collectItems(apiPackage, items);
-    return Object.freeze({
-      exportPath: input.entrypoint.exportPath,
-      items: sortedItems(items)
-    });
-  } finally {
-    await rm(outputRoot, { recursive: true, force: true });
-  }
-}
-
-export class MicrosoftPublicApiExtractor implements PublicApiExtractor {
+export class TypeScriptPublicApiExtractor implements PublicApiExtractor {
   readonly #evidence: PublicApiSourceEvidence;
+  constructor(evidence: PublicApiSourceEvidence) { this.#evidence = evidence; }
 
-  constructor(evidence: PublicApiSourceEvidence) {
-    this.#evidence = evidence;
-  }
-
-  async extract(
-    consumerRoot: string,
-    policy: PublicApiPackagePolicy,
-    packageVersion: string,
-    signal?: AbortSignal
-  ): Promise<PublicApiSnapshot> {
+  async extract(consumerRoot: string, policy: PublicApiPackagePolicy, packageVersion: string, signal?: AbortSignal): Promise<PublicApiSnapshot> {
     assertNotCancelled(signal);
-    const canonicalRoot = await realpath(consumerRoot).catch(() =>
-      inputError(
-        "CONSUMER_ROOT_UNAVAILABLE",
-        "Consumer root must be an existing accessible directory.",
-        "public-api-extraction"
-      )
-    );
+    const canonicalRoot = await realpath(consumerRoot).catch(() => inputError("CONSUMER_ROOT_UNAVAILABLE", "Consumer root must be an existing accessible directory."));
     const staged = await stagePackageSnapshot({ policy, root: canonicalRoot }, this.#evidence);
     try {
-      const manifestPath = stagedPathForSource({
-        snapshot: staged,
-        sourcePath: sourcePathFor(canonicalRoot, policy.manifestPath)
-      });
+      const manifestPath = stagedPathForSource({ snapshot: staged, sourcePath: sourcePathFor(canonicalRoot, policy.manifestPath) });
       let manifest: { readonly name?: unknown };
-      try {
-        manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
-          readonly name?: unknown;
-        };
-      } catch (error) {
-        if (isPublicApiInputError(error)) {
-          throw error;
-        }
-        inputError(
-          "PUBLIC_API_PACKAGE_MANIFEST_INVALID",
-          `Package manifest is not valid JSON: ${policy.manifestPath}.`,
-          "public-api-extraction"
-        );
+      try { manifest = JSON.parse(await readFile(manifestPath, "utf8")) as { readonly name?: unknown }; }
+      catch (error) {
+        if (isPublicApiInputError(error)) { throw error; }
+        inputError("PUBLIC_API_PACKAGE_MANIFEST_INVALID", `Package manifest is not valid JSON: ${policy.manifestPath}.`);
       }
-      if (manifest.name !== policy.packageName) {
-        inputError(
-          "PUBLIC_API_PACKAGE_IDENTITY_INVALID",
-          `Package manifest identity does not match ${policy.packageName}.`,
-          "public-api-extraction"
-        );
-      }
-      const tsconfigPath = stagedPathForSource({
-        snapshot: staged,
-        sourcePath: sourcePathFor(canonicalRoot, policy.tsconfigPath)
-      });
+      if (manifest.name !== policy.packageName) { inputError("PUBLIC_API_PACKAGE_IDENTITY_INVALID", `Package manifest identity does not match ${policy.packageName}.`); }
+      const tsconfigPath = stagedPathForSource({ snapshot: staged, sourcePath: sourcePathFor(canonicalRoot, policy.tsconfigPath) });
+      const files = await captureNativePublicApiInputs({ stagingRoot: staged.stagingRoot, packageRoot: staged.packageRoot, ...(signal === undefined ? {} : { signal }) });
       const entrypoints: PublicApiEntrypointSnapshot[] = [];
-      for (const entrypoint of publicApiEntrypoints(policy).toSorted((left, right) =>
-        compareCanonicalReferences(left.exportPath, right.exportPath)
-      )) {
+      for (const entrypoint of publicApiEntrypoints(policy).toSorted((left, right) => compareCanonicalReferences(left.exportPath, right.exportPath))) {
         assertNotCancelled(signal);
-        entrypoints.push(
-          await extractEntrypoint({
-            entrypoint,
-            entryPointPath: stagedPathForSource({
-              snapshot: staged,
-              sourcePath: sourcePathFor(canonicalRoot, entrypoint.declarationEntryPoint)
-            }),
-            manifestPath,
-            packageRoot: staged.packageRoot,
-            ...(signal === undefined ? {} : { signal }),
-            tsconfigPath
-          })
-        );
+        const entryPointPath = stagedPathForSource({ snapshot: staged, sourcePath: sourcePathFor(canonicalRoot, entrypoint.declarationEntryPoint) });
+        const observation = await withNativePublicApiProject({ cwd: staged.stagingRoot, configPath: tsconfigPath, files, declarationEntryPoint: entryPointPath, ...(signal === undefined ? {} : { signal }) }, context => {
+          const result = createNativePublicApiModel(context, { packageName: policy.packageName, entryPointPath, includeForgottenExports: false, referenceProjection: "stored-surface" });
+          assertNotCancelled(signal);
+          if (!result.succeeded) {
+            const errors = [...new Set(result.diagnostics.filter(diagnostic => diagnostic.severity === "error").map(diagnostic => diagnostic.id))].toSorted();
+            inputError("PUBLIC_API_EXTRACTION_FAILED", `Native API extraction failed with message(s): ${errors.join(", ") || "unknown"}.`);
+          }
+          const items: PublicApiItem[] = [];
+          collectItems(result.apiPackage, items);
+          return { exportPath: entrypoint.exportPath, items: sortedItems(items) };
+        });
+        entrypoints.push(Object.freeze(observation));
       }
-      return Object.freeze({
-        schemaVersion: 1,
-        packageName: policy.packageName,
-        packageVersion,
-        extractorVersion: Extractor.version,
-        entrypoints: Object.freeze(entrypoints)
-      });
-    } finally {
-      await rm(staged.stagingRoot, { recursive: true, force: true });
-    }
+      const snapshot: PublicApiSnapshot = Object.freeze({ schemaVersion: 1, packageName: policy.packageName, packageVersion,
+        extractorVersion: NATIVE_EXTRACTOR_VERSION, entrypoints: Object.freeze(entrypoints) });
+      if (Buffer.byteLength(JSON.stringify(snapshot)) > 32 * 1024 * 1024) { inputError("PUBLIC_API_SURFACE_TOO_LARGE", "Generated native public API surface exceeds 32 MiB."); }
+      return snapshot;
+    } finally { await rm(staged.stagingRoot, { recursive: true, force: true }); }
   }
 }

@@ -13,7 +13,7 @@ export interface RepositoryRuntimeSelectionInput {
   readonly verifyExecutable: (path: string, runtime: RepositoryRuntimeProfile) => Promise<boolean>;
 }
 
-export class RepositoryRuntimeSelectionError extends Error {
+class RepositoryRuntimeSelectionError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = "RepositoryRuntimeSelectionError";

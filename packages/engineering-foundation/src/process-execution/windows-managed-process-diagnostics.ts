@@ -2,7 +2,7 @@ import { processCleanupFailure } from "./application/process-failure-policy.js";
 import type { ProcessRequest } from "./api.js";
 
 const MAXIMUM_DIAGNOSTIC_ERROR_NODES = 32;
-export const MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES = 64 * 1024;
+const MAXIMUM_WRAPPER_STDERR_DIAGNOSTIC_BYTES = 64 * 1024;
 
 export interface WrapperStderrDiagnostics {
   chunks: Buffer[];

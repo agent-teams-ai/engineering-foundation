@@ -90,7 +90,7 @@ export async function verifyRepositoryRuntimeExecutable(
     if (runtime === "node") {
       return isSupportedNode(identity, path);
     }
-    return runtime === "bun" && identity.hasBunGlobal && identity.bunVersion !== null &&
+    return identity.hasBunGlobal && identity.bunVersion !== null &&
       /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/u.test(identity.bunVersion) &&
       realpathSync(identity.execPath) === realpathSync(path);
   } catch {

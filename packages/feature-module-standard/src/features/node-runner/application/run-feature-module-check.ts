@@ -1,6 +1,6 @@
 import { inferDirectoryLayout } from '../../feature-layout/application/infer-directory-layout.js';
 import { checkFeatureModule } from '../../module-check/application/check-feature-module.js';
-import { ERROR_CODES, WARNING_CODES, isWithin } from '../../feature-model/domain/model.js';
+import { ERROR_CODES, WARNING_CODES, isPortablePath, isWithin } from '../../feature-model/domain/model.js';
 import type {
   Diagnostic, DiagnosticCode, FeatureMetric, FeatureModuleInput, FeatureNode, ImportRecord, LayerRole, Republication, RepublishedSurface,
   RoleRoot, Severity, SurfaceMap, UseEdge,
@@ -117,8 +117,9 @@ export async function runFeatureModuleCheck(config: NodeCheckConfig, ports: Node
     .filter((edge) => known.has(edge.from) && known.has(edge.to))
     .map((edge) => ({ from: edge.from, to: edge.to, mode: edge.mode, line: edge.line, ...(edge.reexport === true ? { reexport: true } : {}) }));
   const groups = Object.entries(config.fileGroups ?? {}).map(([name, source]): [string, RegExp] => [name, new RegExp(source, 'u')]);
+  const structure = structureOf(config, files);
   const report = checkFeatureModule({
-    ...structureOf(config, files),
+    ...structure,
     files, imports,
     ...(testFiles.length === 0 ? {} : { testFiles }),
     ...(config.testFeaturesRoot === undefined ? {} : { testFeaturesRoot: config.testFeaturesRoot }),
@@ -130,6 +131,12 @@ export async function runFeatureModuleCheck(config: NodeCheckConfig, ports: Node
     ...(config.depthWarning === undefined ? {} : { depthWarning: config.depthWarning }),
     ...(groups.length === 0 ? {} : { fileGroups: Object.fromEntries(groups.map(([name, pattern]) => [name, (path: string) => pattern.test(path)])) }),
   });
+  const unmappedTests = testFiles.filter((file) => isPortablePath(file) &&
+    !structure.featureRoots.some((root) => isWithin(file, root)) &&
+    !(config.testFeaturesRoot !== undefined && file.startsWith(`${config.testFeaturesRoot}/`)));
+  if (unmappedTests.length > 0 && !report.diagnostics.some(({ code }) => code === 'invalid-path')) {
+    throw new Error(`Test files require a feature root or testFeaturesRoot mapping: ${unmappedTests.join(', ')}.`);
+  }
   const budgetWarnings = ports.checkBudgets({ measurements: measurementsOf(report.metrics), thresholds: config.budgets ?? [] });
   return {
     ok: report.ok && graph.parseFailures.length === 0 && graph.unresolved.length === 0 && graph.unresolvedRuntimeReferences.length === 0,

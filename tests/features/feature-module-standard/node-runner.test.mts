@@ -64,6 +64,52 @@ void test('a deep import in a real file is reported at its line', async () => {
   });
 });
 
+void test('external test roots require explicit mirrored coverage, including when mappedFiles is declared', async () => {
+  const file = 'tests/features/orders/model.test.ts';
+  await withExample(async (root) => {
+    const selected = config(root, { testRoots: ['tests'] });
+    for (const profile of [selected, { ...selected, testFeaturesRoot: 'other/features' },
+      { ...selected, mappedFiles: ['model.test.ts'] }]) {
+      await assert.rejects(checkFeatureModuleOnDisk(profile), /Test files require a feature root or testFeaturesRoot mapping: tests\/features\/orders\/model\.test\.ts/u);
+    }
+    const report = await checkFeatureModuleOnDisk({ ...selected, testFeaturesRoot: 'tests/features' });
+    assert.equal(report.ok, false);
+    assert.deepEqual(report.diagnostics.map(({ code, path, line }) => ({ code, path, line })), [{ code: 'deep-import', path: file, line: 1 }]);
+    assert.equal(report.metrics.find(({ id }) => id === 'orders')?.testFiles, 1);
+  }, (sources) => {
+    sources[file] = 'import "../../../src/features/billing/domain/model.js";\n';
+  });
+});
+
+void test('colocated test directories retain ownership and import checks without a mirrored root', async () => {
+  const file = 'src/features/orders/domain/tests/model.test.ts';
+  await withExample(async (root) => {
+    const selected = config(root, { testRoots: ['src/features/orders/domain/tests'] });
+    const own = await checkFeatureModuleOnDisk(selected);
+    assert.equal(own.ok, true);
+    assert.deepEqual(own.diagnostics, []);
+    assert.equal(own.metrics.find(({ id }) => id === 'orders')?.testFiles, 1);
+    await writeFile(join(root, file), 'import "../../../billing/domain/model.js";\n');
+    const foreign = await checkFeatureModuleOnDisk(selected);
+    assert.equal(foreign.ok, false);
+    assert.deepEqual(foreign.diagnostics.map(({ code, path, line }) => ({ code, path, line })), [{ code: 'deep-import', path: file, line: 1 }]);
+    assert.equal(foreign.metrics.find(({ id }) => id === 'orders')?.testFiles, 1);
+  }, (sources) => { sources[file] = 'import "../model.js";\n'; });
+});
+
+void test('test mapping preserves kernel invalid-path errors and test-unowned warnings', async () => {
+  const file = 'tests/features/ghost/model.test.ts';
+  await withExample(async (root) => {
+    const selected = config(root, { testRoots: ['tests'], testFeaturesRoot: 'tests/features' });
+    const unowned = await checkFeatureModuleOnDisk(selected);
+    assert.equal(unowned.ok, true);
+    assert.deepEqual(unowned.diagnostics.map(({ code, severity }) => ({ code, severity })), [{ code: 'test-unowned', severity: 'warning' }]);
+    const invalid = await checkFeatureModuleOnDisk({ ...selected, testFeaturesRoot: 'tests//features' });
+    assert.equal(invalid.ok, false);
+    assert.deepEqual(invalid.diagnostics.map(({ code, severity }) => ({ code, severity })), [{ code: 'invalid-path', severity: 'error' }]);
+  }, (sources) => { sources[file] = 'export {};\n'; });
+});
+
 void test('a re-export statement is read as a republication, not as a use', async () => {
   await withExample(async (root) => {
     const report = await checkFeatureModuleOnDisk(config(root));

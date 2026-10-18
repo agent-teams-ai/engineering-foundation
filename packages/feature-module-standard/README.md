@@ -86,7 +86,8 @@ import { checkFeatureModuleOnDisk, formatNodeReport } from '@agent-teams/feature
 const report = await checkFeatureModuleOnDisk({
   consumerRoot: process.cwd(),
   sourceRoots: ['src'],
-  testRoots: ['tests'],
+  testRoots: ['tests/features'],
+  testFeaturesRoot: 'tests/features',
   structure: { featuresRoot: 'src/features', roleDirectories: { domain: 'domain', application: 'application' } },
   surfaces: { public: ['src/features/orders/contracts/public.ts'] },
   budgets: [{ metric: 'sourceFiles', max: 40 }],
@@ -106,6 +107,14 @@ Unresolved literal targets and computed runtime references remain in `unresolved
 `unresolvedRuntimeReferences`; either makes `ok` false. `formatNodeReport` prints these source-coverage errors
 separately from the kernel's architecture diagnostics. Bare external package imports remain outside the internal
 feature graph and need the consumer's dependency policy.
+
+`testRoots` selects entire directories whose files are treated as tests, not production. A selected test file must
+be inside a declared or inferred feature root (a colocated test directory), or below the explicit `testFeaturesRoot`
+that mirrors feature ownership. The runner rejects files outside both mappings instead of silently skipping their
+ownership, metrics and import checks. `mappedFiles` names files directly below a feature root; it does not map an
+external test tree to feature owners. Use dedicated colocated test directories rather than mixed production
+directories. Module-level packaged-artifact and black-box tests outside feature ownership need their own consumer
+checks and are not selected by this example.
 
 The runner observes files, not empty directories, so it cannot by itself qualify empty-role or empty-container
 rules. It supplies resolved references marked `runtime` as the kernel's load graph; that conservative graph is

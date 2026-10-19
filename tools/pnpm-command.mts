@@ -43,6 +43,18 @@ function matchesArguments(args: readonly string[]): boolean {
   );
 }
 
+function observationEnvironment(): NodeJS.ProcessEnv {
+  // npm config injection is caller state, not entrypoint identity; an unresolvable
+  // ${placeholder} (setup-node auth scaffolding) would otherwise contaminate stderr.
+  const environment: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!/^npm_config_/iu.test(key)) {
+      environment[key] = value;
+    }
+  }
+  return environment;
+}
+
 function observesPnpmVersion(
   command: string,
   entrypointArguments: readonly string[],
@@ -52,7 +64,7 @@ function observesPnpmVersion(
     ...entrypointArguments,
     "--pm-on-fail=ignore",
     "--version"
-  ], { encoding: "utf8", timeout: 10_000 });
+  ], { encoding: "utf8", timeout: 10_000, env: observationEnvironment() });
   return observation.status === 0 &&
     observation.stdout.trim() === expectedVersion &&
     observation.stderr.trim() === "";

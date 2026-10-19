@@ -358,9 +358,16 @@ only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
 integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
 An internal package is declared once, as `workspace:*`. The one exception is an
-optional peer range (`peerDependencies` `workspace:^`) together with the workspace
+optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
+minimum such as `workspace:^1.8.0`) together with the workspace
 link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
-one edge for the closed DAG and publishes as `^<workspace version>`.
+one edge for the closed DAG. The symbolic caret publishes as `^<workspace version>`;
+an explicit minimum retains its declared range and requires the actual workspace
+version to satisfy it. FMS keeps its Foundation `^1.8.0` minimum: packed Node
+qualification runs against both the current qualified Foundation archive and the
+exact published `1.8.0` with strict peers, using the same public source and budget
+checks. Pure FMS entries are also checked without Foundation. The current exact
+development dependency still changes packed bytes and requires an FMS release.
 The pinned Changesets configuration preserves an explicitly selected dependent
 release when the peer update stays within that range. An out-of-range update
 still triggers the planner's compatibility bump and requires review of release

@@ -3,6 +3,7 @@ import { lstat, mkdir, open, opendir, realpath, symlink, writeFile } from "node:
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { mapStageIo, reserveStageBytes } from "./pack-stage-io.mts";
 import { materializeStagedCompiler } from "./pack-staged-compiler.mts";
+import { workspacePeerRange } from "./publishable-packages.mjs";
 
 // A clean stage includes the full isolated dependency closure needed to build
 // each package. Keep traversal bounded while allowing the current workspace
@@ -23,12 +24,12 @@ function compareCodePoints([left], [right]) {
 }
 
 function exactPublishSpecifier(packageName, specifier, context, section) {
-  if (specifier === "workspace:^" && section === "peerDependencies") {
+  if (specifier.startsWith("workspace:^") && section === "peerDependencies") {
     const version = context.internalPackageVersions.get(packageName);
     if (typeof version !== "string" || parseVersion(version) === undefined) {
       throw new Error(`Staged publish manifest cannot resolve workspace version for ${packageName}.`);
     }
-    return `^${version}`;
+    return workspacePeerRange(specifier, version);
   }
   if (specifier === "workspace:*") {
     const version = context.internalPackageVersions.get(packageName);

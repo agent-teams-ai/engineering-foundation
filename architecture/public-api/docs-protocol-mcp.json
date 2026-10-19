@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packageName": "@agent-teams/docs-protocol-mcp",
   "packageVersion": "0.2.5",
-  "extractorVersion": "7.58.12",
+  "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
       "exportPath": ".",
@@ -26,42 +26,42 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
-          "signature": "DOCS_CONTEXT_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>"
+          "signature": "export declare const DOCS_CONTEXT_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_ERROR_OUTPUT_SCHEMA_V1:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
-          "signature": "DOCS_ERROR_OUTPUT_SCHEMA_V1: Readonly<{\n    type: \"object\";\n    additionalProperties: false;\n    required: readonly string[];\n    properties: Readonly<{\n        error: Readonly<{\n            type: \"object\";\n            additionalProperties: false;\n            required: readonly string[];\n            properties: Readonly<{\n                code: Readonly<{\n                    enum: readonly string[];\n                }>;\n                message: Readonly<{\n                    type: \"string\";\n                }>;\n            }>;\n        }>;\n    }>;\n}>"
+          "signature": "export declare const DOCS_ERROR_OUTPUT_SCHEMA_V1: Readonly<{\n    type: \"object\";\n    additionalProperties: false;\n    required: readonly string[];\n    properties: Readonly<{\n        error: Readonly<{\n            type: \"object\";\n            additionalProperties: false;\n            required: readonly string[];\n            properties: Readonly<{\n                code: Readonly<{\n                    enum: readonly string[];\n                }>;\n                message: Readonly<{\n                    type: \"string\";\n                }>;\n            }>;\n        }>;\n    }>;\n}>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_FIND_OUTPUT_SCHEMA_V1:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
-          "signature": "DOCS_FIND_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>"
+          "signature": "export declare const DOCS_FIND_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_INFO_OUTPUT_SCHEMA_V1:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
-          "signature": "DOCS_INFO_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>"
+          "signature": "export declare const DOCS_INFO_OUTPUT_SCHEMA_V1: Readonly<Record<string, unknown>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_PROTOCOL_MCP_PACKAGE_VERSION:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
-          "signature": "DOCS_PROTOCOL_MCP_PACKAGE_VERSION: string"
+          "signature": "export declare const DOCS_PROTOCOL_MCP_PACKAGE_VERSION: string;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DOCS_PROTOCOL_MCP_PROJECTION_VERSION:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/docs-protocol-mcp!",
           "parentKind": "EntryPoint",
-          "signature": "DOCS_PROTOCOL_MCP_PROJECTION_VERSION: 1"
+          "signature": "export declare const DOCS_PROTOCOL_MCP_PROJECTION_VERSION: 1;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DocsBinding#consumerRoot:member",
@@ -138,7 +138,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/docs-protocol-mcp!DocsReadExecution:interface",
           "parentKind": "Interface",
-          "signature": "readonly envelope: {\n        readonly schemaVersion: number;\n        readonly protocol: Readonly<Record<string, unknown>>;\n        readonly command: string;\n        readonly outcome: string;\n        readonly diagnostics: readonly unknown[];\n        readonly result: unknown;\n    };"
+          "signature": "readonly envelope: {\n    readonly schemaVersion: number;\n    readonly protocol: Readonly<Record<string, unknown>>;\n    readonly command: string;\n    readonly outcome: string;\n    readonly diagnostics: readonly unknown[];\n    readonly result: unknown;\n};"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DocsReadExecution#exitCode:member",
@@ -159,21 +159,21 @@
           "kind": "MethodSignature",
           "parentReference": "@agent-teams/docs-protocol-mcp!DocsReader:interface",
           "parentKind": "Interface",
-          "signature": "context(input: DocsBinding & {\n        readonly query: DocsFindQueryV3;\n        readonly limits: {\n            readonly maxBytes: number;\n            readonly maxDocuments: number;\n        };\n        readonly signal?: AbortSignal;\n    }): Promise<DocsReadExecution>;"
+          "signature": "context(input: DocsBinding & {\n    readonly query: DocsFindQueryV3;\n    readonly limits: {\n        readonly maxBytes: number;\n        readonly maxDocuments: number;\n    };\n    readonly signal?: AbortSignal;\n}): Promise<DocsReadExecution>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DocsReader#find:member(1)",
           "kind": "MethodSignature",
           "parentReference": "@agent-teams/docs-protocol-mcp!DocsReader:interface",
           "parentKind": "Interface",
-          "signature": "find(input: DocsBinding & {\n        readonly query: DocsFindQueryV3;\n        readonly signal?: AbortSignal;\n    }): Promise<DocsReadExecution>;"
+          "signature": "find(input: DocsBinding & {\n    readonly query: DocsFindQueryV3;\n    readonly signal?: AbortSignal;\n}): Promise<DocsReadExecution>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DocsReader#info:member(1)",
           "kind": "MethodSignature",
           "parentReference": "@agent-teams/docs-protocol-mcp!DocsReader:interface",
           "parentKind": "Interface",
-          "signature": "info(input: DocsBinding & {\n        readonly signal?: AbortSignal;\n    }): Promise<DocsReadExecution>;"
+          "signature": "info(input: DocsBinding & {\n    readonly signal?: AbortSignal;\n}): Promise<DocsReadExecution>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!DocsReader:interface",
@@ -243,7 +243,7 @@
           "kind": "Method",
           "parentReference": "@agent-teams/docs-protocol-mcp!NodeDocsReader:class",
           "parentKind": "Class",
-          "signature": "info(input: Parameters<DocsReader[\"info\"]>[0]): Promise<import(\"@agent-teams/docs-protocol\").DocsExecutionV2<Readonly<{\n        kind: \"info\";\n        projectId: string;\n        protocol: {\n            readonly id: typeof import(\"@agent-teams/docs-protocol\").DOCS_PROTOCOL_ID;\n            readonly version: typeof import(\"@agent-teams/docs-protocol\").DOCS_PROTOCOL_VERSION;\n        };\n        foundationProfile: {\n            readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n            readonly path: string;\n            readonly schemaVersion: 3;\n        };\n        agentWorkflow: {\n            readonly adoption: \"portable-v1\";\n            readonly skillPath: string;\n        };\n        authority: {\n            readonly metadataSchema: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly metadataSidecar?: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly ownerCatalog: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly profile: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly templates: readonly {\n                readonly evidence: {\n                    readonly digest: string;\n                    readonly path: string;\n                    readonly size: number;\n                };\n                readonly type: string;\n            }[];\n        };\n        authorityPaths: readonly string[];\n        catalog: {\n            readonly collections: readonly unknown[];\n            readonly excludedPrefixes: readonly string[];\n        };\n        semanticDigest: string;\n        metadataSchemaPath: string;\n        metadataSidecar: {\n            readonly kind: \"none\";\n        } | {\n            readonly kind: \"path-metadata-map\";\n            readonly path: string;\n        };\n        ownerIds: readonly string[];\n        types: readonly import(\"@agent-teams/docs-protocol\").DocsTypeProfile[];\n        semanticValidatorIds: readonly string[];\n    }>>>;"
+          "signature": "info(input: Parameters<DocsReader[\"info\"]>[0]): Promise<import(\"@agent-teams/docs-protocol\").DocsExecutionV2<Readonly<{\n    kind: \"info\";\n    projectId: string;\n    protocol: {\n        readonly id: typeof import(\"@agent-teams/docs-protocol\").DOCS_PROTOCOL_ID;\n        readonly version: typeof import(\"@agent-teams/docs-protocol\").DOCS_PROTOCOL_VERSION;\n    };\n    foundationProfile: {\n        readonly metadataSidecarPolicy: \"foundation-profile-v3-strict-merge\";\n        readonly path: string;\n        readonly schemaVersion: 3;\n    };\n    agentWorkflow: {\n        readonly adoption: \"portable-v1\";\n        readonly skillPath: string;\n    };\n    authority: {\n        readonly metadataSchema: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly metadataSidecar?: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly ownerCatalog: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly profile: {\n            readonly digest: string;\n            readonly path: string;\n            readonly size: number;\n        };\n        readonly templates: readonly {\n            readonly evidence: {\n                readonly digest: string;\n                readonly path: string;\n                readonly size: number;\n            };\n            readonly type: string;\n        }[];\n    };\n    authorityPaths: readonly string[];\n    catalog: {\n        readonly collections: readonly unknown[];\n        readonly excludedPrefixes: readonly string[];\n    };\n    semanticDigest: string;\n    metadataSchemaPath: string;\n    metadataSidecar: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"path-metadata-map\";\n        readonly path: string;\n    };\n    ownerIds: readonly string[];\n    types: readonly import(\"@agent-teams/docs-protocol\").DocsTypeProfile[];\n    semanticValidatorIds: readonly string[];\n}>>>;"
         },
         {
           "canonicalReference": "@agent-teams/docs-protocol-mcp!NodeDocsReader:class",

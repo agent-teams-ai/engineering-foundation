@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/feature-module-standard",
-  "packageVersion": "0.1.0",
-  "extractorVersion": "7.58.12",
+  "packageVersion": "0.1.1",
+  "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
       "exportPath": ".",
@@ -33,14 +33,14 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "ERROR_CODES: readonly ['assembly-misplaced', 'assembly-missing', 'composition-contract-layer', 'composition-contract-misplaced', 'container-empty', 'container-file', 'deep-import', 'entry-unmapped', 'feature-cycle', 'feature-duplicate', 'feature-root-placement', 'feature-undeclared', 'invalid-path', 'layer-direction', 'load-cycle', 'not-visible', 'republication-invalid', 'republication-mismatch', 'republication-not-sub-feature', 'republication-skips-level', 'republication-undeclared', 'surface-unowned', 'use-edge-invalid', 'use-undeclared']"
+          "signature": "export declare const ERROR_CODES: readonly [\n    'assembly-misplaced',\n    'assembly-missing',\n    'composition-contract-layer',\n    'composition-contract-misplaced',\n    'container-empty',\n    'container-file',\n    'deep-import',\n    'entry-unmapped',\n    'feature-cycle',\n    'feature-duplicate',\n    'feature-root-placement',\n    'feature-undeclared',\n    'invalid-path',\n    'layer-direction',\n    'load-cycle',\n    'not-visible',\n    'republication-invalid',\n    'republication-mismatch',\n    'republication-not-sub-feature',\n    'republication-skips-level',\n    'republication-undeclared',\n    'surface-unowned',\n    'use-edge-invalid',\n    'use-undeclared'\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!Edge:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export type Edge = readonly [from: string, to: string];"
+          "signature": "export type Edge = readonly [\n    from: string,\n    to: string\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!FeatureMetric:type",
@@ -138,7 +138,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "STANDARD: {\n    readonly id: 'agent-teams.feature-module-standard';\n    readonly version: 'v1.1';\n    readonly digest: 'sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c';\n}"
+          "signature": "export declare const STANDARD: {\n    readonly id: 'agent-teams.feature-module-standard';\n    readonly version: 'v1.1';\n    readonly digest: 'sha256:cfa088ef7396139554fe5e3bcc839271b23299c6b60c569a3a7f1cd7c9f0bc6c';\n};"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!Severity:type",
@@ -173,7 +173,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "WARNING_CODES: readonly ['depth-warning', 'test-misplaced', 'test-unowned']"
+          "signature": "export declare const WARNING_CODES: readonly [\n    'depth-warning',\n    'test-misplaced',\n    'test-unowned'\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!analyzeFeatureTree:function(1)",
@@ -201,7 +201,7 @@
           "kind": "Function",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "export declare function findOverlappingRoots(roots: readonly string[]): Array<readonly [string, string]>;"
+          "signature": "export declare function findOverlappingRoots(roots: readonly string[]): Array<readonly [\n    string,\n    string\n]>;"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!inferDirectoryLayout:function(1)",
@@ -248,7 +248,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "ERROR_CODES: readonly ['assembly-misplaced', 'assembly-missing', 'composition-contract-layer', 'composition-contract-misplaced', 'container-empty', 'container-file', 'deep-import', 'entry-unmapped', 'feature-cycle', 'feature-duplicate', 'feature-root-placement', 'feature-undeclared', 'invalid-path', 'layer-direction', 'load-cycle', 'not-visible', 'republication-invalid', 'republication-mismatch', 'republication-not-sub-feature', 'republication-skips-level', 'republication-undeclared', 'surface-unowned', 'use-edge-invalid', 'use-undeclared']"
+          "signature": "export declare const ERROR_CODES: readonly [\n    'assembly-misplaced',\n    'assembly-missing',\n    'composition-contract-layer',\n    'composition-contract-misplaced',\n    'container-empty',\n    'container-file',\n    'deep-import',\n    'entry-unmapped',\n    'feature-cycle',\n    'feature-duplicate',\n    'feature-root-placement',\n    'feature-undeclared',\n    'invalid-path',\n    'layer-direction',\n    'load-cycle',\n    'not-visible',\n    'republication-invalid',\n    'republication-mismatch',\n    'republication-not-sub-feature',\n    'republication-skips-level',\n    'republication-undeclared',\n    'surface-unowned',\n    'use-edge-invalid',\n    'use-undeclared'\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!FeatureModuleInput:type",
@@ -318,14 +318,14 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "WARNING_CODES: readonly ['depth-warning', 'test-misplaced', 'test-unowned']"
+          "signature": "export declare const WARNING_CODES: readonly [\n    'depth-warning',\n    'test-misplaced',\n    'test-unowned'\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!conformanceCases:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "conformanceCases: readonly ConformanceCase[]"
+          "signature": "export declare const conformanceCases: readonly ConformanceCase[];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!exampleModule:function(1)",
@@ -400,7 +400,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "ERROR_CODES: readonly ['assembly-misplaced', 'assembly-missing', 'composition-contract-layer', 'composition-contract-misplaced', 'container-empty', 'container-file', 'deep-import', 'entry-unmapped', 'feature-cycle', 'feature-duplicate', 'feature-root-placement', 'feature-undeclared', 'invalid-path', 'layer-direction', 'load-cycle', 'not-visible', 'republication-invalid', 'republication-mismatch', 'republication-not-sub-feature', 'republication-skips-level', 'republication-undeclared', 'surface-unowned', 'use-edge-invalid', 'use-undeclared']"
+          "signature": "export declare const ERROR_CODES: readonly [\n    'assembly-misplaced',\n    'assembly-missing',\n    'composition-contract-layer',\n    'composition-contract-misplaced',\n    'container-empty',\n    'container-file',\n    'deep-import',\n    'entry-unmapped',\n    'feature-cycle',\n    'feature-duplicate',\n    'feature-root-placement',\n    'feature-undeclared',\n    'invalid-path',\n    'layer-direction',\n    'load-cycle',\n    'not-visible',\n    'republication-invalid',\n    'republication-mismatch',\n    'republication-not-sub-feature',\n    'republication-skips-level',\n    'republication-undeclared',\n    'surface-unowned',\n    'use-edge-invalid',\n    'use-undeclared'\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!FeatureMetric:type",
@@ -512,7 +512,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/feature-module-standard!",
           "parentKind": "EntryPoint",
-          "signature": "WARNING_CODES: readonly ['depth-warning', 'test-misplaced', 'test-unowned']"
+          "signature": "export declare const WARNING_CODES: readonly [\n    'depth-warning',\n    'test-misplaced',\n    'test-unowned'\n];"
         },
         {
           "canonicalReference": "@agent-teams/feature-module-standard!checkFeatureModuleOnDisk:function(1)",

@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/feature-module-standard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Opt-in checks for the Feature Module Standard: a pure kernel, shared fixtures and a Node runner over the Foundation file graph.",
   "license": "Apache-2.0",
   "type": "module",

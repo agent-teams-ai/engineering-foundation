@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import test from "node:test";
-import { fileURLToPath } from "node:url";
+import test, { type TestContext } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 
 import {
@@ -14,6 +14,7 @@ import {
 } from "../tools/dev.mts";
 import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
 import { refreshVersionLocks } from "../tools/release-profile.mts";
+import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const workflowPaths = [
@@ -465,4 +466,66 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     }
     await rm(temporary, { recursive: true, force: true });
   }
+});
+
+
+async function realLinkedGitFixture(t: TestContext) {
+  const parent = join(repositoryRoot, ".worker-tmp/profiles");
+  await mkdir(parent, { recursive: true });
+  const temporary = await mkdtemp(join(parent, "TEST-git-authority-"));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const root = join(temporary, "source");
+  const cloned = spawnSync("git", ["clone", "--quiet", "--no-checkout", "--depth=1", "--no-hardlinks",
+    pathToFileURL(repositoryRoot).href, root], { encoding: "utf8", timeout: 60_000,
+    env: { ...process.env, GIT_DIR: undefined, GIT_WORK_TREE: undefined, GIT_COMMON_DIR: undefined } });
+  assert.equal(cloned.status, 0, `${cloned.stdout}${cloned.stderr}`);
+  const normal = await assertExplicitSourceGitAuthority(root);
+  const gitDir = join(temporary, "git-directory");
+  const marker = join(root, ".git");
+  await rename(marker, gitDir);
+  const markerSource = "gitdir: ../git-directory\n";
+  await writeFile(marker, markerSource);
+  return { root, marker, markerSource, gitDir, normal };
+}
+
+test("Git source authority accepts physical directories and linked marker files but rejects aliases and oversized markers", async (t) => {
+  const fixture = await realLinkedGitFixture(t);
+  const linked = await assertExplicitSourceGitAuthority(fixture.root);
+  assert.equal(linked.sourceCommit, fixture.normal.sourceCommit);
+  assert.equal(linked.sourceRoot, fixture.normal.sourceRoot);
+  assert.equal(linked.environment["GIT_OPTIONAL_LOCKS"], "0");
+  await rm(fixture.marker);
+  await symlink(fixture.gitDir, fixture.marker, "junction");
+  await assert.rejects(assertExplicitSourceGitAuthority(fixture.root), /actual directory or regular file/u);
+  await rm(fixture.marker);
+  await writeFile(fixture.marker, `${fixture.markerSource}${" ".repeat(8 * 1024)}`);
+  await assert.rejects(assertExplicitSourceGitAuthority(fixture.root), /bounded size/u);
+  if (process.platform !== "win32") {
+    const aliasTarget = join(fixture.root, "retained-linked-marker");
+    await writeFile(aliasTarget, fixture.markerSource);
+    await rm(fixture.marker);
+    await symlink(aliasTarget, fixture.marker, "file");
+    await assert.rejects(assertExplicitSourceGitAuthority(fixture.root), /actual directory or regular file/u);
+    await rm(fixture.marker);
+    const special = spawnSync("mkfifo", [fixture.marker], { encoding: "utf8", timeout: 10_000 });
+    assert.equal(special.status, 0, `${special.stdout}${special.stderr}`);
+    await assert.rejects(assertExplicitSourceGitAuthority(fixture.root), /actual directory or regular file/u);
+  }
+});
+
+test("Git source authority rejects a real marker inode replacement between metadata and read", async (t) => {
+  const fixture = await realLinkedGitFixture(t);
+  const helper = pathToFileURL(join(repositoryRoot, "tests/support/swap-git-marker-before-open.mts")).href;
+  const subject = pathToFileURL(join(repositoryRoot, "tools/profile-root.mts")).href;
+  const result = spawnSync(process.execPath, ["--import", helper, "--input-type=module", "--eval",
+    `const { assertExplicitSourceGitAuthority } = await import(${JSON.stringify(subject)}); ` +
+    `await assertExplicitSourceGitAuthority(${JSON.stringify(fixture.root)});`], {
+    encoding: "utf8", timeout: 20_000,
+    env: { ...process.env, TEST_GIT_MARKER_TO_SWAP: fixture.marker, TEST_GIT_MARKER_SOURCE: fixture.markerSource }
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 1, "The replaced marker must not qualify as stable Git source authority");
+  assert.match(result.stderr, /Source authority \.git marker changed/u);
+  assert.equal(await readFile(`${fixture.marker}.retained-before-race`, "utf8"), fixture.markerSource);
+  assert.equal(await readFile(fixture.marker, "utf8"), fixture.markerSource);
 });

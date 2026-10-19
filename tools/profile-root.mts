@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { lstat, realpath, readFile, stat } from "node:fs/promises";
+import { constants, type BigIntStats } from "node:fs";
+import { lstat, open, realpath } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import { repositoryRoot } from "./runtime-policy.mts";
 
@@ -64,16 +65,57 @@ export interface SourceGitAuthority {
   readonly environment: NodeJS.ProcessEnv;
 }
 
+const MAX_GIT_MARKER_BYTES = 8 * 1024;
+
+function sameMarkerIdentity(left: BigIntStats, right: BigIntStats): boolean {
+  return left.dev === right.dev && left.ino === right.ino && left.mode === right.mode &&
+    left.size === right.size && left.mtimeNs === right.mtimeNs && left.ctimeNs === right.ctimeNs;
+}
+
+async function readLinkedGitMarker(marker: string, initial: BigIntStats): Promise<string> {
+  const flags = process.platform === "win32" ? constants.O_RDONLY
+    : constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK;
+  const handle = await open(marker, flags);
+  try {
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile() || !sameMarkerIdentity(initial, opened)) {
+      throw new Error("Source authority .git marker changed before reading.");
+    }
+    const bytes = Buffer.alloc(MAX_GIT_MARKER_BYTES + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const result = await handle.read(bytes, length, bytes.length - length, null);
+      if (result.bytesRead === 0) { break; }
+      length += result.bytesRead;
+    }
+    const after = await handle.stat({ bigint: true });
+    const current = await lstat(marker, { bigint: true });
+    if (length > MAX_GIT_MARKER_BYTES || BigInt(length) !== initial.size ||
+      !sameMarkerIdentity(initial, after) || !sameMarkerIdentity(initial, current)) {
+      throw new Error("Source authority .git marker changed or exceeds its bounded size.");
+    }
+    return bytes.subarray(0, length).toString("utf8");
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function assertExplicitSourceGitAuthority(sourceRoot: string): Promise<SourceGitAuthority> {
   const canonicalSourceRoot = await realpath(sourceRoot);
   const marker = resolve(canonicalSourceRoot, ".git");
-  const markerMetadata = await stat(marker).catch(() => null);
+  const markerMetadata = await lstat(marker, { bigint: true }).catch(() => null);
   if (markerMetadata === null) {
     throw new Error("Source authority requires an explicit repository .git marker.");
   }
+  if (markerMetadata.isSymbolicLink() || (!markerMetadata.isDirectory() && !markerMetadata.isFile())) {
+    throw new Error("Source authority .git marker must be an actual directory or regular file.");
+  }
   let gitDir = marker;
   if (markerMetadata.isFile()) {
-    const markerSource = await readFile(marker, "utf8");
+    if (markerMetadata.size > BigInt(MAX_GIT_MARKER_BYTES)) {
+      throw new Error("Source authority .git marker exceeds its bounded size.");
+    }
+    const markerSource = await readLinkedGitMarker(marker, markerMetadata);
     const match = /^gitdir:\s*(.+)\s*$/mu.exec(markerSource);
     if (match?.[1] === undefined) {
       throw new Error("Source authority has an invalid linked-worktree .git marker.");
@@ -110,6 +152,9 @@ export async function assertExplicitSourceGitAuthority(sourceRoot: string): Prom
   }).trim();
   if (!/^[0-9a-f]{40}$/u.test(sourceCommit)) {
     throw new Error("Explicit Git source authority did not resolve a full source commit.");
+  }
+  if (!sameMarkerIdentity(markerMetadata, await lstat(marker, { bigint: true }))) {
+    throw new Error("Source authority .git marker changed during Git observation.");
   }
   return {
     sourceRoot: canonicalSourceRoot,

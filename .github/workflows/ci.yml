@@ -258,9 +258,10 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          export PROCESS_RUNTIME_DELEGATION_NODE="$(node -p 'process.execPath')"
-          export AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE="${PROCESS_RUNTIME_DELEGATION_NODE}"
-          export AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE="$(bun -p 'process.execPath')"
+          PROCESS_RUNTIME_DELEGATION_NODE="$(node -p 'process.execPath')"
+          AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE="${PROCESS_RUNTIME_DELEGATION_NODE}"
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE="$(bun -p 'process.execPath')"
+          export PROCESS_RUNTIME_DELEGATION_NODE AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE
           "${AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE}" tests/process-runtime-delegation-under-bun.mts
       - name: Provision public pinned managed test copies
         if: ${{ matrix.pair.second == '4' }}
@@ -936,9 +937,10 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          export PROCESS_RUNTIME_DELEGATION_NODE="$(node -p 'process.execPath')"
-          export AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE="${PROCESS_RUNTIME_DELEGATION_NODE}"
-          export AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE="$(bun -p 'process.execPath')"
+          PROCESS_RUNTIME_DELEGATION_NODE="$(node -p 'process.execPath')"
+          AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE="${PROCESS_RUNTIME_DELEGATION_NODE}"
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE="$(bun -p 'process.execPath')"
+          export PROCESS_RUNTIME_DELEGATION_NODE AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE
           "${AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE}" tests/process-runtime-delegation-under-bun.mts
       - name: Qualify QGR lifecycle on Darwin
         run: bun tools/dev.mts test:qgr:lifecycle:built

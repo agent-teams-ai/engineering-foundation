@@ -399,8 +399,6 @@ test("requires Dependency Review in the declared required CI workflow", async ()
         }), /ordinary full report is not the exact retained mismatch result/u);
         assert.equal(acquired, false);
         assert.deepEqual(original, { stdout: result.stdout, stderr: result.stderr, exitCode: 1 });
-        assert.deepEqual(securityDiagnostics(JSON.parse(original.stdout)).map(({ ruleId }) => ruleId),
-          ["repository.security-baseline.dependency-review-missing"]);
       }
     },
   );

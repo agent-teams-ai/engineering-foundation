@@ -20,6 +20,7 @@ test("managed composition preserves published function declarations and planner 
   assert.ok(policy);
   const manifest = JSON.parse(await readFile(join(repositoryRoot, "packages/docs-protocol-agent-teams/package.json"), "utf8"));
   const actual = await createPublicApiExtractor().extract(repositoryRoot, policy, manifest.version);
+  assert.equal(actual.extractorVersion, "typescript-native/7.0.2");
   assert.deepEqual(actual.entrypoints.map((item) => item.exportPath).toSorted(), [".", "./qualification"]);
   for (const entrypoint of actual.entrypoints) {
     const functions = ["runDocsProtocolQualificationV2", "runDocsProtocolQualificationV3"];
@@ -37,6 +38,8 @@ test("managed composition preserves published function declarations and planner 
   assert.match(overloads[0].signature, /ConsumerIntegrationDesiredStateV1/u);
   assert.match(overloads[1].signature, /ConsumerIntegrationDesiredStateV3/u);
   const released = JSON.parse(await readFile(join(repositoryRoot, policy.releasedBaselinePath), "utf8"));
+  assert.ok(["7.58.12", "typescript-native/7.0.2"].includes(released.extractorVersion));
+  const releasedIsNative = released.extractorVersion === "typescript-native/7.0.2";
   const reviewedBytes = await readFile(join(repositoryRoot, "scripts/native-public-api-migration/reviewed-tool-diff.json"));
   assert.equal(new NodeChangeFingerprint().sha256(reviewedBytes),
     "50eb0f44228640fba54d3317cac5430f568f7bc73890e3e4945718ea96521c5c");
@@ -48,8 +51,11 @@ test("managed composition preserves published function declarations and planner 
     assert.ok(reviewedEntrypoint);
     for (const item of entrypoint.items) {
       const toolChange = reviewedEntrypoint.changed.find((change) => change.id === item.canonicalReference);
-      if (toolChange) { assert.deepEqual(toolChange.before, item, "reviewed tool projection must start from exact historical item"); }
-      const nativeItem = toolChange?.after ?? item;
+      if (toolChange) {
+        assert.deepEqual(releasedIsNative ? toolChange.after : toolChange.before, item,
+          "released item must match the exact reviewed side for its extractor identity");
+      }
+      const nativeItem = releasedIsNative ? item : (toolChange?.after ?? item);
       const acceptedConsumerIntegrationDesiredState =
         item.canonicalReference === `${packageName}!ConsumerIntegrationDesiredState:type`
           ? {

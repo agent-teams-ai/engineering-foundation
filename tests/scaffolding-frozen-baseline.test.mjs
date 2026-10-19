@@ -214,7 +214,7 @@ test("validates the release-owned public API baseline and freezes the package ex
   assert.equal(baseline.schemaVersion, 1);
   assert.equal(baseline.packageName, packageManifest.name);
   assert.equal(baseline.packageVersion, packageManifest.version);
-  assert.match(baseline.extractorVersion, /^\d+\.\d+\.\d+$/u);
+  assert.ok(["7.58.12", "typescript-native/7.0.2"].includes(baseline.extractorVersion));
   assert.ok(baseline.entrypoints.length > 0);
   assert.equal(
     new Set(baseline.entrypoints.map(({ exportPath }) => exportPath)).size,

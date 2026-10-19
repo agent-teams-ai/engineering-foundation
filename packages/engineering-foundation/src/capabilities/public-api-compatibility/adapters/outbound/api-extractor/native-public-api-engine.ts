@@ -43,7 +43,7 @@ export function nativeDiagnostic(diagnostic: Diagnostic, files?: ReadonlyMap<str
   const text = [diagnostic.text, ...(diagnostic.messageChain ?? []).map(item => nativeDiagnostic(item).text)].join("\n");
   return {
     source: "compiler", id: `TS${diagnostic.code}`,
-    severity: DiagnosticCategory[diagnostic.category]?.toLowerCase() ?? "unknown",
+    severity: Object.hasOwn(DiagnosticCategory, diagnostic.category) ? DiagnosticCategory[diagnostic.category].toLowerCase() : "unknown",
     text,
     ...(diagnostic.fileName === undefined ? {} : { file: diagnostic.fileName }),
     ...(source === undefined || diagnostic.pos < 0 ? {} : { line: source.slice(0, diagnostic.pos).split("\n").length })
@@ -96,7 +96,7 @@ export async function withNativePublicApiProject<T>(input: {
     if (input.declarationEntryPoint !== undefined) {
       // Like the prior compiler adapter, analyze declarations rather than the
       // consumer's source roots. Null resets inherited output redirections.
-      configPath = join(dirname(input.configPath), ".foundation-native-api.tsconfig.json");
+      configPath = join(dirname(input.configPath), ".foundation-native-api.tsconfig.json").replaceAll("\\", "/");
       const content = JSON.stringify({ extends: input.configPath, files: [...new Set([...config.fileNames.filter(path => /\.d\.[cm]?ts$/u.test(path)), input.declarationEntryPoint])],
         include: [], exclude: [], compilerOptions: { outDir: null, declarationDir: null, rootDir: null, composite: false, noEmit: true, emitDeclarationOnly: false,
           noCheck: false, skipLibCheck: false, skipDefaultLibCheck: false } });

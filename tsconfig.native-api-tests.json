@@ -1,4 +1,9 @@
 {
   "extends": "./spikes/source-dependency-parser/tsconfig.json",
-  "include": ["packages/engineering-foundation/tests/*.test.ts"]
+  "include": [
+    "packages/engineering-foundation/tests/*.test.ts"
+  ],
+  "files": [
+    "tests/support/native-public-api-fixture.ts"
+  ]
 }

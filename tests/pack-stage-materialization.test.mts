@@ -78,7 +78,8 @@ void test("staged pnpm builds preserve cached source custody during another stag
 });
 
 // Missing staged executable shims used to silently select a source/global tsc.
-void test("staged TypeScript builds use the copied compiler rather than ambient executables", async t => {
+for (const dependencySection of ["devDependencies", "dependencies"] as const) {
+void test(`staged TypeScript builds use the copied compiler rather than ambient executables (${dependencySection})`, async t => {
   const root = await mkdtemp(join(tmpdir(), "stage-compiler-custody-TEST-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const stage = join(root, "stage");
@@ -86,7 +87,7 @@ void test("staged TypeScript builds use the copied compiler rather than ambient 
   await mkdir(join(stage, "src"), { recursive: true });
   await mkdir(poison);
   const manifest = { name: "fixture-build", version: "1.0.0", private: true, type: "module",
-    devDependencies: { typescript: "7.0.2" }, scripts: { build: "tsc --project tsconfig.json" } };
+    [dependencySection]: { typescript: "7.0.2" }, scripts: { build: "tsc --project tsconfig.json" } };
   await writeFile(join(stage, "package.json"), JSON.stringify(manifest));
   await writeFile(join(stage, "pnpm-workspace.yaml"), 'packages: ["."]\nverifyDepsBeforeRun: install\noffline: true\n');
   await writeFile(join(stage, "tsconfig.json"), JSON.stringify({ compilerOptions: {
@@ -112,6 +113,7 @@ void test("staged TypeScript builds use the copied compiler rather than ambient 
     { environment });
   assert.match(await readFile(join(stage, "dist", "index.js"), "utf8"), /export const answer = 42/u);
 });
+}
 
 void test("staged compiler entrypoints cannot escape their package before build execution", async t => {
   const root = await mkdtemp(join(tmpdir(), "stage-compiler-escape-TEST-"));

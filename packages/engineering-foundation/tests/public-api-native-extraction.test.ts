@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import type { PublicApiPackagePolicy, PublicApiSnapshot } from "../src/capabilities/public-api-compatibility/application/model/public-api.js";
 import { TypeScriptPublicApiExtractor } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
+import { withNativePublicApiProject } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-engine.js";
 import { readContainedRegularFile, pathTraversesSymbolicLink } from "../dist/source-inventory/node.js";
 import { classifyPublicApiChange, evaluatePublicApiCompatibility } from "../dist/capabilities/public-api-compatibility/application/policies/evaluate-public-api-compatibility.js";
 
@@ -45,6 +46,28 @@ function items(snapshot: PublicApiSnapshot) {
   assert.equal(entrypoint.exportPath, ".");
   return entrypoint.items;
 }
+
+test("native declaration projects use one canonical virtual config path without physical writes", async () => {
+  const source = "export declare const stable: string;\n";
+  await fixture(source, async root => {
+    const configPath = join(root, "tsconfig.json");
+    const declarationEntryPoint = join(root, "dist/index.d.ts");
+    const originalConfig = await readFile(configPath, "utf8");
+    const generatedPath = join(root, ".foundation-native-api.tsconfig.json").replaceAll("\\", "/");
+    await withNativePublicApiProject({ cwd: root, configPath, declarationEntryPoint, files: new Map([
+      [configPath, originalConfig], [declarationEntryPoint, source],
+      [join(root, "package.json"), await readFile(join(root, "package.json"), "utf8")]
+    ]) }, context => {
+      assert.equal(context.project.configFileName, generatedPath);
+      assert.ok(context.files.has(generatedPath));
+      assert.ok([...context.files.keys()].every(path => !path.includes("\\")));
+      assert.equal(context.program.getSourceFile(declarationEntryPoint)?.text, source);
+      assert.ok(context.readFiles.has(resolve(generatedPath)));
+    });
+    assert.equal(await readFile(configPath, "utf8"), originalConfig);
+    await assert.rejects(readFile(join(root, ".foundation-native-api.tsconfig.json")), { code: "ENOENT" });
+  });
+});
 
 test("native extraction retains literal public identities across ordinary declaration kinds", async () => {
   const source = "declare const brand: unique symbol; export type Box<T = string> = { readonly [brand]: T }; export declare const make: <T>(x: T) => Box<T>; export declare function f(x: string): string; export declare function f(x: number): number; export interface Callable { (x: number): string; new(x: string): Box; readonly [x: number]: string; } export declare class C { constructor(); static n: number; protected x: string; m<T>(x:T): T; get value(): number; set value(x: number); } export enum E { A, B = 2 } export * as tools from \"./tools.js\";\n";

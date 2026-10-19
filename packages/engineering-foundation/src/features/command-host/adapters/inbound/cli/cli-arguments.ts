@@ -220,7 +220,7 @@ function validateCommandOptions(command: string, state: ArgumentState): void {
   if (state.nativeTransitionPath !== undefined && command !== "public-api-promote-release") {
     throw invalidCommand("--native-transition is supported only by public-api-promote-release.");
   }
-  if (state.qualificationOnly && (command !== "public-api-promote-release" || state.nativeTransitionPath === undefined)) {
+  if (state.qualificationOnly === true && (command !== "public-api-promote-release" || state.nativeTransitionPath === undefined)) {
     throw invalidCommand("--qualification-only requires public-api-promote-release --native-transition.");
   }
   if (command === "baseline" && !state.configPathProvided) {
@@ -300,7 +300,7 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     write: state.write,
     ...(state.scopeOnly ? { scopeOnly: true } : {}),
     ...(state.nativeTransitionPath === undefined ? {} : { nativeTransitionPath: state.nativeTransitionPath }),
-    ...(state.qualificationOnly ? { qualificationOnly: true } : {}),
+    ...(state.qualificationOnly === true ? { qualificationOnly: true } : {}),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}

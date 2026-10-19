@@ -19,13 +19,16 @@ interface PrintedDeclaration {
   readonly positions: ReadonlyMap<number, OffsetRange>;
 }
 
+/** Native root nodes have no parent at runtime despite Node.parent's annotation. */
+export function nativeParent(node: ast.Node): ast.Node | undefined { return node.parent; }
+
 export function nativeHasModifier(node: NativeDeclaration, kind: ast.SyntaxKind): boolean {
   return node.modifiers?.some(modifier => modifier.kind === kind) === true;
 }
 export function nativeAccessorPair(context: NativePublicApiContext, node: NativeDeclaration, name: string): NativeDeclaration | undefined {
   if (!ast.isGetAccessorDeclaration(node) && !ast.isSetAccessorDeclaration(node)) { return; }
   const opposite = ast.isGetAccessorDeclaration(node) ? ast.isSetAccessorDeclaration : ast.isGetAccessorDeclaration;
-  return (node.parent as NativeDeclaration).members?.find(item => opposite(item) && context.emitter.printNode(item.name) === name && nativeHasModifier(item, ast.SyntaxKind.StaticKeyword) === nativeHasModifier(node, ast.SyntaxKind.StaticKeyword)) as NativeDeclaration | undefined;
+  return (node.parent as NativeDeclaration).members?.find(item => opposite(item) && context.emitter.printNode(item.name) === name && nativeHasModifier(item, ast.SyntaxKind.StaticKeyword) === nativeHasModifier(node, ast.SyntaxKind.StaticKeyword));
 }
 export function nativeSignatureNode(node: NativeDeclaration): NativeDeclaration {
   return ast.isVariableDeclaration(node) && node.type !== undefined && ast.isFunctionTypeNode(node.type) ? node.type : node;

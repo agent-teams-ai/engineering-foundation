@@ -1,8 +1,20 @@
 import { createHash } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { lstat, open } from "node:fs/promises";
-import { inspectCompressedTarArchive as inspectArchive, portableEntryIdentity } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.js";
-export { portableEntryIdentity };
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+
+// Source-only bootstrap preflight does not inspect an archive or require a build.
+// Archive operations use the same synchronous codec as the published adapter.
+/** @returns {typeof import("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.js")} */
+function archiveCodec() {
+  return require("../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.js");
+}
+
+export function portableEntryIdentity(entry) {
+  return archiveCodec().portableEntryIdentity(entry);
+}
 
 const forbiddenEntries = [
   "/.git/", "/node_modules/", "/src/", "/tests/", ".env", "auth.json",
@@ -92,7 +104,7 @@ export function assertArchiveListing(
 }
 
 export function inspectCompressedTarArchive(archiveBytes, packageName) {
-  return inspectArchive(archiveBytes, maximumArchiveEntries(packageName));
+  return archiveCodec().inspectCompressedTarArchive(archiveBytes, maximumArchiveEntries(packageName));
 }
 
 function sameFileState(left, right) {

@@ -10,6 +10,7 @@ import {
 } from "./pack-test-support.mjs";
 import { writePackedConsumerProtobufFixture } from "./packed-consumer-protobuf-fixture.mjs";
 import { writeExecutableSpecificationFixture } from "./packed-consumer-executable-specification-fixture.mjs";
+import { preparePackedNativePublicApiBaseline } from "./packed-consumer-native-public-api.ts";
 
 const foundationPackage = "@agent-teams/engineering-foundation";
 const identitySource = "export function identity(value: string): string {\n  return value;\n}\n";
@@ -495,6 +496,7 @@ export async function createPackedConsumerFixture(input) {
     toolEntrypoints.foundationRoot
   );
   await writePublicApiFixture(input.consumerRoot);
+  const legacyPublicApiBaseline = await preparePackedNativePublicApiBaseline({ consumerRoot: input.consumerRoot, toolEntrypoints, packedManifest });
   await writeSuppressionGovernanceFixture(input.consumerRoot);
   await writeRepositorySecurityFixture(input.consumerRoot);
   const sourceRoot = join(input.consumerRoot, "src");
@@ -504,6 +506,7 @@ export async function createPackedConsumerFixture(input) {
     consumerRoot: input.consumerRoot,
     identitySource,
     jsonContract,
+    legacyPublicApiBaseline,
     packedManifest,
     sourceRoot,
     toolEntrypoints

@@ -11,7 +11,7 @@ async function boundedFile(path: string, maxBytes: number): Promise<Buffer> {
     const before = await handle.stat();
     if (!before.isFile() || before.size > maxBytes) { throw new Error("Public API compiler input exceeds its bounded regular-file admission."); }
     const chunks: Buffer[] = []; let total = 0;
-    while (true) {
+    for (;;) {
       const chunk = Buffer.alloc(Math.min(64 * 1024, maxBytes - total + 1));
       const { bytesRead } = await handle.read(chunk, 0, chunk.length, null);
       if (bytesRead === 0) { break; }
@@ -32,7 +32,7 @@ interface Manifest {
 
 async function findPackage(directory: string, name: string): Promise<string | undefined> {
     let current = directory;
-    while (true) {
+    for (;;) {
       const candidate = join(current, "node_modules", name);
       try { if ((await stat(join(candidate, "package.json"))).isFile()) { return await realpath(candidate); } }
       catch (error) { if (!(error instanceof Error && "code" in error && ["ENOENT", "ENOTDIR"].includes(String(error.code)))) { throw error; } }

@@ -52,26 +52,31 @@ export function createNativeApiItem(context: NativePublicApiContext, descriptor:
   const common = commonOptions(descriptor, projected);
   const signature = signatureOptions(context, node, projected, descriptor.overloadIndex);
   const member = memberOptions(node);
-  switch (node.kind) {
-    case ast.SyntaxKind.FunctionDeclaration: return new model.ApiFunction({ ...common, ...signature });
-    case ast.SyntaxKind.TypeAliasDeclaration: return new model.ApiTypeAlias({ ...common, typeParameters: signature.typeParameters, typeTokenRange: projected.range(node.type) });
-    case ast.SyntaxKind.ClassDeclaration: return new model.ApiClass({ ...common, typeParameters: signature.typeParameters, isAbstract: member.isAbstract, ...classHeritage(node, projected) });
-    case ast.SyntaxKind.InterfaceDeclaration: return new model.ApiInterface({ ...common, typeParameters: signature.typeParameters, extendsTokenRanges: interfaceHeritage(node, projected) });
-    case ast.SyntaxKind.ModuleDeclaration: case ast.SyntaxKind.SourceFile: return new model.ApiNamespace(common);
-    case ast.SyntaxKind.EnumDeclaration: return new model.ApiEnum(common);
-    case ast.SyntaxKind.EnumMember: return new model.ApiEnumMember({ ...common, initializerTokenRange: projected.range(node.initializer) });
-    case ast.SyntaxKind.VariableDeclaration: return variableItem(context, descriptor, projected);
-    case ast.SyntaxKind.Constructor: return new model.ApiConstructor({ ...common, ...signature, isProtected: member.isProtected });
-    case ast.SyntaxKind.MethodDeclaration: return new model.ApiMethod({ ...common, ...signature, ...member });
-    case ast.SyntaxKind.MethodSignature: return new model.ApiMethodSignature({ ...common, ...signature, isOptional: member.isOptional });
-    case ast.SyntaxKind.CallSignature: return new model.ApiCallSignature({ ...common, ...signature });
-    case ast.SyntaxKind.ConstructSignature: return new model.ApiConstructSignature({ ...common, ...signature });
-    case ast.SyntaxKind.IndexSignature: return new model.ApiIndexSignature({ ...common, ...signature, isReadonly: member.isReadonly });
-    case ast.SyntaxKind.PropertyDeclaration: return new model.ApiProperty({ ...common, ...member, propertyTypeTokenRange: projected.range(node.type), initializerTokenRange: projected.range(node.initializer) });
-    case ast.SyntaxKind.PropertySignature: return new model.ApiPropertySignature({ ...common, ...member, propertyTypeTokenRange: projected.range(node.type) });
-    case ast.SyntaxKind.GetAccessor: case ast.SyntaxKind.SetAccessor: return new model.ApiProperty({ ...common, ...member, isReadonly: readonlyAccessor(context, descriptor), propertyTypeTokenRange: projected.range(accessorType(node)) });
-    default: throw new Error(`Unsupported native public API declaration: ${ast.SyntaxKind[node.kind]}.`);
-  }
+  const access = () => new model.ApiProperty({ ...common, ...member, isReadonly: readonlyAccessor(context, descriptor), propertyTypeTokenRange: projected.range(accessorType(node)) });
+  const constructors: Partial<Record<ast.SyntaxKind, () => model.ApiDeclaredItem>> = {
+    [ast.SyntaxKind.FunctionDeclaration]: () => new model.ApiFunction({ ...common, ...signature }),
+    [ast.SyntaxKind.TypeAliasDeclaration]: () => new model.ApiTypeAlias({ ...common, typeParameters: signature.typeParameters, typeTokenRange: projected.range(node.type) }),
+    [ast.SyntaxKind.ClassDeclaration]: () => new model.ApiClass({ ...common, typeParameters: signature.typeParameters, isAbstract: member.isAbstract, ...classHeritage(node, projected) }),
+    [ast.SyntaxKind.InterfaceDeclaration]: () => new model.ApiInterface({ ...common, typeParameters: signature.typeParameters, extendsTokenRanges: interfaceHeritage(node, projected) }),
+    [ast.SyntaxKind.ModuleDeclaration]: () => new model.ApiNamespace(common),
+    [ast.SyntaxKind.SourceFile]: () => new model.ApiNamespace(common),
+    [ast.SyntaxKind.EnumDeclaration]: () => new model.ApiEnum(common),
+    [ast.SyntaxKind.EnumMember]: () => new model.ApiEnumMember({ ...common, initializerTokenRange: projected.range(node.initializer) }),
+    [ast.SyntaxKind.VariableDeclaration]: () => variableItem(context, descriptor, projected),
+    [ast.SyntaxKind.Constructor]: () => new model.ApiConstructor({ ...common, ...signature, isProtected: member.isProtected }),
+    [ast.SyntaxKind.MethodDeclaration]: () => new model.ApiMethod({ ...common, ...signature, ...member }),
+    [ast.SyntaxKind.MethodSignature]: () => new model.ApiMethodSignature({ ...common, ...signature, isOptional: member.isOptional }),
+    [ast.SyntaxKind.CallSignature]: () => new model.ApiCallSignature({ ...common, ...signature }),
+    [ast.SyntaxKind.ConstructSignature]: () => new model.ApiConstructSignature({ ...common, ...signature }),
+    [ast.SyntaxKind.IndexSignature]: () => new model.ApiIndexSignature({ ...common, ...signature, isReadonly: member.isReadonly }),
+    [ast.SyntaxKind.PropertyDeclaration]: () => new model.ApiProperty({ ...common, ...member, propertyTypeTokenRange: projected.range(node.type), initializerTokenRange: projected.range(node.initializer) }),
+    [ast.SyntaxKind.PropertySignature]: () => new model.ApiPropertySignature({ ...common, ...member, propertyTypeTokenRange: projected.range(node.type) }),
+    [ast.SyntaxKind.GetAccessor]: access,
+    [ast.SyntaxKind.SetAccessor]: access,
+  };
+  const construct = constructors[node.kind];
+  if (construct === undefined) { throw new Error(`Unsupported native public API declaration: ${ast.SyntaxKind[node.kind]}.`); }
+  return construct();
 }
 
 /** Use the same public constructors for an external identity as for its actual

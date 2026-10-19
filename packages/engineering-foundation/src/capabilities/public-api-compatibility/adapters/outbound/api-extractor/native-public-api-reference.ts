@@ -4,7 +4,7 @@ import { SymbolFlags, type Symbol as NativeSymbol } from "typescript/unstable/sy
 import { Meaning } from "@microsoft/tsdoc/lib-commonjs/beta/DeclarationReference.js";
 import { createNativeExternalReference } from "./native-public-api-item.js";
 import type { NativePublicApiContext } from "./native-public-api-engine.js";
-import type { NativeDeclaration } from "./native-public-api-excerpt.js";
+import { nativeParent, type NativeDeclaration } from "./native-public-api-excerpt.js";
 
 export interface NativeReferenceOccurrence { readonly node: ast.Node; readonly symbol: NativeSymbol; readonly start: number; readonly end: number }
 interface Component { readonly node: NativeDeclaration; readonly name: string }
@@ -15,21 +15,24 @@ export function aliased(context: NativePublicApiContext, symbol: NativeSymbol): 
 export function symbolDeclarations(symbol: NativeSymbol): ast.Node[] {
   return symbol.declarations.map(handle => handle.resolve()).filter((node): node is ast.Node => node !== undefined);
 }
-function typeMeaning(node: ast.Node): Meaning | undefined {
-  switch (node.kind) {
-    case ast.SyntaxKind.InterfaceDeclaration: return Meaning.Interface;
-    case ast.SyntaxKind.TypeAliasDeclaration: return Meaning.TypeAlias;
-    case ast.SyntaxKind.ClassDeclaration: return Meaning.Class;
-    case ast.SyntaxKind.EnumDeclaration: return Meaning.Enum;
-    case ast.SyntaxKind.EnumMember: return Meaning.Member;
-    case ast.SyntaxKind.ModuleDeclaration: case ast.SyntaxKind.SourceFile: return Meaning.Namespace;
-    case ast.SyntaxKind.FunctionDeclaration: return Meaning.Function;
-    case ast.SyntaxKind.VariableDeclaration: return Meaning.Variable;
-    case ast.SyntaxKind.MethodDeclaration: case ast.SyntaxKind.MethodSignature: return Meaning.Member;
-    case ast.SyntaxKind.PropertyDeclaration: case ast.SyntaxKind.PropertySignature: case ast.SyntaxKind.GetAccessor: case ast.SyntaxKind.SetAccessor: return Meaning.Member;
-    default: return undefined;
-  }
-}
+const declarationMeanings: Readonly<Partial<Record<ast.SyntaxKind, Meaning>>> = {
+  [ast.SyntaxKind.InterfaceDeclaration]: Meaning.Interface,
+  [ast.SyntaxKind.TypeAliasDeclaration]: Meaning.TypeAlias,
+  [ast.SyntaxKind.ClassDeclaration]: Meaning.Class,
+  [ast.SyntaxKind.EnumDeclaration]: Meaning.Enum,
+  [ast.SyntaxKind.EnumMember]: Meaning.Member,
+  [ast.SyntaxKind.ModuleDeclaration]: Meaning.Namespace,
+  [ast.SyntaxKind.SourceFile]: Meaning.Namespace,
+  [ast.SyntaxKind.FunctionDeclaration]: Meaning.Function,
+  [ast.SyntaxKind.VariableDeclaration]: Meaning.Variable,
+  [ast.SyntaxKind.MethodDeclaration]: Meaning.Member,
+  [ast.SyntaxKind.MethodSignature]: Meaning.Member,
+  [ast.SyntaxKind.PropertyDeclaration]: Meaning.Member,
+  [ast.SyntaxKind.PropertySignature]: Meaning.Member,
+  [ast.SyntaxKind.GetAccessor]: Meaning.Member,
+  [ast.SyntaxKind.SetAccessor]: Meaning.Member,
+};
+function typeMeaning(node: ast.Node): Meaning | undefined { return declarationMeanings[node.kind]; }
 export function symbolRoot(context: NativePublicApiContext, symbol: NativeSymbol): NativeSymbol {
   let current = symbol;
   const visited = new Set<number>();
@@ -45,7 +48,7 @@ export function symbolRoot(context: NativePublicApiContext, symbol: NativeSymbol
 export function uniqueSymbol(symbol: NativeSymbol): boolean {
   const declarations = symbolDeclarations(symbol);
   if (declarations.length !== 1 || !ast.isVariableDeclaration(declarations[0]!)) { return false; }
-  const type = declarations[0]!.type;
+  const type = declarations[0].type;
   return type !== undefined && ast.isTypeOperatorNode(type) && type.operator === ast.SyntaxKind.UniqueKeyword && type.type.kind === ast.SyntaxKind.SymbolKeyword;
 }
 export function packageNameFor(context: NativePublicApiContext, node: ast.Node): string | undefined {
@@ -111,8 +114,8 @@ function occurrenceModule(context: NativePublicApiContext, node: ast.Node): { re
   let cursor = node;
   while (ast.isQualifiedName(cursor) || ast.isPropertyAccessExpression(cursor)) { cursor = ast.isQualifiedName(cursor) ? cursor.left : cursor.expression; }
   const names = qualifiedNames(node);
-  let enclosing: ast.Node | undefined = node.parent;
-  while (enclosing !== undefined && ast.isQualifiedName(enclosing)) { enclosing = enclosing.parent; }
+  let enclosing = nativeParent(node);
+  while (enclosing !== undefined && ast.isQualifiedName(enclosing)) { enclosing = nativeParent(enclosing); }
   if (enclosing !== undefined && ast.isImportTypeNode(enclosing) && ast.isLiteralTypeNode(enclosing.argument)) {
     const symbol = context.checker.getSymbolAtLocation(enclosing.argument.literal);
     return symbol === undefined ? undefined : { symbol, preferred: names };
@@ -128,7 +131,7 @@ function occurrenceModule(context: NativePublicApiContext, node: ast.Node): { re
       const symbol = context.checker.getSymbolAtLocation(literal);
       return symbol === undefined ? undefined : { symbol, preferred };
     }
-    ancestor = ancestor.parent;
+    ancestor = nativeParent(ancestor);
   }
   return;
 }
@@ -160,7 +163,7 @@ function symbolComponent(symbol: NativeSymbol, report: Report): Component | unde
   if (callable.length > 1) { report("native-external-overload-reference", `External callable ${symbol.name} has multiple declaration identities; a unique target cannot be proven.`, nodes[0]); return; }
   const node = nodes[0];
   if (node === undefined) { return; }
-  return { name: symbol.name, node: node as NativeDeclaration };
+  return { name: symbol.name, node };
 }
 
 /** Resolve export aliases through actual native module exports before asking the

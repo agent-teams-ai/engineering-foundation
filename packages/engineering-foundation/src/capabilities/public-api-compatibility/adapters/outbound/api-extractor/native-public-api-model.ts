@@ -22,10 +22,13 @@ interface Descriptor {
   canonicalReference: string;
 }
 function countOverload(siblings: readonly Descriptor[], node: ast.Node, name: string): number {
-  return siblings.filter(item => item.node.kind === node.kind && item.name === name && modifiers(item.node, ast.SyntaxKind.StaticKeyword) === modifiers(node as NamedNode, ast.SyntaxKind.StaticKeyword)).length + 1;
+  return siblings.filter(item => item.node.kind === node.kind && item.name === name && modifiers(item.node, ast.SyntaxKind.StaticKeyword) === modifiers(node, ast.SyntaxKind.StaticKeyword)).length + 1;
 }
 function setterWithGetter(context: NativePublicApiContext, node: ast.Node, name: string): boolean {
   return ast.isSetAccessorDeclaration(node) && nativeAccessorPair(context, node, name) !== undefined;
+}
+function hasDeclarationHeader(node: NamedNode): boolean {
+  return (node.heritageClauses?.length ?? 0) > 0 || (node.typeParameters?.length ?? 0) > 0;
 }
 function representedDeclarations(context: NativePublicApiContext, descriptor: Descriptor): readonly NamedNode[] {
   const companion = ast.isGetAccessorDeclaration(descriptor.node) ? nativeAccessorPair(context, descriptor.node, descriptor.name) : undefined;
@@ -41,10 +44,10 @@ function publicDescriptor(descriptor: Descriptor): boolean {
 }
 function releaseTag(comment: ReturnType<TSDocParser["parseString"]>["docComment"] | undefined, inherited: model.ReleaseTag): model.ReleaseTag {
   const tags = comment?.modifierTagSet;
-  if (tags?.isInternal()) { return model.ReleaseTag.Internal; }
-  if (tags?.isAlpha()) { return model.ReleaseTag.Alpha; }
-  if (tags?.isBeta()) { return model.ReleaseTag.Beta; }
-  if (tags?.isPublic()) { return model.ReleaseTag.Public; }
+  if (tags?.isInternal() === true) { return model.ReleaseTag.Internal; }
+  if (tags?.isAlpha() === true) { return model.ReleaseTag.Alpha; }
+  if (tags?.isBeta() === true) { return model.ReleaseTag.Beta; }
+  if (tags?.isPublic() === true) { return model.ReleaseTag.Public; }
   return inherited;
 }
 function readRelease(parser: TSDocParser, node: NamedNode, inherited: model.ReleaseTag, report: (id: string, text: string, node: ast.Node, severity: string) => void) {
@@ -91,7 +94,7 @@ export function createNativePublicApiModel(context: NativePublicApiContext, opti
   const addSymbol = (symbol: NativeSymbol, name: string, exported: boolean, parent?: Descriptor): void => {
     const target = aliased(context, symbol);
     if (context.checker.isUnknownSymbol(target)) { problem("native-unresolved-export", `Cannot resolve export ${name}.`); return; }
-    for (const node of symbolDeclarations(target)) { addNode(node as NamedNode, name, exported, parent, target); }
+    for (const node of symbolDeclarations(target)) { addNode(node, name, exported, parent, target); }
   };
   const addNode = (node: NamedNode, name: string, exported: boolean, parent: Descriptor | undefined, symbol?: NativeSymbol): void => {
     assertNotCancelled(context.signal);
@@ -103,7 +106,7 @@ export function createNativePublicApiModel(context: NativePublicApiContext, opti
     const merging = [ast.SyntaxKind.InterfaceDeclaration, ast.SyntaxKind.ModuleDeclaration, ast.SyntaxKind.SourceFile].includes(node.kind);
     const existing = merging ? siblings.find(item => item.name === name && item.node.kind === node.kind && item.symbol?.id === symbol?.id) : undefined;
     if (existing !== undefined) {
-      if (node.heritageClauses?.length || node.typeParameters?.length) { problem("native-merged-header", "Merged declaration headers require an unambiguous native projection.", node); }
+      if (hasDeclarationHeader(node)) { problem("native-merged-header", "Merged declaration headers require an unambiguous native projection.", node); }
       addMembers(node, existing);
       return;
     }
@@ -118,7 +121,7 @@ export function createNativePublicApiModel(context: NativePublicApiContext, opti
   };
   const addMembers = (node: NamedNode, parent: Descriptor): void => {
     if (ast.isModuleDeclaration(node) || ast.isSourceFile(node)) {
-      const symbol = ast.isSourceFile(node) ? context.checker.getSymbolAtLocation(node) : node.name === undefined ? undefined : context.checker.getSymbolAtLocation(node.name);
+      const symbol = context.checker.getSymbolAtLocation(ast.isSourceFile(node) ? node : node.name);
       if (symbol === undefined) { problem("native-namespace-binding", "Cannot bind the namespace declaration.", node); return; }
       for (const child of context.checker.getExportsOfModule(symbol)) { addSymbol(child, child.name, true, parent); }
     } else if (ast.isClassDeclaration(node) || ast.isInterfaceDeclaration(node) || ast.isEnumDeclaration(node)) {
@@ -135,7 +138,7 @@ export function createNativePublicApiModel(context: NativePublicApiContext, opti
   const source = context.program.getSourceFile(options.entryPointPath);
   const sourceSymbol = source === undefined ? undefined : context.checker.getSymbolAtLocation(source);
   if (sourceSymbol === undefined) { throw new Error("Native public API entrypoint must be a declaration module."); }
-  if (source?.statements.some(statement => ast.isExportAssignment(statement) && statement.isExportEquals)) {
+  if (source?.statements.some(statement => ast.isExportAssignment(statement) && statement.isExportEquals) === true) {
     problem("native-export-assignment", "CommonJS export assignment requires an explicit native API projection.", source);
   }
   for (const exported of context.checker.getExportsOfModule(sourceSymbol)) {
@@ -160,7 +163,7 @@ export function createNativePublicApiModel(context: NativePublicApiContext, opti
       if (declaration === undefined || context.program.isSourceFileDefaultLibrary(declaration.getSourceFile())) { continue; }
       const owner = packageNameFor(context, declaration);
       if (owner !== undefined && owner !== options.packageName) { continue; }
-      if (knownRoots.has(root.id) || bySymbol.get(root.id)?.some(publicDescriptor)) { continue; }
+      if (knownRoots.has(root.id) || bySymbol.get(root.id)?.some(publicDescriptor) === true) { continue; }
       if (!uniqueSymbol(root)) { problem("ae-forgotten-export", `The symbol "${root.name}" needs to be exported by the entry point.`, descriptor.node); }
       knownRoots.add(root.id);
       if (options.includeForgottenExports) { addHidden(root); }
@@ -191,7 +194,7 @@ export function createNativePublicApiModel(context: NativePublicApiContext, opti
       declarations.set(descriptor.canonicalReference, descriptor.node);
       if (descriptor.children.length > 0) {
         if (!model.ApiItemContainerMixin.isBaseClassOf(item)) { throw new Error("Native model item cannot own declarations."); }
-        for (const child of descriptor.children) { append(child, item as Container); }
+        for (const child of descriptor.children) { append(child, item); }
       }
     };
     for (const descriptor of roots) { append(descriptor, entry); }

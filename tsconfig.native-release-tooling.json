@@ -9,6 +9,7 @@
     "scripts/native-package-types*.ts",
     "tests/native-package-types.test.ts",
     "scripts/public-api-native-migration*.ts",
+    "scripts/packed-consumer-native-public-api.ts",
     "tests/public-api-native-migration*.test.ts",
     "scripts/published-foundation-*.ts",
     "tests/published-foundation-operations.test.ts"

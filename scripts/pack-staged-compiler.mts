@@ -19,7 +19,8 @@ export async function materializeStagedCompiler(
 ): Promise<void> {
   const manifest = await readManifest(join(stagedPackageRoot, "package.json"), "Staged build manifest");
   if (!isRecord(manifest)) { throw new Error("Staged build manifest must be an object."); }
-  if (!isRecord(manifest.devDependencies) || typeof manifest.devDependencies.typescript !== "string") { return; }
+  if (![manifest.dependencies, manifest.devDependencies].some(section =>
+    isRecord(section) && typeof section.typescript === "string")) { return; }
   const physicalStage = await realpath(stagedPackageRoot);
   const compilerRoot = await realpath(join(physicalStage, "node_modules", "typescript"));
   if (!containsPath(physicalStage, compilerRoot)) {

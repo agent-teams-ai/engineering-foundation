@@ -5,6 +5,7 @@ import { isExternalModuleReference, isIdentifier, isImportClause, isImportDeclar
 import type { Checker, Program, Project } from "typescript/unstable/sync";
 import type { AuditDeclaration, AuditReference } from "../../../application/model/public-api-observation.js";
 import type { AuditDeclarationInput } from "../../../contract/public-api-audit.js";
+import { nativeParent } from "./native-public-api-excerpt.js";
 
 interface BindingContext {
   readonly program: Program;
@@ -45,8 +46,8 @@ function importedQualifier(node: Node): Node | undefined {
 
 function occurrenceBinding(node: Node, context: BindingContext): string | undefined {
   // An inline import owns this occurrence; an unrelated named import cannot lend authority.
-  let cursor: Node | undefined = node.parent;
-  while (cursor !== undefined && (isQualifiedName(cursor) || isPropertyAccessExpression(cursor))) { cursor = cursor.parent; }
+  let cursor = nativeParent(node);
+  while (cursor !== undefined && (isQualifiedName(cursor) || isPropertyAccessExpression(cursor))) { cursor = nativeParent(cursor); }
   if (cursor !== undefined && isImportTypeNode(cursor) && isLiteralTypeNode(cursor.argument)) {
     return moduleBinding(cursor.argument.literal, context);
   }
@@ -63,7 +64,7 @@ function occurrenceBinding(node: Node, context: BindingContext): string | undefi
   while (cursor !== undefined) {
     const literal = importLiteral(cursor);
     if (literal !== undefined) { return moduleBinding(literal, context); }
-    cursor = cursor.parent;
+    cursor = nativeParent(cursor);
   }
   return;
 }

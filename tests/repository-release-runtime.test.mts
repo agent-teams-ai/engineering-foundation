@@ -281,7 +281,7 @@ test("Node profile qualification requires a real virtual store outside lock refr
   assert.match(releaseHelper, /async function refreshVersionLocks[\s\S]*assertPnpmProfileQualificationRoot\([^;]+false\)/u);
 });
 
-test("actual pinned Changesets TEST versioning refreshes both authoritative locks", async (context) => {
+test("actual pinned Changesets TEST versioning passes final release file admission", async (context) => {
   if (process.env["AGENT_TEAMS_FOUNDATION_RUN_CHANGESETS_TEST"] !== "1") {
     context.skip("set AGENT_TEAMS_FOUNDATION_RUN_CHANGESETS_TEST=1 for the finite external TEST");
     return;
@@ -309,10 +309,20 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     XDG_CACHE_HOME: process.env["XDG_CACHE_HOME"],
     npm_config_cache: process.env["npm_config_cache"],
     npm_config_store_dir: process.env["npm_config_store_dir"],
-    AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"]
+    AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"],
+    GIT_AUTHOR_NAME: process.env["GIT_AUTHOR_NAME"],
+    GIT_AUTHOR_EMAIL: process.env["GIT_AUTHOR_EMAIL"],
+    GIT_COMMITTER_NAME: process.env["GIT_COMMITTER_NAME"],
+    GIT_COMMITTER_EMAIL: process.env["GIT_COMMITTER_EMAIL"]
   };
+  const packageRoot = "packages/engineering-foundation";
+  const packageName = "@agent-teams/engineering-foundation";
   try {
-    await mkdir(join(root, "packages/pkg-a"), { recursive: true });
+    process.env["GIT_AUTHOR_NAME"] = "iliya";
+    process.env["GIT_AUTHOR_EMAIL"] = "iliyazelenkog@gmail.com";
+    process.env["GIT_COMMITTER_NAME"] = "iliya";
+    process.env["GIT_COMMITTER_EMAIL"] = "iliyazelenkog@gmail.com";
+    await mkdir(join(root, packageRoot), { recursive: true });
     await mkdir(join(root, ".changeset"), { recursive: true });
     await mkdir(join(root, "architecture/foundation"), { recursive: true });
     const workflowPolicyPath = "architecture/foundation/repository-agent-workflow.yaml";
@@ -344,6 +354,7 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
       devDependencies: { "@changesets/cli": "2.31.1" }
     }, null, 2)}\n`;
     await writeFile(join(root, "package.json"), manifest);
+    await writeFile(join(root, ".gitignore"), "node_modules/\n.worker-tmp/\n");
     await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\ncatalog:\ncatalogs:\noverrides:\n");
     await writeFile(join(root, "architecture/foundation/repository-runtime.json"), `${JSON.stringify({
       schemaVersion: 1, defaultProfile: "bun",
@@ -354,23 +365,23 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
       },
       install: { dependencyScripts: false, nativeInitialization: [], disabledDependencyScripts: [] }
     }, null, 2)}\n`);
-    await writeFile(join(root, "packages/pkg-a/package.json"), `${JSON.stringify({
-      name: "pkg-a", version: "1.0.0"
+    await writeFile(join(root, packageRoot, "package.json"), `${JSON.stringify({
+      name: packageName, version: "1.0.0"
     }, null, 2)}\n`);
-    await writeFile(join(root, "packages/pkg-a/CHANGELOG.md"), "# pkg-a\n");
+    await writeFile(join(root, packageRoot, "CHANGELOG.md"), `# ${packageName}\n\n`);
     await writeFile(join(root, ".changeset/config.json"), `${JSON.stringify({
-      changelog: false, commit: false, fixed: [], access: "public", baseBranch: "main",
+      changelog: "@changesets/cli/changelog", commit: false, fixed: [], access: "public", baseBranch: "main",
       updateInternalDependencies: "patch", ignore: [],
       privatePackages: { version: true, tag: false }
     }, null, 2)}\n`);
     const bunLockSeed = join(cache, "bun-lock-seed");
     const pnpmLockSeed = join(cache, "pnpm-lock-seed");
-    await mkdir(join(bunLockSeed, "packages/pkg-a"), { recursive: true });
-    await mkdir(join(pnpmLockSeed, "packages/pkg-a"), { recursive: true });
+    await mkdir(join(bunLockSeed, packageRoot), { recursive: true });
+    await mkdir(join(pnpmLockSeed, packageRoot), { recursive: true });
     for (const seed of [bunLockSeed, pnpmLockSeed]) {
       await copyFile(join(root, "package.json"), join(seed, "package.json"));
       await copyFile(join(root, "pnpm-workspace.yaml"), join(seed, "pnpm-workspace.yaml"));
-      await copyFile(join(root, "packages/pkg-a/package.json"), join(seed, "packages/pkg-a/package.json"));
+      await copyFile(join(root, packageRoot, "package.json"), join(seed, packageRoot, "package.json"));
     }
     const seedManifest = JSON.parse(await readFile(join(pnpmLockSeed, "package.json"), "utf8")) as { packageManager: string };
     seedManifest.packageManager = "pnpm@11.20.0";
@@ -394,29 +405,33 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     git(["init", "--quiet"]);
     git(["config", "user.name", "iliya"]);
     git(["config", "user.email", "iliyazelenkog@gmail.com"]);
+    await writeFile(join(root, ".changeset/version.md"), [
+      "---", `"${packageName}": minor`, "---", "", "Actual pinned Changesets TEST version.", ""
+    ].join("\n"));
     git(["add", "."]);
     git(["commit", "--quiet", "-m", "test: initial release runtime fixture"]);
     const sourceSha = git(["rev-parse", "HEAD"]).trim();
     const initial = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate });
+    const pnpmBefore = await readFile(join(root, "pnpm-lock.yaml"));
     const install = spawnSync(bunCandidate, ["install", "--ignore-scripts", "--linker=isolated"], {
       cwd: root, encoding: "utf8", env: process.env
     });
     assert.equal(install.status, 0, `${install.stdout}${install.stderr}`);
-    await writeFile(join(root, ".changeset/version.md"), [
-      "---", "\"pkg-a\": minor", "---", "", "Actual pinned Changesets TEST version.", ""
-    ].join("\n"));
     const version = spawnSync(process.execPath, ["node_modules/@changesets/cli/bin.js", "version"], {
       cwd: root, encoding: "utf8", env: process.env
     });
     assert.equal(version.status, 0, `${version.stdout}${version.stderr}`);
     const refreshed = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate });
-    const versioned = JSON.parse(await readFile(join(root, "packages/pkg-a/package.json"), "utf8")) as { readonly version: string };
+    const versioned = JSON.parse(await readFile(join(root, packageRoot, "package.json"), "utf8")) as { readonly version: string };
     assert.equal(versioned.version, "1.1.0");
     assert.notEqual(refreshed.bunLockSha256, initial.bunLockSha256);
     assert.match(refreshed.bunLockSha256, /^[a-f0-9]{64}$/u);
     assert.match(refreshed.pnpmLockSha256, /^[a-f0-9]{64}$/u);
     const bunLock = await readFile(join(root, "bun.lock"), "utf8");
-    assert.match(bunLock, /"packages\/pkg-a": \{\s*"name": "pkg-a",\s*"version": "1\.1\.0"/u);
+    assert.match(bunLock, /"packages\/engineering-foundation": \{\s*"name": "@agent-teams\/engineering-foundation",\s*"version": "1\.1\.0"/u);
+    assert.deepEqual(await readFile(join(root, "pnpm-lock.yaml")), pnpmBefore,
+      "version-only workspace changes must not alter the pnpm graph or bytes");
+    assert.equal(refreshed.pnpmLockChanged, false);
     const pnpmLock = await readFile(join(root, "pnpm-lock.yaml"), "utf8");
     const changesetsSri = /['"]@changesets\/cli@2\.31\.1['"]:\s*\n\s+resolution: \{integrity: (sha512-[A-Za-z0-9+/=]+)/u
       .exec(pnpmLock)?.[1];
@@ -424,6 +439,33 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     context.diagnostic(`TEST Changesets CLI 2.31.1 SRI: ${changesetsSri}`);
     const rootManifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { readonly packageManager: string };
     assert.equal(rootManifest.packageManager, "bun@1.4.3");
+    git(["add", "--all"]);
+    git(["commit", "--quiet", "-m", "test: actual generated release"]);
+    const headSha = git(["rev-parse", "HEAD"]).trim();
+    const admit = (head: string) => {
+      const changed = git(["diff", "--name-status", "--no-renames", sourceSha, head]).trim().split("\n");
+      const statuses: Readonly<Record<string, string>> = { A: "added", D: "removed", M: "modified" };
+      const files = changed.map((row) => {
+        const [status, filename] = row.split("\t");
+        assert.ok(status !== undefined && statuses[status] !== undefined && filename !== undefined);
+        return { filename, status: statuses[status] };
+      });
+      return spawnSync(process.execPath, [join(repositoryRoot, "scripts/check-release-pr-files.mjs"),
+        "--base", sourceSha, "--head", head], {
+        cwd: root, input: JSON.stringify(files), encoding: "utf8", env: process.env
+      });
+    };
+    const admitted = admit(headSha);
+    assert.equal(admitted.status, 0, `${admitted.stdout}${admitted.stderr}`);
+    assert.equal(admitted.stderr, "");
+    const tampered = bunLock.replace(changesetsSri, `sha512-${"A".repeat(changesetsSri.length - "sha512-".length)}`);
+    assert.notEqual(tampered, bunLock, "the installed Changesets SRI must be present in the Bun graph");
+    await writeFile(join(root, "bun.lock"), tampered);
+    git(["add", "bun.lock"]);
+    git(["commit", "--quiet", "-m", "test: reject lock graph tampering"]);
+    const refused = admit(git(["rev-parse", "HEAD"]).trim());
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /bun\.lock/u);
     const versionScript = runSource.indexOf("await exec(script, undefined, { cwd, env });");
     const changedPackages = runSource.indexOf("let changedPackages = await getChangedPackages");
     assert.ok(versionScript >= 0 && changedPackages > versionScript);

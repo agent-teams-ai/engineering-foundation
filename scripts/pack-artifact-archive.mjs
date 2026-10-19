@@ -23,8 +23,9 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Full Foundation inventory: 2,711 actual files: the qualified shared-native
-  // inventory of 2,710 plus the repository-agent-workflow/v2 schema.
+  // Full Foundation inventory: 2,712 actual files: the qualified shared-native
+  // inventory of 2,710 plus the repository-agent-workflow/v2 and
+  // workspace-dependency-declarations/v2 schemas.
   // The shared native transition adds 36 compiled artifacts from nine ordinary .ts modules and one request
   // schema to the previously qualified 2,673-file inventory (+37). Earlier growth:
   // the quality-gate-runner v2 schema and 32 compiled artifacts because eight TypeScript
@@ -37,7 +38,7 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // the quality-findings-baseline/v1 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_711,
+  "@agent-teams/engineering-foundation": 2_712,
 });
 
 export function maximumArchiveEntries(packageName) {

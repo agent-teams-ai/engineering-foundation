@@ -750,7 +750,7 @@ snapshots:
 test("read-only pnpm pack port preserves Bun authority and rejects effects before manager admission", async t => {
   const root = await ownedTemporaryRoot("readonly-pack-");
   t.after(() => rm(root, { recursive: true, force: true }));
-  const runtime = await resolveQualificationExecutables();
+  const runtime = await resolveQualificationExecutables("node");
   const cli = join(repositoryRoot, "tools/pnpm-command.mts");
   const archive = join(root, "actual.tgz");
   const marker = join(root, "manager-called");

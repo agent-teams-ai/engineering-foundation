@@ -10,10 +10,34 @@ import { migrationBytes, migrationDigest, type NativeMigrationReview } from '../
 import { nativeMigrationPackageNames } from '../scripts/public-api-native-migration-observation.ts';
 import { assertVersionFiles, assertVersionRunBinding, assertVersionSnapshotUnchanged, parseVersionFileChanges, readVersionRunIdentity } from '../scripts/public-api-native-migration-version.ts';
 import { runCommand } from '../scripts/pack-test-support.mjs';
+import { assertNativeMigrationOriginAudit, readNativeMigrationIntent } from '../scripts/public-api-native-migration-inputs.ts';
+import { artifactProvenance, auditEvidence } from './support/release-publish-ordered-fixtures.mjs';
+import { fileURLToPath } from 'node:url';
 
 const sha = 'a'.repeat(40); const repository = 'agent-teams-ai/engineering-foundation';
 const context = { GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: repository, GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/main', GITHUB_JOB: 'release', GITHUB_SERVER_URL: 'https://github.com', GITHUB_WORKFLOW_REF: `${repository}/.github/workflows/release.yml@refs/heads/main`, GITHUB_WORKFLOW_SHA: sha, GITHUB_SHA: sha, GITHUB_RUN_ID: '123', GITHUB_RUN_ATTEMPT: '1' };
 const workingBaselineBytes = (name: string, version = '1.9.0') => migrationBytes({ packageName: name, packageVersion: version, extractorVersion: '7.58.12', entrypoints: [] });
+
+test('archive origin result binding requires the exact seven npm subjects, reviewed SRI and publication source', async () => {
+  const intent = await readNativeMigrationIntent(fileURLToPath(new URL('..', import.meta.url)));
+  const subjects = intent.origins.filter(origin => origin.publicationSourceCommit !== null).flatMap(origin => {
+    const pin = intent.review.packages.find(row => row.packageName === origin.name)!;
+    const artifact = { name: origin.name, version: origin.version, integrity: pin.archiveIntegrity };
+    return auditEvidence(artifact, artifactProvenance(artifact, origin.publicationSourceCommit!)).verified;
+  });
+  const evidence = { invalid: [], missing: [], verified: subjects };
+  assert.doesNotThrow(() => assertNativeMigrationOriginAudit(evidence, intent));
+  for (const verified of [subjects.slice(1), [...subjects, subjects[0]!], [...subjects.slice(1), { ...subjects[0]!, name: '@agent-teams/unexpected' }], subjects.map((row, index) => index === 0 ? { ...row, version: '0.0.0' } : row)]) {
+    assert.throws(() => assertNativeMigrationOriginAudit({ ...evidence, verified }, intent), /exact seven/u);
+  }
+  for (const malformed of [null, {}, { ...evidence, invalid: [{}] }, { ...evidence, missing: [{}] }, { ...evidence, verified: [null] }]) {
+    assert.throws(() => assertNativeMigrationOriginAudit(malformed, intent), /object|array|clean/u);
+  }
+  const first = intent.review.packages[0]!;
+  const wrongIntegrity = `sha512-${Buffer.alloc(64).toString('base64')}`;
+  assert.throws(() => assertNativeMigrationOriginAudit(evidence, { ...intent, review: { ...intent.review, packages: intent.review.packages.map(row => row === first ? { ...row, archiveIntegrity: wrongIntegrity } : row) } }), /not bound/u);
+  assert.throws(() => assertNativeMigrationOriginAudit(evidence, { ...intent, origins: intent.origins.map(origin => origin.name === first.packageName ? { ...origin, publicationSourceCommit: sha } : origin) }), /publication commit/u);
+});
 
 test('driver exposes only the two closed modes and qualify report destinations', () => {
   assert.deepEqual(parseMigrationArguments(['qualify', '--ordinary-report', '/tmp/ordinary.json', '--migration-report', '/tmp/migration.json']), { mode: 'qualify', ordinaryReport: '/tmp/ordinary.json', migrationReport: '/tmp/migration.json' });

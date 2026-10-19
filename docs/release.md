@@ -180,6 +180,23 @@ Feature PRs retain the original release-owned baseline bytes. They qualify the
 transition separately while preserving the entire ordinary tool-mismatch
 report and its exit code.
 
+The declaration-data realization was replaced after full-CI run
+[`39181417326`, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39181417326)
+on `f6b84384cd36611c3732b8f9803e2fd88a9a9571` rejected the newly added research
+lock's unused legacy `sprintf-js` runtime dependency under
+[GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c).
+The successor lock installs the eight required external declaration packages
+with lifecycle scripts and optional native bindings omitted. It does not install
+the legacy extractor runtime. A separate fresh public npm `11.19.0` signature
+audit authenticates exactly the seven published archive subjects, their reviewed
+SHA-512 integrities and publication commits; their original manifests remain
+unchanged. This signature-subject namespace is not a complete historical runtime
+installation. The eighth archive retains its exact protected-main qualified RC
+origin. All old inputs remain in Git history. The actual native observation
+rechecks every archive, original configuration, baseline and declaration input;
+all 26 released entrypoints and the complete 256-change extractor comparison
+remain unchanged. The dependency-review policy is unchanged.
+
 After the reviewed source and intent reach `main`, the existing Release workflow
 runs Changesets version preparation and the private `apply-version` command.
 That fixed owner driver delegates to the same

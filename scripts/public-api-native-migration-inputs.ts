@@ -153,7 +153,7 @@ async function verifyQualifiedOrigin(root: string, intent: NativeMigrationIntent
   readQualifiedArchiveLine(log.stdout, intent);
 }
 
-async function prepareDependencyData(root: string, temporary: string, intent: NativeMigrationIntent): Promise<{ root: string; audit: unknown; lock: Record<string, unknown> }> {
+async function prepareDependencyData(root: string, temporary: string, intent: NativeMigrationIntent) {
   const destination = join(temporary, "dependency-data"); await mkdir(destination);
   for (const [name, expected] of [["package.json", intent.dependencyManifestDigest], ["package-lock.json", intent.dependencyLockDigest]] as const) {
     const bytes = await readFile(join(root, inputDirectory, name));
@@ -165,33 +165,93 @@ async function prepareDependencyData(root: string, temporary: string, intent: Na
   const environment = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
     !/^npm_config_/iu.test(name) && !/^(?:npm_token|node_auth_token)$/iu.test(name)));
   environment["NPM_CONFIG_USERCONFIG"] = userConfig; environment["NPM_CONFIG_GLOBALCONFIG"] = globalConfig;
+  environment["NPM_CONFIG_CACHE"] = join(temporary, "npm-cache");
   const options = { environment, timeoutMs: 240_000 };
   const version = await runNpmCommand(["--version"], destination, options);
   if (version.stdout.trim() !== intent.npmVersion) { fail(`origin verification requires npm ${intent.npmVersion}`); }
-  await runNpmCommand(["ci", "--ignore-scripts", "--no-audit", "--no-fund", `--registry=${registry}`], destination, options);
+  await runNpmCommand(["ci", "--omit=optional", "--ignore-scripts", "--no-audit", "--no-fund", `--registry=${registry}`], destination, options);
   const audit = await runNpmCommand(["audit", "signatures", "--json", "--include-attestations", `--registry=${registry}`], destination, options);
-  const lock = record(JSON.parse(await readFile(join(destination, "package-lock.json"), "utf8")), "frozen dependency lock");
   if (migrationDigest(await readFile(join(destination, "package-lock.json"))) !== intent.dependencyLockDigest) { fail("frozen installation rewrote its dependency lock"); }
-  return { root: destination, audit: JSON.parse(audit.stdout) as unknown, lock: record(lock["packages"], "locked packages") };
+  const evidence: unknown = JSON.parse(audit.stdout);
+  assertCleanAudit(evidence);
+  return { root: destination, audit: evidence, options };
 }
 
-async function historicalArchive(root: string, origin: Origin, intent: NativeMigrationIntent, dependencyData: Awaited<ReturnType<typeof prepareDependencyData>>): Promise<Buffer> {
+async function historicalArchive(root: string, origin: Origin, intent: NativeMigrationIntent): Promise<Buffer> {
   const pin = intent.review.packages.find(row => row.packageName === origin.name)!;
   let bytes: Buffer;
   if (origin.publicationSourceCommit === null) {
     if (origin.name !== "@agent-teams/feature-module-standard" || origin.version !== "0.1.0") { fail("unknown non-published historical origin"); }
     bytes = await readRegularArchive(join(root, inputDirectory, "feature-module-standard-0.1.0.tgz"));
   } else {
-    const locked = record(dependencyData.lock[`node_modules/${origin.name}`], "historical archive lock");
-    if (locked["version"] !== origin.version || locked["integrity"] !== pin.archiveIntegrity) { fail("historical archive lock differs from review"); }
-    const provenance = verifiedProvenanceFromNpmAudit(dependencyData.audit,
-      { name: origin.name, version: origin.version, integrity: pin.archiveIntegrity },
-      { repository: `https://github.com/${migrationRepository}`, workflow: ".github/workflows/release.yml", ref: "refs/heads/main" });
-    if (provenance?.commit !== origin.publicationSourceCommit) { fail("historical publication commit differs from review"); }
-    bytes = await acquireBytes(string(locked["resolved"]));
+    const basename = origin.name.slice("@agent-teams/".length);
+    if (!/^@agent-teams\/[a-z-]+$/u.test(origin.name)) { fail("unknown published archive namespace"); }
+    bytes = await acquireBytes(`${registry}${origin.name}/-/${basename}-${origin.version}.tgz`);
   }
   if (migrationDigest(bytes) !== pin.archiveDigest || `sha512-${createHash("sha512").update(bytes).digest("base64")}` !== pin.archiveIntegrity) { fail("historical archive bytes differ from review"); }
   return bytes;
+}
+
+function assertCleanAudit(evidence: unknown): Record<string, unknown> {
+  const audit = record(evidence, "npm signature audit");
+  if (list(audit["invalid"]).length !== 0 || list(audit["missing"]).length !== 0) { fail("npm signature audit is not clean"); }
+  list(audit["verified"]);
+  return audit;
+}
+
+/** This binds the fresh public npm verifier's exact seven archive subjects. It
+ * makes no claim about a complete historical runtime dependency installation. */
+export function assertNativeMigrationOriginAudit(evidence: unknown, intent: NativeMigrationIntent): void {
+  const audit = assertCleanAudit(evidence);
+  const origins = intent.origins.filter(row => row.publicationSourceCommit !== null);
+  const expected = origins.map(row => `${row.name}@${row.version}`).toSorted();
+  const actual = list(audit["verified"]).map(value => {
+    const row = record(value, "verified archive subject");
+    return `${string(row["name"])}@${string(row["version"])}`;
+  }).toSorted();
+  if (origins.length !== 7 || new Set(expected).size !== 7 || JSON.stringify(actual) !== JSON.stringify(expected)) { fail("npm signature audit must verify the exact seven published archive subjects"); }
+  for (const origin of origins) {
+    const pin = intent.review.packages.find(row => row.packageName === origin.name);
+    if (pin === undefined) { fail("published archive review is missing"); }
+    const provenance = verifiedProvenanceFromNpmAudit(evidence,
+      { name: origin.name, version: origin.version, integrity: pin.archiveIntegrity },
+      { repository: `https://github.com/${migrationRepository}`, workflow: ".github/workflows/release.yml", ref: "refs/heads/main" });
+    if (provenance?.commit !== origin.publicationSourceCommit) { fail("historical publication commit differs from review"); }
+  }
+}
+
+async function unpackHistoricalArchive(bytes: Uint8Array, destination: string, packageName: string): Promise<void> {
+  for (const entry of inspectCompressedTarArchive(bytes, packageName).entries) {
+    if (!entry.name.startsWith("package/") || !["0", "5"].includes(entry.type)) { fail("unsupported historical archive member"); }
+    if (entry.type === "5") { continue; }
+    const path = join(destination, entry.name.slice("package/".length));
+    await mkdir(dirname(path), { recursive: true }); await writeFile(path, entry.data, { flag: "wx" });
+  }
+}
+
+async function verifyPublishedOrigins(temporary: string, intent: NativeMigrationIntent, packages: readonly NativeMigrationPackageInput[], options: Awaited<ReturnType<typeof prepareDependencyData>>["options"]) {
+  const root = join(temporary, "origin-signature-subjects"); await mkdir(root);
+  const origins = intent.origins.filter(row => row.publicationSourceCommit !== null);
+  await writeFile(join(root, "package.json"), migrationBytes({ name: "foundation-historical-origin-signature-subjects", private: true, version: "0.0.0", type: "module",
+    dependencies: Object.fromEntries(origins.map(row => [row.name, row.version])) }));
+  const manifests = new Map<string, MigrationDigest>();
+  for (const origin of origins) {
+    const input = packages.find(row => row.packageName === origin.name);
+    if (input === undefined) { fail("published archive input is missing"); }
+    const destination = join(root, "node_modules", origin.name);
+    await unpackHistoricalArchive(input.archiveBytes, destination, origin.name);
+    const bytes = await readFile(join(destination, "package.json"));
+    const manifest = record(JSON.parse(bytes.toString("utf8")), "archived manifest");
+    if (manifest["name"] !== origin.name || manifest["version"] !== origin.version) { fail("archived manifest differs from its signature subject"); }
+    manifests.set(origin.name, migrationDigest(bytes));
+  }
+  const result = await runNpmCommand(["audit", "signatures", "--json", "--include-attestations", `--registry=${registry}`], root, options);
+  const audit: unknown = JSON.parse(result.stdout);
+  assertNativeMigrationOriginAudit(audit, intent);
+  for (const origin of origins) {
+    if (migrationDigest(await readFile(join(root, "node_modules", origin.name, "package.json"))) !== manifests.get(origin.name)) { fail("npm origin verification changed an archived manifest"); }
+  }
+  return { root, audit };
 }
 
 /** The owned temporary namespace contains archive/configuration data only.
@@ -208,22 +268,21 @@ export async function acquireNativeMigrationInputs(root: string, temporary: stri
     const origin = intent.origins.find(row => row.name === p.packageName);
     const pin = intent.review.packages.find(row => row.packageName === p.packageName);
     if (origin === undefined || pin === undefined) { fail("historical package inventory is incomplete"); }
-    const archiveBytes = await historicalArchive(root, origin, intent, dependencies);
+    const archiveBytes = await historicalArchive(root, origin, intent);
     const baselineBytes = await gitBytes(root, p.releasedBaselinePath); const configBytes = await gitBytes(root, p.tsconfigPath);
     if (migrationDigest(baselineBytes) !== pin.baselineDigest || migrationDigest(configBytes) !== pin.configDigest) { fail("original release baseline or configuration differs from review"); }
-    for (const entry of inspectCompressedTarArchive(archiveBytes, p.packageName).entries) {
-      if (!entry.name.startsWith("package/") || !["0", "5"].includes(entry.type)) { fail("unsupported historical archive member"); }
-      if (entry.type === "5") { continue; }
-      const path = join(releasedRoot, p.packageRoot, entry.name.slice("package/".length));
-      await mkdir(dirname(path), { recursive: true }); await writeFile(path, entry.data, { flag: "wx" });
-    }
+    await unpackHistoricalArchive(archiveBytes, join(releasedRoot, p.packageRoot), p.packageName);
     await writeFile(join(releasedRoot, p.tsconfigPath), configBytes, { flag: "wx" });
     packages.push({ packageName: p.packageName, baselineBytes, archiveBytes, configBytes });
   }
+  const published = await verifyPublishedOrigins(temporary, intent, packages, dependencies.options);
   await cp(join(dependencies.root, "node_modules"), join(releasedRoot, "node_modules"), { recursive: true, dereference: false });
+  await cp(join(published.root, "node_modules", "@agent-teams"), join(releasedRoot, "node_modules", "@agent-teams"), { recursive: true, dereference: false });
   await writeFile(join(temporary, "origin-observation.json"), migrationBytes({
     kind: "foundation:public-api-native-migration:origin-observation:1", npmVersion: intent.npmVersion,
-    auditDigest: migrationDigest(migrationBytes(dependencies.audit)), qualificationRun: historicalRun,
+    declarationDataAuditDigest: migrationDigest(migrationBytes(dependencies.audit)),
+    archiveOriginAuditDigest: migrationDigest(migrationBytes(published.audit)), archiveOriginSubjectCount: 7,
+    completeHistoricalRuntimeInstallationClaimed: false, qualificationRun: historicalRun,
     qualificationRunConclusion: "failure", publishedOrigins: intent.origins.filter(row => row.publicationSourceCommit !== null),
     recoveredQualifiedRc: "@agent-teams/feature-module-standard@0.1.0", releaseEligible: false,
   }));

@@ -465,63 +465,65 @@ test("rejects a stale pull_request_target workflow declaration", async () => {
   );
 });
 
-test("repository CI runs workflow qualification under pinned Node and scans the full repository", async () => {
-  const [workflow, manifest, policy] = await Promise.all([
+test("repository CI preserves admitted runtime security scans and Node qualification gates", async () => {
+  const [workflow, manifest, policy, runtimeBytes, dispatcher, profileDriver, securityToolchain] = await Promise.all([
     readFile(join(repositoryRoot, ".github", "workflows", "ci.yml"), "utf8"),
     readFile(join(repositoryRoot, "package.json"), "utf8"),
-    readFile(
-      join(repositoryRoot, "architecture", "foundation", "repository-security-baseline.yaml"),
-      "utf8",
-    ),
+    readFile(join(repositoryRoot, "architecture/foundation/repository-security-baseline.yaml"), "utf8"),
+    readFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"), "utf8"),
+    readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8"),
+    readFile(join(repositoryRoot, "tools/dev.mts"), "utf8"),
+    readFile(join(repositoryRoot, "scripts/security-toolchain.mjs"), "utf8"),
   ]);
   const scripts = JSON.parse(manifest).scripts;
-  const securityScript = scripts["security:workflows"];
   const ci = parseYaml(workflow);
 
-  assert.ok(workflow.indexOf("uses: actions/setup-node@") > 0);
-  assert.match(
-    ci.jobs["dependency-review"].steps[1].uses,
-    /^actions\/dependency-review-action@[a-f0-9]{40}$/u,
-  );
-  assert.equal(ci.jobs.check.needs.includes("dependency-review"), true);
-  assert.equal(ci.jobs["windows-check"].needs.includes("dependency-review"), true);
-  assert.deepEqual(ci.jobs["macos-qualification"].needs,
-    ["dependency-review", "macos-native", "macos-package"]);
+  assert.match(ci.jobs["dependency-review"].steps[1].uses, /^actions\/dependency-review-action@[a-f0-9]{40}$/u);
+  assert.deepEqual(ci.jobs["macos-qualification"].needs, ["dependency-review", "macos-native", "macos-package"]);
   const macosSteps = ci.jobs["macos-native"].steps;
-  assert.equal(
-    macosSteps.some(({ run }) => run === "pnpm test:qgr:lifecycle:built"),
-    true,
-  );
-  const macosMutationQualification = macosSteps.find(
-    ({ name }) => name === "Qualify repository mutation, scaffolding, and durable document writing",
-  )?.run;
+  assert.ok(macosSteps.some(({ run }) => run === "bun tools/dev.mts test:qgr:lifecycle:built"));
+  const macosMutationQualification = macosSteps.find(({ name }) => name === "Qualify repository mutation, scaffolding, and durable document writing")?.run;
   assert.match(macosMutationQualification, /tests\/known-file-transaction-node\.test\.mjs[\s\S]*tests\/known-file-transaction-plan\.test\.mjs[\s\S]*tests\/scaffolding-recovery-scope\.test\.mjs/u);
   for (const [jobId, job] of Object.entries(ci.jobs)) {
-    if (jobId === "dependency-review") {
-      continue;
-    }
-    assert.equal(
+    if (jobId === "dependency-review") { continue; }
+    assert.ok(
       Array.isArray(job.needs) ? job.needs.includes("dependency-review") : job.needs === "dependency-review",
-      true,
       `${jobId} must depend directly on dependency-review`,
     );
   }
-  assert.ok(
-    workflow.indexOf("uses: actions/dependency-review-action@") <
-      workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts"),
-  );
-  assert.ok(workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts") > 0);
-  assert.ok(workflow.indexOf("run: pnpm rebuild") > 0);
-  assert.match(workflow, /uses: actions\/dependency-review-action@[a-f0-9]{40}/u);
+  const staticSteps = ci.jobs["linux-static"].steps;
+  const installIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts install");
+  const buildIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts build");
+  const securityIndex = staticSteps.findIndex(({ run }) => run === "bun tools/dev.mts security:workflows");
+  assert.ok(installIndex > 0 && buildIndex > installIndex && securityIndex > buildIndex);
+  assert.ok(staticSteps.slice(0, installIndex).some(({ uses, with: options }) =>
+    uses?.startsWith("actions/setup-node@") && options?.["node-version-file"] === ".node-version"));
+  assert.ok(staticSteps.slice(0, installIndex).some(({ uses, with: options }) =>
+    uses?.startsWith("oven-sh/setup-bun@") && options?.["bun-version"] === "1.4.3"));
+  const runtime = JSON.parse(runtimeBytes);
+  assert.equal(JSON.parse(manifest).packageManager, "bun@1.4.3");
+  assert.equal(runtime.defaultProfile, "bun");
+  assert.deepEqual(runtime.profiles.node, { manager: "pnpm", runtime: "node" });
+  assert.equal(runtime.install.dependencyScripts, false);
+  assert.deepEqual(runtime.install.nativeInitialization, ["@ast-grep/cli", "nx"]);
+  assert.deepEqual(runtime.install.disabledDependencyScripts, ["esbuild"]);
+  assert.match(profileDriver, /\["install", "--frozen-lockfile", "--ignore-scripts", "--linker=isolated"\]/u);
+  assert.match(profileDriver, /\["install", "--frozen-lockfile", "--ignore-scripts", "--engine-strict"\]/u);
+  assert.match(profileDriver, /const qualified = await run\([\s\S]*?tools\.node,[\s\S]*?qualify-native-tools\.mts[\s\S]*?qualified === 0[\s\S]*?dependencies-installed-check\.mts/u);
+  const compatibilitySteps = ci.jobs["node26-compatibility"].steps;
+  const projectionInstall = compatibilitySteps.find(({ run }) => run === "node tools/dev.mts --profile node install");
+  assert.equal(projectionInstall?.env.AGENT_TEAMS_FOUNDATION_SOURCE_SHA, "${{ github.sha }}");
+  assert.ok(compatibilitySteps.some(({ run, "working-directory": cwd }) => run === "pnpm dependencies:peers:check" && cwd === ".worker-tmp/profiles/node-${{ github.sha }}"));
   const securityPolicy = parseYaml(policy);
   assert.equal(securityPolicy.dependencyReview.workflowPath, ".github/workflows/pr-feedback.yml");
   assert.equal(securityPolicy.sbomWorkflow, ".github/workflows/pr-feedback.yml");
-  assert.equal(securityScript, "node scripts/security-toolchain.mjs");
-  assert.equal(ci.jobs["linux-static"].steps.some(({ run }) => run === "pnpm security:workflows"), true);
-  assert.equal(
-    ci.jobs.check.if,
-    "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}",
-  );
+  assert.equal(scripts["security:workflows"], "node tools/repository-command.mts tool security:workflows");
+  assert.match(dispatcher, /"security:workflows": \{ entry: "scripts\/security-toolchain\.mjs", args: \[\], role: "runtime" \}/u);
+  assert.match(dispatcher, /"test:qgr:lifecycle:built": \{[^\n]+role: "node-qualification" \}/u);
+  assert.match(dispatcher, /paths\.length > 0 && command\.acceptsPaths !== true/u);
+  assert.match(securityToolchain, /\["exec", "--", "actionlint"\]/u);
+  assert.match(securityToolchain, /"zizmor",[\s\S]*?"--offline",[\s\S]*?"--strict-collection",[\s\S]*?"\."\s*\]/u);
+  assert.equal(ci.jobs.check.if, "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}");
   assert.match(ci.jobs.check.steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   assert.doesNotMatch(workflow, /aquaproj\/aqua-installer/u);
   assert.doesNotMatch(policy, /aquaproj\/aqua-installer/u);

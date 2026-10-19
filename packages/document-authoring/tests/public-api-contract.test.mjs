@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { resolvePnpmInvocation } from "../../../tools/pnpm-command.mts";
+import { readRepositoryRuntimePolicy } from "../../../tools/runtime-policy.mts";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(packageRoot, "../..");
@@ -29,11 +31,12 @@ async function linkDependency(source, destination) {
 async function copyInstalledPackage(sourceRoot, targetRoot) {
   await mkdir(targetRoot, { recursive: true });
   const archive = `${targetRoot}.tgz`;
-  const packed = spawnSync("pnpm", ["pack", "--out", archive], {
+  const policy = await readRepositoryRuntimePolicy();
+  const pnpm = await resolvePnpmInvocation(process.execPath, policy.toolchain.pnpm.version);
+  const packed = spawnSync(pnpm.command, [...pnpm.args, "--pm-on-fail=ignore", "pack", "--out", archive], {
     cwd: sourceRoot, encoding: "utf8", timeout: 60_000,
     env: { ...process.env, COREPACK_HOME: process.env.COREPACK_HOME ?? "/tmp/ef-corepack",
-      pnpm_config_verify_deps_before_run: "false" },
-    shell: process.platform === "win32"
+      pnpm_config_verify_deps_before_run: "false" }
   });
   assert.equal(packed.error, undefined, packed.error?.message);
   assert.equal(packed.status, 0, packed.stdout + packed.stderr);

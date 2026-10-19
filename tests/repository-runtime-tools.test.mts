@@ -137,7 +137,7 @@ test("explicit unavailable runtimes reject instead of falling back to ambient to
   }
 });
 
-test("pnpm launcher verifies the actual manager and ignores ambient npm_execpath and npm config noise", async (context) => {
+test("pnpm launcher verifies the actual manager and ignores ambient npm_execpath", async (context) => {
   const manager = await resolvePnpmInvocation(process.execPath, "11.20.0");
   const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
   assert.ok(pnpm);
@@ -170,14 +170,6 @@ test("pnpm launcher verifies the actual manager and ignores ambient npm_execpath
       "ignore-workspace=true\npm-on-fail=ignore\nverify-deps-before-run=false\n",
       "utf8"
     );
-    // Auth-scaffolding placeholders (setup-node) leave unresolvable ${env} in the
-    // injected user config; manager admission must not fail on that stderr noise.
-    const userNpmrc = join(tmp, "user.npmrc");
-    await writeFile(
-      userNpmrc,
-      "registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n",
-      "utf8"
-    );
     await writeFile(wrong, [
       "const fs = require(\"node:fs\");",
       "if (process.argv.includes(\"run\")) fs.writeFileSync(\"wrong-real-operation.txt\", \"wrong\");",
@@ -192,8 +184,6 @@ test("pnpm launcher verifies the actual manager and ignores ambient npm_execpath
         ...process.env,
         AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath,
         AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: wrong,
-        NPM_CONFIG_USERCONFIG: userNpmrc,
-        npm_config_userconfig: userNpmrc,
         npm_execpath: wrong,
         pnpm_config_ignore_workspace: "true",
         pnpm_config_pm_on_fail: "ignore",

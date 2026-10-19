@@ -32,9 +32,11 @@ test("pending Foundation releases version FMS when its canonical packed manifest
   });
   const before = project(foundation.oldVersion);
   const after = project(foundation.newVersion);
-  assert.equal(before.peerDependencies[foundationName], `^${foundation.oldVersion}`);
-  assert.equal(after.peerDependencies[foundationName], `^${foundation.newVersion}`);
-  assert.notDeepEqual(before, after, "The optional peer and exact dev dependency alter published FMS bytes");
+  assert.equal(before.peerDependencies[foundationName], "^1.8.0");
+  assert.equal(after.peerDependencies[foundationName], "^1.8.0");
+  assert.equal(before.devDependencies[foundationName], foundation.oldVersion);
+  assert.equal(after.devDependencies[foundationName], foundation.newVersion);
+  assert.notDeepEqual(before, after, "The exact dev dependency still alters published FMS bytes");
   const fms = plan.releases.find(release => release.name === manifest.name);
   assert.ok(fms && fms.type !== "none" && fms.newVersion !== fms.oldVersion,
     "Changed packed FMS bytes require a new FMS version; an optional compatible peer does not make existing npm bytes mutable");
@@ -73,6 +75,32 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
     assert.deepEqual(canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, context).peerDependencies, { "@fixture/core": "^1.8.0" });
     assert.throws(() => canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, { catalogVersions: new Map(), internalPackageVersions: new Map() }), /cannot resolve workspace version/u);
     assert.throws(() => canonicalPublishManifest({ optionalDependencies: { "@fixture/core": "workspace:^" } }, context), /requires workspace:\*/u);
+  });
+  await t.test("retains an explicit stable peer minimum while the workspace advances", () => {
+    const peerDependencies = { "@fixture/core": "workspace:^1.8.0" };
+    for (const version of ["1.8.0", "1.9.0", "1.10.0"]) {
+      const context = { catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", version]]) };
+      assert.deepEqual(canonicalPublishManifest({ peerDependencies,
+        devDependencies: { "@fixture/core": "workspace:*" } }, context), {
+        peerDependencies: { "@fixture/core": "^1.8.0" }, devDependencies: { "@fixture/core": version },
+      });
+    }
+    for (const version of ["1.7.4", "2.0.0", "1.10.0-rc.0"]) {
+      assert.throws(() => canonicalPublishManifest({ peerDependencies }, {
+        catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", version]]),
+      }), /does not admit workspace version/u);
+    }
+    for (const specifier of ["workspace:^1.8", "workspace:^01.8.0", "workspace:^1.8.0-rc.0", "workspace:^1.8.0 || ^2.0.0"]) {
+      assert.throws(() => canonicalPublishManifest({ peerDependencies: { "@fixture/core": specifier } }, {
+        catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", "1.9.0"]]),
+      }), /does not admit workspace version/u);
+    }
+    assert.throws(() => canonicalPublishManifest({ peerDependencies }, {
+      catalogVersions: new Map(), internalPackageVersions: new Map(),
+    }), /cannot resolve workspace version/u);
+    assert.throws(() => canonicalPublishManifest({ dependencies: peerDependencies }, {
+      catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", "1.9.0"]]),
+    }), /requires workspace:\*/u);
   });
   await t.test("rejects unresolved exact authorities", () => {
     assert.throws(() => canonicalPublishManifest({ dependencies: { dependency: "workspace:*" } }, {

@@ -1,4 +1,5 @@
-import { lstat, readFile } from "node:fs/promises";
+import { constants, type BigIntStats } from "node:fs";
+import { lstat, open } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -45,13 +46,35 @@ function select(request: PublishedFoundationOperationRequest): void {
   if ((!pathOperation && request.inputPath !== undefined) || (request.operation !== "attach" && request.targetRoot !== undefined)) { fail("operation has unrelated path arguments"); }
 }
 
+function sameBarrierFile(before: BigIntStats, after: BigIntStats): boolean {
+  return after.isFile() && !after.isSymbolicLink() &&
+    (["dev", "ino", "mode", "size", "mtimeNs", "ctimeNs", "nlink"] as const).every(key => before[key] === after[key]);
+}
+
+async function readHistoricalBarrier(path: string): Promise<Buffer> {
+  const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  try {
+    const metadata = await file.stat({ bigint: true });
+    if (!metadata.isFile() || metadata.size > 16n * 1024n * 1024n ||
+      !sameBarrierFile(metadata, await lstat(path, { bigint: true }))) { fail("historical barrier evidence must be a bounded regular file"); }
+    const bytes = Buffer.alloc(Number(metadata.size) + 1);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const { bytesRead } = await file.read(bytes, offset, bytes.length - offset, offset);
+      if (bytesRead === 0) { break; }
+      offset += bytesRead;
+    }
+    if (BigInt(offset) !== metadata.size || !sameBarrierFile(metadata, await file.stat({ bigint: true })) ||
+      !sameBarrierFile(metadata, await lstat(path, { bigint: true }))) { fail("historical barrier evidence changed during its bounded read"); }
+    return bytes.subarray(0, offset);
+  } finally { await file.close(); }
+}
+
 async function assertHistoricalScenario(request: PublishedFoundationOperationRequest): Promise<void> {
   if (request.version === "0.12.0") { return; }
   const relative = request.version === "0.11.0" ? "foundation-operation.lock" : "scaffolding-transaction.json";
   const path = join(request.consumerRoot, ".agent-teams-local", relative);
-  const metadata = await lstat(path);
-  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > 16 * 1024 * 1024) { fail("historical barrier evidence must be a bounded regular file"); }
-  const evidence = object(JSON.parse(await readFile(path, "utf8")) as unknown);
+  const evidence = object(JSON.parse((await readHistoricalBarrier(path)).toString("utf8")) as unknown);
   if (request.version === "0.11.0" ? evidence["schemaVersion"] !== 1 || evidence["kind"] !== "transaction-barrier" : evidence["schemaVersion"] !== 3) {
     fail("operation is outside the named historical barrier scenario");
   }

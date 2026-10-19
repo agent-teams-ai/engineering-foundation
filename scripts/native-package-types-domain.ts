@@ -47,7 +47,7 @@ function portablePath(value: unknown, label: string, wildcard = false): string {
   const path = value.slice(2);
   const stars = path.split("*").length - 1;
   if (stars !== (wildcard ? 1 : 0)) { nativePackageFailure(`${label} has an unsupported wildcard form`); }
-  portableEntryIdentity(`package/${path.replace("*", "wildcard")}`);
+  portableEntryIdentity(`package/${path.split("*").join("wildcard")}`);
   return path;
 }
 
@@ -94,7 +94,7 @@ function wildcardRuntimeTarget(wildcards: readonly NativeDataWildcard[], subpath
     const { prefix, suffix } = wildcardParts(wildcard.subpath);
     if (subpath.startsWith(prefix) && subpath.endsWith(suffix) && subpath.length > prefix.length + suffix.length) {
       const capture = subpath.slice(prefix.length, subpath.length - suffix.length);
-      return wildcard.target.replace("*", capture);
+      return wildcard.target.split("*").join(capture);
     }
   }
   return undefined;

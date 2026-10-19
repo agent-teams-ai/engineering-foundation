@@ -1,4 +1,6 @@
-import { lstat, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { constants, type BigIntStats } from 'node:fs';
+import { lstat, open, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { releasePullRequestContentViolations, releasePullRequestFileViolations } from './check-release-pr-files.mjs';
@@ -75,6 +77,36 @@ async function optionalWorkingState(root: string, removed: boolean): Promise<unk
   catch (error) { if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {return undefined;} throw error; }
 }
 
+function sameVersionFile(before: BigIntStats, after: BigIntStats): boolean {
+  return after.isFile() && !after.isSymbolicLink() &&
+    (['dev', 'ino', 'mode', 'size', 'mtimeNs', 'ctimeNs', 'nlink'] as const).every(key => before[key] === after[key]);
+}
+
+export async function versionMetadataDigest(path: string): Promise<string> {
+  const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  try {
+    const metadata = await file.stat({ bigint: true });
+    if (!metadata.isFile() || (metadata.mode & 0o111n) !== 0n ||
+      !sameVersionFile(metadata, await lstat(path, { bigint: true }))) {fail('version metadata must remain ordinary nonexecutable files');}
+    // Retain readFile's existing 2 GiB ceiling while hashing through a small
+    // buffer. A growing file cannot extend the initial observed read bound.
+    if (metadata.size >= 2n ** 31n) {fail('version metadata exceeds the existing file-read ceiling');}
+    const maximumRead = Number(metadata.size) + 1;
+    const bytes = Buffer.alloc(Math.min(64 * 1024, maximumRead));
+    const hash = createHash('sha256');
+    let offset = 0;
+    while (offset < maximumRead) {
+      const { bytesRead } = await file.read(bytes, 0, Math.min(bytes.length, maximumRead - offset), offset);
+      if (bytesRead === 0) {break;}
+      hash.update(bytes.subarray(0, bytesRead));
+      offset += bytesRead;
+    }
+    if (BigInt(offset) !== metadata.size || !sameVersionFile(metadata, await file.stat({ bigint: true })) ||
+      !sameVersionFile(metadata, await lstat(path, { bigint: true }))) {fail('version metadata changed during its read');}
+    return `sha256:${hash.digest('hex')}`;
+  } finally {await file.close();}
+}
+
 /** Bind actual GitHub observations and the Changesets output to the fixed main
  * checkout. On the pinned action's default git-cli path, prepareBranch checks
  * out changeset-release/main and resets it to github.context.sha before version.
@@ -105,9 +137,7 @@ export async function verifyVersionWorkflow(root: string, identity: VersionRunId
   }
   const content = await Promise.all(files.map(async file => {
     if (file.status === 'removed') {return { ...file, digest: null };}
-    const path = join(root, file.filename); const state = await lstat(path);
-    if (!state.isFile() || state.isSymbolicLink() || (state.mode & 0o111) !== 0) {fail('version metadata must remain ordinary nonexecutable files');}
-    return { ...file, digest: migrationDigest(await readFile(path)) };
+    return { ...file, digest: await versionMetadataDigest(join(root, file.filename)) };
   }));
   return migrationDigest(migrationBytes({ identity, files: content }));
 }

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync, type BigIntStats } from "node:fs";
 import { createRequire, isBuiltin, registerHooks } from "node:module";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,10 +102,29 @@ export async function withPublishedCompilerFloor<T>(action: () => Promise<T>): P
   }
 }
 
+function sameSourceFile(before: BigIntStats, after: BigIntStats): boolean {
+  return after.isFile() && !after.isSymbolicLink() &&
+    (["dev", "ino", "mode", "size", "mtimeNs", "ctimeNs", "nlink"] as const).every(key => before[key] === after[key]);
+}
+
 function safeFile(path: string): Buffer {
-  const metadata = lstatSync(path);
-  if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumFileBytes) { fail(`not a bounded regular source file: ${path}`); }
-  return readFileSync(path);
+  const file = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  try {
+    const metadata = fstatSync(file, { bigint: true });
+    if (!metadata.isFile() || metadata.size > BigInt(maximumFileBytes) ||
+      !sameSourceFile(metadata, lstatSync(path, { bigint: true }))) { fail(`not a bounded regular source file: ${path}`); }
+    // One extra byte detects growth without reading beyond the observed bound.
+    const bytes = Buffer.alloc(Number(metadata.size) + 1);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const count = readSync(file, bytes, offset, bytes.length - offset, offset);
+      if (count === 0) { break; }
+      offset += count;
+    }
+    if (BigInt(offset) !== metadata.size || !sameSourceFile(metadata, fstatSync(file, { bigint: true })) ||
+      !sameSourceFile(metadata, lstatSync(path, { bigint: true }))) { fail(`source file changed during its bounded read: ${path}`); }
+    return bytes.subarray(0, offset);
+  } finally { closeSync(file); }
 }
 
 function installedIdentity(packageRoot: string, version: PublishedFoundationVersion, subpath: PublishedSubpath): { root: string; entry: string } {

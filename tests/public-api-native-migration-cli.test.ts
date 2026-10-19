@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -8,7 +8,7 @@ import { capabilityReport, foundationReport } from '../packages/engineering-foun
 import type { PublicApiCompatibilityPolicy } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
 import { migrationBytes, migrationDigest, type NativeMigrationReview } from '../scripts/public-api-native-migration.ts';
 import { nativeMigrationPackageNames } from '../scripts/public-api-native-migration-observation.ts';
-import { assertVersionFiles, assertVersionRunBinding, assertVersionSnapshotUnchanged, parseVersionFileChanges, readVersionRunIdentity } from '../scripts/public-api-native-migration-version.ts';
+import { assertVersionFiles, assertVersionRunBinding, assertVersionSnapshotUnchanged, parseVersionFileChanges, readVersionRunIdentity, versionMetadataDigest } from '../scripts/public-api-native-migration-version.ts';
 import { runCommand } from '../scripts/pack-test-support.mjs';
 import { assertNativeMigrationOriginAudit, readNativeMigrationIntent } from '../scripts/public-api-native-migration-inputs.ts';
 import { artifactProvenance, auditEvidence } from './support/release-publish-ordered-fixtures.mjs';
@@ -106,6 +106,25 @@ test('version file inspection preserves metadata-only release admission', () => 
 
 test('version metadata cannot change between preparation and application', () => {
   assert.throws(() => assertVersionSnapshotUnchanged('sha256:before', 'sha256:after'), /changed during/u);
+});
+
+test('version metadata hashes the complete ordinary file and retains read-size and mode refusals', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'native-version-metadata-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, 'CHANGELOG.md');
+  const bytes = Buffer.alloc(128 * 1024 + 3, 65);
+  await writeFile(path, bytes, { mode: 0o600 });
+  assert.equal(await versionMetadataDigest(path), migrationDigest(bytes));
+  if (process.platform !== 'win32') {
+    await chmod(path, 0o700);
+    await assert.rejects(versionMetadataDigest(path), /ordinary nonexecutable files/u);
+    await chmod(path, 0o600);
+    // POSIX truncate creates the sparse refusal fixture without allocating
+    // a multi-gigabyte file in the Windows test workspace.
+    const file = await open(path, 'r+');
+    try { await file.truncate(2 ** 31); } finally { await file.close(); }
+    await assert.rejects(versionMetadataDigest(path), /existing file-read ceiling/u);
+  }
 });
 
 test('working B binding rejects version-only content anchor and inventory drift in real files', async () => {

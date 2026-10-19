@@ -148,6 +148,14 @@ test("native package qualification resolves packed JSON wildcard self-imports an
   await assert.rejects(() => qualifyNativePackageArchive(archive(input), packageName), /unresolved own import/u);
 });
 
+test("native package qualification treats wildcard captures as literal paths", async () => {
+  const input = fixture();
+  input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" }, "./schemas/*": "./schemas/*" };
+  input.files["schemas/$&.json"] = '{"type":"object"}';
+  input.files["dist/index.js"] = `import schema from '${packageName}/schemas/$&.json' with { type: 'json' }; export const value = schema;`;
+  assert.equal((await qualifyNativePackageArchive(archive(input), packageName)).ownImports, 2);
+});
+
 test("native package qualification gives exact exports precedence over data wildcards", async () => {
   const input = fixture();
   input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },

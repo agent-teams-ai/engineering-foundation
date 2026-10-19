@@ -55,7 +55,10 @@ async function ordinaryCheck(): Promise<OrdinaryResult> {
 async function writeReport(path: string, bytes: string | Uint8Array): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   assertReportDestination(await realpath(root), join(await realpath(dirname(path)), 'report'));
-  await writeFile(path, bytes, { flag: 'wx' });
+  // Preserve complete raw observations, including network errors, as private
+  // nonexecutable evidence. Only the caller selects this outside-checkout path;
+  // report contents are never evaluated and never grant migration authority.
+  await writeFile(path, bytes, { flag: 'wx', mode: 0o600 });
 }
 async function readPolicy() {
   const policy = await loadCapabilityConfig({ readYaml: loadStrictYamlFile, assertSchema }, root, configPath);

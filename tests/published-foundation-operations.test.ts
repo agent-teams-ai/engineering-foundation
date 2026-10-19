@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import fs from "node:fs";
+import { createRequire, syncBuiltinESMExports } from "node:module";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -76,6 +77,45 @@ test("historical operation preflight retains exact registry integrity and public
   } }));
   assert.throws(() => inspectPublishedFoundationImports(input.packageRoot, "0.12.0", "scaffolding"), /registry provenance differs/u);
   await assert.rejects(readFile(input.sentinel), { code: "ENOENT" });
+});
+
+test("historical import preflight refuses a pathname replaced during its descriptor read", async t => {
+  const input = await rejectedInstallation(t, "export {};" );
+  const path = join(input.packageRoot, "dist", "scaffolding", "index.js");
+  const initial = fs.statSync(path, { bigint: true });
+  const read = fs.readSync;
+  let replaced = false;
+  fs.readSync = ((...args: Parameters<typeof fs.readSync>) => {
+    const opened = fs.fstatSync(args[0], { bigint: true });
+    if (!replaced && opened.dev === initial.dev && opened.ino === initial.ino) {
+      replaced = true;
+      fs.renameSync(path, `${path}.original`);
+      fs.writeFileSync(path, "export const substituted = true;\n");
+    }
+    return Reflect.apply(read, fs, args) as number;
+  }) as typeof fs.readSync;
+  syncBuiltinESMExports();
+  try {
+    assert.throws(() => inspectPublishedFoundationImports(input.packageRoot, "0.12.0", "scaffolding"), /source file changed during its bounded read/u);
+    assert.equal(replaced, true);
+  } finally {
+    fs.readSync = read;
+    syncBuiltinESMExports();
+  }
+  await assert.rejects(readFile(input.sentinel), { code: "ENOENT" });
+});
+
+test("historical barrier preflight rejects nonfiles and symbolic links before loading", async t => {
+  const root = await temporary(t);
+  const path = join(root, ".agent-teams-local", "scaffolding-transaction.json");
+  await mkdir(path, { recursive: true });
+  const request = { packageRoot: root, version: "0.14.0", consumerRoot: root, operation: "status" } as const;
+  await assert.rejects(executePublishedFoundationOperation(request), /bounded regular file|EISDIR/u);
+  await rm(path, { recursive: true });
+  const target = join(root, "outside.json");
+  await writeFile(target, '{"schemaVersion":3}');
+  await symlink(target, path, "file");
+  await assert.rejects(executePublishedFoundationOperation(request), /bounded regular file|ELOOP/u);
 });
 
 test("historical mutation scenarios require preserved transaction evidence before loading", async t => {

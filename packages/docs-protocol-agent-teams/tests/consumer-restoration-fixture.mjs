@@ -134,11 +134,11 @@ if(process.env.MANAGED_RESTORATION_TEST_FAIL==='1') process.exitCode=1;\n`;
     const store = isolatedStore ? join(disposable, "store") : process.env.npm_config_store_dir ?? join(disposable, "store");
     setEnv("npm_config_store_dir", store);
     setEnv("pnpm_config_store_dir", store);
-    if (isolatedStore) {
-      // Keep registry metadata in the same independently copyable fixture cache.
-      setEnv("npm_config_cache_dir", store);
-      setEnv("pnpm_config_cache_dir", store);
-    }
+    // Reused loopback ports must not reuse metadata for different same-version TEST archives.
+    // Retrieval cases keep metadata in their independently copyable fixture store.
+    const cache = isolatedStore ? store : join(disposable, "cache");
+    setEnv("npm_config_cache_dir", cache);
+    setEnv("pnpm_config_cache_dir", cache);
     setEnv("CI", "true");
     const current = desired(origin, 2);
     setEnv("GITHUB_REPOSITORY_ID", current.repository.id);

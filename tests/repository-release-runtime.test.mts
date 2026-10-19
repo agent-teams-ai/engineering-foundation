@@ -91,6 +91,16 @@ test("all four workflows provision every native pnpm setup at exact 11.20.0", as
   assert.equal(total, 22);
 });
 
+test("ordinary OIDC release does not install token interpolation before pnpm qualification", async () => {
+  const workflow = parseYaml(
+    await readFile(join(repositoryRoot, ".github/workflows/release.yml"), "utf8")
+  ) as Workflow;
+  const setup = workflow.jobs?.["release"]?.steps?.find((step) => step.uses?.startsWith("actions/setup-node@"));
+  assert.ok(setup);
+  assert.equal(setup.with?.["registry-url"], undefined,
+    "OIDC publishing must not install a token placeholder before strict pnpm qualification.");
+});
+
 test("bootstrap and reconciliation reject a source SHA mismatch before effects", async () => {
   const source = await readFile(join(repositoryRoot, ".github/workflows/npm-package-bootstrap.yml"), "utf8");
   const workflow = parseYaml(source) as Workflow & {

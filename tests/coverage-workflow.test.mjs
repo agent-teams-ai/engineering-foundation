@@ -244,7 +244,13 @@ test("Node compatibility uses a clean pnpm profile projection without changing t
     assert.equal(step["working-directory"], ".worker-tmp/profiles/node-${{ github.sha }}");
   }
   assert.equal(steps.some(step => step.run === "pnpm install --frozen-lockfile --ignore-scripts --engine-strict"), false);
-  assert.equal(steps.some(step => step.uses?.startsWith("oven-sh/setup-bun@")), false);
+  const bunSetup = steps.find(step => step.uses?.startsWith("oven-sh/setup-bun@"));
+  assert.equal(bunSetup.uses, "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6");
+  assert.equal(bunSetup.id, "setup-bun");
+  assert.deepEqual(bunSetup.with, { "bun-version": "1.4.3" });
+  const focused = steps.find(step => step.run?.startsWith("node --test --test-concurrency=1"));
+  assert.equal(focused.env.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE, "${{ steps.setup-bun.outputs.bun-path }}");
+  assert.equal(steps.some(step => /\bbun(?:\.exe)?\s+(?:install\b|tools\/dev\.mts\s+(?:--profile\s+bun\s+)?install\b)/u.test(step.run ?? "")), false);
 });
 
 test("ordinary workflows pin Bun 1.4.3 and retain explicit pnpm tools without mixing graphs", async () => {

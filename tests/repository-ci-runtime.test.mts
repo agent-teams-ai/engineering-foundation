@@ -569,7 +569,10 @@ test("typecheck rejects errors in every strict project outside the production bu
     ["typecheck:ci-tooling", "tsconfig.ci-tooling.json", "ci-tooling.mts"],
     ["typecheck:restoration-lock-inputs", "tsconfig.restoration-lock-inputs-tests.json", "restoration-inputs.mts"],
     ["typecheck:restoration-lock", "tsconfig.restoration-lock-tests.json", "restoration-lock.mts"],
-    ["typecheck:managed-runtime-tests", "tsconfig.managed-runtime-tests.json", "managed-runtime.mts"]
+    ["typecheck:managed-runtime-tests", "tsconfig.managed-runtime-tests.json", "managed-runtime.mts"],
+    ["typecheck:local-mode-oracles", "tsconfig.local-mode-oracles.json", "local-mode-oracles.ts"],
+    ["typecheck:native-api-tests", "tsconfig.native-api-tests.json", "native-api-tests.ts"],
+    ["typecheck:native-release-tooling", "tsconfig.native-release-tooling.json", "native-release-tooling.ts"]
   ] as const;
   const valid = "export const value: number = 1;\n";
   const invalid = "export const value: number = \"strict-project-error\";\n";

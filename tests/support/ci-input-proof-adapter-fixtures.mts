@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { copyFile, cp, lstat, mkdir, mkdtemp, readFile, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -8,6 +8,7 @@ import type { FoundationPilotRequest, Observation, ScopeCategory } from '../../s
 import { collectFoundationPilotObservation } from '../../scripts/ci-input-proof-foundation-pilot.mts';
 import { runCiInputProofAdapter } from '../../scripts/ci-input-proof-foundation-adapter.mts';
 import type { InputLeaf } from '../../packages/ci-input-proof/dist/index.js';
+import { collectorFixtureInstallerPath } from './ci-input-proof-collector-install.mts';
 
 export const scopeCategories: readonly ScopeCategory[] = [
   'source', 'helpers', 'fixtures', 'config', 'lock', 'toolchain', 'installedGraph',
@@ -159,26 +160,89 @@ export async function assertAncestorDirectoryLinkPolicy(temporaryRoot: string): 
   });
 }
 
+async function collectorFixtureEnvironment(root: string): Promise<NodeJS.ProcessEnv> {
+  const environment: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH ?? '', CI: 'true', COREPACK_ENABLE_NETWORK: '0',
+    GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0',
+  };
+  for (const key of ['SystemRoot', 'WINDIR', 'ComSpec', 'PATHEXT', 'SystemDrive',
+    'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE', 'AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT']) {
+    if (process.env[key] !== undefined) {
+      environment[key] = process.env[key];
+    }
+  }
+  for (const [name, keys] of [
+    ['home', ['HOME', 'USERPROFILE']], ['appdata', ['APPDATA']], ['localappdata', ['LOCALAPPDATA']],
+    ['tmp', ['TMPDIR', 'TMP', 'TEMP']], ['cache', ['XDG_CACHE_HOME', 'npm_config_cache']],
+    ['config', ['XDG_CONFIG_HOME']], ['store', ['npm_config_store_dir']],
+  ] as const) {
+    const path = join(root, name);
+    await mkdir(path, { recursive: true });
+    for (const key of keys) {
+      environment[key] = path;
+    }
+  }
+  for (const [name, key] of [
+    ['npmrc', 'NPM_CONFIG_USERCONFIG'], ['npmrc-global', 'NPM_CONFIG_GLOBALCONFIG'],
+    ['gitconfig', 'GIT_CONFIG_GLOBAL'], ['gitconfig-system', 'GIT_CONFIG_SYSTEM'],
+  ] as const) {
+    const path = join(root, name);
+    await writeFile(path, '');
+    environment[key] = path;
+  }
+  return environment;
+}
+
+async function installCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
+  // The standalone TEST graph generates its own locks; copied repository locks
+  // describe a different project and must not enter its offline resolution.
+  await rm(join(destinationRoot, 'pnpm-lock.yaml'));
+  await rm(join(destinationRoot, 'bun.lock'));
+  const toolingRoot = join(destinationRoot, '.collector-test-tooling');
+  await mkdir(toolingRoot);
+  await execFileAsync(process.execPath, [collectorFixtureInstallerPath, sourceRoot, destinationRoot], {
+    ...boundedProcess, cwd: destinationRoot, env: await collectorFixtureEnvironment(toolingRoot),
+  });
+  for (const path of ['node_modules/.package-map.json', 'node_modules/.pnpm/lock.yaml']) {
+    assert.equal((await lstat(join(destinationRoot, path))).isFile(), true);
+  }
+  const installed = JSON.parse(await readFile(join(destinationRoot, 'node_modules/@agent-teams/ci-input-proof/package.json'), 'utf8')) as { name: string; version: string };
+  const target = JSON.parse(await readFile(join(destinationRoot, 'packages/ci-input-proof/package.json'), 'utf8')) as { name: string; version: string };
+  assert.equal(installed.name, target.name);
+  assert.equal(installed.version, target.version);
+}
+
 export async function copyCollectorFixture(sourceRoot: string, destinationRoot: string): Promise<void> {
+  const targetRoot = 'packages/ci-input-proof';
+  const targetFiles = ['package.json', ...(await readdir(join(sourceRoot, targetRoot, 'dist'), { recursive: true }))
+    .map(path => join('dist', path))];
+  const sourceFiles = ['package.json', 'bun.lock', 'pnpm-lock.yaml'];
+  for (const path of targetFiles) {
+    if ((await lstat(join(sourceRoot, targetRoot, path))).isFile()) {
+      sourceFiles.push(join(targetRoot, path));
+    }
+  }
+  const before = await Promise.all(sourceFiles.map(path => readFile(join(sourceRoot, path))));
+  const metadataPaths = ['node_modules/.package-map.json', 'node_modules/.pnpm/lock.yaml'];
+  const metadataBefore = await Promise.all(metadataPaths.map(path => readOptionalText(join(sourceRoot, path))));
   await cp(sourceRoot, destinationRoot, {
     recursive: true,
     force: true,
     filter: sourcePath => {
       const relativePath = relative(sourceRoot, sourcePath);
       return !relativePath.split(/[\\/]/u).some(
-        part => ['.cache', '.git', 'node_modules'].includes(part),
+        part => ['.cache', '.git', '.nx', '.worker-tmp', '.agent-teams-runtime-profile.json', 'node_modules'].includes(part),
       );
     },
   });
-  await mkdir(join(destinationRoot, 'node_modules', '.pnpm'), { recursive: true });
-  await copyFile(
-    join(sourceRoot, 'node_modules', '.package-map.json'),
-    join(destinationRoot, 'node_modules', '.package-map.json'),
-  );
-  await copyFile(
-    join(sourceRoot, 'node_modules', '.pnpm', 'lock.yaml'),
-    join(destinationRoot, 'node_modules', '.pnpm', 'lock.yaml'),
-  );
+  await installCollectorFixture(sourceRoot, destinationRoot);
+  assert.deepEqual(await Promise.all(sourceFiles.map(path => readFile(join(sourceRoot, path)))), before);
+  assert.deepEqual(await Promise.all(metadataPaths.map(path => readOptionalText(join(sourceRoot, path)))), metadataBefore);
+  for (const [index, path] of sourceFiles.entries()) {
+    if (path.startsWith(targetRoot)) {
+      assert.deepEqual(await readFile(join(destinationRoot, path)), before[index]);
+    }
+  }
 }
 
 async function writeReplacementRaceDriver(temporaryRoot: string): Promise<Readonly<{ preload: string; driver: string }>> {

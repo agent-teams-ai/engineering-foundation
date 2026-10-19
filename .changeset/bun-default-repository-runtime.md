@@ -23,3 +23,7 @@ policy digests alongside its root manifest and workflow policy evidence.
 
 Observe the pinned pnpm version without triggering installation when the
 read-only qualification observer runs from a Bun-managed workspace.
+
+Resolve built-in source imports through the runtime's `node:module.isBuiltin`
+contract, including prefix-only `node:test` under Bun. Bare `test` retains normal
+package declaration checks, and unknown `node:` imports remain unsupported.

@@ -270,9 +270,14 @@ export async function verifyPackedCiInputProof(
   );  await writePackedCiInputProofHarness(consumerRoot, repositoryRoot);
 
   const typecheckStarted = performance.now();
-  const compilerVersion = await runPnpm(['exec', 'tsc', '--version'], consumerRoot);
+  const compilerVersion = await runPnpm(['--reporter=silent', 'exec', 'tsc', '--version'], consumerRoot);
   if (compilerVersion.stdout.trim() !== 'Version 7.0.2') {
-    throw new Error('Packed CI Input Proof consumer resolved a compiler other than TypeScript 7.0.2.');
+    const trimmed = compilerVersion.stdout.trim();
+    const lines = trimmed === '' ? [] : trimmed.split(/\r?\n/u);
+    const observation = { stdoutLineCount: lines.length,
+      versionLineCount: lines.filter(line => /^Version \d+\.\d+\.\d+$/u.test(line)).length,
+      expectedLinePresent: lines.includes('Version 7.0.2'), stderrNonempty: compilerVersion.stderr.trim() !== '' };
+    throw new Error(`Packed CI Input Proof consumer resolved a compiler other than TypeScript 7.0.2. ${JSON.stringify(observation)}`);
   }
   await runPnpm(['exec', 'tsc', '--project', join(consumerRoot, 'tsconfig.json')], consumerRoot);
   const typecheckMs = performance.now() - typecheckStarted;

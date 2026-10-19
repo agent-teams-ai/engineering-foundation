@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.9.0",
+  "packageVersion": "1.10.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -42,6 +42,7 @@
         "schemas/package-public-api-baseline/v1.schema.json",
         "schemas/package-public-api-compatibility/v1.schema.json",
         "schemas/package-public-api-compatibility/v2.schema.json",
+        "schemas/package-public-api-native-transition/v1.schema.json",
         "schemas/quality-executable-specification-catalog/v1.schema.json",
         "schemas/quality-executable-specifications/v1.schema.json",
         "schemas/quality-findings-baseline/v1.schema.json",
@@ -52,6 +53,7 @@
         "schemas/quality-source-coverage/v2.schema.json",
         "schemas/quality-suppression-governance/v1.schema.json",
         "schemas/repository-agent-workflow/v1.schema.json",
+        "schemas/repository-agent-workflow/v2.schema.json",
         "schemas/repository-security-baseline/v1.schema.json",
         "schemas/scaffold-authority-evidence/v1.schema.json",
         "schemas/scaffold-intent/v1.schema.json",
@@ -60,7 +62,8 @@
         "schemas/scaffold-recovery-journal/v1.schema.json",
         "schemas/scaffold-target-catalog/v1.schema.json",
         "schemas/scaffolding-config/v1.schema.json",
-        "schemas/workspace-dependency-declarations/v1.schema.json"
+        "schemas/workspace-dependency-declarations/v1.schema.json",
+        "schemas/workspace-dependency-declarations/v2.schema.json"
       ]
     }
   ],
@@ -331,6 +334,19 @@
       }
     },
     {
+      "path": "schemas/package-public-api-native-transition/v1.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/package-public-api-native-transition/v1",
+      "digest": "sha256:5e6d20c64d0b9df1115eb7c61c096c809e83b2922357b44c0e19eac9e38cf2bf",
+      "discriminators": {
+        "kind": {
+          "const": "foundation:public-api-native-transition:1"
+        },
+        "schemaVersion": {
+          "const": 1
+        }
+      }
+    },
+    {
       "path": "schemas/quality-executable-specification-catalog/v1.schema.json",
       "id": "https://schemas.agent-teams.ai/engineering-foundation/quality-executable-specification-catalog/v1",
       "digest": "sha256:d78a711e4e1eea9ac4cc69f07ef72f0440d588c82316cbde6100cfc77dcdb9e2",
@@ -441,6 +457,22 @@
       }
     },
     {
+      "path": "schemas/repository-agent-workflow/v2.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/repository-agent-workflow/v2",
+      "digest": "sha256:48afd422a0ee4c83dd41f3ab730be374599546ced9f6a5aab1b098624a4fa83d",
+      "discriminators": {
+        "packageManager": {
+          "enum": [
+            "bun",
+            "pnpm"
+          ]
+        },
+        "schemaVersion": {
+          "const": 2
+        }
+      }
+    },
+    {
       "path": "schemas/repository-security-baseline/v1.schema.json",
       "id": "https://schemas.agent-teams.ai/engineering-foundation/repository-security-baseline/v1",
       "digest": "sha256:a348cf141061cd5a255ba7b8881dc019f2f4857302cebf1bf9ff4edcd87d7493",
@@ -546,6 +578,16 @@
       "discriminators": {
         "schemaVersion": {
           "const": 1
+        }
+      }
+    },
+    {
+      "path": "schemas/workspace-dependency-declarations/v2.schema.json",
+      "id": "https://schemas.agent-teams.ai/engineering-foundation/workspace-dependency-declarations/v2",
+      "digest": "sha256:1e48088f7623ac5c9754b59f17ca88331773e0c907dc0782fd99d5aa098503d7",
+      "discriminators": {
+        "schemaVersion": {
+          "const": 2
         }
       }
     }

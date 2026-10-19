@@ -51,11 +51,6 @@ jobs:
         run: node --input-type=module -e 'import { assertNpmVersion } from "./scripts/release-publish-ordered-runtime.mjs"; assertNpmVersion();'
       - name: Install the actual Bun source worktree
         run: node tools/dev.mts install
-      - name: Install the clean Node/pnpm qualification projection
-        env:
-          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
-          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
-        run: node tools/dev.mts --profile node install
       - name: Guard public package bootstrap baselines
         run: node scripts/npm-package-bootstrap-cli.mjs check-release
       - name: Configure and verify release Git identity
@@ -79,6 +74,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.setup-bun.outputs.bun-path }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
           GIT_AUTHOR_NAME: iliya
           GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
           GIT_COMMITTER_NAME: iliya

@@ -117,9 +117,30 @@ test("compatibility and release installs use admitted runtime profiles before qu
   const sourceInstall = "node tools/dev.mts install";
   const releaseCommands = Object.values(release.jobs).map(job => job.steps?.map(({ run }) => run).filter(Boolean) ?? []);
   assert.equal(releaseCommands.filter(commands => commands.includes(sourceInstall)).length, 2);
-  const publishing = releaseCommands.find(commands => commands.includes("node tools/dev.mts --profile node install"));
-  assert.ok(publishing);
-  assert.ok(publishing.indexOf(sourceInstall) < publishing.indexOf("node tools/dev.mts --profile node install"));
+  const releaseSteps = release.jobs.release.steps;
+  const changesets = releaseSteps.find((step) => step.id === "changesets");
+  const releaseInstall = releaseSteps.findIndex((step) => step.run === sourceInstall);
+  assert.ok(releaseInstall >= 0 && releaseInstall < releaseSteps.indexOf(changesets));
+  assert.equal(releaseSteps.some((step) => step.run === "node tools/dev.mts --profile node install"), false);
+  assert.equal(changesets.with.version, "node tools/release-profile.mts version");
+  assert.equal(changesets.with.publish, "node tools/release-profile.mts publish");
+
+  const helper = await readFile(new URL("../tools/release-profile.mts", import.meta.url), "utf8");
+  const version = helper.slice(helper.indexOf("async function version()"), helper.indexOf("async function publish()"));
+  const versionRun = version.indexOf('await run(command.bun, ["run", "release:version"]');
+  const versionFailure = version.indexOf("if (status !== 0)");
+  const refresh = version.indexOf("await refreshVersionLocks(command)");
+  assert.ok(versionRun >= 0 && versionFailure > versionRun && refresh > versionFailure);
+  assert.equal(version.includes("prepareProfileProjection("), false);
+
+  const publish = helper.slice(helper.indexOf("async function publish()"), helper.indexOf("async function main()"));
+  const install = publish.indexOf('[resolve(command.sourceRoot, "tools/dev.mts"), "--profile", "node", "install"]');
+  const installFailure = publish.indexOf("if (installStatus !== 0)");
+  const build = publish.indexOf('[resolve(command.sourceRoot, "tools/dev.mts"), "--profile", "node", "build"]');
+  const buildFailure = publish.indexOf("if (buildStatus !== 0)");
+  const publication = publish.indexOf('[resolve(targetRoot, "tools/repository-command.mts"), "script", "release:publish"]');
+  assert.ok(install >= 0 && installFailure > install && build > installFailure &&
+    buildFailure > build && publication > buildFailure);
 });
 
 test("pnpm 11 rejects incompatible engines and peers under the repository install policy", async () => {

@@ -1905,14 +1905,18 @@ function assertReleaseProfileSteps(releaseJob) {
     releaseJob.permissions["id-token"],
     releaseJob.permissions.contents,
     releaseJob.steps.find(({ name }) => name === "Install the actual Bun source worktree")?.run,
-    releaseJob.steps.find(({ name }) => name === "Install the clean Node/pnpm qualification projection")?.run,
     releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases
-  ], ["write", "write", "node tools/dev.mts install", "node tools/dev.mts --profile node install", false]);
+  ], ["write", "write", "node tools/dev.mts install", false]);
   const changesets = releaseJob.steps.find((step) => step.id === "changesets");
+  const sourceInstall = releaseJob.steps.findIndex((step) => step.run === "node tools/dev.mts install");
+  assert.ok(sourceInstall >= 0 && sourceInstall < releaseJob.steps.indexOf(changesets));
+  assert.equal(releaseJob.steps.some((step) => step.run === "node tools/dev.mts --profile node install"), false);
   assert.equal(changesets.uses, "changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d");
   assert.equal(changesets.with.setupGitUser, false);
   assert.equal(changesets.with.version, "node tools/release-profile.mts version");
   assert.equal(changesets.with.publish, "node tools/release-profile.mts publish");
+  assert.equal(changesets.env.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT,
+    "${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm");
 }
 
 test("release pipeline keeps hosted review separate from generated-diff attestation", async () => {

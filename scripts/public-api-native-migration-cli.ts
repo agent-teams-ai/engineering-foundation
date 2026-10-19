@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, relative, resolve, join } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertSchema } from '../packages/engineering-foundation/dist/schema-catalog.js';
 import { loadStrictYamlFile } from '../packages/engineering-foundation/dist/features/configuration-input/node.js';
@@ -52,13 +52,13 @@ async function ordinaryCheck(): Promise<OrdinaryResult> {
   try { return { ...await runCommand(process.execPath, [join(root, 'packages/engineering-foundation/dist/cli.js'), 'check', '--consumer', root, '--format', 'json'], root, { timeoutMs: 600_000 }), exitCode: 0 }; }
   catch (error) { return ordinaryFailureResult(error); }
 }
-async function writeReport(path: string, bytes: string | Uint8Array): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  assertReportDestination(await realpath(root), join(await realpath(dirname(path)), 'report'));
+export async function writeReport(path: string, bytes: string | Uint8Array): Promise<void> {
+  const destination = join(await realpath(dirname(path)), basename(path));
+  assertReportDestination(await realpath(root), destination);
   // Preserve complete raw observations, including network errors, as private
   // nonexecutable evidence. Only the caller selects this outside-checkout path;
   // report contents are never evaluated and never grant migration authority.
-  await writeFile(path, bytes, { flag: 'wx', mode: 0o600 });
+  await writeFile(destination, bytes, { flag: 'wx', mode: 0o600 });
 }
 async function readPolicy() {
   const policy = await loadCapabilityConfig({ readYaml: loadStrictYamlFile, assertSchema }, root, configPath);

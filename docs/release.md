@@ -179,6 +179,8 @@ Its exact B-to-A comparison and archive origins are documented in
 Feature PRs retain the original release-owned baseline bytes. They qualify the
 transition separately while preserving the entire ordinary tool-mismatch
 report and its exit code.
+Explicit report destinations require an existing parent directory; the driver
+creates each report exclusively at its checked canonical path outside the source checkout.
 
 The declaration-data realization was replaced after full-CI run
 [`39181417326`, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39181417326)

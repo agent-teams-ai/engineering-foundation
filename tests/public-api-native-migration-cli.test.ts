@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, open, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import test from 'node:test';
-import { assertReportDestination, assertWorkingMigrationBaselines, nativeMigrationMain, ordinaryFailureResult, parseMigrationArguments, qualifyOrdinaryResult } from '../scripts/public-api-native-migration-cli.ts';
+import { assertReportDestination, assertWorkingMigrationBaselines, nativeMigrationMain, ordinaryFailureResult, parseMigrationArguments, qualifyOrdinaryResult, writeReport } from '../scripts/public-api-native-migration-cli.ts';
 import { capabilityReport, foundationReport } from '../packages/engineering-foundation/dist/features/validation-reporting/api.js';
 import type { PublicApiCompatibilityPolicy } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
 import { migrationBytes, migrationDigest, type NativeMigrationReview } from '../scripts/public-api-native-migration.ts';
@@ -49,6 +49,44 @@ test('report options cannot overwrite files within the source checkout', () => {
   const root = join(tmpdir(), 'fixed-foundation-checkout');
   for (const path of [root, join(root, 'architecture/public-api/engineering-foundation.json'), join(root, 'scripts/tool.ts')]) {assert.throws(() => assertReportDestination(root, path), /outside/u);}
   assert.equal(assertReportDestination(root, join(tmpdir(), 'native-ordinary.json')), join(tmpdir(), 'native-ordinary.json'));
+});
+
+test('report parent aliases cannot create missing checkout directories or report files', async t => {
+  const temporary = await mkdtemp(join(tmpdir(), 'native-report-parent-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const checkout = fileURLToPath(new URL('..', import.meta.url));
+  const missing = join(checkout, basename(temporary));
+  const alias = join(temporary, 'checkout');
+  await symlink(checkout, alias, 'junction');
+  await assert.rejects(lstat(missing), { code: 'ENOENT' });
+  t.after(() => rm(missing, { recursive: true, force: true }));
+  await assert.rejects(writeReport(join(alias, basename(temporary), 'report.json'), 'raw report\n'), { code: 'ENOENT' });
+  await assert.rejects(lstat(missing), { code: 'ENOENT' });
+  const filename = `${basename(temporary)}.json`;
+  await assert.rejects(lstat(join(checkout, filename)), { code: 'ENOENT' });
+  t.after(() => rm(join(checkout, filename), { force: true }));
+  await assert.rejects(writeReport(join(alias, filename), 'raw report\n'), /outside/u);
+  await assert.rejects(lstat(join(checkout, filename)), { code: 'ENOENT' });
+});
+
+test('reports preserve raw bytes exclusively in an existing outside parent with private permissions', async t => {
+  const temporary = await mkdtemp(join(tmpdir(), 'native-report-output-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const directory = join(temporary, 'reports'); await mkdir(directory);
+  const alias = join(temporary, 'alias'); await symlink(directory, alias, 'junction');
+  const bytes = Buffer.from('raw report\r\n{"reason":"<untrusted>"}\n\0', 'utf8');
+  const path = join(alias, 'report.json');
+  await writeReport(path, bytes);
+  assert.deepEqual(await readFile(join(directory, 'report.json')), bytes);
+  await assert.rejects(writeReport(path, 'replacement'), { code: 'EEXIST' });
+  assert.deepEqual(await readFile(path), bytes);
+  const text = 'original stdout\r\n';
+  await writeReport(join(directory, 'ordinary.json'), text);
+  assert.equal(await readFile(join(directory, 'ordinary.json'), 'utf8'), text);
+  if (process.platform !== 'win32') {assert.equal((await stat(path)).mode & 0o777, 0o600);}
+  const absent = join(temporary, 'absent');
+  await assert.rejects(writeReport(join(absent, 'report.json'), bytes), { code: 'ENOENT' });
+  await assert.rejects(lstat(absent), { code: 'ENOENT' });
 });
 
 test('ordinary failed child preserves complete stdout stderr and actual exit', async () => {

@@ -1631,15 +1631,16 @@
             {
               "role": "adapters",
               "roots": [
-                "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters",
-                "packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts"
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters"
               ]
             },
             {
               "role": "composition",
               "roots": [
                 "packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts",
-                "packages/engineering-foundation/src/capabilities/public-api-compatibility/authority-module.ts"
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/authority-module.ts",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts",
+                "packages/engineering-foundation/src/capabilities/public-api-compatibility/native-transition-module.ts"
               ]
             }
           ],
@@ -1660,7 +1661,8 @@
             "packages/engineering-foundation/tests/public-api-native-extraction.test.ts",
             "packages/engineering-foundation/tests/public-api-native-projection.test.ts",
             "tests/public-api-growth-metadata-root.test.mjs",
-            "tests/public-api-growth-promotion-authority.test.mjs"
+            "tests/public-api-growth-promotion-authority.test.mjs",
+            "packages/engineering-foundation/tests/public-api-native-transition.test.ts"
           ]
         },
         {

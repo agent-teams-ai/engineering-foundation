@@ -55,8 +55,11 @@ archives and the protected-main archive qualification record. This temporary
 migration route requires network access, GitHub Actions read access, and npm
 `11.19.0`; the complete ordinary deterministic report remains separate and
 unchanged. Successful ordinary checking after native baseline promotion skips
-that acquisition entirely. The route is private repository migration tooling,
-not an additional consumer capability or a hosted qualification claim.
+that acquisition entirely. Archive acquisition and protected-host authentication
+remain private repository tooling. The shared comparison and promotion mechanism
+is the explicit [public native transition](../reference/public-api-native-transition.md)
+on the existing public API promotion command; it adds no capability enrollment
+or hosted qualification claim.
 
 Partitioned c8 coverage is the blocking Linux CI coverage authority. Each
 existing Linux test shard writes raw V8 coverage without rerunning its tests. Its

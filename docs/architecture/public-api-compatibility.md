@@ -634,3 +634,13 @@ The [C0 successor boundary](../reference/sdk-growth-c0.md#revision-6-qualified-n
 and [S3 protocol](../reference/sdk-growth-s3-authority.md#qualified-metadata-root)
 own the closed evidence, rejection rules and unchanged 120-second deadline.
 Private flags and missing exports confer no exemption.
+
+## Shared native transition command
+
+The [native tool-transition contract](../reference/public-api-native-transition.md)
+extends the existing public `public-api-promote-release` command with one explicit
+7.58.12-to-native-7.0.2 content input and a read-only qualification mode. The
+shared mechanism serves Foundation's fixed eight-package migration and a real
+Get Modular two-package consumer. Consumer archive authentication and reviewed
+data stay with the consumer; normal mismatch guards and trusted release ownership
+remain unchanged. No SDK-growth host or new publication authority is introduced.

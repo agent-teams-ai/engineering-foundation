@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { gzipSync, gunzipSync } from "node:zlib";
 
 import {
   assertArchiveSafety,
@@ -12,6 +13,42 @@ import { tarArchive } from "./pack-publishable-artifacts-support.mjs";
 
 const FOUNDATION_PACKAGE = "@agent-teams/engineering-foundation";
 const EXPECTED_NEW_MODULE_ARTIFACTS = Object.freeze([
+  "dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-native-tool-transition.d.ts",
+  "dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-native-tool-transition.d.ts.map",
+  "dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-native-tool-transition.js",
+  "dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-native-tool-transition.js.map",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-tool-transition-content.d.ts",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-tool-transition-content.d.ts.map",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-tool-transition-content.js",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-tool-transition-content.js.map",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.d.ts",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.d.ts.map",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.js",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.js.map",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/observe-native-tool-transition.d.ts",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/observe-native-tool-transition.d.ts.map",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/observe-native-tool-transition.js",
+  "dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/observe-native-tool-transition.js.map",
+  "dist/capabilities/public-api-compatibility/application/model/native-tool-transition.d.ts",
+  "dist/capabilities/public-api-compatibility/application/model/native-tool-transition.d.ts.map",
+  "dist/capabilities/public-api-compatibility/application/model/native-tool-transition.js",
+  "dist/capabilities/public-api-compatibility/application/model/native-tool-transition.js.map",
+  "dist/capabilities/public-api-compatibility/application/policies/validate-native-tool-transition.d.ts",
+  "dist/capabilities/public-api-compatibility/application/policies/validate-native-tool-transition.d.ts.map",
+  "dist/capabilities/public-api-compatibility/application/policies/validate-native-tool-transition.js",
+  "dist/capabilities/public-api-compatibility/application/policies/validate-native-tool-transition.js.map",
+  "dist/capabilities/public-api-compatibility/application/ports/native-tool-transition.d.ts",
+  "dist/capabilities/public-api-compatibility/application/ports/native-tool-transition.d.ts.map",
+  "dist/capabilities/public-api-compatibility/application/ports/native-tool-transition.js",
+  "dist/capabilities/public-api-compatibility/application/ports/native-tool-transition.js.map",
+  "dist/capabilities/public-api-compatibility/application/use-cases/prepare-native-tool-transition.d.ts",
+  "dist/capabilities/public-api-compatibility/application/use-cases/prepare-native-tool-transition.d.ts.map",
+  "dist/capabilities/public-api-compatibility/application/use-cases/prepare-native-tool-transition.js",
+  "dist/capabilities/public-api-compatibility/application/use-cases/prepare-native-tool-transition.js.map",
+  "dist/capabilities/public-api-compatibility/native-transition-module.d.ts",
+  "dist/capabilities/public-api-compatibility/native-transition-module.d.ts.map",
+  "dist/capabilities/public-api-compatibility/native-transition-module.js",
+  "dist/capabilities/public-api-compatibility/native-transition-module.js.map",
   "dist/capabilities/quality-gate-runner/adapters/outbound/bun/bun-package-script-executor.d.ts",
   "dist/capabilities/quality-gate-runner/adapters/outbound/bun/bun-package-script-executor.d.ts.map",
   "dist/capabilities/quality-gate-runner/adapters/outbound/bun/bun-package-script-executor.js",
@@ -59,15 +96,15 @@ test("keeps the Foundation archive exception package-specific and bounded", () =
     () => inspectCompressedTarArchive(archiveWithEntries(2_501)),
     /too many entries: 2501/u,
   );
-  const atFoundationLimit = archiveWithEntries(2_673);
+  const atFoundationLimit = archiveWithEntries(2_710);
   assert.throws(() => inspectCompressedTarArchive(atFoundationLimit), /too many entries/u);
   assert.equal(
     inspectCompressedTarArchive(atFoundationLimit, FOUNDATION_PACKAGE).entryCount,
-    2_673,
+    2_710,
   );
   assert.throws(
-    () => inspectCompressedTarArchive(archiveWithEntries(2_674), FOUNDATION_PACKAGE),
-    /too many entries: 2674/u,
+    () => inspectCompressedTarArchive(archiveWithEntries(2_711), FOUNDATION_PACKAGE),
+    /too many entries: 2711/u,
   );
 });
 
@@ -97,7 +134,7 @@ test("applies the same Foundation budget to archive listings", () => {
     "package/package.json",
     "package/LICENSE",
     "package/README.md",
-    ...Array.from({ length: 2_670 }, (_, index) => `package/dist/${index}.js`),
+    ...Array.from({ length: 2_707 }, (_, index) => `package/dist/${index}.js`),
   ];
   const input = {
     archiveBytes: Buffer.from("fixture"),
@@ -112,7 +149,7 @@ test("applies the same Foundation budget to archive listings", () => {
       { length: 1 },
       (_, index) => `package/dist/extra-${index}.js`,
     )].join("\n"),
-  }), /too many entries: 2674/u);
+  }), /too many entries: 2711/u);
 });
 
 test("admits the complete built Foundation package inventory and rejects one additional member", async () => {
@@ -131,7 +168,8 @@ test("admits the complete built Foundation package inventory and rejects one add
     }
   }
   for (const path of manifest.files) { await visit(path); }
-  assert.equal(paths.size, 2_673, "Requalify the complete package inventory when its membership changes");
+  assert.equal(paths.size, 2_710, "Requalify the complete package inventory when its membership changes");
+  assert.ok(paths.has("schemas/package-public-api-native-transition/v1.schema.json"));
   for (const path of EXPECTED_NEW_MODULE_ARTIFACTS) {
     assert.ok(paths.has(path), `Expected compiled module artifact is missing from actual inventory: ${path}`);
   }
@@ -140,5 +178,15 @@ test("admits the complete built Foundation package inventory and rejects one add
     requiredArtifactPaths: [...paths], allowedArtifactPaths: manifest.files, verboseListing: "" };
   assert.doesNotThrow(() => assertArchiveSafety({ ...input, listing: listing.join("\n") }));
   assert.throws(() => assertArchiveSafety({ ...input,
-    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2674/u);
+    listing: [...listing, "package/dist/over-limit.js"].join("\n") }), /too many entries: 2711/u);
+});
+
+test("rejects complete payload blocks without an observed two-zero-block terminator", () => {
+  const complete = tarArchive([{ name: "package/package.json", data: Buffer.from("{}") }]);
+  const tar = gunzipSync(complete);
+  assert.equal(inspectCompressedTarArchive(complete).entryCount, 1);
+  for (const missing of [512, 1024]) {
+    assert.throws(() => inspectCompressedTarArchive(gzipSync(tar.subarray(0, tar.length - missing))), /terminator/u);
+  }
+  assert.throws(() => inspectCompressedTarArchive(gzipSync(Buffer.alloc(0))), /terminator/u);
 });

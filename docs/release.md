@@ -182,6 +182,10 @@ report and its exit code.
 
 After the reviewed source and intent reach `main`, the existing Release workflow
 runs Changesets version preparation and the private `apply-version` command.
+That fixed owner driver delegates to the same
+[public native transition operation](reference/public-api-native-transition.md)
+used by consumers; its private callback preserves the immediate protected-run
+and source fence. The content request grants no authority.
 The pinned Changesets action resets `changeset-release/main` to the processed
 main SHA before this command. The driver checks the actual current run attempt,
 repository, workflow, event and fresh main ref, then requires that exact checkout
@@ -546,7 +550,7 @@ Before every publication:
   prerequisite in the security baseline; the one-writer bootstrap profile is
   not valid after another writer or merge automation is enabled;
 - build from a clean checkout;
-- run lint, typecheck, tests, publint, and Are The Types Wrong;
+- run lint, typecheck, tests, publint, and the native archive package type gate;
 - pack the real tarball;
 - install it into an isolated consumer;
 - verify public exports, CLI startup, and package self-check;

@@ -13,12 +13,13 @@ import { readContainedRegularFile } from '../packages/engineering-foundation/dis
 import type { FoundationCheckReport } from '../packages/engineering-foundation/dist/features/validation-reporting/api.js';
 import type { PublicApiCompatibilityPolicy } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
 import { publicApiBaselineAnchorPath } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/application/model/public-api.js';
-import { assertNativeMigrationOrdinaryMismatchReport, assertNativeMigrationOrdinaryReport, assertNativeMigrationReview, migrationBytes, migrationDigest, observeNativeMigration, prepareNativeMigrationPromotion } from './public-api-native-migration.ts';
+import { assertNativeMigrationOrdinaryMismatchReport, assertNativeMigrationOrdinaryReport, assertNativeMigrationReview, migrationBytes, migrationDigest, observeNativeMigration } from './public-api-native-migration.ts';
 import type { NativeMigrationReview } from './public-api-native-migration.ts';
 import { nativeMigrationPackageNames } from './public-api-native-migration-observation.ts';
 import { acquireNativeMigrationInputs, readNativeMigrationIntent } from './public-api-native-migration-inputs.ts';
 import { assertVersionSnapshotUnchanged, readVersionRunIdentity, verifyVersionWorkflow } from './public-api-native-migration-version.ts';
 import { runCommand } from './pack-test-support.mjs';
+import { runNativePublicApiTransition } from '../packages/engineering-foundation/dist/capabilities/public-api-compatibility/node.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const configPath = 'architecture/foundation/public-api-compatibility.yaml';
@@ -69,7 +70,7 @@ async function migrationObservation(temporary: string) {
   const historical = await acquireNativeMigrationInputs(root, temporary, intent, policy);
   const observation = await observeNativeMigration({ consumerRoot: root, policy, ...historical });
   assertNativeMigrationReview(observation, intent.review, policy);
-  return { intent, policy, observation };
+  return { intent, policy, observation, historical };
 }
 
 /** Bind the actual ordinary check's physical B bytes to the reviewed historical
@@ -137,6 +138,21 @@ async function qualify(args: MigrationArguments): Promise<void> {
   }
 }
 
+async function writePublicTransitionRequest(temporary: string, packet: Awaited<ReturnType<typeof migrationObservation>>): Promise<string> {
+  const directory = join(temporary, 'transition-inputs'); await mkdir(directory);
+  const packages = [];
+  for (const [index, p] of packet.policy.packages.entries()) {
+    const input = packet.historical.packages.find(row => row.packageName === p.packageName)!;
+    const baselineInputPath = `transition-inputs/${index}.baseline.json`; const archivePath = `transition-inputs/${index}.tgz`;
+    await writeFile(join(temporary, baselineInputPath), input.baselineBytes, {flag: 'wx'});
+    await writeFile(join(temporary, archivePath), input.archiveBytes, {flag: 'wx'});
+    packages.push({packageName: p.packageName, baselineInputPath, archivePath, configPath: `historical/${p.tsconfigPath}`});
+  }
+  const requestPath = join(temporary, 'native-transition-request.json');
+  await writeFile(requestPath, migrationBytes({schemaVersion: 1, kind: 'foundation:public-api-native-transition:1', releasedRoot: 'historical', review: packet.intent.review, packages, configurationFiles: []}), {flag: 'wx'});
+  return requestPath;
+}
+
 async function applyVersion(): Promise<void> {
   const identity = readVersionRunIdentity({ ...process.env });
   const before = await verifyVersionWorkflow(root, identity);
@@ -166,12 +182,13 @@ async function applyVersion(): Promise<void> {
   const temporary = await mkdtemp(join(tmpdir(), 'foundation-native-migration-version-'));
   try {
     const packet = await migrationObservation(temporary);
-    const typed = createPublicApiCompatibilityDependencies(readAccepted, assertSchema);
-    const artifacts = await createPublicApiArtifactDependencies(root, policy.packages, typed, inspector());
-    const plan = await prepareNativeMigrationPromotion({ consumerRoot: root, policy, observation: packet.observation, review: packet.intent.review }, { typed, artifacts });
-    assertVersionSnapshotUnchanged(before, await verifyVersionWorkflow(root, identity));
-    await plan.apply();
-    process.stdout.write(`${JSON.stringify({ kind: plan.kind, outcome: 'applied-by-version-workflow', writes: plan.writes })}\n`);
+    // Use the same public-operation owner. The private workflow contributes
+    // only its established immediate hosted-run/source fence, never a JSON permit.
+    const requestPath = await writePublicTransitionRequest(temporary, packet);
+    const result = await runNativePublicApiTransition({consumerRoot: root, configPath, requestPath, qualificationOnly: false}, readAccepted, assertSchema, inspector(), async () => {
+      assertVersionSnapshotUnchanged(before, await verifyVersionWorkflow(root, identity));
+    });
+    process.stdout.write(`${JSON.stringify({kind: 'foundation:public-api-native-migration:version-plan:1', outcome: 'applied-by-version-workflow', writes: result.writes})}\n`);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 }
 

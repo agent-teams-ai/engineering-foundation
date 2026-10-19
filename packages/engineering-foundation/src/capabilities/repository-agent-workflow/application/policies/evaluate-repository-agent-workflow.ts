@@ -145,7 +145,7 @@ function validateCommands(
           subject: `instruction-command:${script}`,
           message: `Canonical instructions do not mention ${script}.`,
           path: policy.instructions.canonical,
-          remediation: `Document when agents must run pnpm ${script}.`
+          remediation: `Document when agents must run ${policy.packageManager} run ${script}.`
         })
       );
     }
@@ -155,10 +155,13 @@ function validateCommands(
     /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
   const selfDogfoodRunner =
     /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
+  const repositoryCommandRunner =
+    /^node\s+tools\/repository-command\.mts\s+script\s+build\s*&&\s*node\s+tools\/repository-command\.mts\s+tool\s+check:changed$/u;
   if (
     changedCommand !== undefined &&
     !installedRunner.test(changedCommand.trim()) &&
-    !selfDogfoodRunner.test(changedCommand.trim())
+    !selfDogfoodRunner.test(changedCommand.trim()) &&
+    !repositoryCommandRunner.test(changedCommand.trim())
   ) {
     diagnostics.push(
       diagnostic({

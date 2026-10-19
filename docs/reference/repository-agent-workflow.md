@@ -7,6 +7,19 @@ workflow without trusting an agent-specific hook. Foundation owns validation,
 changed-file discovery, escalation, and execution. Each consumer owns only its
 instruction text, small adapter files, script mapping, and CI invocation.
 
+## Package manager policy
+
+Published policy version 1 remains pnpm-only. Policy version 2 requires an
+explicit top-level `packageManager: bun` or `packageManager: pnpm`; other
+managers, missing managers and unknown schema versions are rejected before
+execution. Choose version 2 when adopting Bun. The repository itself uses Bun;
+its isolated Node rollback projects only that manager field to pnpm and binds
+both original and derived policy bytes in its qualification evidence.
+
+The new schema is published at
+`@agent-teams/engineering-foundation/schemas/repository-agent-workflow/v2.schema.json`.
+Existing version 1 files require no migration unless their manager changes.
+
 ## Portable instruction contract
 
 - `AGENTS.md` is the canonical repository instruction file.
@@ -140,8 +153,8 @@ them in `fullScanPaths`.
 Invoke the changed workflow through its policy-selected package script. Version
 1 deliberately normalizes to pnpm and supplies the cross-platform pnpm entrypoint
 without invoking a shell or interpolating repository paths. A concrete Bun
-adapter is available beside pnpm, but v1 selects pnpm only. A future policy
-version must explicitly select Bun. The v1 schema bytes and meaning are unchanged. JavaScript
+adapter is available beside pnpm; version 2 explicitly selects Bun or pnpm.
+The v1 schema bytes and pnpm-only meaning are unchanged. JavaScript
 pnpm entrypoints use the explicit verified Node executable rather than
 `process.execPath` under Bun.
 

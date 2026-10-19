@@ -34,20 +34,29 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        id: setup-bun
+        with: { bun-version: "1.4.3" }
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        env: { pnpm_config_pm_on_fail: ignore }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: pnpm
           registry-url: https://registry.npmjs.org
       # Node 26 bundles a newer npm; ordered publishing is qualified only for npm 11.19.0.
       - name: Provision qualified npm release version
         run: npm install --global npm@11.19.0 --ignore-scripts
       - name: Guard npm release version
         run: node --input-type=module -e 'import { assertNpmVersion } from "./scripts/release-publish-ordered-runtime.mjs"; assertNpmVersion();'
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm dependencies:peers:check
+      - name: Install the actual Bun source worktree
+        run: node tools/dev.mts install
+      - name: Install the clean Node/pnpm qualification projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
+        run: node tools/dev.mts --profile node install
       - name: Guard public package bootstrap baselines
         run: node scripts/npm-package-bootstrap-cli.mjs check-release
       - name: Configure and verify release Git identity
@@ -64,12 +73,13 @@ jobs:
         with:
           setupGitUser: false
           createGithubReleases: false
-          publish: pnpm release:publish
-          version: pnpm release:version
+          publish: node tools/release-profile.mts publish
+          version: node tools/release-profile.mts version
           title: "chore(release): version packages"
           commit: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: ${{ steps.setup-bun.outputs.bun-path }}
           GIT_AUTHOR_NAME: iliya
           GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
           GIT_COMMITTER_NAME: iliya
@@ -193,14 +203,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with: { bun-version: "1.4.3" }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm dependencies:peers:check
+      - name: Install the actual Bun source worktree
+        run: node tools/dev.mts install
       - name: Dispatch and attest release pull request checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

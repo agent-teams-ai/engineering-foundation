@@ -133,3 +133,35 @@ historical library settlement order from the runtime facts surface (plan v4
 section 3.2). The existing limitation — an independently observed numeric
 nonzero exit after termination settles as a self-standing result — is
 documented here as an inherited Foundation heuristic, not library arbitration.
+
+## Bun default repository profile
+
+The repository Host selects the fixed `bun` default and explicit `node` rollback
+from `architecture/foundation/repository-runtime.json`. `tools/dev.mts` owns
+isolated source projections and install/build orchestration;
+`tools/repository-command.mts` owns the closed script and tool tables;
+`tools/executable-policy.mts` layers exact qualification versions over the
+existing explicitly kinded process verifier. `tools/pnpm-command.mts` admits the
+actual pinned manager, and `tools/release-profile.mts` owns Node-only package
+operations and lock projection. These are repository policy and fixed adapters,
+not independent Assembly entries or a new library runtime.
+
+The full retained CMS and EQS inputs above were compared to current upstream on
+2026-10-18 and remain byte-identical. The current evidence, CRLF protection and
+rejecting standards checker remain authoritative. Process execution continues to
+use `node-or-bun@0.2.1`; no mechanism is duplicated by the repository profile.
+Tests, raw coverage, TypeScript/native launchers, package qualification and
+publication keep their explicit Node lanes. Native CI additionally invokes the
+existing Bun transport fixture in the Linux producer, Windows test-b and Darwin
+native jobs. Those invocations establish only the platform-specific guarantees
+asserted by that fixture; Linux evidence does not substitute for native custody.
+
+The repository workflow and workspace dependency declarations use policy v2
+with explicit Bun managers. Dependency declarations retain the canonical
+`pnpm-workspace.yaml` inventory and catalog authority. The clean Node projection
+changes the root manager declaration and those two policy managers to pnpm.
+Its closed nine-field evidence records the source digest and all three original
+and derived file pairs' digests, and rejects policy drift before building or
+running commands. Historical seven-field evidence is not current qualification.
+This closed repository projection is Host policy; public parsers never read a
+profile environment override. Both published v1 pnpm-only schemas remain unchanged.

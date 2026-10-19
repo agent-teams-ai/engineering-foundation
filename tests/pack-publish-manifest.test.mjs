@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -11,6 +12,33 @@ import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 import { packAndInspectArtifact, snapshotVerifiedArtifact } from "../scripts/pack-artifact-e2e.mjs";
 import { canonicalPublishManifest, npmPackManifest } from "../scripts/pack-artifact-stage-support.mjs";
 import { createPackFixture, qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
+
+test("pending Foundation releases version FMS when its canonical packed manifest changes", async () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const require = createRequire(import.meta.url);
+  const changesets = createRequire(require.resolve("@changesets/cli/package.json"));
+  const plan = await changesets("@changesets/get-release-plan").default(root);
+  const foundationName = "@agent-teams/engineering-foundation";
+  const foundation = plan.releases.find(release => release.name === foundationName);
+  // A version PR has consumed the pending train; no dependency transition remains.
+  if (foundation === undefined || foundation.newVersion === foundation.oldVersion) {
+    return;
+  }
+  const manifest = JSON.parse(await readFile(new URL("../packages/feature-module-standard/package.json", import.meta.url), "utf8"));
+  const rootManifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const project = version => canonicalPublishManifest(manifest, {
+    catalogVersions: new Map(Object.entries(rootManifest.workspaces.catalog)),
+    internalPackageVersions: new Map([[foundationName, version]]),
+  });
+  const before = project(foundation.oldVersion);
+  const after = project(foundation.newVersion);
+  assert.equal(before.peerDependencies[foundationName], `^${foundation.oldVersion}`);
+  assert.equal(after.peerDependencies[foundationName], `^${foundation.newVersion}`);
+  assert.notDeepEqual(before, after, "The optional peer and exact dev dependency alter published FMS bytes");
+  const fms = plan.releases.find(release => release.name === manifest.name);
+  assert.ok(fms && fms.type !== "none" && fms.newVersion !== fms.oldVersion,
+    "Changed packed FMS bytes require a new FMS version; an optional compatible peer does not make existing npm bytes mutable");
+});
 
 test("publish manifest canonicalizes exact dependency authorities without reordering other fields", async (t) => {
   const source = {

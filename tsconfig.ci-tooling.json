@@ -22,8 +22,10 @@
   },
   "include": [
     "scripts/**/*.mts",
+    "tools/**/*.mts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
-    "tests/test-manifests-typescript.test.ts"
+    "tests/test-manifests-typescript.test.ts",
+    "tests/support/ci-input-proof-collector-install.ts"
   ]
 }

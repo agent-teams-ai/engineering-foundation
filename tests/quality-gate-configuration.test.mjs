@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { assertFeatureOutsideSchemaCycles, assertSchemaAssemblyImportRejected } from "./helpers/schema-assembly-boundaries.mjs";
 import { loadQualityGatePolicy } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/configuration/load-quality-gate-policy.js";
 import { parseQualityGatePolicy } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/adapters/inbound/configuration/parse-quality-gate-policy.js";
@@ -9,6 +14,9 @@ import { BunQualityGateScriptExecutor } from "../packages/engineering-foundation
 import { createPackageManagerScriptExecutor } from "../packages/engineering-foundation/dist/capabilities/quality-gate-runner/composition/select-package-script-executor.js";
 import { resolveRepositoryRuntimeExecutables } from "../packages/engineering-foundation/dist/process-execution/application/runtime-selection.js";
 import { RecordingManagedProcessExecutor } from "./support/quality-gate-runtime-adapters.mts";
+import { resolveQualificationExecutables } from "../tools/executable-policy.mts";
+import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 
 test("quality gate configuration no longer joins the module schema assembly cycle", async () => {
   await assertFeatureOutsideSchemaCycles("quality-gate-runner");
@@ -44,6 +52,152 @@ test("quality gate configuration retains the dependency trace and immutable task
   assert.ok(Object.isFrozen(policy));
   assert.ok(Object.isFrozen(policy.profiles[0].tasks));
   assert.ok(Object.isFrozen(policy.profiles[0].tasks[1].needs));
+});
+
+test("v1 typed custom policy loaders retain the root pnpm contract", () => {
+  const fixture = fileURLToPath(new URL("./fixtures/quality-gate-v1-consumer/tsconfig.json", import.meta.url));
+  const compiler = join(fileURLToPath(new URL("..", import.meta.url)), "node_modules", "typescript", "bin", "tsc");
+  const result = spawnSync(process.execPath, [compiler, "--project", fixture], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+});
+
+test("real Bun and pnpm managers preserve their selected ordinary leaf runtime", async () => {
+  const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+  const cli = join(repositoryRoot, "packages/engineering-foundation/dist/cli.js");
+  const dispatcher = join(repositoryRoot, "tools/repository-command.mts");
+  const runtime = await resolveQualificationExecutables("bun");
+  const { node, bun } = runtime;
+  assert.ok(bun);
+  const nodeVersion = spawnSync(node, ["-p", "process.versions.node"], { encoding: "utf8" }).stdout.trim();
+  const policy = await readRepositoryRuntimePolicy();
+  const manager = await resolvePnpmInvocation(node, policy.toolchain.pnpm.version);
+  const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
+  assert.ok(pnpm);
+  const root = await mkdtemp(join(tmpdir(), "foundation-runtime-profiles-"));
+  const bunRoot = join(root, "bun");
+  const nodeRoot = join(root, "node");
+  const observation = join(root, "observation.ndjson");
+  try {
+    const writeFixture = async (fixtureRoot, packageManager) => {
+      await mkdir(join(fixtureRoot, "architecture/foundation"), { recursive: true });
+      await writeFile(join(fixtureRoot, "package.json"), `${JSON.stringify({
+        name: "runtime-profile-fixture",
+        private: true,
+        type: "module",
+        packageManager,
+        scripts: {
+          "check:fast": `node ${JSON.stringify(dispatcher)} tool runtime-observe`
+        }
+      }, null, 2)}\n`, "utf8");
+      await writeFile(join(fixtureRoot, "pnpm-workspace.yaml"), "packages: []\n", "utf8");
+      await writeFile(join(fixtureRoot, "foundation.config.yaml"), `schemaVersion: 1
+project:
+  id: runtime-profile-fixture
+capabilities:
+  quality.gate-runner:
+    configPath: architecture/foundation/quality-gate-runner.yaml
+`, "utf8");
+      await writeFile(join(fixtureRoot, "architecture/foundation/quality-gate-runner.yaml"), `schemaVersion: 2
+profiles:
+  - id: bun-check-fast
+    packageManager: bun
+    concurrency: 1
+    tasks: [{ id: check:fast }]
+  - id: node-check-fast
+    packageManager: pnpm
+    concurrency: 1
+    tasks: [{ id: check:fast }]
+`, "utf8");
+    };
+    await writeFixture(bunRoot, "bun@1.4.3");
+    await writeFixture(nodeRoot, "pnpm@11.20.0");
+    const environment = {
+      ...process.env,
+      AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: node,
+      AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: bun,
+      AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpm
+    };
+    const bunRun = spawnSync(bun, [cli, "gate", "run", "bun-check-fast", "--consumer", bunRoot, "--format", "json"], {
+      cwd: bunRoot, encoding: "utf8", env: environment
+    });
+    assert.equal(bunRun.status, 0, bunRun.error?.message ?? `${bunRun.stdout}${bunRun.stderr}`);
+    const nodeRun = spawnSync(node, [cli, "gate", "run", "node-check-fast", "--consumer", nodeRoot, "--format", "json"], {
+      cwd: nodeRoot, encoding: "utf8", env: { ...environment, npm_execpath: pnpm }
+    });
+    assert.equal(nodeRun.status, 0, nodeRun.error?.message ?? `${nodeRun.stdout}${nodeRun.stderr}`);
+    const observations = (await readFile(observation, "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+    assert.equal(observations.length, 2);
+    assert.match(observations[0].managerUserAgent, /^bun\/1\.4\.3/u);
+    assert.equal(observations[0].profile, "bun");
+    assert.equal(observations[0].leafBunVersion, "1.4.3");
+    assert.match(observations[1].managerUserAgent, /^pnpm\/11\.20\.0/u);
+    assert.equal(observations[1].profile, "node");
+    assert.equal(observations[1].leafBunVersion, null);
+    assert.equal(observations[1].leafNodeVersion, nodeVersion);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("public Node 24 constructs the CLI and executes a real pnpm QGR profile", async () => {
+  const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+  const node = process.env["AGENT_TEAMS_FOUNDATION_PUBLIC_NODE24_EXECUTABLE"];
+  if (node === undefined) {
+    return;
+  }
+  const cli = join(repositoryRoot, "packages/engineering-foundation/dist/cli.js");
+  const harness = join(repositoryRoot, "tests/support/record-repository-runtime.mts");
+  const policy = await readRepositoryRuntimePolicy();
+  const manager = await resolvePnpmInvocation(node, policy.toolchain.pnpm.version);
+  const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
+  assert.ok(pnpm);
+  const root = await mkdtemp(join(tmpdir(), "foundation-public-node24-"));
+  const observation = join(root, "observation.ndjson");
+  try {
+    await writeFile(join(root, "package.json"), `${JSON.stringify({
+      name: "public-node24-qgr-fixture",
+      private: true,
+      type: "module",
+      packageManager: "pnpm@11.20.0",
+      scripts: { "check:fast": `node ${JSON.stringify(harness)}` }
+    }, null, 2)}\n`, "utf8");
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages: []\n", "utf8");
+    await writeFile(join(root, ".npmrc"), "verify-deps-before-run=false\n", "utf8");
+    await writeFile(join(root, "foundation.config.yaml"), `schemaVersion: 1
+project:
+  id: public-node24-qgr-fixture
+capabilities:
+  quality.gate-runner:
+    configPath: architecture/foundation/quality-gate-runner.yaml
+`, "utf8");
+    await mkdir(join(root, "architecture/foundation"), { recursive: true });
+    await writeFile(join(root, "architecture/foundation/quality-gate-runner.yaml"), `schemaVersion: 2
+profiles:
+  - id: public-node24
+    packageManager: pnpm
+    concurrency: 1
+    tasks: [{ id: check:fast }]
+`, "utf8");
+    const environment = {
+      ...process.env,
+      PATH: `${join(node, "..")}:${process.env["PATH"] ?? ""}`,
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: node,
+      AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpm,
+      AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
+      npm_execpath: pnpm,
+      PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
+    };
+    const result = spawnSync(node, [
+      cli, "gate", "run", "public-node24", "--consumer", root, "--format", "json"
+    ], { cwd: root, encoding: "utf8", env: environment });
+    assert.equal(result.status, 0, result.error?.message ?? `${result.stdout}${result.stderr}`);
+    const observed = JSON.parse((await readFile(observation, "utf8")).trim());
+    assert.equal(observed.leafNodeVersion, "24.18.0");
+    assert.match(observed.managerUserAgent, /^pnpm\/11\.20\.0/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 // Catches v1 configurations silently gaining a profile-manager requirement.

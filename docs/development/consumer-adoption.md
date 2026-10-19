@@ -102,6 +102,12 @@ policies:
     - "@agent-teams/engineering-foundation"
 ```
 
+The v1 example remains pnpm-only. A Bun-managed consumer may explicitly select
+`schemaVersion: 2` and `packageManager.kind: bun` with the same required policies
+and `workspaceManifest: pnpm-workspace.yaml`. Its root manifest must pin an exact
+Bun version. This configuration continues to use that YAML workspace/catalog
+authority; it does not discover native Bun-only workspaces.
+
 The consumer owns scope and package identities. Foundation owns validation
 semantics. Configuration is strict data: unknown keys, aliases, merge keys,
 custom tags, duplicate keys, escaping paths, and executable interpolation are

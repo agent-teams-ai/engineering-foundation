@@ -214,7 +214,7 @@ test("validates the release-owned public API baseline and freezes the package ex
   assert.equal(baseline.schemaVersion, 1);
   assert.equal(baseline.packageName, packageManifest.name);
   assert.equal(baseline.packageVersion, packageManifest.version);
-  assert.match(baseline.extractorVersion, /^\d+\.\d+\.\d+$/u);
+  assert.ok(["7.58.12", "typescript-native/7.0.2"].includes(baseline.extractorVersion));
   assert.ok(baseline.entrypoints.length > 0);
   assert.equal(
     new Set(baseline.entrypoints.map(({ exportPath }) => exportPath)).size,
@@ -290,6 +290,8 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-gate-runner/v2.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
+    "schemas/repository-agent-workflow/v2.schema.json",
+    "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
   assert.deepEqual(
@@ -313,15 +315,15 @@ test("keeps packed and registry-install qualification wired", async () => {
   );
   assert.equal(
     repositoryManifest.scripts["registry-install-e2e:built"],
-    vector.packedE2e.registryInstallBuilt,
+    "node tools/repository-command.mts tool registry-install-e2e:built",
   );
   assert.equal(
     repositoryManifest.scripts["published-compatibility:e2e"],
-    "node scripts/published-compatibility-e2e.mjs",
+    "node tools/repository-command.mts tool published-compatibility:e2e",
   );
   assert.equal(
     repositoryManifest.scripts["public-docs-release:e2e"],
-    "node scripts/public-docs-release-e2e.mjs",
+    "node tools/repository-command.mts tool public-docs-release:e2e",
   );
   assert.match(
     await readFile(join(repositoryRoot, "scripts", "pack-test.mjs"), "utf8"),

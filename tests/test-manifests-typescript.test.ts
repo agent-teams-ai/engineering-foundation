@@ -9,7 +9,12 @@ type Shard = { id: string; tests: string[] };
 type ShardManifest = { schemaVersion: number; source: { runId: number; headSha: string; strategy: string }; shards: Shard[] };
 
 // Ignoring a TS entry or omitting it from the blocking shard must reject the inventory.
-for (const path of ["tests/local-mode-boundaries-graph.test.mts", "packages/engineering-foundation/tests/public-api-native-extraction.test.ts"]) {
+for (const path of [
+  "tests/local-mode-boundaries-graph.test.mts",
+  "packages/engineering-foundation/tests/public-api-native-extraction.test.ts",
+  "tests/repository-release-runtime.test.mts",
+  "tests/repository-ci-runtime.test.mts",
+]) {
 test(`TypeScript test entry ${path} requires exactly one blocking shard`, async () => {
   const manifest = await validateTestManifests();
   assert.ok(manifest.tests.includes(path));

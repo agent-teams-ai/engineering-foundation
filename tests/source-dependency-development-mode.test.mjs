@@ -546,3 +546,36 @@ test("v2 rejects portable directory aliases across manifest and source trees", a
     assert.equal((await runSourceCapability(consumerRoot)).problem?.code, "SOURCE_PATH_CASE_COLLISION");
   });
 });
+
+
+test("resolver recognizes prefix-only node builtins without hiding ordinary package declarations", () => {
+  const workspacePackage = {
+    name: "@fixture/app", rootPath: "packages/app", manifestPath: "packages/app/package.json",
+    dependencies: [
+      { dependencyName: "test", targetPackageName: "test", section: "devDependencies", specifier: "1.0.0", effectiveSpecifier: "1.0.0", provenance: { kind: "manifest" } },
+      { dependencyName: "ordinary-tool", targetPackageName: "ordinary-tool", section: "dependencies", specifier: "1.0.0", effectiveSpecifier: "1.0.0", provenance: { kind: "manifest" } }
+    ],
+    bundledDependencies: [], exportSurface: { explicit: false, entries: [] }
+  };
+  const resolver = new NodeSourceDependencyResolver();
+  const resolve = (specifier, dependencies = workspacePackage.dependencies) => {
+    const importer = { ...workspacePackage, dependencies };
+    return resolver.resolve({
+      consumerRoot: repositoryRoot, enforceWorkspaceBindings: true,
+      file: { path: "packages/app/src/index.ts", workspacePackage: importer, boundary: boundary("development", []), parsed: { parseErrorCount: 0, references: [], unresolved: [] } },
+      governedFilePaths: new Set(), inventory: { catalogs: [], packages: [importer] },
+      reference: { kind: "static", specifier, start: 0, end: specifier.length }
+    });
+  };
+  for (const specifier of ["node:test", "node:fs", "fs"]) {
+    assert.deepEqual(resolve(specifier), { kind: "builtin", specifier: specifier === "fs" ? "node:fs" : specifier });
+  }
+  for (const specifier of ["node:madeup", "node:unknown"]) {
+    assert.deepEqual(resolve(specifier), { kind: "unsupported", reason: "unsupported package or URL specifier" });
+  }
+  for (const specifier of ["test", "test/reporters"]) {
+    assert.deepEqual(resolve(specifier), { kind: "external-package", packageName: "test", declaration: "development" });
+    assert.deepEqual(resolve(specifier, []), { kind: "external-package", packageName: "test", declaration: "undeclared" });
+  }
+  assert.deepEqual(resolve("ordinary-tool"), { kind: "external-package", packageName: "ordinary-tool", declaration: "runtime" });
+});

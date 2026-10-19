@@ -1,5 +1,5 @@
 import { subpathExported } from "../../../application/policies/source-package-exports.js";
-import { builtinModules } from "node:module";
+import { isBuiltin } from "node:module";
 import { posix } from "node:path";
 
 import { compareBinaryStrings } from "../../../../../binary-string-comparator.js";
@@ -23,12 +23,6 @@ import {
 
 import { generatedOutputFilesystemIsSafe } from "./generated-output-filesystem.js";
 
-const BUILTINS = new Set(
-  builtinModules.flatMap((name) => [
-    name,
-    name.startsWith("node:") ? name.slice(5) : `node:${name}`
-  ])
-);
 const SOURCE_EXTENSIONS = [
   ".cjs",
   ".cts",
@@ -308,7 +302,7 @@ function workspaceTarget(
 
 function resolvePackage(input: ResolveSourceDependencyInput): ResolvedSourceDependency {
   const specifier = input.reference.specifier;
-  if (BUILTINS.has(specifier)) {
+  if (isBuiltin(specifier)) {
     return {
       kind: "builtin",
       specifier: specifier.startsWith("node:") ? specifier : `node:${specifier}`

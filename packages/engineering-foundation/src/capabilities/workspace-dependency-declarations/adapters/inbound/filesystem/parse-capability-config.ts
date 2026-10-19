@@ -29,7 +29,7 @@ export function parseCapabilityConfig(
   const packageManager = root["packageManager"] as Record<string, unknown>;
   const policies = root["policies"] as Record<string, unknown>;
   return Object.freeze({
-    packageManagerKind: packageManager["kind"] as "pnpm",
+    packageManagerKind: packageManager["kind"] as "pnpm" | "bun",
     workspaceManifestPath: packageManager[
       "workspaceManifest"
     ] as "pnpm-workspace.yaml",

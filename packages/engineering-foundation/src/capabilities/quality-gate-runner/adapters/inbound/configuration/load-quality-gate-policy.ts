@@ -1,4 +1,4 @@
-import type { QualityGatePolicy } from "../../../application/model/quality-gate.js";
+import type { NormalizedQualityGatePolicy } from "../../../application/model/quality-gate.js";
 import { configurationInputError as inputError } from "../../../application/configuration-input.js";
 import { parseQualityGatePolicy } from "./parse-quality-gate-policy.js";
 
@@ -23,7 +23,7 @@ export async function loadQualityGatePolicy(
   consumerRoot: string,
   configPath: string,
   signal?: AbortSignal
-): Promise<QualityGatePolicy> {
+): Promise<NormalizedQualityGatePolicy> {
   const input = await dependencies.readYaml(
     consumerRoot,
     configPath,

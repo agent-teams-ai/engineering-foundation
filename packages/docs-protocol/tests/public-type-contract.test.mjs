@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
 
+const compiler = fileURLToPath(new URL("../../../node_modules/typescript/bin/tsc", import.meta.url));
+const compilerManifest = JSON.parse(await readFile(new URL("../../../node_modules/typescript/package.json", import.meta.url), "utf8"));
+assert.equal(compilerManifest.version, "7.0.2", "Public type probes require the pinned TypeScript compiler.");
+
 test("portable declarations retain generic result contracts without managed root aliases", async () => {
   const [api, application, root, qualification, qualificationRuntime] = await Promise.all([
     readFile(new URL("../dist/features/docs-command/adapters/inbound/node-docs-api.d.ts", import.meta.url), "utf8"),
@@ -71,7 +75,6 @@ if (execution.envelope.result.writeState === "preview") {
 }
 void [historicalIdentity, successor, validatePortableRepositoryPath("CON.yaml"), validatePortableRepositoryPathV2("docs.yaml")];
 `);
-    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
     const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");
@@ -124,7 +127,6 @@ const same${index}: DocsDiagnostic = diagnostic${index};`).join("\n")}
 standalone.fixtureTag = "diagnostic";
 `
     };
-    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
     for (const [name, source] of Object.entries(fixtures)) {
       const fixturePath = join(root, `${name}.mts`);
       await writeFile(fixturePath, source);
@@ -222,7 +224,6 @@ type Assert<Value extends true> = Value;
 type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
 ${cases.join("\n")}
 `);
-    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
     const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");
@@ -294,7 +295,6 @@ const descriptor: DocumentDescriptor = document;
 void [oldCaller, acceptsOldResult, currentCaller, oldQualificationCaller, qualificationCaller, qualificationProducer,
  oldIntent, newIntent, oldMetadata, newMetadata, oldOutcome, newOutcome, newRecovery, result, oldRecoveryCaller, descriptor];
 `);
-    const compiler = fileURLToPath(new URL("../../../node_modules/.pnpm/typescript@7.0.2/node_modules/typescript/bin/tsc", import.meta.url));
     const output = await promisify(execFile)(process.execPath, [compiler, "--ignoreConfig", "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--module", "nodenext", "--target", "es2024", join(root, "contract.mts")], { cwd: root });
     assert.equal(output.stdout, "");
     assert.equal(output.stderr, "");

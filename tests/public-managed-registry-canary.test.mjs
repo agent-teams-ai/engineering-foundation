@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -579,7 +581,7 @@ test("canonical canary receipt validates central binding and exact unique packag
 });
 
 
-test("policy createCanaryAuthority accepts packed policy26 and support receipt is not CANARY", () => {
+test("policy createCanaryAuthority accepts packed policy26 and support receipt is not CANARY", async (t) => {
   const successor = successorQualificationFixture();
   const projectedCohort3 = {
     repository: "agent-teams-ai/.github",
@@ -626,11 +628,27 @@ test("policy createCanaryAuthority accepts packed policy26 and support receipt i
     /Cohort v3 runtime authority is invalid/u,
   );
 
-  const supportQualification = () => runDocsProtocolQualificationV3({
-    profile: successor.profile,
-    evidence: successor.evidence,
-    lockfileBytes: successor.lockfileBytes,
-  });
+  // Physical qualification observes pnpm from an owned declared pnpm consumer,
+  // never from the repository's separate Bun installation context.
+  const qualificationRoot = await mkdtemp(join(tmpdir(), "TEST-canary-pnpm-observation-"));
+  t.after(() => rm(qualificationRoot, { recursive: true, force: true }));
+  await writeFile(join(qualificationRoot, "package.json"), JSON.stringify({
+    name: "TEST-canary-pnpm-observation", private: true, packageManager: "pnpm@11.20.0"
+  }));
+  await writeFile(join(qualificationRoot, "pnpm-workspace.yaml"), "packages: []\n");
+  const supportQualification = () => {
+    const originalDirectory = process.cwd();
+    try {
+      process.chdir(qualificationRoot);
+      return runDocsProtocolQualificationV3({
+        profile: successor.profile,
+        evidence: successor.evidence,
+        lockfileBytes: successor.lockfileBytes,
+      });
+    } finally {
+      process.chdir(originalDirectory);
+    }
+  };
   if (process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64") {
     const receipt = supportQualification();
     assert.equal(receipt.cohortAdmissible, true);
@@ -640,7 +658,6 @@ test("policy createCanaryAuthority accepts packed policy26 and support receipt i
     }
   } else {
     assert.throws(supportQualification, /Qualification Cohort v3 observed Node runtime mismatch\./u);
-    assert.ok(process.versions.node.startsWith("24.") || process.platform === "win32");
   }
   assert.equal(successor.runtimePolicy.managedCandidate.selected, false);
   assert.equal(successor.runtimePolicy.managedCandidate.status, "candidate-unqualified");
@@ -665,7 +682,11 @@ test("workflow is manual and capture plus digest precede the earliest installed 
   assert.equal(workflow.jobs.qualify.steps[0].with["fetch-depth"], 0);
   assert.equal(JSON.stringify(workflow).includes("secrets."), false);
   assert.doesNotMatch(source, /npm\s+(?:publish|unpublish|deprecate|dist-tag)|pnpm\s+publish/u);
-  assert.match(source, /pnpm build/u);
+  assert.match(source, /node tools\/dev\.mts --profile node install/u);
+  assert.match(source, /node tools\/dev\.mts --profile node build/u);
+  assert.match(source, /PUBLIC_CANARY_NODE_EXECUTABLE/u);
+  assert.match(source, /pnpm\/setup@703c52620218391530e48b9e8870d5c0082e1b9b[\s\S]*?version: "11\.20\.0"/u);
+  assert.doesNotMatch(source, /node-version: \$\{\{ steps\.select-cohort-runtime\.outputs\.node \}\}\s*\n\s+cache: pnpm/u);
   assert.match(source, /Run read-only six-package public managed registry canary/u);
   const qualificationSource = await readFile(new URL("../scripts/public-managed-registry-canary-qualification.mts", import.meta.url), "utf8");
   const capture = runnerSource.indexOf("const lockfile = await readFile");

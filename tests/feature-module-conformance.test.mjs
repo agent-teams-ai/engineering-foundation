@@ -57,7 +57,7 @@ async function fixture(t, role = "platform") {
   await write("decision.md", "---\nid: ADR-9999\nstatus: accepted\n---\n# Adoption\n");
   await write("README.md", "[Architecture](architecture.md)\n");
   await write("pnpm-workspace.yaml", "packages:\n  - packages/*\n");
-  await write("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: { "check:fast": "pnpm architecture:features:check", check: "pnpm architecture:features:check && pnpm lint:typed && pnpm architecture:patterns", "lint:typed": "node packages/engineering-foundation/dist/cli.js quality check --consumer .", "architecture:patterns": "node scripts/run-ast-grep.mjs scan --config sgconfig.yml --error=unused-suppression", "architecture:features:check": "node scripts/check-feature-modules.mjs" } }));
+  await write("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: { "check:fast": "pnpm architecture:features:check", check: "pnpm architecture:features:check && pnpm lint:typed && pnpm architecture:patterns", "lint:typed": "node tools/repository-command.mts tool lint:typed", "architecture:patterns": "node tools/repository-command.mts tool architecture:patterns", "architecture:features:check": "node tools/repository-command.mts tool architecture:features:check" } }));
   await write(`${root}/package.json`, JSON.stringify({ name: "@fixture/example", version: "1.0.0", type: "module", exports: { ".": "./src/index.ts" } }));
   sourcePolicy.boundaries[2].allow.boundaries.push("alpha");
   await write(`${sourceRoot}/index.ts`, "export { execute } from './features/alpha/application/index.js';\n");
@@ -308,12 +308,12 @@ test('FP thin executable invokes feature entrypoint',async t=>{
 test('FN successful short circuit must not bypass guard', async t=>{
  const f=await fixture(t);await f.write('package.json',JSON.stringify({name:'fixture-root',private:true,scripts:{"check:fast":"pnpm architecture:features:check",check:'true || pnpm architecture:features:check','architecture:features:check':'node scripts/check-feature-modules.mjs'}}));await rejects(f,'enforcement-command');
 });
-test('CONTROL failing prerequisite stays a failed gate, not a guard bypass',async t=>{
+test('CONTROL failing prerequisite cannot establish successful enforcement',async t=>{
  const f=await fixture(t);const command='false && pnpm architecture:features:check';
  const processResult=spawnSync(command,[],{cwd:f.repositoryRoot,encoding:'utf8',shell:true});assert.equal(processResult.status,1);
  const pkg=JSON.parse(await readFile(join(f.repositoryRoot,"package.json"),"utf8"));
  pkg.scripts.check=`false && ${pkg.scripts.check}`;
- await f.write("package.json",JSON.stringify(pkg)); await expectPass(f);
+ await f.write("package.json",JSON.stringify(pkg)); await rejects(f,"enforcement-command");
 });
 
 // Promoted independent transport review regressions and controls.

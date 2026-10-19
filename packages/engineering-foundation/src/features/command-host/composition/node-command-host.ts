@@ -6,7 +6,7 @@ import { runFoundationCli } from "../adapters/inbound/cli/foundation-cli.js";
 import { nodeCommandCancellation } from "../adapters/inbound/cli/node-process-lifecycle.js";
 import { foundationCommandFailureJson } from "../application/command-failure.js";
 import { createNodeCommandHost, readNodeProcessInputs } from "../adapters/inbound/cli/node-command-host.js";
-import { createManagedProcessExecutor } from "../../../process-execution/module.js";
+import { createManagedProcessExecutor, requireAdmittedNodeExecutable } from "../../../process-execution/module.js";
 import { promoteArchitectureDecisionBaseline, readAcceptedArchitectureDecisionEvidence } from "../../../capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "../../../capabilities/public-api-compatibility/module.js";
 import { createNodeAgentWorkflowCommands } from "../../../capabilities/repository-agent-workflow/command-module.js";
@@ -40,7 +40,9 @@ export interface CommandHostDependencies<SchemaId extends string> {
 // Select feature integrations without reaching back into module assembly.
 function createCommandServices<SchemaId extends string>(dependencies: CommandHostDependencies<SchemaId>, environment: NodeJS.ProcessEnv, readPackageRoot: () => string): FoundationCommandServices<SchemaId> {
   const processExecutor = createManagedProcessExecutor();
+  const nodeExecutable = requireAdmittedNodeExecutable(environment, process.execPath);
   const packageRoot = readPackageRoot();
+  const pnpmEntrypoint = environment.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT ?? environment.npm_execpath;
   const { scaffoldingApi, assertSchema, loadFoundationConfig, runFoundationCheck, RULE_REGISTRY, FoundationLocalModeService, inspectFoundationPackage, isFoundationSchemaId, readFoundationSchema } = dependencies;
   const qualityGate = createQualityGateCliCommand({
     cancellationSource: new NodeSignalQualityGateCancellationSource(),
@@ -55,8 +57,8 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     readConfig: loadFoundationConfig,
     localMode: new FoundationLocalModeService({ runner: createNodeProcessRunner(environment), now: systemNow }),
     qualityGate: (input) => qualityGate(input, environment),
-    qualityCoverage: dependencies.createQualityCommand(processExecutor, process.execPath, environment),
-    findingsBaseline: dependencies.createFindingsBaselineCommands(process.execPath, environment),
+    qualityCoverage: dependencies.createQualityCommand(processExecutor, nodeExecutable, environment),
+    findingsBaseline: dependencies.createFindingsBaselineCommands(nodeExecutable, environment),
     agentWorkflow: createNodeAgentWorkflowCommands({
       ...(environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE === undefined
         ? {}
@@ -64,7 +66,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
       ...(environment.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE === undefined
         ? {}
         : { nodeExecutablePath: environment.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE }),
-      ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
+      ...(pnpmEntrypoint === undefined ? {} : { npmExecPath: pnpmEntrypoint }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),
       ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })
     }, processExecutor, assertSchema),

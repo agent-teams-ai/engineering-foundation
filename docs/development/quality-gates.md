@@ -10,8 +10,8 @@ weakening the merge gate.
 
 | Layer | Command | Purpose |
 | --- | --- | --- |
-| Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `pnpm check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Changed | `bun tools/dev.mts check:changed` | Foundation-routed checks for the current Git delta |
+| Fast | `bun tools/dev.mts check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
 | Terminology | `pnpm docs:terminology:check` | Canonical glossary sections, qualification scopes, and entry-point links |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor capability qualification for all workflows and local actions |
@@ -20,7 +20,7 @@ weakening the merge gate.
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Full PR request | `pnpm ci:full -- --pr N --wait` | Explicit complete native qualification bound to the final PR head and base |
-| Local diagnostic | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
+| Local diagnostic | `node tools/dev.mts --profile node verify` | Local sequential equivalent of all required Linux evidence |
 | Coverage | `pnpm test:coverage` | Local native Node coverage-threshold qualification for lines, branches, and functions |
 | Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the eight isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
@@ -44,7 +44,7 @@ depend on Docs Protocol, and no bootstrap package or published dependency cycle
 is part of this lifecycle.
 
 `pnpm check` is the deterministic repository and package conformance layer. It
-does not claim networked, hosted, or external-tool capability qualification. `pnpm verify`
+does not claim networked, hosted, or external-tool capability qualification. `node tools/dev.mts --profile node verify`
 is the single local command matching the union of Linux merge lanes: workflow
 security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
@@ -108,7 +108,7 @@ shard's test process and its timeout.
 
 The former standalone native Node CI lane and the partitioned-coverage kill
 switch are removed. Native Node coverage remains available locally through
-`pnpm test:coverage` and remains part of `pnpm check` and `pnpm verify`; its
+`pnpm test:coverage` and remains part of `pnpm check` and `node tools/dev.mts --profile node verify`; its
 thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
@@ -180,7 +180,7 @@ focused checks for the changed behavior. Merge still requires independent
 technical review and the explicitly requested complete `full-ci` matrix on the
 final PR head and base, including all native
 qualifications and the partitioned coverage authority. A second sequential local
-`pnpm verify` is not an additional merge prerequisite when CI supplies that
+`node tools/dev.mts --profile node verify` is not an additional merge prerequisite when CI supplies that
 evidence. Keep the full local diagnostic command when full CI cannot run or a
 changed risk is not covered; retain any uncovered check. Pending CI alone does
 not require a duplicate local full run. Older-SHA results cannot be relabeled as
@@ -478,6 +478,19 @@ local composite actions outside `.github`. Dependency Review is a direct
 prerequisite of every executable pull request job and is included by both
 required aggregators. CodeQL runs as a separate hosted analysis; none of these tools execute
 inside a normal capability check.
+
+Full local diagnostics use the isolated Node/pnpm projection. Run
+`node tools/dev.mts --profile node install` before
+`node tools/dev.mts --profile node verify`; package and coverage evidence must
+not be attributed to the source worktree's Bun dependency graph. The Bun default
+keeps changed and fast feedback in the source worktree.
+
+Package public API tests invoke the existing repository-owned pnpm command as a
+child process for the closed `pack --out ABS.tgz` operation. The Host verifies
+physical Node/pnpm identities, rejects lifecycle hooks before manager admission
+and disables scripts for packing. Package tests do not import repository tooling
+modules across their package source boundaries; no source-DAG exception or new
+module-system boundary is introduced.
 
 ## Feature ownership and complete production scope
 

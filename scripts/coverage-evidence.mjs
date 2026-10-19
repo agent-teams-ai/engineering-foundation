@@ -469,8 +469,7 @@ export async function mergeCoverageEvidence({ headSha, inputDirectory }) {
   try {
     await materializeValidatedRawCoverage(validated, temporaryDirectory);
     const c8Arguments = [
-      "exec",
-      "c8",
+      join(repositoryRoot, "node_modules", "c8", "bin", "c8.js"),
       "report",
       "--temp-directory",
       temporaryDirectory,
@@ -485,7 +484,7 @@ export async function mergeCoverageEvidence({ headSha, inputDirectory }) {
       ...validated.protocol.config.exclude.flatMap((pattern) => ["--exclude", pattern]),
     ];
     const exitCode = await new Promise((resolve, reject) => {
-      const child = spawn("pnpm", c8Arguments, {
+      const child = spawn(process.execPath, c8Arguments, {
         cwd: repositoryRoot,
         stdio: "inherit",
       });

@@ -10,6 +10,17 @@
     "publint",
     "vfile"
   ],
+  "ignoreIssues": {
+    "tests/fixtures/source-dependencies/valid/packages/app/src/application/execute.ts": [
+      "unlisted"
+    ],
+    "tests/fixtures/source-dependencies/valid/packages/app/src/infrastructure/adapter.ts": [
+      "unlisted"
+    ],
+    "tests/fixtures/source-dependencies/v2-valid/packages/app/src/index.ts": [
+      "unlisted"
+    ]
+  },
   "workspaces": {
     ".": {
       "entry": [
@@ -22,6 +33,12 @@
         "tests/fixtures/foundation-transaction-holder.mjs",
         "tests/fixtures/scaffolding-crash-worker.mjs",
         "tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts",
+        "tests/fixtures/repository-agent-workflow/valid/src/index.ts",
+        "tests/fixtures/source-dependencies/valid/packages/app/src/index.ts",
+        "tests/fixtures/source-dependencies/valid/packages/core/src/index.ts",
+        "tests/fixtures/source-dependencies/v2-valid/packages/app/src/index.ts",
+        "tests/fixtures/source-dependencies/v2-valid/packages/core/src/index.ts",
+        "tests/fixtures/suppression-governance/valid/src/index.ts",
         "tests/support/document-authoring-schema-closures.mjs",
         "tests/fixtures/**/scripts/*.mjs",
         "tests/**/*.test.ts",

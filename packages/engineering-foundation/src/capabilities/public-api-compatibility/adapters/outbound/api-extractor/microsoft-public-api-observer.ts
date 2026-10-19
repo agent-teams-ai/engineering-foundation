@@ -8,7 +8,7 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { parse, type ParseError } from "jsonc-parser";
-import { SymbolFlags } from "typescript/unstable/sync";
+import { SymbolFlags } from "typescript/unstable/async";
 import type { SourceFile } from "typescript/unstable/ast";
 import { ApiDeclaredItem, ExcerptTokenKind, ApiExportedMixin, ApiReleaseTagMixin, ReleaseTag, type ApiModel, type ApiPackage, type ApiItem } from "@microsoft/api-extractor-model";
 import type { AuditPackageInput } from "../../../contract/public-api-audit.js";
@@ -24,43 +24,59 @@ function libraryFile(path: string): boolean {
   const resolved = realpathSync(path);
   return dirname(resolved) === compilerLibraryRoot && /^lib\..*\.d\.ts$/u.test(basename(resolved));
 }
-function nativeSources(context: NativePublicApiContext): readonly SourceFile[] {
-  return context.program.getSourceFileNames().map(path => {
-    const source = context.program.getSourceFile(path);
+async function nativeSources(context: NativePublicApiContext): Promise<readonly SourceFile[]> {
+  const sources: SourceFile[] = [];
+  for (const path of await context.program.getSourceFileNames()) {
+    const source = await context.program.getSourceFile(path);
     if (source === undefined) { throw new Error("Native compiler source is unavailable."); }
-    return source;
-  });
+    sources.push(source);
+  }
+  return sources;
 }
-function defaultLibrary(context: NativePublicApiContext, source: SourceFile): boolean {
-  return context.program.getSourceFileMetadata(source.fileName)?.isDefaultLibrary === true;
+async function defaultLibrary(context: NativePublicApiContext, source: SourceFile): Promise<boolean> {
+  return (await context.program.getSourceFileMetadata(source.fileName))?.isDefaultLibrary === true;
 }
-function builtin(reference: string | null, context: NativePublicApiContext): AuditReference["library"] | undefined {
+async function builtin(reference: string | null, context: NativePublicApiContext): Promise<AuditReference["library"] | undefined> {
   const name = /^!([A-Za-z][A-Za-z0-9]*):(?:interface|type|var)$/u.exec(reference ?? "")?.[1];
   if (name === undefined || !BUILTINS.has(name)) { return; }
   const identities = new Set<string>();
   let found = false;
   // Every source must resolve this spelling exclusively to actual pinned libraries.
   // A local shadow or any merged augmentation prevents external-library admission.
-  for (const source of nativeSources(context)) {
-    if (defaultLibrary(context, source)) { continue; }
-    const symbol = context.checker.resolveName(name, SymbolFlags.Type | SymbolFlags.Value, source);
+  for (const source of await nativeSources(context)) {
+    if (await defaultLibrary(context, source)) { continue; }
+    const symbol = await context.checker.resolveName(name, SymbolFlags.Type | SymbolFlags.Value, source);
     if (symbol === undefined || symbol.declarations.length === 0) { return; }
     found = true;
     for (const handle of symbol.declarations) {
-      const declaration = handle.resolve(context.project);
+      const declaration = await handle.resolve(context.project);
       if (declaration === undefined) { return; }
       const file = declaration.getSourceFile();
-      if (!defaultLibrary(context, file) || !libraryFile(file.fileName)) { return; }
+      if (!await defaultLibrary(context, file) || !libraryFile(file.fileName)) { return; }
       identities.add(`${basename(file.fileName)}:${auditDigest(file.text)}`);
     }
   }
   return found ? { symbol: name, declarations: [...identities].toSorted() } : undefined;
 }
 
-function readModel(model: ApiModel, pkg: ApiPackage, observation: Pick<AuditObservation, "subject" | "packageName"> & { readonly exportPath: string }, context: NativePublicApiContext, historical = false): AuditDeclaration[] {
+async function modelReferences(item: ApiDeclaredItem, model: ApiModel, identity: AuditDeclaration["identity"], context: NativePublicApiContext): Promise<AuditReference[]> {
+  const references: AuditReference[] = [];
+  for (const token of item.excerpt.spannedTokens.filter(candidate => candidate.kind === ExcerptTokenKind.Reference)) {
+    const reference = token.canonicalReference;
+    const target = reference === undefined ? undefined : model.resolveDeclarationReference(reference, item).resolvedApiItem;
+    const library = target === undefined ? await builtin(reference?.toString() ?? null, context) : undefined;
+    references.push({ text: token.text, canonicalReference: reference?.toString() ?? null,
+      resolution: target !== undefined ? "local" : library !== undefined ? "verified-external-library" : "unresolved",
+      ...(target === undefined ? {} : { target: { ...identity, canonicalReference: target.canonicalReference.toString() } }),
+      ...(library === undefined ? {} : { library }) });
+  }
+  return references;
+}
+
+async function readModel(model: ApiModel, pkg: ApiPackage, observation: Pick<AuditObservation, "subject" | "packageName"> & { readonly exportPath: string }, context: NativePublicApiContext, historical = false): Promise<AuditDeclaration[]> {
   if (pkg.name !== observation.packageName || pkg.entryPoints.length !== 1) {throw new Error("Unsupported audit model package/entrypoint identity.");}
   const output: AuditDeclaration[] = [];
-  function walk(item: ApiItem, parentPublic: boolean): void {
+  async function walk(item: ApiItem, parentPublic: boolean): Promise<void> {
     if (output.length >= AUDIT_MAX_FILES) {throw new Error("Audit model node budget exhausted.");}
     // Historical production models trim internal containers and omit forgotten exports.
     if (historical && ApiReleaseTagMixin.isBaseClassOf(item) && item.releaseTag === ReleaseTag.Internal) {return;}
@@ -69,22 +85,14 @@ function readModel(model: ApiModel, pkg: ApiPackage, observation: Pick<AuditObse
     if (historical && !isPublic) {return;}
     if (item instanceof ApiDeclaredItem) {
       const identity = { subject: observation.subject, packageName: observation.packageName, exportPath: observation.exportPath, canonicalReference: item.canonicalReference.toString() };
+      const references = await modelReferences(item, model, identity, context);
       output.push({ identity, displayName: item.displayName, kind: item.kind,
         parentReference: item.parent?.canonicalReference.toString() ?? "", parentKind: item.parent?.kind ?? "None",
-        excerpt: item.excerpt.text, isExported: exported, public: isPublic,
-        references: item.excerpt.spannedTokens.filter((token) => token.kind === ExcerptTokenKind.Reference).map((token): AuditReference => {
-          const reference = token.canonicalReference;
-          const target = reference === undefined ? undefined : model.resolveDeclarationReference(reference, item).resolvedApiItem;
-          const library = target === undefined ? builtin(reference?.toString() ?? null, context) : undefined;
-          return { text: token.text, canonicalReference: reference?.toString() ?? null,
-            resolution: target !== undefined ? "local" : library !== undefined ? "verified-external-library" : "unresolved",
-            ...(target === undefined ? {} : { target: { ...identity, canonicalReference: target.canonicalReference.toString() } }),
-            ...(library === undefined ? {} : { library }) };
-        }) });
+        excerpt: item.excerpt.text, isExported: exported, public: isPublic, references });
     }
-    for (const member of item.members) {walk(member, isPublic);}
+    for (const member of item.members) {await walk(member, isPublic);}
   }
-  walk(pkg, true);
+  await walk(pkg, true);
   // The model resolver can fail for a modeled hidden namespace member. Exact opaque
   // identities in this one export-path model provide a bounded local binding.
   return output.map((item) => ({ ...item, references: item.references.map((reference): AuditReference => {
@@ -194,14 +202,14 @@ function prepareNativeFiles(context: ObservationContext, configFiles: Map<string
   } }));
   return { configPath, files };
 }
-function validateCompilerSources(native: NativePublicApiContext, context: ObservationContext): readonly SourceFile[] {
-  const sources = nativeSources(native);
+async function validateCompilerSources(native: NativePublicApiContext, context: ObservationContext): Promise<readonly SourceFile[]> {
+  const sources = await nativeSources(native);
   let bytes = 0;
   for (const source of sources) {
     bytes += Buffer.byteLength(source.text);
     if (sources.length > AUDIT_MAX_FILES || bytes > AUDIT_MAX_BYTES) { throw new Error("Compiler input budget exhausted."); }
     if (!source.isDeclarationFile) { throw new Error("Only prepared declarations are supported."); }
-    if (defaultLibrary(native, source)) {
+    if (await defaultLibrary(native, source)) {
       if (!libraryFile(source.fileName)) { throw new Error("Compiler library outside pinned native toolchain."); }
     } else if (context.allowed.get(resolve(source.fileName)) !== auditDigest(source.text)) { throw new Error(`Compiler input outside verified subject: ${source.fileName}.`); }
   }
@@ -259,10 +267,12 @@ async function observeEntrypoint(context: ObservationContext): Promise<AuditObse
       ...(input.signal === undefined ? {} : { signal: input.signal }) }, async native => {
       const { configFilePath: _configPath, ...options } = native.config.options;
       compilerOptions = options;
-      diagnostics.push(...nativeCompilerDiagnostics(native));
+      diagnostics.push(...await nativeCompilerDiagnostics(native));
       collected = true;
-      const checkedSources = validateCompilerSources(native, effectiveContext);
-      sources = checkedSources.map(source => ({ fileName: source.fileName, text: source.text, library: defaultLibrary(native, source) }));
+      const checkedSources = await validateCompilerSources(native, effectiveContext);
+      const checkedInputs = [];
+      for (const source of checkedSources) { checkedInputs.push({ fileName: source.fileName, text: source.text, library: await defaultLibrary(native, source) }); }
+      sources = checkedInputs;
       for (const path of native.readFiles) {
         if (basename(path) === "package.json" && effectiveContext.allowed.has(resolve(path))) { configFiles.set(resolve(path), auditDigest(readFileSync(path))); }
       }
@@ -270,7 +280,7 @@ async function observeEntrypoint(context: ObservationContext): Promise<AuditObse
         const modelPath = join(outputRoot, "surface.api.json");
         try {
           if (diagnostics.some(diagnostic => diagnostic.source === "compiler" && diagnostic.severity === "error")) { throw new Error("Native public API extraction cannot model compiler errors."); }
-          const result = createNativePublicApiModel(native, { packageName: pkg.packageName,
+          const result = await createNativePublicApiModel(native, { packageName: pkg.packageName,
             entryPointPath: resolve(stage!.root, entry.declarationEntryPoint), includeForgottenExports: true, untrimmedObservation: true,
             referenceProjection: "declaration-graph" });
           diagnostics.push(...result.diagnostics.filter(diagnostic => diagnostic.source !== "compiler"));
@@ -283,13 +293,13 @@ async function observeEntrypoint(context: ObservationContext): Promise<AuditObse
             modelPresent = true;
             modelDigest = auditDigest(modelBytes);
             if (modelBytes.length > AUDIT_MAX_BYTES) { throw new Error("Audit model byte budget exhausted."); }
-            items = readModel(result.model, result.apiPackage, { subject: input.subject, packageName: pkg.packageName, exportPath: entry.exportPath }, native);
-            bindAuditCompilerReferences({ program: native.program, checker: native.checker, project: native.project,
+            items = await readModel(result.model, result.apiPackage, { subject: input.subject, packageName: pkg.packageName, exportPath: entry.exportPath }, native);
+            await bindAuditCompilerReferences({ program: native.program, checker: native.checker, project: native.project,
               root: stage!.root, declarations: input.declarations, items, declarationBindings: result.declarationBindings, bindings: context.dependencyBindings });
-            validateModelExports(native, resolve(stage!.root, entry.declarationEntryPoint), items);
+            await validateModelExports(native, resolve(stage!.root, entry.declarationEntryPoint), items);
             storedSurface = mapReleasedBaseline({ schemaVersion: 1, packageName: pkg.packageName, packageVersion: pkg.packageVersion,
               extractorVersion: NATIVE_EXTRACTOR_VERSION, entrypoints: [{ exportPath: entry.exportPath,
-                items: readModel(result.model, result.apiPackage, { subject: input.subject, packageName: pkg.packageName, exportPath: entry.exportPath }, native, true).map(item => ({
+                items: (await readModel(result.model, result.apiPackage, { subject: input.subject, packageName: pkg.packageName, exportPath: entry.exportPath }, native, true)).map(item => ({
                   canonicalReference: item.identity.canonicalReference, kind: item.kind, parentKind: item.parentKind, parentReference: item.parentReference,
                   signature: item.excerpt.replaceAll("\r\n", "\n").trim() || (item.kind === "Namespace" ? `namespace ${item.displayName}` : "")
                 })).toSorted((a, b) => a.canonicalReference < b.canonicalReference ? -1 : a.canonicalReference > b.canonicalReference ? 1 : 0) }] }, auditPackagePolicy(pkg));
@@ -403,11 +413,11 @@ function collectMetadataPresence(allowed: ReadonlyMap<string, string>, configFil
 }
 
 
-function validateModelExports(context: NativePublicApiContext, entryPoint: string, items: readonly AuditDeclaration[]): void {
-  const entrySource = context.program.getSourceFile(entryPoint);
-  const moduleSymbol = entrySource === undefined ? undefined : context.checker.getSymbolAtLocation(entrySource);
+async function validateModelExports(context: NativePublicApiContext, entryPoint: string, items: readonly AuditDeclaration[]): Promise<void> {
+  const entrySource = await context.program.getSourceFile(entryPoint);
+  const moduleSymbol = entrySource === undefined ? undefined : await context.checker.getSymbolAtLocation(entrySource);
   if (moduleSymbol === undefined) { throw new Error("Unsupported declaration entrypoint module binding."); }
-  for (const exported of context.checker.getExportsOfModule(moduleSymbol)) {
+  for (const exported of await context.checker.getExportsOfModule(moduleSymbol)) {
     if (!items.some(item => item.public && item.parentKind === "EntryPoint" && item.displayName === exported.name)) { throw new Error(`Unsupported model omission for compiler export: ${exported.name}.`); }
   }
   if (items.some(item => item.public && item.kind !== "Namespace" && !item.excerpt.trim())) { throw new Error("Empty historical declaration signature."); }

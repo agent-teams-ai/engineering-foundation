@@ -10,8 +10,8 @@ import { captureNativePublicApiInputs } from "../dist/capabilities/public-api-co
 import { createNativePublicApiModel } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-model.js";
 
 type Projection = "stored-surface" | "declaration-graph";
-type NativeModel = ReturnType<typeof createNativePublicApiModel>;
-async function fixture(source: string, inspect: (context: NativePublicApiContext, entryPointPath: string) => void, options: {
+type NativeModel = Awaited<ReturnType<typeof createNativePublicApiModel>>;
+async function fixture(source: string, inspect: (context: NativePublicApiContext, entryPointPath: string) => void | Promise<void>, options: {
   readonly dependency?: string;
   readonly nodeTypes?: boolean;
   readonly compilerOptions?: Readonly<Record<string, unknown>>;
@@ -39,10 +39,10 @@ async function fixture(source: string, inspect: (context: NativePublicApiContext
     await withNativePublicApiProject({ cwd: root, configPath: join(root, "tsconfig.json"), files, declarationEntryPoint: entryPointPath }, context => inspect(context, entryPointPath));
   } finally { await rm(root, { recursive: true, force: true }); }
 }
-function models(context: NativePublicApiContext, entryPointPath: string): readonly [NativeModel, NativeModel, NativeModel] {
+async function models(context: NativePublicApiContext, entryPointPath: string): Promise<readonly [NativeModel, NativeModel, NativeModel]> {
   const options = { packageName: "projection-fixture", entryPointPath, includeForgottenExports: false };
-  return [createNativePublicApiModel(context, { ...options, referenceProjection: "stored-surface" }),
-    createNativePublicApiModel(context, options), createNativePublicApiModel(context, { ...options, referenceProjection: "declaration-graph" })];
+  return [await createNativePublicApiModel(context, { ...options, referenceProjection: "stored-surface" }),
+    await createNativePublicApiModel(context, options), await createNativePublicApiModel(context, { ...options, referenceProjection: "declaration-graph" })];
 }
 function declarations(item: ApiItem): ApiDeclaredItem[] {
   return [...(item instanceof ApiDeclaredItem ? [item] : []), ...item.members.flatMap(declarations)];
@@ -58,8 +58,8 @@ function contentOnly(result: NativeModel): void {
 }
 
 test("stored surfaces preserve official own identities and text from a fully bound declaration graph", async () => {
-  await fixture("export interface Box { value: string; } export declare function read(value: Box): Box;\n", (context, entryPointPath) => {
-    const [stored, defaultGraph, explicitGraph] = models(context, entryPointPath);
+  await fixture("export interface Box { value: string; } export declare function read(value: Box): Box;\n", async (context, entryPointPath) => {
+    const [stored, defaultGraph, explicitGraph] = await models(context, entryPointPath);
     for (const result of [stored, defaultGraph, explicitGraph]) {
       assert.equal(result.succeeded, true);
       assert.deepEqual(errors(result), []);
@@ -78,8 +78,8 @@ test("stored surfaces preserve official own identities and text from a fully bou
 });
 
 test("stored surfaces retain external callable text while both graph selections reject an overloaded target", async () => {
-  await fixture('import { fn } from "@fixture/dependency"; export type Callable = typeof fn;\n', (context, entryPointPath) => {
-    const [stored, defaultGraph, explicitGraph] = models(context, entryPointPath);
+  await fixture('import { fn } from "@fixture/dependency"; export type Callable = typeof fn;\n', async (context, entryPointPath) => {
+    const [stored, defaultGraph, explicitGraph] = await models(context, entryPointPath);
     assert.equal(stored.succeeded, true);
     assert.deepEqual(errors(stored), []);
     contentOnly(stored);
@@ -94,9 +94,9 @@ test("stored surfaces retain external callable text while both graph selections 
 });
 
 test("real installed Node types qualify stored text without claiming an external declaration graph", async () => {
-  await fixture('import type { mkdir, realpath } from "node:fs/promises"; export interface NodePorts { readonly mkdir: typeof mkdir; readonly realpath: typeof realpath; bytes: Buffer; timeout: NodeJS.Timeout; }\n', (context, entryPointPath) => {
+  await fixture('import type { mkdir, realpath } from "node:fs/promises"; export interface NodePorts { readonly mkdir: typeof mkdir; readonly realpath: typeof realpath; bytes: Buffer; timeout: NodeJS.Timeout; }\n', async (context, entryPointPath) => {
     assert.ok([...context.files.keys()].some(path => path.endsWith("/node_modules/@types/node/package.json")));
-    const [stored, defaultGraph, explicitGraph] = models(context, entryPointPath);
+    const [stored, defaultGraph, explicitGraph] = await models(context, entryPointPath);
     assert.equal(stored.succeeded, true, JSON.stringify(errors(stored)));
     assert.deepEqual(errors(stored), []);
     contentOnly(stored);
@@ -117,9 +117,9 @@ test("real installed Node types qualify stored text without claiming an external
 });
 
 test("both private projections retain real compiler errors with suppressed consumer checking", async () => {
-  await fixture("export declare function fail(value: Missing): void;\n", (context, entryPointPath) => {
+  await fixture("export declare function fail(value: Missing): void;\n", async (context, entryPointPath) => {
     for (const referenceProjection of ["stored-surface", "declaration-graph"] satisfies readonly Projection[]) {
-      const result = createNativePublicApiModel(context, { packageName: "projection-fixture", entryPointPath, includeForgottenExports: false, referenceProjection });
+      const result = await createNativePublicApiModel(context, { packageName: "projection-fixture", entryPointPath, includeForgottenExports: false, referenceProjection });
       assert.equal(result.succeeded, false);
       assert.ok(errors(result).some(diagnostic => diagnostic.source === "compiler" && diagnostic.id === "TS2304"));
     }

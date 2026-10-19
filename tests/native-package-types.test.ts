@@ -28,10 +28,10 @@ function archive(input: Fixture, extraEntries: readonly { name: string; data: Bu
   ]);
 }
 
-function rejects(change: (input: Fixture) => void, expected: RegExp): void {
+async function rejects(change: (input: Fixture) => void, expected: RegExp): Promise<void> {
   const input = fixture();
   change(input);
-  assert.throws(() => qualifyNativePackageArchive(archive(input), packageName), expected);
+  await assert.rejects(() => qualifyNativePackageArchive(archive(input), packageName), expected);
 }
 
 // Independent fixture map for all twelve ATTW problem classes. CJS-origin
@@ -55,14 +55,14 @@ for (const row of problemFixtures) {
   test(`native package qualification retains ${row.kind} protection`, () => rejects(row.change, row.expected));
 }
 
-test("native package qualification retains the CJSResolvesToESM profile policy and both required modes", () => {
-  const result = qualifyNativePackageArchive(archive(fixture()), packageName);
+test("native package qualification retains the CJSResolvesToESM profile policy and both required modes", async () => {
+  const result = await qualifyNativePackageArchive(archive(fixture()), packageName);
   assert.deepEqual(result, { packageName, packageVersion: "0.1.0", compilerVersion: "7.0.2",
     modes: ["node16-esm", "bundler"], typedEntrypoints: 1, codeFiles: 2, ownImports: 0 });
   assert.equal(problemFixtures.length + 1, 12);
 });
 
-test("native package qualification resolves relative, self and # imports in both modes", () => {
+test("native package qualification resolves relative, self and # imports in both modes", async () => {
   const input = fixture();
   input.manifest["imports"] = { "#internal": "./dist/internal.js" };
   input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
@@ -71,40 +71,40 @@ test("native package qualification resolves relative, self and # imports in both
   input.files["dist/index.js"] = "export { value } from '#internal';\nimport './internal.js';";
   input.files["dist/internal.d.ts"] = "export declare const value: number;";
   input.files["dist/internal.js"] = "export const value = 1;";
-  const result = qualifyNativePackageArchive(archive(input), packageName);
+  const result = await qualifyNativePackageArchive(archive(input), packageName);
   assert.equal(result.typedEntrypoints, 2);
   assert.equal(result.ownImports, 8);
 });
 
-test("native package qualification rejects unresolved self and # declaration imports", () => {
+test("native package qualification rejects unresolved self and # declaration imports", async () => {
   for (const reference of [`${packageName}/missing`, "#missing"]) {
-    rejects(input => { input.files["dist/index.d.ts"] = `export type Missing = import('${reference}').Missing;`; }, /unresolved own import/u);
+    await rejects(input => { input.files["dist/index.d.ts"] = `export type Missing = import('${reference}').Missing;`; }, /unresolved own import/u);
   }
 });
 
-test("native package qualification does not mistake an ambient module symbol for file resolution", () => {
-  rejects(input => {
+test("native package qualification does not mistake an ambient module symbol for file resolution", async () => {
+  await rejects(input => {
     input.files["dist/index.d.ts"] = `declare module '${packageName}/missing' { export interface Missing {} }\nexport type Missing = import('${packageName}/missing').Missing;`;
   }, /unresolved own import/u);
 });
 
-test("native package qualification rejects a path accepted only by Bundler", () => {
-  rejects(input => {
+test("native package qualification rejects a path accepted only by Bundler", async () => {
+  await rejects(input => {
     input.files["dist/index.d.ts"] = "export { value } from './internal';";
     input.files["dist/internal.d.ts"] = "export declare const value: number;";
   }, /unresolved own import/u);
 });
 
-test("native package qualification resolves JS runtime paths independently of declaration siblings", () => {
-  rejects(input => {
+test("native package qualification resolves JS runtime paths independently of declaration siblings", async () => {
+  await rejects(input => {
     input.files["dist/index.js"] = "export { value } from './internal.js';";
     input.files["dist/internal.d.ts"] = "export declare const value: number;";
   }, /unresolved own runtime import/u);
 });
 
-test("native package qualification never admits legacy or alternate condition graphs", () => {
+test("native package qualification never admits legacy or alternate condition graphs", async () => {
   for (const field of ["main", "module", "types", "typings", "typesVersions", "browser"]) {
-    rejects(input => { input.manifest[field] = "./dist/index.js"; }, /unsupported legacy resolution field/u);
+    await rejects(input => { input.manifest[field] = "./dist/index.js"; }, /unsupported legacy resolution field/u);
   }
   for (const value of [
     { import: "./dist/index.js", types: "./dist/index.d.ts" },
@@ -112,66 +112,66 @@ test("native package qualification never admits legacy or alternate condition gr
     { types: { default: "./dist/index.d.ts" }, import: "./dist/index.js" },
     ["./dist/index.js"],
   ]) {
-    rejects(input => { input.manifest["exports"] = { ".": value }; }, /first types|relative package path|must be an object/u);
+    await rejects(input => { input.manifest["exports"] = { ".": value }; }, /first types|relative package path|must be an object/u);
   }
-  rejects(input => { input.manifest["exports"] = { "./dist/index": { types: "./dist/index.d.ts", import: "./dist/index.js" } }; }, /alternative legacy entrypoint/u);
-  rejects(input => { input.files["index.js"] = "export const value = 1;"; }, /unsupported code file/u);
+  await rejects(input => { input.manifest["exports"] = { "./dist/index": { types: "./dist/index.d.ts", import: "./dist/index.js" } }; }, /alternative legacy entrypoint/u);
+  await rejects(input => { input.files["index.js"] = "export const value = 1;"; }, /unsupported code file/u);
 });
 
-test("native package qualification rejects nested module scopes and export-equals declarations", () => {
-  rejects(input => { input.files["dist/package.json"] = '{"type":"commonjs"}'; }, /nested package scope/u);
-  rejects(input => { input.files["dist/index.d.ts"] = "declare function value(): void; export = value;"; }, /unsupported declaration export form/u);
-  rejects(input => { input.manifest["type"] = "commonjs"; }, /type:module/u);
+test("native package qualification rejects nested module scopes and export-equals declarations", async () => {
+  await rejects(input => { input.files["dist/package.json"] = '{"type":"commonjs"}'; }, /nested package scope/u);
+  await rejects(input => { input.files["dist/index.d.ts"] = "declare function value(): void; export = value;"; }, /unsupported declaration export form/u);
+  await rejects(input => { input.manifest["type"] = "commonjs"; }, /type:module/u);
 });
 
-test("native package qualification explicitly excludes syntax-free ESM from its bounded domain", () => {
-  rejects(input => { input.files["dist/index.js"] = "const internal = 1; void internal;"; }, /required ESM format or explicit module syntax/u);
+test("native package qualification explicitly excludes syntax-free ESM from its bounded domain", async () => {
+  await rejects(input => { input.files["dist/index.js"] = "const internal = 1; void internal;"; }, /required ESM format or explicit module syntax/u);
 });
 
-test("native package qualification validates explicit JSON and bounded JSON wildcard members", () => {
+test("native package qualification validates explicit JSON and bounded JSON wildcard members", async () => {
   const input = fixture();
   input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
     "./schema.json": "./schemas/v1.json", "./schemas/*": "./schemas/*" };
   input.files["schemas/v1.json"] = '{"type":"object"}';
-  assert.equal(qualifyNativePackageArchive(archive(input), packageName).typedEntrypoints, 1);
+  assert.equal((await qualifyNativePackageArchive(archive(input), packageName)).typedEntrypoints, 1);
   input.files["schemas/readme.txt"] = "not JSON";
-  assert.throws(() => qualifyNativePackageArchive(archive(input), packageName), /must identify JSON data/u);
+  await assert.rejects(() => qualifyNativePackageArchive(archive(input), packageName), /must identify JSON data/u);
 });
 
-test("native package qualification resolves packed JSON wildcard self-imports and rejects missing members", () => {
+test("native package qualification resolves packed JSON wildcard self-imports and rejects missing members", async () => {
   const input = fixture();
   input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" }, "./schemas/*": "./schemas/*" };
   input.files["schemas/v1.json"] = '{"type":"object"}';
   input.files["dist/index.js"] = `import schema from '${packageName}/schemas/v1.json' with { type: 'json' }; export const value = schema;`;
-  assert.equal(qualifyNativePackageArchive(archive(input), packageName).ownImports, 2);
+  assert.equal((await qualifyNativePackageArchive(archive(input), packageName)).ownImports, 2);
   input.files["dist/index.js"] = `import schema from '${packageName}/schemas/missing.json' with { type: 'json' }; export const value = schema;`;
-  assert.throws(() => qualifyNativePackageArchive(archive(input), packageName), /unresolved own import/u);
+  await assert.rejects(() => qualifyNativePackageArchive(archive(input), packageName), /unresolved own import/u);
 });
 
-test("native package qualification gives exact exports precedence over data wildcards", () => {
+test("native package qualification gives exact exports precedence over data wildcards", async () => {
   const input = fixture();
   input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
     "./schemas/*": "./schemas/*", "./schemas/v1.json": "./schemas/v2.json" };
   // No v1.json exists: success requires selecting the exact export's v2 target.
   input.files["schemas/v2.json"] = '{"type":"object"}';
   input.files["dist/index.js"] = `import schema from '${packageName}/schemas/v1.json' with { type: 'json' }; export const value = schema;`;
-  assert.equal(qualifyNativePackageArchive(archive(input), packageName).ownImports, 2);
+  assert.equal((await qualifyNativePackageArchive(archive(input), packageName)).ownImports, 2);
 });
 
-test("native package qualification rejects overlapping wildcard resolution domains", () => {
-  rejects(input => {
+test("native package qualification rejects overlapping wildcard resolution domains", async () => {
+  await rejects(input => {
     input.manifest["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
       "./schemas/*": "./schemas/*", "./schemas/*.json": "./schemas/*.json" };
     input.files["schemas/v1.json"] = '{}';
   }, /overlapping data wildcard exports/u);
 });
 
-test("native package qualification rejects identity drift, duplicate members and special entries", () => {
-  assert.throws(() => qualifyNativePackageArchive(archive(fixture()), "@qualification/other"), /package name differs/u);
-  assert.throws(() => qualifyNativePackageArchive(archive(fixture(), [
+test("native package qualification rejects identity drift, duplicate members and special entries", async () => {
+  await assert.rejects(() => qualifyNativePackageArchive(archive(fixture()), "@qualification/other"), /package name differs/u);
+  await assert.rejects(() => qualifyNativePackageArchive(archive(fixture(), [
     { name: "package/dist/index.js", data: Buffer.from("export {};" ) },
   ]), packageName), /duplicate archive member/u);
-  assert.throws(() => qualifyNativePackageArchive(archive(fixture(), [
+  await assert.rejects(() => qualifyNativePackageArchive(archive(fixture(), [
     { name: "package/link", data: Buffer.alloc(0), type: "2" },
   ]), packageName), /unsupported archive member/u);
 });
@@ -181,7 +181,7 @@ test("native package qualification cannot resolve an own file from the real file
   t.after(() => rm(root, { recursive: true, force: true }));
   const outside = join(root, "outside.d.ts");
   await writeFile(outside, "export interface Outside {}\n");
-  rejects(input => { input.files["dist/index.d.ts"] = `export type Outside = import(${JSON.stringify(outside)}).Outside;`; }, /unresolved own import/u);
+  await rejects(input => { input.files["dist/index.d.ts"] = `export type Outside = import(${JSON.stringify(outside)}).Outside;`; }, /unresolved own import/u);
 });
 
 test("native package CLI qualifies real packed bytes without running package lifecycle scripts", async t => {

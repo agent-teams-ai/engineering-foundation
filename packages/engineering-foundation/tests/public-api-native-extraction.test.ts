@@ -57,11 +57,11 @@ test("native declaration projects use one canonical virtual config path without 
     await withNativePublicApiProject({ cwd: root, configPath, declarationEntryPoint, files: new Map([
       [configPath, originalConfig], [declarationEntryPoint, source],
       [join(root, "package.json"), await readFile(join(root, "package.json"), "utf8")]
-    ]) }, context => {
+    ]) }, async context => {
       assert.equal(context.project.configFileName, generatedPath);
       assert.ok(context.files.has(generatedPath));
       assert.ok([...context.files.keys()].every(path => !path.includes("\\")));
-      assert.equal(context.program.getSourceFile(declarationEntryPoint)?.text, source);
+      assert.equal((await context.program.getSourceFile(declarationEntryPoint))?.text, source);
       assert.ok(context.readFiles.has(resolve(generatedPath)));
     });
     assert.equal(await readFile(configPath, "utf8"), originalConfig);

@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.mjs";
+import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.ts";
 import { assertPackedLegacyPublicApiBaseline } from "./packed-consumer-native-public-api.ts";
 
 import {

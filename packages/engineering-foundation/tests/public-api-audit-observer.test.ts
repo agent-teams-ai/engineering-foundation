@@ -421,7 +421,7 @@ test("audit proves its exact native SDK and refuses an incompatible model manife
   const nativeManifest = JSON.parse(await readFile(nativeManifestPath, "utf8")) as { version: string };
   assert.equal(version, "7.0.2");
   assert.equal(nativeManifest.version, "7.0.2");
-  assert.equal(sdk.compilerPath, join(dirname(nativeManifestPath), "lib", process.platform === "win32" ? "tsc.exe" : "tsc"));
+  assert.equal(sdk.nativeCompilerPath, join(dirname(nativeManifestPath), "lib", process.platform === "win32" ? "tsc.exe" : "tsc"));
   sdk.assertPinnedAuditSdk();
   const identity = JSON.parse(sdk.auditToolchainIdentity()) as { extractor: string; compiler: string; model: string };
   assert.deepEqual([identity.extractor, identity.compiler, identity.model], ["typescript-native/7.0.2", "7.0.2", "7.33.10"]);

@@ -25,7 +25,7 @@ export async function qualifyPackedNativePackage(packageRoot: string): Promise<N
       !/^[A-Za-z0-9._-]+\.tgz$/u.test(entry.filename)) {
       throw new Error("Native package type qualification received an invalid packed archive identity.");
     }
-    const result = qualifyNativePackageArchive(await readRegularArchive(join(temporaryRoot, entry.filename)), manifest.name);
+    const result = await qualifyNativePackageArchive(await readRegularArchive(join(temporaryRoot, entry.filename)), manifest.name);
     if (result.packageVersion !== manifest.version) { throw new Error("Packed native package version differs from its staged manifest."); }
     return result;
   } finally { await rm(temporaryRoot, { recursive: true, force: true }); }

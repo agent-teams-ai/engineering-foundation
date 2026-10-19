@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { API, DiagnosticCategory, type Checker, type Diagnostic, type Emitter, type Program, type Project, type Snapshot } from "typescript/unstable/sync";
+import { API, DiagnosticCategory, type Checker, type Diagnostic, type Emitter, type Program, type Project, type Snapshot } from "typescript/unstable/async";
 import { createVirtualFileSystem } from "typescript/unstable/fs";
 import { assertNotCancelled, publicApiInputError } from "../../../application/policies/public-api-evidence-errors.js";
 import { nativeLibraryDirectory } from "./load-pinned-audit-sdk.js";
@@ -32,7 +32,7 @@ export interface NativePublicApiContext {
   readonly program: Program;
   readonly checker: Checker;
   readonly emitter: Emitter;
-  readonly config: ReturnType<API["parseConfigFile"]>;
+  readonly config: Awaited<ReturnType<API["parseConfigFile"]>>;
   readonly files: ReadonlyMap<string, string>;
   readonly readFiles: ReadonlySet<string>;
   readonly signal?: AbortSignal;
@@ -50,13 +50,13 @@ export function nativeDiagnostic(diagnostic: Diagnostic, files?: ReadonlyMap<str
   };
 }
 
-export function nativeCompilerDiagnostics(context: NativePublicApiContext): readonly NativePublicApiDiagnostic[] {
+export async function nativeCompilerDiagnostics(context: NativePublicApiContext): Promise<readonly NativePublicApiDiagnostic[]> {
   const { program } = context;
   const diagnostics = [
-    ...program.getConfigFileParsingDiagnostics(), ...program.getProgramDiagnostics(),
-    ...program.getSyntacticDiagnostics(), ...program.getBindDiagnostics(),
-    ...program.getGlobalDiagnostics(), ...program.getSemanticDiagnostics(),
-    ...program.getSuggestionDiagnostics(), ...program.getDeclarationDiagnostics()
+    ...await program.getConfigFileParsingDiagnostics(), ...await program.getProgramDiagnostics(),
+    ...await program.getSyntacticDiagnostics(), ...await program.getBindDiagnostics(),
+    ...await program.getGlobalDiagnostics(), ...await program.getSemanticDiagnostics(),
+    ...await program.getSuggestionDiagnostics(), ...await program.getDeclarationDiagnostics()
   ];
   const unique = new Map(diagnostics.map(item => [JSON.stringify(item), nativeDiagnostic(item, context.files)]));
   return [...unique.values()];
@@ -71,7 +71,8 @@ export async function withNativePublicApiProject<T>(input: {
   readonly declarationEntryPoint?: string;
   readonly signal?: AbortSignal;
 }, inspect: (context: NativePublicApiContext) => T | Promise<T>): Promise<T> {
-  assertNotCancelled(input.signal);
+  const { cwd, configPath: inputConfigPath, declarationEntryPoint, signal } = input;
+  assertNotCancelled(signal);
   const files = new Map([...input.files, ...nativeLibraryFiles()].map(([path, text]) => [resolve(path).replaceAll("\\", "/"), text]));
   const bytes = [...files.values()].reduce((sum, text) => sum + Buffer.byteLength(text), 0);
   if (files.size > MAX_FILES || bytes > MAX_BYTES) {
@@ -89,28 +90,28 @@ export async function withNativePublicApiProject<T>(input: {
     return text ?? null;
   };
   virtual.getAccessibleEntries = path => entries(path) ?? { files: [], directories: [] };
-  const api = new API({ cwd: input.cwd, fs: virtual });
+  const api = new API({ cwd, fs: virtual });
   try {
-    const config = api.parseConfigFile(input.configPath);
-    let configPath = input.configPath;
-    if (input.declarationEntryPoint !== undefined) {
+    const config = await api.parseConfigFile(inputConfigPath);
+    let configPath = inputConfigPath;
+    if (declarationEntryPoint !== undefined) {
       // Like the prior compiler adapter, analyze declarations rather than the
       // consumer's source roots. Null resets inherited output redirections.
-      configPath = join(dirname(input.configPath), ".foundation-native-api.tsconfig.json").replaceAll("\\", "/");
-      const content = JSON.stringify({ extends: input.configPath, files: [...new Set([...config.fileNames.filter(path => /\.d\.[cm]?ts$/u.test(path)), input.declarationEntryPoint])],
+      configPath = join(dirname(inputConfigPath), ".foundation-native-api.tsconfig.json").replaceAll("\\", "/");
+      const content = JSON.stringify({ extends: inputConfigPath, files: [...new Set([...config.fileNames.filter(path => /\.d\.[cm]?ts$/u.test(path)), declarationEntryPoint])],
         include: [], exclude: [], compilerOptions: { outDir: null, declarationDir: null, rootDir: null, composite: false, noEmit: true, emitDeclarationOnly: false,
           noCheck: false, skipLibCheck: false, skipDefaultLibCheck: false } });
       writeFile(configPath, content);
       files.set(configPath, content);
     }
-    const snapshot = api.updateSnapshot({ openProjects: [configPath] });
+    const snapshot = await api.updateSnapshot({ openProjects: [configPath] });
     try {
       const project = snapshot.getProject(configPath);
       if (project === undefined) { throw new Error("Native public API compiler project is unavailable."); }
       const context: NativePublicApiContext = { api, snapshot, project, program: project.program, checker: project.checker, emitter: project.emitter, config, files, readFiles,
-        ...(input.signal === undefined ? {} : { signal: input.signal }) };
-      assertNotCancelled(input.signal);
+        ...(signal === undefined ? {} : { signal }) };
+      assertNotCancelled(signal);
       return await inspect(context);
-    } finally { snapshot.dispose(); }
-  } finally { api.close(); }
+    } finally { await snapshot.dispose(); }
+  } finally { await api.close(); }
 }

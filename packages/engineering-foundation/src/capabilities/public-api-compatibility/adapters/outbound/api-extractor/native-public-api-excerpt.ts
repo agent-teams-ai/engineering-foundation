@@ -22,13 +22,23 @@ interface PrintedDeclaration {
 /** Native root nodes have no parent at runtime despite Node.parent's annotation. */
 export function nativeParent(node: ast.Node): ast.Node | undefined { return node.parent; }
 
+/** AST traversal is synchronous; collect children before awaiting compiler queries. */
+export function nativeChildren(node: ast.Node): readonly ast.Node[] {
+  const children: ast.Node[] = [];
+  node.forEachChild(child => { children.push(child); });
+  return children;
+}
+
 export function nativeHasModifier(node: NativeDeclaration, kind: ast.SyntaxKind): boolean {
   return node.modifiers?.some(modifier => modifier.kind === kind) === true;
 }
-export function nativeAccessorPair(context: NativePublicApiContext, node: NativeDeclaration, name: string): NativeDeclaration | undefined {
+export async function nativeAccessorPair(context: NativePublicApiContext, node: NativeDeclaration, name: string): Promise<NativeDeclaration | undefined> {
   if (!ast.isGetAccessorDeclaration(node) && !ast.isSetAccessorDeclaration(node)) { return; }
   const opposite = ast.isGetAccessorDeclaration(node) ? ast.isSetAccessorDeclaration : ast.isGetAccessorDeclaration;
-  return (node.parent as NativeDeclaration).members?.find(item => opposite(item) && context.emitter.printNode(item.name) === name && nativeHasModifier(item, ast.SyntaxKind.StaticKeyword) === nativeHasModifier(node, ast.SyntaxKind.StaticKeyword));
+  for (const item of (node.parent as NativeDeclaration).members ?? []) {
+    if (opposite(item) && await context.emitter.printNode(item.name) === name && nativeHasModifier(item, ast.SyntaxKind.StaticKeyword) === nativeHasModifier(node, ast.SyntaxKind.StaticKeyword)) { return item; }
+  }
+  return;
 }
 export function nativeSignatureNode(node: NativeDeclaration): NativeDeclaration {
   return ast.isVariableDeclaration(node) && node.type !== undefined && ast.isFunctionTypeNode(node.type) ? node.type : node;
@@ -73,9 +83,9 @@ function mapPrintedTokens(node: ast.Node, printed: string, original: readonly Pr
   }
   return positions;
 }
-function printDeclaration(context: NativePublicApiContext, input: { readonly node: NativeDeclaration; readonly name: string; readonly exported: boolean }): PrintedDeclaration {
+async function printDeclaration(context: NativePublicApiContext, input: { readonly node: NativeDeclaration; readonly name: string; readonly exported: boolean }): Promise<PrintedDeclaration> {
   const { node } = input;
-  let text = context.emitter.printNode(node).replace(/^(?:(?:\/\*[\s\S]*?\*\/|\/\/[^\n]*)(?:\s*))+/u, "").trim();
+  let text = (await context.emitter.printNode(node)).replace(/^(?:(?:\/\*[\s\S]*?\*\/|\/\/[^\n]*)(?:\s*))+/u, "").trim();
   const original = tokens(node.getText());
   const positions = mapPrintedTokens(node, text, original, input.name);
   const body = bodyBoundary(node, original);
@@ -132,11 +142,11 @@ function excerptTokens(text: string, references: readonly (OffsetRange & { canon
 
 /** Bind native source occurrences to native printed tokens. A failed lexical
  * correspondence rejects the observation instead of guessing a reference. */
-export function createNativeExcerpt(context: NativePublicApiContext, input: {
+export async function createNativeExcerpt(context: NativePublicApiContext, input: {
   readonly node: NativeDeclaration; readonly name: string; readonly exported: boolean;
-}, references: readonly NativeExcerptReference[]): NativeExcerpt {
+}, references: readonly NativeExcerptReference[]): Promise<NativeExcerpt> {
   if (ast.isModuleDeclaration(input.node) || ast.isSourceFile(input.node)) { return { tokens: [], range: () => ({ startIndex: 0, endIndex: 0 }) }; }
-  const declaration = printDeclaration(context, input);
+  const declaration = await printDeclaration(context, input);
   const boundReferences = references.flatMap(reference => {
     const range = offsetRange(input.node, declaration, reference.start, reference.end);
     return range === undefined ? [] : [{ ...range, canonicalReference: reference.canonicalReference }];

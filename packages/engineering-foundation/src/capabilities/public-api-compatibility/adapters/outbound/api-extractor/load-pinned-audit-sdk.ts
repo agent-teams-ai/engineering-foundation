@@ -17,7 +17,6 @@ export const NATIVE_EXTRACTOR_VERSION = "typescript-native/7.0.2";
 export const nativeLibraryDirectory = join(dirname(nativeManifestPath), "lib");
 export const nativeCompilerPath = join(nativeLibraryDirectory, process.platform === "win32" ? "tsc.exe" : "tsc");
 export const compilerLibraryRoot = realpathSync(nativeLibraryDirectory);
-export const compilerPath = nativeCompilerPath;
 if (version !== "7.0.2" || nativeManifest.version !== version || nativeManifest.name !== `@typescript/typescript-${process.platform}-${process.arch}`) {
   throw new Error("Public API extraction requires the exact TypeScript 7.0.2 native toolchain.");
 }
@@ -31,7 +30,7 @@ export function assertPinnedAuditSdk(): void {
 export function auditToolchainIdentity(): string {
   assertPinnedAuditSdk();
   const modules = [modelPath, modelManifestPath, compilerManifestPath, nativeManifestPath,
-    require.resolve("typescript/unstable/sync"), require.resolve("typescript/unstable/ast"), require.resolve("@microsoft/tsdoc"), compilerPath,
+    require.resolve("typescript/unstable/async"), require.resolve("typescript/unstable/ast"), require.resolve("@microsoft/tsdoc"), nativeCompilerPath,
     fileURLToPath(new URL("./native-public-api-engine.js", import.meta.url)),
     fileURLToPath(new URL("./native-public-api-model.js", import.meta.url)),
     fileURLToPath(new URL("./native-public-api-reference.js", import.meta.url)),

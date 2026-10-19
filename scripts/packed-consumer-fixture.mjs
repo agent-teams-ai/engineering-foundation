@@ -59,7 +59,7 @@ async function installPackedPackage(input) {
     input.consumerRoot
   );
   const { stdout: versionOutput } = await input.runPnpm(
-    ["exec", "agent-teams-foundation", "--version"],
+    ["--reporter=silent", "exec", "agent-teams-foundation", "--version"],
     input.consumerRoot
   );
   const packedManifest = await readJson(

@@ -89,6 +89,17 @@ These two files are explicit Knip entries because those generated imports are
 not visible in its static test graph. Other internal facades remain subject to
 unused-export checks.
 
+The six source entrypoints in the repository-agent-workflow, source-dependencies
+v1/v2 and suppression-governance fixtures are also explicit Knip entries. Their
+owning tests copy those package trees and inspect them as source data, so there
+is no runtime import from a test to the fixture. Knip still traverses their
+ordinary imports, and all fixture files remain in the project inventory.
+Three exact source-dependency fixture leaves are classified only for the
+`unlisted` issue: their `@fixture/core` and `zod` imports are declared in the
+synthetic package manifests copied by the tests. Those independent fixtures
+reuse package names and a private catalog; they are not root workspace
+dependencies. All other issue checks still apply to those files.
+
 The shard's test result, all eight artifact uploads, evidence aggregation, and the
 stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
 finalization failure may preserve the original shard test result, but the

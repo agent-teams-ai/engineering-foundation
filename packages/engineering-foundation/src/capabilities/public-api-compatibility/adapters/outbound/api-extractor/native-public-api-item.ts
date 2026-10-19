@@ -13,10 +13,14 @@ export interface NativeModelDeclaration {
   readonly docComment: DocComment | undefined;
   readonly overloadIndex: number;
 }
-function signatureOptions(context: NativePublicApiContext, node: NativeDeclaration, projected: NativeExcerpt, overloadIndex: number) {
+async function signatureOptions(context: NativePublicApiContext, node: NativeDeclaration, projected: NativeExcerpt, overloadIndex: number) {
   const signature = nativeSignatureNode(node);
+  const parameters: { parameterName: string; parameterTypeTokenRange: model.IExcerptTokenRange; isOptional: boolean }[] = [];
+  for (const parameter of signature.parameters ?? []) {
+    parameters.push({ parameterName: await context.emitter.printNode(parameter.name), parameterTypeTokenRange: projected.range(parameter.type), isOptional: parameter.questionToken !== undefined || parameter.initializer !== undefined });
+  }
   return { overloadIndex,
-    parameters: (signature.parameters ?? []).map(parameter => ({ parameterName: context.emitter.printNode(parameter.name), parameterTypeTokenRange: projected.range(parameter.type), isOptional: parameter.questionToken !== undefined || parameter.initializer !== undefined })),
+    parameters,
     typeParameters: (signature.typeParameters ?? []).map(parameter => ({ typeParameterName: parameter.name.text, constraintTokenRange: projected.range(parameter.constraint), defaultTypeTokenRange: projected.range(parameter.defaultType) })),
     returnTypeTokenRange: projected.range(signature.type) };
 }
@@ -28,16 +32,16 @@ function classHeritage(node: NativeDeclaration, projected: NativeExcerpt) {
   return { extendsTokenRange: base === undefined ? undefined : projected.range(base),
     implementsTokenRanges: node.heritageClauses?.filter(clause => clause.token === ast.SyntaxKind.ImplementsKeyword).flatMap(clause => clause.types.map(type => projected.range(type))) ?? [] };
 }
-function readonlyAccessor(context: NativePublicApiContext, descriptor: NativeModelDeclaration): boolean {
+async function readonlyAccessor(context: NativePublicApiContext, descriptor: NativeModelDeclaration): Promise<boolean> {
   if (!ast.isGetAccessorDeclaration(descriptor.node)) { return false; }
-  return nativeAccessorPair(context, descriptor.node, descriptor.name) === undefined;
+  return await nativeAccessorPair(context, descriptor.node, descriptor.name) === undefined;
 }
 function commonOptions(descriptor: NativeModelDeclaration, projected: NativeExcerpt) {
   return { name: descriptor.name, docComment: descriptor.docComment, releaseTag: descriptor.releaseTag, excerptTokens: projected.tokens, isExported: descriptor.exported };
 }
-function variableItem(context: NativePublicApiContext, descriptor: NativeModelDeclaration, projected: NativeExcerpt): model.ApiDeclaredItem {
+async function variableItem(context: NativePublicApiContext, descriptor: NativeModelDeclaration, projected: NativeExcerpt): Promise<model.ApiDeclaredItem> {
   const common = commonOptions(descriptor, projected);
-  if (nativeSignatureNode(descriptor.node) !== descriptor.node) { return new model.ApiFunction({ ...common, ...signatureOptions(context, descriptor.node, projected, descriptor.overloadIndex) }); }
+  if (nativeSignatureNode(descriptor.node) !== descriptor.node) { return new model.ApiFunction({ ...common, ...await signatureOptions(context, descriptor.node, projected, descriptor.overloadIndex) }); }
   return new model.ApiVariable({ ...common, isReadonly: (descriptor.node.parent.flags & ast.NodeFlags.Const) !== 0, variableTypeTokenRange: projected.range(descriptor.node.type), initializerTokenRange: projected.range(descriptor.node.initializer) });
 }
 function interfaceHeritage(node: NativeDeclaration, projected: NativeExcerpt) {
@@ -47,13 +51,13 @@ function accessorType(node: NativeDeclaration) { return node.type ?? node.parame
 
 /** Exhaustive supported declaration-to-model mapping. Unsupported native syntax
  * fails before it can be represented as an empty or successful API surface. */
-export function createNativeApiItem(context: NativePublicApiContext, descriptor: NativeModelDeclaration, projected: NativeExcerpt): model.ApiDeclaredItem {
+export async function createNativeApiItem(context: NativePublicApiContext, descriptor: NativeModelDeclaration, projected: NativeExcerpt): Promise<model.ApiDeclaredItem> {
   const { node } = descriptor;
   const common = commonOptions(descriptor, projected);
-  const signature = signatureOptions(context, node, projected, descriptor.overloadIndex);
+  const signature = await signatureOptions(context, node, projected, descriptor.overloadIndex);
   const member = memberOptions(node);
-  const access = () => new model.ApiProperty({ ...common, ...member, isReadonly: readonlyAccessor(context, descriptor), propertyTypeTokenRange: projected.range(accessorType(node)) });
-  const constructors: Partial<Record<ast.SyntaxKind, () => model.ApiDeclaredItem>> = {
+  const access = async () => new model.ApiProperty({ ...common, ...member, isReadonly: await readonlyAccessor(context, descriptor), propertyTypeTokenRange: projected.range(accessorType(node)) });
+  const constructors: Partial<Record<ast.SyntaxKind, () => model.ApiDeclaredItem | Promise<model.ApiDeclaredItem>>> = {
     [ast.SyntaxKind.FunctionDeclaration]: () => new model.ApiFunction({ ...common, ...signature }),
     [ast.SyntaxKind.TypeAliasDeclaration]: () => new model.ApiTypeAlias({ ...common, typeParameters: signature.typeParameters, typeTokenRange: projected.range(node.type) }),
     [ast.SyntaxKind.ClassDeclaration]: () => new model.ApiClass({ ...common, typeParameters: signature.typeParameters, isAbstract: member.isAbstract, ...classHeritage(node, projected) }),
@@ -82,16 +86,16 @@ export function createNativeApiItem(context: NativePublicApiContext, descriptor:
 /** Use the same public constructors for an external identity as for its actual
  * API model. In particular they own callable overload selectors and the
  * distinction between static and instance member navigation. */
-export function createNativeExternalReference(context: NativePublicApiContext, packageName: string | undefined, chain: readonly {
+export async function createNativeExternalReference(context: NativePublicApiContext, packageName: string | undefined, chain: readonly {
   readonly node: NativeDeclaration; readonly name: string;
-}[]): string {
+}[]): Promise<string> {
   const pkg = new model.ApiPackage({ name: packageName ?? "typescript-native-global", docComment: undefined, tsdocConfiguration: new TSDocConfiguration() });
   const entry = new model.ApiEntryPoint({ name: "" }); pkg.addMember(entry);
   let parent: model.ApiItem & model.ApiItemContainerMixin = entry;
   let reference = entry.canonicalReference;
   const empty: NativeExcerpt = { tokens: [], range: () => ({ startIndex: 0, endIndex: 0 }) };
   for (const [index, declaration] of chain.entries()) {
-    const item = createNativeApiItem(context, { ...declaration, exported: true, releaseTag: model.ReleaseTag.Public, docComment: undefined, overloadIndex: 1 }, empty);
+    const item = await createNativeApiItem(context, { ...declaration, exported: true, releaseTag: model.ReleaseTag.Public, docComment: undefined, overloadIndex: 1 }, empty);
     parent.addMember(item);
     reference = item.canonicalReference;
     if (index < chain.length - 1) {

@@ -35,9 +35,11 @@ The native SDK owns one compiler process per observation. It receives a closed
 virtual filesystem of staged declarations/configuration, captured installed
 package declarations/configuration, and the pinned standard libraries. Missing
 virtual reads return an explicit absence; the compiler cannot fall back to disk.
-Installed packages are read as data, never executed. Native snapshots and sessions
-are released in `finally` blocks. Cancellation is checked at bounded phases;
-this does not promise preemption during a synchronous SDK call.
+Installed packages are read as data, never executed. Compiler queries use the
+public asynchronous SDK in deterministic sequence. The adapter awaits snapshot
+disposal and session close in `finally` blocks; the SDK ends compiler input so
+normal shutdown can finish through EOF. Cancellation is checked at bounded
+phases; this does not promise preemption during an in-flight SDK query.
 
 Dependency capture uses bounded regular-file handles, before/after identity
 checks, at most 32 MiB per file and 128 MiB total, 20,000 files, 50,000 charged

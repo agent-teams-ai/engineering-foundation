@@ -54,8 +54,8 @@ export class TypeScriptPublicApiExtractor implements PublicApiExtractor {
       for (const entrypoint of publicApiEntrypoints(policy).toSorted((left, right) => compareCanonicalReferences(left.exportPath, right.exportPath))) {
         assertNotCancelled(signal);
         const entryPointPath = stagedPathForSource({ snapshot: staged, sourcePath: sourcePathFor(canonicalRoot, entrypoint.declarationEntryPoint) });
-        const observation = await withNativePublicApiProject({ cwd: staged.stagingRoot, configPath: tsconfigPath, files, declarationEntryPoint: entryPointPath, ...(signal === undefined ? {} : { signal }) }, context => {
-          const result = createNativePublicApiModel(context, { packageName: policy.packageName, entryPointPath, includeForgottenExports: false, referenceProjection: "stored-surface" });
+        const observation = await withNativePublicApiProject({ cwd: staged.stagingRoot, configPath: tsconfigPath, files, declarationEntryPoint: entryPointPath, ...(signal === undefined ? {} : { signal }) }, async context => {
+          const result = await createNativePublicApiModel(context, { packageName: policy.packageName, entryPointPath, includeForgottenExports: false, referenceProjection: "stored-surface" });
           assertNotCancelled(signal);
           if (!result.succeeded) {
             const errors = [...new Set(result.diagnostics.filter(diagnostic => diagnostic.severity === "error").map(diagnostic => diagnostic.id))].toSorted();

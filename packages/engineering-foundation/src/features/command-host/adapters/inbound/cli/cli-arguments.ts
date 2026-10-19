@@ -48,6 +48,8 @@ interface ArgumentState {
   bufExecutablePath?: string;
   write: boolean;
   scopeOnly: boolean;
+  nativeTransitionPath?: string;
+  qualificationOnly?: boolean;
   optionsEnded: boolean;
 }
 
@@ -175,6 +177,16 @@ function consumeArgument(
   if (qualificationOption !== undefined) {
     return qualificationOption;
   }
+  if (value === "--native-transition") {
+    provideScalarOption(state, "--native-transition", "--native-transition");
+    state.nativeTransitionPath = resolve(requiredOptionValue(args, index, "--native-transition"));
+    return 1;
+  }
+  if (value === "--qualification-only") {
+    provideScalarOption(state, "--qualification-only", "--qualification-only");
+    state.qualificationOnly = true;
+    return 0;
+  }
   if (value === "--consumer") {
     const candidate = requiredOptionValue(args, index, "--consumer");
     provideScalarOption(state, "--consumer", "--consumer");
@@ -205,6 +217,12 @@ function consumeArgument(
 
 function validateCommandOptions(command: string, state: ArgumentState): void {
   validateNonDocumentCommandOptions(command, state);
+  if (state.nativeTransitionPath !== undefined && command !== "public-api-promote-release") {
+    throw invalidCommand("--native-transition is supported only by public-api-promote-release.");
+  }
+  if (state.qualificationOnly === true && (command !== "public-api-promote-release" || state.nativeTransitionPath === undefined)) {
+    throw invalidCommand("--qualification-only requires public-api-promote-release --native-transition.");
+  }
   if (command === "baseline" && !state.configPathProvided) {
     throw invalidCommand("baseline requires --config <findings-baseline.yaml>.");
   }
@@ -281,6 +299,8 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     format: state.format,
     write: state.write,
     ...(state.scopeOnly ? { scopeOnly: true } : {}),
+    ...(state.nativeTransitionPath === undefined ? {} : { nativeTransitionPath: state.nativeTransitionPath }),
+    ...(state.qualificationOnly === true ? { qualificationOnly: true } : {}),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}

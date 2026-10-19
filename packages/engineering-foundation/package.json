@@ -74,6 +74,7 @@
     "schemas/package-public-api-audit-request/v1.schema.json",
     "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",
+    "schemas/package-public-api-native-transition/v1.schema.json",
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/package-public-api-compatibility/v2.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",
@@ -128,18 +129,19 @@
   "dependencies": {
     "@agent-teams/document-authoring": "workspace:*",
     "@agent-teams/repository-mutation": "workspace:*",
-    "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",
+    "@microsoft/tsdoc": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
+    "jsonc-parser": "catalog:",
     "node-or-bun": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
+    "typescript": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/proper-lockfile": "catalog:",
-    "typescript": "catalog:"
+    "@types/proper-lockfile": "catalog:"
   }
 }

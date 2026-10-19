@@ -281,6 +281,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/foundation-command-error/v1.schema.json",
     "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-audit-request/v1.schema.json",
+    "schemas/package-public-api-native-transition/v1.schema.json",
     "schemas/foundation-config/v2.schema.json",
     "schemas/package-public-api-compatibility/v2.schema.json",
     "schemas/quality-findings-baseline/v1.schema.json",
@@ -352,15 +353,20 @@ test("keeps packed and registry-install qualification wired", async () => {
       join(repositoryRoot, "scripts", "old-foundation-transaction-e2e.mjs"),
       "utf8",
     ),
-    /sha512-L\/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm\+1hYbxcUrg==/u,
+    /const version = "0\.11\.0";\s+const expectedIntegrity = publishedFoundationIntegrity\(version\);/u,
   );
   assert.match(
     await readFile(
       join(repositoryRoot, "scripts", "published-scaffolding-compatibility-e2e.mjs"),
       "utf8",
     ),
-    /sha512-LWey96bQBwA\/91eD1T9pZRKrNUPlAt\/8NEOQ5gnWfW6Mzs\+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==/u,
+    /const publishedVersion = "0\.12\.0";\s+const expectedIntegrity = publishedFoundationIntegrity\(publishedVersion\);/u,
   );
+  const { publishedFoundationIntegrity } = await import("../scripts/published-foundation-imports.ts");
+  assert.equal(publishedFoundationIntegrity("0.11.0"),
+    "sha512-L/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm+1hYbxcUrg==");
+  assert.equal(publishedFoundationIntegrity("0.12.0"),
+    "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==");
   const ciSource = await readFile(
     join(repositoryRoot, ".github", "workflows", "ci.yml"),
     "utf8",

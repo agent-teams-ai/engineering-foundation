@@ -173,7 +173,7 @@ test("real domain and application imports reject all eleven public Node bindings
     import { join } from "node:path";
     const root = ${JSON.stringify(new URL("../../../", import.meta.url).href)};
     const fixture = ${JSON.stringify(fixture)};
-    const { copySourcePolicyFixture } = await import(new URL("tests/helpers/local-mode-boundaries.mjs", root));
+    const { copySourcePolicyFixture } = await import(new URL("tests/helpers/local-mode-boundaries.ts", root));
     const { validateFeatureModules } = await import(new URL("scripts/check-feature-modules.mjs", root));
     const { observeDependencies, validateObservations } = await import(new URL("scripts/feature-modules/dependencies.mjs", root));
     const { indexSurfaces, surfaceBindings } = await import(new URL("scripts/feature-modules/surfaces.mjs", root));

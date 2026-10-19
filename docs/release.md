@@ -139,7 +139,11 @@ PR.
 
 Ordinary `published-compatibility:e2e`, including CI and `pnpm verify`, checks
 bootstrap baselines, pinned old Foundation transaction barriers, published
-document authoring, and scaffolding compatibility. It explicitly defers current
+document authoring, and scaffolding compatibility at their unchanged public
+operation boundaries. These historical observations do not claim old CLI
+startup or rendered process-output compatibility; see the
+[exact qualification scope](development/quality-gates.md#historical-published-operations).
+It explicitly defers current
 public Docs completion: npm publication may precede the Git tags and GitHub
 releases that the ordered publisher must reconcile. To require current public
 completion explicitly, run `pnpm published-compatibility:e2e --require-public-docs`.
@@ -166,13 +170,74 @@ leaves the release run failed and blocks completion evidence.
 
 ## Current stable procedure
 
+### Native public API baseline transition
+
+The TypeScript 7 adapter uses the closed, reviewed transition in
+[`scripts/native-public-api-migration/intent.json`](../scripts/native-public-api-migration/intent.json).
+Its exact B-to-A comparison and archive origins are documented in
+[public API compatibility](architecture/public-api-compatibility.md#release-qualification-remains-required).
+Feature PRs retain the original release-owned baseline bytes. They qualify the
+transition separately while preserving the entire ordinary tool-mismatch
+report and its exit code.
+Explicit report destinations require an existing parent directory; the driver
+creates each report exclusively at its checked canonical path outside the source checkout.
+
+The declaration-data realization was replaced after full-CI run
+[`39181417326`, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39181417326)
+on `f6b84384cd36611c3732b8f9803e2fd88a9a9571` rejected the newly added research
+lock's unused legacy `sprintf-js` runtime dependency under
+[GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c).
+The successor lock installs the eight required external declaration packages
+with lifecycle scripts and optional native bindings omitted. It does not install
+the legacy extractor runtime. A separate fresh public npm `11.19.0` signature
+audit authenticates exactly the seven published archive subjects, their reviewed
+SHA-512 integrities and publication commits; their original manifests remain
+unchanged. This signature-subject namespace is not a complete historical runtime
+installation. The eighth archive retains its exact protected-main qualified RC
+origin. All old inputs remain in Git history. The actual native observation
+rechecks every archive, original configuration, baseline and declaration input;
+all 26 released entrypoints and the complete 256-change extractor comparison
+remain unchanged. The dependency-review policy is unchanged.
+
+After the reviewed source and intent reach `main`, the existing Release workflow
+runs Changesets version preparation and the private `apply-version` command.
+That fixed owner driver delegates to the same
+[public native transition operation](reference/public-api-native-transition.md)
+used by consumers; its private callback preserves the immediate protected-run
+and source fence. The content request grants no authority.
+The pinned Changesets action resets `changeset-release/main` to the processed
+main SHA before this command. The driver checks the actual current run attempt,
+repository, workflow, event and fresh main ref, then requires that exact checkout
+HEAD, unchanged index and only admitted Changesets metadata. The existing
+release file/content policies remain in force. Every committed old baseline
+must match the reviewed B bytes. Version, API and artifact checks finish before
+any baseline is written, and the run/main/source snapshot is rechecked at the
+write boundary.
+
+The named transition replaces all eight typed anchors, including unchanged
+same-version surfaces that the ordinary promoter normally skips. Its writer
+keeps exact physical preimages and accepts only the reviewed B or exact native
+postimages during typed replay. Preexisting ordinary artifact-baseline dirt is
+not admitted by the private driver. After an interruption that reached artifact
+writes, rerun the existing Changesets workflow from its clean main reset; do not
+manually continue from that dirty checkout. Existing generated release-PR
+metadata checks, fresh-parent binding and full CI remain mandatory.
+
+Once the committed baseline set has migrated, the version command uses the
+ordinary typed/artifact promoter with its existing guards. Neither a local
+qualification report, environment variables nor the input record authorizes
+workstation writes. GitHub Free does not provide required-workflow source
+attestation; live run and main observations retain the repository's existing
+main trust boundary and do not supply cryptographic proof of hosted execution.
+
 ### Private Markdown distribution
 
 Document Authoring keeps its maintained parser dependencies in the source
 manifest. The shared `scripts/markdown-publication.mjs` projection bundles only
 its private Markdown adapter in disposable post-build packages. Clean pack,
-registry qualification, protected publication, publint, and ATTW use that same
-projection; ordinary builds never rewrite the source package.
+registry qualification, protected publication, publint, and native package type
+qualification use that same projection; ordinary builds never rewrite the
+source package.
 
 Before hermetic staging, acquisition uses npm with lifecycle scripts disabled
 and empty authentication configs. Original pnpm-lock v9 identities authenticate
@@ -504,7 +569,7 @@ Before every publication:
   prerequisite in the security baseline; the one-writer bootstrap profile is
   not valid after another writer or merge automation is enabled;
 - build from a clean checkout;
-- run lint, typecheck, tests, publint, and Are The Types Wrong;
+- run lint, typecheck, tests, publint, and the native archive package type gate;
 - pack the real tarball;
 - install it into an isolated consumer;
 - verify public exports, CLI startup, and package self-check;

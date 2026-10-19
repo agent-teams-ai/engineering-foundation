@@ -5,7 +5,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { observeFoundationFeatureGraph } from "./helpers/local-mode-boundaries.mjs";
+import { observeFoundationFeatureGraph } from "./helpers/local-mode-boundaries.ts";
 import { assertSchemaAssemblyImportsRejected } from "./helpers/schema-assembly-boundaries.mjs";
 import { assertSchema } from "../packages/engineering-foundation/dist/schema-catalog.js";
 import { applyAuthorityFilesystemScaffoldWithFaultInjection as apply } from "../packages/engineering-foundation/dist/scaffolding/adapters/node/filesystem-authority-workspace.js";

@@ -13,7 +13,6 @@ updates:
     groups:
       api-extractor:
         patterns:
-          - "@microsoft/api-extractor"
           - "@microsoft/api-extractor-model"
         update-types:
           - minor

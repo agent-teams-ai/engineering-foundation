@@ -85,7 +85,7 @@ export function packageQualificationPhaseIds(mode: QualificationStage, group: un
   if (typeof group !== "string" || !Object.hasOwn(groupPhases[mode], group)) {
     fail(`unknown ${mode} group`);
   }
-  return groupPhases[mode][group];
+  return groupPhases[mode][group]!;
 }
 
 export function assertCompletePackageQualificationGroups(mode: QualificationStage, groups: readonly unknown[]): void {

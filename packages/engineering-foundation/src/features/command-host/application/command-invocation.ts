@@ -12,6 +12,8 @@ export interface CommandInvocation {
   readonly bufExecutablePath?: string;
   readonly write: boolean;
   readonly scopeOnly?: boolean;
+  readonly nativeTransitionPath?: string;
+  readonly qualificationOnly?: boolean;
 }
 
 

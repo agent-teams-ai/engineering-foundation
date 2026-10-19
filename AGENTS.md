@@ -24,6 +24,17 @@ Hard rules:
 - machine-readable documentation indexes used only by developer tooling or AI
   agents may be evaluated independently, but they remain rebuildable caches and
   never become documentation sources of truth;
+- use ordinary `.ts` for new or substantially rewritten JavaScript-runtime source,
+  tests, scripts, and spikes; use the package's ESM declaration instead of adding
+  `.mts` or `.mjs`. Retained historical fixtures and narrow maintenance of existing
+  files do not require an unrelated repository-wide rename;
+- every executed TypeScript compiler or parser, including embedded tooling and
+  comparison oracles, must be version 7.0.2 or newer. Keep native SDK pins exact;
+  an unsupported tool is a reported gate blocker, never a reason to run an older
+  compiler or silently remove a gate;
+- put new `.ts` tooling and tests in a strict project on the required `typecheck`
+  route and preserve the complete test inventories; Node type stripping is not
+  type checking;
 - use conventional commits and short feature branches;
 - run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
 - before opening a pull request, run `pnpm check:changed`, `pnpm check:fast`,

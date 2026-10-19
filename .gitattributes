@@ -14,6 +14,7 @@ tests/support/historical-schemas/**/*.json text eol=lf
 packages/docs-protocol-agent-teams/tests/fixtures/historical-execution-schemas/*.json text eol=lf
 packages/docs-protocol-agent-teams/tests/fixtures/target-lockfile/candidate-target-lock.yaml text eol=lf
 scripts/markdown-licenses/*.txt text eol=lf
+scripts/native-public-api-migration/*.json text eol=lf
 packages/docs-protocol/assets/** text eol=lf
 packages/docs-protocol/skills/** text eol=lf
 packages/docs-protocol-agent-teams/assets/** text eol=lf

@@ -115,7 +115,7 @@ export async function verifyArchiveCustody(custody: ArchiveCustody, records: Qua
     if (manifests.length !== 1 || inspection.entries.some(entry => !["0", "5"].includes(entry.type))) {
       fail("archive no longer has a safe qualified manifest");
     }
-    const manifest = JSON.parse(manifests[0].data.toString("utf8"));
+    const manifest = JSON.parse(manifests[0]!.data.toString("utf8"));
     if (manifest.name !== record.packageName || manifest.version !== record.packageVersion ||
         record.archiveName !== `${manifest.name.replace(/^@/u, "").replace("/", "-")}-${manifest.version}.tgz`) {
       fail("archive name, package name or version differs from qualification");

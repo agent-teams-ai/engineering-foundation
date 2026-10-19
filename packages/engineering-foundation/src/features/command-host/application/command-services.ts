@@ -43,6 +43,7 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
   readonly rules: ReadonlyMap<string, RuleExplanation>;
   readonly promoteDecisions: (input: CapabilityInvocation) => Promise<{ readonly writeResult: string }>;
   readonly auditPublicApi: (input: { readonly consumerRoot: string; readonly configPath: string; readonly signal?: AbortSignal }) => Promise<PublicApiAuditReport>;
+  readonly nativePublicApiTransition: (input: CapabilityInvocation & { readonly requestPath: string; readonly qualificationOnly: boolean }) => Promise<unknown>;
   readonly promotePublicApi: (input: CapabilityInvocation) => Promise<readonly unknown[]>;
   readonly loadProtobufQualifier: () => Promise<(input: CapabilityInvocation & { readonly executablePath: string; readonly write: boolean }) => Promise<{
     readonly writeResult: string;

@@ -54,7 +54,7 @@ export async function main({
       temporaryRoot,
     });
     write(
-      `Published compatibility PASS: verified bootstrap baselines ${bootstrapBaselines.join(", ") || "none required"}; public Docs Protocol exact-coordinate qualification ${publicDocs.status}${publicDocs.status === "deferred" ? " to required post-reconciliation public-docs-release:e2e" : ""}; current candidate matches pinned 0.12.0 outside release identity fields.\n`,
+      `Published compatibility PASS: verified bootstrap baselines ${bootstrapBaselines.join(", ") || "none required"}; public Docs Protocol exact-coordinate qualification ${publicDocs.status}${publicDocs.status === "deferred" ? " to required post-reconciliation public-docs-release:e2e" : ""}; published operation boundaries 0.11.0/0.12.0/0.14.0 preserved; current CLI matches the published 0.12.0 scaffolding operations outside release identity fields.\n`,
     );
     return { bootstrapBaselines, publicDocs };
   } finally {

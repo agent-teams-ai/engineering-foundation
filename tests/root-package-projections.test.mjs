@@ -130,9 +130,9 @@ test("package checks and built tests consume dynamic projected inventories", () 
     { root: "packages/two" },
   ]), [
     { arguments: ["packages/one"], tool: "publint" },
-    { arguments: ["--pack", "--profile", "esm-only", "packages/one"], tool: "attw" },
+    { arguments: ["--pack", "packages/one"], tool: "native-package-types" },
     { arguments: ["packages/two"], tool: "publint" },
-    { arguments: ["--pack", "--profile", "esm-only", "packages/two"], tool: "attw" },
+    { arguments: ["--pack", "packages/two"], tool: "native-package-types" },
   ]);
   assert.deepEqual(builtTestArguments({ tests: [
     "tests/one.test.mjs",

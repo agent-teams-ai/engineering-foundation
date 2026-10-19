@@ -4,8 +4,157 @@ Status: Accepted and implemented by ADR-0004. Consumer activation remains gated
 on release-owned baseline mutation enforcement in that repository.
 
 `package.public-api-compatibility` compares built declaration entry points with
-a committed snapshot of the last released TypeScript API. API Extractor is an
-outbound adapter; its model types do not cross into capability policy.
+a committed snapshot of the last released TypeScript API. The native TypeScript
+adapter retains the Microsoft API model behind the existing outbound port; model
+and compiler types do not cross into capability policy.
+
+## Native TypeScript 7 adapter migration
+
+The implementation uses exact `typescript@7.0.2`,
+`@microsoft/api-extractor-model@7.33.10`, and `@microsoft/tsdoc@0.16.0`.
+The executable API Extractor dependency and its embedded TypeScript 5.9.3 are
+removed. The independent source parser oracle also uses TypeScript 7; its
+retained historical corpus and explicit source-phase import divergence remain.
+This is an adapter replacement under ADR-0004, with no new public port or schema.
+TypeScript is now a required runtime dependency of the tooling package, so the
+repository no longer classifies it as universally development-only. The existing
+source profile admits production imports only in the public API adapter and its
+pinned SDK loader. Other production boundaries retain their compiler-import ban.
+
+Production uses a private declaration-only project derived from the consumer's
+resolved configuration. It retains resolution and type settings, selects the
+configured declaration roots and requested entrypoint, clears output/root
+redirections, and disables emission. `noCheck`, `skipLibCheck`, and
+`skipDefaultLibCheck` are forced to `false`: suppressed consumer build diagnostics
+cannot qualify an invalid public declaration. The consumer files are unchanged.
+Configuration, program, syntax, binding, global, semantic, suggestion, and
+declaration diagnostics are collected from the actual native compiler. The rich auditor retains
+its stricter admission of the original supplied configuration.
+
+The native SDK owns one compiler process per observation. It receives a closed
+virtual filesystem of staged declarations/configuration, captured installed
+package declarations/configuration, and the pinned standard libraries. Missing
+virtual reads return an explicit absence; the compiler cannot fall back to disk.
+Installed packages are read as data, never executed. Compiler queries use the
+public asynchronous SDK in deterministic sequence. The adapter awaits snapshot
+disposal and session close in `finally` blocks; the SDK ends compiler input so
+normal shutdown can finish through EOF. Cancellation is checked at bounded
+phases; this does not promise preemption during an in-flight SDK query.
+
+Dependency capture uses bounded regular-file handles, before/after identity
+checks, at most 32 MiB per file and 128 MiB total, 20,000 files, 50,000 charged
+directory entries, depth 128, and 1,024 packages. These mechanics retain the
+external frozen-namespace precondition below; they do not establish a hostile
+same-user filesystem sandbox. Audit request, observation, and report budgets
+remain independently enforced.
+
+Official model constructors own canonical identities, overload selectors,
+container navigation, and member kinds. The adapter supports declaration aliases,
+namespace exports, functions and callable variables, ordinary classes/interfaces,
+properties, methods, accessors, enums, and call/construct/index signatures.
+Paired accessors retain one official property identity and both declaration
+excerpts, so removing or changing a setter remains visible to compatibility checks.
+Private unique-symbol brands retain their upstream exemption; hidden ordinary
+symbols do not. Unsupported owned declaration kinds and unprovable merged generic
+or heritage headers fail closed in both projections.
+
+The ordinary v1 extractor selects a private stored-surface projection. It retains
+official item identities, kinds, parents, and exact printed signatures; v1 neither
+stores nor compares external reference-token targets. The rich observer explicitly
+selects declaration-graph projection, which also remains the private default.
+The choice is made before extraction, never as a retry after graph failure.
+Both projections retain compiler diagnostics, local forgotten-export traversal,
+closed inputs, and the existing limits. They differ only in whether external
+reference-token identities must be constructed and proved.
+
+Declaration-graph projection rejects ambiguous external overload-reference sets
+and unproved ambient target identities. The adapter never chooses the first
+overload to stand for an entire callable. Valid public Node declarations such as
+`typeof mkdir`, `Buffer`, and `NodeJS.Platform` can be stored as literal v1
+signatures without claiming that their external targets are graph-qualified.
+CommonJS `export =` is explicitly unsupported (`native-export-assignment`), as
+are unqualified whole-module import types such as `typeof import("dependency")`
+(`native-whole-module-import-reference`). These forms cannot qualify as an empty
+surface or silently omit dependency edges.
+
+The extractor identity is `typescript-native/7.0.2`. Rich observations also bind
+actual compiler, model, and private adapter module bytes. This is a new native
+toolchain, not an assertion of equality with the former extractor. In particular,
+the in-memory model preserves actual hidden namespace visibility and local
+builtin shadows, as described below.
+
+### Release qualification remains required
+
+Existing released baseline bytes and their original `extractorVersion` remain
+unchanged. The ordinary checker still returns `baseline-tool-mismatch`, and
+promotion still rejects `PUBLIC_API_BASELINE_PROMOTION_TOOL_MISMATCH`, when
+versions differ. Identical declaration text is insufficient to waive either
+check. A changeset or a successful native extraction is not baseline authority.
+
+The private repository driver implements one closed eight-package transition.
+It retains the old baseline B from commit
+`4b9cc2165563361f463ca3c59277edc9af592c55`, observes the exact historical
+declarations as native A, and observes the current candidate as native C. The
+source-owned [input record](../../scripts/native-public-api-migration/intent.json)
+binds the policy, every B/configuration/archive hash, the frozen declaration
+dependency closure, each native A and the complete reviewed B-to-A difference
+packet. It describes content; it grants no write authority.
+
+Seven historical archives have verified npm signature and provenance evidence
+for their exact publication commits, including Foundation `1.9.0`. At input
+acquisition, Feature Module Standard `0.1.0` was not published: its recovered
+archive matches both SHA-256 and SRI from the complete eight-archive
+qualification in main release run `39172225427`, attempt 1. That
+run ultimately failed. The driver checks its actual repository, commit,
+workflow, event, attempt and retained qualification payload, and records the
+artifact as a qualified release candidate. npm `11.19.0` installs the frozen
+historical declaration closure with lifecycle scripts disabled. Old package and
+compiler files are data and are never evaluated by this observation.
+
+The earlier Foundation `1.8.0` packet from commit
+`88c0853bfe29deca175a9b98d7685e577409f7f1` and release run `39134132899`
+remains historical evidence. The fixed input refresh observes the actual new
+release; it does not substitute the old FMS archive for the new qualified bytes.
+Only the FMS archive's manifest changed, updating its Foundation dependency to
+`1.9.0`. Its recovered compressed bytes still match the independent new run.
+
+Independent review of the full packet found 256 signature-text differences:
+214 whitespace changes and 42 archive-supported `export declare const` carrier
+and trailing-semicolon differences. All 2,784 item identities, kinds, parents,
+export paths and signature literal tokens are preserved. The actual A-to-C
+comparison still uses the ordinary classifier, version and Changeset rules,
+accepted-decision evidence and concrete artifact checks. A real API change or
+any different B-to-A packet fails this named transition.
+
+`foundation:check:built` runs the actual ordinary built CLI first. It preserves
+the complete JSON report, stderr and actual exit code. Only the exact full
+eleven-capability report containing the eight expected tool mismatches can
+proceed to native migration qualification. An unrelated capability failure
+rejects before archive acquisition. The separate migration report can qualify
+the reviewed transition while the ordinary report still says `violations` and
+records exit `1`; no diagnostic is filtered or relabeled as an ordinary pass.
+Once committed baselines use the native tool, the ordinary successful route
+requires no migration inputs or archive lookup.
+The eight actual working baseline files must match the exact reviewed B bytes
+both before archive acquisition and after native observation. A release-version
+change in a baseline cannot reuse qualification for an older B packet.
+
+Baseline replacement belongs to the existing main release workflow's version
+step, described in [release preparation](../release.md#native-public-api-baseline-transition).
+Normal typed and artifact preflight completes before mutation. The physical
+writer retains the actual B preimage, and every typed anchor is checked again,
+including exact postimages skipped during replay. This is a sequence of guarded
+writes, not a claim of multi-file atomicity. The public read-only A/B/C audit
+always remains `releaseEligible:false`; it cannot authorize this replacement.
+
+The repository's native package type qualifier replaces the former
+`@arethetypeswrong/cli@0.18.5` route, whose runtime embedded
+`typescript@5.6.1-rc`. It retains publint, the complete publishable package
+projection, and actual packed-byte qualification in Node16 ESM and Bundler
+resolution modes. See the [bounded package contract](../development/quality-gates.md#native-package-type-qualification).
+The [historical published-operation qualification](../development/quality-gates.md#historical-published-operations)
+preserves the three named transaction and scaffolding compatibility scenarios
+without executing old compiler-bearing CLI startup.
 
 The single configuration schema `v1` covers every public export path of a
 package and uses stable `decisionId` approvals. The released baseline must use
@@ -227,8 +376,8 @@ finite sorted reachable nodes preserve hidden mutations and cycles. Members of
 referenced containers participate in the reachable graph.
 
 The production extractor continues to exclude forgotten exports and rejects
-failed extraction before loading a model. Shared adapter configuration does not
-change that admission rule. Rich observations explicitly disable release-tag
+failed extraction before publishing a snapshot. Shared native compiler mechanics
+do not change that admission rule. Rich observations explicitly disable release-tag
 trimming, so importable `@internal` exports participate in A/C comparisons.
 Historical stored-surface mapping separately excludes internal containers and
 forgotten exports, preserving the production model vocabulary. Missing compiler
@@ -275,14 +424,14 @@ different outside baseline bytes are rejected before admission, while identical
 bytes are accepted without a containment claim. A separate concurrent-producer
 test proves exclusive stage creation; it does not simulate an OS sandbox.
 
-Compiler diagnostics are collected from the pinned Extractor compiler Program
-independently of message callbacks. Configuration dependencies and compiler
-source files retain digests. A verified compiler host exposes only declared
+Compiler diagnostics are collected from the pinned native compiler Program
+independently of model projection. Configuration dependencies and compiler
+source files retain digests. A closed virtual filesystem exposes only declared
 subject files and actual pinned standard libraries. Existing nested and enclosing
 package manifests must be inventoried; their digests and subsequent presence are
 revalidated. An enclosing manifest outside the evidence root is unsupported;
 prepare evidence beneath a root where every influencing manifest can be declared.
-Extractor receives a private staged copy of admitted bytes. The stage creator
+The native observer receives a private staged copy of admitted bytes. The stage creator
 exclusively creates a fresh directory, captures its inventory, completes every
 write before publishing the stage, and rejects a second producer at the same
 path. Release ends the stage lifetime and further revalidation fails. This is the
@@ -296,8 +445,8 @@ map or TSDoc metadata presence, escaping paths, and symlinks fail before SDK use
 Relevant absence observations and both original and staged bytes are revalidated;
 detected changes prevent complete evidence under the frozen-namespace
 precondition. Staged paths are translated back to input coordinates in compiler evidence. The copy is removed after observation.
-The observer supplies the same verified Program to Extractor and the independent
-diagnostic collector, avoiding the unrestricted compiler-state factory.
+The observer supplies the same closed native Program to the model adapter and
+independent diagnostic collector, with no unrestricted filesystem fallback.
 Declaration-only inputs, explicit config files,
 unsuppressed compiler diagnostics and bounded inventories are required. Globs,
 plugins, project references and unknown external module bindings fail closed.
@@ -306,39 +455,45 @@ Promise, Readonly, Record and Uint8Array. Admitted symbol declarations must all
 belong to the actual pinned compiler libraries; merged augmentations prevent
 that admission. Rich audit observation always supplies the pinned compiler's
 `lib.dom.d.ts` as a fixed input so an explicit non-web consumer `lib` cannot
-make API Extractor misclassify `AbortSignal`; the existing compiler and
-observation byte budgets include those bytes. Production extraction retains its
-unchanged forgotten-export enforcement and compiler inputs. Primitive keyword
+make the observer depend on an incidental web-library setting; the existing
+compiler and observation byte budgets include those bytes. Production extraction
+retains forgotten-export enforcement and independently forces complete checking
+of its declaration inputs. Primitive keyword
 text creates no invented reference edge.
 
-TSDoc configuration comes from the pinned Extractor base. The report preserves
+TSDoc parsing uses the pinned TSDoc configuration and parser. The report preserves
 message severity and text, replacing only the disposable model-output directory
 with `<audit-model-output>` for deterministic serialization. Error diagnostics
 and failed invocation state survive bounded findings. Exit 2 includes failed,
 unsupported or incomplete evidence; a nonempty diff alone does not cause failure.
 
-The hidden-namespace boundary remains explicit:
-
-- The pinned SDK can emit a token `audit-fixture!~Hidden.Box:class` while its
-  hidden namespace member model identity is `audit-fixture!~Hidden~Box:class`.
-  These are distinct opaque identities. Visibility and historical observations
-  remain available, but the rich graph is unavailable with an unresolved
-  reference. The audit never rewrites navigation to manufacture a binding.
+The observer consumes the official in-memory model. Its hidden namespace child
+`audit-fixture!~Hidden.Box:class` has `isExported:true` relative to its container
+and `public:false` through its hidden parent. The native reference binds to that
+exact identity. Model 7.33.10 loses this relative flag when deserializing the saved
+model and changes the identity to `audit-fixture!~Hidden~Box:class`; this is why
+rich observation does not use that lossy reload. Actual saved model bytes and
+their digest remain evidence, with no lossless-reload claim. Malformed or
+ambiguous references are still rejected. A local `Promise` shadow likewise keeps
+its actual local identity instead of an invented legacy suffix or library proof.
 
 Cross-package graph resolution retains the compiler's actual module binding and
 the declared export-path coordinate for each occurrence in its unique compiler
-declaration. Named imports and inline import types establish their own bindings;
+declaration. Named and namespace imports and inline import types establish their
+own bindings;
 an unused named import cannot authorize another occurrence's inline import path.
 Indeterminate declaration matches or occurrence counts remain unresolved.
 Reusing a canonical reference through two
 export paths does not merge those scopes. A reference with multiple remaining
 bound scopes stays ambiguous; the adapter never selects the first matching name.
-The five executable audit tests use flat `public-api-audit-*.test.mjs` paths with
-exact capability ownership and shard mappings, preserving the manifest gate.
+The executable audit tests retain flat paths and exact capability ownership.
+The native observer and graph projection tests use ordinary `.test.ts`; the
+production extraction suite also has strict TypeScript coverage and explicit
+shard/Windows-lane assignments. Existing tests retain their required routes.
 
 A package with no typed export paths retains an independently checked compiler
 observation with `modelExpected:false` and a null export path. It does not claim
-an Extractor invocation or invent a model. Empty projections retain package
+a model-extraction invocation or invent a model. Empty projections retain package
 metadata, so removing the final typed export remains a comparable change.
 
 Admission is scoped to each package and its referenced dependencies. An unrelated
@@ -360,25 +515,22 @@ serialization is bounded to 16 MiB. Exhaustion makes the affected scope
 unavailable with a reason. Closed report schemas distinguish unavailable
 comparisons from findings and require the corresponding eligibility evidence.
 
-The adapter uses the compiler shipped with the pinned Extractor, including for
-independent diagnostics. Narrow structural compiler views permit the repository
-build toolchain to typecheck this adapter without introducing another compiler.
-Supplied archive digests, archive inventory completeness and build execution
+The adapter and independent diagnostics use the same pinned native TypeScript 7
+SDK types. No structural facade imports an older compiler. Supplied archive
+digests, archive inventory completeness and build execution
 remain explicitly unverified custody assertions.
 
 The existing packed consumer qualification workflow now exercises the public
 binary selected from the installed manifest, both public schema exports,
 successful internal-export mutation, retained failed-extraction findings, invalid
 input, and byte immutability. Packed and full verification remain controller-owned.
-The private `load-pinned-audit-sdk.ts` adapter owns the fixed Extractor-relative
-TypeScript and TSDoc loading operation. ADR-0002's existing `commonjs` runtime
-reference permission applies only to that exact file. All remaining adapter
-roots stay governed, disjoint and without runtime-reference permission. The
-loader accepts no module names or resolution roots from callers, has no inward
-feature dependency, and exposes only private SDK values and identities to the
-observer. The observer still validates Extractor 7.58.12, model 7.33.10 and the
-actual Extractor-owned TypeScript 5.9.3 before observing inputs. Equivalent opaque
-loads in any other adapter fail the unchanged source-dependency evaluator.
+The private `load-pinned-audit-sdk.ts` adapter owns fixed native SDK resolution
+and identity. It accepts no module names or resolution roots from callers and
+has no inward feature dependency. It validates TypeScript and the actual platform
+native package at 7.0.2 and model 7.33.10 before observing inputs. The loader and
+all remaining adapter roots stay governed, disjoint and without opaque runtime
+reference permission. Equivalent opaque loads fail the unchanged source-dependency
+evaluator in every adapter, including the loader.
 
 Consumer Module Standard applicability: this file is a private outbound SDK
 adapter within the existing Foundation platform capability and public package,
@@ -396,9 +548,9 @@ the report incomplete with exit 2. Such paths identify cleanup debt for the
 operator; failure reports are not claimed byte-deterministic across disposable
 resource names.
 
-Qualified namespace import tokens and forwarded exports remain unsupported when
-compiler/model bindings cannot be established; they fail closed rather than
-borrowing unrelated import authority. Current synthetic tests do not establish
+Namespace import tokens and forwarded exports require actual native compiler and
+model bindings. Any unproved target or ambiguous export path fails closed; an
+unrelated import never supplies authority for it. Current synthetic tests do not establish
 an actual Get Modular A/B/C audit or consumer release admission.
 
 ### SDK growth execution (v2, pre-S3)
@@ -484,3 +636,13 @@ The [C0 successor boundary](../reference/sdk-growth-c0.md#revision-6-qualified-n
 and [S3 protocol](../reference/sdk-growth-s3-authority.md#qualified-metadata-root)
 own the closed evidence, rejection rules and unchanged 120-second deadline.
 Private flags and missing exports confer no exemption.
+
+## Shared native transition command
+
+The [native tool-transition contract](../reference/public-api-native-transition.md)
+extends the existing public `public-api-promote-release` command with one explicit
+7.58.12-to-native-7.0.2 content input and a read-only qualification mode. The
+shared mechanism serves Foundation's fixed eight-package migration and a real
+Get Modular two-package consumer. Consumer archive authentication and reviewed
+data stay with the consumer; normal mismatch guards and trusted release ownership
+remain unchanged. No SDK-growth host or new publication authority is introduced.

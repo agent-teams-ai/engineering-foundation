@@ -12,6 +12,7 @@ import { retainArchiveCustody, verifyArchiveCustody } from "../scripts/package-a
 import { runCommand } from "../scripts/pack-test-support.mjs";
 import { verifyInstalledTargetPayload } from "../scripts/registry-installed-package-qualification.mjs";
 import { qualifiedArchive } from "./pack-publishable-artifacts-support.mjs";
+import { projectPackageManager } from "../tools/dev.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -133,9 +134,13 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
     join(source, "packages", "engineering-foundation"),
     process.platform === "win32" ? "junction" : "dir");
   await symlink(join(repositoryRoot, "node_modules"), join(source, "node_modules"), process.platform === "win32" ? "junction" : "dir");
-  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json"]) {
+  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
   }
+  // This owned producer declares pnpm for its real packaging commands; linked
+  // dependencies remain the source graph, not a freshly installed pnpm profile.
+  await writeFile(join(source, "package.json"), projectPackageManager(
+    await readFile(join(repositoryRoot, "package.json"), "utf8"), "pnpm@11.20.0"));
   await writeFile(join(source, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
   const catalog = ["a", "b"].map(leaf => ({ name: `@fixture/${leaf}`, root: `packages/${leaf}`,
     manifestPath: `packages/${leaf}/package.json`, changelogPath: `packages/${leaf}/CHANGELOG.md` }));

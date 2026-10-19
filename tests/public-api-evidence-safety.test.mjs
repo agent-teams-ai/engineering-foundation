@@ -223,7 +223,7 @@ test("resolves strict package-local declaration dependencies without retaining s
     await mkdir(dependencyStore, { recursive: true });
     await writeFile(
       join(dependencyStore, "package.json"),
-      '{"name":"@fixture/stage-only-dependency","types":"./index.d.ts"}\n',
+      '{"name":"@fixture/stage-only-dependency","version":"1.0.0","types":"./index.d.ts"}\n',
       "utf8",
     );
     await writeFile(
@@ -237,6 +237,10 @@ test("resolves strict package-local declaration dependencies without retaining s
       installedDependency,
       process.platform === "win32" ? "junction" : "dir",
     );
+    const manifestPath = join(packageDirectory, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dependencies = { ...manifest.dependencies, "@fixture/stage-only-dependency": "1.0.0" };
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
     const tsconfigPath = join(packageDirectory, "tsconfig.json");
     const tsconfig = JSON.parse(await readFile(tsconfigPath, "utf8"));
     tsconfig.include = ["dist/*.d.ts"];

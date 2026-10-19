@@ -7,7 +7,7 @@ import {
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
-import { MicrosoftPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
+import { TypeScriptPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
 import { NodeChangeFingerprint } from "./adapters/outbound/crypto/node-change-fingerprint.js";
 import { FilesystemPublicApiRepository } from "./adapters/outbound/filesystem/filesystem-public-api-repository.js";
 import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
@@ -46,7 +46,7 @@ const evidence: PublicApiRepositoryEvidence = {
 export { PUBLIC_API_COMPATIBILITY_RULES_BY_ID };
 
 export function createPublicApiExtractor(): PublicApiExtractor {
-  return new MicrosoftPublicApiExtractor(evidence);
+  return new TypeScriptPublicApiExtractor(evidence);
 }
 
 export function createPublicApiCompatibilityDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {

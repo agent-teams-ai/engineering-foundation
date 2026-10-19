@@ -11,7 +11,7 @@ const shardManifestPath = join(repositoryRoot, "tests", "manifests", "test-shard
 const coverageManifestPath = join(repositoryRoot, "tests", "manifests", "coverage.v1.json");
 const mandatoryContractPath = join(repositoryRoot, "architecture", "foundation", "node-test-execution.json");
 const portablePackageRoot = /^packages\/[a-z0-9][a-z0-9.-]*$/u;
-const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.(?:mjs|mts)$/u;
+const portableTestFilename = /^[a-z0-9][a-z0-9.-]*\.test\.(?:mjs|mts|ts)$/u;
 const windowsReservedTestName = /^(?:aux|con|nul|prn|com[1-9]|lpt[1-9])(?:\.|$)/iu;
 
 // Repository qualification policy for the eight feature-private linux/x64 suites.
@@ -365,7 +365,7 @@ export async function validateTestManifests() {
       throw error;
     }
     for (const entry of entries.toSorted(compareDirectoryEntries)) {
-      if (!/\.test\.(?:mjs|mts)$/u.test(entry.name)) {
+      if (!/\.test\.(?:mjs|mts|ts)$/u.test(entry.name)) {
         continue;
       }
       if (!entry.isFile() && !entry.isSymbolicLink()) {

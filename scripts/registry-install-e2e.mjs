@@ -208,6 +208,9 @@ async function startRegistry(temporaryRoot) {
     configPath,
     [
       "storage: ./storage",
+      // npm's JSON publication body includes the native compiler archive in base64.
+      // Its Darwin and Windows packages exceed Verdaccio's default 10 MB limit.
+      "max_body_size: 64mb",
       "auth:",
       "  htpasswd:",
       "    file: ./htpasswd",

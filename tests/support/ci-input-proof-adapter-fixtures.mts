@@ -8,7 +8,7 @@ import type { FoundationPilotRequest, Observation, ScopeCategory } from '../../s
 import { collectFoundationPilotObservation } from '../../scripts/ci-input-proof-foundation-pilot.mts';
 import { runCiInputProofAdapter } from '../../scripts/ci-input-proof-foundation-adapter.mts';
 import type { InputLeaf } from '../../packages/ci-input-proof/dist/index.js';
-import { collectorFixtureInstallerPath } from './ci-input-proof-collector-install.mts';
+import { collectorFixtureInstallerPath } from './ci-input-proof-collector-install.ts';
 
 export const scopeCategories: readonly ScopeCategory[] = [
   'source', 'helpers', 'fixtures', 'config', 'lock', 'toolchain', 'installedGraph',

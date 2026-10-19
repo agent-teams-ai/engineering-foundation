@@ -18,7 +18,7 @@ not repeat their rules.
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
 | Findings baseline, growth budgets, source graph | [Findings baseline](architecture/findings-baseline.md) | Implemented |
 | Executable specifications | [Executable specifications](reference/executable-specifications.md) | Accepted and implemented; activation is explicit |
-| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
+| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; native TypeScript 7 adapter requires release qualification and baseline migration |
 | SDK growth S2 remediation | [Configuration, projection and evidence](reference/sdk-growth-s2-remediation.md) | Local remediation evidence; packed qualification and S3 authority remain separate |
 | SDK growth S3 authority | [Trusted authority integration](reference/sdk-growth-s3-authority.md) | EF port/adapter and exact-receipt promotion gate implemented; external qualification and activation remain separate |
 | SDK growth checkpoint | [EF C0 contract](reference/sdk-growth-c0.md) | Boundary revision 6; v5 wire bytes retained, authority v3 qualifies metadata roots; external activation remains separate |

@@ -310,8 +310,10 @@ inside development boundaries.
 
 The source scanner, resolver, source-tree reader, and workspace inventory sit
 behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
-adapter after comparison with a TypeScript 6 oracle. Parser-native types never
-cross into application policy or public contracts.
+adapter after the retained historical comparison with a TypeScript 6 oracle.
+The current independent oracle uses TypeScript 7 and retains the same corpus and
+explicit source-phase import divergence. Parser-native types never cross into
+application policy or public contracts.
 
 Documentation ownership, LikeC4, security classification, reliability catalogs,
 and scaffolding are separate capabilities or remain local consumer checks. DDD
@@ -643,7 +645,11 @@ cannot consume another capability's report or rely on incidental execution order
 A shared read-only snapshot may be extracted internally only after repeated
 parsing cost or drift is measured.
 
-Normal capability checks are read-only and use no network, shell, or subprocess.
+Normal capability checks are read-only and use no network or shell. The public
+API adapter uses the pinned native TypeScript 7 compiler subprocess through its
+SDK, with a closed, bounded declaration/configuration filesystem and session
+cleanup. This compiler exception does not authorize subprocesses in the source,
+security, envelope, specification, or normal Buf scanners.
 Explicit baseline-promotion commands are separate write paths; they perform
 atomic adapter-local replacement only after complete evidence passes.
 Their Git ownership differs by semantic owner: accepted-decision baselines are

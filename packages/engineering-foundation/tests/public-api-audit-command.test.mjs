@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
-import { Extractor } from "@microsoft/api-extractor";
+import { ApiPackage } from "@microsoft/api-extractor-model";
+import { NATIVE_EXTRACTOR_VERSION } from "../dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/load-pinned-audit-sdk.js";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm, symlink, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -49,7 +50,7 @@ for (const mode of ["hidden", "internal"]) {test(`A/B/C ${mode} mutation retains
         resolutionUniverse: [{ packageName: "audit-fixture", exportPath: ".", declarationPath: `${subject}/index.d.ts` }],
         ...(subject === "A" ? { archive: { digest: digest("supplied archive assertion"), extractedMembers: inventory } } : { build: { sourceIdentity: "test-source", buildIdentity: "test-build", declarations: inventory.filter(file => file.path.endsWith(".d.ts")) } }) };
     }
-    const baseline = JSON.stringify({ schemaVersion: 1, packageName: "audit-fixture", packageVersion: "1.0.0", extractorVersion: "7.58.12", entrypoints: [{ exportPath: ".", items: mode === "internal" ? [] : [{ canonicalReference: "audit-fixture!f:function(1)", kind: "Function", parentReference: "audit-fixture!", parentKind: "EntryPoint", signature: "export declare function f(x: Hidden): Hidden;" }] }] });
+    const baseline = JSON.stringify({ schemaVersion: 1, packageName: "audit-fixture", packageVersion: "1.0.0", extractorVersion: NATIVE_EXTRACTOR_VERSION, entrypoints: [{ exportPath: ".", items: mode === "internal" ? [] : [{ canonicalReference: "audit-fixture!f:function(1)", kind: "Function", parentReference: "audit-fixture!", parentKind: "EntryPoint", signature: "export declare function f(x: Hidden): Hidden;" }] }] });
     await writeFile(join(root, "baseline.json"), baseline);
     subjects.B = { baselines: [{ packageName: "audit-fixture", path: "baseline.json", digest: digest(baseline) }] };
     const request = { schemaVersion: 1, subjects };
@@ -147,7 +148,7 @@ async function custodyFixture(root) {
         : { build: { sourceIdentity: "synthetic", buildIdentity: "synthetic", declarations: inventory.filter(file => file.path.endsWith(".d.ts")) } })
     };
   }
-  const baseline = JSON.stringify({ schemaVersion: 1, packageName: "audit-custody", packageVersion: "1.0.0", extractorVersion: "7.58.12", entrypoints: [{ exportPath: ".", items: [] }] });
+  const baseline = JSON.stringify({ schemaVersion: 1, packageName: "audit-custody", packageVersion: "1.0.0", extractorVersion: NATIVE_EXTRACTOR_VERSION, entrypoints: [{ exportPath: ".", items: [] }] });
   await writeFile(join(root, "baseline.json"), baseline);
   subjects.B = { baselines: [{ packageName: "audit-custody", path: "baseline.json", digest: digest(baseline) }] };
   return { schemaVersion: 1, subjects };
@@ -266,13 +267,13 @@ test("full report rejects undeclared SDK sidecars and escaping mapped sources; a
     assert.equal(admitted.evidenceComplete, true);
     assert.equal(admitted.observations[0].inputBytesRevalidated, true);
     assert.deepEqual(await run(), admitted);
-    const invoke = Extractor.invoke;
+    const save = ApiPackage.prototype.saveToJsonFile;
     for (const path of ["A/source.ts", "A/index.d.ts.map"]) {
       const originalBytes = await readFile(join(root, path));
       try {
-        Extractor.invoke = function (...args) {
+        ApiPackage.prototype.saveToJsonFile = function (...args) {
           writeFileSync(join(root, path), "changed after staging");
-          return invoke.apply(this, args);
+          return save.apply(this, args);
         };
         const mutated = await run();
         assert.equal(mutated.exitCode, 2);
@@ -280,20 +281,20 @@ test("full report rejects undeclared SDK sidecars and escaping mapped sources; a
         assert.equal(mutated.observations[0].inputBytesRevalidated, false);
         assert.equal(mutated.observations[0].modelDigest, admitted.observations[0].modelDigest);
         assert.ok(mutated.observations[0].unsupported.some(reason => reason.includes("changed during observation")));
-      } finally { Extractor.invoke = invoke; await writeFile(join(root, path), originalBytes); }
+      } finally { ApiPackage.prototype.saveToJsonFile = save; await writeFile(join(root, path), originalBytes); }
     }
     await admitCustodyFile(root, request, "A/source.ts", '/** @internal */\nexport function _f(): string { return ""; }\n');
     try {
-      Extractor.invoke = function (...args) {
+      ApiPackage.prototype.saveToJsonFile = function (...args) {
         writeFileSync(join(root, "A/tsdoc-metadata.json"), "undeclared presence after staging");
-        return invoke.apply(this, args);
+        return save.apply(this, args);
       };
       const created = await run();
       assert.equal(created.exitCode, 2);
       assert.equal(created.evidenceComplete, false);
       assert.equal(created.observations[0].inputBytesRevalidated, false);
       assert.ok(created.observations[0].unsupported.some(reason => reason.includes("presence changed")));
-    } finally { Extractor.invoke = invoke; }
+    } finally { ApiPackage.prototype.saveToJsonFile = save; }
 
 
   } finally { await rm(root, { recursive: true, force: true }); }

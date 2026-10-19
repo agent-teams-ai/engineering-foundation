@@ -17,6 +17,7 @@ jobs:
     name: release
     if: ${{ vars.NPM_TRUSTED_PUBLISHING_ENABLED == 'true' }}
     permissions:
+      actions: read
       contents: write
       id-token: write
       pull-requests: write

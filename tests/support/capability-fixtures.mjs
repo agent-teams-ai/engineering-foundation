@@ -54,7 +54,11 @@ export async function withSuppressionFixture(callback) {
 }
 
 export async function withPublicApiFixture(callback) {
-  return await withCopiedFixture("foundation-public-api-", fixtureRoots.publicApi, callback);
+  return await withCopiedFixture("foundation-public-api-", fixtureRoots.publicApi, async (root) => {
+    const { prepareNativePublicApiFixture } = await import("./native-public-api-fixture.ts");
+    await prepareNativePublicApiFixture(root);
+    return await callback(root);
+  });
 }
 
 export async function withRepositorySecurityFixture(callback) {

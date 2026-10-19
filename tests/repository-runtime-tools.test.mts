@@ -776,8 +776,7 @@ test("managed public test tooling rejects wrong or missing runtime policy versio
 // Exercise the real Bun dispatcher and public Foundation quality command, with
 // the admitted Node available only on PATH rather than supplied by the caller.
 test("Bun quality dispatch binds its admitted PATH Node into the child environment", async (t) => {
-  const runtime = await resolveQualificationExecutables("bun");
-  assert.ok(runtime.bun);
+  const runtime = await resolveQualificationExecutables("bun"); assert.ok(runtime.bun);
   const { writeRepositoryQualityFixture } = await import("./support/repository-quality-fixture.mts");
   const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-bun-quality-binding-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -815,26 +814,26 @@ test("Bun quality dispatch binds its admitted PATH Node into the child environme
   });
 });
 
-// The private parser spike has no lifecycle hooks or manager work: call its
-// existing ESM entry with admitted Node, even when the repository selects Bun.
 test("parser spike qualification dispatch uses pinned Node without a package manager", async (t) => {
-  const runtime = await resolveQualificationExecutables("bun");
-  assert.ok(runtime.bun);
+  const runtime = await resolveQualificationExecutables("bun"); assert.ok(runtime.bun);
   const root = await mkdtemp(join(profilesTemporaryParent(), "TEST-parser-direct-node-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const entry = join(repositoryRoot, "spikes/source-dependency-parser/run.mjs");
-  const observation = join(root, "runtime.json");
-  const observer = join(root, "observe.mts");
+  const observation = join(root, "runtime.json"), observer = join(root, "observe.mts");
   await writeFile(observer, [
     'import { writeFileSync } from "node:fs";',
-    `if (process.argv[1] === ${JSON.stringify(entry)}) {`,
+    `if (process.argv[1] === ${JSON.stringify(join(repositoryRoot, "spikes/source-dependency-parser/run.ts"))}) {`,
     `writeFileSync(${JSON.stringify(observation)}, JSON.stringify({`,
     'execPath: process.execPath, node: process.versions.node, bun: process.versions["bun"] ?? null }));',
     '}'
   ].join("\n"));
   const source = await readFile(join(repositoryRoot, "tools/repository-command.mts"), "utf8");
-  assert.match(source, /"parser-spike:check": \{ entry: "spikes\/source-dependency-parser\/run\.mjs", args: \["--verify-only"\], role: "node-qualification" \}/u);
-  assert.match(source, /"spike:source-parser": \{ entry: "spikes\/source-dependency-parser\/run\.mjs", args: \[\], role: "node-qualification" \}/u);
+  assert.match(source, /"parser-spike:check": \{ entry: "spikes\/source-dependency-parser\/run\.ts", args: \["--verify-only"\], role: "node-qualification" \}/u);
+  assert.match(source, /"spike:source-parser": \{ entry: "spikes\/source-dependency-parser\/run\.ts", args: \[\], role: "node-qualification" \}/u);
+  const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8")) as { scripts: Record<string, string> };
+  assert.equal(manifest.scripts["parser-spike:check"], "node tools/repository-command.mts tool parser-spike:typecheck && node tools/repository-command.mts tool parser-spike:check");
+  const compiler = spawnSync(runtime.node, [join(repositoryRoot, "tools/repository-command.mts"), "tool", "parser-spike:typecheck"],
+    { cwd: repositoryRoot, encoding: "utf8", timeout: 30_000, env: { ...process.env, AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: runtime.node } });
+  assert.equal(compiler.error, undefined); assert.equal(compiler.status, 0, `${compiler.stdout}${compiler.stderr}`);
   const result = spawnSync(runtime.bun,
     [join(repositoryRoot, "tools/repository-command.mts"), "tool", "parser-spike:check"], {
       cwd: root, encoding: "utf8", timeout: 30_000,

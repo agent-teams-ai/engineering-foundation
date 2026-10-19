@@ -1,4 +1,4 @@
-import { runPublicApiAudit, type PublicApiAuditSchemaAssertion } from "../../../capabilities/public-api-compatibility/node.js";
+import { runPublicApiAudit, runNativePublicApiTransition, type NativeTransitionSchemaAssertion, type PublicApiAuditSchemaAssertion } from "../../../capabilities/public-api-compatibility/node.js";
 import type { FoundationCommandServices } from "../api.js";
 import type { qualifyProtobufBreakingEvidence } from "../../../capabilities/contract-protobuf-evolution/qualification/module.js";
 import { renderFoundationReportText } from "../../../features/foundation-check/module.js";
@@ -24,6 +24,7 @@ export interface CommandHostDependencies<SchemaId extends string> {
     & Parameters<typeof promoteArchitectureDecisionBaseline>[1]
     & Parameters<typeof promotePublicApiRelease>[2]
     & PublicApiAuditSchemaAssertion
+    & NativeTransitionSchemaAssertion
     & Parameters<typeof createNodeAgentWorkflowCommands>[2]
     & Parameters<typeof qualifyProtobufBreakingEvidence>[2];
   readonly createFindingsBaselineCommands: (nodeExecutable: string, environment: Readonly<NodeJS.ProcessEnv>) => FoundationCommandServices["findingsBaseline"];
@@ -72,6 +73,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     rules: RULE_REGISTRY,
     promoteDecisions: (input) => promoteArchitectureDecisionBaseline(input, assertSchema),
     auditPublicApi: async (input) => runPublicApiAudit({ ...input, foundationVersion: await installedFoundationVersion() }, assertSchema),
+    nativePublicApiTransition: (input) => runNativePublicApiTransition(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema, dependencies.artifactSchemaInspector),
     promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema, dependencies.artifactSchemaInspector),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../../../capabilities/contract-protobuf-evolution/qualification/module.js");

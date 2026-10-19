@@ -52,14 +52,14 @@
     "package:check": "node tools/repository-command.mts script build && node tools/repository-command.mts script package:check:built",
     "package:check:built": "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs",
     "package:group:built": "node scripts/qualify-package-group.mts",
-    "parser-spike:check": "node tools/repository-command.mts tool parser-spike:check",
+    "parser-spike:check": "node tools/repository-command.mts tool parser-spike:typecheck && node tools/repository-command.mts tool parser-spike:check",
     "registry-install-e2e": "node tools/repository-command.mts script build && node tools/repository-command.mts script package:qualification:built",
     "registry-install-e2e:built": "node tools/repository-command.mts tool registry-install-e2e:built",
     "release:publish": "node tools/repository-command.mts script build && node tools/repository-command.mts script buf-qualification:e2e:built && node tools/repository-command.mts script registry-install-e2e:built && node tools/repository-command.mts script published-compatibility:e2e && node scripts/release-publish.mjs && node tools/repository-command.mts script public-docs-release:e2e",
     "release-owned-files:check": "node tools/repository-command.mts tool release-owned-files:check",
     "release-graph:check": "node tools/repository-command.mts tool release-graph:check",
     "security:workflows": "node tools/repository-command.mts tool security:workflows",
-    "release:version": "changeset version && node tools/repository-command.mts script build && node packages/engineering-foundation/dist/cli.js public-api-promote-release --consumer .",
+    "release:version": "changeset version && node tools/repository-command.mts script build && node tools/repository-command.mts tool release:version:apply",
     "spike:source-parser": "node tools/repository-command.mts tool spike:source-parser",
     "test": "node tools/repository-command.mts script build && node tools/repository-command.mts script test:built",
     "test:built": "node tools/repository-command.mts tool test:built",
@@ -70,7 +70,7 @@
     "test:performance:built": "node scripts/run-performance-benchmarks.mjs",
     "test:qgr:lifecycle:built": "node tools/repository-command.mts tool test:qgr:lifecycle:built",
     "test:shard:built": "node scripts/run-test-shard.mjs",
-    "typecheck": "node tools/repository-command.mts tool typecheck && node tools/repository-command.mts script typecheck:ci-tooling && node tools/repository-command.mts script typecheck:restoration-lock-inputs && node tools/repository-command.mts script typecheck:restoration-lock && node tools/repository-command.mts script typecheck:managed-runtime-tests",
+    "typecheck": "node tools/repository-command.mts tool typecheck && node tools/repository-command.mts script typecheck:ci-tooling && node tools/repository-command.mts script typecheck:restoration-lock-inputs && node tools/repository-command.mts script typecheck:restoration-lock && node tools/repository-command.mts script typecheck:managed-runtime-tests && node tools/repository-command.mts script typecheck:local-mode-oracles && node tools/repository-command.mts script typecheck:native-api-tests && node tools/repository-command.mts script typecheck:native-release-tooling",
     "typecheck:ci-tooling": "node tools/repository-command.mts tool typecheck:ci-tooling",
     "typecheck:restoration-lock-inputs": "node tools/repository-command.mts tool typecheck:restoration-lock-inputs",
     "typecheck:restoration-lock": "node tools/repository-command.mts tool typecheck:restoration-lock",
@@ -79,11 +79,13 @@
     "architecture:features:check": "node tools/repository-command.mts tool architecture:features:check",
     "architecture:features:plan": "node scripts/check-feature-modules.mjs plan",
     "quality:coverage:scope": "node tools/repository-command.mts tool quality:coverage:scope",
-    "package:qualification:built": "node tools/repository-command.mts tool package:qualification:built"
+    "package:qualification:built": "node tools/repository-command.mts tool package:qualification:built",
+    "typecheck:local-mode-oracles": "node tools/repository-command.mts tool typecheck:local-mode-oracles",
+    "typecheck:native-api-tests": "node tools/repository-command.mts tool typecheck:native-api-tests",
+    "typecheck:native-release-tooling": "node tools/repository-command.mts tool typecheck:native-release-tooling"
   },
   "devDependencies": {
     "@ast-grep/cli": "catalog:",
-    "@arethetypeswrong/cli": "catalog:",
     "@changesets/changelog-github": "catalog:",
     "@changesets/cli": "catalog:",
     "@modelcontextprotocol/server": "catalog:",
@@ -112,11 +114,10 @@
     ],
     "catalog": {
       "@ast-grep/cli": "0.45.0",
-      "@arethetypeswrong/cli": "0.18.5",
       "@changesets/changelog-github": "0.7.0",
       "@changesets/cli": "2.31.1",
-      "@microsoft/api-extractor": "7.58.12",
       "@microsoft/api-extractor-model": "7.33.10",
+      "@microsoft/tsdoc": "0.16.0",
       "@modelcontextprotocol/server": "2.0.0",
       "@openai/codex": "0.146.0",
       "@types/node": "24.13.3",
@@ -149,19 +150,14 @@
       "vfile": "6.0.3",
       "yaml": "2.9.0"
     },
-    "catalogs": {
-      "parser-oracle": {
-        "typescript": "6.0.3"
-      }
-    }
+    "catalogs": {}
   },
   "catalog": {
     "@ast-grep/cli": "0.45.0",
-    "@arethetypeswrong/cli": "0.18.5",
     "@changesets/changelog-github": "0.7.0",
     "@changesets/cli": "2.31.1",
-    "@microsoft/api-extractor": "7.58.12",
     "@microsoft/api-extractor-model": "7.33.10",
+    "@microsoft/tsdoc": "0.16.0",
     "@modelcontextprotocol/server": "2.0.0",
     "@openai/codex": "0.146.0",
     "@types/node": "24.13.3",
@@ -194,11 +190,7 @@
     "vfile": "6.0.3",
     "yaml": "2.9.0"
   },
-  "catalogs": {
-    "parser-oracle": {
-      "typescript": "6.0.3"
-    }
-  },
+  "catalogs": {},
   "overrides": {
     "brace-expansion": "5.0.12"
   }

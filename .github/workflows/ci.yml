@@ -142,6 +142,9 @@ jobs:
     name: linux-static
     needs: dependency-review
     if: ${{ github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:')) }}
+    permissions:
+      actions: read
+      contents: read
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -166,16 +169,24 @@ jobs:
         run: bun scripts/check-changeset-coverage.mjs
       - run: bun run lint
       - run: bun run typecheck
+      - name: Provision qualified npm migration verifier
+        run: npm install --global npm@11.19.0 --ignore-scripts
       - name: Run Foundation check
         id: foundation-check
         run: |
-          set -o pipefail
-          bun packages/engineering-foundation/dist/cli.js check --consumer . --format json | tee "$RUNNER_TEMP/foundation-check.json"
+          node scripts/public-api-native-migration-cli.ts qualify --ordinary-report "$RUNNER_TEMP/foundation-check.json" --migration-report "$RUNNER_TEMP/native-api-migration.json"
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          GH_TOKEN: ${{ github.token }}
       - name: Show SDK public API report
         if: ${{ always() && steps.foundation-check.outcome != 'skipped' }}
         run: bun scripts/sdk-api-ci-summary.mjs "$RUNNER_TEMP/foundation-check.json"
+      - name: Show native API migration qualification
+        if: ${{ always() && steps.foundation-check.outcome != 'skipped' }}
+        run: |
+          if test -f "$RUNNER_TEMP/native-api-migration.json"; then
+            cat "$RUNNER_TEMP/native-api-migration.json"
+          fi
       - run: bun run release-owned-files:check
         env:
           FOUNDATION_PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
@@ -184,7 +195,7 @@ jobs:
       - run: bun run nx:graph:check
       - run: bun tools/dev.mts security:workflows
       - run: bun run dead-code:check
-      - run: node tools/repository-command.mts tool parser-spike:check
+      - run: node tools/repository-command.mts script parser-spike:check
   linux-tests:
     name: linux-tests-${{ matrix.pair.first }}-${{ matrix.pair.second }}
     needs: dependency-review
@@ -560,7 +571,7 @@ jobs:
           }
           Add-Type -Path "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
       - run: bun tools/dev.mts check:fast
-      - run: node tools/repository-command.mts tool parser-spike:check
+      - run: node tools/repository-command.mts script parser-spike:check
 
   windows-test-a:
     name: windows-test-a

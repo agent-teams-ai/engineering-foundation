@@ -246,7 +246,7 @@ test("Foundation self-dogfood lifecycle is build-gated and source-owned", async 
   assert.doesNotMatch(
     workspace.scripts["foundation:check:built"],
     /(?:pnpm|npmjs\.org|published)/u,
-    "current-source dogfood must execute the freshly built CLI directly",
+    "current-source dogfood must retain the freshly built CLI inside its private native migration driver",
   );
 });
 

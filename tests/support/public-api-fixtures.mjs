@@ -153,5 +153,7 @@ export async function configureCurrentPublicApiFixture(consumerRoot) {
     `${JSON.stringify(currentBaseline(), null, 2)}\n`,
     "utf8"
   );
+  const { prepareNativePublicApiFixture } = await import("./native-public-api-fixture.ts");
+  await prepareNativePublicApiFixture(consumerRoot);
   return configPath;
 }

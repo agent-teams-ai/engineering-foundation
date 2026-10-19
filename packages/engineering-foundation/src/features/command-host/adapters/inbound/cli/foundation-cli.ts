@@ -98,7 +98,7 @@ function printHelp(): void {
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-audit --consumer <path> --config <request.json> --format json
-  agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
+  agent-teams-foundation public-api-promote-release [--consumer <path>] [--native-transition <request.json> [--qualification-only]] [--json]
   agent-teams-foundation protobuf-qualify-breaking --buf-executable <absolute-path> [--consumer <path>] [--write] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
@@ -373,6 +373,14 @@ async function runPolicyCommand<SchemaId extends string>(
       );
       if (declaration === undefined) {
         throw invalidCommand("package.public-api-compatibility must be declared before baseline promotion.");
+      }
+      if (parsed.nativeTransitionPath !== undefined) {
+        const result = await services.cancellation.withSignal(["SIGINT", "SIGTERM"], (signal) => services.nativePublicApiTransition({
+          consumerRoot: parsed.consumerRoot, configPath: declaration.configPath,
+          requestPath: parsed.nativeTransitionPath!, qualificationOnly: parsed.qualificationOnly === true, signal
+        }));
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+        return true;
       }
       const snapshots = await services.promotePublicApi({
         consumerRoot: parsed.consumerRoot,

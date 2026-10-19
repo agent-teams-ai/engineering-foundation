@@ -39,6 +39,7 @@ const SCRIPT_IDS = new Set([
   "test:performance:built", "test:qgr:lifecycle:built", "test:shard:built",
   "typecheck", "typecheck:ci-tooling", "typecheck:restoration-lock-inputs",
   "typecheck:restoration-lock", "typecheck:managed-runtime-tests",
+  "typecheck:local-mode-oracles", "typecheck:native-api-tests", "typecheck:native-release-tooling",
   "quality:scope:check", "architecture:features:check", "architecture:features:plan",
   "quality:coverage:scope", "package:qualification:built"
 ]);
@@ -75,6 +76,9 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "typecheck:restoration-lock-inputs": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.restoration-lock-inputs-tests.json", "--skipLibCheck", "false"], role: "node-tool" },
   "typecheck:restoration-lock": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.restoration-lock-tests.json", "--skipLibCheck", "false"], role: "node-tool" },
   "typecheck:managed-runtime-tests": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.managed-runtime-tests.json", "--pretty", "false"], role: "node-tool" },
+  "typecheck:local-mode-oracles": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.local-mode-oracles.json"], role: "node-tool" },
+  "typecheck:native-api-tests": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.native-api-tests.json"], role: "node-tool" },
+  "typecheck:native-release-tooling": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.native-release-tooling.json"], role: "node-tool" },
   "lint:fast": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config", "."], role: "node-tool" },
   "lint:fast:files": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool", acceptsPaths: true },
   "lint:typed": { entry: "packages/engineering-foundation/dist/cli.js", args: ["quality", "check", "--consumer", "."], role: "runtime" },
@@ -85,10 +89,12 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "architecture:features:check": { entry: "scripts/check-feature-modules.mjs", args: [], role: "node-qualification" },
   "architecture:features:plan": { entry: "scripts/check-feature-modules.mjs", args: ["plan"], role: "runtime" },
   "quality:coverage:scope": { entry: "packages/engineering-foundation/dist/cli.js", args: ["quality", "check", "--consumer", ".", "--scope-only"], role: "runtime" },
-  "foundation:check:built": { entry: "packages/engineering-foundation/dist/cli.js", args: ["check", "--consumer", "."], role: "runtime" },
+  "foundation:check:built": { entry: "scripts/public-api-native-migration-cli.ts", args: ["qualify"], role: "node-qualification" },
+  "release:version:apply": { entry: "scripts/public-api-native-migration-cli.ts", args: ["apply-version"], role: "node-qualification" },
   "runtime-observe": { entry: "tests/support/record-repository-runtime.mts", args: [], role: "runtime" },
-  "parser-spike:check": { entry: "spikes/source-dependency-parser/run.mjs", args: ["--verify-only"], role: "node-qualification" },
-  "spike:source-parser": { entry: "spikes/source-dependency-parser/run.mjs", args: [], role: "node-qualification" }
+  "parser-spike:typecheck": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "spikes/source-dependency-parser/tsconfig.json", "--noEmit"], role: "node-tool" },
+  "parser-spike:check": { entry: "spikes/source-dependency-parser/run.ts", args: ["--verify-only"], role: "node-qualification" },
+  "spike:source-parser": { entry: "spikes/source-dependency-parser/run.ts", args: [], role: "node-qualification" }
 });
 
 async function isFile(path: string): Promise<boolean> {

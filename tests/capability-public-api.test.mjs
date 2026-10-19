@@ -34,6 +34,31 @@ test("accepts a public API identical to its released baseline", async () => {
   });
 });
 
+test("retains exact legacy fixture bytes as an active native tool mismatch refusal", async () => {
+  await withPublicApiFixture(async (consumerRoot) => {
+    const baselinePath = join(consumerRoot, "architecture/public-api/public-api.json");
+    const native = await readFile(baselinePath);
+    const retained = await readFile(join(consumerRoot, "retained-legacy-public-api.1.json"));
+    const original = await readFile(new URL("./fixtures/public-api-compatibility/valid/architecture/public-api/public-api.json", import.meta.url));
+    assert.deepEqual(retained, original);
+    try {
+      await writeFile(baselinePath, retained);
+      const { result, report } = check(consumerRoot);
+      assert.equal(result.status, 1);
+      assert.equal(report.coverage, "full");
+      assert.equal(report.outcome, "violations");
+      assert.equal(report.capabilities.length, 1);
+      assert.equal(report.capabilities[0].problem, undefined);
+      assert.deepEqual(report.capabilities[0].diagnostics.map(({ ruleId }) => ruleId),
+        ["package.public-api-compatibility.baseline-tool-mismatch"]);
+      assert.deepEqual(await readFile(baselinePath), retained);
+    } finally { await writeFile(baselinePath, native); }
+    assert.equal(check(consumerRoot).result.status, 0);
+    assert.deepEqual(await readFile(baselinePath), native);
+    assert.deepEqual(await readFile(join(consumerRoot, "retained-legacy-public-api.1.json")), original);
+  });
+});
+
 test("keeps the single v1 entrypoint fingerprint deterministic", () => {
   const released = currentBaseline();
   const currentItem = {

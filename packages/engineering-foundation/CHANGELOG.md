@@ -1,5 +1,13 @@
 # @agent-teams/engineering-foundation
 
+## 1.10.1
+
+### Patch Changes
+
+- [#414](https://github.com/agent-teams-ai/engineering-foundation/pull/414) [`7d317d4`](https://github.com/agent-teams-ai/engineering-foundation/commit/7d317d473d3daa3c1cc4773af66313bc072e7a09) Thanks [@777genius](https://github.com/777genius)! - Exclude the generated runtime-profile projection from public API extraction
+  staging so a qualified workspace cannot duplicate the source tree or exhaust
+  the staged repository entry budget during release versioning.
+
 ## 1.10.0
 
 ### Minor Changes

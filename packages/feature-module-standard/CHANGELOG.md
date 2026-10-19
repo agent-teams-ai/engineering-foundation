@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+### Patch Changes
+
+- [#415](https://github.com/agent-teams-ai/engineering-foundation/pull/415) [`00be3dc`](https://github.com/agent-teams-ai/engineering-foundation/commit/00be3dc6e809d8627c12ad06355ef9d54776521d) Thanks [@777genius](https://github.com/777genius)! - Retain the runner's supported Foundation `^1.8.0` optional peer minimum while
+  building against the current workspace through `workspace:*`. Qualify the same
+  packed public Node entrypoints, source failures and budget warnings with both
+  the current Foundation archive and the exact published minimum. New packed
+  manifest bytes still receive a normal Changesets release.
+
 ## 0.1.1
 
 ### Patch Changes

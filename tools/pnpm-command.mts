@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { realpath } from "node:fs/promises";
-import { delimiter, resolve } from "node:path";
+import { readFile, realpath } from "node:fs/promises";
+import { delimiter, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { firstExisting, isRegularFile, verifyQualificationNode } from "./executable-policy.mts";
 import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
@@ -10,7 +10,14 @@ const allowedArguments = [
   ["peers", "check", "--lockfile-only"]
 ] as const;
 
+function isReadOnlyPack(args: readonly string[]): boolean {
+  const output = args[2];
+  return args.length === 3 && args[0] === "pack" && args[1] === "--out" &&
+    output !== undefined && isAbsolute(output) && output.endsWith(".tgz");
+}
+
 function matchesArguments(args: readonly string[]): boolean {
+  if (isReadOnlyPack(args)) { return true; }
   if (args.length === 2 && args[0] === "run" && /^[A-Za-z0-9][A-Za-z0-9:._-]*$/u.test(args[1] ?? "")) {
     return true;
   }
@@ -129,12 +136,36 @@ async function verifiedNode(): Promise<string> {
   ]));
 }
 
+async function assertReadOnlyPack(): Promise<void> {
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(await readFile(resolve(process.cwd(), "package.json"), "utf8"));
+  } catch {
+    throw new Error("Read-only pack requires a readable valid package manifest.");
+  }
+  if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("Read-only pack requires a package manifest object.");
+  }
+  const scripts: unknown = Reflect.get(manifest, "scripts");
+  if (scripts === undefined) { return; }
+  if (scripts === null || typeof scripts !== "object" || Array.isArray(scripts)) {
+    throw new Error("Read-only pack requires a scripts object.");
+  }
+  for (const hook of ["prepack", "prepare", "postpack", "prepublish", "prepublishOnly"]) {
+    if (Object.hasOwn(scripts, hook)) {
+      throw new Error(`Read-only pack refuses lifecycle hook ${hook}.`);
+    }
+  }
+}
+
 async function main(): Promise<number> {
   const args = process.argv.slice(2);
   if (!matchesArguments(args)) {
     throw new Error("pnpm-command accepts only the closed pinned pnpm operations.");
   }
-  const pnpmArguments = ["--pm-on-fail=ignore", ...args];
+  if (args[0] === "pack") { await assertReadOnlyPack(); }
+  const pnpmArguments = ["--pm-on-fail=ignore",
+    ...(isReadOnlyPack(args) ? ["--config.ignore-scripts=true"] : []), ...args];
   const policy = await readRepositoryRuntimePolicy(repositoryRoot);
   const node = await verifiedNode();
   const invocation = await resolvePnpmInvocation(node, policy.toolchain.pnpm.version);

@@ -5,8 +5,6 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { resolvePnpmInvocation } from "../../../tools/pnpm-command.mts";
-import { readRepositoryRuntimePolicy } from "../../../tools/runtime-policy.mts";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(packageRoot, "../..");
@@ -27,9 +25,7 @@ test("packed Mutation consumer compiles, applies, replays and recovers through p
   const installed = join(consumerRoot, "node_modules/@agent-teams/repository-mutation");
   await mkdir(installed, { recursive: true });
   const archive = join(consumerRoot, "repository-mutation.tgz");
-  const policy = await readRepositoryRuntimePolicy();
-  const pnpm = await resolvePnpmInvocation(process.execPath, policy.toolchain.pnpm.version);
-  run(pnpm.command, [...pnpm.args, "--pm-on-fail=ignore", "pack", "--out", archive], packageRoot, {
+  run(process.execPath, [join(repositoryRoot, "tools/pnpm-command.mts"), "pack", "--out", archive], packageRoot, {
     timeout: 60_000,
     env: { ...process.env, COREPACK_HOME: process.env.COREPACK_HOME ?? "/tmp/ef-corepack",
       pnpm_config_verify_deps_before_run: "false" }

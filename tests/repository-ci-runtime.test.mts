@@ -745,3 +745,51 @@ snapshots:
     await rm(root, { recursive: true, force: true });
   }
 });
+
+
+test("read-only pnpm pack port preserves Bun authority and rejects effects before manager admission", async t => {
+  const root = await ownedTemporaryRoot("readonly-pack-");
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const runtime = await resolveQualificationExecutables();
+  const cli = join(repositoryRoot, "tools/pnpm-command.mts");
+  const archive = join(root, "actual.tgz");
+  const marker = join(root, "manager-called");
+  const sentinel = join(root, "sentinel.cjs");
+  await writeFile(sentinel, `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "called");`);
+  const manifest = { name: "readonly-pack-test", version: "1.0.0", packageManager: "bun@1.4.3", files: ["payload.txt"] };
+  await writeFile(join(root, "payload.txt"), "actual packed payload\n");
+  await writeFile(join(root, "package.json"), JSON.stringify(manifest));
+  const invoke = (args: string[], entrypoint?: string) => spawnSync(runtime.node, [cli, ...args], {
+    cwd: root, encoding: "utf8", timeout: 60_000, env: { ...process.env,
+      AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: runtime.node,
+      ...(entrypoint === undefined ? {} : { AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: entrypoint }) },
+  });
+  const packed = invoke(["pack", "--out", archive]);
+  assert.equal(packed.status, 0, packed.stdout + packed.stderr);
+  const contents = spawnSync("tar", ["-xOf", archive, "package/payload.txt"], { encoding: "utf8" });
+  assert.equal(contents.status, 0, contents.stderr);
+  assert.equal(contents.stdout, "actual packed payload\n");
+  assert.deepEqual(JSON.parse(await readFile(join(root, "package.json"), "utf8")), manifest);
+  for (const args of [["pack"], ["pack", "--out", "relative.tgz"], ["pack", "--out", join(root, "wrong.zip")],
+    ["pack", "--out", archive, "--ignore-scripts"], ["pack", "--out", archive, "--pm-on-fail=ignore"]]) {
+    const rejected = invoke(args, sentinel);
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /closed pinned pnpm operations/u);
+  }
+  for (const hook of ["prepack", "prepare", "postpack", "prepublish", "prepublishOnly"]) {
+    await writeFile(join(root, "package.json"), JSON.stringify({ ...manifest, scripts: { [hook]: "node sentinel.cjs" } }));
+    const rejected = invoke(["pack", "--out", join(root, "rejected.tgz")], sentinel);
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /Read-only pack refuses lifecycle hook/u);
+  }
+  for (const invalid of ['{"secret-malformed-manifest":', 'null', '[]',
+    ...[null, [], "secret-invalid-scripts", 42].map(scripts => JSON.stringify({ ...manifest, scripts }))]) {
+    await writeFile(join(root, "package.json"), invalid);
+    const rejected = invoke(["pack", "--out", join(root, "rejected.tgz")], sentinel);
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /Read-only pack requires/u);
+    assert.doesNotMatch(rejected.stderr, /secret-malformed-manifest|secret-invalid-scripts/u);
+  }
+  assert.equal((await readdir(root)).includes("manager-called"), false);
+  assert.equal((await readdir(root)).includes("rejected.tgz"), false);
+});

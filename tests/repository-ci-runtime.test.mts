@@ -339,6 +339,7 @@ async function minimalSource(root: string): Promise<void> {
     join(repositoryRoot, "architecture/foundation/repository-agent-workflow.yaml"),
     join(root, "architecture/foundation/repository-agent-workflow.yaml")
   );
+  await copyFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"), join(root, "architecture/foundation/dependency-declarations.yaml"));
   await copyFile(
     join(repositoryRoot, "architecture/foundation/repository-runtime.json"),
     join(root, "architecture/foundation/repository-runtime.json")

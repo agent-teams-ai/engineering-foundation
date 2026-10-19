@@ -260,3 +260,59 @@ export async function assertNodeAgentWorkflowPolicyProjection(
     throw new Error("Node profile workflow policy projection or digest evidence is stale.");
   }
 }
+
+// Recognizes this repository's complete ASCII policy format, not consumer YAML.
+function isCanonicalDependencyDeclarationsPolicy(source: string): boolean {
+  const normalized = source.replaceAll("\r\n", "\n");
+  if (/[^\n -~]/u.test(normalized)) { return false; }
+  const lines = normalized.split("\n").filter((line) => !/^ *(?:#.*)?$/u.test(line));
+  const headers = [
+    "schemaVersion: 2", "packageManager:", "  kind: bun", "  workspaceManifest: pnpm-workspace.yaml",
+    "policies:", "  externalDependencies: catalog", "  catalogVersions: exact", "  internalDependencies: workspace-protocol"
+  ];
+  if (headers.some((line, index) => lines[index] !== line)) { return false; }
+  const packageItem = /^    - (?:"(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*"|[a-z0-9][a-z0-9._-]*)$/u;
+  let index = headers.length;
+  for (const [field, item] of [
+    ["reservedScopes", /^    - "@[a-z0-9][a-z0-9._-]*\/"$/u],
+    ["developmentOnlyPackages", packageItem],
+    ["exactRegistryDevelopmentOnlyPackages", packageItem]
+  ] as const) {
+    if (lines[index] === `  ${field}: []`) { index += 1; continue; }
+    if (lines[index] !== `  ${field}:`) { return false; }
+    index += 1;
+    const values = new Set<string>();
+    while (item.test(lines[index] ?? "")) {
+      const value = (lines[index] ?? "").slice(6).replaceAll('"', "");
+      if (values.has(value)) { return false; }
+      values.add(value);
+      index += 1;
+    }
+    if (values.size === 0) { return false; }
+  }
+  return index === lines.length;
+}
+
+export function projectNodeDependencyDeclarationsPolicy(source: string): string {
+  if (!isCanonicalDependencyDeclarationsPolicy(source)) {
+    throw new Error("Node projection requires the exact repository v2 Bun dependency declaration policy.");
+  }
+  return source.replace(/^  kind: bun(?=\r?$)/mu, "  kind: pnpm");
+}
+
+export async function assertNodeDependencyDeclarationsPolicyProjection(
+  root: string,
+  sourceRoot: string,
+  evidence: { readonly originalDependencyDeclarationsPolicySha256: string; readonly derivedDependencyDeclarationsPolicySha256: string }
+): Promise<void> {
+  const path = "architecture/foundation/dependency-declarations.yaml";
+  const original = await readFile(resolve(sourceRoot, path), "utf8");
+  const derived = await readFile(resolve(root, path), "utf8");
+  if (
+    derived !== projectNodeDependencyDeclarationsPolicy(original) ||
+    createHash("sha256").update(original).digest("hex") !== evidence.originalDependencyDeclarationsPolicySha256 ||
+    createHash("sha256").update(derived).digest("hex") !== evidence.derivedDependencyDeclarationsPolicySha256
+  ) {
+    throw new Error("Node profile dependency declaration policy projection or digest evidence is stale.");
+  }
+}

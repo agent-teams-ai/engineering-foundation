@@ -12,7 +12,7 @@ import {
   projectPackageManager,
   sourceTreeDigest
 } from "../tools/dev.mts";
-import { projectNodeAgentWorkflowPolicy } from "../tools/runtime-policy.mts";
+import { projectNodeAgentWorkflowPolicy, projectNodeDependencyDeclarationsPolicy } from "../tools/runtime-policy.mts";
 import { refreshVersionLocks } from "../tools/release-profile.mts";
 import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 
@@ -67,10 +67,7 @@ function allSteps(workflow: Workflow): WorkflowStep[] {
   return Object.values(workflow.jobs ?? {}).flatMap((job) => job.steps ?? []);
 }
 
-function bootstrapAdmission(
-  job: "bootstrap" | "reconcile-github",
-  admission: BootstrapAdmission
-): boolean {
+function bootstrapAdmission(job: "bootstrap" | "reconcile-github", admission: BootstrapAdmission): boolean {
   const admitted =
     admission.enabled &&
     admission.ref === "refs/heads/main" &&
@@ -95,10 +92,7 @@ test("all four workflows provision every native pnpm setup at exact 11.20.0", as
 });
 
 test("bootstrap and reconciliation reject a source SHA mismatch before effects", async () => {
-  const source = await readFile(
-    join(repositoryRoot, ".github/workflows/npm-package-bootstrap.yml"),
-    "utf8"
-  );
+  const source = await readFile(join(repositoryRoot, ".github/workflows/npm-package-bootstrap.yml"), "utf8");
   const workflow = parseYaml(source) as Workflow & {
     readonly jobs: Record<string, WorkflowJob & { readonly if?: string; readonly steps: WorkflowStep[] }>;
   };
@@ -149,20 +143,8 @@ test("bootstrap and reconciliation reject a source SHA mismatch before effects",
   };
   assert.equal(bootstrapAdmission("bootstrap", matching), true);
   assert.equal(bootstrapAdmission("reconcile-github", matching), true);
-  assert.equal(
-    bootstrapAdmission("bootstrap", {
-      ...matching,
-      operation: "quarantine"
-    }),
-    true
-  );
-  assert.equal(
-    bootstrapAdmission("reconcile-github", {
-      ...matching,
-      operation: "quarantine"
-    }),
-    false
-  );
+  assert.equal(bootstrapAdmission("bootstrap", { ...matching, operation: "quarantine" }), true);
+  assert.equal(bootstrapAdmission("reconcile-github", { ...matching, operation: "quarantine" }), false);
   for (const mismatch of [
     { enabled: false },
     { ref: "refs/heads/feature/test" },
@@ -175,10 +157,7 @@ test("bootstrap and reconciliation reject a source SHA mismatch before effects",
 });
 
 test("public canary keeps builder Node 26 separate from selected public cohort Node", async () => {
-  const source = await readFile(
-    join(repositoryRoot, ".github/workflows/public-managed-registry-canary.yml"),
-    "utf8"
-  );
+  const source = await readFile(join(repositoryRoot, ".github/workflows/public-managed-registry-canary.yml"), "utf8");
   const builderNode = source.indexOf("node-version: \"26.11.1\"");
   const profileInstall = source.indexOf("node tools/dev.mts --profile node install");
   const profileBuild = source.indexOf("node tools/dev.mts --profile node build");
@@ -201,30 +180,21 @@ test("Node profile qualification requires a real virtual store outside lock refr
     await mkdir(join(sourceRoot, "architecture/foundation"), { recursive: true });
     await mkdir(join(profileRoot, "architecture/foundation"), { recursive: true });
     const manifest = `${JSON.stringify({
-      name: "release-profile-TEST",
-      private: true,
-      packageManager: "bun@1.4.3",
-      workspaces: { packages: ["packages/*"], catalog: {}, catalogs: {} },
-      catalog: {},
-      catalogs: {},
-      overrides: {}
+      name: "release-profile-TEST", private: true, packageManager: "bun@1.4.3",
+      workspaces: { packages: ["packages/*"], catalog: {}, catalogs: {} }, catalog: {}, catalogs: {}, overrides: {}
     }, null, 2)}\n`;
     const policy = `${JSON.stringify({
-      schemaVersion: 1,
-      defaultProfile: "bun",
-      profiles: {
-        bun: { manager: "bun", runtime: "bun" },
-        node: { manager: "pnpm", runtime: "node" }
-      },
+      schemaVersion: 1, defaultProfile: "bun",
+      profiles: { bun: { manager: "bun", runtime: "bun" }, node: { manager: "pnpm", runtime: "node" } },
       toolchain: {
         bun: { version: "1.4.3", linuxX64ArchiveSha256: "a".repeat(64) },
-        node: { version: "26.11.1" },
-        pnpm: { version: "11.20.0" }
+        node: { version: "26.11.1" }, pnpm: { version: "11.20.0" }
       },
       install: { dependencyScripts: false, nativeInitialization: [], disabledDependencyScripts: [] }
     }, null, 2)}\n`;
     await writeFile(join(sourceRoot, "package.json"), manifest);
-    await writeFile(join(sourceRoot, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\ncatalog:\ncatalogs:\noverrides:\n");
+    await writeFile(join(sourceRoot, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\ncatalogMode: strict\ncatalog: {}\ncatalogs: {}\noverrides:\n");
+    await copyFile(join(sourceRoot, "pnpm-workspace.yaml"), join(profileRoot, "pnpm-workspace.yaml"));
     await writeFile(join(sourceRoot, "architecture/foundation/repository-runtime.json"), policy);
     await writeFile(join(profileRoot, "architecture/foundation/repository-runtime.json"), policy);
     const workflowPath = "architecture/foundation/repository-agent-workflow.yaml";
@@ -232,38 +202,65 @@ test("Node profile qualification requires a real virtual store outside lock refr
     const projectedWorkflow = projectNodeAgentWorkflowPolicy(workflow);
     await writeFile(join(sourceRoot, workflowPath), workflow);
     await writeFile(join(profileRoot, workflowPath), projectedWorkflow);
+    const dependencyPath = "architecture/foundation/dependency-declarations.yaml";
+    const dependencies = await readFile(join(repositoryRoot, dependencyPath), "utf8");
+    const projectedDependencies = projectNodeDependencyDeclarationsPolicy(dependencies);
+    await writeFile(join(sourceRoot, dependencyPath), dependencies);
+    await writeFile(join(profileRoot, dependencyPath), projectedDependencies);
     const derived = projectPackageManager(manifest, "pnpm@11.20.0");
     await writeFile(join(profileRoot, "package.json"), derived);
     const evidence = {
       profile: "node",
       sourceSha: "a".repeat(40),
       sourceDigest: await sourceTreeDigest(sourceRoot),
-      originalManifestSha256: sha256(manifest),
-      derivedManifestSha256: sha256(derived),
-      originalWorkflowPolicySha256: sha256(workflow),
-      derivedWorkflowPolicySha256: sha256(projectedWorkflow)
+      originalManifestSha256: sha256(manifest), derivedManifestSha256: sha256(derived),
+      originalWorkflowPolicySha256: sha256(workflow), derivedWorkflowPolicySha256: sha256(projectedWorkflow),
+      originalDependencyDeclarationsPolicySha256: sha256(dependencies),
+      derivedDependencyDeclarationsPolicySha256: sha256(projectedDependencies)
     };
     await writeFile(join(profileRoot, ".agent-teams-runtime-profile.json"), `${JSON.stringify(evidence, null, 2)}\n`);
-    await assert.rejects(
-      assertPnpmProfileQualificationRoot(profileRoot, sourceRoot),
-      /actual pnpm virtual store/u
-    );
+    await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot), /actual pnpm virtual store/u);
     await assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false);
     await mkdir(join(profileRoot, "node_modules/.pnpm"), { recursive: true });
     await writeFile(join(profileRoot, "node_modules/.pnpm/lock.yaml"), "lockfileVersion: '9.0'\n");
     await assertPnpmProfileQualificationRoot(profileRoot, sourceRoot);
+    const { createWorkspaceDependencyDeclarationsCapability } = await import("../packages/engineering-foundation/dist/capabilities/workspace-dependency-declarations/module.js");
+    const { createWorkspaceInventoryReader } = await import("../packages/engineering-foundation/dist/workspace-inventory/module.js");
+    const { readFoundationSchema } = await import("../packages/engineering-foundation/dist/schema-catalog.js");
+    const capability = createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), readFoundationSchema);
+    for (const consumerRoot of [sourceRoot, profileRoot]) {
+      assert.equal((await capability.run({ consumerRoot, configPath: dependencyPath })).outcome, "passed");
+    }
+    await writeFile(join(profileRoot, dependencyPath), dependencies);
+    assert.deepEqual((await capability.run({ consumerRoot: profileRoot, configPath: dependencyPath })).diagnostics.map(({ ruleId }) => ruleId), ["workspace.dependency-declarations.package-manager-not-exact"]);
+    // Profile custody binds both policy bytes independently of the broad source digest.
+    const evidencePath = join(profileRoot, ".agent-teams-runtime-profile.json");
+    for (const value of [dependencies, projectedDependencies.replace("externalDependencies: catalog", "externalDependencies: direct")]) {
+      await writeFile(join(profileRoot, dependencyPath), value);
+      await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false), /dependency declaration policy projection or digest evidence is stale/u);
+    }
+    await writeFile(join(profileRoot, dependencyPath), projectedDependencies);
+    await writeFile(join(sourceRoot, dependencyPath), dependencies.replace('"@agent-teams/"', '"@other/"'));
+    await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false), /dependency declaration policy projection or digest evidence is stale/u);
+    await writeFile(join(sourceRoot, dependencyPath), dependencies);
+    for (const key of ["originalDependencyDeclarationsPolicySha256", "derivedDependencyDeclarationsPolicySha256"] as const) {
+      await writeFile(evidencePath, JSON.stringify({ ...evidence, [key]: "0".repeat(64) }));
+      await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false), /dependency declaration policy projection or digest evidence is stale/u);
+    }
+    for (const missing of [["originalDependencyDeclarationsPolicySha256"], ["derivedDependencyDeclarationsPolicySha256"], ["originalDependencyDeclarationsPolicySha256", "derivedDependencyDeclarationsPolicySha256"]]) {
+      const historicalEvidence = { ...evidence };
+      for (const key of missing) { Reflect.deleteProperty(historicalEvidence, key); }
+      await writeFile(evidencePath, JSON.stringify(historicalEvidence));
+      await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false), /qualification evidence is malformed/u);
+    }
+    await writeFile(evidencePath, JSON.stringify(evidence));
+    await assertPnpmProfileQualificationRoot(profileRoot, sourceRoot);
     await writeFile(join(sourceRoot, "source-marker"), "stale source evidence must fail\n");
-    await assert.rejects(
-      assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false),
-      /source digest evidence is stale/u
-    );
-    await writeFile(join(sourceRoot, "source-marker"), "");
+    await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot, false), /source digest evidence is stale/u);
     await rm(join(sourceRoot, "source-marker"));
+    assert.equal(await readFile(join(sourceRoot, dependencyPath), "utf8"), dependencies);
     await writeFile(join(profileRoot, "package.json"), manifest);
-    await assert.rejects(
-      assertPnpmProfileQualificationRoot(profileRoot, sourceRoot),
-      /exact private pnpm profile projection/u
-    );
+    await assert.rejects(assertPnpmProfileQualificationRoot(profileRoot, sourceRoot), /exact private pnpm profile projection/u);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
@@ -292,10 +289,7 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     allSteps(releaseWorkflow).find((step) => step.uses?.startsWith("changesets/action@"))?.uses,
     `changesets/action@${changesetsActionRevision}`
   );
-  const [runSource, gitSource] = await Promise.all([
-    readPinnedChangesetsActionSource("run"),
-    readPinnedChangesetsActionSource("git")
-  ]);
+  const [runSource, gitSource] = await Promise.all([readPinnedChangesetsActionSource("run"), readPinnedChangesetsActionSource("git")]);
   await mkdir(join(repositoryRoot, ".worker-tmp"), { recursive: true });
   const temporary = await mkdtemp(join(repositoryRoot, ".worker-tmp/changesets-TEST-"));
   const root = join(temporary, "source");
@@ -313,15 +307,15 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     await mkdir(join(root, "architecture/foundation"), { recursive: true });
     const workflowPolicyPath = "architecture/foundation/repository-agent-workflow.yaml";
     await copyFile(join(repositoryRoot, workflowPolicyPath), join(root, workflowPolicyPath));
+    await copyFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"),
+      join(root, "architecture/foundation/dependency-declarations.yaml"));
     await mkdir(join(cache, "pnpm-tool"), { recursive: true });
     process.env["BUN_INSTALL_CACHE_DIR"] = join(cache, "bun");
     process.env["XDG_CACHE_HOME"] = join(cache, "xdg");
     process.env["npm_config_cache"] = join(cache, "npm");
     process.env["npm_config_store_dir"] = join(cache, "pnpm-store");
     await writeFile(join(cache, "pnpm-tool/package.json"), `${JSON.stringify({
-      name: "pnpm-TEST-tool",
-      private: true,
-      packageManager: "bun@1.4.3",
+      name: "pnpm-TEST-tool", private: true, packageManager: "bun@1.4.3",
       dependencies: { pnpm: "11.20.0" }
     }, null, 2)}\n`);
     const toolInstall = spawnSync(bunCandidate, ["install", "--ignore-scripts", "--linker=isolated"], {
@@ -335,29 +329,18 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     const pnpm = join(cache, "pnpm-tool/node_modules/pnpm/bin/pnpm.mjs");
     process.env["AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT"] = pnpm;
     const manifest = `${JSON.stringify({
-      name: "release-runtime-TEST",
-      private: true,
-      type: "module",
-      packageManager: "bun@1.4.3",
-      workspaces: { packages: ["packages/*"], catalog: {}, catalogs: {} },
-      catalog: {},
-      catalogs: {},
-      overrides: {},
+      name: "release-runtime-TEST", private: true, type: "module", packageManager: "bun@1.4.3",
+      workspaces: { packages: ["packages/*"], catalog: {}, catalogs: {} }, catalog: {}, catalogs: {}, overrides: {},
       devDependencies: { "@changesets/cli": "2.31.1" }
     }, null, 2)}\n`;
     await writeFile(join(root, "package.json"), manifest);
     await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\ncatalog:\ncatalogs:\noverrides:\n");
     await writeFile(join(root, "architecture/foundation/repository-runtime.json"), `${JSON.stringify({
-      schemaVersion: 1,
-      defaultProfile: "bun",
-      profiles: {
-        bun: { manager: "bun", runtime: "bun" },
-        node: { manager: "pnpm", runtime: "node" }
-      },
+      schemaVersion: 1, defaultProfile: "bun",
+      profiles: { bun: { manager: "bun", runtime: "bun" }, node: { manager: "pnpm", runtime: "node" } },
       toolchain: {
         bun: { version: "1.4.3", linuxX64ArchiveSha256: "a".repeat(64) },
-        node: { version: "26.11.1" },
-        pnpm: { version: "11.20.0" }
+        node: { version: "26.11.1" }, pnpm: { version: "11.20.0" }
       },
       install: { dependencyScripts: false, nativeInitialization: [], disabledDependencyScripts: [] }
     }, null, 2)}\n`);
@@ -366,13 +349,8 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     }, null, 2)}\n`);
     await writeFile(join(root, "packages/pkg-a/CHANGELOG.md"), "# pkg-a\n");
     await writeFile(join(root, ".changeset/config.json"), `${JSON.stringify({
-      changelog: false,
-      commit: false,
-      fixed: [],
-      access: "public",
-      baseBranch: "main",
-      updateInternalDependencies: "patch",
-      ignore: [],
+      changelog: false, commit: false, fixed: [], access: "public", baseBranch: "main",
+      updateInternalDependencies: "patch", ignore: [],
       privatePackages: { version: true, tag: false }
     }, null, 2)}\n`);
     const bunLockSeed = join(cache, "bun-lock-seed");
@@ -384,9 +362,7 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
       await copyFile(join(root, "pnpm-workspace.yaml"), join(seed, "pnpm-workspace.yaml"));
       await copyFile(join(root, "packages/pkg-a/package.json"), join(seed, "packages/pkg-a/package.json"));
     }
-    const seedManifest = JSON.parse(await readFile(join(pnpmLockSeed, "package.json"), "utf8")) as {
-      packageManager: string;
-    };
+    const seedManifest = JSON.parse(await readFile(join(pnpmLockSeed, "package.json"), "utf8")) as { packageManager: string };
     seedManifest.packageManager = "pnpm@11.20.0";
     await writeFile(join(pnpmLockSeed, "package.json"), `${JSON.stringify(seedManifest, null, 2)}\n`);
     const seedPnpmLock = spawnSync(process.execPath, [
@@ -411,12 +387,7 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
     git(["add", "."]);
     git(["commit", "--quiet", "-m", "test: initial release runtime fixture"]);
     const sourceSha = git(["rev-parse", "HEAD"]).trim();
-    const initial = await refreshVersionLocks({
-      sourceRoot: root,
-      sourceSha,
-      node: process.execPath,
-      bun: bunCandidate
-    });
+    const initial = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate });
     const install = spawnSync(bunCandidate, ["install", "--ignore-scripts", "--linker=isolated"], {
       cwd: root, encoding: "utf8", env: process.env
     });
@@ -428,15 +399,8 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
       cwd: root, encoding: "utf8", env: process.env
     });
     assert.equal(version.status, 0, `${version.stdout}${version.stderr}`);
-    const refreshed = await refreshVersionLocks({
-      sourceRoot: root,
-      sourceSha,
-      node: process.execPath,
-      bun: bunCandidate
-    });
-    const versioned = JSON.parse(await readFile(join(root, "packages/pkg-a/package.json"), "utf8")) as {
-      readonly version: string;
-    };
+    const refreshed = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate });
+    const versioned = JSON.parse(await readFile(join(root, "packages/pkg-a/package.json"), "utf8")) as { readonly version: string };
     assert.equal(versioned.version, "1.1.0");
     assert.notEqual(refreshed.bunLockSha256, initial.bunLockSha256);
     assert.match(refreshed.bunLockSha256, /^[a-f0-9]{64}$/u);
@@ -448,9 +412,7 @@ test("actual pinned Changesets TEST versioning refreshes both authoritative lock
       .exec(pnpmLock)?.[1];
     assert.ok(changesetsSri);
     context.diagnostic(`TEST Changesets CLI 2.31.1 SRI: ${changesetsSri}`);
-    const rootManifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as {
-      readonly packageManager: string;
-    };
+    const rootManifest = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { readonly packageManager: string };
     assert.equal(rootManifest.packageManager, "bun@1.4.3");
     const versionScript = runSource.indexOf("await exec(script, undefined, { cwd, env });");
     const changedPackages = runSource.indexOf("let changedPackages = await getChangedPackages");
@@ -528,4 +490,30 @@ test("Git source authority rejects a real marker inode replacement between metad
   assert.match(result.stderr, /Source authority \.git marker changed/u);
   assert.equal(await readFile(`${fixture.marker}.retained-before-race`, "utf8"), fixture.markerSource);
   assert.equal(await readFile(fixture.marker, "utf8"), fixture.markerSource);
+});
+
+test("Node dependency policy projection changes one manager line and rejects unsupported source shapes", async () => {
+  const source = await readFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"), "utf8");
+  for (const newline of ["\n", "\r\n"]) {
+    const original = source.replaceAll("\r\n", "\n").replaceAll("\n", newline);
+    assert.equal(projectNodeDependencyDeclarationsPolicy(original), original.replace("  kind: bun", "  kind: pnpm"));
+  }
+  for (const invalid of [
+    source.replace("schemaVersion: 2", "schemaVersion: 1"),
+    source.replace("schemaVersion: 2", "schemaVersion: 3"),
+    `${source}schemaVersion: 2\n`, `${source}"schemaVersion": 2\n`,
+    source.replace("  kind: bun", "  kind: pnpm"),
+    source.replace("  kind: bun", "  kind: bun\n  kind: bun"),
+    source.replace("workspaceManifest: pnpm-workspace.yaml", "workspaceManifest: package.json"),
+    `${source}packageManager:\n  kind: bun\n  workspaceManifest: pnpm-workspace.yaml\n`,
+    source.replace("  kind: bun", "  extra: true\n  kind: bun"),
+    `${source}"\\u0073chemaVersion": 2\n`, `${source}"\\u0070ackageManager": {kind: bun, workspaceManifest: pnpm-workspace.yaml}\n`,
+    `${source}? schemaVersion\n: 2\n`, `${source}unknown: [unterminated\n`, `${source}---\npolicies: {}\n`,
+    source.replace("policies:", "policies: &authority"), source.replace("policies:", "policies: {"),
+    `${source}trailing scalar\n`, `${source}unknown: value\n`, `${source}# invalid comment\u0000\n`,
+    source.slice(0, source.indexOf("policies:")) + "policies: {externalDependencies: catalog, catalogVersions: exact, internalDependencies: workspace-protocol, reservedScopes: [], developmentOnlyPackages: [], exactRegistryDevelopmentOnlyPackages: []}\n",
+    source.replace("    - knip", "    - [knip"), source.replace("    - knip", "    - *tool"), source.replace("    - knip", "    - knip\n    - knip")
+  ]) {
+    assert.throws(() => projectNodeDependencyDeclarationsPolicy(invalid), /exact repository v2 Bun dependency declaration policy/u);
+  }
 });

@@ -137,7 +137,7 @@ const configSchema = JSON.parse(await readFile(new URL("../schemas/workspace-dep
 import { parseCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/parse-capability-config.js";
 import { loadCapabilityConfig } from "../dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/load-capability-config.js";
 for (const entry of configBaseline.cases) {
-  test(`original-base config byte/diagnostic parity: ${entry.name}`, async () => {
+  test(`${entry.name === "future-version" ? "published v1 rejection and explicit v2 loader admission" : "original-base config byte/diagnostic parity"}: ${entry.name}`, async () => {
     await withFixture(async (root) => {
       const path = join(root, configPath);
       await writeFile(path, entry.yaml);
@@ -153,7 +153,17 @@ for (const entry of configBaseline.cases) {
           assert.ok(Object.isFrozen(actual.policy.developmentOnlyPackages));
         }
       };
-      await settings(() => loadCapabilityConfig({ readYaml: loadStrictYamlFile, readSchema: readFoundationSchema }, root, configPath));
+      if (entry.name === "future-version") {
+        const selected = [];
+        const actual = await loadCapabilityConfig({ readYaml: loadStrictYamlFile, readSchema: async (id) => {
+          selected.push(id);
+          return readFoundationSchema(id);
+        } }, root, configPath);
+        assert.deepEqual(selected, ["workspace-dependency-declarations/v2"]);
+        assert.deepEqual(actual, configBaseline.cases.find(({ name }) => name === "valid").settings);
+      } else {
+        await settings(() => loadCapabilityConfig({ readYaml: loadStrictYamlFile, readSchema: readFoundationSchema }, root, configPath));
+      }
       if (!entry.loaderOnly) {
         await settings(async () => parseCapabilityConfig(parse(entry.yaml), configSchema));
       }
@@ -260,3 +270,44 @@ test("A2 review normalization rejects ambiguous catalog keys in either order", (
     }
   }
 });
+
+for (const [schemaVersion, kind] of [[1, "pnpm"], [2, "pnpm"], [2, "bun"]]) {
+  test(`explicit manager policy v${schemaVersion} ${kind} governs the actual root and CLI`, async () => {
+    await withFixture(async (root) => {
+      const config = parse(await readFile(join(root, configPath), "utf8"));
+      config.schemaVersion = schemaVersion;
+      config.packageManager.kind = kind;
+      await writeFile(join(root, configPath), stringify(config));
+      const path = join(root, "package.json");
+      const manifest = JSON.parse(await readFile(path, "utf8"));
+      for (const version of ["1.4.3", "1.4.3-rc.1+build.2"]) {
+        manifest.packageManager = `${kind}@${version}`;
+        await writeFile(path, JSON.stringify(manifest));
+        assert.equal((await run(root)).outcome, "passed");
+      }
+      const { report, result } = check(root);
+      assert.equal(result.status, 0);
+      assert.equal(report.capabilities[0].outcome, "passed");
+      for (const value of [`${kind === "bun" ? "pnpm" : "bun"}@1.4.3`, `${kind}@^1.4.3`, `${kind}@latest`, kind, undefined]) {
+        if (value === undefined) { delete manifest.packageManager; }
+        else { manifest.packageManager = value; }
+        await writeFile(path, JSON.stringify(manifest));
+        const diagnostics = (await run(root)).diagnostics;
+        assert.deepEqual(diagnostics.map(({ ruleId }) => ruleId), [rule("package-manager-not-exact")]);
+        assert.equal(diagnostics[0].evidence[0].value, value ?? "missing");
+      }
+      manifest.packageManager = `${kind}@1.4.3`;
+      await writeFile(path, JSON.stringify(manifest));
+      await configure(root, { target: "typescript", route: "direct" });
+      assert.equal(has(await run(root), "development-only-package-in-runtime-section", "alias"), true);
+      assert.equal(has(await run(root), "external-version-not-cataloged", "alias"), true);
+      await configure(root, { target: "@fixture/core" });
+      assert.equal(has(await run(root), "internal-dependency-without-workspace-protocol", "alias"), true);
+      const workspacePath = join(root, "pnpm-workspace.yaml");
+      const workspace = parse(await readFile(workspacePath, "utf8"));
+      workspace.catalog.alias = "^1.4.3";
+      await writeFile(workspacePath, stringify(workspace));
+      assert.ok((await run(root)).diagnostics.some(({ ruleId }) => ruleId === rule("catalog-version-not-exact")));
+    });
+  });
+}

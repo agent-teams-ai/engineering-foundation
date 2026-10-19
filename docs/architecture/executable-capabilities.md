@@ -181,10 +181,12 @@ The first implementation validates declared workspace dependency state:
 - exact versions in the accepted catalog when consumer policy requires them;
 - legal dependency sections and development-only tooling placement.
 
-Version 1 supports pnpm through an internal adapter selected explicitly by the
-capability configuration. The capability ID remains policy-oriented; support for
-another package manager requires a proven second adapter, not speculative generic
-interfaces in the public API.
+Configuration v1 retains its pnpm-only contract. Configuration v2 explicitly
+selects `pnpm` or `bun`; the evaluator requires that selected kind and checks the
+root's exact matching version. Both schemas retain the existing canonical
+`pnpm-workspace.yaml` inventory and catalog adapter. This admits Bun-managed
+repositories with that explicit authority, without claiming native Bun-only
+workspace discovery or adding a generic package-manager interface.
 
 ### `architecture.source-dependencies`
 
@@ -501,6 +503,7 @@ schemas/
   foundation-config/v1.schema.json
   foundation-check-report/v1.schema.json
   workspace-dependency-declarations/v1.schema.json
+  workspace-dependency-declarations/v2.schema.json
 ```
 
 Explicit package exports and `agent-teams-foundation schema <schema-id>` expose

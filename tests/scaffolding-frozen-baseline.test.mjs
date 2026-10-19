@@ -291,6 +291,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/repository-agent-workflow/v2.schema.json",
+    "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
   assert.deepEqual(

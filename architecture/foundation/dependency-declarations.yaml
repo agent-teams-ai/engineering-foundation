@@ -1,6 +1,6 @@
-schemaVersion: 1
+schemaVersion: 2
 packageManager:
-  kind: pnpm
+  kind: bun
   workspaceManifest: pnpm-workspace.yaml
 policies:
   externalDependencies: catalog

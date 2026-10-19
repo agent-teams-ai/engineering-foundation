@@ -41,7 +41,7 @@ export function createWorkspaceDependencyDeclarationsCapability(
         return capabilityReport({
           capabilityId: CAPABILITY_ID,
           capabilityConfigSchemaVersion: CAPABILITY_CONFIG_SCHEMA_VERSION,
-          diagnostics: evaluateWorkspaceDependencies(snapshot, config.policy)
+          diagnostics: evaluateWorkspaceDependencies(snapshot, config.policy, config.packageManagerKind)
         });
       } catch (error) {
         return capabilityFailureReport({

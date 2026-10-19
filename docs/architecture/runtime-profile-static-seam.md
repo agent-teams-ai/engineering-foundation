@@ -156,9 +156,12 @@ existing Bun transport fixture in the Linux producer, Windows test-b and Darwin
 native jobs. Those invocations establish only the platform-specific guarantees
 asserted by that fixture; Linux evidence does not substitute for native custody.
 
-The repository workflow uses published policy v2 with an explicit Bun manager.
-Its clean Node projection changes only the root manager declaration and the
-workflow policy manager to pnpm, records both file pairs' digests, and rejects
-policy drift before building or running commands. This closed repository
-projection is Host policy; the public parser never reads a profile environment
-override. Policy v1 and its pnpm-only schema remain unchanged.
+The repository workflow and workspace dependency declarations use policy v2
+with explicit Bun managers. Dependency declarations retain the canonical
+`pnpm-workspace.yaml` inventory and catalog authority. The clean Node projection
+changes the root manager declaration and those two policy managers to pnpm.
+Its closed nine-field evidence records the source digest and all three original
+and derived file pairs' digests, and rejects policy drift before building or
+running commands. Historical seven-field evidence is not current qualification.
+This closed repository projection is Host policy; public parsers never read a
+profile environment override. Both published v1 pnpm-only schemas remain unchanged.

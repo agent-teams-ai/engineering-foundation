@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.agent-teams.ai/engineering-foundation/workspace-dependency-declarations/v2",
+  "title": "Workspace dependency declarations capability configuration version 2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageManager",
+    "policies"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "packageManager": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "workspaceManifest"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "pnpm",
+            "bun"
+          ]
+        },
+        "workspaceManifest": {
+          "const": "pnpm-workspace.yaml"
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "externalDependencies",
+        "catalogVersions",
+        "internalDependencies",
+        "reservedScopes",
+        "developmentOnlyPackages",
+        "exactRegistryDevelopmentOnlyPackages"
+      ],
+      "properties": {
+        "externalDependencies": {
+          "const": "catalog"
+        },
+        "catalogVersions": {
+          "const": "exact"
+        },
+        "internalDependencies": {
+          "const": "workspace-protocol"
+        },
+        "reservedScopes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^@[a-z0-9][a-z0-9._-]*/$"
+          }
+        },
+        "developmentOnlyPackages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          }
+        },
+        "exactRegistryDevelopmentOnlyPackages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          }
+        }
+      }
+    }
+  }
+}

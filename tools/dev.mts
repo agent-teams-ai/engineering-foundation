@@ -3,7 +3,7 @@ import { copyFile, mkdir, readFile, readdir, realpath, rm, stat, writeFile } fro
 import { createHash } from "node:crypto";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot, projectNodeAgentWorkflowPolicy, assertNodeAgentWorkflowPolicyProjection } from "./runtime-policy.mts";
+import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot, projectNodeAgentWorkflowPolicy, assertNodeAgentWorkflowPolicyProjection, projectNodeDependencyDeclarationsPolicy, assertNodeDependencyDeclarationsPolicyProjection } from "./runtime-policy.mts";
 import { resolveQualificationExecutables, verifySupportedNode } from "./executable-policy.mts";
 import { assertOwnedProfileRoot, assertExplicitSourceGitAuthority } from "./profile-root.mts";
 export { assertExplicitSourceGitAuthority } from "./profile-root.mts";
@@ -18,6 +18,8 @@ export interface ProfileEvidence {
   readonly derivedManifestSha256: string;
   readonly originalWorkflowPolicySha256: string;
   readonly derivedWorkflowPolicySha256: string;
+  readonly originalDependencyDeclarationsPolicySha256: string;
+  readonly derivedDependencyDeclarationsPolicySha256: string;
 }
 
 function parseArguments(arguments_: readonly string[]): { readonly profile: Profile; readonly command: string } {
@@ -209,6 +211,11 @@ export async function prepareProfileProjection(input: {
   if (input.profile === "node") {
     await writeFile(workflowPath, derivedWorkflow, "utf8");
   }
+  const dependencyPath = resolve(target, "architecture/foundation/dependency-declarations.yaml");
+  const originalDependencies = await readFile(dependencyPath, "utf8");
+  const derivedDependencies = input.profile === "node"
+    ? projectNodeDependencyDeclarationsPolicy(originalDependencies) : originalDependencies;
+  if (input.profile === "node") { await writeFile(dependencyPath, derivedDependencies, "utf8"); }
   const evidence: ProfileEvidence = {
     profile: input.profile,
     sourceSha: input.sourceSha,
@@ -216,7 +223,9 @@ export async function prepareProfileProjection(input: {
     originalManifestSha256: originalDigest,
     derivedManifestSha256: derivedDigest,
     originalWorkflowPolicySha256: createHash("sha256").update(originalWorkflow).digest("hex"),
-    derivedWorkflowPolicySha256: createHash("sha256").update(derivedWorkflow).digest("hex")
+    derivedWorkflowPolicySha256: createHash("sha256").update(derivedWorkflow).digest("hex"),
+    originalDependencyDeclarationsPolicySha256: createHash("sha256").update(originalDependencies).digest("hex"),
+    derivedDependencyDeclarationsPolicySha256: createHash("sha256").update(derivedDependencies).digest("hex")
   };
   await writeProfileEvidence(target, evidence);
   return evidence;
@@ -250,6 +259,8 @@ async function install(profile: Profile): Promise<number> {
     const manifestDigest = createHash("sha256").update(manifest).digest("hex");
     const workflow = await readFile(resolve(profileRoot, "architecture/foundation/repository-agent-workflow.yaml"), "utf8");
     const workflowDigest = createHash("sha256").update(workflow).digest("hex");
+    const dependencyPolicy = await readFile(resolve(profileRoot, "architecture/foundation/dependency-declarations.yaml"), "utf8");
+    const dependencyDigest = createHash("sha256").update(dependencyPolicy).digest("hex");
     await writeProfileEvidence(profileRoot, {
       profile,
       sourceSha,
@@ -257,7 +268,9 @@ async function install(profile: Profile): Promise<number> {
       originalManifestSha256: manifestDigest,
       derivedManifestSha256: manifestDigest,
       originalWorkflowPolicySha256: workflowDigest,
-      derivedWorkflowPolicySha256: workflowDigest
+      derivedWorkflowPolicySha256: workflowDigest,
+      originalDependencyDeclarationsPolicySha256: dependencyDigest,
+      derivedDependencyDeclarationsPolicySha256: dependencyDigest
     });
   }
   const tools = await executable(profile);
@@ -331,7 +344,8 @@ export async function assertPnpmProfileQualificationRoot(
   const parsed = JSON.parse(evidenceSource) as Partial<ProfileEvidence>;
   const expectedKeys = [
     "profile", "sourceSha", "sourceDigest", "originalManifestSha256", "derivedManifestSha256",
-    "originalWorkflowPolicySha256", "derivedWorkflowPolicySha256"
+    "originalWorkflowPolicySha256", "derivedWorkflowPolicySha256",
+    "originalDependencyDeclarationsPolicySha256", "derivedDependencyDeclarationsPolicySha256"
   ];
   if (
     Object.keys(parsed).toSorted().join("\0") !== expectedKeys.toSorted().join("\0") ||
@@ -341,7 +355,9 @@ export async function assertPnpmProfileQualificationRoot(
     typeof parsed.originalManifestSha256 !== "string" ||
     typeof parsed.derivedManifestSha256 !== "string" ||
     typeof parsed.originalWorkflowPolicySha256 !== "string" ||
-    typeof parsed.derivedWorkflowPolicySha256 !== "string"
+    typeof parsed.derivedWorkflowPolicySha256 !== "string" ||
+    typeof parsed.originalDependencyDeclarationsPolicySha256 !== "string" ||
+    typeof parsed.derivedDependencyDeclarationsPolicySha256 !== "string"
   ) {
     throw new Error("Node profile qualification evidence is malformed.");
   }
@@ -352,7 +368,9 @@ export async function assertPnpmProfileQualificationRoot(
     originalManifestSha256: parsed.originalManifestSha256,
     derivedManifestSha256: parsed.derivedManifestSha256,
     originalWorkflowPolicySha256: parsed.originalWorkflowPolicySha256,
-    derivedWorkflowPolicySha256: parsed.derivedWorkflowPolicySha256
+    derivedWorkflowPolicySha256: parsed.derivedWorkflowPolicySha256,
+    originalDependencyDeclarationsPolicySha256: parsed.originalDependencyDeclarationsPolicySha256,
+    derivedDependencyDeclarationsPolicySha256: parsed.derivedDependencyDeclarationsPolicySha256
   };
   const manifestSource = await readFile(resolve(root, "package.json"), "utf8");
   const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
@@ -375,6 +393,7 @@ export async function assertPnpmProfileQualificationRoot(
     throw new Error("Node profile manifest digest evidence is stale.");
   }
   await assertNodeAgentWorkflowPolicyProjection(root, sourceRoot, evidence);
+  await assertNodeDependencyDeclarationsPolicyProjection(root, sourceRoot, evidence);
   if (await sourceTreeDigest(sourceRoot) !== evidence.sourceDigest) {
     throw new Error("Node profile source digest evidence is stale.");
   }

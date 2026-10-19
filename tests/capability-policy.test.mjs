@@ -678,7 +678,8 @@ test("registered config admission snapshots capability IDs at composition", asyn
 });
 
 test("schema contribution assembly preserves every published source byte and dependency registration", async () => {
-  assert.equal(FOUNDATION_SCHEMA_IDS.length, 42);
+  assert.equal(FOUNDATION_SCHEMA_IDS.length, 43);
+  assert.ok(FOUNDATION_SCHEMA_IDS.includes("workspace-dependency-declarations/v2"));
   assert.ok(FOUNDATION_SCHEMA_IDS.includes("repository-agent-workflow/v2"));
   assert.ok(FOUNDATION_SCHEMA_IDS.includes("quality-findings-baseline/v1"));
   assert.ok(FOUNDATION_SCHEMA_IDS.includes("package-public-api-audit-request/v1"));

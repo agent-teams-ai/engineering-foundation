@@ -146,6 +146,8 @@ async function minimalSource(root) {
   }, null, 2)}\n`);
   await writeFile(join(root, "pnpm-workspace.yaml"),
     'packages:\n  - "packages/*"\ncatalog: {}\ncatalogs: {}\noverrides: {}\n');
+  await copyFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"),
+    join(root, "architecture/foundation/dependency-declarations.yaml"));
   await copyFile(join(repositoryRoot, "architecture/foundation/repository-runtime.json"),
     join(root, "architecture/foundation/repository-runtime.json"));
 }

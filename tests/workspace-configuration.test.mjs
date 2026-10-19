@@ -141,3 +141,26 @@ test("workspace observations retain metadata-only discovery, 32-read batching an
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("workspace configuration dispatches explicit v2 managers and rejects unsupported contracts", async () => {
+  const v2 = await readFile(new URL("../packages/engineering-foundation/schemas/workspace-dependency-declarations/v2.schema.json", import.meta.url), "utf8");
+  const base = { schemaVersion: 2, packageManager: { kind: "bun", workspaceManifest: "pnpm-workspace.yaml" }, policies: {
+    externalDependencies: "catalog", catalogVersions: "exact", internalDependencies: "workspace-protocol",
+    reservedScopes: ["@fixture/"], developmentOnlyPackages: ["typescript"], exactRegistryDevelopmentOnlyPackages: ["@fixture/foundation"]
+  } };
+  for (const [version, kind, manifest, accepted] of [
+    [1, "pnpm", "pnpm-workspace.yaml", true], [2, "pnpm", "pnpm-workspace.yaml", true], [2, "bun", "pnpm-workspace.yaml", true],
+    [1, "bun", "pnpm-workspace.yaml", false], [2, "npm", "pnpm-workspace.yaml", false], [2, "bun", "package.json", false],
+    [0, "pnpm", "pnpm-workspace.yaml", false], [3, "pnpm", "pnpm-workspace.yaml", false], ["2", "bun", "pnpm-workspace.yaml", false], [undefined, "pnpm", "pnpm-workspace.yaml", false]
+  ]) {
+    const input = { ...base, schemaVersion: version, packageManager: { kind, workspaceManifest: manifest } };
+    const selected = [];
+    const operation = () => loadCapabilityConfig({ async readYaml() { return input; }, async readSchema(id) {
+      selected.push(id);
+      return id === "workspace-dependency-declarations/v2" ? v2 : schema;
+    } }, "explicit-memory-consumer", "dependencies.yaml");
+    if (accepted) { assert.equal((await operation()).packageManagerKind, kind); }
+    else { await assert.rejects(operation, (error) => error.problem.code === "SCHEMA_INVALID"); }
+    assert.deepEqual(selected, [`workspace-dependency-declarations/v${version === 2 ? 2 : 1}`]);
+  }
+});

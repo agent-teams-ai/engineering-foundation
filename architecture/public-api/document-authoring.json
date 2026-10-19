@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packageName": "@agent-teams/document-authoring",
   "packageVersion": "0.3.2",
-  "extractorVersion": "7.58.12",
+  "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
       "exportPath": ".",
@@ -124,21 +124,21 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: {\n        readonly metadataSchema: DocumentAuthorityEvidence;\n        readonly metadataSidecar?: DocumentAuthorityEvidence;\n        readonly ownerCatalog: DocumentAuthorityEvidence;\n        readonly profile: DocumentAuthorityEvidence;\n        readonly templates: readonly {\n            readonly evidence: DocumentAuthorityEvidence;\n            readonly type: string;\n        }[];\n    };"
+          "signature": "readonly authority: {\n    readonly metadataSchema: DocumentAuthorityEvidence;\n    readonly metadataSidecar?: DocumentAuthorityEvidence;\n    readonly ownerCatalog: DocumentAuthorityEvidence;\n    readonly profile: DocumentAuthorityEvidence;\n    readonly templates: readonly {\n        readonly evidence: DocumentAuthorityEvidence;\n        readonly type: string;\n    }[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#authorityPaths:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly authorityPaths: {\n        readonly metadataSchema: string;\n        readonly metadataSidecar?: string;\n        readonly ownerCatalog: string;\n        readonly profile: string;\n    };"
+          "signature": "readonly authorityPaths: {\n    readonly metadataSchema: string;\n    readonly metadataSidecar?: string;\n    readonly ownerCatalog: string;\n    readonly profile: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#catalog:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly catalog: {\n        readonly collections: readonly DocumentCatalogCollection[];\n        readonly excludedPrefixes: readonly string[];\n    };"
+          "signature": "readonly catalog: {\n    readonly collections: readonly DocumentCatalogCollection[];\n    readonly excludedPrefixes: readonly string[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringProfileDescriptionV2#ownerIds:member",
@@ -215,7 +215,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly heading: {\n        readonly kind: \"id-colon-title\" | \"title\";\n    };"
+          "signature": "readonly heading: {\n    readonly kind: \"id-colon-title\" | \"title\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#identity:member",
@@ -257,7 +257,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly template: {\n        readonly kind: \"fenced-markdown-body\";\n        readonly path: string;\n    };"
+          "signature": "readonly template: {\n    readonly kind: \"fenced-markdown-body\";\n    readonly path: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentAuthoringTypeDescriptionV2#type:member",
@@ -509,7 +509,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection:interface",
           "parentKind": "Interface",
-          "signature": "readonly filesystem: {\n        readonly basis: \"platform-contract\";\n        readonly strictDirectoryDurability: \"platform-supported\" | \"platform-unsupported\";\n    };"
+          "signature": "readonly filesystem: {\n    readonly basis: \"platform-contract\";\n    readonly strictDirectoryDurability: \"platform-supported\" | \"platform-unsupported\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentEnvironmentInspection#installedFoundationBuildIdentity:member",
@@ -985,7 +985,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: {\n        readonly profile: DocumentAuthorityEvidence;\n        readonly metadataSchema: DocumentAuthorityEvidence;\n        readonly ownerCatalog: DocumentAuthorityEvidence;\n        readonly template: DocumentAuthorityEvidence;\n    };"
+          "signature": "readonly authority: {\n    readonly profile: DocumentAuthorityEvidence;\n    readonly metadataSchema: DocumentAuthorityEvidence;\n    readonly ownerCatalog: DocumentAuthorityEvidence;\n    readonly template: DocumentAuthorityEvidence;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#compiler:member",
@@ -1006,7 +1006,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly destinationPrecondition: {\n        readonly state: \"absent\";\n    };"
+          "signature": "readonly destinationPrecondition: {\n    readonly state: \"absent\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#diagnostics:member",
@@ -1020,14 +1020,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly expectedParent: {\n        readonly path: string;\n        readonly state: \"directory\";\n        readonly ancestry: \"real-directories\";\n    };"
+          "signature": "readonly expectedParent: {\n    readonly path: string;\n    readonly state: \"directory\";\n    readonly ancestry: \"real-directories\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#identityProjection:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly identityProjection: {\n        readonly entryCount: number;\n        readonly digest: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly identityProjection: {\n    readonly entryCount: number;\n    readonly digest: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#intent:member",
@@ -1048,7 +1048,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly output: {\n        readonly digest: DocumentAuthorityDigest;\n        readonly size: number;\n        readonly mode: \"0644\";\n        readonly mediaType: \"text/markdown; charset=utf-8\";\n        readonly contentBase64: string;\n    };"
+          "signature": "readonly output: {\n    readonly digest: DocumentAuthorityDigest;\n    readonly size: number;\n    readonly mode: \"0644\";\n    readonly mediaType: \"text/markdown; charset=utf-8\";\n    readonly contentBase64: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#planDigest:member",
@@ -1076,14 +1076,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly referencedDocuments: readonly {\n        readonly id: string;\n        readonly path: string;\n        readonly projectionDigest: DocumentAuthorityDigest;\n    }[];"
+          "signature": "readonly referencedDocuments: readonly {\n    readonly id: string;\n    readonly path: string;\n    readonly projectionDigest: DocumentAuthorityDigest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#requiredAdapterCapabilities:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly requiredAdapterCapabilities: readonly [\"create-file-no-replace/v1\"];"
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n    \"create-file-no-replace/v1\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#schemaVersion:member",
@@ -1097,7 +1097,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly selectedOwner: {\n        readonly id: string;\n        readonly membershipDigest: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly selectedOwner: {\n    readonly id: string;\n    readonly membershipDigest: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan:interface",
@@ -1174,7 +1174,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: DocumentPlan[\"authority\"] & {\n        readonly metadataSidecar?: DocumentAuthorityEvidence;\n        readonly profileSemanticDigest: DocumentAuthorityDigest;\n        readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;\n        readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly authority: DocumentPlan[\"authority\"] & {\n    readonly metadataSidecar?: DocumentAuthorityEvidence;\n    readonly profileSemanticDigest: DocumentAuthorityDigest;\n    readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;\n    readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#parentMaterialization:member",
@@ -1195,7 +1195,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly requiredAdapterCapabilities: readonly [\n        \"create-directories-no-replace/v1\",\n        \"create-file-no-replace/v1\"\n    ];"
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n    \"create-directories-no-replace/v1\",\n    \"create-file-no-replace/v1\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#schemaVersion:member",
@@ -1265,7 +1265,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentReceiptBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly adapter: {\n    readonly id: \"foundation.filesystem/v1\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptBase#destination:member",
@@ -1384,14 +1384,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly adapter: {\n    readonly id: \"foundation.filesystem/v1\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#commit:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly commit: {\n        readonly state: \"committed\" | \"not-published\" | \"recovery-required\" | \"manual-recovery-required\";\n        readonly publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n        readonly fileAtomicity: \"not-applicable\" | \"single-file-atomic-create\";\n        readonly recoverability: \"not-required\" | \"preserved-for-recovery\";\n    };"
+          "signature": "readonly commit: {\n    readonly state: \"committed\" | \"not-published\" | \"recovery-required\" | \"manual-recovery-required\";\n    readonly publication: \"none\" | \"preexisting-exact\" | \"published\" | \"unknown\";\n    readonly fileAtomicity: \"not-applicable\" | \"single-file-atomic-create\";\n    readonly recoverability: \"not-required\" | \"preserved-for-recovery\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#destination:member",
@@ -1412,7 +1412,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentReceiptV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly directoryMaterialization: {\n        readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n        readonly plannedDirectories: readonly string[];\n        readonly observedCreatedDirectories: readonly string[];\n    };"
+          "signature": "readonly directoryMaterialization: {\n    readonly state: \"none-created\" | \"created-and-retained\" | \"preserved-unknown\";\n    readonly plannedDirectories: readonly string[];\n    readonly observedCreatedDirectories: readonly string[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentReceiptV2#outcome:member",
@@ -1489,14 +1489,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly foundation: {\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#kernelArtifact:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly kernelArtifact: {\n    readonly name: \"@agent-teams/repository-mutation\";\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#operationKind:member",
@@ -1524,7 +1524,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 2;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: \"document-authoring\";\n    readonly contractVersion: 2;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#schemaVersion:member",
@@ -1573,14 +1573,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly foundation: {\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#kernelArtifact:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly kernelArtifact: {\n    readonly name: \"@agent-teams/repository-mutation\";\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#operationKind:member",
@@ -1608,7 +1608,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 3;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: \"document-authoring\";\n    readonly contractVersion: 3;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#schemaVersion:member",
@@ -1643,14 +1643,14 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export type DocumentTransactionInspectionV1 = {\n    readonly schemaVersion: 1;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"manual-recovery-required\";\n    readonly reason: string;\n    readonly operationKind?: \"document-authoring\" | \"local-mode\" | \"scaffolding\";\n    readonly transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly format?: string;\n    readonly recovery?: {\n        readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n        readonly args: Readonly<Record<string, string>>;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n};"
+          "signature": "export type DocumentTransactionInspectionV1 = {\n    readonly schemaVersion: 1;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | {\n    readonly schemaVersion: 1;\n    readonly state: \"manual-recovery-required\";\n    readonly reason: string;\n    readonly operationKind?: \"document-authoring\" | \"local-mode\" | \"scaffolding\";\n    readonly transactionKind?: \"corrupt\" | \"document\" | \"local-mode\" | \"scaffold\" | \"transition-residue\" | \"unknown\" | \"version-mismatch\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly format?: string;\n    readonly recovery?: {\n        readonly commandId: \"detach\" | \"docs-recover\" | \"scaffold-recover\";\n        readonly args: Readonly<Record<string, string>>;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionInspectionV2:type",
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/document-authoring!",
           "parentKind": "EntryPoint",
-          "signature": "export type DocumentTransactionInspectionV2 = {\n    readonly schemaVersion: 2;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly schemaVersion: 2;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\" | \"document-authoring-envelope-v4\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | (Omit<Extract<DocumentTransactionInspectionV1, {\n    readonly state: \"manual-recovery-required\";\n}>, \"schemaVersion\"> & {\n    readonly schemaVersion: 2;\n});"
+          "signature": "export type DocumentTransactionInspectionV2 = {\n    readonly schemaVersion: 2;\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly schemaVersion: 2;\n    readonly state: \"recoverable\";\n    readonly operationKind: \"document-authoring\";\n    readonly format: \"document-authoring-envelope-v3\" | \"document-authoring-envelope-v4\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: {\n        readonly commandId: \"docs-recover\";\n        readonly exactFoundationVersion: string;\n        readonly exactFoundationBuildIdentity: string;\n    };\n    readonly diagnostics: readonly DocumentTransactionInspectionDiagnostic[];\n} | (Omit<Extract<DocumentTransactionInspectionV1, {\n    readonly state: \"manual-recovery-required\";\n}>, \"schemaVersion\"> & {\n    readonly schemaVersion: 2;\n});"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournal:type",
@@ -1671,7 +1671,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly parentMaterialization: {\n        readonly anchorIdentity: DocumentPhysicalIdentity;\n        readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];\n        readonly pendingDirectory?: string;\n    };"
+          "signature": "readonly parentMaterialization: {\n    readonly anchorIdentity: DocumentPhysicalIdentity;\n    readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];\n    readonly pendingDirectory?: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#plan:member",
@@ -2899,7 +2899,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: {\n        readonly profile: DocumentAuthorityEvidence;\n        readonly metadataSchema: DocumentAuthorityEvidence;\n        readonly ownerCatalog: DocumentAuthorityEvidence;\n        readonly template: DocumentAuthorityEvidence;\n    };"
+          "signature": "readonly authority: {\n    readonly profile: DocumentAuthorityEvidence;\n    readonly metadataSchema: DocumentAuthorityEvidence;\n    readonly ownerCatalog: DocumentAuthorityEvidence;\n    readonly template: DocumentAuthorityEvidence;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#compiler:member",
@@ -2920,7 +2920,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly destinationPrecondition: {\n        readonly state: \"absent\";\n    };"
+          "signature": "readonly destinationPrecondition: {\n    readonly state: \"absent\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#diagnostics:member",
@@ -2934,14 +2934,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly expectedParent: {\n        readonly path: string;\n        readonly state: \"directory\";\n        readonly ancestry: \"real-directories\";\n    };"
+          "signature": "readonly expectedParent: {\n    readonly path: string;\n    readonly state: \"directory\";\n    readonly ancestry: \"real-directories\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#identityProjection:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly identityProjection: {\n        readonly entryCount: number;\n        readonly digest: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly identityProjection: {\n    readonly entryCount: number;\n    readonly digest: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#intent:member",
@@ -2962,7 +2962,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly output: {\n        readonly digest: DocumentAuthorityDigest;\n        readonly size: number;\n        readonly mode: \"0644\";\n        readonly mediaType: \"text/markdown; charset=utf-8\";\n        readonly contentBase64: string;\n    };"
+          "signature": "readonly output: {\n    readonly digest: DocumentAuthorityDigest;\n    readonly size: number;\n    readonly mode: \"0644\";\n    readonly mediaType: \"text/markdown; charset=utf-8\";\n    readonly contentBase64: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#planDigest:member",
@@ -2990,14 +2990,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly referencedDocuments: readonly {\n        readonly id: string;\n        readonly path: string;\n        readonly projectionDigest: DocumentAuthorityDigest;\n    }[];"
+          "signature": "readonly referencedDocuments: readonly {\n    readonly id: string;\n    readonly path: string;\n    readonly projectionDigest: DocumentAuthorityDigest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#requiredAdapterCapabilities:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly requiredAdapterCapabilities: readonly [\"create-file-no-replace/v1\"];"
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n    \"create-file-no-replace/v1\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan#schemaVersion:member",
@@ -3011,7 +3011,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly selectedOwner: {\n        readonly id: string;\n        readonly membershipDigest: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly selectedOwner: {\n    readonly id: string;\n    readonly membershipDigest: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlan:interface",
@@ -3081,7 +3081,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: DocumentPlan[\"authority\"] & {\n        readonly metadataSidecar?: DocumentAuthorityEvidence;\n        readonly profileSemanticDigest: DocumentAuthorityDigest;\n        readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;\n        readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly authority: DocumentPlan[\"authority\"] & {\n    readonly metadataSidecar?: DocumentAuthorityEvidence;\n    readonly profileSemanticDigest: DocumentAuthorityDigest;\n    readonly catalogPreimageSemanticDigest: DocumentAuthorityDigest;\n    readonly expectedCatalogPostimageSemanticDigest: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#parentMaterialization:member",
@@ -3102,7 +3102,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentPlanV2:interface",
           "parentKind": "Interface",
-          "signature": "readonly requiredAdapterCapabilities: readonly [\n        \"create-directories-no-replace/v1\",\n        \"create-file-no-replace/v1\"\n    ];"
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n    \"create-directories-no-replace/v1\",\n    \"create-file-no-replace/v1\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentPlanV2#schemaVersion:member",
@@ -3144,14 +3144,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly foundation: {\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#kernelArtifact:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly kernelArtifact: {\n    readonly name: \"@agent-teams/repository-mutation\";\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#operationKind:member",
@@ -3179,7 +3179,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 2;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: \"document-authoring\";\n    readonly contractVersion: 2;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeBase#schemaVersion:member",
@@ -3228,14 +3228,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly foundation: {\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly foundation: {\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#kernelArtifact:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly kernelArtifact: {\n        readonly name: \"@agent-teams/repository-mutation\";\n        readonly version: string;\n        readonly buildIdentity: DocumentAuthorityDigest;\n    };"
+          "signature": "readonly kernelArtifact: {\n    readonly name: \"@agent-teams/repository-mutation\";\n    readonly version: string;\n    readonly buildIdentity: DocumentAuthorityDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#operationKind:member",
@@ -3263,7 +3263,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"document-authoring\";\n        readonly contractVersion: 3;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: \"document-authoring\";\n    readonly contractVersion: 3;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionEnvelopeV4Base#schemaVersion:member",
@@ -3298,7 +3298,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base:interface",
           "parentKind": "Interface",
-          "signature": "readonly parentMaterialization: {\n        readonly anchorIdentity: DocumentPhysicalIdentity;\n        readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];\n        readonly pendingDirectory?: string;\n    };"
+          "signature": "readonly parentMaterialization: {\n    readonly anchorIdentity: DocumentPhysicalIdentity;\n    readonly createdDirectories: readonly DocumentCreatedDirectoryEvidenceV2[];\n    readonly pendingDirectory?: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/document-authoring!DocumentTransactionJournalV3Base#plan:member",

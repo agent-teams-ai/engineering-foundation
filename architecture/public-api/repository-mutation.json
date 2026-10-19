@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packageName": "@agent-teams/repository-mutation",
   "packageVersion": "0.2.2",
-  "extractorVersion": "7.58.12",
+  "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
       "exportPath": ".",
@@ -257,7 +257,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly kernelArtifact: {\n        readonly name: string;\n        readonly version: string;\n        readonly buildIdentity: KnownFileDigest;\n    };"
+          "signature": "readonly kernelArtifact: {\n    readonly name: string;\n    readonly version: string;\n    readonly buildIdentity: KnownFileDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#operationKind:member",
@@ -271,7 +271,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly ownerArtifact: {\n        readonly name: string;\n        readonly version: string;\n        readonly buildIdentity: KnownFileDigest;\n    };"
+          "signature": "readonly ownerArtifact: {\n    readonly name: string;\n    readonly version: string;\n    readonly buildIdentity: KnownFileDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#payload:member",
@@ -299,7 +299,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"agent-teams.repository-mutation.known-file/v1\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: \"agent-teams.repository-mutation.known-file/v1\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#schemaVersion:member",
@@ -362,7 +362,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly createdDirectories: readonly {\n        readonly path: string;\n        readonly identity: KnownFileTransactionPortableIdentityV1;\n    }[];"
+          "signature": "readonly createdDirectories: readonly {\n    readonly path: string;\n    readonly identity: KnownFileTransactionPortableIdentityV1;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#operations:member",
@@ -516,7 +516,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+          "signature": "readonly operations: readonly {\n    readonly path: string;\n    readonly outcome: KnownFileTransactionOperationOutcome;\n    readonly resultDigest?: KnownFileDigest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#outcome:member",
@@ -670,14 +670,14 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
-          "signature": "REPOSITORY_MUTATION_ENVELOPE_FORMAT: \"agent-teams.repository-mutation.transaction-envelope/v1\""
+          "signature": "export declare const REPOSITORY_MUTATION_ENVELOPE_FORMAT: \"agent-teams.repository-mutation.transaction-envelope/v1\";"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!REPOSITORY_MUTATION_PACKAGE_NAME:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
-          "signature": "REPOSITORY_MUTATION_PACKAGE_NAME: \"@agent-teams/repository-mutation\""
+          "signature": "export declare const REPOSITORY_MUTATION_PACKAGE_NAME: \"@agent-teams/repository-mutation\";"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity#buildIdentity:member",
@@ -775,7 +775,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: string;\n        readonly contractVersion: number;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: string;\n    readonly contractVersion: number;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#schemaVersion:member",
@@ -1123,14 +1123,14 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
-          "signature": "REPOSITORY_MUTATION_ENVELOPE_FORMAT: \"agent-teams.repository-mutation.transaction-envelope/v1\""
+          "signature": "export declare const REPOSITORY_MUTATION_ENVELOPE_FORMAT: \"agent-teams.repository-mutation.transaction-envelope/v1\";"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!REPOSITORY_MUTATION_PACKAGE_NAME:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
-          "signature": "REPOSITORY_MUTATION_PACKAGE_NAME: \"@agent-teams/repository-mutation\""
+          "signature": "export declare const REPOSITORY_MUTATION_PACKAGE_NAME: \"@agent-teams/repository-mutation\";"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationArtifactIdentity#buildIdentity:member",
@@ -1228,7 +1228,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: string;\n        readonly contractVersion: number;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: string;\n    readonly contractVersion: number;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!RepositoryMutationEnvelope#schemaVersion:member",
@@ -1408,7 +1408,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly kernelArtifact: {\n        readonly name: string;\n        readonly version: string;\n        readonly buildIdentity: KnownFileDigest;\n    };"
+          "signature": "readonly kernelArtifact: {\n    readonly name: string;\n    readonly version: string;\n    readonly buildIdentity: KnownFileDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#operationKind:member",
@@ -1422,7 +1422,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly ownerArtifact: {\n        readonly name: string;\n        readonly version: string;\n        readonly buildIdentity: KnownFileDigest;\n    };"
+          "signature": "readonly ownerArtifact: {\n    readonly name: string;\n    readonly version: string;\n    readonly buildIdentity: KnownFileDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#payload:member",
@@ -1450,7 +1450,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly recoveryHandler: {\n        readonly id: \"agent-teams.repository-mutation.known-file/v1\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly recoveryHandler: {\n    readonly id: \"agent-teams.repository-mutation.known-file/v1\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionEnvelopeV1#schemaVersion:member",
@@ -1513,7 +1513,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly createdDirectories: readonly {\n        readonly path: string;\n        readonly identity: KnownFileTransactionPortableIdentityV1;\n    }[];"
+          "signature": "readonly createdDirectories: readonly {\n    readonly path: string;\n    readonly identity: KnownFileTransactionPortableIdentityV1;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionJournalV1#operations:member",
@@ -1667,7 +1667,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+          "signature": "readonly operations: readonly {\n    readonly path: string;\n    readonly outcome: KnownFileTransactionOperationOutcome;\n    readonly resultDigest?: KnownFileDigest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#outcome:member",
@@ -1805,7 +1805,7 @@
           "kind": "Constructor",
           "parentReference": "@agent-teams/repository-mutation!AbsentFilePublicationError:class",
           "parentKind": "Class",
-          "signature": "constructor(code: AbsentFilePublicationErrorCode, message: string, options?: ErrorOptions & {\n        readonly cleanupError?: unknown;\n    });"
+          "signature": "constructor(code: AbsentFilePublicationErrorCode, message: string, options?: ErrorOptions & {\n    readonly cleanupError?: unknown;\n});"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!AbsentFilePublicationErrorCode:type",
@@ -2001,7 +2001,7 @@
           "kind": "Constructor",
           "parentReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorError:class",
           "parentKind": "Class",
-          "signature": "constructor(problem: ExistingRepositoryAncestorProblem, options?: {\n        readonly existingName?: string;\n        readonly requestedName?: string;\n    });"
+          "signature": "constructor(problem: ExistingRepositoryAncestorProblem, options?: {\n    readonly existingName?: string;\n    readonly requestedName?: string;\n});"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!ExistingRepositoryAncestorProblem:type",
@@ -2470,7 +2470,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
-          "signature": "OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER = \".foundation-owned-cleanup-\""
+          "signature": "export declare const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER = \".foundation-owned-cleanup-\";"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!OwnedTemporaryCleanupTransition#complete:member(1)",
@@ -3404,7 +3404,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1:interface",
           "parentKind": "Interface",
-          "signature": "readonly operations: readonly {\n        readonly path: string;\n        readonly outcome: KnownFileTransactionOperationOutcome;\n        readonly resultDigest?: KnownFileDigest;\n    }[];"
+          "signature": "readonly operations: readonly {\n    readonly path: string;\n    readonly outcome: KnownFileTransactionOperationOutcome;\n    readonly resultDigest?: KnownFileDigest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!KnownFileTransactionReceiptV1#outcome:member",
@@ -3502,7 +3502,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!OperationLockOperations:interface",
           "parentKind": "Interface",
-          "signature": "readonly faultInjector?: (point: {\n        readonly path: string;\n        readonly phase: \"after-release-retirement\";\n    }) => Promise<void> | void;"
+          "signature": "readonly faultInjector?: (point: {\n    readonly path: string;\n    readonly phase: \"after-release-retirement\";\n}) => Promise<void> | void;"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!OperationLockOperations#retirementToken:member",

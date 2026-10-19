@@ -1,5 +1,58 @@
 # @agent-teams/engineering-foundation
 
+## 1.10.0
+
+### Minor Changes
+
+- [#410](https://github.com/agent-teams-ai/engineering-foundation/pull/410) [`0ab3744`](https://github.com/agent-teams-ai/engineering-foundation/commit/0ab37446fe3716eba25eebde73af32393a756fc5) Thanks [@777genius](https://github.com/777genius)! - Add the Bun default repository runtime profile, closed Bun package-script
+  adapter, deterministic workspace projection and explicit clean Node/pnpm
+  rollback while preserving supported public Node 24/26 and Node-owned test,
+  coverage, package-manager and release lanes.
+
+  Publish repository-agent-workflow policy schema v2 with an explicit Bun or pnpm
+  manager. Version 1 remains pnpm-only. The repository adopts v2; its clean Node
+  projection records and verifies the corresponding pnpm policy bytes.
+
+  Republish Feature Module Standard with the updated Foundation peer range and
+  exact development dependency produced by its workspace manifest projection.
+
+  Publish workspace-dependency-declarations policy schema v2 with an explicit Bun
+  or pnpm manager and the existing pnpm-workspace.yaml catalog authority. Version 1
+  remains pnpm-only. The Node projection records and verifies both dependency
+  policy digests alongside its root manifest and workflow policy evidence.
+
+  Observe the pinned pnpm version without triggering installation when the
+  read-only qualification observer runs from a Bun-managed workspace.
+
+  Resolve built-in source imports through the runtime's `node:module.isBuiltin`
+  contract, including prefix-only `node:test` under Bun. Bare `test` retains normal
+  package declaration checks, and unknown `node:` imports remain unsupported.
+
+- [#408](https://github.com/agent-teams-ai/engineering-foundation/pull/408) [`93b6ec4`](https://github.com/agent-teams-ai/engineering-foundation/commit/93b6ec468c50cd6110e2a9284ae7c0de170b01af) Thanks [@777genius](https://github.com/777genius)! - Use exact TypeScript 7.0.2 for public API extraction, independently collected
+  compiler diagnostics, and rich declaration-graph observation. Keep the existing
+  Microsoft API model, public ports, schemas, comparison policies, and release-owned
+  baseline guards. Remove the old API Extractor runtime and its embedded compiler.
+
+  The new extractor identity is `typescript-native/7.0.2`. Existing baselines remain
+  immutable and require an explicitly reviewed, release-owned tool migration before
+  consumer adoption; identical declarations do not waive the identity mismatch.
+  This changeset does not authorize baseline replacement or publication. See the
+  native adapter migration section in `docs/architecture/public-api-compatibility.md`.
+
+- [#408](https://github.com/agent-teams-ai/engineering-foundation/pull/408) [`93b6ec4`](https://github.com/agent-teams-ai/engineering-foundation/commit/93b6ec468c50cd6110e2a9284ae7c0de170b01af) Thanks [@777genius](https://github.com/777genius)! - Support the explicit API Extractor 7.58.12 to native TypeScript 7.0.2 baseline
+  transition through the existing public-api-promote-release command. Consumers
+  retain authenticated historical archives, original configurations, frozen
+  resolution data and the complete reviewed tool difference. The command recomputes
+  historical and candidate observations and preserves ordinary compatibility,
+  version, accepted-decision and leased physical-preimage guards.
+
+  Use --native-transition with a versioned content request. --qualification-only
+  performs the same read-only observation without promoting baselines. Ordinary
+  checks and promotion without this option retain their existing mismatch refusal.
+  The request supplies content evidence and grants no release or publication
+  authority. Foundation's fixed eight-package driver and a real Get Modular
+  two-package consumer use the same owned mechanism.
+
 ## 1.9.0
 
 ### Minor Changes

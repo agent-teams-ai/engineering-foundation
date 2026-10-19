@@ -5,10 +5,14 @@ import { join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { releasePullRequestContentViolations, releasePullRequestFileViolations } from './check-release-pr-files.mjs';
 import { PUBLISHABLE_PACKAGES } from './publishable-packages.mjs';
-import { runCommand } from './pack-test-support.mjs';
+import { runCommand as executeCommand } from './pack-test-support.mjs';
 import { migrationBytes, migrationDigest } from './public-api-native-migration.ts';
 import { migrationRepository } from './public-api-native-migration-inputs.ts';
 import { nativeMigrationPackageNames } from './public-api-native-migration-observation.ts';
+
+// Static views of the existing owned JavaScript helpers, not provider JSON.
+const runCommand = executeCommand as (command: string, args: readonly string[], cwd: string) => Promise<{ stdout: string; stderr: string }>;
+const publishablePackages = PUBLISHABLE_PACKAGES as readonly { name: string; manifestPath: string; changelogPath: string }[];
 
 function fail(message: string): never { throw new Error(`Native migration version workflow: ${message}`); }
 function object(value: unknown): Record<string, unknown> {
@@ -33,12 +37,30 @@ export function readVersionRunIdentity(environment: Readonly<Record<string, stri
 export function assertVersionRunBinding(identity: VersionRunIdentity, value: unknown, mainValue: unknown): void {
   const run = object(value); const repository = object(run['repository']); const headRepository = object(run['head_repository']);
   const main = object(mainValue); const mainObject = object(main['object']);
-  if (run['id'] !== identity.runId || run['run_attempt'] !== identity.attempt || run['event'] !== 'push' ||
-      run['head_branch'] !== 'main' || run['head_sha'] !== identity.sha || run['path'] !== '.github/workflows/release.yml' ||
-      run['status'] !== 'in_progress' || run['conclusion'] !== null || repository['full_name'] !== migrationRepository ||
-      headRepository['full_name'] !== migrationRepository || !Array.isArray(run['pull_requests']) || run['pull_requests'].length !== 0 ||
-      run['html_url'] !== `https://github.com/${migrationRepository}/actions/runs/${identity.runId}` ||
-      main['ref'] !== 'refs/heads/main' || mainObject['type'] !== 'commit' || mainObject['sha'] !== identity.sha) {fail('observed release run or fresh main differs from the invocation');}
+  const matches = {
+    'run.id': run['id'] === identity.runId,
+    'run.run_attempt': run['run_attempt'] === identity.attempt,
+    'run.event': run['event'] === 'push',
+    'run.head_branch': run['head_branch'] === 'main',
+    'run.head_sha': run['head_sha'] === identity.sha,
+    'run.path': run['path'] === '.github/workflows/release.yml',
+    'run.status': run['status'] === 'in_progress',
+    'run.conclusion': run['conclusion'] === null,
+    'run.repository.full_name': repository['full_name'] === migrationRepository,
+    'run.head_repository.full_name': headRepository['full_name'] === migrationRepository,
+    'run.pull_requests': Array.isArray(run['pull_requests']) && run['pull_requests'].length === 0,
+    'run.html_url': run['html_url'] === `https://github.com/${migrationRepository}/actions/runs/${identity.runId}`,
+    'main.ref': main['ref'] === 'refs/heads/main',
+    'main.object.type': mainObject['type'] === 'commit',
+    'main.object.sha': mainObject['sha'] === identity.sha,
+  } satisfies Readonly<Record<string, boolean>>;
+  const mismatches = Object.entries(matches).filter(([, matched]) => !matched).map(([field]) => field);
+  if (mismatches.length !== 0) {
+    const observedStatus = run['status']; const observedConclusion = run['conclusion'];
+    const status = typeof observedStatus === 'string' && ['queued', 'in_progress', 'completed', 'waiting', 'requested', 'pending'].includes(observedStatus) ? observedStatus : 'unexpected';
+    const conclusion = observedConclusion === null ? 'null' : typeof observedConclusion === 'string' && ['success', 'failure', 'neutral', 'cancelled', 'skipped', 'timed_out', 'action_required', 'stale', 'startup_failure'].includes(observedConclusion) ? observedConclusion : 'unexpected';
+    fail(`observed release run or fresh main differs from the invocation; mismatched fields: ${mismatches.join(', ')}; observed status: ${status}; observed conclusion: ${conclusion}`);
+  }
 }
 
 export interface ReleaseFile { readonly filename: string; readonly status: string }
@@ -48,7 +70,7 @@ export function parseVersionFileChanges(text: string): readonly ReleaseFile[] {
   if (fields.length % 2 !== 0) {fail('malformed tracked file changes');}
   return fields.reduce<ReleaseFile[]>((rows, status, index) => {
     if (index % 2 === 0) {
-      const filename = fields[index + 1]!;
+      const filename = fields.at(index + 1)!;
       if (!['M', 'D', 'A'].includes(status) || filename.length === 0 || filename.includes('\\')) {fail('unsupported version file change');}
       rows.push({ filename, status: status === 'M' ? 'modified' : status === 'D' ? 'removed' : 'added' });
     }
@@ -83,7 +105,8 @@ function sameVersionFile(before: BigIntStats, after: BigIntStats): boolean {
 }
 
 export async function versionMetadataDigest(path: string): Promise<string> {
-  const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  const portableFlags: Partial<Pick<typeof constants, 'O_NOFOLLOW' | 'O_NONBLOCK'>> = constants;
+  const file = await open(path, constants.O_RDONLY | (portableFlags.O_NOFOLLOW ?? 0) | (portableFlags.O_NONBLOCK ?? 0));
   try {
     const metadata = await file.stat({ bigint: true });
     if (!metadata.isFile() || (metadata.mode & 0o111n) !== 0n ||
@@ -126,10 +149,10 @@ export async function verifyVersionWorkflow(root: string, identity: VersionRunId
   const headPrereleaseState = await optionalWorkingState(root, files.some(file => file.filename === '.changeset/pre.json' && file.status === 'removed'));
   assertVersionFiles(files, typeof basePrereleaseState === 'object' && basePrereleaseState !== null && 'mode' in basePrereleaseState && basePrereleaseState.mode === 'exit');
   const changed = new Set(files.map(file => file.filename));
-  for (const p of PUBLISHABLE_PACKAGES) {
+  for (const p of publishablePackages) {
     if (!changed.has(p.manifestPath) && !changed.has(p.changelogPath)) {continue;}
     const violations = releasePullRequestContentViolations({
-      baseManifest: JSON.parse(await baseText(root, identity.sha, p.manifestPath)), headManifest: JSON.parse(await readFile(join(root, p.manifestPath), 'utf8')),
+      baseManifest: JSON.parse(await baseText(root, identity.sha, p.manifestPath)) as unknown, headManifest: JSON.parse(await readFile(join(root, p.manifestPath), 'utf8')) as unknown,
       baseChangelog: await baseText(root, identity.sha, p.changelogPath), headChangelog: await readFile(join(root, p.changelogPath), 'utf8'),
       basePrereleaseState, headPrereleaseState,
     });

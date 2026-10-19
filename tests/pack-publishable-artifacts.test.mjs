@@ -214,15 +214,27 @@ test("projection and staging validation fail closed", async (t) => {
   await t.test("an optional peer range with its workspace link is one ordering edge; other ranges and pairs are rejected", () => {
     const a = catalogEntry("@fixture/a");
     const b = catalogEntry("@fixture/b");
-    const derive = (manifest) => derivePublishablePackageProjection({
+    const derive = (manifest, version = "1.9.0") => derivePublishablePackageProjection({
       catalog: [a, b],
-      manifestsByName: new Map([[a.name, { name: a.name }], [b.name, { name: b.name, ...manifest }]]),
+      manifestsByName: new Map([[a.name, { name: a.name, version }], [b.name, { name: b.name, ...manifest }]]),
     });
     const peer = derive({ devDependencies: { [a.name]: "workspace:*" }, peerDependencies: { [a.name]: "workspace:^" },
       peerDependenciesMeta: { [a.name]: { optional: true } } });
     assert.deepEqual(peer.declarations[b.name], [{ name: a.name, section: "peerDependencies" }]);
     assert.deepEqual(peer.dependencies[b.name], []);
     assert.deepEqual(peer.packages.map(({ name }) => name), [a.name, b.name]);
+    const minimum = { devDependencies: { [a.name]: "workspace:*" },
+      peerDependencies: { [a.name]: "workspace:^1.8.0" }, peerDependenciesMeta: { [a.name]: { optional: true } } };
+    assert.deepEqual(derive(minimum).declarations[b.name], peer.declarations[b.name]);
+    for (const version of ["1.7.4", "2.0.0", "1.10.0-rc.0"]) {
+      assert.throws(() => derive(minimum, version), /does not admit workspace version/u);
+    }
+    assert.throws(() => derive(minimum, ""), /requires an actual workspace version/u);
+    assert.throws(() => derive({ ...minimum, peerDependencies: { [a.name]: "workspace:^1.8" } }), /does not admit workspace version/u);
+    assert.throws(() => derive({ ...minimum, peerDependenciesMeta: undefined }), /multiple dependency sections/u);
+    assert.throws(() => derive({ peerDependencies: minimum.peerDependencies }), /as workspace:\*/u);
+    assert.throws(() => derive({ dependencies: minimum.peerDependencies }), /as workspace:\*/u);
+    assert.throws(() => derive({ ...minimum, peerDependencies: { "@fixture/unknown": "workspace:^1.8.0" } }), /unknown internal workspace package/u);
     assert.throws(() => derive({ peerDependencies: { [a.name]: "workspace:^" } }), /as workspace:\*/u);
     assert.throws(() => derive({ devDependencies: { [a.name]: "workspace:*" }, peerDependencies: { [a.name]: "workspace:^" } }), /multiple dependency sections/u);
     assert.throws(() => derive({ dependencies: { [a.name]: "workspace:^" } }), /as workspace:\*/u);

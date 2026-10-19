@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
+import { releaseBunLockViolations } from "../scripts/release-bun-lock.ts";
 
 import {
   readStreamText,
@@ -1904,14 +1905,18 @@ function assertReleaseProfileSteps(releaseJob) {
     releaseJob.permissions["id-token"],
     releaseJob.permissions.contents,
     releaseJob.steps.find(({ name }) => name === "Install the actual Bun source worktree")?.run,
-    releaseJob.steps.find(({ name }) => name === "Install the clean Node/pnpm qualification projection")?.run,
     releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases
-  ], ["write", "write", "node tools/dev.mts install", "node tools/dev.mts --profile node install", false]);
+  ], ["write", "write", "node tools/dev.mts install", false]);
   const changesets = releaseJob.steps.find((step) => step.id === "changesets");
+  const sourceInstall = releaseJob.steps.findIndex((step) => step.run === "node tools/dev.mts install");
+  assert.ok(sourceInstall >= 0 && sourceInstall < releaseJob.steps.indexOf(changesets));
+  assert.equal(releaseJob.steps.some((step) => step.run === "node tools/dev.mts --profile node install"), false);
   assert.equal(changesets.uses, "changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d");
   assert.equal(changesets.with.setupGitUser, false);
   assert.equal(changesets.with.version, "node tools/release-profile.mts version");
   assert.equal(changesets.with.publish, "node tools/release-profile.mts publish");
+  assert.equal(changesets.env.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT,
+    "${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm");
 }
 
 test("release pipeline keeps hosted review separate from generated-diff attestation", async () => {
@@ -2486,6 +2491,12 @@ test("release diff policy accepts only normalized Changesets output", () => {
   ];
 
   assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
+  for (const filename of ["bun.lock", "pnpm-lock.yaml"]) {
+    for (const status of ["modified", "added", "removed"]) {
+      assert.match(releasePullRequestFileViolations([...validFiles, { filename, status }])[0],
+        /forbidden change/u, `${filename}: ${status}`);
+    }
+  }
   assert.match(
     releasePullRequestFileViolations([
       ...validFiles,
@@ -2506,6 +2517,89 @@ test("release diff policy accepts only normalized Changesets output", () => {
     )[0],
     /must modify/u,
   );
+});
+
+function releaseBunLockFixture(foundation = "1.9.0", docs = "0.5.0") {
+  return Buffer.from(`{\n  "lockfileVersion": 2,\n  "configVersion": 1,\n  "workspaces": {
+    "packages/engineering-foundation": {
+      "name": "@agent-teams/engineering-foundation",
+      "version": "${foundation}",
+      "dependencies": { "example": "catalog:" },
+    },
+    "packages/docs-protocol-agent-teams": {
+      "name": "@agent-teams/docs-protocol-agent-teams",
+      "version": "${docs}",
+    },
+    "spikes/private": {
+      "name": "private",
+      "version": "1.9.0",
+    },
+  },
+  "catalog": { "example": "1.9.0" },
+  "packages": { "example": ["example@1.9.0", "", {}, "sha512-unchanged"] },
+}\n`);
+}
+
+const releaseBunVersions = [
+  { root: "packages/engineering-foundation", name: "@agent-teams/engineering-foundation", baseVersion: "1.9.0", headVersion: "1.10.0" },
+  { root: "packages/docs-protocol-agent-teams", name: "@agent-teams/docs-protocol-agent-teams", baseVersion: "0.5.0", headVersion: "0.5.1" },
+];
+
+test("Bun release lock admits only exact public version projection and legacy absence", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1");
+  assert.deepEqual(releaseBunLockViolations(base, head, releaseBunVersions), []);
+  assert.deepEqual(releaseBunLockViolations(base, base, []), []);
+  assert.deepEqual(releaseBunLockViolations(undefined, undefined, releaseBunVersions), []);
+  assert.match(releaseBunLockViolations(undefined, head, releaseBunVersions)[0], /preserve/u);
+  assert.match(releaseBunLockViolations(base, undefined, releaseBunVersions)[0], /preserve/u);
+});
+
+test("Bun release lock rejects graph, integrity and private workspace drift", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1").toString("utf8");
+  for (const changed of [
+    head.replace("sha512-unchanged", "sha512-forged"),
+    head.replace('"catalog": { "example": "1.9.0" }', '"catalog": { "example": "2.0.0" }'),
+    head.replace('"dependencies": { "example": "catalog:" }', '"dependencies": { "foreign": "catalog:" }'),
+    head.replace('"name": "private",\n      "version": "1.9.0"', '"name": "private",\n      "version": "2.0.0"'),
+    `${head}\n`,
+  ]) {
+    assert.notEqual(changed, head);
+    assert.match(releaseBunLockViolations(base, Buffer.from(changed), releaseBunVersions)[0], /only the exact/u);
+  }
+});
+
+test("Bun release lock refuses missing, mismatched and duplicate workspace preimages", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1");
+  for (const changed of [
+    { ...releaseBunVersions[0], root: "packages/missing" },
+    { ...releaseBunVersions[0], name: "@agent-teams/foreign" },
+    { ...releaseBunVersions[0], baseVersion: "1.8.0" },
+    { ...releaseBunVersions[0], root: "packages/../engineering-foundation" },
+    { ...releaseBunVersions[0], headVersion: "1.10.0\nforeign" },
+  ]) {
+    assert.match(releaseBunLockViolations(base, head, [changed, releaseBunVersions[1]])[0], /preimages/u);
+  }
+  assert.match(releaseBunLockViolations(base, head, [...releaseBunVersions, releaseBunVersions[0]])[0], /preimages/u);
+  const duplicate = Buffer.from(base.toString().replace('  "catalog":',
+    '    "packages/engineering-foundation": {\n      "name": "@agent-teams/engineering-foundation",\n      "version": "1.9.0",\n    },\n  "catalog":'));
+  assert.match(releaseBunLockViolations(duplicate, head, releaseBunVersions)[0], /preimages/u);
+  assert.match(releaseBunLockViolations(base, base, releaseBunVersions)[0], /only the exact/u);
+  assert.match(releaseBunLockViolations(base, head, [releaseBunVersions[0]])[0], /only the exact/u);
+});
+
+test("Bun release lock refuses other serializer headers and malformed encoding", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1");
+  const other = Buffer.from(base.toString().replace('"configVersion": 1', '"configVersion": 2'));
+  assert.match(releaseBunLockViolations(other, other, [])[0], /canonical Bun/u);
+  const otherHead = Buffer.from(head.toString().replace('"lockfileVersion": 2', '"lockfileVersion": 3'));
+  assert.match(releaseBunLockViolations(base, otherHead, releaseBunVersions)[0], /canonical Bun/u);
+  const invalid = Buffer.concat([base, Buffer.from([0xff])]);
+  assert.match(releaseBunLockViolations(invalid, invalid, [])[0], /valid UTF-8/u);
+  assert.match(releaseBunLockViolations(base, Buffer.concat([head, Buffer.from([0xff])]), releaseBunVersions)[0], /valid UTF-8/u);
 });
 
 test("release diff policy accepts normalized prerelease Changesets output", () => {

@@ -358,9 +358,16 @@ only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
 integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
 An internal package is declared once, as `workspace:*`. The one exception is an
-optional peer range (`peerDependencies` `workspace:^`) together with the workspace
+optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
+minimum such as `workspace:^1.8.0`) together with the workspace
 link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
-one edge for the closed DAG and publishes as `^<workspace version>`.
+one edge for the closed DAG. The symbolic caret publishes as `^<workspace version>`;
+an explicit minimum retains its declared range and requires the actual workspace
+version to satisfy it. FMS keeps its Foundation `^1.8.0` minimum: packed Node
+qualification runs against both the current qualified Foundation archive and the
+exact published `1.8.0` with strict peers, using the same public source and budget
+checks. Pure FMS entries are also checked without Foundation. The current exact
+development dependency still changes packed bytes and requires an FMS release.
 The pinned Changesets configuration preserves an explicitly selected dependent
 release when the peer update stays within that range. An out-of-range update
 still triggers the planner's compatibility bump and requires review of release
@@ -553,10 +560,18 @@ inside any consumer. Consumers retain exact pins and adopt a capability in a
 separate reviewed change after its consumer-owned gates pass.
 
 `node tools/release-profile.mts version` runs `release:version` through the
-Bun-installed tracked source worktree. It then refreshes `bun.lock` and the
-authoritative `pnpm-lock.yaml` through the isolated Node projection before the
-Changesets action commits the resulting Git tree. The route preserves the root
+Bun-installed tracked source worktree. Versioning, declaration builds and native
+baseline promotion finish before `bun.lock` refresh and creation of the isolated
+Node projection for `pnpm-lock.yaml`. This ordering keeps a disposable repository
+copy out of native extraction's bounded repository inputs. Both locks refresh
+before the Changesets action commits the resulting Git tree. The route preserves the root
 `packageManager`, source Git authority, and complete version/changelog output.
+The release-file guard admits a modified `bun.lock` only when its exact Git blob
+bytes equal the base lock with the validated public workspace versions replaced
+in the pinned Bun serializer's canonical entries. Every other lock byte remains
+unchanged; adding or removing a lock, format changes, dependency graph or integrity changes
+fail closed. Version-only releases must preserve `pnpm-lock.yaml` unchanged.
+The guard reads regular mode-100644 Git blobs and needs no dependency install.
 `release:version` rebuilds declarations and invokes `public-api-promote-release`.
 Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
@@ -569,8 +584,10 @@ and replay-safe after a partial process failure: an unchanged already-promoted
 package is skipped, while same-version API drift fails closed.
 
 The Changesets publish route prepares a fresh Node/pnpm projection from the
-current source tree and executes the existing ordered `release:publish` gate
-there with explicit source Git authority. The pinned Changesets action revision,
+current source tree, performs its frozen install and build, then executes the
+existing ordered `release:publish` gate there with explicit source Git authority.
+Both Changesets routes bind pnpm to the qualified setup step's physical executable.
+The pinned Changesets action revision,
 `setupGitUser: false`, owner identity, npm 11.19.0, Node 26.11.1, OIDC,
 environment, ordered publication, artifact, and consumer gates remain unchanged.
 

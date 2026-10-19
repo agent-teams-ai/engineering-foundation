@@ -1,7 +1,7 @@
 import { registerGrowthAdmissionCases } from "./support/public-api-growth-admission-cases.mjs";
 import { parse as readArchitectureYaml } from "yaml";
 import assert from "node:assert/strict";
-import { readFile, readdir as readDirectory, realpath, rm, writeFile } from "node:fs/promises";
+import { readFile, readdir as readDirectory, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, sep } from "node:path";
 import test from "node:test";
 
@@ -76,6 +76,20 @@ test("Public API staging preserves Uint8Array bytes and read limits", async () =
       assert.ok(calls.every((input) => input.root === root && input.maxBytes === 32 * 1024 * 1024));
       assert.deepEqual(await readFile(join(staged.packageRoot, "dist/index.d.ts")),
         await readFile(join(root, "packages/library/dist/index.d.ts")));
+    } finally { await rm(staged.stagingRoot, { recursive: true, force: true }); }
+  });
+});
+
+test("Public API staging excludes the generated runtime-profile projection", async () => {
+  await withPublicApiFixture(async (root) => {
+    const { mkdir: makeDirectory } = await import("node:fs/promises");
+    await makeDirectory(join(root, ".worker-tmp/profiles/node-source-sha/src"), { recursive: true });
+    await writeFile(join(root, ".worker-tmp/profiles/node-source-sha/src/duplicate.ts"), "export const duplicate = 1;\n");
+    await writeFile(join(root, ".worker-tmp/installed-dependencies.json"), "{}\n");
+    const staged = await stagePackageSnapshot({ root, policy: await existingPolicy(root) }, defaults);
+    try {
+      await assert.rejects(stat(join(staged.stagingRoot, ".worker-tmp")),
+        (error) => error.code === "ENOENT");
     } finally { await rm(staged.stagingRoot, { recursive: true, force: true }); }
   });
 });

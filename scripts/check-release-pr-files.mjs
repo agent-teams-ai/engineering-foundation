@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, promisify } from "node:util";
 
 import { PUBLISHABLE_PACKAGES } from "./publishable-packages.mjs";
+import { releaseBunLockViolations } from "./release-bun-lock.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -325,6 +326,26 @@ async function fileAtRevision(revision, path) {
   return stdout;
 }
 
+async function bunLockAtRevision(revision) {
+  const { stdout: entry } = await execFileAsync("git", ["ls-tree", "-z", revision, "--", "bun.lock"], {
+    encoding: "utf8",
+  });
+  if (entry === "") {
+    return;
+  }
+  const match = /^100644 blob ([0-9a-f]{40})\tbun\.lock\0$/u.exec(entry);
+  if (match === null) {
+    throw new Error("release bun.lock must be a regular mode-100644 Git blob");
+  }
+  const { stdout } = await execFileAsync("git", ["cat-file", "blob", match[1]], {
+    encoding: "buffer",
+  });
+  if (!Buffer.isBuffer(stdout)) {
+    throw new Error("release bun.lock must be read as exact Git blob bytes");
+  }
+  return stdout;
+}
+
 async function optionalJsonAtRevision(revision, path) {
   try {
     return JSON.parse(await fileAtRevision(revision, path));
@@ -396,32 +417,63 @@ async function main() {
       hasModifiedFile(releasePackage.manifestPath) ||
       hasModifiedFile(releasePackage.changelogPath),
   );
-  const packageContentViolations = await Promise.all(
-    releasedPackages.map(async (releasePackage) => {
-      const [baseManifestText, headManifestText, baseChangelog, headChangelog] =
-        await Promise.all([
-          fileAtRevision(baseRevision, releasePackage.manifestPath),
-          fileAtRevision(headRevision, releasePackage.manifestPath),
-          fileAtRevision(baseRevision, releasePackage.changelogPath),
-          fileAtRevision(headRevision, releasePackage.changelogPath),
-        ]);
-      return releasePullRequestContentViolations({
-        baseManifest: JSON.parse(baseManifestText),
-        headManifest: JSON.parse(headManifestText),
+  const packageChecks = await Promise.all(
+    PUBLISHABLE_PACKAGES.map(async (releasePackage) => {
+      const [baseManifest, headManifest] = await Promise.all([
+        optionalJsonAtRevision(baseRevision, releasePackage.manifestPath),
+        optionalJsonAtRevision(headRevision, releasePackage.manifestPath),
+      ]);
+      const listed = releasedPackages.includes(releasePackage);
+      if (!listed && baseManifest?.version === headManifest?.version) {
+        return { violations: [], versions: [] };
+      }
+      const [baseChangelog, headChangelog] = await Promise.all([
+        fileAtRevision(baseRevision, releasePackage.changelogPath),
+        fileAtRevision(headRevision, releasePackage.changelogPath),
+      ]);
+      const violations = releasePullRequestContentViolations({
+        baseManifest,
+        headManifest,
         baseChangelog,
         headChangelog,
         basePrereleaseState,
         headPrereleaseState,
         docsBootstrapInitialVersionAddition,
         initialVersionAdditions: initialPublicPackageAdditions,
-      }).map((violation) => `${releasePackage.name}: ${violation}`);
+      });
+      if (!listed) {
+        violations.push("release file evidence omits a changed public package");
+      }
+      if (baseManifest?.name !== releasePackage.name || headManifest?.name !== releasePackage.name) {
+        violations.push("release package identity must match the public catalog");
+      }
+      return {
+        violations: violations.map((violation) => `${releasePackage.name}: ${violation}`),
+        versions: violations.length === 0 ? [{
+          root: releasePackage.root,
+          name: releasePackage.name,
+          baseVersion: baseManifest.version,
+          headVersion: headManifest.version,
+        }] : [],
+      };
     }),
   );
+  const [baseBunLock, headBunLock] = await Promise.all([
+    bunLockAtRevision(baseRevision), bunLockAtRevision(headRevision),
+  ]);
+  const packageContentViolations = packageChecks.flatMap((check) => check.violations);
+  const lockViolations = releaseBunLockViolations(baseBunLock, headBunLock,
+    packageChecks.flatMap((check) => check.versions));
+  const bunLockAdmitted = baseBunLock !== undefined && headBunLock !== undefined
+    && packageContentViolations.length === 0 && lockViolations.length === 0;
+  const ordinaryFiles = files.filter((file) => !(bunLockAdmitted
+    && file?.filename === "bun.lock" && file.status === "modified"));
   const violations = [
-    ...releasePullRequestFileViolations(files, {
+    ...releasePullRequestFileViolations(ordinaryFiles, {
       prereleaseExit: validPrereleaseState(basePrereleaseState, "exit"),
     }),
-    ...packageContentViolations.flat(),
+    ...packageContentViolations,
+    ...lockViolations,
   ];
   if (violations.length > 0) {
     throw new Error(violations.join("\n"));

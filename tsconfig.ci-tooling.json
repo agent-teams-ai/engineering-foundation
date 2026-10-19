@@ -22,6 +22,7 @@
   },
   "include": [
     "scripts/**/*.mts",
+    "scripts/release-bun-lock.ts",
     "tools/**/*.mts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",

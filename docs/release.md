@@ -553,10 +553,18 @@ inside any consumer. Consumers retain exact pins and adopt a capability in a
 separate reviewed change after its consumer-owned gates pass.
 
 `node tools/release-profile.mts version` runs `release:version` through the
-Bun-installed tracked source worktree. It then refreshes `bun.lock` and the
-authoritative `pnpm-lock.yaml` through the isolated Node projection before the
-Changesets action commits the resulting Git tree. The route preserves the root
+Bun-installed tracked source worktree. Versioning, declaration builds and native
+baseline promotion finish before `bun.lock` refresh and creation of the isolated
+Node projection for `pnpm-lock.yaml`. This ordering keeps a disposable repository
+copy out of native extraction's bounded repository inputs. Both locks refresh
+before the Changesets action commits the resulting Git tree. The route preserves the root
 `packageManager`, source Git authority, and complete version/changelog output.
+The release-file guard admits a modified `bun.lock` only when its exact Git blob
+bytes equal the base lock with the validated public workspace versions replaced
+in the pinned Bun serializer's canonical entries. Every other lock byte remains
+unchanged; adding or removing a lock, format changes, dependency graph or integrity changes
+fail closed. Version-only releases must preserve `pnpm-lock.yaml` unchanged.
+The guard reads regular mode-100644 Git blobs and needs no dependency install.
 `release:version` rebuilds declarations and invokes `public-api-promote-release`.
 Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
@@ -569,8 +577,10 @@ and replay-safe after a partial process failure: an unchanged already-promoted
 package is skipped, while same-version API drift fails closed.
 
 The Changesets publish route prepares a fresh Node/pnpm projection from the
-current source tree and executes the existing ordered `release:publish` gate
-there with explicit source Git authority. The pinned Changesets action revision,
+current source tree, performs its frozen install and build, then executes the
+existing ordered `release:publish` gate there with explicit source Git authority.
+Both Changesets routes bind pnpm to the qualified setup step's physical executable.
+The pinned Changesets action revision,
 `setupGitUser: false`, owner identity, npm 11.19.0, Node 26.11.1, OIDC,
 environment, ordered publication, artifact, and consumer gates remain unchanged.
 

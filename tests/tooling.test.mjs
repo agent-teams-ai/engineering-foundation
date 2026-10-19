@@ -281,15 +281,20 @@ ${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
   });
 });
 
-test("packaging package-manager runners ignore executable environment overrides", async () => {
+test("packaging package-manager runners ignore executable environment overrides", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "packaging-manager-custody-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, "package.json"), JSON.stringify({
+    name: "packaging-manager-custody-test", private: true, packageManager: "pnpm@11.20.0"
+  }));
   const environment = {
     ...process.env,
     ComSpec: join(repositoryRoot, "attacker-cmd.exe"),
     npm_execpath: join(repositoryRoot, "attacker-pnpm.cjs"),
     PATH: join(repositoryRoot, "attacker-bin"),
   };
-  const pnpm = await createPnpmRunner()(["--version"], repositoryRoot, { environment });
-  const npm = await runNpmCommand(["--version"], repositoryRoot, { environment });
+  const pnpm = await createPnpmRunner()(["--version"], root, { environment });
+  const npm = await runNpmCommand(["--version"], root, { environment });
   assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);
   assert.match(npm.stdout, /^11\./u);
 });

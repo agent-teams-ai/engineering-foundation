@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.ci-tooling.json",
-  "include": ["**/*.mts"]
+  "include": ["**/*.mts", "public-api-native-migration-version.ts"]
 }

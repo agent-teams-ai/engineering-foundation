@@ -14,9 +14,10 @@ test('packed private runtime modules exist, parse, and carry no workspace runtim
   const root = await mkdtemp(join(parent, 'TEST-managed-runtime-pack-'));
   try {
     const node = tools.node;
-    const pnpm = join(tools.packageRoot, 'bin/pnpm.mjs');
-    execFileSync(node, [pnpm, '--dir', join(workspace, 'packages/docs-protocol-agent-teams'),
-      'pack', '--pack-destination', root], { stdio: 'pipe' });
+    execFileSync(process.execPath, [join(workspace, 'tools/pnpm-command.mts'),
+      'pack', '--out', join(root, 'managed-runtime.tgz')], {
+      cwd: join(workspace, 'packages/docs-protocol-agent-teams'), stdio: 'pipe'
+    });
     const tarballs = (await readdir(root)).filter(name => name.endsWith('.tgz'));
     assert.equal(tarballs.length, 1);
     const tarball = join(root, tarballs[0]);

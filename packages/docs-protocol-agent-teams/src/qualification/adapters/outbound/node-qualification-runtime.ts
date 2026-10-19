@@ -17,7 +17,8 @@ function observeResolvedPnpmVersion(): string | undefined {
   if (!isQualifiedNodeRuntime()) {
     return undefined;
   }
-  const result = spawnSync("pnpm", ["--version"], {
+  // Observe the executable without claiming package-manager authority over cwd.
+  const result = spawnSync("pnpm", ["--pm-on-fail=ignore", "--version"], {
     encoding: "utf8",
     timeout: 10_000,
     windowsHide: true,

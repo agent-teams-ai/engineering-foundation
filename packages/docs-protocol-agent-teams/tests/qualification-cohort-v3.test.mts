@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
@@ -120,7 +123,30 @@ test("public runDocsProtocolQualificationV3 observes the actual process without 
   }
 });
 
-test("real process observer reflects the current process and fake injection remains distinct", () => {
+test("real process observer reflects the current process and fake injection remains distinct", async t => {
+  const root = await mkdtemp(join(tmpdir(), "qualification-bun-cwd-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const manifest = JSON.stringify({ name: "qualification-bun-cwd", private: true, packageManager: "bun@1.4.3" });
+  await writeFile(join(root, "package.json"), manifest);
+  const entry = new URL("../dist/qualification/adapters/outbound/node-qualification-runtime.js", import.meta.url).href;
+  const probe = spawnSync(process.execPath, ["--input-type=module", "--eval",
+    `import { createNodeDocsProtocolQualificationRuntimeObserver } from ${JSON.stringify(entry)};
+     process.stdout.write(JSON.stringify(createNodeDocsProtocolQualificationRuntimeObserver()()));`
+  ], { cwd: root, encoding: "utf8", timeout: 15_000 });
+  assert.equal(probe.error, undefined);
+  assert.equal(probe.status, 0, probe.stdout + probe.stderr);
+  assert.equal(probe.signal, null);
+  assert.equal(probe.stderr, "");
+  const child: DocsProtocolQualificationRuntimeObservation = JSON.parse(probe.stdout);
+  assert.equal(child.nodeVersion, process.versions.node);
+  assert.equal(child.platform, process.platform);
+  assert.equal(child.architecture, process.arch);
+  assert.equal(child.pnpmVersion,
+    process.versions.node === "26.11.1" && process.platform === "linux" && process.arch === "x64"
+      ? exactRuntime.pnpmVersion : undefined);
+  assert.equal(await readFile(join(root, "package.json"), "utf8"), manifest);
+  assert.deepEqual(await readdir(root), ["package.json"]);
+
   const observeCurrent = createNodeDocsProtocolQualificationRuntimeObserver();
   const observed = observeCurrent();
   assert.equal(observed.nodeVersion, process.versions.node);

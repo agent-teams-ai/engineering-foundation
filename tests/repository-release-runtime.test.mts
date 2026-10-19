@@ -317,12 +317,21 @@ test("actual pinned Changesets TEST versioning passes final release file admissi
   };
   const packageRoot = "packages/engineering-foundation";
   const packageName = "@agent-teams/engineering-foundation";
+  const standardRoot = "packages/feature-module-standard";
+  const standardName = "@agent-teams/feature-module-standard";
+  const standardManifest = {
+    name: standardName, version: "0.1.0",
+    devDependencies: { [packageName]: "workspace:*" },
+    peerDependencies: { [packageName]: "workspace:^" },
+    peerDependenciesMeta: { [packageName]: { optional: true } }
+  };
   try {
     process.env["GIT_AUTHOR_NAME"] = "iliya";
     process.env["GIT_AUTHOR_EMAIL"] = "iliyazelenkog@gmail.com";
     process.env["GIT_COMMITTER_NAME"] = "iliya";
     process.env["GIT_COMMITTER_EMAIL"] = "iliyazelenkog@gmail.com";
     await mkdir(join(root, packageRoot), { recursive: true });
+    await mkdir(join(root, standardRoot), { recursive: true });
     await mkdir(join(root, ".changeset"), { recursive: true });
     await mkdir(join(root, "architecture/foundation"), { recursive: true });
     const workflowPolicyPath = "architecture/foundation/repository-agent-workflow.yaml";
@@ -366,12 +375,15 @@ test("actual pinned Changesets TEST versioning passes final release file admissi
       install: { dependencyScripts: false, nativeInitialization: [], disabledDependencyScripts: [] }
     }, null, 2)}\n`);
     await writeFile(join(root, packageRoot, "package.json"), `${JSON.stringify({
-      name: packageName, version: "1.0.0"
+      name: packageName, version: "1.9.0"
     }, null, 2)}\n`);
     await writeFile(join(root, packageRoot, "CHANGELOG.md"), `# ${packageName}\n\n`);
+    await writeFile(join(root, standardRoot, "package.json"), `${JSON.stringify(standardManifest, null, 2)}\n`);
+    await writeFile(join(root, standardRoot, "CHANGELOG.md"), `# ${standardName}\n\n`);
     await writeFile(join(root, ".changeset/config.json"), `${JSON.stringify({
       changelog: "@changesets/cli/changelog", commit: false, fixed: [], access: "public", baseBranch: "main",
       updateInternalDependencies: "patch", ignore: [],
+      ___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH: { onlyUpdatePeerDependentsWhenOutOfRange: true },
       privatePackages: { version: true, tag: false }
     }, null, 2)}\n`);
     const bunLockSeed = join(cache, "bun-lock-seed");
@@ -382,6 +394,8 @@ test("actual pinned Changesets TEST versioning passes final release file admissi
       await copyFile(join(root, "package.json"), join(seed, "package.json"));
       await copyFile(join(root, "pnpm-workspace.yaml"), join(seed, "pnpm-workspace.yaml"));
       await copyFile(join(root, packageRoot, "package.json"), join(seed, packageRoot, "package.json"));
+      await mkdir(join(seed, standardRoot), { recursive: true });
+      await copyFile(join(root, standardRoot, "package.json"), join(seed, standardRoot, "package.json"));
     }
     const seedManifest = JSON.parse(await readFile(join(pnpmLockSeed, "package.json"), "utf8")) as { packageManager: string };
     seedManifest.packageManager = "pnpm@11.20.0";
@@ -397,6 +411,12 @@ test("actual pinned Changesets TEST versioning passes final release file admissi
     ], { cwd: bunLockSeed, encoding: "utf8", env: process.env });
     assert.equal(seedBunLock.status, 0, `${seedBunLock.stdout}${seedBunLock.stderr}`);
     await copyFile(join(bunLockSeed, "bun.lock"), join(root, "bun.lock"));
+    const bunBefore = await readFile(join(root, "bun.lock"));
+    assert.match(bunBefore.toString("utf8"), /"peerDependencies": \{\s*"@agent-teams\/engineering-foundation": "workspace:\^"/u);
+    // Retain the authentic old lock while committing only the supported peer floor.
+    await writeFile(join(root, standardRoot, "package.json"), `${JSON.stringify({
+      ...standardManifest, peerDependencies: { [packageName]: "workspace:^1.8.0" }
+    }, null, 2)}\n`);
     const git = (args: readonly string[]): string => {
       const result = spawnSync("git", [...args], { cwd: root, encoding: "utf8" });
       assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
@@ -406,29 +426,38 @@ test("actual pinned Changesets TEST versioning passes final release file admissi
     git(["config", "user.name", "iliya"]);
     git(["config", "user.email", "iliyazelenkog@gmail.com"]);
     await writeFile(join(root, ".changeset/version.md"), [
-      "---", `"${packageName}": minor`, "---", "", "Actual pinned Changesets TEST version.", ""
+      "---", `"${packageName}": minor`, `"${standardName}": patch`, "---", "", "Actual pinned Changesets TEST version.", ""
     ].join("\n"));
     git(["add", "."]);
     git(["commit", "--quiet", "-m", "test: initial release runtime fixture"]);
     const sourceSha = git(["rev-parse", "HEAD"]).trim();
-    const initial = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate });
     const pnpmBefore = await readFile(join(root, "pnpm-lock.yaml"));
-    const install = spawnSync(bunCandidate, ["install", "--ignore-scripts", "--linker=isolated"], {
+    const install = spawnSync(bunCandidate, ["install", "--frozen-lockfile", "--ignore-scripts", "--linker=isolated"], {
       cwd: root, encoding: "utf8", env: process.env
     });
     assert.equal(install.status, 0, `${install.stdout}${install.stderr}`);
+    assert.deepEqual(await readFile(join(root, "bun.lock")), bunBefore,
+      "the frozen source install must preserve the authentic old peer lock precondition");
     const version = spawnSync(process.execPath, ["node_modules/@changesets/cli/bin.js", "version"], {
       cwd: root, encoding: "utf8", env: process.env
     });
     assert.equal(version.status, 0, `${version.stdout}${version.stderr}`);
-    const refreshed = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate });
+    const versionedStandard = JSON.parse(await readFile(join(root, standardRoot, "package.json"), "utf8")) as {
+      readonly version: string; readonly peerDependencies: Readonly<Record<string, string>>;
+    };
+    context.diagnostic(`TEST versioned FMS peer: ${versionedStandard.peerDependencies[packageName]}`);
+    const refreshed = await refreshVersionLocks({ sourceRoot: root, sourceSha, node: process.execPath, bun: bunCandidate })
+      .finally(() => context.diagnostic(`TEST versioned Bun lock diff:\n${git(["diff", "--", "bun.lock"])}`));
     const versioned = JSON.parse(await readFile(join(root, packageRoot, "package.json"), "utf8")) as { readonly version: string };
-    assert.equal(versioned.version, "1.1.0");
-    assert.notEqual(refreshed.bunLockSha256, initial.bunLockSha256);
+    assert.equal(versioned.version, "1.10.0");
+    assert.equal(versionedStandard.version, "0.1.1");
+    assert.equal(versionedStandard.peerDependencies[packageName], "workspace:^1.8.0");
+    assert.notEqual(refreshed.bunLockSha256, sha256(bunBefore));
     assert.match(refreshed.bunLockSha256, /^[a-f0-9]{64}$/u);
     assert.match(refreshed.pnpmLockSha256, /^[a-f0-9]{64}$/u);
     const bunLock = await readFile(join(root, "bun.lock"), "utf8");
-    assert.match(bunLock, /"packages\/engineering-foundation": \{\s*"name": "@agent-teams\/engineering-foundation",\s*"version": "1\.1\.0"/u);
+    assert.match(bunLock, /"packages\/engineering-foundation": \{\s*"name": "@agent-teams\/engineering-foundation",\s*"version": "1\.10\.0"/u);
+    assert.match(bunLock, /"packages\/feature-module-standard": \{\s*"name": "@agent-teams\/feature-module-standard",\s*"version": "0\.1\.1"/u);
     assert.deepEqual(await readFile(join(root, "pnpm-lock.yaml")), pnpmBefore,
       "version-only workspace changes must not alter the pnpm graph or bytes");
     assert.equal(refreshed.pnpmLockChanged, false);
@@ -466,6 +495,7 @@ test("actual pinned Changesets TEST versioning passes final release file admissi
     const refused = admit(git(["rev-parse", "HEAD"]).trim());
     assert.notEqual(refused.status, 0);
     assert.match(refused.stderr, /bun\.lock/u);
+    context.diagnostic("TEST final Git guard accepted the actual release and rejected forged Bun graph SRI.");
     const versionScript = runSource.indexOf("await exec(script, undefined, { cwd, env });");
     const changedPackages = runSource.indexOf("let changedPackages = await getChangedPackages");
     assert.ok(versionScript >= 0 && changedPackages > versionScript);

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { satisfies, valid } from "semver";
+import { compareVersionCore, parsePublishedVersion, parseStableVersion } from "./release-publish-registry-version.mjs";
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
 const PORTABLE_PATH = /^(?!\/)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@/-]+$/u;
@@ -123,17 +123,25 @@ function manifestFor(manifestsByName, entry) {
 
 // Explicit stable caret floors retain the supported minimum when the workspace advances.
 export function workspacePeerRange(reference, workspaceVersion) {
-  if (typeof workspaceVersion !== "string" || valid(workspaceVersion) === null) {
+  const version = typeof workspaceVersion === "string" ? parsePublishedVersion(workspaceVersion) : undefined;
+  if (version === undefined) {
     fail("optional workspace peer requires an actual workspace version");
   }
   if (reference === "workspace:^") {
     return `^${workspaceVersion}`;
   }
-  const match = /^workspace:(\^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$/u.exec(reference);
-  if (match === null || !satisfies(workspaceVersion, match[1])) {
+  const minimum = reference.startsWith("workspace:^")
+    ? parseStableVersion(reference.slice("workspace:^".length)) : undefined;
+  if (minimum === undefined || version.iteration !== undefined) {
     fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
   }
-  return match[1];
+  const [major, minor, patch] = minimum;
+  const upper = major > 0n ? [major + 1n, 0n, 0n]
+    : minor > 0n ? [0n, minor + 1n, 0n] : [0n, 0n, patch + 1n];
+  if (compareVersionCore(version.core, minimum) < 0 || compareVersionCore(version.core, upper) >= 0) {
+    fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
+  }
+  return reference.slice("workspace:".length);
 }
 
 // An internal package is declared once, as workspace:*. The one allowed pair is an optional runtime peer caret

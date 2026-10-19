@@ -73,6 +73,9 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
   await t.test("turns an internal peer range into a caret range of the workspace version", () => {
     const context = { catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", "1.8.0"]]) };
     assert.deepEqual(canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, context).peerDependencies, { "@fixture/core": "^1.8.0" });
+    assert.deepEqual(canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, {
+      ...context, internalPackageVersions: new Map([["@fixture/core", "1.8.0-rc.0"]]),
+    }).peerDependencies, { "@fixture/core": "^1.8.0-rc.0" });
     assert.throws(() => canonicalPublishManifest({ peerDependencies: { "@fixture/core": "workspace:^" } }, { catalogVersions: new Map(), internalPackageVersions: new Map() }), /cannot resolve workspace version/u);
     assert.throws(() => canonicalPublishManifest({ optionalDependencies: { "@fixture/core": "workspace:^" } }, context), /requires workspace:\*/u);
   });
@@ -88,6 +91,18 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
     for (const version of ["1.7.4", "2.0.0", "1.10.0-rc.0"]) {
       assert.throws(() => canonicalPublishManifest({ peerDependencies }, {
         catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", version]]),
+      }), /does not admit workspace version/u);
+    }
+    for (const [minimum, accepted, rejected] of [
+      ["0.2.3", "0.2.9", "0.3.0"],
+      ["0.0.3", "0.0.3", "0.0.4"],
+      ["0.0.0", "0.0.0", "0.0.1"],
+    ]) {
+      const peers = { peerDependencies: { "@fixture/core": `workspace:^${minimum}` } };
+      const context = { catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", accepted]]) };
+      assert.deepEqual(canonicalPublishManifest(peers, context).peerDependencies, { "@fixture/core": `^${minimum}` });
+      assert.throws(() => canonicalPublishManifest(peers, {
+        ...context, internalPackageVersions: new Map([["@fixture/core", rejected]]),
       }), /does not admit workspace version/u);
     }
     for (const specifier of ["workspace:^1.8", "workspace:^01.8.0", "workspace:^1.8.0-rc.0", "workspace:^1.8.0 || ^2.0.0"]) {

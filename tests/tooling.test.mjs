@@ -552,6 +552,11 @@ test("clean removes incremental state and permits a full rebuild", async () => {
         ),
         "utf8",
       ),
+      writeFile(
+        join(fixtureRoot, "scripts", "release-publish-registry-version.mjs"),
+        await readFile(join(repositoryRoot, "scripts", "release-publish-registry-version.mjs"), "utf8"),
+        "utf8",
+      ),
     ]);
 
     const build = () =>

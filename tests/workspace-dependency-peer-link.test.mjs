@@ -16,6 +16,21 @@ test("accepts a peer range together with its development link", async () => {
   });
 });
 
+test("accepts an explicit workspace peer minimum with the current development link", async () => {
+  await withFixture(async (consumerRoot) => {
+    const corePath = join(consumerRoot, "packages", "core", "package.json");
+    const core = JSON.parse(await readFile(corePath, "utf8"));
+    await writeFile(corePath, JSON.stringify({ ...core, version: "1.9.0" }), "utf8");
+    await writeFile(join(consumerRoot, "packages", "app", "package.json"), JSON.stringify({
+      name: "@fixture/app", version: "0.0.0", peerDependencies: { "@fixture/core": "workspace:^1.8.0" },
+      devDependencies: { "@fixture/core": "workspace:*" }, peerDependenciesMeta: { "@fixture/core": { optional: true } },
+    }), "utf8");
+    const { result, report } = check(consumerRoot);
+    assert.equal(result.status, 0, JSON.stringify(report));
+    assert.equal(report.outcome, "passed", JSON.stringify(report));
+  });
+});
+
 test("accepts different peer and development catalogs for the same normalized package", async () => {
   await withFixture(async (consumerRoot) => {
     const workspacePath = join(consumerRoot, "pnpm-workspace.yaml");

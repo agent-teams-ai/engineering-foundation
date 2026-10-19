@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.ci-tooling.json",
-  "include": ["**/*.mts"]
+  "include": ["**/*.mts", "support/release-changesets-fixture.ts"]
 }

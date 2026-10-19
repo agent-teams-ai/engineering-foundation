@@ -6,7 +6,7 @@
   "type": "module",
   "sideEffects": false,
   "peerDependencies": {
-    "@agent-teams/engineering-foundation": "workspace:^"
+    "@agent-teams/engineering-foundation": "workspace:^1.8.0"
   },
   "peerDependenciesMeta": {
     "@agent-teams/engineering-foundation": {

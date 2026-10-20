@@ -83,7 +83,15 @@ test("v3 assets preserve exact semantic ownership and require reachable readable
   assert.equal((await run()).outcome, "violations");
   await put("package.json", JSON.stringify({ scripts }));
   await rm(join(root, "scripts/check-migrations.ts"));
-  assert.notEqual((await run()).outcome, "passed");
+  const missing = await run();
+  assert.equal(missing.outcome, "invalid-input");
+  assert.equal(missing.problem?.code, "QUALITY_PROFILE_INVALID");
+  assert.match(missing.problem?.message ?? "", /Asset validator script.*migration:check/u);
+  assert.deepEqual(missing.diagnostics, []);
+  await mkdir(join(root, "scripts/check-migrations.ts"));
+  const unreadable = await run();
+  assert.equal(unreadable.outcome, "invalid-input", "a directory cannot qualify as a readable validator file");
+  assert.equal(unreadable.problem?.code, "QUALITY_PROFILE_INVALID");
 });
 
 test("assets cannot admit executable extensions, unknown siblings, stale paths or another owner", async (t) => {

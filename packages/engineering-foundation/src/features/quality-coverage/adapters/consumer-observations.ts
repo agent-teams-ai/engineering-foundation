@@ -37,6 +37,13 @@ function requiredRoute(
   ].some((expected) => executesScript(scripts, entry, target, expected));
 }
 
+async function requireReadableQualityFile(
+  readFile: QualityFileReader, consumerRoot: string, path: string, failure: string
+): Promise<void> {
+  try { await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 2 * 1024 * 1024 }); }
+  catch { invalidQualityInput(failure); }
+}
+
 /** The same static observation is used by aggregate checks and explicit execution. */
 export function createQualityCoverageReader(
   ports: QualityObservationPorts, configuration: QualityConfigurationReader, readFile: QualityFileReader
@@ -97,8 +104,8 @@ export function createQualityCoverageReader(
         const scriptPath = nativeScriptPath(command);
         let reached = false;
         if (command !== undefined && scriptPath !== undefined) {
-          try { await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, scriptPath), maxBytes: 2 * 1024 * 1024 }); }
-          catch { invalidQualityInput(`Native gate script is missing or outside the consumer: ${mapping.script}.`); }
+          await requireReadableQualityFile(readFile, consumerRoot, scriptPath,
+            `Native gate script is missing or outside the consumer: ${mapping.script}.`);
           reached = executesScript(scripts, profile.scripts.full, mapping.script, command);
         }
         return { ...mapping, reached };
@@ -108,10 +115,12 @@ export function createQualityCoverageReader(
         if (source === undefined || source.owners.length !== 1 || source.owners[0] !== mapping.boundaryId) {
           invalidQualityInput(`Asset must have its exact current semantic owner: ${mapping.path}.`);
         }
-        await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, mapping.path), maxBytes: 2 * 1024 * 1024 });
+        await requireReadableQualityFile(readFile, consumerRoot, mapping.path,
+          `Asset is missing, unreadable or outside the consumer: ${mapping.path}.`);
         const validatorFiles = assetValidatorDeclaration(scripts[mapping.script]);
         for (const path of validatorFiles ?? []) {
-          await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 2 * 1024 * 1024 });
+          await requireReadableQualityFile(readFile, consumerRoot, path,
+            `Asset validator script is missing, unreadable or outside the consumer: ${mapping.script} (${path}).`);
         }
         return { ...mapping, reached: executesAssetValidator(scripts, profile.scripts.full, mapping.script) };
       }));

@@ -230,7 +230,7 @@ async function invokeTool(
   toolArguments: readonly string[] = []
 ): Promise<number> {
   if (id === "check:changed") {
-    if (paths.length !== 0 || toolArguments.length !== 0) {
+    if (paths.length + toolArguments.length !== 0) {
       throw new Error("Source-owned check:changed does not accept extra arguments.");
     }
     return invokeSourceChanged();

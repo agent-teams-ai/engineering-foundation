@@ -23,6 +23,7 @@ qualification separately.
 | The normal all-package API promoter encounters a pending earlier public API addition | Created only the new initial anchor through the existing native promotion owner; kept the full production policy and verified all nine typed/artifact surfaces and all 13 unchanged historical baseline hashes |
 | Complete source coverage found the new package missing from suppression governance | Added its complete source root to the existing governed roots; no waiver or suppression was added |
 | The actual installed TEST canary has no Git-root package manifest | Removed the unconditional root-manifest assumption; the inventory must contain actual packages and retain exact paths and complete manifest/diff relations. Shared nested-package positive and unclassified-root negative cases cover the correction |
+| The Host's intent filename rule differed from the pinned Changesets reader | Matched Changesets 2.31.1 direct, non-hidden lowercase `.md` discovery and case-insensitive README exclusion. Real engine release and no-release cases retain those documents and reject their edits; dotted intent names and the V2 `AGENTS.md` intent remain accepted |
 
 No generic release manager, compiler-stage exception, public Foundation facade,
 new publisher or version-selection algorithm was added.
@@ -34,8 +35,8 @@ qualify its own exact head/base and cannot reuse these as hosted receipts.
 
 | Boundary | Observed result |
 | --- | --- |
-| Pure core and shared conformance | 22 tests passed with normal Node process isolation; with the five actual-engine Host tests, the corrected candidate passed all 27 focused cases |
-| Actual-engine Foundation Host | 5 integration tests passed, covering frozen plans, pre-baseline checks, independent base reconstruction, complete diff and execution drift |
+| Pure core and shared conformance | 22 tests passed with normal Node process isolation; with the six actual-engine Host tests, the corrected candidate passed all 28 focused cases |
+| Actual-engine Foundation Host | 6 integration tests passed, covering frozen plans, pre-baseline checks, independent base reconstruction, complete diff, execution drift and the actual pinned reader's filename rules |
 | Retained release, freshness, bootstrap and migration routes | 118 tests passed; final collector/registry delta suite passed 16 tests |
 | Authentic pinned action/Changesets lock fixture | Actual Changesets 2.31.1, Bun 1.4.3, pnpm 11.20.0 and Node 26.11.1 passed generation and source/lock checks; the FMS peer floor was preserved and a forged Bun SRI rejected |
 | Admission and catalog authorities | 68 tests passed; nine-package release, source and feature inventories and complete 338-test/eight-shard manifests passed |
@@ -78,6 +79,15 @@ the complete nonempty inventory includes a root manifest when it actually
 exists, and paths always remain relative to the full Git repository. That
 clarification is applied. The delta review also verified exact preservation of
 the upstream owner release and the one-line suppression-governance admission.
+
+The later consumer review exposed a separate Host filename mismatch. Foundation
+uses Changesets 2.31.1 and its actual `@changesets/read` 0.6.7 behavior; its
+adapter does not inherit the additional instruction-document exclusions in the
+consumers' Changesets 3.0.2. Ignored files remain in the complete Git observation
+and have no permitted candidate change. The added actual-engine case passes
+both a release and a no-release source, then rejects edits to every ignored
+document. This Host-only correction leaves the qualified leaf archive above
+unchanged and remains included in the pending exact-commit confirmation.
 
 Required final-head CI, owner PR, publication and three separate real consumer
 adoptions will be recorded here as they are observed. The existing canary's

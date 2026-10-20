@@ -21,7 +21,8 @@ import {
 const contextPathVariable = 'AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_PATH';
 const contextDigestVariable = 'AGENT_TEAMS_FOUNDATION_RELEASE_INPUTS_DIGEST';
 const ordinary = { type: 'file', mode: '100644' } as const;
-const intentPattern = /^\.changeset\/([A-Za-z0-9_-]+)\.md$/u;
+// Changesets 2.31.1 reads direct non-hidden .md files and ignores README case-insensitively.
+const intentPattern = /^\.changeset\/[^./][^/]*\.md$/u;
 const baselinePattern = /^architecture\/(?:public-api\/[^/]+\.json|contracts\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:json|ya?ml))$/u;
 type ReadReleaseFile = (path: string) => Promise<ReleaseFileBytes | null>;
 
@@ -98,7 +99,7 @@ async function inventory(tree: ReleaseTree, read: ReadReleaseFile, config: JsonR
 async function sourceIntents(tree: ReleaseTree, read: ReadReleaseFile, pre: JsonRecord | undefined): Promise<readonly ReleaseIntent[]> {
   const applied = pre?.['mode'] === 'pre' && Array.isArray(pre['changesets']) ? pre['changesets'] : [];
   const intents: ReleaseIntent[] = [];
-  for (const path of [...tree.keys()].filter(entry => intentPattern.test(entry) && entry !== '.changeset/README.md').toSorted()) {
+  for (const path of [...tree.keys()].filter(entry => intentPattern.test(entry) && !/^README\.md$/iu.test(basename(entry))).toSorted()) {
     const file = await requireReleaseFile(read, path);
     const source = file.bytes.toString('utf8').replaceAll('\r\n', '\n');
     const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/u.exec(source);
@@ -110,7 +111,7 @@ async function sourceIntents(tree: ReleaseTree, read: ReadReleaseFile, pre: Json
       if (!['major', 'minor', 'patch'].includes(String(type))) { fail(`${path} has an unsupported release type.`); }
       return { packageName, type: type as ReleaseType };
     });
-    const id = basename(path, '.md');
+    const id = basename(path).replace('.md', '');
     intents.push({ id, path, digest: file.file.digest, participation: applied.includes(id) ? 'retained' : 'pending', requests });
   }
   return intents;

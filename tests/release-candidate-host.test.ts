@@ -143,6 +143,34 @@ void test('no-release plans preserve ignored and empty intents without version e
   }
 });
 
+void test('pinned v2 filename rules preserve ignored documents and actual dotted or AGENTS intents', async () => {
+  const documents = ['README.md', 'readme.md', 'ReadMe.md', '.hidden.md', 'notes.MD'];
+  for (const noIntent of [false, true]) {
+    const { root } = await fixture({ noIntent });
+    try {
+      for (const name of documents) { await writeFile(join(root, '.changeset', name), `# Retained ${name}\n`); }
+      if (!noIntent) {
+        await git(root, 'mv', '.changeset/release.md', '.changeset/release.note.md');
+        await writeFile(join(root, '.changeset/AGENTS.md'), `---\n"${packageName}": patch\n---\n\nV2 treats this name as an intent.\n`);
+      }
+      await git(root, 'add', '.'); await git(root, 'commit', '-m', 'test: accepted pinned-reader filenames');
+      const candidate = await freezeReleaseCandidate(root);
+      const expectedIds = noIntent ? [] : ['AGENTS', 'release.note'];
+      assert.deepEqual(candidate.expected.intents.map(intent => intent.id), expectedIds);
+      assert.deepEqual(candidate.officialPlan.changesets.map(intent => intent.id).toSorted(), expectedIds);
+      assert.equal(hasReleaseVersionChanges(candidate), !noIntent);
+      if (!noIntent) { await version(candidate); }
+      assert.equal((await checkWorkingReleaseCandidate(candidate)).report.outcome, 'passed');
+      for (const name of documents) {
+        const path = join(root, '.changeset', name); const before = await readFile(path);
+        await writeFile(path, '# Unexpected documentation rewrite\n');
+        await assert.rejects(checkWorkingReleaseCandidate(candidate), /diff.unexpected/u);
+        await writeFile(path, before);
+      }
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }
+});
+
 void test('existing prerelease intent recording uses actual retained source and metadata', async () => {
   const { root } = await fixture({ prerelease: true });
   try {

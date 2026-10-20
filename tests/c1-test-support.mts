@@ -27,6 +27,18 @@ function diagnosticText(value: string, maximum = 2048): string {
   while(end<bytes.length&&end>0&&(bytes[end]!&0xc0)===0x80){end--;}
   return bytes.subarray(0,end).toString('utf8');
 }
+function fixtureFailureEvidence(error: unknown, trace: readonly Error[]): string {
+  // Only disposable TEST command data; five bounded messages remain below
+  // 192 KiB even when every byte needs JSON escaping. Never retain environment.
+  return JSON.stringify({
+    schemaVersion: 1,
+    primary: {
+      name: diagnosticText(error instanceof Error ? error.name : 'non-Error', 64),
+      message: diagnosticText(error instanceof Error ? error.message : String(error), 6000)
+    },
+    commands: trace.slice(-4).map(item => diagnosticText(item.message, 6000))
+  });
+}
 function observedControls(raw:string):unknown[] {
   const value:unknown=JSON.parse(raw);
   if(typeof value!=='object'||value===null||!('controls' in value)||!Array.isArray(value.controls)){return [];}
@@ -210,7 +222,7 @@ process.exitCode=failed?1:0;\n`);
   try { await failedCommands.run(trace,()=>body({root,output,tool,scripts,files,freeze,runner,loadPolicy})); }
   catch(error) {
     failed=true;primary=trace.length===0?error:new AggregateError([error,...trace],'TEST fixture failed; original error and bounded owned command evidence.');
-    try {await writeFile(`${directory}-failure.json`,JSON.stringify(trace.map(item=>item.message)));}
+    try {await writeFile(`${directory}-failure.json`,fixtureFailureEvidence(error,trace));}
     catch(recordFailure){primary=new AggregateError([primary,recordFailure],'TEST fixture and diagnostic retention failed.');}
   }
   try {await rm(directory,{recursive:true,force:true});}

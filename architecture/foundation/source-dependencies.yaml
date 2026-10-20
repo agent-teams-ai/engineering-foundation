@@ -975,6 +975,7 @@ boundaries:
       packages: []
       builtins:
         - node:fs/promises
+        - node:os
         - node:path
         - node:crypto
         - node:perf_hooks
@@ -1263,6 +1264,7 @@ boundaries:
     entrypoints:
       - packages/repository-mutation/src/repository-mutation/adapters/node/known-file-coordination.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-atomic-file-replacement.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
@@ -2886,7 +2888,7 @@ boundaries:
     allow:
       boundaries:
         - capability.workspace-dependencies.application
-      packages: [ "ajv" ]
+      packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -2898,6 +2900,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.configuration-input.composition
+        - foundation.schema-contribution.workspace-dependency-declarations
         - capability.workspace-dependencies.adapters
         - capability.workspace-dependencies.application
         - capability.workspace-dependencies.contract
@@ -2997,7 +3000,7 @@ boundaries:
         - capability.architecture-decisions.application
         - foundation.core
       packages:
-        - proper-lockfile
+        - "@agent-teams/repository-mutation"
       builtins:
         - node:crypto
         - node:fs/promises

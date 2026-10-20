@@ -5,7 +5,7 @@ import { parseSync, Visitor } from "oxc-parser";
 import { typescriptLoaderOracle } from "./typescript-loader-oracle.ts";
 import { NativeSourceParser } from "./typescript-parser-oracle.ts";
 import * as ts from "typescript/unstable/ast";
-import type { ExportDeclaration, ImportDeclaration, Node, SourceFile, StringLiteralLikeNode } from "typescript/unstable/ast";
+import type { Node, SourceFile, StringLiteralLikeNode } from "typescript/unstable/ast";
 
 interface Reference { kind: string; specifier: string; start: number; end: number }
 interface UnresolvedReference { kind: string; start: number; end: number }
@@ -38,11 +38,11 @@ export { type Y } from "export-named-type";
 export { Z } from "export-value";
 `,
     expected: [
-      "export-type:export-named-type",
+      "export:export-named-type",
       "export-type:export-type",
       "export:export-all",
       "export:export-value",
-      "static-type:named-type-only",
+      "static:named-type-only",
       "static-type:type-only",
       "static:mixed",
       "static:side-effect",
@@ -179,13 +179,6 @@ function sorted(result: ParseResult): ParseResult {
   };
 }
 
-function oxcAllTypeSpecifiers(specifiers: readonly { type: string; importKind?: string; exportKind?: string }[], field: "importKind" | "exportKind"): boolean {
-  return (
-    specifiers.length > 0 &&
-    specifiers.every((specifier) => specifier[field] === "type")
-  );
-}
-
 function parseWithOxc(filename: string, source: string): ParseResult {
   const parsed = parseSync(filename, source, { astType: "ts" });
   if (parsed.errors.length > 0) {
@@ -225,16 +218,10 @@ function parseWithOxc(filename: string, source: string): ParseResult {
       if (node.source === null) {
         return;
       }
-      const typeOnly =
-        node.exportKind === "type" ||
-        oxcAllTypeSpecifiers(node.specifiers, "exportKind");
-      references.push(reference(typeOnly ? "export-type" : "export", node.source));
+      references.push(reference(node.exportKind === "type" ? "export-type" : "export", node.source));
     },
     ImportDeclaration(node) {
-      const typeOnly =
-        node.importKind === "type" ||
-        oxcAllTypeSpecifiers(node.specifiers, "importKind");
-      references.push(reference(typeOnly ? "static-type" : "static", node.source));
+      references.push(reference(node.importKind === "type" ? "static-type" : "static", node.source));
     },
     ImportExpression(node) {
       if (node.source.type === "Literal" && typeof node.source.value === "string") {
@@ -274,33 +261,6 @@ function parseWithOxc(filename: string, source: string): ParseResult {
   });
 }
 
-function typescriptAllTypeImports(node: ImportDeclaration): boolean {
-  const clause = node.importClause;
-  if (clause === undefined || clause.name !== undefined) {
-    return clause?.phaseModifier === ts.SyntaxKind.TypeKeyword;
-  }
-  if (clause.phaseModifier === ts.SyntaxKind.TypeKeyword || clause.namedBindings === undefined
-    || !ts.isNamedImports(clause.namedBindings)) {
-    return clause.phaseModifier === ts.SyntaxKind.TypeKeyword;
-  }
-  return (
-    clause.namedBindings.elements.length > 0 &&
-    clause.namedBindings.elements.every((element) => element.isTypeOnly)
-  );
-}
-
-function typescriptAllTypeExports(node: ExportDeclaration): boolean {
-  if (node.isTypeOnly) {
-    return true;
-  }
-  return (
-    node.exportClause !== undefined &&
-    ts.isNamedExports(node.exportClause) &&
-    node.exportClause.elements.length > 0 &&
-    node.exportClause.elements.every((element) => element.isTypeOnly)
-  );
-}
-
 function typescriptLiteral(node: StringLiteralLikeNode, sourceFile: SourceFile): Literal {
   return {
     value: node.text,
@@ -323,7 +283,7 @@ function parseWithTypeScript(filename: string, source: string): ParseResult {
       if (ts.isImportDeclaration(node) && ts.isStringLiteralLikeNode(node.moduleSpecifier)) {
         references.push(
           reference(
-            typescriptAllTypeImports(node) ? "static-type" : "static",
+            node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword ? "static-type" : "static",
             typescriptLiteral(node.moduleSpecifier, sourceFile),
           ),
         );
@@ -334,7 +294,7 @@ function parseWithTypeScript(filename: string, source: string): ParseResult {
       ) {
         references.push(
           reference(
-            typescriptAllTypeExports(node) ? "export-type" : "export",
+            node.isTypeOnly ? "export-type" : "export",
             typescriptLiteral(node.moduleSpecifier, sourceFile),
           ),
         );

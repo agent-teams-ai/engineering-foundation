@@ -190,6 +190,10 @@
             {
               "path": "packages/repository-mutation/src/transaction-coordination/application/ports/mutation-lease-port.ts",
               "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-atomic-file-replacement.ts",
+              "owner": "repository-mutation/known-file-transactions"
             }
           ]
         },
@@ -411,6 +415,10 @@
             },
             {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-cohort-v3-loader.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/strict-json-record.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
             {

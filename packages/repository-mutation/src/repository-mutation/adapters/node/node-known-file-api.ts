@@ -9,6 +9,7 @@ import { cleanupIdentityMatchingOwnedTemporary as cleanupTemporary } from "./nod
 import { inspectKnownFileTransactionBarrier as inspectBarrier } from "./node-known-file-transaction-inspection.js";
 import { prepareExactSiblingTemporary as prepareTemporary, prepareExactSiblingTemporaryWithFaults as prepareTemporaryWithFaults } from "./node-prepare-exact-sibling-temporary.js";
 import { recoverKnownFileTransaction as recoverTransaction, recoverKnownFileTransactionWithFaults as recoverTransactionWithFaults } from "./node-known-file-transaction-recovery.js";
+import { observeAtomicFileReplacement as observeAtomicReplacement } from "./node-atomic-file-replacement.js";
 
 /** Node operations over the feature's ports, with concrete providers selected by composition. */
 export function createKnownFileNodeAdapter(coordination: KnownFileCoordination) {
@@ -59,6 +60,7 @@ export function createKnownFileNodeAdapter(coordination: KnownFileCoordination) 
   }
 
   return {
+    observeAtomicFileReplacement: (input: Parameters<typeof observeAtomicReplacement>[1]) => observeAtomicReplacement(coordination, input),
     applyKnownFileTransaction,
     applyKnownFileTransactionWithFaults,
     classifyExactFilePostimage,

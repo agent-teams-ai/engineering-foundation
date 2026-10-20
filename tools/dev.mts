@@ -1,11 +1,14 @@
-import { execFileSync, spawn } from "node:child_process";
-import { copyFile, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { relative, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot, projectNodeAgentWorkflowPolicy, assertNodeAgentWorkflowPolicyProjection, projectNodeDependencyDeclarationsPolicy, assertNodeDependencyDeclarationsPolicyProjection } from "./runtime-policy.mts";
 import { resolveQualificationExecutables, verifySupportedNode } from "./executable-policy.mts";
 import { assertOwnedProfileRoot, assertExplicitSourceGitAuthority } from "./profile-root.mts";
+import { withoutGitRepositorySelectors } from "./git-environment.ts";
+import { copySourceTree, sourceTreeDigest } from "./profile-source.ts";
+export { copySourceTree, sourceTreeDigest } from "./profile-source.ts";
 export { assertExplicitSourceGitAuthority } from "./profile-root.mts";
 
 type Profile = "bun" | "node";
@@ -44,7 +47,7 @@ function parseArguments(arguments_: readonly string[]): { readonly profile: Prof
 
 function run(command: string, args: readonly string[], cwd: string, environment: NodeJS.ProcessEnv = process.env): Promise<number> {
   return new Promise((_resolve, reject) => {
-    const child = spawn(command, [...args], { cwd, env: environment, shell: false, stdio: "inherit" });
+    const child = spawn(command, [...args], { cwd, env: withoutGitRepositorySelectors(environment), shell: false, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
       if (signal !== null) {
@@ -70,68 +73,6 @@ async function executable(profile: Profile): Promise<{ readonly node: string; re
   return { node, ...(profile === "bun" ? { bun } : {}), manager };
 }
 
-const excludedSourceDirectories = new Set([
-  ".git",
-  ".worker-tmp",
-  ".cache",
-  ".nx",
-  "node_modules",
-  ".pnpm-store",
-  "coverage",
-  ".coverage-evidence"
-]);
-
-function isExcludedSourceEntry(
-  sourceRoot: string,
-  path: string,
-  entry: {
-    readonly name: string;
-    readonly isDirectory: () => boolean;
-    readonly isFile: () => boolean;
-  }
-): boolean {
-  if (excludedSourceDirectories.has(entry.name)) {
-    return true;
-  }
-  if (entry.isFile() && entry.name.endsWith(".tsbuildinfo")) {
-    return true;
-  }
-  const pathParts = relative(sourceRoot, path).split(/[\\/]/u);
-  if (
-    entry.isFile() &&
-    pathParts.length === 1 &&
-    pathParts[0] === ".agent-teams-runtime-profile.json"
-  ) {
-    return true;
-  }
-  return entry.isDirectory() &&
-    pathParts.length === 3 &&
-    pathParts[0] === "packages" &&
-    pathParts[2] === "dist";
-}
-
-async function copyTree(source: string, destination: string, sourceRoot: string): Promise<void> {
-  await mkdir(destination, { recursive: true });
-  const entries = (await readdir(source, { withFileTypes: true }))
-    .toSorted((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
-  for (const entry of entries) {
-    const from = resolve(source, entry.name);
-    if (isExcludedSourceEntry(sourceRoot, from, entry)) {
-      continue;
-    }
-    const to = resolve(destination, entry.name);
-    if (entry.isDirectory()) {
-      await copyTree(from, to, sourceRoot);
-    } else if (entry.isFile()) {
-      await copyFile(from, to);
-    }
-  }
-}
-
-export async function copySourceTree(source: string, destination: string): Promise<void> {
-  await copyTree(source, destination, source);
-}
-
 async function freshProfileRoot(profile: Profile): Promise<string> {
   const requested = process.env["AGENT_TEAMS_FOUNDATION_PROFILE_ROOT"];
   if (profile === "bun" && requested === undefined) {
@@ -143,7 +84,7 @@ async function freshProfileRoot(profile: Profile): Promise<string> {
     return repositoryRoot;
   }
   const sourceSha = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"] ??
-    execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
+    (await assertExplicitSourceGitAuthority(repositoryRoot)).sourceCommit;
   const sourceDigest = await sourceTreeDigest();
   const profiles = resolve(repositoryRoot, ".worker-tmp/profiles");
   await mkdir(profiles, { recursive: true });
@@ -238,7 +179,7 @@ function executionRoot(profile: Profile, sourceSha: string): string {
 
 async function install(profile: Profile): Promise<number> {
   const sourceSha = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"] ??
-    execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
+    (await assertExplicitSourceGitAuthority(repositoryRoot)).sourceCommit;
   if (!/^[0-9a-f]{40}$/u.test(sourceSha)) {
     throw new Error("Source identity must be a full lowercase Git SHA.");
   }
@@ -419,6 +360,19 @@ export async function assertCompatibilityNodeExecutable(): Promise<string> {
   return verified;
 }
 
+/** Lint may reuse a projection only while all of its source inputs still match. */
+export async function assertPnpmProfileSourceIdentity(root: string, sourceRoot: string): Promise<void> {
+  const evidence = await assertPnpmProfileQualificationRoot(root, sourceRoot);
+  const normalized = new Map(await Promise.all([
+    "package.json",
+    "architecture/foundation/repository-agent-workflow.yaml",
+    "architecture/foundation/dependency-declarations.yaml"
+  ].map(async (path): Promise<[string, string]> => [path, await readFile(resolve(sourceRoot, path), "utf8")])));
+  if (await sourceTreeDigest(root, normalized) !== evidence.sourceDigest) {
+    throw new Error("Node profile source projection digest evidence is stale.");
+  }
+}
+
 async function writeProfileEvidence(
   root: string,
   evidence: ProfileEvidence
@@ -428,37 +382,10 @@ async function writeProfileEvidence(
   }, null, 2)}\n`, "utf8");
 }
 
-export async function sourceTreeDigest(sourceRoot: string = repositoryRoot): Promise<string> {
-  const hash = createHash("sha256");
-  const files: string[] = [];
-  const walk = async (directory: string): Promise<void> => {
-    const entries = (await readdir(directory, { withFileTypes: true }))
-      .toSorted((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
-    for (const entry of entries) {
-      const path = resolve(directory, entry.name);
-      if (isExcludedSourceEntry(sourceRoot, path, entry)) {
-        continue;
-      }
-      if (entry.isDirectory()) {
-        await walk(path);
-      } else if (entry.isFile()) {
-        files.push(relative(sourceRoot, path));
-      }
-    }
-  };
-  await walk(sourceRoot);
-  files.sort();
-  for (const path of files) {
-    hash.update(`${path}\0`);
-    hash.update(await readFile(resolve(sourceRoot, path)));
-  }
-  return hash.digest("hex");
-}
-
-async function build(profile: Profile): Promise<number> {
+async function build(profile: Profile, sourceOwned = false): Promise<number> {
   const sourceSha = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"] ??
-    execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
-  const root = executionRoot(profile, sourceSha);
+    (await assertExplicitSourceGitAuthority(repositoryRoot)).sourceCommit;
+  const root = sourceOwned ? repositoryRoot : executionRoot(profile, sourceSha);
   const tools = await executable(profile);
   if (profile === "node") {
     const evidence = await assertPnpmProfileQualificationRoot(root, repositoryRoot);
@@ -471,17 +398,17 @@ async function build(profile: Profile): Promise<number> {
 }
 
 async function execute(profile: Profile, command: string): Promise<number> {
+  // Changed scope belongs to the source Git checkout and its Bun workflow policy.
+  // Reaching it through a Node launcher does not qualify the isolated projection.
+  const selectedProfile = command === "check:changed" ? "bun" : profile;
   const sourceSha = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"] ??
-    execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
-  const root = executionRoot(profile, sourceSha);
-  const tools = await executable(profile);
-  const sourceAuthority = await assertExplicitSourceGitAuthority(repositoryRoot);
+    (await assertExplicitSourceGitAuthority(repositoryRoot)).sourceCommit;
+  const root = command === "check:changed" ? repositoryRoot : executionRoot(profile, sourceSha);
+  const tools = await executable(selectedProfile);
   const environment = {
-    ...process.env,
-    ...sourceAuthority.environment,
-    GIT_WORK_TREE: root,
+    ...withoutGitRepositorySelectors(),
     AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: repositoryRoot,
-    AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: profile,
+    AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: selectedProfile,
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: tools.node,
     ...(tools.bun === undefined ? {} : { AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: tools.bun })
   };
@@ -499,7 +426,8 @@ async function main(): Promise<number> {
   if (parsed.command === "build") {
     return build(parsed.profile);
   }
-  const before = await build(parsed.profile);
+  const before = await build(parsed.command === "check:changed" ? "bun" : parsed.profile,
+    parsed.command === "check:changed");
   return before === 0 ? execute(parsed.profile, parsed.command) : before;
 }
 

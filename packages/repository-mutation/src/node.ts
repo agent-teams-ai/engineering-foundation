@@ -5,7 +5,8 @@ export {
   claimMutation,
   observeMutationState,
   releaseMutationLease,
-  retainMutationBarrier
+  retainMutationBarrier,
+  retainMutationBarrierOnEvidence
 } from "./transaction-coordination/application/mutation-lease.js";
 export { acquireMutationLease } from "./transaction-coordination/composition/node-mutation-lease.js";
 export type {
@@ -54,6 +55,9 @@ export { classifyExactFilePostimage, publishAbsentFile } from "./composition/nod
 export type { AbsentFilePublicationOptions } from "./repository-mutation/adapters/node/node-absent-file-publication.js";
 export { ensureMutationStateDirectory, pruneMutationStateDirectory, syncMutationStateDirectory, syncMutationStateDirectoryStrictly } from "./transaction-coordination/adapters/node/node-state-directory.js";
 export { NodeJournalSlotStore } from "./transaction-coordination/adapters/node/node-journal-slot-store.js";
+export { observeAtomicFileReplacement } from "./composition/node-known-file.js";
+export { NodeAtomicFileReplacementError } from "./composition/node-known-file.js";
+export type { NodeAtomicFileReplacement } from "./composition/node-known-file.js";
 export { sameJournalSlotAuthority } from "./transaction-coordination/application/journal-slot-profile.js";
 export type {
   JournalSlotAuthority,

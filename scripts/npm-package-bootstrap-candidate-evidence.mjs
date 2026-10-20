@@ -13,6 +13,7 @@ import {
 } from "./pack-artifact-e2e.mjs";
 import { readRegularArchive } from "./pack-artifact-archive.mjs";
 import { canonicalDigest } from "./pack-test-support.mjs";
+import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 
 const execute = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -58,7 +59,12 @@ async function ensureEmptyOutput(outputRoot) {
 }
 
 async function git(args) {
-  const result = await execute("git", args, { cwd: repositoryRoot, encoding: "utf8" });
+  const authority = await assertExplicitSourceGitAuthority(
+    process.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT ?? repositoryRoot,
+  );
+  const result = await execute("git", args, {
+    cwd: authority.sourceRoot, env: authority.environment, encoding: "utf8",
+  });
   return result.stdout.trim();
 }
 

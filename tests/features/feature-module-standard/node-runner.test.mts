@@ -132,6 +132,26 @@ void test('a type-only re-export retains its republication provenance', async ()
   });
 });
 
+void test('inline type specifiers preserve load cycles through a declared republication', async () => {
+  const parent = 'src/features/orders/contracts/public.ts';
+  const child = 'src/features/orders/features/discounts/contracts/public.ts';
+  for (const [statement, runtime] of [
+    ['import type { Shape } from "../../../contracts/public.ts";', false],
+    ['import { type Shape } from "../../../contracts/public.ts";', true],
+  ] as const) {
+    await withExample(async (root) => {
+      const report = await checkFeatureModuleOnDisk(config(root, {
+        republications: [{ from: 'orders', to: 'orders/discounts', surface: 'public' }],
+      }));
+      assert.equal(report.ok, !runtime, statement);
+      assert.deepEqual(report.diagnostics.map(({ code }) => code), runtime ? ['load-cycle'] : [], statement);
+    }, (sources) => {
+      sources[parent] = `export * from '../features/discounts/contracts/public.ts';\nexport interface Shape {}\n`;
+      sources[child] = `${statement}\n`;
+    });
+  }
+});
+
 void test('only declared module composition may depend on a composition contract', async () => {
   const root = await materialize({
     'src/composition/root.ts': 'import type { Capabilities } from "../features/orders/composition/orders.contracts.js";\nexport type Root = Capabilities;\n',

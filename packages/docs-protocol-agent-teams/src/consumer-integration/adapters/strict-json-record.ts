@@ -1,4 +1,4 @@
-import { parseDocument } from "yaml";
+import { parseStrictJson, StrictJsonError } from "@agent-teams/repository-mutation/serialization";
 
 class ConsumerJsonInputError extends Error {
   constructor(message: string) {
@@ -8,11 +8,15 @@ class ConsumerJsonInputError extends Error {
 }
 
 export function parseJsonRecord(source: string, subject = "Package manifest"): Record<string, unknown> {
-  const duplicateCheck = parseDocument(source, { uniqueKeys: true });
-  if (duplicateCheck.errors.length > 0) {
-    throw new ConsumerJsonInputError(`${subject} must not contain duplicate keys.`);
+  let value: unknown;
+  try {
+    value = parseStrictJson(source);
+  } catch (error) {
+    if (!(error instanceof StrictJsonError)) { throw error; }
+    throw new ConsumerJsonInputError(error.failure === "duplicate-key"
+      ? `${subject} must not contain duplicate keys.`
+      : `${subject} must contain valid JSON.`);
   }
-  const value = JSON.parse(source) as unknown;
   if (typeof value !== "object" || value === null || Array.isArray(value) ||
     Object.getPrototypeOf(value) !== Object.prototype) {
     throw new ConsumerJsonInputError(`${subject} must be one JSON object.`);

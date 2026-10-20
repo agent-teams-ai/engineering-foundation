@@ -383,6 +383,14 @@ void test("source Git authority ignores inherited repository/index/object/config
     GIT_CONFIG_SYSTEM: "system", GIT_CONFIG_NOSYSTEM: "1", GIT_EXEC_PATH: "exec", GIT_TRACE: "trace" }), {
     GIT_CONFIG_SYSTEM: "system", GIT_CONFIG_NOSYSTEM: "1", GIT_EXEC_PATH: "exec", GIT_TRACE: "trace"
   });
+  const local = spawnSync("git", ["rev-parse", "--local-env-vars"], { cwd: fixture.root, encoding: "utf8" });
+  assert.equal(local.status, 0, local.stderr);
+  const localNames = local.stdout.trim().split(/\r?\n/u);
+  const scrubbed = withoutGitRepositorySelectors(Object.fromEntries(localNames.map((key) => [key, "foreign"])));
+  for (const key of localNames) { assert.equal(scrubbed[key], undefined, key); }
+  const lowerCase = withoutGitRepositorySelectors({ git_dir: "foreign", git_author_name: "retained" });
+  assert.equal(lowerCase["git_dir"], process.platform === "win32" ? undefined : "foreign");
+  assert.equal(lowerCase["git_author_name"], "retained");
 });
 
 void test("dispatcher tool and script children own their cwd instead of inherited source Git selectors", async (t) => {

@@ -57,11 +57,26 @@ test("pinned Oxlint retains source selection and real lint failures below an ign
   assert.equal(oldTraversal.stdout, "", "the original cwd scan must reproduce the ignored-parent defect");
   assert.equal(await runRepositoryOxlint({ ...input, targets: ["."] }), 0);
   assert.equal(await runRepositoryOxlint({ ...input, targets: ["actual file.ts", "-leading.ts"] }), 0);
+  const dispatch = (id: string, files: readonly string[] = []) => spawnSync(process.execPath,
+    [join(repositoryRoot, "tools/repository-command.mts"), "tool", id, ...(files.length === 0 ? [] : ["--paths", ...files])], {
+      cwd: sourceRoot, encoding: "utf8", env: { ...environment,
+        AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun", AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath }
+    });
+  for (const [id, files] of [["lint:fast", []], ["lint:fast:files", ["actual file.ts", "-leading.ts"]],
+    ["lint:typed:files", ["actual file.ts"]]] as const) {
+    const result = dispatch(id, files);
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  }
   for (const cwd of [sourceRoot, consumerRoot]) {
     await writeFile(join(cwd, "actual file.ts"), "debugger;\n");
   }
   assert.equal(await runRepositoryOxlint({ ...input, targets: ["."] }), 1);
   assert.equal(await runRepositoryOxlint({ ...input, targets: ["actual file.ts"] }), 1);
+  for (const [id, files] of [["lint:fast", []], ["lint:fast:files", ["actual file.ts"]]] as const) {
+    const result = dispatch(id, files);
+    assert.equal(result.status, 1, `${result.stdout}${result.stderr}`);
+    assert.match(result.stdout, /no-debugger/u);
+  }
   for (const cwd of [sourceRoot, consumerRoot]) {
     await writeFile(join(cwd, "actual file.ts"), 'export {};\nPromise.resolve("unhandled");\n');
   }
@@ -75,6 +90,9 @@ test("pinned Oxlint retains source selection and real lint failures below an ign
   assert.equal(typed.status, 1, `${typed.stdout}${typed.stderr}`);
   assert.match(typed.stdout, /no-floating-promises/u);
   assert.equal(typed.stderr, "");
+  const typedDispatch = dispatch("lint:typed:files", ["actual file.ts"]);
+  assert.equal(typedDispatch.status, 1, `${typedDispatch.stdout}${typedDispatch.stderr}`);
+  assert.match(typedDispatch.stdout, /no-floating-promises/u);
   await assert.rejects(runRepositoryOxlint({ ...input, targets: ["config-ignored.ts"] }), /zero source files/u);
   await assert.rejects(runRepositoryOxlint({ ...input, targets: [] }), /explicit source targets/u);
 });

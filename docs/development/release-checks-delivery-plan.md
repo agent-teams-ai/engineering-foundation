@@ -1,6 +1,6 @@
 # Release candidate checks delivery
 
-Status: draft 2 after improvement I1, implementation not started. The owner authorized this bounded
+Status: draft 3 after improvement I2, implementation not started. The owner authorized this bounded
 delivery on 2026-10-20 after the release-tooling research, with three sequential
 plan-improvement rounds followed by three independent critical-review rounds.
 Their actual findings and dispositions are recorded in
@@ -17,7 +17,9 @@ the library; Get Modular and node-or-bun adopt its qualified exact npm version.
 
 Finish the assigned delivery through reviewed owner PRs, final native CI,
 merges, the existing bootstrap/publication protocols, registry readback and
-installed-consumer verification. A fresh disposable TEST canary exercises
+installed-consumer verification. A fresh run in the existing disposable TEST
+repository `agent-teams-ai/ci-runner-sandbox-20261005`, using its existing
+`@agent-teams/npm-publishing-canary` namespace, exercises
 changeset -> generated version/changelog -> owner PR -> review/CI -> merge -> npm
 -> installed consumer -> latest/tags/releases. Keep the three real consumer
 adoptions separately evidenced; one canary alone does not establish them.
@@ -137,7 +139,9 @@ sufficient; the library owns no persistence mechanism or second version oracle.
 6. Source, inventory/policy, engine/config, intents and frozen-plan bindings
    remain consistent. A stale candidate is regenerated from current source.
 7. Empty release plans admit no version or intent-consumption drift. The Host
-   ends a real no-release state without waiting for a branch or PR.
+   ends a real no-release state without invoking version or waiting for a branch
+   or PR. When an actual release exists, qualified empty housekeeping intents
+   may be consumed with it; retain ignored and non-versioned private intents.
 8. Reports have a stable passed/rejected union and deterministic case-sensitive
    package/path/diagnostic ordering. A passed report does not authenticate its
    caller, establish bump adequacy or authorize merge/publication.
@@ -208,6 +212,22 @@ availability of its interactive step. Readiness is not early configuration,
 bootstrap execution or a claim of publish permission. Create short-lived
 provider credentials/configurations only in their proper P3 phase.
 
+The observed absent public namespace, disabled bootstrap enablement and empty
+protected-environment secrets are expected before bootstrap. GitHub owner/admin
+access and the existing reviewer route are qualified; local npm `ENEEDAUTH` is
+only a local-session observation, not evidence about hosted OIDC. Before P1
+merges, establish that the authorized npm maintainer can perform the existing
+interactive one-package granular-token and environment-review step when P3 is
+ready. Record the available maintainer/reviewer identity and qualified existing
+environment route without creating a token or enabling bootstrap. If this
+interaction is unavailable, finish implementation/review preparation and keep
+public admission unmerged.
+
+Revalidate the existing TEST repository, head, workflow, package and access,
+and qualify the narrow missing full-chain extension before P1 admission. Its
+`npm-publication-e2e.yml` and prior successful run `39409882120` establish only
+the publisher lane, not Changesets generation or an owner PR chain.
+
 ### P1 — Foundation package and real self-adoption
 
 Create the pure package at `0.0.0` with its initial minor Changeset, source,
@@ -227,8 +247,10 @@ Integrate Foundation's actual version route: freeze the official plan before
 `changeset version`, preserve build/API-baseline/lock order, independently
 observe its result, run shared checks plus existing content/history checks, and
 refuse commit/push when rejected. Remove only transferred duplicate mechanisms.
-Add packed and registry-installed import/conformance at existing qualification
-owners; catalog membership alone is not installed-consumer evidence.
+Add packed import/conformance and installed behavior through the existing
+hermetic Verdaccio registry qualification owner; catalog membership alone is
+not installed-consumer evidence. This uses the existing test facility, not a
+new preview registry. Public npm installation remains a distinct P3 proof.
 
 Run required changed/fast/workflow-security and focused gates, independent
 technical review, then request the complete native final-head/base CI matrix.
@@ -258,7 +280,10 @@ Use the existing ADR-0044 protocol only. Retain the exact Ubuntu pinned
 Node/pnpm writer archive, package tree and SRI; local platform packing does not
 replace writer evidence. Review those identities and approve the existing
 catalog profile only after exact evidence exists. Complete exact protected-main
-push CI before the timed provider step and bootstrap dispatch.
+push CI for the approved-profile owner merge before the timed provider step and
+bootstrap dispatch. A catalog-only approval does not require different-platform
+re-packing: new writer evidence is needed only when the bound package tree or
+archive changes.
 
 Use the existing one-package short-lived bootstrap credential and protected
 environment when required, with no permanent token. Preserve the one-attempt
@@ -273,9 +298,23 @@ tags. New configurations have a bounded first-publication window. Keep
 Foundation's direct final-tag route and the consumers' separate promote route.
 No provider configuration or token exchange alone proves publication authority.
 
-Then let the existing Changesets owner-PR flow derive and publish supported
+Prove the bootstrap postconditions and GitHub prerelease before the normal
+Trusted Publisher/credential-cleanup continuation. The push-only `release.yml`
+can have correctly failed its baseline guard before namespace creation;
+bootstrap completion emits no new release trigger. Re-read current main and
+that run's processed source after cleanup. Rerun the existing failed
+current-input release phase only if those commits still match exactly. If main
+advanced, use the owning current-main push/run and regenerate as required; do
+not invent a dispatch endpoint or qualify a stale generation.
+
+Continue the existing qualified generated branch -> inspected owner-created or
+adopted PR -> current-input attestation/CI -> canonical owner merge flow to
+derive and publish supported
 `0.1.0`, or the exact version generated from the actual accepted initial intent.
-Prove registry archive/source/provenance, public import and intended tag.
+Prove registry archive/source/SRI/provenance, installed public import/conformance
+and intended tag. This public npm proof is distinct from P1's hermetic registry
+qualification. After the supported publication, complete the existing catalog
+transition to historical state through its reviewed owner change.
 Never upload bootstrap bytes again blindly or claim TEST as production release.
 P3 qualifies the package already admitted by P1; it does not admit it twice.
 
@@ -322,11 +361,23 @@ or create a new retained-artifact subsystem to preserve the version number.
 
 ### P6 — fresh complete canary and fleet evidence
 
-Use one explicit disposable TEST target and the accepted identities. Execute
-the complete changeset/version/owner-PR/review/CI/merge/npm/install/tag flow and
-an exact-archive replay without duplicate effects. Reuse current publisher
+Reuse `agent-teams-ai/ci-runner-sandbox-20261005` and its existing canary namespace
+after revalidating actual state. Fresh means a new accepted source/change intent,
+generated version and observed run, not a new repository or package bootstrap.
+Extend its existing publisher lane narrowly with actual Changesets intent,
+generated version/changelog, shared candidate check, owner-created PR,
+independent review and exact CI, canonical owner merge, installed consumer,
+intended npm tag and applicable Git tag/release reconciliation. Execute one
+accepted fresh publication and an exact-archive replay without duplicate
+effects. Reuse current publisher
 negative/receipt tests; add only the missing assertion that candidate rejection
-cannot bypass the existing publication admission.
+cannot bypass the existing publication admission. Demonstrate that negative
+without merging or publishing the rejected candidate.
+
+The TEST target currently has unprotected main. Preserve its protections and
+inspect actual review/CI/merge facts; it does not prove protected-branch
+enforcement. Claims about production protection and complete native gates need
+the separate evidence from the three real repositories.
 
 For each real repository record adopted source, generator/checker execution,
 content guards, final review/CI/merge, package coordinate/SRI and the applicable
@@ -340,6 +391,8 @@ binding. One active assigned owner-agent continues the authorized task; no
 always-on behavior is claimed outside that assignment.
 
 - No-release ends successfully without waiting for a PR.
+- Bootstrap completion resumes the exact-current failed push-only release phase
+  after cleanup, or the owning newer-main push/run if source advanced.
 - Real generation failure preserves diagnostic evidence and produces no PR.
 - Expected Actions PR-creation denial with a qualified branch leads to an
   inspected owner-created/adopted PR. Re-read main versus processed source and
@@ -369,12 +422,12 @@ status, protection change, bot PR or additional routine approval ritual is added
 | Content guarantees | Planned version plus hidden scripts/exports/dependency edit rejects; private manifest changes remain visible; allowed labels cannot bypass content checks |
 | Observation | Full independently observed diff includes missing/untracked/type/mode changes; before/after facts agree with manifests and consumed intents |
 | Engine adapters | Actual pinned v2/v3 execution covers symbolic workspace ranges, existing peer behavior, private/ignored/no-release cases and an unchanged record beside a real release; fixture literals are independent expected values |
-| Foundation integration | Existing authentic release/lock fixture, source-built adoption, content/history guards, strict typecheck and installed packed/registry imports |
+| Foundation integration | Existing authentic release/lock fixture, source-built adoption, content/history guards, strict typecheck, packed and hermetic-registry imports in P1, distinct exact public npm import in P3 |
 | Execution binding | Changed actual processed HEAD/root/Git authority or substituted CLI/config rejects despite unchanged supplied expected JSON; retain existing foreign-Git-selector negatives |
 | Failure recovery | Existing clean-current-main and partial version/baseline/lock failure tests; no partial push or dirty replay |
 | Get Modular | Exact leaf+lock addition accepted only by reviewed successor; compiler/build/unrelated graph drift rejected; retained archives keep exact SRI |
 | node-or-bun | Real generated metadata patch and complete Node/Bun installed consumer qualification; unchanged byte requirement remains enforced |
-| Operations | Required exact-head/base native CI and independent review, existing uncertain/partial/rollback publisher tests, one real fresh canary and safe replay |
+| Operations | Required exact-head/base native CI and independent review, existing uncertain/partial/rollback publisher tests, one fresh full owner-PR chain in the existing TEST target and safe replay; separate real-repository protection evidence |
 
 Use each repository's documented focused, changed, fast and final native gates.
 Do not add a test-count goal or repeat a full local suite when the required

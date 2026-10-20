@@ -35,7 +35,7 @@ These were source reads, not executed engine, CI, registry or E2E evidence.
 | Round | Scope | Reviewed plan identity | Outcome and disposition |
 | --- | --- | --- | --- |
 | I1 | Contract, Clean Architecture and semantic reuse | `80fcc900f0f0844aac1ee07647515556828a00e3` | CHANGE; I1-01 through I1-03 addressed in draft 2 |
-| I2 | Admission, sequencing and operational recovery | Pending | Pending |
+| I2 | Admission, sequencing and operational recovery | `8a34565` | CHANGE; I2-01 through I2-04 addressed in draft 3 |
 | I3 | Minimal consumer integration and acceptance scope | Pending | Pending |
 | C1 | Independent correctness and counterexamples | Pending | Pending |
 | C2 | Independent operational/consumer criticism | Pending | Pending |
@@ -60,3 +60,37 @@ Independent role: contract and architecture reviewer. Verdict: CHANGE.
 
 No new package, CLI, facade, DI layer, generic inventory utility or rewrite API
 was required. Implementation remains pending I2-I3 and C1-C3.
+
+## I2 — admission and operational continuation
+
+Reviewed plan SHA-256:
+`bbea1eb636ae46b72e3b2862c2cbe722a2dec243ffc278ab43d6551ae06aee9e`.
+Independent role: admission and release operations reviewer. Verdict: CHANGE.
+
+| Finding | Disposition in draft 3 |
+| --- | --- |
+| I2-01: npm maintainer interaction is not established by GitHub readiness or local npm authentication failure | Made the existing pre-admission gate concrete; prepare all reviewable work but keep admission unmerged if the required account interaction is unavailable; create no early timed token |
+| I2-02: bootstrap completion does not trigger the push-only release workflow | Recorded exact-main CI, timed bootstrap, postconditions, Trusted Publisher/cleanup, current-input rerun or newer-main generation, owner PR and supported-release/historical continuation |
+| I2-03: an unnamed fresh TEST target obscures the missing owner PR chain | Selected the existing canary repository/namespace, separated its prior publisher proof from the required extension, and bounded its unprotected-main evidence |
+| I2-04: pre-bootstrap public registry installation would be impossible | Named P1's existing hermetic Verdaccio qualification and P3's separate exact public npm proof |
+
+Read-only P0 execution also qualified 14 disposable engine cases against the
+actual installed Changesets 2.31.1 and 3.0.2. The retained
+[qualification report](evidence/release-checks/p0-engine-qualification.json)
+records original source, engine identities, plans and version/consumption
+effects. Its digest is
+`50daf5e0f8fc0eb7c9b8db4da6caa60bfb319e2eecd8bf217c318a0c8459c1bb`.
+The fixture formatter uses the bundled local changelog writer to avoid remote
+GitHub I/O; this is plan/manifest/consumption proof, not production changelog,
+lock, CI or publication proof. No real source was versioned.
+
+Both engines preserve the qualified symbolic Get Modular workspace ranges but
+generate different dependent versions on part of the same graph. Foundation's
+in-range FMS peer case changes no peer range; an out-of-range major rewrite is
+outside the version-only contract and must reject. `none` records can also
+occur in v2. Ignored/private intents can appear in official plan input while
+remaining unconsumed. Explicitly running version consumes empty intents, so
+the no-release Host must avoid that call. A real mixed release may consume
+empty housekeeping intents while retaining ignored/non-versioned private
+intents. These observations refine adapter expectations without introducing a
+second version or dependency-propagation engine.

@@ -39,7 +39,7 @@ jobs:
       - run: node tools/dev.mts build
       - name: Typecheck private diagnostic with the pinned compiler
         run: node node_modules/typescript/bin/tsc --project tsconfig.windows-bootstrap-probe.json --pretty false
-      - name: Run six planned single-wrapper observations
+      - name: Run six planned module-discovery observations
         run: node scripts/windows-bootstrap-standalone.ts "$env:RUNNER_TEMP/windows-bootstrap-single-wrapper.json"
       # Diagnostic only. Default success() prevents launches after an uncertain
       # or unsuccessful standalone probe; original C1 timeouts/assets stay intact.

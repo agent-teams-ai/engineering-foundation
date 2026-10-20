@@ -68,12 +68,13 @@ const environmentKeys = Object.keys(environment).map(key => key.toLowerCase()).t
 const owned = await mkdtemp(join(scratch, 'c1-TEST-single-wrapper-'));
 const sourceRoot = join(owned, 'source');
 const noopSource = "process.stdout.write(JSON.stringify({marker:'bootstrap-noop',node:process.version,bun:process.versions.bun??null,execPath:process.execPath,keys:Object.keys(process.env).map(k=>k.toLowerCase()).sort()}))";
-type Variant = 'original' | 'copy' | 'instrumented';
+type Variant = 'unqualified' | 'qualified' | 'imported';
+const phaseNames = (variant: Variant): readonly string[] => ['entered', 'source-read', ...(variant === 'imported' ? ['module-import-start', 'module-import-end'] : []), 'add-type-start', 'add-type-end', 'request-ready', 'run-start', 'run-end'];
 type Phase = { phase: string; epochMs: number; elapsedMs: number };
-function readPhases(path: string): Phase[] | null {
+function readPhases(path: string, variant: Variant): Phase[] | null {
   try {
     const raw = checkedBytes(owned, path, 1024).toString('utf8');
-    const names = ['entered', 'source-read', 'compile-start', 'compile-end', 'request-ready', 'run-start', 'run-end'];
+    const names = phaseNames(variant);
     const phases: Phase[] = raw.trim().split('\n').map((line, index) => {
       const fields = /^([a-z-]+)\|(\d{13})\|(\d{1,8})$/u.exec(line); assert.ok(fields); assert.equal(fields[1], names[index]);
       return { phase: fields[1]!, epochMs: Number(fields[2]), elapsedMs: Number(fields[3]) };
@@ -89,27 +90,31 @@ let cleanupFailed = false;
 let custodyUncertain = false;
 function assetsStable(arm: Arm): boolean {
   try { return hash(checkedBytes(repository, original)) === bootstrapSha256 && hash(checkedBytes(repository, helperPath)) === helperSha256 &&
-    hash(checkedBytes(arm.variant === 'original' ? repository : owned, arm.bootstrap)) === arm.bootstrapSha256 &&
-    hash(checkedBytes(arm.variant === 'original' ? repository : owned, join(dirname(arm.bootstrap), 'WindowsManagedProcess.cs'))) === helperSha256; }
+    hash(checkedBytes(owned, arm.bootstrap)) === arm.bootstrapSha256 &&
+    hash(checkedBytes(owned, join(dirname(arm.bootstrap), 'WindowsManagedProcess.cs'))) === helperSha256; }
   catch { return false; }
 }
 const save = async (): Promise<void> => {
   const text = JSON.stringify({ schemaVersion: 1, qualification: false, deadlineMs: 30000,
-    controller: 'direct-node-no-managed-parent', order: ['original', 'copy', 'instrumented', 'original', 'copy', 'instrumented'],
-    caveat: 'Six planned observations retain cold/warm and order effects; no arm substitutes qualification or retries a failure.',
+    controller: 'direct-node-no-managed-parent', order: ['unqualified', 'qualified', 'imported', 'unqualified', 'qualified', 'imported'],
+    caveat: 'Six planned observations retain cold/warm and order effects; Add-Type invocation may include module discovery/import. No arm substitutes qualification or retries a failure.',
     bootstrapSha256, helperSha256, environmentKeys, controllerNode: process.version,
     imageOS: process.env['ImageOS'] ?? null, imageVersion: process.env['ImageVersion'] ?? null,
     sameFrozenLauncherAndRequestedEnvironment: true,
+    hypothesis: 'Unqualified Add-Type includes command discovery and module autoload; explicit manifest import is timed separately, within the same complete managed deadline.',
     results, cleanupFailed, custodyUncertain, retainedScratchName: custodyUncertain ? basename(owned) : null }, null, 2) + '\n';
   assert.ok(Buffer.byteLength(text) <= 64 * 1024); await writeFile(output, text);
 };
-function instrument(bytes: Buffer): string {
+function instrument(bytes: Buffer, variant: Variant): string {
+  const call = variant === 'unqualified' ? 'Add-Type' : 'Microsoft.PowerShell.Utility\\Add-Type';
+  const importStep = variant === 'imported' ? "  $FailurePhase = 'utility-module-import'\n  Write-ProbePhase 'module-import-start'\n  Import-Module -Name $ProbeUtilityManifest -ErrorAction Stop\n  Write-ProbePhase 'module-import-end'\n  $FailurePhase = 'helper-compile'\n" : '';
+  const moduleWitness = "\n  try {\n  $ProbeCommand = Get-Command 'Microsoft.PowerShell.Utility\\Add-Type' -CommandType Cmdlet -ErrorAction Stop\n  $ProbeWitness = @{ moduleName = $ProbeCommand.ModuleName; moduleVersion = $ProbeCommand.Module.Version.ToString(); expectedManifest = [string]::Equals([IO.Path]::GetFullPath($ProbeCommand.Module.Path), [IO.Path]::GetFullPath($ProbeUtilityManifest), [StringComparison]::OrdinalIgnoreCase) }\n  [IO.File]::WriteAllText(([IO.Path]::Combine($PSScriptRoot, 'utility.json')), ($ProbeWitness | ConvertTo-Json -Compress))\n  } catch {\n    try { [IO.File]::WriteAllText(([IO.Path]::Combine($PSScriptRoot, 'utility.json')), '{\"unknown\":true}') } catch { }\n  }";
   const source = bytes.toString('utf8').replaceAll('\r\n', '\n');
-  const prefix = `$ProbeClock = [Diagnostics.Stopwatch]::StartNew()\nfunction Write-ProbePhase([string]$Name) {\n try { [System.IO.File]::AppendAllText(([System.IO.Path]::Combine($PSScriptRoot, 'phases.txt')), ($Name + '|' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '|' + $ProbeClock.ElapsedMilliseconds + [char]10)) } catch { }\n}\nWrite-ProbePhase 'entered'\n`;
+  const prefix = `$ProbeClock = [Diagnostics.Stopwatch]::StartNew()\n$ProbeUtilityManifest = [IO.Path]::Combine($PSHOME, 'Modules\\Microsoft.PowerShell.Utility\\Microsoft.PowerShell.Utility.psd1')\nfunction Write-ProbePhase([string]$Name) {\n try { [System.IO.File]::AppendAllText(([System.IO.Path]::Combine($PSScriptRoot, 'phases.txt')), ($Name + '|' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + '|' + $ProbeClock.ElapsedMilliseconds + [char]10)) } catch { }\n}\nWrite-ProbePhase 'entered'\n`;
   const changes: [string, string][] = [
     ['$ErrorActionPreference = "Stop"', prefix + '$ErrorActionPreference = "Stop"'],
     ['  $helperSource = [System.IO.File]::ReadAllText(', "  Write-ProbePhase 'source-read'\n  $helperSource = [System.IO.File]::ReadAllText("],
-    ['  Add-Type -TypeDefinition $helperSource -Language CSharp', "  Write-ProbePhase 'compile-start'\n  Add-Type -TypeDefinition $helperSource -Language CSharp\n  Write-ProbePhase 'compile-end'"],
+    ['  Add-Type -TypeDefinition $helperSource -Language CSharp', importStep + `  Write-ProbePhase 'add-type-start'\n  ${call} -TypeDefinition $helperSource -Language CSharp\n  Write-ProbePhase 'add-type-end'${moduleWitness}`],
     ['  $FailurePhase = "managed-run"', "  Write-ProbePhase 'request-ready'\n  $FailurePhase = \"managed-run\"\n  Write-ProbePhase 'run-start'"],
     ['  exit $exitCode', "  Write-ProbePhase 'run-end'\n  exit $exitCode"]
   ];
@@ -136,7 +141,7 @@ childProcess.spawn = new Proxy(nativeSpawn, { apply(target, receiver, args: unkn
   const request = JSON.parse(checkedBytes(controlRoot, join(controlRoot, 'request.json'), 65536).toString('utf8')) as { command: string; args: string[]; cwd: string };
   assert.equal(realpathSync(request.command), realpathSync(process.execPath));
   assert.deepEqual(request.args, ['-e', noopSource]); assert.equal(realpathSync(request.cwd), sourceRoot);
-  assert.equal(hash(checkedBytes(arm.variant === 'original' ? repository : owned, arm.bootstrap)), arm.bootstrapSha256);
+  assert.equal(hash(checkedBytes(owned, arm.bootstrap)), arm.bootstrapSha256);
   const control: Record<string, unknown> = { spawnEpochMs: Date.now() }; arm.controls.push(control);
   assert.equal(arm.controls.length, 1, 'Exactly one managed wrapper per arm.');
   const started = performance.now();
@@ -169,19 +174,15 @@ try {
   const { readProcessFailureFacts } = await import(pathToFileURL(join(repository, 'packages/engineering-foundation/dist/features/validation-reporting/process-failure-facts.js')).href) as {
     readProcessFailureFacts: (error: unknown) => { reason: string } | undefined;
   };
-  for (const [round, variant] of [[1, 'original'], [1, 'copy'], [1, 'instrumented'], [2, 'original'], [2, 'copy'], [2, 'instrumented']] as const) {
+  for (const [round, variant] of [[1, 'unqualified'], [1, 'qualified'], [1, 'imported'], [2, 'unqualified'], [2, 'qualified'], [2, 'imported']] as const) {
     if (custodyUncertain) { break; }
     const armRoot = join(owned, `${round}-${variant}`); await mkdir(armRoot);
-    let bootstrap = original;
-    if (variant !== 'original') {
-      bootstrap = join(armRoot, 'bootstrap.ps1');
-      await writeFile(join(armRoot, 'WindowsManagedProcess.cs'), helperBytes, { flag: 'wx', mode: 0o600 });
-      await writeFile(bootstrap, variant === 'copy' ? originalBytes : instrument(originalBytes), { flag: 'wx', mode: 0o600 });
-      assert.equal(hash(checkedBytes(owned, join(armRoot, 'WindowsManagedProcess.cs'))), helperSha256);
-    }
-    const arm: Arm = { variant, round, bootstrap, bootstrapSha256: hash(checkedBytes(variant === 'original' ? repository : owned, bootstrap)), controls: [], observedEnvironmentEqual: false };
-    if (variant === 'instrumented') { arm.phasePath = join(armRoot, 'phases.txt'); }
-    if (variant === 'copy') { assert.equal(arm.bootstrapSha256, bootstrapSha256); }
+    const bootstrap = join(armRoot, 'bootstrap.ps1');
+    await writeFile(join(armRoot, 'WindowsManagedProcess.cs'), helperBytes, { flag: 'wx', mode: 0o600 });
+    await writeFile(bootstrap, instrument(originalBytes, variant), { flag: 'wx', mode: 0o600 });
+    assert.equal(hash(checkedBytes(owned, join(armRoot, 'WindowsManagedProcess.cs'))), helperSha256);
+    const arm: Arm = { variant, round, bootstrap, bootstrapSha256: hash(checkedBytes(owned, bootstrap)), controls: [], observedEnvironmentEqual: false,
+      phasePath: join(armRoot, 'phases.txt') };
     active = arm; const started = performance.now();
     const result: Record<string, unknown> = { variant, round, bootstrapSha256: arm.bootstrapSha256, helperSha256 };
     let settled = false;
@@ -209,13 +210,25 @@ try {
         (control?.['contained'] as { value?: string } | undefined)?.value === 'CONTAINED';
       result['assetIdentityStable'] = assetsStable(arm);
       if (arm.phasePath !== undefined) {
-        result['phases'] = readPhases(arm.phasePath);
+        result['phases'] = readPhases(arm.phasePath, variant);
         result['phaseEvidenceUnavailable'] = result['phases'] === null;
-        result['phaseEvidenceComplete'] = (result['phases'] as Phase[] | null)?.length === 7;
+        result['phaseEvidenceComplete'] = (result['phases'] as Phase[] | null)?.length === phaseNames(variant).length;
+        const phases = result['phases'] as Phase[] | null;
+        const duration = (start: string, end: string): number | null => {
+          const from = phases?.find(item => item.phase === start), to = phases?.find(item => item.phase === end);
+          return from === undefined || to === undefined ? null : to.elapsedMs - from.elapsedMs;
+        };
+        result['addTypeCallMs'] = duration('add-type-start', 'add-type-end');
+        result['moduleImportMs'] = duration('module-import-start', 'module-import-end');
       }
+      try {
+        const witness = JSON.parse(checkedBytes(owned, join(armRoot, 'utility.json'), 1024).toString('utf8')) as { moduleName: string; moduleVersion: string; expectedManifest: boolean };
+        result['utilityWitnessValid'] = witness.moduleName === 'Microsoft.PowerShell.Utility' && /^\d+(?:\.\d+){1,3}$/u.test(witness.moduleVersion) && witness.expectedManifest === true;
+        result['utilityModule'] = { name: witness.moduleName.slice(0, 64), version: witness.moduleVersion.slice(0, 32), expectedManifest: witness.expectedManifest === true };
+      } catch { result['utilityWitnessValid'] = false; }
       result['executionOutcome'] = result['outcome'];
       result['observationOutcome'] = arm.controls.length === 1 && arm.observedEnvironmentEqual && result['assetIdentityStable'] === true &&
-        result['launchAndContainmentObserved'] === true && (variant !== 'instrumented' || result['phaseEvidenceComplete'] === true) ? 'complete' : 'incomplete';
+        result['launchAndContainmentObserved'] === true && result['phaseEvidenceComplete'] === true && result['utilityWitnessValid'] === true ? 'complete' : 'incomplete';
       if (result['observationOutcome'] !== 'complete') { result['outcome'] = 'failed'; }
       results.push(result); await save();
     }
@@ -225,4 +238,4 @@ try {
   try { if (!custodyUncertain) { await rm(owned, { recursive: true }); } } catch { cleanupFailed = true; }
   await save();
 }
-if (cleanupFailed || results.length !== 6 || results.some(result => result['outcome'] !== 'passed' || result['launchAndContainmentObserved'] !== true || (result['variant'] === 'instrumented' && result['phaseEvidenceComplete'] !== true))) { process.exitCode = 1; }
+if (cleanupFailed || results.length !== 6 || results.some(result => result['outcome'] !== 'passed' || result['launchAndContainmentObserved'] !== true || result['phaseEvidenceComplete'] !== true)) { process.exitCode = 1; }

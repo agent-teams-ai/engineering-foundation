@@ -1,11 +1,12 @@
 import { isCheckCancelled } from "../../../application/policies/check-cancellation.js";
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, readFile, realpath, mkdtemp, rm, readdir } from "node:fs/promises";
-import { isAbsolute, join, resolve, relative as relativePath, sep } from "node:path";
+import { lstat, realpath, mkdtemp, rm, readdir } from "node:fs/promises";
+import { dirname, isAbsolute, join, resolve, relative as relativePath, sep } from "node:path";
 import { performance } from "node:perf_hooks";
 import type { CoverageCheck, CoverageExecution, CoverageFacet, ObservationBinding, TestDispatchObservation } from "../../../application/model/check-changed.js";
 import type { CheckInputLease, CoverageCheckRunner } from "../../../application/ports/check-changed.js";
 import { CoverageExecutionFailure } from "../../../application/ports/check-changed.js";
+import type { ContainedFileReader } from "../../../application/ports/contained-file-reader.js";
 import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
 import { parseTestDispatchObservation } from "../../../application/policies/test-dispatch-observation.js";
 import { assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
@@ -43,12 +44,13 @@ export interface QualifiedScriptClosure {
   readonly effectiveConfig: { readonly enablePrePostScripts: false; readonly verifyDepsBeforeRun: false; readonly managePackageManagerVersions: false };
 }
 export interface PnpmCheckQualification {
+  readonly files: ContainedFileReader;
   readonly tool: PnpmToolIdentity;
   readonly outputRoot: string;
   readonly qualify: (lease: CheckInputLease, check: CoverageCheck) => Promise<QualifiedScriptClosure>;
 }
 function digest(bytes: Uint8Array): string { return createHash("sha256").update(bytes).digest("hex"); }
-export async function fingerprintPnpmPackage(root: string): Promise<string> {
+export async function fingerprintPnpmPackage(root: string, files: ContainedFileReader): Promise<string> {
   const hash = createHash("sha256");
   let entries = 0, bytes = 0;
   async function walk(path: string, relative: string, depth: number): Promise<void> {
@@ -57,29 +59,29 @@ export async function fingerprintPnpmPackage(root: string): Promise<string> {
     if (metadata.isDirectory()) {
       for (const name of (await readdir(path)).toSorted()) {await walk(join(path, name), `${relative}/${name}`, depth + 1);}
     } else {
-      const data = await regular(path);
-      bytes += data.length;
+      const input = await regular(files, root, path);
+      bytes += input.bytes.length;
       if (bytes > 96 * 1024 * 1024) {throw new Error("Pinned package exceeds byte bound.");}
-      hash.update(JSON.stringify([relative, metadata.mode, digest(data)]));
+      hash.update(JSON.stringify([relative, input.mode, digest(input.bytes)]));
     }
   }
   await walk(root, "", 0);
   return hash.digest("hex");
 }
-async function regular(path: string, maximum = 16 * 1024 * 1024): Promise<Buffer> {
-  const metadata = await lstat(path);
-  if (!metadata.isFile() || metadata.nlink !== 1 || metadata.size > maximum) {throw new Error("Pinned input is not a bounded regular file.");}
-  return readFile(path);
+async function regular(files: ContainedFileReader, root: string, path: string, maximum = 16 * 1024 * 1024): Promise<{ readonly bytes: Buffer; readonly mode: number }> {
+  const metadata = await lstat(path, { bigint: true });
+  if (!metadata.isFile() || metadata.nlink !== 1n || metadata.size > BigInt(maximum)) {throw new Error("Pinned input is not a bounded regular file.");}
+  // The injected reader binds bounded bytes to an opened FD and checks enclosing
+  // ancestry. These snapshots retain the qualification's single-link/mode guard.
+  const bytes = Buffer.from(await files.read({ root, candidate: path, maxBytes: maximum }));
+  const after = await lstat(path, { bigint: true });
+  if (BigInt(bytes.length) !== metadata.size || bytes.length > maximum ||
+    (["dev", "ino", "mode", "size", "mtimeNs", "ctimeNs", "nlink"] as const).some(key => metadata[key] !== after[key])) {throw new Error("Pinned input changed during contained read.");}
+  return { bytes, mode: Number(metadata.mode) };
 }
-async function contained(root: string, path: string): Promise<Buffer> {
+async function contained(files: ContainedFileReader, root: string, path: string): Promise<Buffer> {
   assertConfigRepositoryRelativePath(path);
-  let current = root;
-  const parts = path.split("/");
-  for (const part of parts.slice(0, -1)) {
-    current = join(current, part);
-    if (!(await lstat(current)).isDirectory()) {throw new Error("Input ancestor is not a regular directory.");}
-  }
-  return regular(join(root, path));
+  return (await regular(files, root, join(root, path))).bytes;
 }
 function safeOutput(stdout: string, stderr: string): string {
   // Never echo raw tool output: scripts can print credentials. Preserve only a
@@ -90,32 +92,32 @@ function disabledConfig(value: unknown): boolean {
   return value !== null && typeof value === "object" && Object.keys(value).length === 3 && ["enablePrePostScripts", "verifyDepsBeforeRun", "managePackageManagerVersions"].every((key) => Object.hasOwn(value, key) && (value as Record<string, unknown>)[key] === false);
 }
 function readOnlyEffects(value: unknown): boolean { return value === "read-only-inputs-owned-outputs"; }
-async function verifyPinnedTool(tool: PnpmToolIdentity, lease: CheckInputLease, outputRoot: string): Promise<string> {
+async function verifyPinnedTool(tool: PnpmToolIdentity, lease: CheckInputLease, outputRoot: string, files: ContainedFileReader): Promise<string> {
     if (!isAbsolute(tool.packageRoot) || !isAbsolute(tool.nodeExecutable) || !isAbsolute(outputRoot)) {throw new Error("Pinned executable and output paths must be absolute.");}
     if (await realpath(tool.packageRoot) !== tool.packageRoot || await realpath(tool.nodeExecutable) !== tool.nodeExecutable || await realpath(lease.executionRoot) !== lease.executionRoot) {throw new Error("Pinned roots cannot be aliases.");}
     const entrypoint = resolve(tool.packageRoot, "bin/pnpm.mjs");
-    const packageBytes = await regular(join(tool.packageRoot, "package.json"));
+    const packageBytes = await contained(files, tool.packageRoot, "package.json");
     const manifest = JSON.parse(packageBytes.toString("utf8")) as { name?: unknown; version?: unknown; bin?: { pnpm?: unknown } };
-    if (manifest.name !== "pnpm" || manifest.version !== tool.version || manifest.bin?.pnpm !== "bin/pnpm.mjs" || digest(packageBytes) !== tool.packageJsonSha256 || digest(await contained(tool.packageRoot, "bin/pnpm.mjs")) !== tool.entrypointSha256 || digest(await regular(tool.nodeExecutable, 256 * 1024 * 1024)) !== tool.nodeSha256) {throw new Error("Pinned pnpm executable/package identity mismatch.");}
-    if (await fingerprintPnpmPackage(tool.packageRoot) !== tool.packageTreeSha256) {throw new Error("Transitive pnpm package substitution.");}
+    if (manifest.name !== "pnpm" || manifest.version !== tool.version || manifest.bin?.pnpm !== "bin/pnpm.mjs" || digest(packageBytes) !== tool.packageJsonSha256 || digest(await contained(files, tool.packageRoot, "bin/pnpm.mjs")) !== tool.entrypointSha256 || digest((await regular(files, dirname(tool.nodeExecutable), tool.nodeExecutable, 256 * 1024 * 1024)).bytes) !== tool.nodeSha256) {throw new Error("Pinned pnpm executable/package identity mismatch.");}
+    if (await fingerprintPnpmPackage(tool.packageRoot, files) !== tool.packageTreeSha256) {throw new Error("Transitive pnpm package substitution.");}
     return entrypoint;
 }
-async function verifyScriptClosure(lease: CheckInputLease, check: CoverageCheck, closure: QualifiedScriptClosure, version: string): Promise<void> {
+async function verifyScriptClosure(lease: CheckInputLease, check: CoverageCheck, closure: QualifiedScriptClosure, version: string, files: ContainedFileReader): Promise<void> {
     if (closure.checkId !== check.id || !readOnlyEffects(closure.effects) || !disabledConfig(closure.effectiveConfig) || closure.supplies.some((facet) => !check.supplies.includes(facet))) {throw new Error("Script closure qualification mismatch.");}
-    const packageInput = JSON.parse((await contained(lease.executionRoot, "package.json")).toString("utf8")) as { packageManager?: unknown; scripts?: Record<string, unknown> };
+    const packageInput = JSON.parse((await contained(files, lease.executionRoot, "package.json")).toString("utf8")) as { packageManager?: unknown; scripts?: Record<string, unknown> };
     if (packageInput.packageManager !== `pnpm@${version}`) {throw new Error("Consumer pnpm version mismatch.");}
     const names = Object.keys(closure.scripts);
     if (names.length === 0 || names.length > 128 || Object.keys(closure.files).length === 0 || Object.keys(closure.files).length > 256 || !Object.hasOwn(closure.files, "package.json") || [check.script, ...check.prerequisites].some((name) => !names.includes(name))) {throw new Error("Missing explicit/transitive script closure.");}
     for (const name of names) {
       if (!/^[A-Za-z0-9][A-Za-z0-9:_-]{0,79}$/u.test(name) || packageInput.scripts?.[name] !== closure.scripts[name]) {throw new Error("Script closure substitution.");}
     }
-    for (const [path, expected] of Object.entries(closure.files)) {if (!/^[a-f0-9]{64}$/u.test(expected) || digest(await contained(lease.executionRoot, path)) !== expected) { throw new Error("Script/config closure substitution."); }}
+    for (const [path, expected] of Object.entries(closure.files)) {if (!/^[a-f0-9]{64}$/u.test(expected) || digest(await contained(files, lease.executionRoot, path)) !== expected) { throw new Error("Script/config closure substitution."); }}
 }
-async function readObservation(path: string, check: CoverageCheck, closure: QualifiedScriptClosure, binding: ObservationBinding): Promise<TestDispatchObservation | null> {
+async function readObservation(input: { readonly files: ContainedFileReader; readonly root: string; readonly path: string }, check: CoverageCheck, closure: QualifiedScriptClosure, binding: ObservationBinding): Promise<TestDispatchObservation | null> {
   const runnerIdentity = closure.runnerIdentity;
   if (check.observation !== "test-dispatch/v1" || runnerIdentity === null) { return null; }
   try {
-    const bytes = await regular(path, 256 * 1024);
+    const { bytes } = await regular(input.files, input.root, input.path, 256 * 1024);
     return parseTestDispatchObservation(JSON.parse(bytes.toString("utf8")), binding, runnerIdentity);
   } catch { return null; }
 }
@@ -161,8 +163,8 @@ export function createQualifiedPnpmCheckRunner(qualification: PnpmCheckQualifica
   const configArgs = pnpmLifecycleIsolationArgs;
   async function verify(lease: CheckInputLease, check: CoverageCheck, closure: QualifiedScriptClosure, signal?: AbortSignal): Promise<string> {
     const tool = qualification.tool;
-    const entrypoint = await verifyPinnedTool(tool, lease, qualification.outputRoot);
-    await verifyScriptClosure(lease, check, closure, tool.version);
+    const entrypoint = await verifyPinnedTool(tool, lease, qualification.outputRoot, qualification.files);
+    await verifyScriptClosure(lease, check, closure, tool.version, qualification.files);
     const options = { cwd: lease.executionRoot, ...(signal === undefined ? {} : { signal }) };
     const version = await execute(tool.nodeExecutable, [entrypoint, "--version"], options);
     if (version.exitCode !== 0 || version.stdout.trim() !== tool.version) {throw new Error("Actual pnpm version mismatch.");}
@@ -216,7 +218,7 @@ export function createQualifiedPnpmCheckRunner(qualification: PnpmCheckQualifica
         }
         await verify(lease, check, closure, signal);
         await assertOutputTransport(outputRoot, rootIdentity, transport, transportIdentity);
-        const observation = await readObservation(observationPath, check, closure, binding);
+        const observation = await readObservation({ files: qualification.files, root: transport, path: observationPath }, check, closure, binding);
         const qualifiedFacets = observedFacets(exitCode, isCheckCancelled(signal), closure, observation);
         completed = { binding, commands, exitCode, durationMs: performance.now() - start, cancelled: isCheckCancelled(signal), output: safeOutput(stdout, stderr), observation, qualifiedFacets };
       } catch (error) {

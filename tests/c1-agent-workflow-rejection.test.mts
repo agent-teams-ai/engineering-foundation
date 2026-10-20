@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
-import { access, mkdir as makeDirectory, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, link, lstat, mkdir as makeDirectory, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { watch } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import test from 'node:test';
-import { fixture, git, lint, tests, typecheck, policyInput, sha, execute, testRunnerIdentity } from './c1-test-support.mts';
+import { fixture, git, lint, tests, typecheck, policyInput, sha, execute, testRunnerIdentity, custodyFiles } from './c1-test-support.mts';
 import { runCheckChangedAgentWorkflow } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/run-check-changed-agent-workflow.js';
 import { parseAgentWorkflowPolicyV2 } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy-v2.js';
+import { createQualifiedPnpmCheckRunner, type PnpmCheckQualification } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/pnpm/qualified-pnpm-check-runner.js';
+import type { ContainedFileReader } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/ports/contained-file-reader.js';
 
 async function waitFile(path: string): Promise<void> {
   try { await access(path); return; } catch {}
@@ -135,10 +137,9 @@ void test('C1 real empty selection escalates once while forged observations reje
 // the frozen input closure. A nested real output root must reject before checks.
 void test('C1 qualified runner rejects nested output roots before command execution',async()=>fixture(async subject=>{
   const {mkdir}=await import('node:fs/promises');
-  const {createQualifiedPnpmCheckRunner}=await import('../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/pnpm/qualified-pnpm-check-runner.js');
   const frozen=await subject.freeze();const outputRoot=join(frozen.lease.executionRoot,'outputs');await mkdir(outputRoot);
   let ran=false;
-  const runner=createQualifiedPnpmCheckRunner({tool:subject.tool,outputRoot,qualify:async(_lease,check)=>({checkId:check.id,scripts:subject.scripts,files:subject.files,supplies:check.supplies,runnerIdentity:null,effects:'read-only-inputs-owned-outputs',effectiveConfig:{enablePrePostScripts:false,verifyDepsBeforeRun:false,managePackageManagerVersions:false}})},async(command,args,options)=>{if(args.includes('run')){ran=true;}return execute(command,args,options);});
+  const runner=createQualifiedPnpmCheckRunner({files:custodyFiles,tool:subject.tool,outputRoot,qualify:async(_lease,check)=>({checkId:check.id,scripts:subject.scripts,files:subject.files,supplies:check.supplies,runnerIdentity:null,effects:'read-only-inputs-owned-outputs',effectiveConfig:{enablePrePostScripts:false,verifyDepsBeforeRun:false,managePackageManagerVersions:false}})},async(command,args,options)=>{if(args.includes('run')){ran=true;}return execute(command,args,options);});
   await assert.rejects(runner.run({lease:frozen.lease,check:lint,packageManager:'pnpm'}),/outside the source closure/u);assert.equal(ran,false);
 }));
 
@@ -183,3 +184,70 @@ await fixture(async subject=>{
   assert.equal(await readFile(join(replaced,'unowned'),'utf8'),'TEST replacement must survive');
 });
 });
+
+function qualifiedReadInput(subject: Parameters<Parameters<typeof fixture>[0]>[0], files: ContainedFileReader): PnpmCheckQualification {
+  return {files,tool:subject.tool,outputRoot:subject.output,qualify:async(_lease,check)=>({
+    checkId:check.id,scripts:subject.scripts,files:subject.files,supplies:check.supplies,
+    runnerIdentity:check.observation==='test-dispatch/v1'?testRunnerIdentity:null,
+    effects:'read-only-inputs-owned-outputs',
+    effectiveConfig:{enablePrePostScripts:false,verifyDepsBeforeRun:false,managePackageManagerVersions:false}
+  })};
+}
+
+// RED: path reads after lstat follow an exchanged leaf/ancestor; dropping the
+// existing single-link or mode guard admits drift around otherwise safe reads.
+void test('C1 qualified reads reject real leaf and ancestor substitutions and link or mode drift before execution',async()=>fixture(async subject=>{
+  const frozen=await subject.freeze();
+  for(const mutation of ['leaf','ancestor','hardlink-before','hardlink-after','mode-after'] as const) {
+    const target=join(subject.tool.packageRoot,mutation==='ancestor'?'bin/pnpm.mjs':'package.json');
+    const displaced=mutation==='ancestor'?join(subject.tool.packageRoot,'bin'):target;
+    const backup=`${displaced}-TEST-original`,extra=`${target}-TEST-link`;
+    const originalMode=(await lstat(target)).mode;
+    let triggered=false,executions=0;
+    const files:ContainedFileReader={read:async input=>{
+      if(input.candidate!==target||triggered){return custodyFiles.read(input);}
+      triggered=true;
+      if(mutation==='leaf'||mutation==='ancestor') {
+        await rename(displaced,backup);
+        await symlink(backup,displaced,mutation==='ancestor'?'junction':'file');
+      }
+      const bytes=await custodyFiles.read(input);
+      if(mutation==='hardlink-after'){await link(target,extra);}
+      if(mutation==='mode-after'){await chmod(target,originalMode^0o200);}
+      return bytes;
+    }};
+    try {
+      if(mutation==='hardlink-before'){await link(target,extra);}
+      const runner=createQualifiedPnpmCheckRunner(qualifiedReadInput(subject,files),async()=>{executions++;throw new Error('Unexpected process execution.');});
+      await assert.rejects(runner.run({lease:frozen.lease,check:lint,packageManager:'pnpm'}),/symlink|bounded regular|changed/u);
+      assert.equal(executions,0,mutation);
+      assert.equal(triggered,mutation!=='hardlink-before',mutation);
+    } finally {
+      if((mutation==='leaf'||mutation==='ancestor')&&triggered){await rm(displaced);await rename(backup,displaced);}
+      await rm(extra,{force:true});
+      if(mutation==='mode-after'){await chmod(target,originalMode);}
+    }
+  }
+}));
+
+// RED: deriving each root from the leaf loses the package/source ancestry;
+// a Buffer-only assumption corrupts valid Uint8Array JSON returned by the port.
+void test('C1 qualified reads retain enclosing roots and Node observation byte limits',async()=>fixture(async subject=>{
+  const frozen=await subject.freeze(),seen=new Set<string>();
+  const files:ContainedFileReader={read:async input=>{
+    if(input.candidate===subject.tool.nodeExecutable) {
+      seen.add('node');assert.equal(input.root,dirname(subject.tool.nodeExecutable));assert.equal(input.maxBytes,256*1024*1024);
+    } else if(input.candidate.startsWith(`${subject.tool.packageRoot}${sep}`)) {
+      seen.add('tool');assert.equal(input.root,subject.tool.packageRoot);assert.equal(input.maxBytes,16*1024*1024);
+    } else if(input.candidate.startsWith(`${frozen.lease.executionRoot}${sep}`)) {
+      seen.add('source');assert.equal(input.root,frozen.lease.executionRoot);assert.equal(input.maxBytes,16*1024*1024);
+    } else {
+      seen.add('observation');assert.equal(dirname(input.root),subject.output);assert.equal(input.root,dirname(input.candidate));assert.equal(input.maxBytes,256*1024);
+    }
+    return new Uint8Array(await custodyFiles.read(input));
+  }};
+  const result=await createQualifiedPnpmCheckRunner(qualifiedReadInput(subject,files),execute).run({lease:frozen.lease,check:tests,packageManager:'pnpm'});
+  assert.deepEqual([...seen].toSorted(),['node','observation','source','tool']);
+  assert.equal(result.observation?.outcome,'passed');assert.deepEqual(result.qualifiedFacets,['tests']);
+  assert.equal((await readdir(subject.output)).some(name=>name.startsWith('check-observation-')),false);
+}));

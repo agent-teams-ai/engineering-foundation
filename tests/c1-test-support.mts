@@ -118,7 +118,7 @@ export async function git(root: string, ...args: string[]): Promise<void> {
 async function toolIdentity(selectedPackage: string, selectedNode: string): Promise<PnpmToolIdentity> {
   const packageRoot = await realpath(selectedPackage);
   const nodeExecutable = await realpath(selectedNode);
-  return { packageRoot, nodeExecutable, version: '11.20.0', entrypointSha256: sha(await readFile(join(packageRoot,'bin/pnpm.mjs'))), packageJsonSha256: sha(await readFile(join(packageRoot,'package.json'))), packageTreeSha256: await fingerprintPnpmPackage(packageRoot), nodeSha256: sha(await readFile(nodeExecutable)) };
+  return { packageRoot, nodeExecutable, version: '11.20.0', entrypointSha256: sha(await readFile(join(packageRoot,'bin/pnpm.mjs'))), packageJsonSha256: sha(await readFile(join(packageRoot,'package.json'))), packageTreeSha256: await fingerprintPnpmPackage(packageRoot, custodyFiles), nodeSha256: sha(await readFile(nodeExecutable)) };
 }
 export function policyInput(checks: readonly CoverageCheck[], requiredFacets: readonly string[] = ['lint','typecheck','tests']) {
   return { schemaVersion: 2, packageManager: 'pnpm', instructions: { canonical: 'AGENTS.md', claude: 'CLAUDE.md', gemini: 'GEMINI.md', copilot: '.github/copilot-instructions.md' }, scripts: {changed:'check:changed',fast:'check:fast',full:'check'}, scopes:[{id:'repository',roots:['*'],requiredFacets,checks:checks.map(check=>check.id)}], checks, exclusions:[], escalationCheck:checks.at(-1)!.id };
@@ -213,7 +213,7 @@ process.exitCode=failed?1:0;\n`);
     const lease:CheckInputLease={...mutable,classification:'frozen-closure',closureIdentity:`TEST-private-copy:${mutable.sourceIdentity}:${pinnedTooling}`,assertCurrent:async(signal)=>{await mutable.assertCurrent(signal);if(await toolingDigest()!==pinnedTooling){throw new InputRevocationError();}},release:async()=>{}};
     return {lease,custody:{acquire:async()=>lease}};
   }
-  const runner = (mutate?: (lease:CheckInputLease,check:CoverageCheck)=>Promise<void>, selectedTool = tool, executor = execute) => createQualifiedPnpmCheckRunner({tool:selectedTool,outputRoot:output,qualify:async(lease,check)=>{
+  const runner = (mutate?: (lease:CheckInputLease,check:CoverageCheck)=>Promise<void>, selectedTool = tool, executor = execute) => createQualifiedPnpmCheckRunner({files:custodyFiles,tool:selectedTool,outputRoot:output,qualify:async(lease,check)=>{
     await mutate?.(lease,check);
     const closure:QualifiedScriptClosure={checkId:check.id,scripts,files,supplies:check.supplies,runnerIdentity:check.observation==='test-dispatch/v1'?testRunnerIdentity:null,effects:'read-only-inputs-owned-outputs',effectiveConfig:{enablePrePostScripts:false,verifyDepsBeforeRun:false,managePackageManagerVersions:false}};
     return closure;

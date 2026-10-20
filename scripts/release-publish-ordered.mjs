@@ -101,6 +101,19 @@ function observationStatus(observed) {
   return `${stage}-${status}`;
 }
 
+function publishFailureOutcome(error) {
+  return error?.publishFailure?.notStarted === true ? "not-started"
+    : error?.publishFailure?.outcome === "nonzero" ? "nonzero" : "unknown";
+}
+
+function assertRegistryVisibilityPolicy({ visibilityTimeoutMilliseconds, retryDelayMilliseconds }) {
+  if (!Number.isFinite(visibilityTimeoutMilliseconds) || visibilityTimeoutMilliseconds <= 0 ||
+      visibilityTimeoutMilliseconds > REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS ||
+      !Number.isFinite(retryDelayMilliseconds) || retryDelayMilliseconds <= 0) {
+    fail("registry visibility requires a positive bounded deadline and retry interval");
+  }
+}
+
 async function observeExact({ artifact, finalTag, inspect, source, visibilityTimeoutMilliseconds,
   retryDelayMilliseconds, now, wait, reportProgress }) {
   const started = now();
@@ -160,8 +173,7 @@ async function publishOrReuse(options) {
     await options.publish(options.artifact, options.finalTag);
     options.reportProgress(stageRecord(options.artifact, "npm-publish", "acknowledged", started, options.now));
   } catch (error) {
-    const outcome = error?.publishFailure?.notStarted === true ? "not-started"
-      : error?.publishFailure?.outcome === "nonzero" ? "nonzero" : "unknown";
+    const outcome = publishFailureOutcome(error);
     options.reportProgress(stageRecord(options.artifact, "npm-publish", outcome, started, options.now));
     // The runtime adapter supplies only sanitized diagnostics, never raw npm output.
     initialFailure = error?.publishFailure?.diagnostic ??
@@ -290,11 +302,7 @@ export async function orderedRelease({
   if (!/^(?:latest|rc)$/u.test(finalTag)) {
     fail("the final npm tag must be exactly latest or rc");
   }
-  if (!Number.isFinite(visibilityTimeoutMilliseconds) || visibilityTimeoutMilliseconds <= 0 ||
-      visibilityTimeoutMilliseconds > REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS ||
-      !Number.isFinite(retryDelayMilliseconds) || retryDelayMilliseconds <= 0) {
-    fail("registry visibility requires a positive bounded deadline and retry interval");
-  }
+  assertRegistryVisibilityPolicy({ visibilityTimeoutMilliseconds, retryDelayMilliseconds });
 
   await observeInitialWave({ artifactsByName, finalTag, inspect, source });
 

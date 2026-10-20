@@ -118,3 +118,7 @@ default branch/current commit for manual runs. Anchore generates an SPDX JSON
 SBOM in the same Linux CI job. npm Trusted Publishing provides the package
 publication provenance. These are independent controls: an SBOM lists
 components, while provenance identifies the build and publisher.
+
+Repository-specific development dependency assessments are recorded in the
+[dependency advisory triage](dependency-triage.md). They do not create
+Dependency Review exceptions or replace the controls above.

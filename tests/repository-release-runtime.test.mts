@@ -425,6 +425,38 @@ void test("dispatcher tool and script children own their cwd instead of inherite
   }
 });
 
+void test("Node dispatcher routes changed checks to source Bun policy and source dependencies", async (t) => {
+  const fixture = await realLinkedGitFixture(t);
+  for (const file of ["package.json", "pnpm-workspace.yaml"]) {
+    await copyFile(join(repositoryRoot, file), join(fixture.root, file));
+  }
+  await symlink(join(repositoryRoot, "node_modules"), join(fixture.root, "node_modules"), "junction");
+  const entry = join(fixture.root, "packages/engineering-foundation/dist/cli.js");
+  await mkdir(join(fixture.root, "packages/engineering-foundation/dist"), { recursive: true });
+  await writeFile(entry, [
+    'import { readFileSync } from "node:fs";',
+    'import { execFileSync } from "node:child_process";',
+    'process.stdout.write(JSON.stringify({cwd:process.cwd(),args:process.argv.slice(2),',
+    'profile:process.env.AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE,bun:process.versions.bun,',
+    'manager:JSON.parse(readFileSync("package.json","utf8")).packageManager,',
+    'git:execFileSync("git",["rev-parse","--show-toplevel"],{encoding:"utf8"}).trim()}));'
+  ].join("\n"));
+  for (const operation of ["tool", "script"]) {
+    const result = spawnSync(process.execPath, [join(repositoryRoot, "tools/repository-command.mts"), operation, "check:changed"], {
+      cwd: repositoryRoot, encoding: "utf8", timeout: 20_000, env: {
+        ...process.env, AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "node",
+        AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: fixture.root,
+        AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath,
+        GIT_DIR: join(repositoryRoot, ".git"), GIT_WORK_TREE: repositoryRoot
+      }
+    });
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    assert.deepEqual(JSON.parse(result.stdout), { cwd: fixture.root,
+      args: ["agent-workflow", "changed", "--consumer", "."],
+      profile: "bun", bun: "1.4.3", manager: "bun@1.4.3", git: fixture.root });
+  }
+});
+
 void test("Git source authority rejects a real marker inode replacement between metadata and read", async (t) => {
   const fixture = await realLinkedGitFixture(t);
   const helper = pathToFileURL(join(repositoryRoot, "tests/support/swap-git-marker-before-open.mts")).href;

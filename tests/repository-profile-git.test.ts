@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { GitRepositoryChangesReader } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/git/git-repository-changes-reader.js";
+import { withGitIndexSnapshot } from "../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/git/git-index-snapshot.js";
 import { createWorkflowProcess } from "./support/capability-adapters.mjs";
 
 test("stat-only Git refresh preserves source index bytes and exact staged/unstaged groups", async (t) => {
@@ -34,4 +35,15 @@ test("stat-only Git refresh preserves source index bytes and exact staged/unstag
   assert.deepEqual(report.changedPaths, ["src/staged.ts", "src/unstaged.ts"]);
   assert.deepEqual(await readFile(indexPath), before,
     "Git stat refresh must affect only its disposable index and must not hide racy edits");
+  const failure = new Error("stop after owning the index copy");
+  let ownedIndex = "";
+  await assert.rejects(withGitIndexSnapshot(createWorkflowProcess(), root, async (read) => {
+    const result = await read("git", ["rev-parse", "--git-path", "index"], { cwd: root });
+    assert.equal(result.exitCode, 0);
+    ownedIndex = result.stdout.trim();
+    assert.notEqual(ownedIndex, indexPath);
+    throw failure;
+  }), (error: unknown) => error === failure);
+  await assert.rejects(readFile(ownedIndex), { code: "ENOENT" });
+  assert.deepEqual(await readFile(indexPath), before);
 });

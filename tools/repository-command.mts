@@ -204,16 +204,21 @@ async function invokeSourceChanged(): Promise<number> {
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: sourceRoot, AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun" }));
 }
 
-async function invokeLintTool(input: {
-  readonly id: string; readonly command: ToolCommand; readonly paths: readonly string[];
-  readonly profile: RuntimeProfile; readonly runtime: RuntimeExecutables; readonly entry: string;
-}): Promise<number> {
-  const { id, command, paths, profile, runtime, entry } = input;
+async function lintRoots(profile: RuntimeProfile): Promise<{ readonly sourceRoot: string; readonly consumerRoot: string }> {
   const consumerRoot = await realpath(process.cwd());
   const sourceRoot = profile === "node"
     ? await realpath(process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"] ?? repositoryRoot)
     : consumerRoot;
   if (sourceRoot !== consumerRoot) { await assertPnpmProfileSourceIdentity(consumerRoot, sourceRoot); }
+  return { sourceRoot, consumerRoot };
+}
+
+async function invokeLintTool(input: {
+  readonly id: string; readonly command: ToolCommand; readonly paths: readonly string[];
+  readonly profile: RuntimeProfile; readonly runtime: RuntimeExecutables; readonly entry: string;
+}): Promise<number> {
+  const { id, command, paths, profile, runtime, entry } = input;
+  const { sourceRoot, consumerRoot } = await lintRoots(profile);
   return runRepositoryOxlint({ node: runtime.node, entry, args: command.args,
     targets: id === "lint:fast" ? ["."] : paths, sourceRoot, consumerRoot,
     environment: runtimeEnvironment(runtime) });
@@ -250,6 +255,7 @@ async function invokeTool(
   if (["lint:fast", "lint:fast:files", "lint:typed:files"].includes(id)) {
     return invokeLintTool({ id, command, paths, profile, runtime, entry });
   }
+  if (id === "lint:typed") { await lintRoots(profile); }
   if (id === "npm-package-bootstrap:candidate-evidence") {
     const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
     if (sourceRoot === undefined || sourceRoot === "") {

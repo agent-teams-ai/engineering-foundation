@@ -29,6 +29,7 @@
     "tests/support/release-changesets-fixture.ts",
     "tests/test-manifests-typescript.test.ts",
     "tests/support/ci-input-proof-collector-install.ts",
-    "tests/sdk-json-record.test.ts"
+    "tests/sdk-json-record.test.ts",
+    "tests/architecture-baseline-replacement.test.ts"
   ]
 }

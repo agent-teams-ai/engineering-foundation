@@ -1,6 +1,9 @@
 import type { link, mkdir, rename } from "node:fs/promises";
 import type { PortablePathIdentity } from "../path-identity.js";
 import type { MutationClaim } from "../transaction-coordination/application-api.js";
+import type { NodeAtomicFileReplacement } from "../repository-mutation/composition/node-api.js";
+export { NodeAtomicFileReplacementError } from "../repository-mutation/composition/node-api.js";
+export type { NodeAtomicFileReplacement } from "../repository-mutation/composition/node-api.js";
 import type {
   AbsentFilePublicationFaultInjector,
   AbsentFilePublicationOperations,
@@ -61,6 +64,13 @@ const knownFileNodeApi = createKnownFileNodeApi({
   retainMutationBarrierOnEvidence,
   retainMutationClaimBarrierOnEvidence
 });
+
+export function observeAtomicFileReplacement(input: {
+  readonly root: string;
+  readonly candidate: string;
+}): Promise<NodeAtomicFileReplacement> {
+  return knownFileNodeApi.observeAtomicFileReplacement(input);
+}
 
 export function applyKnownFileTransaction(options: {
   readonly consumerRoot: string;

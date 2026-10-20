@@ -51,8 +51,7 @@
         "tests/feature-module-kernel-adapter.test.mjs",
         "tests/workspace-dependency-peer-link.test.mjs",
         "tests/repository-runtime-tools.test.mts",
-        "tests/pnpm-manager-observation.test.mts",
-        "tests/sdk-json-record.test.ts"
+        "tests/pnpm-manager-observation.test.mts"
       ]
     },
     {
@@ -328,7 +327,9 @@
         "tests/native-package-types.test.ts",
         "tests/unexpected-failure-diagnostics.test.mjs",
         "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
-        "tests/source-graph.test.mjs"
+        "tests/source-graph.test.mjs",
+        "tests/sdk-json-record.test.ts",
+        "tests/architecture-baseline-replacement.test.ts"
       ]
     }
   ]

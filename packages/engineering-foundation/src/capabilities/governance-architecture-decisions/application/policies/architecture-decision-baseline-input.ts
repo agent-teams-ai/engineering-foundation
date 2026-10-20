@@ -4,13 +4,17 @@ import type { ArchitectureDecisionBaselineExpectedState, ArchitectureDecisionBas
 
 const WRITE_PHASE = "architecture-decision-baseline-write";
 
-export function rejectBaselineWrite(code: string, message: string): never {
-  throw new CapabilityInputError({
+export function rejectBaselineWrite(code: string, message: string, options?: ErrorOptions): never {
+  throw baselineWriteFailure(code, message, options);
+}
+
+export function baselineWriteFailure(code: string, message: string, options?: ErrorOptions): CapabilityInputError {
+  return new CapabilityInputError({
     code,
     message,
     phase: WRITE_PHASE,
     retryable: false
-  });
+  }, options);
 }
 
 export function assertExpectedBaselineState(

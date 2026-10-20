@@ -228,7 +228,8 @@
       "packages/engineering-foundation/tests/public-api-native-projection.test.ts",
       "tests/public-api-native-migration.test.ts",
       "tests/public-api-native-migration-cli.test.ts",
-      "packages/engineering-foundation/tests/public-api-native-transition.test.ts"
+      "packages/engineering-foundation/tests/public-api-native-transition.test.ts",
+      "tests/architecture-baseline-replacement.test.ts"
     ],
     "e": [
       "tests/findings-baseline-capability.test.mjs",

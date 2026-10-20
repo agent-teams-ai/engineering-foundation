@@ -180,7 +180,7 @@ must qualify the reconciled head against the updated protected base.
 Protected main subsequently advanced to
 `d5cbfc7bc9f9b735e2874de669814aa8c2435d44`, admitting the explicit changed-check
 coverage successor. The branch incorporates its implementation, six canonical
-tests, 49 mandatory Node test identities, strict TypeScript project, workflow
+tests, complete mandatory Node test contract, strict TypeScript project, workflow
 diagnostic paths, exact pnpm development input and both release intentions.
 The combined canonical inventory contains 300 files; all three release-checks
 suites retain their explicit Linux and Windows placements. The existing
@@ -193,3 +193,11 @@ unmerged release-checks admission is renumbered to ADR-0064, with its owning
 links and actual digest updated; its decision text changes only that identifier.
 The prior branch identity and bytes remain in Git history. None of the six
 completed plan-review revisions or their recorded hashes is rewritten.
+
+Independent merge review caught a raw-file hash in the new ADR ledger entry.
+The existing `architecture-decisions-promote-baseline` owner re-admitted ADR-0064
+from the exact protected historical catalog. Its canonical immutable payload
+digest is
+`sha256:b38ca4441dd30f66cc58b22864005121f48f740556f3659e3f64df2110349a49`;
+all 60 historical entries remain unchanged. The source gates run in a clean
+worktree of the resulting committed revision.

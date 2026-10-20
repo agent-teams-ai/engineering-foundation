@@ -305,7 +305,7 @@
     {
       "id": "ADR-0064",
       "path": "docs/decisions/0064-release-checks-package-admission.md",
-      "immutableDigest": "sha256:6986050c236531eb2e2670819a0140c204d13431e326c4c353866b6c223072c8"
+      "immutableDigest": "sha256:b38ca4441dd30f66cc58b22864005121f48f740556f3659e3f64df2110349a49"
     }
   ]
 }

@@ -34,7 +34,7 @@ async function nodeEntrypoint(
       const canonical = await realpath(candidate).catch(() => null);
       if (
         canonical !== null &&
-        /\.(?:c|m)?js$/u.test(canonical) &&
+        /\.(?:c|m)?js$/iu.test(canonical) &&
         await isRegularFile(canonical)
       ) {
         return canonical;
@@ -47,6 +47,22 @@ async function nodeEntrypoint(
 async function resolvePnpmInvocation(
   environment: QualityGatePnpmEnvironment
 ): Promise<PnpmInvocation> {
+  if (
+    process.platform !== "win32" &&
+    environment.npmExecPath !== undefined &&
+    isAbsolute(environment.npmExecPath)
+  ) {
+    const canonical = await realpath(environment.npmExecPath).catch(() => null);
+    if (canonical !== null && await isRegularFile(canonical)) {
+      // Classify JS-vs-native on the canonical executed target, never the
+      // unresolved spelling, so an explicit native npmExecPath is never ignored.
+      if (!/\.(?:c|m)?js$/iu.test(canonical)) {
+        return { command: canonical, argsPrefix: [] };
+      }
+    } else if (!/\.(?:c|m)?js$/iu.test(environment.npmExecPath)) {
+      rejectQualityGateExecutor();
+    }
+  }
   const homeEntrypoint = environment.pnpmHome === undefined
     ? undefined
     : resolve(environment.pnpmHome, "..", "pnpm", "bin", "pnpm.cjs");

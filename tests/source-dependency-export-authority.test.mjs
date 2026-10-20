@@ -206,25 +206,19 @@ test("full capability requires exact runtime export ownership for mixed packages
 });
 
 test("full capability requires an unambiguous workspace protocol binding", async () => {
-  for (const specifier of ["workspace:*", "workspace:^", "workspace:~", "workspace:^0.0.0", "workspace:0.0.0"]) {
+  // This fixture's 0.0.0 provider proves declaration recognition does not
+  // decide release-window compatibility, including the runtime peer+dev pair.
+  for (const declarations of [
+    ...["workspace:*", "workspace:^", "workspace:~", "workspace:^0.0.0", "workspace:0.0.0", "workspace:^1.8.0 || ^2.0.0"]
+      .map(specifier => ({ dependencies: { "@fixture/core": specifier } })),
+    { peerDependencies: { "@fixture/core": "workspace:^1.8.0 || ^2.0.0" }, devDependencies: { "@fixture/core": "workspace:*" } },
+    ...["optionalDependencies", "peerDependencies"].map(section => ({ [section]: { "@fixture/core": "workspace:*" } })),
+  ]) {
     await withCopiedFixture("v2-valid", async (consumerRoot) => {
       await configureMixedPackage(consumerRoot, { runtimeClaims: ["."] });
-      await setAppDeclarations(consumerRoot, {
-        dependencies: { "@fixture/core": specifier },
-      });
+      await setAppDeclarations(consumerRoot, declarations);
       const report = await runSourceCapability(consumerRoot);
-      assert.equal(report.outcome, "passed", `${specifier}\n${reportDetails(report)}`);
-    });
-  }
-
-  for (const section of ["optionalDependencies", "peerDependencies"]) {
-    await withCopiedFixture("v2-valid", async (consumerRoot) => {
-      await configureMixedPackage(consumerRoot, { runtimeClaims: ["."] });
-      await setAppDeclarations(consumerRoot, {
-        [section]: { "@fixture/core": "workspace:*" },
-      });
-      const report = await runSourceCapability(consumerRoot);
-      assert.equal(report.outcome, "passed", `${section}\n${reportDetails(report)}`);
+      assert.equal(report.outcome, "passed", `${JSON.stringify(declarations)}\n${reportDetails(report)}`);
     });
   }
 
@@ -259,6 +253,12 @@ test("full capability requires an unambiguous workspace protocol binding", async
     { dependencies: { "@fixture/core": "https://example.invalid/core.tgz" } },
     { dependencies: { "@fixture/core": "^0.0.0" } },
     { dependencies: { "@fixture/core": "workspace:-" } },
+    ...["workspace:^1.8.0 || *", "workspace:^1.8.0 || ^2.0", "workspace:^1.8.0 || ^2.0.0-rc.0",
+      "workspace:^1.8.0||^2.0.0", "workspace:^1.8.0 || >=2.0.0", "workspace:^1.8.0 || ^02.0.0",
+      "workspace:^1.8.0 || "].map(specifier => ({
+      peerDependencies: { "@fixture/core": specifier },
+      devDependencies: { "@fixture/core": "workspace:*" },
+    })),
     {
       dependencies: { "@fixture/core": "workspace:*" },
       devDependencies: { "@fixture/core": "npm:is-number@7.0.0" },

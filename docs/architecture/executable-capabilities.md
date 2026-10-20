@@ -699,7 +699,15 @@ Exact consumer dependency pins make upgrades explicit. Patches preserve schema
 and rule meaning. New capabilities or rules require an upgrade note and
 conformance evidence. A breaking schema publishes a new schema version and a
 migration guide; existing immutable schemas remain available for the supported
-migration window.
+migration window. Claimed JSON Schema families retain this invariant.
+
+[ADR-0063](../decisions/0063-explicit-changed-check-coverage-policy-schema.md)
+records one narrow exception for the artifact-protected, unclaimed
+`repository-agent-workflow/v2` family: its exact approved artifact fingerprint
+adds coverage while retaining the legacy v2 policy shape, with a major package
+release. It grants no general permission to mutate versioned schemas, other
+artifacts or claimed families. A different artifact change requires its own
+approval; release-owned baselines and historical ADR bytes stay protected.
 
 Before version 1.0, an intentional public breaking change increments the minor
 version. After version 1.0 it increments the major version. Stable rule IDs are

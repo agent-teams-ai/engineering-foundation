@@ -155,6 +155,8 @@ test("ships only enumerated schema and persisted envelope generations", async ()
     /(?:schemaVersion|protocolVersion|producerVersion):\s*([2-9]|[1-9][0-9]+)\b/gu;
   const enumeratedVersionedSourceLiteralsByRoot = new Map([
     [packageRoot, {
+      "src/capabilities/repository-agent-workflow/application/model/check-changed.ts": [2],
+      "src/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy-v2.ts": [2, 2],
       "src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts": [2],
       "src/capabilities/public-api-compatibility/application/model/growth-configuration.ts": [2],
       "src/capabilities/source-dependencies/application/model/source-workspace.ts": [2, 3],

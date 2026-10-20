@@ -1,0 +1,12 @@
+{
+  "extends": "./tests/c1-tsconfig.json",
+  "files": [
+    "tests/c1-test-support.mts",
+    "tests/c1-agent-workflow-coverage.test.mts",
+    "tests/c1-agent-workflow-rejection.test.mts",
+    "tests/c1-agent-workflow-configuration.test.mts",
+    "tests/c1-agent-workflow-cli.test.mts",
+    "tests/command-host-successor-cli.test.mts",
+    "tests/agent-workflow-versioned-capability.test.mts"
+  ]
+}

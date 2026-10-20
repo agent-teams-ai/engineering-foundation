@@ -69,8 +69,12 @@ function packageSpecifierHasTraversal(specifier: string): boolean {
 
 function isWorkspaceBinding(specifier: string): boolean {
   const value = specifier.slice("workspace:".length);
-  return specifier.startsWith("workspace:") &&
-    /^(?:[*^~]|[~^]?(?:0|[1-9][0-9]*)(?:[.](?:0|[1-9][0-9]*|[xX*])){0,2}(?:-[0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?(?:[+][0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?)$/u.test(value);
+  const branches = value.split(" || ");
+  // Recognize declared bindings only; release policy owns version admission.
+  return specifier.startsWith("workspace:") && (
+    /^(?:[*^~]|[~^]?(?:0|[1-9][0-9]*)(?:[.](?:0|[1-9][0-9]*|[xX*])){0,2}(?:-[0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?(?:[+][0-9A-Za-z]+(?:[.][0-9A-Za-z]+)*)?)$/u.test(value) ||
+    (branches.length > 1 && branches.every(branch =>
+      /^\^(?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]*)[.](?:0|[1-9][0-9]*)$/u.test(branch))));
 }
 
 function declarationKindV1(

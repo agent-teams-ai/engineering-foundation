@@ -968,6 +968,7 @@ boundaries:
       packages: []
       builtins:
         - node:fs/promises
+        - node:os
         - node:path
       runtimeReferences: []
     entrypoints:

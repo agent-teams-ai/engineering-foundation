@@ -8,6 +8,8 @@
     "package-export-matcher.test.ts",
     "public-docs-documented.test.ts",
     "sdk-json-record.test.ts",
-    "architecture-baseline-replacement.test.ts"
+    "architecture-baseline-replacement.test.ts",
+    "repository-profile-lint.test.ts",
+    "repository-profile-git.test.ts"
   ]
 }

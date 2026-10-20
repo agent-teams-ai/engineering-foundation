@@ -12,12 +12,14 @@ export function createProcessExecution(executor: WorkflowProcessExecutor): Execu
       readonly cwd: string;
       readonly signal?: AbortSignal;
       readonly strictUtf8?: boolean;
+      readonly environment?: Readonly<Record<string, string | undefined>>;
     }
   ): Promise<ProcessExecution> {
     const result = await executor.run({
       args,
       command,
       cwd: options.cwd,
+      ...(options.environment === undefined ? {} : { environment: options.environment }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
       ...(options.strictUtf8 === undefined ? {} : { strictUtf8: options.strictUtf8 })
     });

@@ -155,22 +155,12 @@ export class OxcSourceDependencyParser implements SourceDependencyParser {
         if (node.source === null) {
           return;
         }
-        const typeOnly =
-          node.exportKind === "type" ||
-          (node.specifiers.length > 0 &&
-            node.specifiers.every((specifier) => specifier.exportKind === "type"));
-        addReference(typeOnly ? "export-type" : "export", node.source);
+        // Inline type specifiers erase bindings, but the ordinary declaration
+        // retains its module request under verbatim emit and Node type stripping.
+        addReference(node.exportKind === "type" ? "export-type" : "export", node.source);
       },
       ImportDeclaration(node) {
-        const typeOnly =
-          node.importKind === "type" ||
-          (node.specifiers.length > 0 &&
-            node.specifiers.every(
-              (specifier) =>
-                specifier.type === "ImportSpecifier" &&
-                specifier.importKind === "type"
-            ));
-        addReference(typeOnly ? "static-type" : "static", node.source);
+        addReference(node.importKind === "type" ? "static-type" : "static", node.source);
       },
       ImportExpression(node) {
         if (node.source.type === "Literal" && typeof node.source.value === "string") {

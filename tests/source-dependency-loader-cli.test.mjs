@@ -172,6 +172,34 @@ createRequire(new URL("../b/index.ts", import.meta.url))("./dep.cjs");`;
 });
 
 for (const schemaVersion of [1, 2, 3]) {
+  test(`installed CLI v${schemaVersion}: inline type specifiers cannot hide runtime devDependency imports`, async (t) => {
+    await withInstalledCli(async (root, cli) => {
+      for (const [name, source, runtime] of [
+        ["declaration type import", 'import type { Shape } from "@fixture/dev-only";', false],
+        ["declaration type export", 'export type { Shape } from "@fixture/dev-only";', false],
+        ["inline type import", 'import { type Shape } from "@fixture/dev-only";', true],
+        ["inline type export", 'export { type Shape } from "@fixture/dev-only";', true],
+        ["aliased inline types", 'import { type Shape as Local, type Other } from "@fixture/dev-only";', true],
+        ["mixed import", 'import { type Shape, value } from "@fixture/dev-only";', true],
+        ["mixed export", 'export { type Shape, value } from "@fixture/dev-only";', true],
+        ["side effect", 'import "@fixture/dev-only";', true],
+        ["empty import", 'import {} from "@fixture/dev-only";', true],
+        ["empty export", 'export {} from "@fixture/dev-only";', true],
+      ]) {
+        await t.test(name, async () => {
+          await fixture(root, schemaVersion, { source, packages: ["@fixture/dev-only"] });
+          const manifestPath = "packages/app/package.json";
+          const manifest = JSON.parse(await readFile(join(root, manifestPath), "utf8"));
+          manifest.devDependencies = { "@fixture/dev-only": "1.0.0" };
+          await write(root, manifestPath, manifest);
+          await check(root, cli, runtime ? ["runtime-import-from-development-dependency"] : [], [manifestPath]);
+        });
+      }
+    });
+  });
+}
+
+for (const schemaVersion of [1, 2, 3]) {
   test(`installed CLI v${schemaVersion}: wrapper and parameter provenance`, async (t) => {
     await withInstalledCli(async (root, cli) => {
       const cases = [

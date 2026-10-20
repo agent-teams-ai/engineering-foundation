@@ -105,6 +105,13 @@ and mode. Computed or otherwise unprovable loaders remain visible in
 does not prove load-time execution: consumers may enforce a static-import subset
 by rejecting the observed dynamic and CommonJS kinds.
 
+Only declaration-level `import type` and `export type` erase the module request.
+Ordinary imports and export-from declarations remain `static` or `export` with
+runtime mode even when every named specifier has an inline `type` modifier:
+Node type stripping and TypeScript verbatim emit retain an empty module request.
+This is conservative source evidence; compiler settings that elide additional
+imports do not change the observed declaration kind.
+
 `runtimeExports` contains one record per observed file. Its `status` is
 `complete`, `unsupported` or `parse-failure`; only `complete` establishes the
 export count. Direct ESM function declarations and direct function/arrow

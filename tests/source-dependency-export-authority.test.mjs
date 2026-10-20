@@ -583,6 +583,21 @@ test("full capability follows ordered TypeScript types export targets", async ()
   }
 });
 
+test("inline type specifiers select runtime exports while declaration type syntax selects types", async () => {
+  for (const [statement, runtime] of [
+    ['import type { Value } from "@fixture/core";', false],
+    ['export type { Value } from "@fixture/core";', false],
+    ['import { type Value } from "@fixture/core";', true],
+    ['export { type Value } from "@fixture/core";', true],
+  ]) {
+    const report = await mixedReport({
+      appSource: `${statement}\n`,
+      exports: { ".": { types: "./dist/index.d.ts", default: null } },
+    });
+    assert.equal(ruleIds(report.diagnostics).includes(exportRule), runtime, reportDetails(report));
+  }
+});
+
 test("pinned native Node confirms ordered export-target oracle cases", async () => {
   for (const condition of ["import", "require"]) {
     assert.notEqual(

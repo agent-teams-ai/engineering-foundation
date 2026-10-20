@@ -43,8 +43,25 @@ export function mapQualityProfile(value: unknown): QualityCoverageProfile {
     ...(input["bridgeAdmissionsPath"] === undefined ? {} : { bridgeAdmissionsPath: qualityString(input["bridgeAdmissionsPath"]) }),
     compilerProjects,
     ...(input["nativeChecks"] === undefined ? {} : { nativeChecks: nativeChecks(input["nativeChecks"]) }),
+    ...(input["assets"] === undefined ? {} : { assets: assets(input["assets"]) }),
     scripts: { fast: qualityString(scripts["fast"]), full: qualityString(scripts["full"]), scope: qualityString(scripts["scope"]), typed: qualityString(scripts["typed"]) }
   };
+}
+
+function assets(value: unknown): NonNullable<QualityCoverageProfile["assets"]> {
+  if (!Array.isArray(value) || value.length > 1000) { invalidQualityInput("Expected bounded exact asset mappings."); }
+  const paths = new Set<string>();
+  return value.map((entry: unknown) => {
+    const item = qualityRecord(entry);
+    const path = qualityString(item["path"]);
+    const kind = item["kind"];
+    if ((kind !== "protobuf" && kind !== "sql-migration") ||
+      !path.endsWith(kind === "protobuf" ? ".proto" : ".sql") || paths.has(path)) {
+      invalidQualityInput("Asset mappings require one exact path with its fixed protobuf or sql-migration extension.");
+    }
+    paths.add(path);
+    return { path, kind, boundaryId: qualityString(item["boundaryId"]), script: qualityString(item["script"]) };
+  });
 }
 
 function boundedModules(value: unknown): readonly Record<string, unknown>[] {

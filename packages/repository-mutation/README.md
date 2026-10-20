@@ -62,3 +62,11 @@ and close failures. Cleanup uses the existing identity-matching retirement
 mechanism and preserves foreign substitutions. Replacement supplies atomic
 visibility only; the contract grants no lease, preimage compare-and-swap, journal
 recovery or power-loss durability guarantee.
+
+The Node-only `inspectRetiredTemporaryDuplicates(root, filePaths)` observation
+recognizes exact native retired temporary leaves only when stable physical
+identity and bytes match one canonical sibling with exactly two hardlinks.
+The canonical file retains ordinary source governance. Unknown geometry, extra
+files, symlinks, missing counterparts and replaced inodes grant no exemption.
+This read-only result proves duplicate custody at observation; it does not
+authenticate historical execution or authorize cleanup, mutation or recovery.

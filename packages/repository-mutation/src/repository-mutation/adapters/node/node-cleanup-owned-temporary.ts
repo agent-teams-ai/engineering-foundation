@@ -12,7 +12,7 @@ import type { KnownFileTerminalDirectory } from "../../application/ports/known-f
 
 export const OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER =
   ".foundation-owned-cleanup-";
-const OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER =
+export const OWNED_TEMPORARY_RETIRED_EVIDENCE_MARKER =
   ".foundation-retired-evidence-";
 
 export function ownedTemporaryCleanupResiduePrefix(

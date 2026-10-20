@@ -1,6 +1,8 @@
 import { normalize, relative, resolve, sep } from "node:path";
+import { inspectRetiredTemporaryDuplicates } from "@agent-teams/repository-mutation/node";
 import {
   assertNotCancelled, classifyQualityCensus, executesScript, qualitySourceLanguage, qualityHostCommand, nativeScriptEntrypoint,
+  assetValidatorDeclaration, executesAssetValidator,
   type QualityCoverageObservation, type QualityCoverageReader,
   type QualityObservationPorts, type QualityFileReader
 } from "../api.js";
@@ -72,8 +74,10 @@ export function createQualityCoverageReader(
         ])],
         ...(signal === undefined ? {} : { signal })
       });
+      const duplicates = new Set((await inspectRetiredTemporaryDuplicates(consumerRoot, census.filePaths)).map(({ path }) => path));
       const classified = classifyQualityCensus({
-        ...census, topology: { ...topology, toolingFiles: [...new Set([...(topology.toolingFiles ?? []), ...nativeToolingFiles])] },
+        ...census, filePaths: census.filePaths.filter((path) => !duplicates.has(path)),
+        topology: { ...topology, toolingFiles: [...new Set([...(topology.toolingFiles ?? []), ...nativeToolingFiles])] },
         authority, suppressionRoots: suppressions.governedRoots,
         compilerProjects: profile.compilerProjects.map((project) => relative(resolve(consumerRoot), resolve(consumerRoot, project)).split(sep).join("/"))
       });
@@ -99,6 +103,18 @@ export function createQualityCoverageReader(
         }
         return { ...mapping, reached };
       }));
+      const assetMappings = await Promise.all((profile.assets ?? []).map(async (mapping) => {
+        const source = classified.sources.find(({ path }) => path === mapping.path);
+        if (source === undefined || source.owners.length !== 1 || source.owners[0] !== mapping.boundaryId) {
+          invalidQualityInput(`Asset must have its exact current semantic owner: ${mapping.path}.`);
+        }
+        await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, mapping.path), maxBytes: 2 * 1024 * 1024 });
+        const validatorFiles = assetValidatorDeclaration(scripts[mapping.script]);
+        for (const path of validatorFiles ?? []) {
+          await readFile({ root: consumerRoot, candidate: resolve(consumerRoot, path), maxBytes: 2 * 1024 * 1024 });
+        }
+        return { ...mapping, reached: executesAssetValidator(scripts, profile.scripts.full, mapping.script) };
+      }));
       // Workspace selection is supplementary evidence, never the source census filter.
       const missingPackages = inventory.packages.filter(({ rootPath }) => rootPath !== "." &&
         !topology.excludedRoots.some((root) => rootPath === root || rootPath.startsWith(`${root}/`)) &&
@@ -109,7 +125,10 @@ export function createQualityCoverageReader(
         sources: classified.sources.map((source) => ({
           ...source,
           nativeGates: nativeMappings.filter(({ boundaryId }) => source.owners.includes(boundaryId))
-            .map(({ script, reached }) => ({ script, reached }))
+            .map(({ script, reached }) => ({ script, reached })),
+          ...(assetMappings.some(({ path }) => path === source.path) ? {
+            assetGates: assetMappings.filter(({ path }) => path === source.path).map(({ script, reached }) => ({ script, reached }))
+          } : {})
         })),
         unclassifiedPackages: [...new Set([...classified.unclassifiedPackages, ...missingPackages])].toSorted(),
         ...protection,

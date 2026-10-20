@@ -5,6 +5,7 @@ export type { QualityCoverageReader, QualityToolProvider, QualityToolSession, Qu
 export { OxlintMeasuredValueMissingError } from "./application/model.js";
 export type { ManagedProcessExecutor, ManagedProcessResult } from "./application/tool-execution.js";
 export { executesScript, qualityHostCommand, nativeScriptEntrypoint } from "./application/script-route.js";
+export { assetValidatorDeclaration, executesAssetValidator } from "./application/script-route.js";
 export { classifyQualityCensus, qualitySourceLanguage, qualitySourceTargets } from "./application/source-coverage.js";
 export { CapabilityInputError, assertNotCancelled } from "./application/input-observations.js";
 export type { QualityDependencyDeclaration, QualityFileReader } from "./application/input-observations.js";

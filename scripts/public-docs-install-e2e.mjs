@@ -356,6 +356,36 @@ function documentedWorkflowEvidence(selection, matrix, installs) {
   });
 }
 
+async function verifyInstalledProvenance({ authority, artifacts, installs }, dependencies) {
+  const npmPair = installs.get("npm-docs-mcp");
+  if (typeof npmPair?.root !== "string" || typeof npmPair.userConfigPath !== "string") {
+    throw new Error("Public npm pair qualification did not return its disposable install root.");
+  }
+  const audit = dependencies.auditSignatures ?? npmAuditSignatures;
+  const auditEvidence = await audit({
+    registry: PUBLIC_NPM_REGISTRY,
+    root: npmPair.root,
+    userConfigPath: npmPair.userConfigPath,
+  });
+  const verifyProvenance = dependencies.verifyProvenance ?? verifiedProvenanceFromNpmAudit;
+  const provenances = artifacts.map((artifact) => verifyProvenance(
+    auditEvidence,
+    artifact,
+    authority.source,
+  ));
+  const commits = new Set(provenances.map(({ commit }) => commit));
+  if (commits.size !== 1) {
+    throw new Error("Public Docs packages are not bound to one provenance commit.");
+  }
+  const [commit] = commits;
+  const verifyGithub = dependencies.verifyGithub ?? verifyGithubTagRelease;
+  const repository = githubRepository(authority.source.repository);
+  for (const artifact of artifacts) {
+    await verifyGithub(`${artifact.name}@${artifact.version}`, commit, { repository });
+  }
+  return commit;
+}
+
 export async function verifyPublicExactDocsCoordinates({ temporaryRoot, selection = "release" }, dependencies = {}) {
   if (selection !== "release" && selection !== "documented") {
     throw new Error("Public Docs coordinate selection must be release or documented.");
@@ -399,32 +429,9 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot, selectio
       temporaryRoot,
     }));
   }
-  const npmPair = installs.get("npm-docs-mcp");
-  if (typeof npmPair?.root !== "string" || typeof npmPair.userConfigPath !== "string") {
-    throw new Error("Public npm pair qualification did not return its disposable install root.");
-  }
-  const audit = dependencies.auditSignatures ?? npmAuditSignatures;
-  const auditEvidence = await audit({
-    registry: PUBLIC_NPM_REGISTRY,
-    root: npmPair.root,
-    userConfigPath: npmPair.userConfigPath,
-  });
-  const verifyProvenance = dependencies.verifyProvenance ?? verifiedProvenanceFromNpmAudit;
-  const provenances = decision.artifacts.map((artifact) => verifyProvenance(
-    auditEvidence,
-    artifact,
-    authority.source,
-  ));
-  const commits = new Set(provenances.map(({ commit }) => commit));
-  if (commits.size !== 1) {
-    throw new Error("Public Docs packages are not bound to one provenance commit.");
-  }
-  const [commit] = commits;
-  const verifyGithub = dependencies.verifyGithub ?? verifyGithubTagRelease;
-  const repository = githubRepository(authority.source.repository);
-  for (const artifact of decision.artifacts) {
-    await verifyGithub(`${artifact.name}@${artifact.version}`, commit, { repository });
-  }
+  const commit = await verifyInstalledProvenance({
+    authority, artifacts: decision.artifacts, installs,
+  }, dependencies);
   const finalPublished = await observe(coordinates, PUBLIC_NPM_REGISTRY, dependencies);
   const finalDecision = registryDecision(coordinates, finalPublished, selection);
   if (finalDecision.status !== "ready") {

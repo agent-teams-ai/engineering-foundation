@@ -1,5 +1,36 @@
 # @agent-teams/engineering-foundation
 
+## 1.10.2
+
+### Patch Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Coordinate ADR baseline promotion with the existing cooperative repository-root mutation lease. Use exclusively owned sibling temporary files, bind physical root and parent identities, preserve conflicting mutation evidence, and report failures without hiding write, close, cleanup or lease-release errors. Expose the existing evidence-retention helper and a narrow Node atomic replacement resource contract through Repository Mutation's Node adapter API. Physical root, parent and temporary identities stay with the existing mutation owner.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Correct source-dependency and source-graph classification of ordinary imports
+  and export-from declarations containing only inline `type` specifiers. Their
+  module request survives Node type stripping and TypeScript verbatim emit, so
+  they now retain runtime mode. Runtime boundaries reject these references to
+  development-only dependencies, and source-graph consumers see their load-cycle
+  edges. Declaration-level `import type` and `export type` remain type-only.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Keep literal wildcard characters in exact package export targets and validate
+  the original target before pattern substitution. Invalid selected URL paths and
+  structural wildcard captures now reject without trying a later array fallback;
+  invalid original package targets retain Node's array fallback behavior. Query
+  and fragment annotations follow Node's import/require finalization rules. Export
+  selection remains bounded and independent of file existence.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Keep changed-file Git inspection read-only by using an owned index snapshot that preserves racy-edit detection. Repository tooling separates source Git authority from ordinary child commands and keeps changed-file checks with the source checkout.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Validate workspace dependency configuration through the existing shared schema
+  catalog, scoped to the capability's composition. Filesystem loaders receive a
+  narrow assertion dependency and map only validated v1/v2 input. Preserve schema
+  diagnostics, format annotations, manager dispatch and immutable settings while
+  removing the duplicate Ajv constructor and validation-message formatter.
+- Updated dependencies [[`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d)]:
+  - @agent-teams/repository-mutation@0.3.0
+  - @agent-teams/document-authoring@0.3.3
+
 ## 1.10.1
 
 ### Patch Changes

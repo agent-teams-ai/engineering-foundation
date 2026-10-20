@@ -113,10 +113,23 @@ const recorded: ReleaseCandidateInput = {
     diff: [...direct.observed.diff.filter(change => change.path !== '.intent/direct.md'), { path: '.release-state.json', classification: 'state', kind: 'modified', before: file('c'), after: file('d') }],
   },
 };
+// A Git repository need not have a root package manifest. All actual nested
+// packages and complete repository-relative observations remain in the input.
+const nested: ReleaseCandidateInput = {
+  ...direct,
+  expected: { ...direct.expected, packages: packages.filter(entry => entry.root !== '.') },
+  observed: { ...direct.observed, manifests: direct.observed.manifests.filter(entry => entry.manifestPath !== 'package.json') },
+};
 const cases: readonly ConformanceCase[] = [
   { id: 'direct-dependent-empty-and-unchanged-none', input: direct, expected: { outcome: 'passed', diagnosticCodes: [], packageChanges } },
   { id: 'no-release-with-empty-intent-and-none', input: noRelease, expected: { outcome: 'passed', diagnosticCodes: [], packageChanges: [] } },
   { id: 'existing-retained-file-consumption', input: recorded, expected: { outcome: 'passed', diagnosticCodes: [], packageChanges } },
+  { id: 'nested-packages-without-root-manifest', input: nested, expected: { outcome: 'passed', diagnosticCodes: [], packageChanges } },
+  {
+    id: 'unclassified-root-manifest',
+    input: { ...nested, observed: { ...nested.observed, manifests: [...nested.observed.manifests, { manifestPath: 'package.json', before: root, after: root }] } },
+    expected: { outcome: 'rejected', diagnosticCodes: ['package.unknown'], packageChanges },
+  },
   { id: 'unknown-input', input: null, expected: { outcome: 'rejected', diagnosticCodes: ['input.invalid'], packageChanges: [] } },
   { id: 'stale-config-binding', input: { ...direct, observed: { ...direct.observed, binding: { ...binding, configDigest: digest('1') } } }, expected: { outcome: 'rejected', diagnosticCodes: ['binding.mismatch'], packageChanges } },
   {

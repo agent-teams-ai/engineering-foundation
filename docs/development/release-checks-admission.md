@@ -41,8 +41,8 @@ adopt exact supported coordinates only after registry proof.
 | Actual pinned engine behavior | P0 qualified 14 disposable fixtures with Changesets 2.31.1/3.0.2; report digest retained in the review record |
 | Pure source and common fixtures | Implemented in one `candidate-checking` feature; focused tests must qualify the final source |
 | Real Foundation consumer | Source-built release Hosts adopt the contract; final-head Host conformance and tamper checks remain required |
-| Packed installed consumer | Focused actual qualification passed: two independent clean-stage builds produced identical archives; the installed pnpm consumer passed native TypeScript 7.0.2 and all 10 common runtime cases through both public entries |
-| Hermetic registry consumer | The same qualified archive was published only to disposable no-uplink Verdaccio and installed by exact version with npm; public typing and all 10 runtime cases passed with matching archive integrity. Existing `npm-foundation` qualification invokes the same probe |
+| Packed installed consumer | Focused actual qualification passed: two independent clean-stage builds produced identical archives; the installed pnpm consumer passed native TypeScript 7.0.2 and all 12 common runtime cases through both public entries |
+| Hermetic registry consumer | The same qualified archive was published only to disposable no-uplink Verdaccio and installed by exact version with npm; public typing and all 12 runtime cases passed with matching archive integrity. Existing `npm-foundation` qualification invokes the same probe |
 | Complete inventories | Catalog, strict projects, source/feature/quality profiles and complete Linux/Windows/coverage inventories include the package and tests |
 | Initial typed baseline | Existing native promotion owner created only `release-checks.json` at `0.0.0`; the complete nine-package typed and artifact checks passed and all 13 historical baseline files retained their exact hashes |
 | Namespace bootstrap | Candidate only, `approval: null`; no bootstrap or publication is authorized by admission |
@@ -50,9 +50,9 @@ adopt exact supported coordinates only after registry proof.
 
 The retained [installed qualification report](../research/evidence/release-checks/p1-installed-qualification.json)
 has SHA-256
-`a1e2b20a039b89a92d0054244a88bb8f5817201d23cdb2394bf502866e95eaf3`.
+`e63b69ec6ec35d9bf4118f1e9e5da826006e69f16e8323441a685877fd552fd5`.
 It records the actual Node 26.11.1 run and qualified archive SHA-256
-`5c468f1721ceb04d1c909b0c6c2fc42167496f7e60703fea0dfc0a094a14fdd7`.
+`4c46ed8e2aa0cdd24e2b6b3d45acdf22f0614a777f9baccdf687f0630a55a027`.
 The installed lock closures contain only release-checks, proving that the
 development compiler is not installed transitively. Both public runtime
 exports, package identity, exact version, native declaration consumption and

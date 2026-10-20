@@ -58,6 +58,12 @@ void test('complete inventory rejects missing, extra, duplicate and contradictor
   assert(codes(foreignRoot).includes('inventory.ambiguous'));
   const identity = fixture(); alpha(identity).semantic['name'] = '@fixture/swap';
   assert(codes(identity).includes('manifest.identity'));
+  const nested = fixture('nested-packages-without-root-manifest');
+  nested.observed.manifests = nested.observed.manifests.filter(item => item.manifestPath !== 'packages/alpha/package.json');
+  assert(codes(nested).includes('manifest.missing'));
+  const empty = fixture('no-release-with-empty-intent-and-none');
+  empty.expected.packages = []; empty.expected.plan.releases = []; empty.observed.manifests = [];
+  assert.deepEqual(codes(empty), ['inventory.ambiguous']);
 });
 
 void test('all non-version manifest fields remain protected independently of permission labels', () => {

@@ -53,7 +53,7 @@ export function candidateFacts(input: ReleaseCandidateInput, diagnostics: Diagno
   const packages = index(expected.packages, p => p.name, diagnostics, 'package name');
   const manifests = index(expected.packages, p => p.manifestPath, diagnostics, 'manifest path');
   index(expected.packages, p => p.root, diagnostics, 'package root');
-  if (!expected.packages.some(p => p.root === '.')) { reject(diagnostics, 'inventory.ambiguous', { path: 'package.json' }, 'The classified inventory must include its repository root manifest.'); }
+  if (expected.packages.length === 0) { reject(diagnostics, 'inventory.ambiguous', {}, 'The classified inventory must contain at least one actual package.'); }
   for (const p of expected.packages) {
     if (p.manifestPath !== (p.root === '.' ? 'package.json' : `${p.root}/package.json`)) {
       reject(diagnostics, 'inventory.ambiguous', { packageName: p.name, path: p.manifestPath }, 'Manifest path does not identify its declared package root.');

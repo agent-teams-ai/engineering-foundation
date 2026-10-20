@@ -3,9 +3,9 @@
   "node": "v26.11.1",
   "packageName": "@agent-teams/release-checks",
   "packageVersion": "0.0.0",
-  "archiveSha256": "5c468f1721ceb04d1c909b0c6c2fc42167496f7e60703fea0dfc0a094a14fdd7",
-  "archiveIntegrity": "sha512-6VizydXvjhSZkckyBgZoCdVZ0Sc8V0K6CQCFQwJwzrlqTJ1TQh35pcnMyIndnnz4JR0AcUQ5ZNo+QqISDXx7rA==",
-  "archivePath": "/tmp/release-checks-installed-mToqYx/verified-release-checks-rx2e4o/agent-teams-release-checks-0.0.0.tgz",
+  "archiveSha256": "4c46ed8e2aa0cdd24e2b6b3d45acdf22f0614a777f9baccdf687f0630a55a027",
+  "archiveIntegrity": "sha512-dnrvPLeH18mqancH+mH04YMcUIaAQVa2abcXxgAUYyIPKSNgpRc2a2bl2JiYxLdwoRPceUFVxJi1p4S2YL0oTw==",
+  "archivePath": "/tmp/release-checks-installed-MtyOwY/verified-release-checks-TPy3Yl/agent-teams-release-checks-0.0.0.tgz",
   "cleanBuilds": 2,
   "byteIdenticalArchives": true,
   "packedPublicTypesAndRuntime": true,
@@ -13,8 +13,8 @@
   "runtimeClosure": [
     "@agent-teams/release-checks"
   ],
-  "conformanceCases": 10,
+  "conformanceCases": 12,
   "registryHasUplinks": false,
   "publicRegistryPublication": false,
-  "temporaryRoot": "/tmp/release-checks-installed-mToqYx"
+  "temporaryRoot": "/tmp/release-checks-installed-MtyOwY"
 }

@@ -34,7 +34,7 @@ release record.
 | Input | Required facts |
 | --- | --- |
 | `expected.binding` | Portable immutable source identity/digest; exact engine identity/digest; config, inventory, policy, intent-set and frozen-plan digests |
-| `expected.packages` | Complete classified workspace, including the root `package.json`; unique name/root/path, public/private visibility, version eligibility and full accepted manifest snapshot |
+| `expected.packages` | Nonempty complete inventory of actual packages, including a root `package.json` when present; unique name/root/path, public/private visibility, version eligibility and full accepted manifest snapshot |
 | `expected.intents` | Complete qualified source intent identities/paths/digests, pending/retained participation and explicit requested package/type pairs |
 | `expected.plan` | All official normalized release records, including dependent and unchanged `none` records; exact old/new versions and direct intent links; explicit qualified consumption effects |
 | `expected.permittedChanges` | Exact path, classification, change kind, before/after type/mode and named Host content authority |
@@ -43,8 +43,10 @@ release record.
 | `observed.consumptions` | Independently observed intent identity, original digest and effect |
 | `observed.diff` | Complete independently enumerated candidate changes, with exact before/after leaf identity and absence |
 
-The complete public types are exported from the root. Source roots use `.` only
-for the repository root, with `package.json` as its manifest. Other paths are
+The complete public types are exported from the root. All source roots and paths
+are relative to the Git repository root, even when the engine runs in a nested
+directory. A repository need not have a root package manifest. Source roots use
+`.` only for an actual repository-root package, with `package.json` as its manifest. Other paths are
 literal relative slash-separated paths: no empty/dot/dot-dot segments,
 backslashes, drive prefixes or ASCII controls/DEL. Case and Unicode spelling
 retain their identities. The library does not canonicalize filesystem paths.
@@ -152,7 +154,8 @@ for (const entry of releaseCandidateConformanceCases) {
 ```
 
 The common data covers direct/dependent releases, mixed empty housekeeping,
-unchanged private `none`, retained-file consumption, no release and targeted
+unchanged private `none`, retained-file consumption, nested packages without a
+root manifest, no release and targeted
 rejections. Each adopting Host also qualifies its own actual engine, complete
 observations, content guards and installed exact package. Do not generate both
 the plan and its expected answer with checker code.

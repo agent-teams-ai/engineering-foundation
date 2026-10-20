@@ -22,6 +22,7 @@ qualification separately.
 | Reusing the retained files-policy module during its top-level CLI await deadlocked | Completed module initialization before running the CLI, with explicit fatal error handling; the actual files CLI passes valid engine output and rejects a forged Bun lock SRI |
 | The normal all-package API promoter encounters a pending earlier public API addition | Created only the new initial anchor through the existing native promotion owner; kept the full production policy and verified all nine typed/artifact surfaces and all 13 unchanged historical baseline hashes |
 | Complete source coverage found the new package missing from suppression governance | Added its complete source root to the existing governed roots; no waiver or suppression was added |
+| The actual installed TEST canary has no Git-root package manifest | Removed the unconditional root-manifest assumption; the inventory must contain actual packages and retain exact paths and complete manifest/diff relations. Shared nested-package positive and unclassified-root negative cases cover the correction |
 
 No generic release manager, compiler-stage exception, public Foundation facade,
 new publisher or version-selection algorithm was added.
@@ -33,19 +34,19 @@ qualify its own exact head/base and cannot reuse these as hosted receipts.
 
 | Boundary | Observed result |
 | --- | --- |
-| Pure core and shared conformance | 20 tests passed with normal Node process isolation |
+| Pure core and shared conformance | 22 tests passed with normal Node process isolation; with the five actual-engine Host tests, the corrected candidate passed all 27 focused cases |
 | Actual-engine Foundation Host | 5 integration tests passed, covering frozen plans, pre-baseline checks, independent base reconstruction, complete diff and execution drift |
 | Retained release, freshness, bootstrap and migration routes | 118 tests passed; final collector/registry delta suite passed 16 tests |
 | Authentic pinned action/Changesets lock fixture | Actual Changesets 2.31.1, Bun 1.4.3, pnpm 11.20.0 and Node 26.11.1 passed generation and source/lock checks; the FMS peer floor was preserved and a forged Bun SRI rejected |
 | Admission and catalog authorities | 68 tests passed; nine-package release, source and feature inventories and complete 338-test/eight-shard manifests passed |
-| Installed package | Two byte-identical clean-stage archives; offline packed and no-uplink registry consumers passed TypeScript 7.0.2 declarations and all ten public common cases |
+| Installed package | Two byte-identical clean-stage archives; offline packed and no-uplink registry consumers passed TypeScript 7.0.2 declarations and all 12 public common cases |
 | Initial API evidence | One new initial anchor; complete nine-package typed/artifact check passed; 13 historical baseline files unchanged |
 | Workflow security | Required pinned workflow security command passed with no new findings or suppressions |
 | Required pre-PR source gates | `bun tools/dev.mts check:changed` passed its complete `fast-full` selection against the original accepted base; the separate `bun tools/dev.mts check:fast` also passed after complete suppression-governance admission |
 
 The retained [installed qualification](evidence/release-checks/p1-installed-qualification.json)
 binds archive SHA-256
-`5c468f1721ceb04d1c909b0c6c2fc42167496f7e60703fea0dfc0a094a14fdd7`.
+`4c46ed8e2aa0cdd24e2b6b3d45acdf22f0614a777f9baccdf687f0630a55a027`.
 This is candidate `0.0.0` from local clean stages and a local registry; it is not
 the protected Ubuntu publication writer, a public npm release or E2E completion.
 The [initial API record](evidence/release-checks/p1-initial-api-baseline.json)
@@ -66,6 +67,17 @@ That review predates the one-line suppression-governance admission correction
 above. Confirmation against the eventual exact implementation commit and its
 intervening delta remains required. The documentation HEAD alone does not
 contain the implementation and is not a reviewed implementation commit.
+
+An independent delta review of the later nested-package correction returned GO
+for behavior at source-tree digest
+`344f4793880d323383c3cf0755e21a267751c07b2d8037dbb7a7bfd3178fdc6d`, over
+`99fd92f61c39958b98317bb1c70a9c7c69f07cda`. All 12 public common cases and
+additional missing-manifest, hidden-field, wrong-root and unexpected-root-diff
+counterexamples passed. The reviewer requested one public README clarification:
+the complete nonempty inventory includes a root manifest when it actually
+exists, and paths always remain relative to the full Git repository. That
+clarification is applied. The delta review also verified exact preservation of
+the upstream owner release and the one-line suppression-governance admission.
 
 Required final-head CI, owner PR, publication and three separate real consumer
 adoptions will be recorded here as they are observed. The existing canary's

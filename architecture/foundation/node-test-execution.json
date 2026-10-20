@@ -271,7 +271,14 @@
     {
       "file": "tests/c1-agent-workflow-coverage.test.mts",
       "names": [
-        "C1 frozen influencing closure rejects real ABA while mutable remains unverified"
+        "C1 frozen influencing closure rejects real ABA"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-coverage.test.mts",
+      "names": [
+        "C1 mutable real ABA remains feedback only and unverified"
       ],
       "kind": "test"
     },

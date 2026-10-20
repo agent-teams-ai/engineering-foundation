@@ -1,24 +1,19 @@
-name: Performance signals
+name: Windows bootstrap diagnostic
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
-  push:
-    branches:
-      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: foundation-performance-${{ github.ref }}
-  cancel-in-progress: true
+  group: foundation-windows-bootstrap-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  advisory-performance:
-    name: advisory-performance
-    runs-on: ubuntu-24.04
+  windows-bootstrap-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/heads/diagnostic/') }}
+    runs-on: windows-2022
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,14 +24,34 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - run: bun tools/dev.mts install
-      - run: bun tools/dev.mts build
-      - name: Collect advisory benchmark signals
-        run: node scripts/run-performance-benchmarks.mjs --output "${RUNNER_TEMP}/foundation-performance.json"
-      - name: Upload immutable benchmark evidence
+      - name: Use runner temporary directory
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TEMP)) { throw "RUNNER_TEMP required" }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8 -Value @("TEMP=$env:RUNNER_TEMP", "TMP=$env:RUNNER_TEMP", "TMPDIR=$env:RUNNER_TEMP")
+      - name: Verify controller and manager identities
+        shell: pwsh
+        run: |
+          node -e "if(process.versions.bun || process.versions.node !== require('node:fs').readFileSync('.node-version','utf8').trim()) throw new Error('Pinned native Node required')"
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned native Node required' }
+          if ((bun --version) -ne '1.4.3') { throw 'Bun 1.4.3 required' }
+      - run: node tools/dev.mts install
+      - run: node tools/dev.mts build
+      - name: Typecheck private diagnostic with the pinned compiler
+        run: node node_modules/typescript/bin/tsc --project tsconfig.windows-bootstrap-probe.json --pretty false
+      - name: Run six planned single-wrapper observations
+        run: node scripts/windows-bootstrap-standalone.ts "$env:RUNNER_TEMP/windows-bootstrap-single-wrapper.json"
+      # Diagnostic only. Default success() prevents launches after an uncertain
+      # or unsuccessful standalone probe; original C1 timeouts/assets stay intact.
+      - name: Run selected unchanged C1 regression diagnostics
+        run: node --test --test-concurrency=1 --test-name-pattern="C1 candidate|C1 frozen influencing closure rejects real ABA" tests/c1-agent-workflow-cli.test.mts tests/c1-agent-workflow-coverage.test.mts
+      - name: Retain bounded diagnostic independently of outcome
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: foundation-performance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/foundation-performance.json
+          name: windows-bootstrap-single-wrapper-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/windows-bootstrap-single-wrapper.json
+            ${{ runner.temp }}/c1-TEST-*-failure.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14

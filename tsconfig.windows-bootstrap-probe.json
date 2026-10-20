@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.ci-tooling.json",
+  "include": ["scripts/windows-bootstrap-standalone.ts"]
+}

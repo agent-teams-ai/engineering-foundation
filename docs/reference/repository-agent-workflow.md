@@ -37,6 +37,17 @@ the adapters remain linked, required package scripts exist, and the canonical
 instructions name the changed, fast, and full commands. Documentation improves
 agent discovery; it is not treated as an enforcement boundary.
 
+The changed script may call the installed CLI or a static Host dispatcher:
+`node <repository-relative JS/TS file> tool agent-teams-foundation agent-workflow changed --consumer .`.
+Coverage policies use `check-changed` in place of `changed`. The dispatcher form
+requires exactly those eight space- or tab-separated tokens, a static ASCII path
+with a `.js`, `.mjs`, `.cjs`, `.ts`, `.mts` or `.cts` suffix, and no absolute path,
+empty or traversal segment, shell syntax, runtime flags, newline or extra argument.
+This validates a command declaration. It neither authenticates the dispatcher's
+implementation nor executes it; the Host retains runtime selection, executable
+identity and behavioral qualification. Accepted declaration syntax grants no
+qualified coverage, and mutable checkout feedback remains unverified.
+
 ## Executable preflight
 
 The consumer exposes three stable scripts:

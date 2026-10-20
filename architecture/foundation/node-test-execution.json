@@ -201,6 +201,13 @@
     {
       "file": "tests/c1-agent-workflow-configuration.test.mts",
       "names": [
+        "workflow conformance admits only static Host tool declarations for the selected command mode"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-configuration.test.mts",
+      "names": [
         "C1 versioned loading preserves v1 and successor rejects it before effects"
       ],
       "kind": "test"

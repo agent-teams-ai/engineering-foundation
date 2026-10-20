@@ -36,6 +36,19 @@ function isExactAdapter(source: string, candidates: readonly string[]): boolean 
   return candidates.includes(source.trim());
 }
 
+// Recognize the declaration only; Host code and runtime qualification are separate.
+function isStaticHostToolRunner(command: string, successor: boolean): boolean {
+  if (/[\r\n]/u.test(command)) { return false; }
+  const tokens = command.replace(/^[ \t]+|[ \t]+$/gu, "").split(/[ \t]+/u);
+  const entry = tokens[1];
+  return tokens.length === 8 && tokens[0] === "node" && entry !== undefined &&
+    !entry.startsWith("-") && /^[A-Za-z0-9_./-]+\.(?:[cm]?[jt]s)$/u.test(entry) &&
+    entry.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..") &&
+    tokens[2] === "tool" && tokens[3] === "agent-teams-foundation" &&
+    tokens[4] === "agent-workflow" && tokens[5] === (successor ? "check-changed" : "changed") &&
+    tokens[6] === "--consumer" && tokens[7] === ".";
+}
+
 function importCandidates(adapterPath: string, canonicalPath: string): readonly string[] {
   const adapterDirectory = adapterPath.split("/").slice(0, -1);
   const canonicalSegments = canonicalPath.split("/");
@@ -163,6 +176,7 @@ function validateCommands(
     /^node\s+tools\/repository-command\.mts\s+script\s+build\s*&&\s*node\s+tools\/repository-command\.mts\s+tool\s+check:changed$/u;
   if (
     changedCommand !== undefined &&
+    !isStaticHostToolRunner(changedCommand, successor) &&
     !(successor
       ? successorRunner.test(changedCommand.trim()) || successorDogfood.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim())
       : installedRunner.test(changedCommand.trim()) || selfDogfoodRunner.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim()))

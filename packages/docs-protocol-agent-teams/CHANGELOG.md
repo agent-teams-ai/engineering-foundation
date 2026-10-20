@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.2
+
+### Patch Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Use the existing strict JSON parser for SDK manifest and profile records. Preserve duplicate-key and object-root diagnostics, reject nested decoded-key duplicates consistently, and identify malformed syntax with the input's subject.
+
+- Updated dependencies [[`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d)]:
+  - @agent-teams/repository-mutation@0.3.0
+  - @agent-teams/docs-protocol@0.6.3
+
 ## 0.5.1
 
 ### Patch Changes

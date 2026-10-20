@@ -763,6 +763,25 @@ test("full capability follows Node wildcard priority and rejects empty captures"
   assert.deepEqual(ruleIds(empty.diagnostics), [exportRule, mixedPackageRule]);
 });
 
+test("full capability rejects selected invalid export URLs without array fallback", async () => {
+  for (const target of [
+    ["./dist/%2f*.js", "./dist/index.js"],
+    ["./dist/%5c*.js", "./dist/index.js"],
+    ["./dist/%FF*.js", "./dist/index.js"],
+  ]) {
+    const report = await mixedReport({
+      appSpecifier: "@fixture/core/feature",
+      exports: { "./*": target },
+    });
+    assert.deepEqual(ruleIds(report.diagnostics), [exportRule, mixedPackageRule], reportDetails(report));
+  }
+  const invalidOriginal = await mixedReport({
+    exports: { ".": ["./dist/../outside.js", "./dist/index.js"] },
+    runtimeClaims: ["."],
+  });
+  assert.equal(invalidOriginal.outcome, "passed", reportDetails(invalidOriginal));
+});
+
 async function configureGeneratedOutput(consumerRoot, schemaVersion, dependencyMode, specifier) {
   const packageRoots = schemaVersion === 2 ? "packageRoots:\n  - packages\n" : "";
   await writeFile(

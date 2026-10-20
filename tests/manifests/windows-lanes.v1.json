@@ -154,7 +154,8 @@
       "tests/repository-runtime-tools.test.mts",
       "tests/pnpm-manager-observation.test.mts",
       "tests/source-inline-types.test.ts",
-      "tests/package-export-matcher.test.ts"
+      "tests/package-export-matcher.test.ts",
+      "tests/sdk-json-record.test.ts"
     ],
     "c": [
       "tests/source-dependency-loader-cli.test.mjs"
@@ -230,7 +231,8 @@
       "packages/engineering-foundation/tests/public-api-native-projection.test.ts",
       "tests/public-api-native-migration.test.ts",
       "tests/public-api-native-migration-cli.test.ts",
-      "packages/engineering-foundation/tests/public-api-native-transition.test.ts"
+      "packages/engineering-foundation/tests/public-api-native-transition.test.ts",
+      "tests/architecture-baseline-replacement.test.ts"
     ],
     "e": [
       "tests/findings-baseline-capability.test.mjs",

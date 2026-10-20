@@ -33,6 +33,8 @@
     "tests/source-inline-types.test.ts",
     "tests/package-export-matcher.test.ts",
     "tests/public-docs-documented.test.ts",
-    "tests/support/ci-input-proof-collector-install.ts"
+    "tests/support/ci-input-proof-collector-install.ts",
+    "tests/sdk-json-record.test.ts",
+    "tests/architecture-baseline-replacement.test.ts"
   ]
 }

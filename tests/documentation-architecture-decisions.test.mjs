@@ -773,10 +773,10 @@ test("serializes concurrent baseline writers across processes", async () => {
       outcomes.map((outcome) => outcome.kind).toSorted(),
       ["fulfilled", "rejected"]
     );
-    assert.equal(
-      outcomes.find((outcome) => outcome.kind === "rejected")?.code,
-      "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"
-    );
+    assert.ok([
+      "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT",
+      "ARCHITECTURE_DECISION_BASELINE_WRITE_LOCK_UNAVAILABLE"
+    ].includes(outcomes.find((outcome) => outcome.kind === "rejected")?.code));
 
     const persisted = JSON.parse(await readFile(baselinePath(root), "utf8"));
     assert.ok(

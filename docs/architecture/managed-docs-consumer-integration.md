@@ -164,3 +164,14 @@ until the Windows mutation adapter passes separate capability qualification.
 - compatibility aliases, dynamic schema detection, or installed-package discovery;
 - multi-file atomicity claims;
 - continuous organization-wide compliance before a separate read-only auditor.
+
+### JSON record diagnostics
+
+Manifest, cohort and managed-profile JSON records use Repository Mutation's
+strict JSON parser before record or schema interpretation. Literal and decoded
+duplicate keys at any object depth retain the input-specific
+`ConsumerJsonInputError` duplicate-key diagnostic. Nonobject roots retain their
+existing record diagnostic. Malformed syntax reports `<subject> must contain
+valid JSON.`; the default subject remains `Package manifest`. Unexpected parser
+failures propagate instead of being classified as duplicate keys. This adapter
+does not change canonical JSON bytes or protocol digests.

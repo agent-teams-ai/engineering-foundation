@@ -753,3 +753,28 @@ agent-oriented until a real SARIF consumer exists.
 - [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 - [pnpm catalogs](https://pnpm.io/catalogs)
 - [pnpm workspace protocol](https://pnpm.io/workspaces#workspace-protocol-workspace)
+
+### ADR baseline replacement boundary
+
+Accepted-decision baseline promotion uses Repository Mutation's existing
+cooperative repository-root lease around its final preimage check and same-directory
+atomic replacement. A held lease can reject another writer immediately; callers
+re-read repository state before retrying. Common mutation evidence blocks
+promotion and retains its recovery barrier. Root, parent and temporary identities
+are checked before replacement; the adapter does not claim conditional filesystem
+compare-and-swap against nonparticipating writers or power-loss durability.
+
+Temporary bytes are exclusively created as a sibling of the baseline. A normal
+failure retires only identity-matching owned temporary evidence through the
+existing cleanup mechanism. Its `.foundation-retired-evidence-` directory and
+the root lease's terminal retirement records are intentional retained evidence.
+Foreign substituted temporaries are preserved and reported. An abruptly killed
+process can leave a sibling temporary whose ownership a later invocation cannot
+prove; a fresh promotion recovers the existing root lease but does not delete
+that unproven evidence.
+
+A thrown error after rename, parent-directory synchronization or lease release
+can accompany committed replacement bytes. Inspect the actual baseline and obtain
+a fresh expected revision before deciding whether another promotion is needed.
+Write, sync, close, cleanup and lease-release failures are retained together;
+cleanup or release does not replace an earlier failure.

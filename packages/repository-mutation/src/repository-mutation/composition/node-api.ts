@@ -15,3 +15,5 @@ export type { KnownFileRecoveryFaultInjector } from "../adapters/node/node-known
 export type { PrepareExactSiblingTemporaryOptions } from "../adapters/node/node-prepare-exact-sibling-temporary.js";
 export type { AbsentFilePublicationFaultInjector, AbsentFilePublicationOperations, AbsentFilePublicationOptions } from "../adapters/node/node-absent-file-publication.js";
 export type { DirectoryDurability } from "../adapters/node/node-directory-durability.js";
+export { NodeAtomicFileReplacementError } from "../adapters/node/node-atomic-file-replacement.js";
+export type { NodeAtomicFileReplacement } from "../adapters/node/node-atomic-file-replacement.js";

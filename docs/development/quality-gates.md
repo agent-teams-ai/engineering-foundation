@@ -40,6 +40,18 @@ Ordinary child commands discard inherited repository, index, object-store and
 injected-config selectors while preserving Git transport, identity and normal
 global configuration. Explicit source authority is local to source Git reads.
 
+The repository-wide selected check uses the private
+`check:changed:repository` script. It creates a dedicated owned Node profile and
+delegates installation and the unchanged full `check` to `tools/dev.mts`.
+Source Git selection and the outer Bun workflow remain in the source checkout;
+package qualification runs in the actual pnpm projection required by its owner.
+Inherited profile targets and source identities cannot select that temporary
+profile. A successful mutable invocation remains feedback-only, with unverified
+input binding and no qualified facets. Local full diagnostics still require the
+explicit generation2 Node and managed test tools described in
+[Node compatibility](node-26-compatibility.md) and
+[managed runtime qualification](../reference/node26-managed-runtime-observation.md).
+
 Node-profile lint first checks all non-generated source bytes and paths against
 the source checkout. Only the three declared manager/workflow/dependency-policy
 projections are normalized, after validating their exact derived bytes. The

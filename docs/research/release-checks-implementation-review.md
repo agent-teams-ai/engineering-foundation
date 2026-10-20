@@ -201,3 +201,42 @@ digest is
 `sha256:b38ca4441dd30f66cc58b22864005121f48f740556f3659e3f64df2110349a49`;
 all 60 historical entries remain unchanged. The source gates run in a clean
 worktree of the resulting committed revision.
+
+## Source-owned changed-check composition
+
+At `854efdfe637406d046e38d02cb68625ada05a051`, the new source-owned changed
+check reached successful native Foundation checking and the Nx graph, then
+stopped. A minimal runtime probe confirmed that the local environment lacked
+the explicit generation2 Node required before dispatching built tests. Official
+Node 24.21.0 and the historical managed Node 26.10.0 were acquired with their
+published archive checksums; the existing managed-test-tools owner provisioned
+and verified both copies with pnpm 11.20.0. The default remains Node 26.11.1.
+The original failed result is retained, not relabeled as a successful check.
+
+Before repeating the full command, two independent reviewers confirmed a
+separate composition contradiction inherited from protected main. C1 selects
+`bun run check` in the actual source checkout, but the unchanged package owner
+requires the real isolated pnpm projection. An actual pack-owner preflight
+rejected the source Bun root before creating any package stage. A Node launcher
+for `check:changed` still returns to the source Bun operation and cannot resolve
+that contradiction.
+
+The private `check:changed:repository` wrapper now delegates to the existing
+Node-profile install and full-check commands. It verifies the actual Node,
+binds the actual source root and HEAD, and creates a fresh owned profile instead
+of accepting an inherited target that installation could replace. Ordinary
+Git selectors are removed. Installation failure or cancellation prevents the
+check, and a full-check failure remains a failure. No projection receipt is
+manufactured. The ordinary full script, source Bun selection, all five coverage
+facets, scopes, exclusions, escalation and complete test/package inventories
+remain unchanged. Changesets, the release-checks leaf and publisher are untouched.
+
+Nine focused process tests passed, including concurrent profile isolation,
+hostile inherited source/target selectors, child failure and cancellation, and
+linked-parent rejection. Both strict tooling projects passed on TypeScript
+7.0.2; the new wrapper passed the existing fast and typed linters, and the test
+file passed fast lint. These
+boundary probes do not claim actual profile installation or full qualification;
+the final real changed check and complete head/base CI provide their own results.
+A successful mutable C1 command still supplies feedback only, with unverified
+input binding and no qualified facets. The public-admission hold remains active.

@@ -45,6 +45,7 @@
     "tools/git-environment.ts",
     "tools/profile-source.ts",
     "tools/repository-oxlint.ts",
+    "tools/check-changed-repository.ts",
     "tests/repository-profile-lint.test.ts",
     "tests/repository-profile-git.test.ts"
   ]

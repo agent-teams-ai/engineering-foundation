@@ -371,7 +371,7 @@ for (const [name, header, references] of [
 }
 for (const [name, source, references, unresolved] of [
   ["runtime import", 'import {} from "runtime"; var require; require("user");', ["static:runtime"], []],
-  ["inline type specifier retains runtime syntax", 'import {type T} from "types"; var require; require("user");', ["static-type:types"], []],
+  ["inline type specifier retains runtime syntax", 'import {type T} from "types"; var require; require("user");', ["static:types"], []],
   ["import meta", 'import type {T} from "types"; import.meta.url; var require; require("user");', ["static-type:types"], []],
   ["top-level await", 'export type T = string; await user(); var require; require("user");', [], []],
   ["top-level await iteration", 'export type T = string; for await (const x of user) {} var require; require("user");', [], []],

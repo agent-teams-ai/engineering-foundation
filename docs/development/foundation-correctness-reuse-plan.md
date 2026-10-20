@@ -208,6 +208,21 @@ the existing package-manager fixtures only where runtime ownership requires it.
   Repomix/Lychee adoption and additional property tests require a concrete later
   task; they are not blockers for these fixes.
 
+### FMS packed release metadata
+
+The current Changesets plan advances Foundation from 1.10.1 to 1.10.2. Its
+compatible optional peer leaves FMS at release type `none`, but canonical packing
+still advances FMS's exact Foundation development dependency from 1.10.1 to
+1.10.2. Independent npm 11.19.0 packs of identical FMS payloads confirmed that
+only `package/package.json` changes between those projections, while both retain
+the optional peer `^1.8.0`. The existing release-integrity regression correctly
+rejects changing those packed bytes under FMS 0.1.2.
+
+A new ordinary FMS patch Changeset therefore belongs to this pending train.
+The planner now assigns FMS 0.1.3; versions and release-owned baselines remain
+untouched until release generation. This is a new packed-metadata release, not
+a repeat of the already-released Foundation peer-minimum correction.
+
 ### Archive census requalification
 
 The full CI run `39401529327` rejected the actual Foundation npm archive at its

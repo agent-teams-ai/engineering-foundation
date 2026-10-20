@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Coordinate ADR baseline promotion with the existing cooperative repository-root mutation lease. Use exclusively owned sibling temporary files, bind physical root and parent identities, preserve conflicting mutation evidence, and report failures without hiding write, close, cleanup or lease-release errors. Expose the existing evidence-retention helper and a narrow Node atomic replacement resource contract through Repository Mutation's Node adapter API. Physical root, parent and temporary identities stay with the existing mutation owner.
+
 ## 0.2.2
 
 ### Patch Changes

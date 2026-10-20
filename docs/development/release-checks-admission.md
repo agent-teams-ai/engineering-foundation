@@ -77,11 +77,20 @@ for generation. The write target was only the new initial anchor, derived from
 that configuration, and the existing promoter enforced the initial `0.0.0`
 manifest, minor Changeset and absent preimage. The new baseline SHA-256 is
 `9b02f3b4860b8f9f39eaf175d37c49c0e1678f492aea620d0e6053120b37e414`.
-The normal all-package release promoter cannot run before versioning the
-preexisting Repository Mutation API addition: its pending minor intent is
-`.changeset/atomic-adr-baseline-replacement.md`. That existing same-version
-rejection was preserved. No old baseline or unrelated manifest was advanced
-to create the new initial anchor.
+At the original source base, the normal all-package release promoter rejected
+the preexisting Repository Mutation API addition at the same version. Its minor
+intent was `.changeset/atomic-adr-baseline-replacement.md`. That rejection was
+preserved: no old baseline or unrelated manifest was advanced to create the
+new initial anchor. The initial record describes that exact historical run.
+
+Protected main subsequently advanced to
+`4ca4ad30b1efc5e3b43a2c012348ea8afea21864`, consuming seven existing intents and
+publishing the source versions for Foundation 1.10.2 and its companion packages.
+The implementation branch incorporates that owner release and retains all its
+baseline, manifest, changelog and Bun-lock bytes. Those upstream baseline
+promotions are distinct from the initial-admission evidence above. Final PR
+qualification uses this current base; it does not restore the consumed intents
+or reuse old-base CI.
 
 ## Source and publication hold
 

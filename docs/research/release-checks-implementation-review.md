@@ -70,3 +70,18 @@ contain the implementation and is not a reviewed implementation commit.
 Required final-head CI, owner PR, publication and three separate real consumer
 adoptions will be recorded here as they are observed. The existing canary's
 fresh complete owner-PR chain remains a distinct P6 requirement.
+
+## Upstream release reconciliation
+
+After the original pre-PR source gates passed, protected main advanced to
+`4ca4ad30b1efc5e3b43a2c012348ea8afea21864`. This existing owner release consumed
+seven prior intents, advanced seven package versions and promoted their owned
+API baselines. It changes no implementation source or compiler dependency graph.
+The implementation branch incorporates that revision without rewriting the
+six plan-review commits. All upstream manifest, changelog and historical API
+baseline bytes remain authoritative; only the new package's initial anchor is
+additional. The initial API record above retains its original historical input
+hashes and is not relabeled as evidence for these later baseline versions.
+
+Final required source gates, independent commit confirmation and hosted CI
+must qualify the reconciled head against the updated protected base.

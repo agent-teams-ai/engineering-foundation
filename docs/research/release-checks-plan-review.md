@@ -36,7 +36,7 @@ These were source reads, not executed engine, CI, registry or E2E evidence.
 | --- | --- | --- | --- |
 | I1 | Contract, Clean Architecture and semantic reuse | `80fcc900f0f0844aac1ee07647515556828a00e3` | CHANGE; I1-01 through I1-03 addressed in draft 2 |
 | I2 | Admission, sequencing and operational recovery | `8a34565` | CHANGE; I2-01 through I2-04 addressed in draft 3 |
-| I3 | Minimal consumer integration and acceptance scope | Pending | Pending |
+| I3 | Minimal consumer integration and acceptance scope | `a4f835967e33020a7ef8e98b4bf4966350cc6f4f` | GO; no material findings, proceed to C1 |
 | C1 | Independent correctness and counterexamples | Pending | Pending |
 | C2 | Independent operational/consumer criticism | Pending | Pending |
 | C3 | Independent final scope and consistency review | Pending | Pending |
@@ -94,3 +94,22 @@ the no-release Host must avoid that call. A real mixed release may consume
 empty housekeeping intents while retaining ignored/non-versioned private
 intents. These observations refine adapter expectations without introducing a
 second version or dependency-propagation engine.
+
+## I3 — minimal consumer integration and acceptance scope
+
+Reviewed plan SHA-256:
+`e540a0dcf3556e84e69ed2f50547c89163bbac3ef85a9e346c439ca5c3431347`.
+Independent role: consumer architecture and acceptance reviewer. Verdict: GO.
+No material findings or plan changes were required. The reviewer verified the
+bounded pure contract, actual engine fixture scope, Get Modular retained-input
+successor requirement, node-or-bun truthful metadata release and existing TEST
+owner-PR extension. The canary's unprotected-main limitation and separate
+three-repository evidence remain explicit.
+
+Review limitation: historical Get Modular blob retrieval failed through the
+reviewer's configured network proxy. Current policy, retained tree identities
+and documentation were read; this round does not certify future retained-input
+isolation or historical manifest bytes. P4 retains that implementation gate.
+
+The required improvement sequence is complete. Implementation remains pending
+the three sequential critical-review rounds C1-C3.

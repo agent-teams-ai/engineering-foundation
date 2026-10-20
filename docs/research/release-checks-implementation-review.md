@@ -383,3 +383,34 @@ were cancelled after protected main advanced. The existing local cancellation
 owner drained its selected process group. Those cancelled runs do not qualify
 this integration; independent final-source review and fresh complete head/base
 gates are recorded on the owner PR. The npm maintainer-readiness hold remains.
+
+## Subsequent protected release and local session recovery
+
+Protected main subsequently advanced to
+`1218dbb53369d3beb3ee5b1b7544c261bf93136c`. Its existing Changesets route
+generated Foundation 2.0.1 and Feature Module Standard 0.2.1 for the static Host
+correction. This integration retains the intent consumption, package versions,
+changelog history and three release-owned version identities exactly as that
+upstream release produced them. The Bun lock combines its two workspace version
+updates with the existing release-checks workspace records. Runtime source,
+public API contents, the native migration packet, leaf, private Host and
+publication policy remain unchanged.
+
+The preceding `fe30823c747347bd0a0d247213c0ad422ef67879` fast gate passed in
+104.411 seconds; workflow security passed without new findings. Its local full
+changed-check supervisor disappeared when the tool session became unavailable.
+The exact selected process group was observed orphaned, then drained with one
+termination signal; its separate owned Nx daemon was stopped through the
+existing reset command. The local changed check has no terminal qualification
+result and is recorded as interrupted. Recovery must rerun the same complete
+owner commands with durable terminal evidence; no test or timeout is omitted.
+
+[CI 39506955635](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39506955635)
+attempt 1 reached the existing Linux pair 3-4 job deadline after its actual
+tests and coverage uploads passed. Its second attempt was cancelled after
+protected main advanced, so neither attempt qualifies this new integration.
+Independent comparison confirmed that all three new canonical suites belong to
+shard 1 and that shards 2-8 retain every previous assignment. No shard or timeout
+change is justified by a new-test concentration claim. Fresh final-source review,
+complete local gates and exact current-head/base CI remain required and are
+recorded on the owner PR. Public admission retains the maintainer-readiness hold.

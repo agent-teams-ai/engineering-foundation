@@ -286,3 +286,21 @@ Leaf, Host, private/public C1, API, lock, governance and platform-selection byte
 remain unchanged from the preceding reviewed branch. Complete qualification for
 the resulting head/base is recorded on the owner PR; earlier runs retain their
 original source bindings. The npm maintainer-readiness hold remains active.
+
+## Native Windows cancellation expectation
+
+[Full CI 39478898482](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39478898482)
+completed for `82784dc35bb9f635a9e9334f4006c6dd0d0c4a78` against
+`18bc5d1c1310b9837f26ac43b16dab63a087154f` with 32 successful jobs. Windows B
+reported one failed test; its failure propagated to the Windows and full-CI
+aggregates. The cancellation fixture expected POSIX status 143, whereas its
+actual Windows child returned 1. The
+[libuv Windows source used by Node 26.11.1](https://github.com/nodejs/node/blob/v26.11.1/deps/uv/src/win/process.c#L1294-L1305)
+uses `TerminateProcess(process_handle, 1)` for that termination path.
+
+The existing assertion now requires the exact platform status: 1 on Windows,
+143 on POSIX. It retains the real self-terminating installation child and the
+exact observation that only installation ran. Production status propagation,
+containment, all test registrations and platform selections remain unchanged;
+the test is not skipped. Its fresh native Windows result belongs to the new
+complete head/base run, not the earlier failed run.

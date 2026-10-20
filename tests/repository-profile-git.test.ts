@@ -139,7 +139,8 @@ void test("changed repository composition preserves install/check failures and r
 
 void test("changed repository composition stops after an installation child is terminated", async (t) => {
   const fixture = await changedProfileFixture(t);
-  assert.equal(await runChangedProfile(fixture, { C1_TEST_INSTALL_SIGNAL: "1" }), 143);
+  const expectedTerminationStatus = process.platform === "win32" ? 1 : 143;
+  assert.equal(await runChangedProfile(fixture, { C1_TEST_INSTALL_SIGNAL: "1" }), expectedTerminationStatus);
   assert.deepEqual((await fixture.observations()).map((entry) => entry.operation), ["install"]);
 });
 

@@ -41,8 +41,10 @@ specific to pattern keys. An invalid array element may permit fallback under
 the current Node contract;
 failure while finalizing a selected URL must not silently select a later array
 element. Classify invalid package targets separately from fatal selected-URL or
-request failures. Encoded-separator rejection inspects the URL pathname, not
-query or fragment annotations. Preserve condition insertion order, null/undefined
+request failures. Native implementation probes refined the initial plan:
+ESM encoded-separator rejection inspects the URL pathname; Node's CommonJS
+exports bridge inspects the complete selected URL, including query/fragment.
+Preserve condition insertion order, null/undefined
 continuation and exact-key priority. Assert the resulting filesystem target and
 use independent Node import/require probes for invalid-target fallback, selected
 encoded separators, literal wildcard targets and a selected missing file.

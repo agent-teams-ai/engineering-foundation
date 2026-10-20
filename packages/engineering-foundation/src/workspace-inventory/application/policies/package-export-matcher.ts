@@ -107,7 +107,7 @@ function resolveStringTarget(
     }
     // Exact keys retain literal stars. Node substitutes pattern captures into
     // the resolved URL, after checking the original package target.
-    const substituted = resolved.href.replaceAll("*", capture);
+    const substituted = resolved.href.replaceAll("*", () => capture);
     if (hasInvalidSegment(substituted)) {
       return { kind: "invalid-resolution" };
     }

@@ -71,6 +71,21 @@ void test("exact targets retain literal stars and pattern targets substitute eve
   });
 });
 
+void test("pattern captures preserve literal dollar replacement syntax", async (t) => {
+  for (const capture of ["$&", "$\u0060", "$'", "$$", "$1"]) {
+    const path = "dist/" + capture + ".cjs";
+    assert.deepEqual(match("./dist/*.cjs", "./*", "./" + capture), {
+      available: true, targetPath: "./" + path,
+    });
+    for (const result of await nativeProbe(t, "./dist/*.cjs", "./*", "./" + capture, {
+      [path]: 'module.exports = "LITERAL_CAPTURE";\n',
+    })) {
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout.trim(), "LITERAL_CAPTURE", result.condition + ": " + capture);
+    }
+  }
+});
+
 void test("invalid original package targets permit array fallback", async (t) => {
   for (const invalid of ["../outside.cjs", "./dist/../safe.cjs", "./dist/node_modules/hidden.cjs", "./dist/%6eode_modules/hidden.cjs"]) {
     const target = [invalid, "./dist/safe.cjs"];

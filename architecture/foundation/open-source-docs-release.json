@@ -13,11 +13,11 @@
   "packages": {
     "cli": {
       "name": "@agent-teams/docs-protocol",
-      "version": "0.4.0"
+      "version": "0.6.2"
     },
     "mcp": {
       "name": "@agent-teams/docs-protocol-mcp",
-      "version": "0.1.0"
+      "version": "0.2.5"
     }
   }
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { existsSync, watch } from 'node:fs';
 import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import test from 'node:test';
@@ -6,6 +7,59 @@ import { fixture, git, lint, tests, typecheck, policyInput, sha, execute, custod
 import { runCheckChangedAgentWorkflow } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/run-check-changed-agent-workflow.js';
 import { createMutableCheckInputCustody } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/mutable-check-input-custody.js';
 import type { CoverageCheckRunner } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/ports/check-changed.js';
+
+// Shared verbatim with the TEST child: subscribe before the first probe, and
+// keep subscription lifetime separate from the child-readiness time budget.
+function abaBarrier(probe:()=>boolean, subscribe:(notify:()=>void,fail:(error:unknown)=>void)=>()=>void, context:string,
+  clock={set:(expire:()=>void)=>setTimeout(expire,20_000),clear:(timer:ReturnType<typeof setTimeout>)=>clearTimeout(timer)}) {
+  let settled=false, closeWatcher:(()=>void)|undefined, timer:ReturnType<typeof setTimeout>|undefined;
+  let resolvePromise!:()=>void,rejectPromise!:(error:unknown)=>void;
+  const promise=new Promise<void>((resolve,reject)=>{resolvePromise=resolve;rejectPromise=reject;});
+  void promise.catch(()=>{});
+  function finish(error?:unknown) {
+    if(settled){return;}settled=true;closeWatcher?.();
+    if(timer!==undefined){clock.clear(timer);}
+    if(error===undefined){resolvePromise();}else{rejectPromise(error);}
+  }
+  const sample=()=>{try{if(probe()){finish();}}catch(error){finish(error);}};
+  try{closeWatcher=subscribe(sample,error=>finish(error));if(settled){closeWatcher();}else{sample();}}catch(error){finish(error);}
+  return {promise,arm:()=>{if(!settled&&timer===undefined){timer=clock.set(()=>finish(new Error(`${context}: 20s barrier timed out`)));}},close:()=>finish(new Error(`${context}: barrier disposed`))};
+}
+function armAbaDispatch(executor:typeof execute,node:string,entrypoint:string,arm:()=>void):typeof execute {
+  return async(command,args,options)=>{
+    if(command===node&&args[0]===entrypoint&&args.at(-2)==='run'&&args.at(-1)==='typecheck'){arm();}
+    return executor(command,args,options);
+  };
+}
+async function awaitAbaPhase(barrier:ReturnType<typeof abaBarrier>,operation:Promise<unknown>,context:string):Promise<void> {
+  await Promise.race([barrier.promise,operation.then(report=>{throw new Error(`${context}: workflow ended before barrier; report=${(JSON.stringify(report)??String(report)).slice(0,6000)}`);},error=>{throw new Error(`${context}: workflow rejected before barrier; error=${(error instanceof Error?`${error.name}: ${error.message}`:String(error)).slice(0,2000)}`,{cause:error});})]);
+}
+
+void test('C1 ABA barriers retain publication and start readiness budget at exact dispatch',async()=>{
+  for(const preexisting of [true,false]) {
+    let published=preexisting,closes=0,probes=0;
+    const barrier=abaBarrier(()=>{probes++;return published;},()=>{published=true;return ()=>{closes++;};},'TEST immediate ready');
+    await barrier.promise;barrier.close();assert.equal(probes,1);assert.equal(closes,1);
+  }
+  let timers=0,clears=0,closes=0;
+  let expire!:()=>void;
+  const pending=abaBarrier(()=>false,()=>()=>{closes++;},'TEST dispatch ready',{
+    set:callback=>{timers++;expire=callback;return 1 as unknown as ReturnType<typeof setTimeout>;},clear:()=>{clears++;}
+  });
+  const executor=armAbaDispatch(async()=>({exitCode:0,signal:null,stdout:'',stderr:''}),'owned-node','owned-pnpm',pending.arm);
+  for(const args of [['owned-pnpm','--version'],['owned-pnpm','config','get','key'],['other-pnpm','run','typecheck']]){await executor('owned-node',args,{cwd:'.'});}
+  assert.equal(timers,0,'preflight must not consume child readiness budget');
+  await executor('other-node',['owned-pnpm','run','typecheck'],{cwd:'.'});assert.equal(timers,0);
+  await executor('owned-node',['owned-pnpm','--isolation','run','typecheck'],{cwd:'.'});
+  pending.arm();assert.equal(timers,1,'only actual dispatch arms one deadline');
+  expire();await assert.rejects(pending.promise,/TEST dispatch ready: 20s/u);pending.close();assert.equal(clears,1);assert.equal(closes,1);
+  for(const operation of [Promise.resolve({outcome:'failed',reason:'preflight'}),Promise.reject(new Error('TEST qualification failure'))]) {
+    let closed=0;
+    const ready=abaBarrier(()=>false,()=>()=>{closed++;},'TEST frozen ready');
+    try{await assert.rejects(awaitAbaPhase(ready,operation,'TEST frozen ready'),/workflow (ended|rejected) before barrier/u);}finally{ready.close();}
+    assert.equal(closed,1);
+  }
+});
 
 // RED: lint exit zero could incorrectly supply tests/typecheck. The oracle is
 // independent: real compiler + real Node assertion must execute on source delta.
@@ -121,7 +175,6 @@ void test('C1 cancellation and stale closure cannot pass',async()=>fixture(async
 // A real child barrier starts before mutation, then invokes the native project
 // compiler against the admitted closure, with outputs and synchronization outside.
 void test('C1 frozen influencing closure rejects real ABA while mutable remains unverified',{timeout:60_000},async()=>fixture(async subject=>{
-  const fs=await import('node:fs');
   const output=subject.output;
   const compilerPath=join(dirname(dirname(subject.tool.nodeExecutable)),'node_modules/typescript/bin/tsc');
   subject.scripts['typecheck']=`${JSON.stringify(subject.tool.nodeExecutable)} compile.mts`;
@@ -130,7 +183,8 @@ void test('C1 frozen influencing closure rejects real ABA while mutable remains 
   const invalid='export const value: number = "independent invalid input";\n';
   await writeFile(join(subject.root,'compile.mts'),`import {watch,writeFileSync,existsSync} from 'node:fs'; import {spawnSync} from 'node:child_process';
 const output=${JSON.stringify(output)};
-async function barrier(name){if(existsSync(output+'/'+name))return;await new Promise(resolve=>{const watcher=watch(output,()=>{if(existsSync(output+'/'+name)){watcher.close();resolve();}});});}
+${abaBarrier.toString()}
+async function barrier(name){const waiting=abaBarrier(()=>existsSync(output+'/'+name),(notify,fail)=>{const watcher=watch(output,notify);watcher.on('error',fail);return ()=>watcher.close();},'TEST child '+name);try{await waiting.promise;}finally{waiting.close();}}
 writeFileSync(output+'/ready','started');await barrier('gate');
 const result=spawnSync(${JSON.stringify(subject.tool.nodeExecutable)},[${JSON.stringify(compilerPath)},'--project','tsconfig.json','--pretty','false'],{encoding:'utf8'});
 writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+'/done',String(result.status));await barrier('ack');process.stdout.write(result.stdout);process.stderr.write(result.stderr);process.exitCode=result.status??1;\n`);
@@ -141,20 +195,22 @@ writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+
     const {rm}=await import('node:fs/promises');
     for(const path of ['ready','gate','done','ack']) {await rm(join(output,path),{force:true});}
     const custody=frozen?(await subject.freeze()).custody:createMutableCheckInputCustody(execute, custodyFiles);
-    async function waitFile(name:string) {
-      const path=join(output,name);try {await access(path);return;}catch{}
-      await new Promise<void>((resolve,reject)=>{const timer=setTimeout(()=>{watcher.close();reject(new Error('TEST ABA barrier timed out'));},20_000);const watcher=fs.watch(output,()=>{void access(path).then(()=>{clearTimeout(timer);watcher.close();resolve();return null;},()=>null);});});
+    const mode=frozen?'frozen':'mutable';
+    function waitFile(name:string) {
+      return abaBarrier(()=>existsSync(join(output,name)),(notify,fail)=>{const watcher=watch(output,notify);watcher.on('error',fail);return ()=>watcher.close();},`TEST ABA ${mode} ${name}`);
     }
     const ready=waitFile('ready');
-    const operation=runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody,runner:subject.runner(),loadPolicy:subject.loadPolicy});
+    const executor=armAbaDispatch(execute,subject.tool.nodeExecutable,join(subject.tool.packageRoot,'bin/pnpm.mjs'),ready.arm);
+    const operation=runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody,runner:subject.runner(undefined,subject.tool,executor),loadPolicy:subject.loadPolicy});
+    let done:ReturnType<typeof abaBarrier>|undefined;
     try {
-      await ready; await writeFile(join(subject.root,'src.ts'),'export const value: number = 10;\n');
-      const done=waitFile('done');await writeFile(join(output,'gate'),'continue');await done;
+      await awaitAbaPhase(ready,operation,`TEST ABA ${mode} ready/dispatch`); await writeFile(join(subject.root,'src.ts'),'export const value: number = 10;\n');
+      done=waitFile('done');done.arm();await writeFile(join(output,'gate'),'continue');await awaitAbaPhase(done,operation,`TEST ABA ${mode} done/compiler`);
       const compilerExit=Number(await readFile(join(output,'done'),'utf8'));
       await writeFile(join(subject.root,'src.ts'),invalid);await writeFile(join(output,'ack'),'restored');
       const report=await operation;
-      assert.equal(report.outcome,frozen?'failed':'feedback-only',JSON.stringify(report));
-      assert.equal(compilerExit,frozen?1:0);
+      assert.equal(report.outcome,frozen?'failed':'feedback-only',JSON.stringify({mode,report}));
+      assert.equal(compilerExit,frozen?1:0,`TEST ABA ${mode} native compiler exit`);
       if(frozen) {assert.match(await readFile(join(output,'compiler-diagnostic'),'utf8'),/error TS2322/u);}
       assert.equal(await readFile(join(subject.root,'src.ts'),'utf8'),invalid);
       if(!frozen) {assert.equal(report.inputCustody.binding,'unverified');}
@@ -163,6 +219,7 @@ writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+
       // child never outlives the fixture directory.
       await writeFile(join(output,'gate'),'continue').catch(()=>{});
       await writeFile(join(output,'ack'),'restored').catch(()=>{});
+      ready.close();done?.close();
       await operation.catch(()=>{});
     }
   }

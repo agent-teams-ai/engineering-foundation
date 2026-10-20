@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test, { type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -396,6 +396,8 @@ void test("source Git authority ignores inherited repository/index/object/config
 void test("dispatcher tool and script children own their cwd instead of inherited source Git selectors", async (t) => {
   const fixture = await realLinkedGitFixture(t);
   const foreign = await realLinkedGitFixture(t);
+  const expectedRoot = await realpath(fixture.root);
+  assert.notEqual(expectedRoot, await realpath(foreign.root));
   const observed = join(fixture.root, "child-git.json");
   const preload = join(fixture.root, "observe-child.mjs");
   const observer = [
@@ -426,8 +428,9 @@ void test("dispatcher tool and script children own their cwd instead of inherite
       cwd: fixture.root, env: environment, encoding: "utf8", timeout: 30_000
     });
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
-    assert.deepEqual(JSON.parse(await readFile(observed, "utf8")), {
-      root: fixture.root, author: "Retained author", transport: "retained-transport"
+    const child = JSON.parse(await readFile(observed, "utf8")) as { readonly root: string };
+    assert.deepEqual({ ...child, root: await realpath(child.root) }, {
+      root: expectedRoot, author: "Retained author", transport: "retained-transport"
     });
     await rm(observed);
   }
@@ -435,6 +438,8 @@ void test("dispatcher tool and script children own their cwd instead of inherite
 
 void test("Node dispatcher routes changed checks to source Bun policy and source dependencies", async (t) => {
   const fixture = await realLinkedGitFixture(t);
+  const expectedRoot = await realpath(fixture.root);
+  assert.notEqual(expectedRoot, await realpath(repositoryRoot));
   for (const file of ["package.json", "pnpm-workspace.yaml"]) {
     await copyFile(join(repositoryRoot, file), join(fixture.root, file));
   }
@@ -459,9 +464,10 @@ void test("Node dispatcher routes changed checks to source Bun policy and source
       }
     });
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
-    assert.deepEqual(JSON.parse(result.stdout), { cwd: fixture.root,
+    const child = JSON.parse(result.stdout) as { readonly cwd: string; readonly git: string };
+    assert.deepEqual({ ...child, cwd: await realpath(child.cwd), git: await realpath(child.git) }, { cwd: expectedRoot,
       args: ["agent-workflow", "changed", "--consumer", "."],
-      profile: "bun", bun: "1.4.3", manager: "bun@1.4.3", git: fixture.root });
+      profile: "bun", bun: "1.4.3", manager: "bun@1.4.3", git: expectedRoot });
   }
 });
 

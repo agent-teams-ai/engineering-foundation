@@ -32,15 +32,20 @@ test("the actual maintained quickstart selects exact npm/pnpm commands and both 
 
 test("unknown, ambiguous and floating documented commands are refused before execution", () => {
   const cli = quickstart.coordinates[0]!;
-  const invalid = [
-    document.replace("docs-protocol check\n", "docs-protocol check; echo bypass\n"),
-    document.replace("--max-documents 12", "--max-documents 1000"),
-    document + "\n" + cli.name + "@1.2.3\n",
-    document.replaceAll(cli.name + "@" + cli.version, cli.name + "@latest"),
-    document.replaceAll(cli.name + "@" + cli.version, cli.name + "@1.2.3-beta.1"),
-  ];
-  for (const source of invalid) {
-    assert.throws(() => parseDocumentedQuickstart(source), /Quickstart/u);
+  for (const newline of ["\n", "\r\n"]) {
+    const sourceDocument = document.replace(/\r?\n/gu, newline);
+    assert.deepEqual(parseDocumentedQuickstart(sourceDocument), quickstart);
+    const invalid = [
+      sourceDocument.replace(/docs-protocol check\r?\n/u, "docs-protocol check; echo bypass" + newline),
+      sourceDocument.replace("--max-documents 12", "--max-documents 1000"),
+      sourceDocument + newline + cli.name + "@1.2.3" + newline,
+      sourceDocument.replaceAll(cli.name + "@" + cli.version, cli.name + "@latest"),
+      sourceDocument.replaceAll(cli.name + "@" + cli.version, cli.name + "@1.2.3-beta.1"),
+    ];
+    for (const source of invalid) {
+      assert.notEqual(source, sourceDocument, "Each refusal fixture must change the documented input.");
+      assert.throws(() => parseDocumentedQuickstart(source), /Quickstart/u);
+    }
   }
 });
 

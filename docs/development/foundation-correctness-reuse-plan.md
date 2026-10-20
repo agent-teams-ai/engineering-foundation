@@ -244,6 +244,26 @@ Other packages retain 2,500 entries. This requalifies measured source growth;
 it adds no spare entry allowance and changes no byte, member, portability,
 allowlist or special-entry protection.
 
+### Native harness requalification
+
+The first full CI run also exposed fixtures that had not admitted the added
+Node operation and required parser-spike strict project. The Node factory,
+actual source graph and layer-direction negatives now cover all twelve public
+operations. The strict-project fixture preserves the all-valid aggregate
+baseline, proves production exclusion with all eight strict-only inputs invalid,
+then restores every input before checking eight isolated aggregate type errors.
+Every refusal still requires `TS2322` and the affected input path. Consolidating
+the repeated production builds retains that proof; the complete measured
+sequence took 67.246 seconds locally. Its finite harness timeout is therefore
+120 seconds, with the existing 30-second limit on every child retained.
+
+Windows qualification exposed a no-op shell-injection fixture on CRLF documents.
+Both LF and CRLF now pass the valid control and reject all five actual mutations;
+each refusal first asserts that its input changed. Git ownership fixtures compare
+the observed root and cwd through physical paths, preserving every non-path
+field and proving that the source and hostile foreign roots remain distinct.
+This admits Git for Windows path spelling without admitting a different checkout.
+
 ## Review and delivery
 
 | Round | Reviewed version | Dependency/schema critic | Mutation/JSON critic | Installation/tooling critic |

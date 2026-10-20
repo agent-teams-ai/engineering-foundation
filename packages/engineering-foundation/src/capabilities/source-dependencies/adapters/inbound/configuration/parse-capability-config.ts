@@ -2,6 +2,7 @@ import { compareBinaryStrings } from "../../../../../binary-string-comparator.js
 import {
   normalizeRepositoryPath,
   pathIsInside,
+  portablePathIsInside,
   portableRepositoryPathIdentity,
   portableRepositoryPathProblem
 } from "../../../application/model/repository-path.js";
@@ -226,18 +227,13 @@ function validatePackageRootOverlap(policy: SourceArchitecturePolicy): void {
 function policyPathIsInside(
   policy: SourceArchitecturePolicy,
   path: string,
-  root: string
+  root: string,
+  pathIdentities: Map<string, string>
 ): boolean {
   if (policy.schemaVersion === 1) {
     return pathIsInside(path, root);
   }
-  const pathIdentity = portableRepositoryPathIdentity(path);
-  const rootIdentity = portableRepositoryPathIdentity(root);
-  return (
-    rootIdentity === "." ||
-    pathIdentity === rootIdentity ||
-    pathIdentity.startsWith(`${rootIdentity}/`)
-  );
+  return portablePathIsInside(path, root, pathIdentities);
 }
 
 interface BoundaryLocationValidationInput {
@@ -249,6 +245,7 @@ interface BoundaryLocationValidationInput {
     readonly root: string;
   }>;
   readonly policy: SourceArchitecturePolicy;
+  readonly pathIdentities: Map<string, string>;
 }
 
 function validateBoundaryLocations(input: BoundaryLocationValidationInput): void {
@@ -262,7 +259,7 @@ function validateBoundaryLocations(input: BoundaryLocationValidationInput): void
     }
     if (
       !policy.governedRoots.some((governedRoot) =>
-        policyPathIsInside(policy, root, governedRoot)
+        policyPathIsInside(policy, root, governedRoot, input.pathIdentities)
       )
     ) {
       inputError(`Architecture boundary root is outside governed roots: ${root}.`);
@@ -279,7 +276,7 @@ function validateBoundaryLocations(input: BoundaryLocationValidationInput): void
     }
     if (
       !boundary.roots.some((root) =>
-        policyPathIsInside(policy, entrypoint, root)
+        policyPathIsInside(policy, entrypoint, root, input.pathIdentities)
       )
     ) {
       inputError(
@@ -295,6 +292,7 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
   const boundaryIds = new Set<string>();
   const boundaryRoots = new Set<string>();
   const boundaryEntrypoints = new Set<string>();
+  const pathIdentities = new Map<string, string>();
   const ownedBoundaryRoots: Array<{
     readonly boundaryId: string;
     readonly root: string;
@@ -320,7 +318,8 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
       boundaryEntrypoints,
       boundaryRoots,
       ownedBoundaryRoots,
-      policy
+      policy,
+      pathIdentities
     });
   }
   validateBoundaryRootOverlap(policy, ownedBoundaryRoots);
@@ -334,7 +333,7 @@ function validatePolicy(policy: SourceArchitecturePolicy): void {
   for (const governedRoot of policy.governedRoots) {
     if (
       ![...boundaryRoots].some((root) =>
-        policyPathIsInside(policy, root, governedRoot)
+        policyPathIsInside(policy, root, governedRoot, pathIdentities)
       )
     ) {
       inputError(`Governed root has no architecture boundary: ${governedRoot}.`);

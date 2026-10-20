@@ -48,8 +48,8 @@ export interface AnalyzeSourceDependenciesDependencies {
   readonly topologyInspector: SourceWorkspaceTopologyInspector;
 }
 
-function pathInside(path: string, root: string, portable: boolean): boolean {
-  return portable ? portablePathIsInside(path, root) : pathIsInside(path, root);
+function pathInside(path: string, root: string, portable: boolean, pathIdentities?: Map<string, string>): boolean {
+  return portable ? portablePathIsInside(path, root, pathIdentities) : pathIsInside(path, root);
 }
 
 interface BoundaryMatch {
@@ -60,24 +60,27 @@ interface BoundaryMatch {
 function matchingBoundarySpecificity(
   path: string,
   boundary: ArchitectureBoundaryPolicy,
-  portable: boolean
+  portable: boolean,
+  pathIdentities: Map<string, string>
 ): number | undefined {
   const matchingRoots = boundary.roots
-    .filter((root) => pathInside(path, root, portable))
+    .filter((root) => pathInside(path, root, portable, pathIdentities))
     .map((root) => normalizeRepositoryPath(root).length);
   return matchingRoots.length === 0 ? undefined : Math.max(...matchingRoots);
 }
 
 function selectBoundary(
   file: SourceFileSnapshot,
-  policy: SourceArchitecturePolicy
+  policy: SourceArchitecturePolicy,
+  pathIdentities: Map<string, string>
 ): ArchitectureBoundaryPolicy | undefined {
   const matches: BoundaryMatch[] = [];
   for (const boundary of policy.boundaries) {
     const specificity = matchingBoundarySpecificity(
       file.path,
       boundary,
-      policy.schemaVersion !== 1
+      policy.schemaVersion !== 1,
+      pathIdentities
     );
     if (specificity !== undefined) {
       matches.push({ boundary, specificity });
@@ -145,13 +148,14 @@ function classifyFiles(
 ): readonly ClassifiedSourceFile[] {
   const { signal, ownership } = options;
   const classified: ClassifiedSourceFile[] = [];
+  const pathIdentities = new Map<string, string>();
   for (const file of files) {
     assertNotCancelled(signal);
     const normalizedFile: SourceFileSnapshot = {
       ...file,
       path: normalizeRepositoryPath(file.path)
     };
-    const boundary = selectBoundary(normalizedFile, policy);
+    const boundary = selectBoundary(normalizedFile, policy, pathIdentities);
     const workspacePackage = ownership === undefined
       ? containingPackage(normalizedFile.path, packages, policy.schemaVersion !== 1)
       : sourcePackageOwner(normalizedFile.path, packages, ownership);

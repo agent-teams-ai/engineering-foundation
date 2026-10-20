@@ -95,9 +95,26 @@ export function portableRepositoryPathProblem(path: string): string | undefined 
   return undefined;
 }
 
-export function portablePathIsInside(path: string, root: string): boolean {
-  const pathIdentity = portableRepositoryPathIdentity(path);
-  const rootIdentity = portableRepositoryPathIdentity(root);
+function reusedPortablePathIdentity(
+  path: string,
+  identities?: Map<string, string>
+): string {
+  const prior = identities?.get(path);
+  if (prior !== undefined) {
+    return prior;
+  }
+  const identity = portableRepositoryPathIdentity(path);
+  identities?.set(path, identity);
+  return identity;
+}
+
+export function portablePathIsInside(
+  path: string,
+  root: string,
+  identities?: Map<string, string>
+): boolean {
+  const pathIdentity = reusedPortablePathIdentity(path, identities);
+  const rootIdentity = reusedPortablePathIdentity(root, identities);
   return (
     rootIdentity === "." ||
     pathIdentity === rootIdentity ||

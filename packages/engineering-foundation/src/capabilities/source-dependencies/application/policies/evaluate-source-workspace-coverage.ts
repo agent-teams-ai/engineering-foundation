@@ -58,9 +58,10 @@ function assertBoundaryOwnership(
   packages: readonly SourceWorkspacePackageTopology[],
   ownership?: SourcePackageOwnership
 ): void {
+  const pathIdentities = new Map<string, string>();
   for (const boundary of policy.boundaries) {
     const observedPaths = ownership === undefined ? [] : packages.flatMap((owner) =>
-      owner.sourcePaths.filter((path) => boundary.roots.some((root) => portablePathIsInside(path, root)))
+      owner.sourcePaths.filter((path) => boundary.roots.some((root) => portablePathIsInside(path, root, pathIdentities)))
     );
     const paths = [...boundary.roots, ...boundary.entrypoints, ...observedPaths].toSorted(
       compareBinaryStrings

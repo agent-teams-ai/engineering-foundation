@@ -15,11 +15,13 @@ import { createPackageManagerScriptRunner } from "./select-package-script-runner
 import { verifyRepositoryRuntimeExecutable } from "../../../process-execution/module.js";
 
 export function createNodeAgentWorkflowCommands(
-  environment: PnpmProcessEnvironment & BunProcessEnvironment,
+  environment: PnpmProcessEnvironment & BunProcessEnvironment & {
+    readonly processEnvironment: Readonly<Record<string, string | undefined>>;
+  },
   executor: WorkflowProcessExecutor,
   assertSchema: AgentWorkflowConfigurationDependencies["assertSchema"]
 ) {
-  const execute = createProcessExecution(executor);
+  const execute = createProcessExecution(executor, environment.processEnvironment);
   const scriptRunner = {
     async run(input: {
       readonly packageManager: "bun" | "pnpm";

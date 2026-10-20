@@ -31,6 +31,11 @@ launcher routes this command back to that source-owned operation; this is not
 isolated Node-profile qualification. Git diff reads an owned disposable copy of
 the real index, because stat-only refresh can otherwise change index bytes even
 with optional locks disabled. Selected change groups retain normal Git semantics.
+The command host supplies its captured process environment to workflow process
+execution. Per-call environment overrides preserve those operator settings;
+snapshot reads always override the index path and disable optional Git locks.
+Environment name identity follows the platform, and undefined overrides remove
+the corresponding variable.
 Ordinary child commands discard inherited repository, index, object-store and
 injected-config selectors while preserving Git transport, identity and normal
 global configuration. Explicit source authority is local to source Git reads.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.10.2",
+  "packageVersion": "2.0.0",
   "status": "release-candidate",
   "wildcardExports": [
     {
@@ -459,7 +459,7 @@
     {
       "path": "schemas/repository-agent-workflow/v2.schema.json",
       "id": "https://schemas.agent-teams.ai/engineering-foundation/repository-agent-workflow/v2",
-      "digest": "sha256:48afd422a0ee4c83dd41f3ab730be374599546ced9f6a5aab1b098624a4fa83d",
+      "digest": "sha256:8873338f054121d2f118365dd6183bfc79ec697ae49f155e5446b1223e8e7aa4",
       "discriminators": {
         "packageManager": {
           "enum": [

@@ -240,7 +240,7 @@ process.exitCode=failed?1:0;\n`);
   }},executor);
   const trace:Error[]=[];let primary:unknown,failed=false;
   abaPhase?.('setup-ready');
-  try { await failedCommands.run(trace,()=>body({root,output,abaPhase,tool,scripts,files,freeze,runner,loadPolicy})); }
+  try { await failedCommands.run(trace,()=>body({root,output,...(abaPhase === undefined ? {} : {abaPhase}),tool,scripts,files,freeze,runner,loadPolicy})); }
   catch(error) {
     failed=true;primary=trace.length===0?error:new AggregateError([error,...trace],'TEST fixture failed; original error and bounded owned command evidence.');
     try {await writeFile(`${directory}-failure.json`,fixtureFailureEvidence(error,trace));}

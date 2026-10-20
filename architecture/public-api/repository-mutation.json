@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/repository-mutation",
-  "packageVersion": "0.2.2",
+  "packageVersion": "0.3.0",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
@@ -2361,6 +2361,69 @@
           "signature": "export interface MutationObservation"
         },
         {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement#assertCurrent:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement:interface",
+          "parentKind": "Interface",
+          "signature": "assertCurrent(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement#bindParent:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement:interface",
+          "parentKind": "Interface",
+          "signature": "bindParent(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement#cleanup:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement:interface",
+          "parentKind": "Interface",
+          "signature": "cleanup(): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement#prepare:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement:interface",
+          "parentKind": "Interface",
+          "signature": "prepare(bytes: Uint8Array, openTemporary?: (path: string) => Promise<FileHandle>): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement#replace:member(1)",
+          "kind": "MethodSignature",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement:interface",
+          "parentKind": "Interface",
+          "signature": "replace(renameTemporary?: (source: string, target: string) => Promise<void>): Promise<void>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacement:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface NodeAtomicFileReplacement"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacementError#failure:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacementError:class",
+          "parentKind": "Class",
+          "signature": "readonly failure: \"directory-changed\" | \"unsafe-directory\" | \"temporary-changed\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacementError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class NodeAtomicFileReplacementError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacementError:constructor(1)",
+          "kind": "Constructor",
+          "parentReference": "@agent-teams/repository-mutation!NodeAtomicFileReplacementError:class",
+          "parentKind": "Class",
+          "signature": "constructor(failure: \"directory-changed\" | \"unsafe-directory\" | \"temporary-changed\", options?: ErrorOptions);"
+        },
+        {
           "canonicalReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations#ambiguousError:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/repository-mutation!NodeDirectoryCreateAndBindOperations:interface",
@@ -2872,6 +2935,13 @@
           "signature": "export declare function isLexicallyContainedPath(root: string, candidate: string): boolean;"
         },
         {
+          "canonicalReference": "@agent-teams/repository-mutation!observeAtomicFileReplacement:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function observeAtomicFileReplacement(input: {\n    readonly root: string;\n    readonly candidate: string;\n}): Promise<NodeAtomicFileReplacement>;"
+        },
+        {
           "canonicalReference": "@agent-teams/repository-mutation!observeMutationState:function(1)",
           "kind": "Function",
           "parentReference": "@agent-teams/repository-mutation!",
@@ -2940,6 +3010,13 @@
           "parentReference": "@agent-teams/repository-mutation!",
           "parentKind": "EntryPoint",
           "signature": "export declare function retainMutationBarrier(lease: MutationLease): void;"
+        },
+        {
+          "canonicalReference": "@agent-teams/repository-mutation!retainMutationBarrierOnEvidence:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/repository-mutation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function retainMutationBarrierOnEvidence(lease: MutationLease): Promise<boolean>;"
         },
         {
           "canonicalReference": "@agent-teams/repository-mutation!sameJournalSlotAuthority:function(1)",

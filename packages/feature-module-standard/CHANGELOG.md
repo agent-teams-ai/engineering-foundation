@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3
+
+### Patch Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Release FMS with the pending Foundation patch so its canonical packed manifest
+  records the updated exact Foundation development dependency under a new immutable
+  package version. Preserve the optional Foundation peer minimum at `^1.8.0`.
+
 ## 0.1.2
 
 ### Patch Changes

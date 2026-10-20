@@ -151,7 +151,8 @@
       "tests/package-release-inventory.test.mjs",
       "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
       "tests/repository-runtime-tools.test.mts",
-      "tests/pnpm-manager-observation.test.mts"
+      "tests/pnpm-manager-observation.test.mts",
+      "tests/sdk-json-record.test.ts"
     ],
     "c": [
       "tests/source-dependency-loader-cli.test.mjs"

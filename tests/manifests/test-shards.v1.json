@@ -51,7 +51,8 @@
         "tests/feature-module-kernel-adapter.test.mjs",
         "tests/workspace-dependency-peer-link.test.mjs",
         "tests/repository-runtime-tools.test.mts",
-        "tests/pnpm-manager-observation.test.mts"
+        "tests/pnpm-manager-observation.test.mts",
+        "tests/sdk-json-record.test.ts"
       ]
     },
     {

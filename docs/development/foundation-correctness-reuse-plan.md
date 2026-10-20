@@ -1,6 +1,6 @@
 # Correctness and existing-tool reuse delivery
 
-Status: reconstruction plan v3, after round-two approval; awaiting round three.
+Status: reconstruction plan v4, after round-three approval; awaiting final review.
 
 ## Goal and source
 
@@ -210,6 +210,7 @@ the existing package-manager fixtures only where runtime ownership requires it.
 | --- | --- | --- | --- | --- |
 | 1 | v1, `4218ef3e` | Changes requested: loader oracle, export failure boundaries, schema composition | Changes requested: physical identity, failure ownership, JSON compatibility | Changes requested: exact documented release, source/projection ownership, real lint selection |
 | 2 | v2, `f46bdfd3` | Approved | Approved; clarify retained terminal evidence and parent-directory sync | Approved |
+| 3 | v3, `985ced4b` | Approved | Approved | Approved |
 
 Run four sequential rounds with three independent planning critics, revising
 the plan between rounds. Record source-backed objections and their resolution;

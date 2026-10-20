@@ -20,7 +20,7 @@ try {
     (ConvertTo-ExtendedLengthPath (
       [System.IO.Path]::Combine($PSScriptRoot, "WindowsManagedProcess.cs"))))
   $FailurePhase = "helper-compile"
-  Add-Type -TypeDefinition $helperSource -Language CSharp
+  Microsoft.PowerShell.Utility\Add-Type -TypeDefinition $helperSource -Language CSharp
   $FailurePhase = "bootstrap-request"
   $bootstrapRequest = [Console]::In.ReadToEnd() | ConvertFrom-Json
   if ([int]$bootstrapRequest.schemaVersion -ne 1) {

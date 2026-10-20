@@ -25,7 +25,6 @@
     "scripts/release-bun-lock.ts",
     "scripts/public-docs-quickstart.ts",
     "scripts/public-docs-documented-e2e.ts",
-    "scripts/windows-bootstrap-comparison.ts",
     "tools/**/*.mts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",

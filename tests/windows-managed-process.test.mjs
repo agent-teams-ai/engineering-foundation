@@ -271,7 +271,7 @@ async function writeNewFileExclusive(path, contents) {
 }
 
 windowsTest(
-  "PowerShell bootstrap compiles its helper outside the deep installed asset path without Join-Path lookup",
+  "PowerShell bootstrap compiles its helper outside the deep installed asset path without unqualified cmdlet lookup",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));
@@ -301,20 +301,25 @@ windowsTest(
       ]);
       const actualBootstrap = (await readFile(bootstrapPath, "utf8")).replaceAll("\r\n", "\n");
       assert.equal(createHash("sha256").update(actualBootstrap).digest("hex"),
-        "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7");
+        "ab3abf73c5d389625db11666c063b4cd295f42b0236d20f33bd14ba9bf3a3be9");
       const legacyBootstrap = actualBootstrap.replace(
         '[System.IO.Path]::Combine($PSScriptRoot, "WindowsManagedProcess.cs"))))',
         'Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))');
       assert.equal(createHash("sha256").update(legacyBootstrap).digest("hex"),
-        "f928d6f79d7aeddcb855fd1dada7e36291f5bed971383d19fd1d948153b108f6");
+        "f2e7d1abb795d45635a7bb1a4715eb440256c20a4409e0963b48dca64e6a0fe9");
+      const unqualifiedBootstrap = actualBootstrap.replace(
+        "Microsoft.PowerShell.Utility\\Add-Type", "Add-Type");
+      assert.equal(createHash("sha256").update(unqualifiedBootstrap).digest("hex"),
+        "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7");
       const systemRoot = Object.entries(process.env).find(
         ([name]) => name.toLowerCase() === "systemroot"
       )?.[1];
       assert.equal(typeof systemRoot, "string");
-      async function rejectSchemaWithBlockedFilesystemCmdlet(source) {
+      async function rejectSchemaWithBlockedCmdlets(source) {
         // Same fixed installed asset and real C# helper, with only a TEST cmdlet trap.
         await writeFile(bootstrapPath,
-          'function Join-Path { throw "TEST helper lookup must not invoke Join-Path." }\n' + source);
+          'function Join-Path { throw "TEST helper lookup must not invoke Join-Path." }\n' +
+          'function Add-Type { throw "TEST helper compilation must use module-qualified Add-Type." }\n' + source);
         const child = spawn(
           join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
           ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
@@ -330,10 +335,13 @@ windowsTest(
         assert.equal(exitCode, 1);
         return stderr;
       }
-      const rejectedLegacy = await rejectSchemaWithBlockedFilesystemCmdlet(legacyBootstrap);
+      const rejectedLegacy = await rejectSchemaWithBlockedCmdlets(legacyBootstrap);
       assert.match(rejectedLegacy, /\[phase=helper-source-read\]/u);
       assert.match(rejectedLegacy, /TEST helper lookup must not invoke Join-Path/u);
-      const acceptedCurrent = await rejectSchemaWithBlockedFilesystemCmdlet(actualBootstrap);
+      const rejectedUnqualified = await rejectSchemaWithBlockedCmdlets(unqualifiedBootstrap);
+      assert.match(rejectedUnqualified, /\[phase=helper-compile\]/u);
+      assert.match(rejectedUnqualified, /TEST helper compilation must use module-qualified Add-Type/u);
+      const acceptedCurrent = await rejectSchemaWithBlockedCmdlets(actualBootstrap);
       assert.match(acceptedCurrent, /\[phase=bootstrap-request\]/u);
       assert.doesNotMatch(acceptedCurrent, /\[phase=helper-(?:source-read|compile)\]/u);
     } finally {

@@ -609,7 +609,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-timing-${{ github.sha }}-windows-test-a
-          path: ${{ runner.temp }}/test-timing/windows-test-a
+          path: |
+            ${{ runner.temp }}/test-timing/windows-test-a
+            ${{ runner.temp }}/c1-TEST-*-failure.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -653,7 +655,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-timing-${{ github.sha }}-windows-test-b
-          path: ${{ runner.temp }}/test-timing/windows-test-b
+          path: |
+            ${{ runner.temp }}/test-timing/windows-test-b
+            ${{ runner.temp }}/c1-TEST-*-failure.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -689,7 +693,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-timing-${{ github.sha }}-windows-test-c
-          path: ${{ runner.temp }}/test-timing/windows-test-c
+          path: |
+            ${{ runner.temp }}/test-timing/windows-test-c
+            ${{ runner.temp }}/c1-TEST-*-failure.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -722,10 +728,6 @@ jobs:
       # jobs. Serial execution inside each job preserves fixture ownership.
       - name: Run isolated Windows test partition
         run: node scripts/run-test-shard.mjs -- --windows-lane d --timing-output "$env:RUNNER_TEMP/test-timing/windows-test-d"
-      - name: Compare original and diagnostic Windows bootstrap startup
-        if: ${{ !cancelled() }}
-        continue-on-error: true
-        run: node scripts/windows-bootstrap-comparison.ts "$env:RUNNER_TEMP/windows-bootstrap-comparison.json"
       - name: Upload advisory test timings
         if: ${{ always() }}
         continue-on-error: true
@@ -735,7 +737,6 @@ jobs:
           path: |
             ${{ runner.temp }}/test-timing/windows-test-d
             ${{ runner.temp }}/c1-TEST-*-failure.json
-            ${{ runner.temp }}/windows-bootstrap-comparison.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -771,7 +772,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-timing-${{ github.sha }}-windows-test-e
-          path: ${{ runner.temp }}/test-timing/windows-test-e
+          path: |
+            ${{ runner.temp }}/test-timing/windows-test-e
+            ${{ runner.temp }}/c1-TEST-*-failure.json
           if-no-files-found: warn
           retention-days: 14
 

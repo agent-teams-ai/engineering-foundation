@@ -453,6 +453,29 @@ Contradictory, mixed or unknown prerelease state still fails before npm
 publication, and an RC cannot move `latest`. Returning to stable publication
 requires a separately reviewed Changesets prerelease-exit change.
 
+Registry visibility after one npm publication invocation has a separate
+15-minute monotonic elapsed deadline. Metadata, tarball and attestation requests
+and their response bodies share the remaining observation budget; each request
+also retains its 10-second bound. A reply returned at or after the deadline is
+rejected, including a late `present` reply. The wait only observes: it never
+issues another publish. A zero npm exit is reported as acknowledgement, followed
+by separate visibility, cryptographic verification and reconciliation records;
+constructed records include the coordinate, stage, status and elapsed time,
+without raw npm/provider output or configuration.
+
+This budget addresses observed late convergence, not an npm availability
+guarantee. [Release run `39451813115`](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39451813115)
+first exhausted its visibility wait for
+Document Authoring `0.3.3`, then for Foundation `1.10.2`; in both cases the
+qualified immutable artifact became visible after the attempt had failed. The
+npm signature audit retains its independent six-minute deadline, retries only
+the exact package attestation E404, and keeps the 120-second subprocess bound
+and forced termination. The Release job remains bounded to 60 minutes overall;
+nine worst-case visibility waits need not fit in one run. A failed partial
+train still requires fresh state review and exact immutable reuse before an
+owner-controlled continuation; availability alone does not complete the
+GitHub reconciliation or required public consumer qualification.
+
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
 the pull request's exact base commit. Repository-only tests, CI configuration,
@@ -740,7 +763,9 @@ archive-verification or protected-main diagnostic; arbitrary provider exception
 text remains omitted. Authorization, permission and provenance
 configuration should be investigated using that initial diagnostic.
 Other failures, including HTTP errors, conflicts, timeouts, signals and unknown
-errors, retain the existing 73-observation bound with five-second intervals.
-They never cause a second publish attempt. Exact integrity, manifest, final tag,
+errors, use the separate 15-minute elapsed registry visibility deadline with
+five-second intervals between observations. They never cause a second publish
+attempt. The npm signature audit retains its independent six-minute policy of
+73 observations with five-second intervals. Exact integrity, manifest, final tag,
 provenance and signature checks remain required before release reconciliation.
 An absent registry version alone does not identify the original npm failure.

@@ -11,6 +11,9 @@ export const DOCS_PACKAGE = "@agent-teams/docs-protocol";
 export const DOCS_MCP_PACKAGE = "@agent-teams/docs-protocol-mcp";
 export const REGISTRY_OBSERVATION_ATTEMPTS = 73;
 export const REGISTRY_OBSERVATION_RETRY_MILLISECONDS = 5_000;
+// The existing constants above retain the independent npm signature-audit policy.
+export const REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS = 15 * 60_000;
+const REGISTRY_VISIBILITY_RETRY_MILLISECONDS = 5_000;
 
 const RELEASE_GRAPH = Object.freeze(PUBLISHABLE_PACKAGES.map(({ name }) => Object.freeze({
   name,
@@ -85,24 +88,64 @@ function assertFinalTag(artifact, published, finalTag) {
   }
 }
 
-async function observeExact({ artifact, finalTag, inspect, source, attempts, retryDelayMilliseconds }) {
+function stageRecord(artifact, stage, status, started, now) {
+  return { name: artifact.name, version: artifact.version, stage, status,
+    elapsedMilliseconds: Math.max(0, Math.ceil(now() - started)) };
+}
+
+function observationStatus(observed) {
+  const stage = ["metadata", "tarball", "attestation"].includes(observed?.stage)
+    ? observed.stage : "registry";
+  const status = ["present", "absent", "unknown"].includes(observed?.status)
+    ? observed.status : "invalid";
+  return `${stage}-${status}`;
+}
+
+function publishFailureOutcome(error) {
+  return error?.publishFailure?.notStarted === true ? "not-started"
+    : error?.publishFailure?.outcome === "nonzero" ? "nonzero" : "unknown";
+}
+
+function assertRegistryVisibilityPolicy({ visibilityTimeoutMilliseconds, retryDelayMilliseconds }) {
+  if (!Number.isFinite(visibilityTimeoutMilliseconds) || visibilityTimeoutMilliseconds <= 0 ||
+      visibilityTimeoutMilliseconds > REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS ||
+      !Number.isFinite(retryDelayMilliseconds) || retryDelayMilliseconds <= 0) {
+    fail("registry visibility requires a positive bounded deadline and retry interval");
+  }
+}
+
+async function observeExact({ artifact, finalTag, inspect, source, visibilityTimeoutMilliseconds,
+  retryDelayMilliseconds, now, wait, reportProgress }) {
+  const started = now();
+  const deadline = started + visibilityTimeoutMilliseconds;
   let last;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    last = await inspect(artifact).catch((error) => ({ status: "unknown", error }));
-    if (last.status === "present") {
+  while (true) {
+    const remainingMilliseconds = deadline - now();
+    if (remainingMilliseconds <= 0) { break; }
+    last = await inspect(artifact, { remainingMilliseconds })
+      .catch(() => ({ status: "unknown" }));
+    reportProgress({ ...stageRecord(artifact, "visibility", observationStatus(last), started, now),
+      budgetMilliseconds: visibilityTimeoutMilliseconds });
+    // An adapter ignoring cancellation must never turn an arbitrarily late reply into success.
+    if (now() >= deadline) { break; }
+    if (last?.status === "present") {
       await assertReusable(artifact, last, source);
       assertFinalTag(artifact, last, finalTag);
+      if (now() >= deadline) { break; }
+      reportProgress(stageRecord(artifact, "visibility", "verified", started, now));
       return last;
     }
-    if (last.status !== "absent" && last.status !== "unknown") {
+    if (last?.status !== "absent" && last?.status !== "unknown") {
       fail(`${artifact.name}@${artifact.version} inspection returned an invalid state`);
     }
-    if (attempt + 1 < attempts) {
-      await delay(retryDelayMilliseconds);
-    }
+    const remainingWait = deadline - now();
+    if (remainingWait <= 0) { break; }
+    await wait(Math.min(retryDelayMilliseconds, remainingWait));
   }
-  const reason = last?.error?.message === undefined ? last?.status : last.error.message;
-  fail(`${artifact.name}@${artifact.version} registry result remained ${reason ?? "unknown"}`);
+  reportProgress(stageRecord(artifact, "visibility", "deadline-exceeded", started, now));
+  // Provider exception text and response bodies are never diagnostic authority.
+  const status = ["absent", "unknown"].includes(last?.status) ? last.status : "unverified";
+  fail(`${artifact.name}@${artifact.version} registry result remained ${status}; visibility deadline exceeded`);
 }
 
 async function publishOrReuse(options) {
@@ -124,9 +167,14 @@ async function publishOrReuse(options) {
     fail("the live main publication authorization must complete synchronously");
   }
   let initialFailure;
+  const started = options.now();
+  options.reportProgress(stageRecord(options.artifact, "npm-publish", "started", started, options.now));
   try {
     await options.publish(options.artifact, options.finalTag);
+    options.reportProgress(stageRecord(options.artifact, "npm-publish", "acknowledged", started, options.now));
   } catch (error) {
+    const outcome = publishFailureOutcome(error);
+    options.reportProgress(stageRecord(options.artifact, "npm-publish", outcome, started, options.now));
     // The runtime adapter supplies only sanitized diagnostics, never raw npm output.
     initialFailure = error?.publishFailure?.diagnostic ??
       "publish failed with an unclassified error; raw output omitted";
@@ -159,8 +207,7 @@ async function assertInitialObservation({ artifact, finalTag, published, source 
   if (published.status === "absent") {
     return;
   }
-  const reason = published.error?.message ?? published.status;
-  fail(`${artifact.name}@${artifact.version} pair preflight is unknown (${reason ?? "invalid state"})`);
+  fail(`${artifact.name}@${artifact.version} pair preflight is unknown (${observationStatus(published)})`);
 }
 
 function exactReleaseDependency(artifact, dependency) {
@@ -242,9 +289,12 @@ export async function orderedRelease({
   verifySignature,
   reconcileRelease,
   reportPublishFailure = () => {},
+  reportProgress = () => {},
   source,
-  attempts = REGISTRY_OBSERVATION_ATTEMPTS,
-  retryDelayMilliseconds = REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+  visibilityTimeoutMilliseconds = REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS,
+  retryDelayMilliseconds = REGISTRY_VISIBILITY_RETRY_MILLISECONDS,
+  now = () => performance.now(),
+  wait = delay,
 }) {
   const artifactsByName = assertReleaseWave({
     artifacts, authorizePublish, reconcileRelease, source, verifySignature,
@@ -252,6 +302,7 @@ export async function orderedRelease({
   if (!/^(?:latest|rc)$/u.test(finalTag)) {
     fail("the final npm tag must be exactly latest or rc");
   }
+  assertRegistryVisibilityPolicy({ visibilityTimeoutMilliseconds, retryDelayMilliseconds });
 
   await observeInitialWave({ artifactsByName, finalTag, inspect, source });
 
@@ -265,12 +316,14 @@ export async function orderedRelease({
     }
     if (before.status === "present") {
       await assertReusable(artifact, before, source);
+      reportProgress(stageRecord(artifact, "selection", "reuse", now(), now));
     }
     const published = before.status === "present"
       ? before
       : await publishOrReuse({
-        artifact, attempts, authorizePublish, finalTag, inspect, publish,
-        initial: before, reportPublishFailure, retryDelayMilliseconds, source,
+        artifact, authorizePublish, finalTag, inspect, publish,
+        initial: before, reportPublishFailure, reportProgress, retryDelayMilliseconds, source,
+        visibilityTimeoutMilliseconds, now, wait,
       });
     assertFinalTag(artifact, published, finalTag);
     for (const dependencyName of entry.dependencies) {
@@ -283,8 +336,11 @@ export async function orderedRelease({
         fail(`${artifact.name} was published before its exact ${dependencyName} dependency`);
       }
     }
+    const signatureStarted = now();
+    reportProgress(stageRecord(artifact, "signature", "started", signatureStarted, now));
     const provenance = await verifySignature(artifact);
     await assertVerifiedAuthority(artifact, published, provenance, source);
+    reportProgress(stageRecord(artifact, "signature", "verified", signatureStarted, now));
     publishedByName.set(entry.name, published);
     provenanceByName.set(entry.name, provenance);
   }
@@ -310,7 +366,10 @@ export async function orderedRelease({
     });
   }
   for (const artifact of releasedArtifacts) {
+    const started = now();
+    reportProgress(stageRecord(artifact, "reconciliation", "started", started, now));
     await reconcileRelease(artifact, artifact.provenance.commit);
+    reportProgress(stageRecord(artifact, "reconciliation", "verified", started, now));
   }
   const byName = new Map(releasedArtifacts.map((artifact) => [artifact.name, artifact]));
   return {

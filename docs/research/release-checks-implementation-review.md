@@ -260,3 +260,29 @@ consumed intentions, manifest/changelog versions, API baselines and Bun lock
 updates. That upstream commit changes no implementation or compiler dependency
 graph. Its versions and accepted baselines remain authoritative for the final
 head/base review and CI; the six historical plan reviews remain unchanged.
+
+## Ordered publisher visibility reconciliation
+
+Protected main advanced to
+`d43f9aeb245549d5efe64c2cfe7fb4013098a71a` with a bounded fifteen-minute
+monotonic visibility deadline after the single npm publication invocation.
+The combined branch retains both upstream production publisher files byte for
+byte, including deadline propagation through response bodies, uncertain-outcome
+reconciliation and constructed lifecycle diagnostics.
+
+The two test conflicts preserve every upstream regression and the existing
+nine-package graph. The delayed-visibility positive case begins with the new
+leaf already published, still invokes publication exactly once, and verifies
+nine signatures and reconciliations. The shared fixture retains all nine
+artifacts while adopting the upstream virtual clock and visibility budget. The
+runbook counts nine possible waits. A whitespace-only import reflow preserves
+the existing test-file line budget without removing assertions or adding a waiver.
+
+The independent composition reviewer returned source GO. The actual combined
+ordered and diagnostics suites passed 97 tests on Node 26.11.1 with normal
+process isolation: 49 ordered and 48 diagnostics, no failures, skips or
+cancellations. The authored test files passed the existing scoped fast linter.
+Leaf, Host, private/public C1, API, lock, governance and platform-selection bytes
+remain unchanged from the preceding reviewed branch. Complete qualification for
+the resulting head/base is recorded on the owner PR; earlier runs retain their
+original source bindings. The npm maintainer-readiness hold remains active.

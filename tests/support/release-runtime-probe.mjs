@@ -7,7 +7,8 @@ import { registerHooks, syncBuiltinESMExports } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { REGISTRY_OBSERVATION_ATTEMPTS, REGISTRY_OBSERVATION_RETRY_MILLISECONDS } from '../../scripts/release-publish-ordered.mjs';
+import { REGISTRY_OBSERVATION_ATTEMPTS, REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+  REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS } from '../../scripts/release-publish-ordered.mjs';
 
 const scenario = process.argv[2];
 const changelogEol = process.argv[3] ?? 'lf';
@@ -53,12 +54,22 @@ const expectedPublications = [
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
 let acceleratedNow = 0;
-if (scenario.startsWith('attestation-e404-persistent')) {
+const bodyAbort = ['metadata-body-abort', 'tarball-body-abort', 'attestation-body-abort'].includes(scenario);
+const virtualTime = scenario.startsWith('attestation-e404-persistent') || scenario === 'ambiguous-absent' || bodyAbort;
+const observationControllers = [];
+if (bodyAbort) {
+  AbortSignal.timeout = milliseconds => {
+    const controller = new AbortController();
+    observationControllers.push({ controller, milliseconds });
+    return controller.signal;
+  };
+}
+if (virtualTime) {
   globalThis.performance = { now: () => acceleratedNow };
 }
 // Preserve all registry observations while advancing the audit's virtual deadline.
 globalThis.setTimeout = (callback, milliseconds, ...args) => {
-  if (scenario.startsWith('attestation-e404-persistent') && milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS) {
+  if (virtualTime && milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS) {
     acceleratedNow += milliseconds;
   }
   return originalTimeout(callback, milliseconds === REGISTRY_OBSERVATION_RETRY_MILLISECONDS ? 0 : milliseconds, ...args);
@@ -190,24 +201,38 @@ function begin() {
     throw new Error(`Unexpected suppressed subprocess: ${command} ${args[0]}`);
   };
   syncBuiltinESMExports();
-  globalThis.fetch = async raw => {
+  const readBody = async (stage, signal, value) => {
+    if (!bodyAbort || scenario !== `${stage}-body-abort`) { return value; }
+    const shared = observationControllers.find(entry => entry.milliseconds === REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS);
+    assert.ok(shared, 'post-publication body must have an overall visibility signal');
+    return await new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => {
+        events.push({ operation: 'body-aborted', stage });
+        reject(new Error('provider credential-secret'));
+      }, { once: true });
+      acceleratedNow += REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS;
+      shared.controller.abort();
+      assert.equal(signal.aborted, true);
+    });
+  };
+  globalThis.fetch = async (raw, options) => {
     const url = new URL(raw);
     assert.equal(url.hostname, 'registry.npmjs.org');
     const decoded = decodeURIComponent(url.pathname.slice(1));
     if (decoded.startsWith('fixture-tarball/')) {
       const name = decoded.slice('fixture-tarball/'.length);
-      return { ok: true, arrayBuffer: async () => archiveByName.get(name).bytes };
+      return { ok: true, arrayBuffer: async () => readBody('tarball', options.signal, archiveByName.get(name).bytes) };
     }
     if (decoded.startsWith('-/npm/v1/attestations/')) {
       const name = packages.find(info => decoded.endsWith(`${info.name}@${info.version}`))?.name;
       assert.ok(name);
-      return { ok: true, json: async () => ({ attestations: [bundle(name)] }) };
+      return { ok: true, json: async () => readBody('attestation', options.signal, { attestations: [bundle(name)] }) };
     }
     const archive = archiveByName.get(decoded);
     assert.ok(archive, decoded);
     events.push({ operation: 'inspect', name: decoded });
     if (!published.has(decoded)) { return { status: 404, ok: false }; }
-    return { status: 200, ok: true, json: async () => ({ versions: { [versions.get(decoded)]: {
+    return { status: 200, ok: true, json: async () => readBody('metadata', options.signal, { versions: { [versions.get(decoded)]: {
       dist: { integrity: archive.integrity, tarball: `https://registry.npmjs.org/fixture-tarball/${encodeURIComponent(decoded)}` } } },
       time: { [versions.get(decoded)]: '2026-09-06T00:00:00Z' }, 'dist-tags': { latest: versions.get(decoded) } }) };
   };
@@ -217,6 +242,7 @@ function begin() {
 assert.ok(['valid-wave', 'wrong-npm', 'advance-after-authorization', 'digest-mismatch',
   'notes-exact', 'notes-prefix', 'notes-level-three', 'notes-empty',
   'prerequisite-secret', 'ambiguous-absent', 'lost-response',
+  'metadata-body-abort', 'tarball-body-abort', 'attestation-body-abort',
   'attestation-e404-then-valid', 'attestation-auth-failure',
   'attestation-other-e404', 'attestation-e404-persistent',
   'attestation-e404-persistent-final-timeout',
@@ -251,13 +277,21 @@ if (scenario === 'wrong-npm') {
   assert.equal(attempts.length, 0);
   assert.equal(publications.length, 0);
   assert.equal(reconciliations.length, 0);
+} else if (bodyAbort) {
+  assert.match(error, /registry result remained unknown; visibility deadline exceeded/u);
+  assert.equal(events.filter(event => event.operation === 'body-aborted').length, 1);
+  assert.equal(attempts.length, 1);
+  assert.equal(reconciliations.length, 0);
+  assert.equal(events.filter(event => event.operation === 'signature').length, 0);
+  assert.doesNotMatch(error, /credential-secret/u);
 } else if (scenario === 'ambiguous-absent') {
   assert.equal(attempts.length, 1);
   assert.equal(publications.length, 1);
   assert.equal(reconciliations.length, 0);
   assert.equal(events.filter(event => event.operation === 'signature').length, 0);
-  assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length, REGISTRY_OBSERVATION_ATTEMPTS);
-  assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
+  assert.equal(events.slice(events.indexOf(attempts[0]) + 1).filter(event => event.operation === 'inspect').length,
+    REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS / REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
+  assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; visibility deadline exceeded; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
   assert.doesNotMatch(error, /publication did not start|credential-secret/u);
 } else if (['attestation-auth-failure', 'attestation-other-e404', 'attestation-e404-persistent',
   'attestation-e404-persistent-final-timeout',

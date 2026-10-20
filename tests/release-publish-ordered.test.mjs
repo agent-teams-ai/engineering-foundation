@@ -3,13 +3,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  DOCUMENT_AUTHORING_PACKAGE,
-  DOCS_PACKAGE,
-  DOCS_MCP_PACKAGE,
-  FOUNDATION_PACKAGE,
-  REGISTRY_OBSERVATION_ATTEMPTS,
-  REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
-  tarballIntegrity,
+  DOCUMENT_AUTHORING_PACKAGE, DOCS_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE,
+  REGISTRY_OBSERVATION_ATTEMPTS, REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
+  REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS, tarballIntegrity,
 } from "../scripts/release-publish-ordered.mjs";
 import {
   assertDownloadedTarballIntegrity,
@@ -43,6 +39,123 @@ test("bounds idempotent GitHub release reconciliation during transient outages",
     (GITHUB_RECONCILIATION_ATTEMPTS - 1) * GITHUB_RECONCILIATION_RETRY_MILLISECONDS,
     180_000,
   );
+});
+
+test("accepts delayed visibility beyond six minutes with one publish and unchanged downstream gates", async () => {
+  let elapsed = 0;
+  const runtime = harness(publishedState(mutation, authoring, docs, docsAdapter, docsMcp, foundation, featureModuleStandard, releaseChecks));
+  const snapshot = publishedState(ciInputProof)[ciInputProof.name];
+  const publish = runtime.publish;
+  runtime.publish = async (value, tag) => {
+    await publish(value, tag);
+    runtime.states.set(value.name, () => elapsed < 7 * 60_000 ? { status: "absent" } : snapshot);
+  };
+  const progress = [];
+  await run(runtime, { visibilityTimeoutMilliseconds: undefined, retryDelayMilliseconds: 60_000,
+    now: () => elapsed, wait: async milliseconds => { elapsed += milliseconds; },
+    reportProgress: record => progress.push(record) });
+  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.filter(call => call.startsWith("signature:")).length, 9);
+  assert.equal(runtime.calls.filter(call => call.startsWith("release:")).length, 9);
+  assert.ok(elapsed > 360_000 && elapsed < REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS);
+  assert.ok(progress.some(record => record.stage === "npm-publish" && record.status === "acknowledged"));
+  assert.ok(progress.some(record => record.stage === "visibility" && record.status === "verified"));
+});
+
+for (const returnedAt of [10, 11]) {
+test(`rejects a present reply returned at elapsed ${returnedAt} with deadline 10`, async () => {
+  let elapsed = 0;
+  const runtime = harness();
+  const inspect = runtime.inspect;
+  const budgets = [];
+  runtime.inspect = async (value, budget) => {
+    if (budget !== undefined) {
+      budgets.push(budget.remainingMilliseconds);
+      if (budgets.length === 1) { return { status: "absent" }; }
+      elapsed = returnedAt;
+      return publishedState(value)[value.name];
+    }
+    return inspect(value);
+  };
+  await assert.rejects(run(runtime, { visibilityTimeoutMilliseconds: 10, retryDelayMilliseconds: 9,
+    now: () => elapsed, wait: async milliseconds => { elapsed += milliseconds; } }),
+    /visibility deadline exceeded/u);
+  assert.deepEqual(budgets, [10, 1]);
+  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+});
+}
+
+test("rejects source validation finishing at the strict visibility deadline", async () => {
+  let elapsed = 0;
+  const runtime = harness();
+  const publish = runtime.publish;
+  let invoked = false;
+  runtime.publish = async (value, tag) => {
+    await publish(value, tag);
+    invoked = true;
+  };
+  const timedSource = { ...source, isTrustedCommit: async commit => {
+    if (invoked) { elapsed = 10; }
+    return source.isTrustedCommit(commit);
+  } };
+  await assert.rejects(run(runtime, { source: timedSource,
+    visibilityTimeoutMilliseconds: 10, now: () => elapsed }), /visibility deadline exceeded/u);
+  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+});
+
+test("persistent unknown visibility expires without another write or provider text in diagnostics", async () => {
+  const runtime = harness();
+  const inspect = runtime.inspect;
+  runtime.inspect = async (value, budget) => budget === undefined ? inspect(value)
+    : { status: "unknown", stage: "credential-secret", error: new Error("Bearer credential-secret") };
+  const records = [];
+  await assert.rejects(run(runtime, { reportProgress: record => records.push(record) }),
+    error => /remained unknown; visibility deadline exceeded/u.test(error.message) &&
+      !error.message.includes("credential-secret"));
+  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+  assert.doesNotMatch(JSON.stringify(records), /credential-secret|Bearer/u);
+});
+
+test("rejects a conflicting visible artifact before waiting or downstream writes", async () => {
+  const runtime = harness();
+  const publish = runtime.publish;
+  runtime.publish = async (value, tag) => {
+    await publish(value, tag);
+    runtime.states.get(value.name).integrity = tarballIntegrity(Buffer.from("conflict"));
+  };
+  await assert.rejects(run(runtime, { wait: async () => assert.fail("must reject without waiting") }),
+    /different tarball SRI/u);
+  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+});
+
+test("a long visibility wait never authorizes a downstream write after main advances", async () => {
+  let elapsed = 0;
+  let advanced = false;
+  const runtime = harness();
+  const publish = runtime.publish;
+  runtime.publish = async (value, tag) => {
+    await publish(value, tag);
+    const snapshot = runtime.states.get(value.name);
+    runtime.states.set(value.name, () => elapsed < 7 * 60_000 ? { status: "absent" } : snapshot);
+  };
+  const signature = runtime.verifySignature;
+  runtime.verifySignature = async value => {
+    const result = await signature(value);
+    advanced = true;
+    return result;
+  };
+  runtime.authorizePublish = () => {
+    if (advanced) { throw new Error("protected main advanced"); }
+  };
+  await assert.rejects(run(runtime, { visibilityTimeoutMilliseconds: undefined,
+    retryDelayMilliseconds: 60_000, now: () => elapsed,
+    wait: async milliseconds => { elapsed += milliseconds; } }), /protected main advanced/u);
+  assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
+  assert.equal(runtime.calls.some(call => call.startsWith("release:")), false);
 });
 
 test("publishes the exact derived nine-package dependency graph in order", async () => {

@@ -26,6 +26,39 @@ test("ordered publisher rejects an npm mismatch before packing", () => {
   assert.deepEqual(evidence.events, []);
 });
 
+for (const stage of ["metadata", "tarball", "attestation"]) {
+  test(`visibility deadline aborts an awaited ${stage} body without another publish`, () => {
+    const result = spawnSync(process.execPath, [
+      fileURLToPath(new URL("./support/release-runtime-probe.mjs", import.meta.url)), `${stage}-body-abort`, "lf",
+    ], { encoding: "utf8", timeout: 30_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.doesNotMatch(result.stdout + result.stderr, /credential-secret/u);
+    assert.match(result.stdout, /deadline-exceeded/u);
+  });
+}
+
+for (const [outcome, result] of [
+  ["nonzero", { status: 1, stderr: "npm error code E503\nBearer credential-secret" }],
+  ["not-started", { status: 1, stderr: "npm error code ENEEDAUTH\ncredential-secret" }],
+  ["unknown", { status: null, error: Object.assign(new Error("credential-secret"), { code: "ETIMEDOUT" }) }],
+]) {
+  test(`lifecycle records distinguish ${outcome} without raw npm output`, async () => {
+    const runtime = harness();
+    const records = [];
+    let attempts = 0;
+    runtime.publish = async (value, tag) => {
+      attempts += 1;
+      publishNpmArtifact(value, tag, { spawn: () => result });
+    };
+    await assert.rejects(run(runtime, { reportProgress: record => records.push(record) }));
+    assert.equal(attempts, 1);
+    assert.ok(records.some(record => record.stage === "npm-publish" && record.status === outcome));
+    assert.doesNotMatch(JSON.stringify(records), /credential-secret|Bearer/u);
+    assert.equal(runtime.calls.some(call => /^(signature|release):/u.test(call)), false);
+  });
+}
+
 // These cases catch a premature abort, unbounded retry, retry of unrelated/auth failures,
 // a second publish, or raw credentials leaking from npm's failed audit output.
 for (const [scenario, expectedSignatures] of [

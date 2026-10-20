@@ -34,7 +34,7 @@ These were source reads, not executed engine, CI, registry or E2E evidence.
 
 | Round | Scope | Reviewed plan identity | Outcome and disposition |
 | --- | --- | --- | --- |
-| I1 | Contract, Clean Architecture and semantic reuse | Pending | Pending |
+| I1 | Contract, Clean Architecture and semantic reuse | `80fcc900f0f0844aac1ee07647515556828a00e3` | CHANGE; I1-01 through I1-03 addressed in draft 2 |
 | I2 | Admission, sequencing and operational recovery | Pending | Pending |
 | I3 | Minimal consumer integration and acceptance scope | Pending | Pending |
 | C1 | Independent correctness and counterexamples | Pending | Pending |
@@ -45,3 +45,18 @@ Each round reads the actual revised plan, reports concrete findings and their
 required disposition, and finishes before the next round begins. Record the
 reviewed content digest and subsequent change, including a supported no-change
 verdict. No fabricated reviewer receipt or unobserved execution is evidence.
+
+## I1 — contract and semantic reuse
+
+Reviewed plan SHA-256:
+`bcaf77d0d8d7c06800eef5b11078e2927bd2d386ad6f544b840e51fccf06c1ed`.
+Independent role: contract and architecture reviewer. Verdict: CHANGE.
+
+| Finding | Disposition in draft 2 |
+| --- | --- |
+| I1-01: donor equality also protects native API pre-mutation and later PR attestation; the outer generation call alone is insufficient | Named every affected production seam, preserved checks before baseline mutation and on actual PR head/base, prohibited synthetic expected facts and duplicate equality, retained per-seam negatives |
+| I1-02: equal supplied digests or twice-read historical source do not bind actual execution; a second collector risks divergent plan authority | Bound actual root/Git/processed commit/CLI/config and their re-observation; admitted the action's legitimate branch reset; reused the existing official-plan collector and added actual execution-drift negatives |
+| I1-03: complete plan records and actual version-edit set differ for v3 none/private/ignored records | Preserved complete records and explicit absence, compared only required edits, made consumption expectation explicit and added a mixed unchanged/real-release fixture |
+
+No new package, CLI, facade, DI layer, generic inventory utility or rewrite API
+was required. Implementation remains pending I2-I3 and C1-C3.

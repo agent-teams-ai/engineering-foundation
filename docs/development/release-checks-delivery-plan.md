@@ -1,6 +1,6 @@
 # Release candidate checks delivery
 
-Status: draft 1, implementation not started. The owner authorized this bounded
+Status: draft 2 after improvement I1, implementation not started. The owner authorized this bounded
 delivery on 2026-10-20 after the release-tooling research, with three sequential
 plan-improvement rounds followed by three independent critical-review rounds.
 Their actual findings and dispositions are recorded in
@@ -104,12 +104,30 @@ generation outputs. Normal output changes do not count as source-input drift:
 the binding refers to the immutable original input snapshot and the relevant
 re-observed original inputs; candidate head/tree is recorded separately.
 
+Bind the actual resolved source root, Git directory, processed source commit,
+exact CLI installation/entrypoint and engine/config/input bytes used for both
+planning and versioning. Capture version-route identity after the pinned
+action's admitted reset to processed main. Its prescribed branch movement is
+permitted; a foreign root/Git directory or changed processed commit, engine or
+config rejects. Re-observe actual execution inputs and source authority rather
+than copying expected fields or merely re-reading historical commit bytes.
+Account for intended output mutations through the candidate relation. Extend
+the existing `scripts/npm-package-bootstrap-release-plan.mts` official-plan
+collector so bootstrap policy and candidate checks use the same frozen plan
+projection for a candidate. Host-owned in-process or short-lived evidence is
+sufficient; the library owns no persistence mechanism or second version oracle.
+
 ### Enforced invariants
 
 1. Inventory identities, manifest paths and intents are unique and unambiguous;
    every referenced package/intent is admitted. Private packages remain visible.
-2. Observed package mutations exactly match frozen old/new values and the plan's
-   complete package set. No second SemVer or dependency-range computation exists.
+2. Preserve the complete normalized plan inventory, including explicit `none`
+   and absent-version records. Actual version edits equal exactly the entries
+   requiring a version change; every old/new value or explicit absence matches
+   observation. An unchanged record need not modify a file. Ignored/private
+   intents are consumed only when the qualified adapter explicitly expects it;
+   presence in `plan.changesets` alone does not determine consumption. No second
+   SemVer or dependency-range computation exists.
 3. Planned direct and dependent releases have the engine's actual intent links;
    consumed intent identities/digests match the qualified engine behavior.
 4. The full diff has admitted paths, kinds and file types/modes. Classification
@@ -144,6 +162,19 @@ consumed files.
 | Exact engine-plan/result versions and sets | New common guarantee | Prove with independent expected fixtures; do not describe as existing DRY deletion |
 | Normalized input binding and full-diff constraints | New common guarantee | Compose with existing trusted Host source/PR/CI checks |
 | Changelog/history/summaries, locks, API baselines, archive custody | Existing repository owners | Retain their named checks; remove no protection merely to reduce similar loops |
+
+P1 records and migrates every production callsite of a transferred rule,
+including both release PR guards and
+`scripts/public-api-native-migration-version.ts::verifyVersionWorkflow` before
+existing baseline mutation. Apply the core at the existing generation,
+pre-mutation and current-head/base PR qualification boundaries with independently
+observed facts. Expected plan/input facts come from accepted source or its
+trusted head-bound generation evidence, never from candidate versions. Remove
+superseded equality/coverage branches in that same checkpoint. Existing helpers
+retain their Host content/prerelease/source rules; they neither manufacture a
+synthetic full checker request nor retain a second manifest comparison.
+Qualify tampering before baseline mutation and tampering introduced into a
+release branch after generation, while retaining existing Host fixtures.
 
 Foundation's existing release profile, release PR section helpers, authentic
 Changesets/lock fixtures, catalog-derived qualification and bootstrap workflow
@@ -337,8 +368,9 @@ status, protection change, bot PR or additional routine approval ritual is added
 | Pure contract | Handwritten direct+dependent positive fixture and targeted negatives for exact versions, unknown/duplicate identities, intent coverage/digest, stale binding and unexpected files |
 | Content guarantees | Planned version plus hidden scripts/exports/dependency edit rejects; private manifest changes remain visible; allowed labels cannot bypass content checks |
 | Observation | Full independently observed diff includes missing/untracked/type/mode changes; before/after facts agree with manifests and consumed intents |
-| Engine adapters | Actual pinned v2/v3 execution covers symbolic workspace ranges, existing peer behavior, private/ignored/no-release cases; fixture literals are independent expected values |
+| Engine adapters | Actual pinned v2/v3 execution covers symbolic workspace ranges, existing peer behavior, private/ignored/no-release cases and an unchanged record beside a real release; fixture literals are independent expected values |
 | Foundation integration | Existing authentic release/lock fixture, source-built adoption, content/history guards, strict typecheck and installed packed/registry imports |
+| Execution binding | Changed actual processed HEAD/root/Git authority or substituted CLI/config rejects despite unchanged supplied expected JSON; retain existing foreign-Git-selector negatives |
 | Failure recovery | Existing clean-current-main and partial version/baseline/lock failure tests; no partial push or dirty replay |
 | Get Modular | Exact leaf+lock addition accepted only by reviewed successor; compiler/build/unrelated graph drift rejected; retained archives keep exact SRI |
 | node-or-bun | Real generated metadata patch and complete Node/Bun installed consumer qualification; unchanged byte requirement remains enforced |

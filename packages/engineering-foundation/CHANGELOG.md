@@ -1,5 +1,23 @@
 # @agent-teams/engineering-foundation
 
+## 2.0.1
+
+### Patch Changes
+
+- [#424](https://github.com/agent-teams-ai/engineering-foundation/pull/424) [`39d283d`](https://github.com/agent-teams-ai/engineering-foundation/commit/39d283dba54d9e1cb38ae01b457e53b1eba30048) Thanks [@777genius](https://github.com/777genius)! - Accept static Host tool dispatchers with the exact Foundation workflow command
+  arguments during repository agent workflow conformance. Reject unsafe paths,
+  shell syntax and mismatched command modes while preserving runtime identity and
+  coverage qualification requirements.
+
+  Publish the Feature Module Standard with its updated exact Foundation development
+  dependency so the existing package coordinate retains immutable archive bytes.
+
+  Share the private static Host declaration lexer with quality coverage. Admit
+  bounded package command bodies separately from profile paths, and follow closed
+  Host script/tool routes while retaining failure, cycle and mode rejection.
+  Static declarations and readable native dispatchers remain separate from actual
+  execution and qualification evidence.
+
 ## 2.0.0
 
 ### Major Changes

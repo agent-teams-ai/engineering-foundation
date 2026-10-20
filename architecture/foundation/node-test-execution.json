@@ -201,6 +201,13 @@
     {
       "file": "tests/c1-agent-workflow-configuration.test.mts",
       "names": [
+        "workflow conformance admits only static Host tool declarations for the selected command mode"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/c1-agent-workflow-configuration.test.mts",
+      "names": [
         "C1 versioned loading preserves v1 and successor rejects it before effects"
       ],
       "kind": "test"
@@ -335,6 +342,27 @@
       "file": "tests/c1-agent-workflow-rejection.test.mts",
       "names": [
         "C1 output cleanup failure retains completed command history"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/features/quality-coverage/policy.test.mjs",
+      "names": [
+        "static Host quality routes preserve failure, missing-script and cycle rejection"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/features/quality-coverage/source-observations.test.mjs",
+      "names": [
+        "package script command bounds use UTF-8 bytes without widening profile paths"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/features/quality-coverage/source-observations.test.mjs",
+      "names": [
+        "static reader joins owned authorities and rejects removed or scope-only full activation"
       ],
       "kind": "test"
     }

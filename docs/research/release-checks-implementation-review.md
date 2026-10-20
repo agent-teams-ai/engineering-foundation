@@ -1,9 +1,10 @@
 # Release Checks implementation qualification
 
-Status: Foundation source implementation and focused qualification complete;
-independent final-head review and the required full CI remain pending. Public
-admission remains unmerged until the existing npm provider-readiness gate is
-established. Publication and external adoption are not completed by this record.
+Status: Foundation source implementation and focused qualification complete.
+Final-source review, complete CI and local changed-check results are recorded on
+[owner PR 421](https://github.com/agent-teams-ai/engineering-foundation/pull/421).
+Public admission remains unmerged until the existing npm provider-readiness gate
+is established. Publication and external adoption are not completed by this record.
 
 The [delivery plan](../development/release-checks-delivery-plan.md) passed its
 three sequential improvements and three sequential critical reviews before
@@ -342,3 +343,43 @@ failures or cancellations and the same one existing opt-in skip. The strict
 tooling project passed on TypeScript 7.0.2. Independent semantic review returned
 GO for the source-input correction and preserved test registrations and guards.
 Final committed-source local gates and full CI are recorded on the owner PR.
+
+## Static Host declaration reconciliation
+
+Protected main advanced to
+`39d283dba54d9e1cb38ae01b457e53b1eba30048`, adding bounded static Host command
+declarations and their quality-source observations. The branch incorporates its
+complete eighteen-file delta without conflicts. Seventeen paths retain exact
+upstream bytes; the source-dependency policy combines the three new upstream
+entries with the existing leaf boundaries. Release-checks, its private Host,
+publisher production code, source-owned C1 composition and source-fixture
+correction remain unchanged.
+
+The shared private lexer admits a declaration for the owner's later checks; it
+does not establish execution or qualification. Missing scripts, cycles, depth,
+literal failure, OR and multiline rejection, and full versus scoped coverage
+guards remain authoritative. Package script bodies have a 16 KiB UTF-8 bound;
+profile and path scalars retain their existing 1,024-character bound. The native
+contract retains every earlier record and adds four, for 52 required records.
+The complete 300-file canonical and 344-file built inventories remain intact.
+
+The one new private module contributes four compiler outputs. The Foundation
+archive ceiling is the upstream 2,780 members, with a regression rejecting the
+2,781st. Other package ceilings and the 8 MiB archive bound are unchanged. The
+upstream patch Changeset for Foundation and Feature Module Standard remains
+intact, including the packed development-input consequence for the latter.
+
+A fresh source build passed. Six focused suites executed 106 tests: 105 passed
+and one failed because the local invocation omitted its required job-owned
+`C1_TEST_SCRATCH`. The complete affected four-test suite then passed with that
+input, without source changes, skips or cancellations. This includes the new
+static declaration case; the initial run also passed the quality observations,
+native contract owner, pack manifest and exact archive-boundary regressions.
+
+The preceding `cf1cf7117b54121cc158e05883c5acdd39ac8231` fast and workflow-security
+gates passed. Its local full changed check and
+[requested CI 39504380668](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39504380668)
+were cancelled after protected main advanced. The existing local cancellation
+owner drained its selected process group. Those cancelled runs do not qualify
+this integration; independent final-source review and fresh complete head/base
+gates are recorded on the owner PR. The npm maintainer-readiness hold remains.

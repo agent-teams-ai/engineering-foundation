@@ -211,3 +211,12 @@ CLI; Foundation owns coverage planning and observation contracts, while each
 consumer Host retains its policy and custody. No production runtime dependency
 or general cross-consumer Host runtime is introduced. The review trigger above
 also applies to any future independently assembled workflow capability.
+
+The private static Host command lexer belongs to the existing
+`foundation.configuration-input.application` boundary. Workflow and quality
+policies share only literal token and safe repository-path recognition; each
+owns its operation, tool, mode and argument requirements. The declared source
+edges and private entrypoint add no independently composed module or lifetime,
+public npm export or runtime manager. The retained CMS pin was compared with
+Get Modular `ddf1e0b0053f546f12ca70190b237b4f7e78d09d`: its guidance bytes are
+identical. The outstanding later private guidance follow-up remains pending.

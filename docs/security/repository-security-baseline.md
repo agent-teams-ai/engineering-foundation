@@ -109,7 +109,12 @@ a real tarball E2E check that proves required files, rejects forbidden paths,
 and searches packed content for a source-owned secret canary before it may treat
 the package artifact as qualified for publication. The repository gate also proves two clean
 packs are byte-identical, enforces archive size and entry-count budgets, and
-rejects special tar entries.
+rejects special tar entries. Foundation's package-specific entry ceiling is
+2,780: the retained 2,776-member inventory plus the private static Host lexer's
+four compiler outputs. Other packages retain the 2,500-entry default. The
+complete-inventory regression requires requalification for each change and
+rejects one additional member; archive byte limits and other safety checks
+remain unchanged.
 
 Dependency Review blocks newly introduced vulnerable dependencies before any
 repository dependency is installed. It receives event-derived base and head refs: PR

@@ -926,6 +926,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application
     allow:
       boundaries:
+        - foundation.configuration-input.application
         - foundation.source-inventory.application
         - foundation.core
         - foundation.validation-reporting.application
@@ -3768,6 +3769,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/features/configuration-input/application
     entrypoints:
+      - packages/engineering-foundation/src/features/configuration-input/application/static-host-command.ts
       - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-observation-policy.ts
       - packages/engineering-foundation/src/features/configuration-input/application/configuration-file-problem.ts
       - packages/engineering-foundation/src/features/configuration-input/application/ports/configuration-file-reader.ts
@@ -4102,6 +4104,7 @@ boundaries:
       - packages/engineering-foundation/src/features/quality-coverage/api.ts
     allow:
       boundaries:
+        - foundation.configuration-input.application
         - foundation.validation-reporting.application
         - foundation.process-execution.application
         - foundation.source-inventory.application

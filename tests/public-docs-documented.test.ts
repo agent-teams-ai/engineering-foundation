@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { createPnpmRunner, runCommand, runNpmCommand } from "../scripts/pack-test-support.mjs";
 import { assertRegistryOnlyInstallEvidence, verifyPublicExactDocsCoordinates } from "../scripts/public-docs-install-e2e.mjs";
 import {
   documentedInstallCommands,
@@ -73,6 +74,40 @@ test("the documented binary must be the actual installed manifest bin", { skip: 
     await writeFile(join(root, "unexpected.js"), "// foreign executable\n");
     await symlink(join(root, "unexpected.js"), binary);
     await assert.rejects(installedDocumentedBinary(root, installed));
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test("the real pinned pnpm shim binds and executes the installed manifest binary", { skip: process.platform === "win32" }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "docs-pnpm-shim-"));
+  try {
+    const donor = join(root, "donor");
+    const consumer = join(root, "consumer");
+    await mkdir(join(donor, "dist"), { recursive: true });
+    await mkdir(consumer);
+    await writeFile(join(donor, "package.json"), JSON.stringify({
+      name: "@agent-teams/docs-protocol", version: "0.0.0", type: "module", bin: { "docs-protocol": "dist/cli.js" },
+    }));
+    await writeFile(join(donor, "dist", "cli.js"), '#!/usr/bin/env node\nconsole.log("ACTUAL_INSTALLED_SHIM");\n');
+    await writeFile(join(consumer, "package.json"), '{"private":true,"type":"module"}\n');
+    await writeFile(join(consumer, "pnpm-workspace.yaml"), "packages: []\n");
+    const environment: NodeJS.ProcessEnv = { ...process.env, npm_config_cache: join(root, "npm-cache") };
+    delete environment.npm_config_user_agent;
+    const packed = await runNpmCommand(["pack", "--ignore-scripts", "--json"], donor, { environment });
+    const tarball = (JSON.parse(packed.stdout) as { readonly filename: string }[])[0]!.filename;
+    await createPnpmRunner()([
+      "add", "--offline", "--save-dev", "--save-exact", "--ignore-scripts", join(donor, tarball), "--store-dir", join(root, "store"),
+    ], consumer, { environment });
+    const installed = await realpath(join(consumer, "node_modules", "@agent-teams", "docs-protocol"));
+    const binary = await installedDocumentedBinary(consumer, installed, "pnpm");
+    const result = await runCommand(binary, [], consumer);
+    assert.equal(result.stdout.trim(), "ACTUAL_INSTALLED_SHIM");
+    const source = await readFile(binary, "utf8");
+    await writeFile(binary, source.replace(/^# cmd-shim-target=.+$/mu, "# cmd-shim-target=/foreign/cli.js"));
+    await assert.rejects(installedDocumentedBinary(consumer, installed, "pnpm"));
+    await writeFile(binary, source.replace('  exec node  "', '  exec foreign-node  "'));
+    await assert.rejects(installedDocumentedBinary(consumer, installed, "pnpm"));
   } finally {
     await rm(root, { force: true, recursive: true });
   }

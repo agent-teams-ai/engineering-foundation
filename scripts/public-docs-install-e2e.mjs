@@ -270,7 +270,7 @@ async function installAndQualify({ artifacts, coordinates, matrixEntry, mcpName,
   });
   const docsRoot = installed.get("@agent-teams/docs-protocol").installedRoot;
   const documented = quickstart === undefined ? undefined : await runDocumentedQuickstart({
-    quickstart, root, installedDocsRoot: docsRoot,
+    quickstart, root, installedDocsRoot: docsRoot, manager: matrixEntry.manager,
   });
   if (matrixEntry.profile === "docs-only") {
     await verifyRegistryDocsProtocolCli({

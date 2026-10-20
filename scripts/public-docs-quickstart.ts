@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile, realpath } from "node:fs/promises";
-import { join } from "node:path";
+import { lstat, readFile, realpath } from "node:fs/promises";
+import { dirname, join, relative, sep } from "node:path";
 
-import { applyReachability, fileSnapshot } from "../packages/docs-protocol/dist/qualification/index.js";
+import { applyReachability, fileSnapshot, readContainedBoundedFile } from "../packages/docs-protocol/dist/qualification/index.js";
 import { runCommand } from "./pack-test-support.mjs";
 import { parseStableVersion } from "./release-publish-registry-version.mjs";
 
@@ -117,8 +117,11 @@ export function documentedInstallCommands(
 export async function installedDocumentedBinary(
   root: string,
   installedDocsRoot: string,
+  manager = "npm",
 ): Promise<string> {
-  const bin = join(root, "node_modules", ".bin", "docs-protocol");
+  assert.ok(manager === "npm" || manager === "pnpm");
+  const physicalRoot = await realpath(root);
+  const bin = join(physicalRoot, "node_modules", ".bin", "docs-protocol");
   const manifest = JSON.parse(await readFile(join(installedDocsRoot, "package.json"), "utf8")) as {
     readonly name?: unknown;
     readonly bin?: Readonly<Record<string, unknown>>;
@@ -126,8 +129,37 @@ export async function installedDocumentedBinary(
   assert.equal(manifest.name, CLI);
   const target = manifest.bin?.["docs-protocol"];
   assert.ok(target === "dist/cli.js" || target === "./dist/cli.js");
-  assert.equal(await realpath(bin), await realpath(join(installedDocsRoot, target)));
+  const physicalTarget = await realpath(join(installedDocsRoot, target));
+  const metadata = await lstat(bin);
+  if (metadata.isSymbolicLink()) {
+    assert.equal(await realpath(bin), physicalTarget);
+  } else {
+    assert.equal(manager, "pnpm", "Only the pinned pnpm profile owns a regular POSIX bin shim.");
+    assert.ok(metadata.isFile() && (metadata.mode & 0o111) !== 0);
+    await assertPnpmShimTarget(physicalRoot, bin, physicalTarget);
+  }
   return bin;
+}
+
+async function assertPnpmShimTarget(root: string, bin: string, target: string): Promise<void> {
+  const { bytes } = await readContainedBoundedFile(root, "node_modules/.bin/docs-protocol", "Installed pnpm bin shim", 16 * 1024);
+  const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  assert.ok(source.startsWith("#!/bin/sh\n"));
+  const markers = source.split("\n").filter((line) => line.startsWith("# cmd-shim-target="));
+  assert.equal(markers.length, 1);
+  assert.equal(await realpath(markers[0]!.slice("# cmd-shim-target=".length)), target);
+  const path = relative(dirname(bin), target).split(sep).join("/");
+  const argument = '"$basedir/' + path + '" "$@"';
+  const windowsArgument = '"$basedir_win/' + path + '" "$@"';
+  // Bind all exec slots of the pinned manager's generated shim, then execute
+  // that installed entry itself. This does not interpret a shell program.
+  assert.deepEqual(source.split("\n").filter((line) => /^\s*exec\b/u.test(line)), [
+    '  exec "$basedir/node.exe"  ' + windowsArgument,
+    '  exec "$basedir/node"  ' + argument,
+    "  exec node  " + argument,
+    "  exec node.exe  " + windowsArgument,
+    "  exec node  " + argument,
+  ]);
 }
 
 export function reviewedApplyArguments(
@@ -182,10 +214,11 @@ export async function runDocumentedQuickstart(input: {
   readonly quickstart: DocumentedQuickstart;
   readonly root: string;
   readonly installedDocsRoot: string;
+  readonly manager: string;
 }): Promise<DocumentedWorkflowEvidence> {
   assert.notEqual(process.platform, "win32", "This walkthrough qualifies POSIX bootstrap apply.");
-  const { quickstart, root, installedDocsRoot } = input;
-  const binary = await installedDocumentedBinary(root, installedDocsRoot);
+  const { quickstart, root, installedDocsRoot, manager } = input;
+  const binary = await installedDocumentedBinary(root, installedDocsRoot, manager);
   let digest: string | undefined;
   let completedCommands = 0;
   let rejectedStalePlans = 0;

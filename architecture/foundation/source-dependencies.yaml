@@ -2872,7 +2872,7 @@ boundaries:
     allow:
       boundaries:
         - capability.workspace-dependencies.application
-      packages: [ "ajv" ]
+      packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
@@ -2884,6 +2884,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.configuration-input.composition
+        - foundation.schema-contribution.workspace-dependency-declarations
         - capability.workspace-dependencies.adapters
         - capability.workspace-dependencies.application
         - capability.workspace-dependencies.contract

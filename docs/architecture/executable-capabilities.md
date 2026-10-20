@@ -188,6 +188,13 @@ root's exact matching version. Both schemas retain the existing canonical
 repositories with that explicit authority, without claiming native Bun-only
 workspace discovery or adding a generic package-manager interface.
 
+Feature composition creates a scoped instance of the shared configuration
+schema catalog. The filesystem loader reads bounded YAML, asserts the selected
+v1/v2 schema through its narrow dependency, then maps and freezes settings.
+Schema validators and reads are cached within that capability instance; there
+is no additional Ajv constructor or module-assembly singleton in the adapter.
+Formats remain annotations under the existing configuration-catalog contract.
+
 ### `architecture.source-dependencies`
 
 The second implementation validates observed source relationships:

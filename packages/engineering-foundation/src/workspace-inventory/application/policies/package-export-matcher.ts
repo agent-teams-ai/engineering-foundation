@@ -10,7 +10,6 @@ export interface ResolvedPackageExport {
   readonly targetPath?: string;
 }
 
-const INVALID_SEGMENT = /(^|[\\/])((?:[.]|%2e){1,2}|node_modules)(?:[\\/]|$)/iu;
 const ENCODED_SEPARATOR = /%2f|%5c/iu;
 const MAX_EXPORT_TARGET_DEPTH = 64;
 const MAX_EXPORT_TARGET_NODES = 10_000;
@@ -60,7 +59,8 @@ function targetCapture(entry: PackageExportEntry, subpath: string): string {
 type TargetResolution =
   | { readonly kind: "available"; readonly path: string }
   | { readonly kind: "blocked" }
-  | { readonly kind: "invalid" }
+  | { readonly kind: "invalid-target" }
+  | { readonly kind: "invalid-resolution" }
   | { readonly kind: "undefined" };
 
 function isTargetArray(
@@ -69,36 +69,62 @@ function isTargetArray(
   return Array.isArray(target);
 }
 
-function resolveStringTarget(target: string, capture: string): TargetResolution {
-  if (!target.startsWith("./") || target.includes("\\")) {
-    return { kind: "invalid" };
-  }
-  const substituted = target.replaceAll("*", capture);
-  let decodedSubstituted: string;
-  let decodedCapture: string;
-  try {
-    decodedSubstituted = decodeURIComponent(substituted);
-    decodedCapture = decodeURIComponent(capture);
-  } catch {
-    return { kind: "invalid" };
-  }
-  if (
-    INVALID_SEGMENT.test(substituted.slice(2)) ||
-    INVALID_SEGMENT.test(capture) ||
-    INVALID_SEGMENT.test(decodedSubstituted.slice(2)) ||
-    INVALID_SEGMENT.test(decodedCapture) ||
-    ENCODED_SEPARATOR.test(substituted)
-  ) {
-    return { kind: "invalid" };
+function hasInvalidSegment(value: string): boolean {
+  return value.split(/[\\/]/u).some((segment) => {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(segment).toLowerCase();
+    } catch {
+      // Malformed URL escapes reject the selected URL during finalization;
+      // they are not an invalid-package-target reason to try another target.
+      return false;
+    }
+    return decoded === "." || decoded === ".." || decoded === "node_modules";
+  });
+}
+
+function resolveStringTarget(
+  target: string,
+  capture: string,
+  pattern: boolean,
+  requireCondition: boolean
+): TargetResolution {
+  if (!target.startsWith("./") || target.includes("\\") || hasInvalidSegment(target.slice(2))) {
+    return { kind: "invalid-target" };
   }
   let resolved: URL;
   try {
-    resolved = new URL(substituted, "file:///package/");
+    resolved = new URL(target, "file:///package/");
   } catch {
-    return { kind: "invalid" };
+    return { kind: "invalid-target" };
   }
   if (!resolved.href.startsWith("file:///package/")) {
-    return { kind: "invalid" };
+    return { kind: "invalid-target" };
+  }
+  if (pattern) {
+    if (capture.includes("\\") || hasInvalidSegment(capture)) {
+      return { kind: "invalid-resolution" };
+    }
+    // Exact keys retain literal stars. Node substitutes pattern captures into
+    // the resolved URL, after checking the original package target.
+    const substituted = resolved.href.replaceAll("*", capture);
+    if (hasInvalidSegment(substituted)) {
+      return { kind: "invalid-resolution" };
+    }
+    try {
+      resolved = new URL(substituted);
+    } catch {
+      return { kind: "invalid-resolution" };
+    }
+  }
+  if (
+    !resolved.href.startsWith("file:///package/") ||
+    hasInvalidSegment(resolved.pathname.slice("/package/".length)) ||
+    // Node's CommonJS exports bridge rejects encoded separators anywhere in
+    // the URL; ESM finalization checks only the pathname.
+    ENCODED_SEPARATOR.test(requireCondition ? resolved.href : resolved.pathname)
+  ) {
+    return { kind: "invalid-resolution" };
   }
   try {
     return {
@@ -106,23 +132,24 @@ function resolveStringTarget(target: string, capture: string): TargetResolution 
       path: `./${decodeURIComponent(resolved.pathname.slice("/package/".length))}`
     };
   } catch {
-    return { kind: "invalid" };
+    return { kind: "invalid-resolution" };
   }
 }
 
 function resolveTarget(
   target: PackageExportTarget,
   capture: string,
+  pattern: boolean,
   conditions: ReadonlySet<string>,
   budget: { nodes: number },
   depth: number
 ): TargetResolution {
   budget.nodes += 1;
   if (depth > MAX_EXPORT_TARGET_DEPTH || budget.nodes > MAX_EXPORT_TARGET_NODES) {
-    return { kind: "invalid" };
+    return { kind: "invalid-resolution" };
   }
   if (typeof target === "string") {
-    return resolveStringTarget(target, capture);
+    return resolveStringTarget(target, capture, pattern, conditions.has("require"));
   }
   if (target === null) {
     return { kind: "blocked" };
@@ -130,20 +157,20 @@ function resolveTarget(
   if (isTargetArray(target)) {
     let last: TargetResolution = { kind: "blocked" };
     for (const candidate of target) {
-      const resolved = resolveTarget(candidate, capture, conditions, budget, depth + 1);
-      if (resolved.kind === "available") {
+      const resolved = resolveTarget(candidate, capture, pattern, conditions, budget, depth + 1);
+      if (resolved.kind === "available" || resolved.kind === "invalid-resolution") {
         return resolved;
       }
       if (resolved.kind === "undefined") {
         continue;
       }
-      last = resolved.kind === "invalid" ? resolved : { kind: "blocked" };
+      last = resolved.kind === "invalid-target" ? resolved : { kind: "blocked" };
     }
     return last;
   }
   for (const [condition, candidate] of Object.entries(target)) {
     if (condition === "default" || conditions.has(condition)) {
-      const resolved = resolveTarget(candidate, capture, conditions, budget, depth + 1);
+      const resolved = resolveTarget(candidate, capture, pattern, conditions, budget, depth + 1);
       if (resolved.kind !== "undefined") {
         return resolved;
       }
@@ -168,6 +195,7 @@ export function resolvePackageExport(
   const resolved = resolveTarget(
     selected.target,
     targetCapture(selected, subpath),
+    selected.subpath.includes("*"),
     typeOnly
       ? new Set([condition, "types", "node"])
       : new Set(["node", "node-addons", "module-sync", condition]),

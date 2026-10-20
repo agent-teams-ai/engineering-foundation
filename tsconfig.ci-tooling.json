@@ -29,6 +29,7 @@
     "tests/support/release-changesets-fixture.ts",
     "tests/test-manifests-typescript.test.ts",
     "tests/source-inline-types.test.ts",
+    "tests/package-export-matcher.test.ts",
     "tests/support/ci-input-proof-collector-install.ts"
   ]
 }

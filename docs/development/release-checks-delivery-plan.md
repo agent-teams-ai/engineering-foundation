@@ -1,6 +1,6 @@
 # Release candidate checks delivery
 
-Status: draft 4 after critical review C1, implementation not started. The owner authorized this bounded
+Status: accepted after I1-I3 and C1-C3; implementation in progress. The owner authorized this bounded
 delivery on 2026-10-20 after the release-tooling research, with three sequential
 plan-improvement rounds followed by three independent critical-review rounds.
 Their actual findings and dispositions are recorded in

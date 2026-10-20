@@ -279,6 +279,23 @@ test("pure module markers cannot hide nested dist source and source symlinks rej
   await assert.rejects(census(), /symbolic link/u);
 });
 
+async function assertStaticQualityRoutes({ put, run, scripts }) {
+  await put("package.json", JSON.stringify({ scripts }));
+  assert.equal((await run()).outcome, "passed");
+  const host = "node architecture/tooling/runtime/command.ts";
+  const hostScripts = { ...scripts,
+    "check:fast": `${"true && ".repeat(180)}${host} run quality:scope`,
+    check: `${host} run lint:typed`,
+    "quality:scope": `${host} tool agent-teams-foundation quality check --consumer . --scope-only`,
+    "lint:typed": `${host} tool agent-teams-foundation quality check --consumer .`
+  };
+  await put("package.json", JSON.stringify({ scripts: hostScripts }));
+  assert.equal((await run()).outcome, "passed", "long Host run/tool declarations retain both mode-specific routes");
+  await put("package.json", JSON.stringify({ scripts: { ...hostScripts, "lint:typed": hostScripts["quality:scope"] } }));
+  assert.equal((await run()).outcome, "violations", "scope-only Host tools cannot activate the full route");
+  await put("package.json", JSON.stringify({ scripts }));
+}
+
 test("static reader joins owned authorities and rejects removed or scope-only full activation", async (t) => {
   const { root, put } = await fixture(t);
   const profile = {
@@ -319,20 +336,7 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
     authority: { source: async () => authority, suppressions: async () => ({ governedRoots: [sourceRoot] }) }
   }, { read: loadStrictYamlFile, assertProfile: async (value) => assert.deepEqual(value, profile) }, readContainedRegularFile);
   const run = () => checkStaticQualityCoverage({ consumerRoot: root, configPath: "quality.yaml" }, reader);
-  await put("package.json", JSON.stringify({ scripts }));
-  assert.equal((await run()).outcome, "passed");
-  const host = "node architecture/tooling/runtime/command.ts";
-  const hostScripts = { ...scripts,
-    "check:fast": `${"true && ".repeat(180)}${host} run quality:scope`,
-    check: `${host} run lint:typed`,
-    "quality:scope": `${host} tool agent-teams-foundation quality check --consumer . --scope-only`,
-    "lint:typed": `${host} tool agent-teams-foundation quality check --consumer .`
-  };
-  await put("package.json", JSON.stringify({ scripts: hostScripts }));
-  assert.equal((await run()).outcome, "passed", "long Host run/tool declarations retain both mode-specific routes");
-  await put("package.json", JSON.stringify({ scripts: { ...hostScripts, "lint:typed": hostScripts["quality:scope"] } }));
-  assert.equal((await run()).outcome, "violations", "scope-only Host tools cannot activate the full route");
-  await put("package.json", JSON.stringify({ scripts }));
+  await assertStaticQualityRoutes({ put, run, scripts });
   const lintBytes = await readFile(join(root, "lint.json"), "utf8");
   await put("suppression-base.json", lintBytes);
   await put("lint.json", JSON.stringify({ extends: ["./suppression-base.json"] }));

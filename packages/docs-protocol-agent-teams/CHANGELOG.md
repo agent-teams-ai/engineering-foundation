@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.5.1
+
+### Patch Changes
+
+- [#410](https://github.com/agent-teams-ai/engineering-foundation/pull/410) [`0ab3744`](https://github.com/agent-teams-ai/engineering-foundation/commit/0ab37446fe3716eba25eebde73af32393a756fc5) Thanks [@777genius](https://github.com/777genius)! - Add the Bun default repository runtime profile, closed Bun package-script
+  adapter, deterministic workspace projection and explicit clean Node/pnpm
+  rollback while preserving supported public Node 24/26 and Node-owned test,
+  coverage, package-manager and release lanes.
+
+  Publish repository-agent-workflow policy schema v2 with an explicit Bun or pnpm
+  manager. Version 1 remains pnpm-only. The repository adopts v2; its clean Node
+  projection records and verifies the corresponding pnpm policy bytes.
+
+  Republish Feature Module Standard with the updated Foundation peer range and
+  exact development dependency produced by its workspace manifest projection.
+
+  Publish workspace-dependency-declarations policy schema v2 with an explicit Bun
+  or pnpm manager and the existing pnpm-workspace.yaml catalog authority. Version 1
+  remains pnpm-only. The Node projection records and verifies both dependency
+  policy digests alongside its root manifest and workflow policy evidence.
+
+  Observe the pinned pnpm version without triggering installation when the
+  read-only qualification observer runs from a Bun-managed workspace.
+
+  Resolve built-in source imports through the runtime's `node:module.isBuiltin`
+  contract, including prefix-only `node:test` under Bun. Bare `test` retains normal
+  package declaration checks, and unknown `node:` imports remain unsupported.
+
+## 0.5.0
+
+### Minor Changes
+
+- [#391](https://github.com/agent-teams-ai/engineering-foundation/pull/391) [`59f49ea`](https://github.com/agent-teams-ai/engineering-foundation/commit/59f49ea5574c0a7ecd8ca10cb36682de2cb4357f) Thanks [@777genius](https://github.com/777genius)! - Correct the current Docs Protocol runtime policy to policy 3.0.0 for the accepted
+  Node 26.11.1 production default and Node 24 compatibility lane. Retain exact
+  historical policy bytes and the unselected managed candidate; physical Node 26
+  qualification remains pending. Add the read-only Cohort 3 qualification
+  authority projector used by the public managed registry canary while retaining
+  generation 1/2 consumer upgrade authority and the unselected Profile 4 binding.
+
+### Patch Changes
+
+- [#404](https://github.com/agent-teams-ai/engineering-foundation/pull/404) [`a7e18f7`](https://github.com/agent-teams-ai/engineering-foundation/commit/a7e18f7339eb4b10287e41b9a9e98aa32ab0c8ea) Thanks [@777genius](https://github.com/777genius)! - Report the tail of both output streams, labelled, when a consumer upgrade process
+  fails. pnpm writes `ERR_PNPM_*` to stdout and configuration warnings to stderr, so
+  a consumer with an unset variable in its user npmrc used to see only the warning.
+
 ## 0.4.0
 
 ### Minor Changes

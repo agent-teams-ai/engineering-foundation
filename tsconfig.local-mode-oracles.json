@@ -1,0 +1,8 @@
+{
+  "extends": "./spikes/source-dependency-parser/tsconfig.json",
+  "include": [
+    "tests/helpers/local-mode-boundaries.ts",
+    "spikes/source-dependency-parser/typescript-loader-oracle.ts",
+    "spikes/source-dependency-parser/typescript-parser-oracle.ts"
+  ]
+}

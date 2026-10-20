@@ -8,7 +8,8 @@ import type {
   ConsumerIntegrationDesiredStateV1,
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationPlanV1,
-  ConsumerIntegrationSnapshot
+  ConsumerIntegrationSnapshot,
+  ManagedSuccessorProfile
 } from "../../domain/model.js";
 import { compileConsumerIntegration as compileWithPorts } from "./plan-consumer-integration.js";
 
@@ -21,9 +22,9 @@ export function createConsumerIntegrationPlanner(ports: ConsumerIntegrationPlann
     readonly knownPriorCohorts?: readonly KnownPriorCohortCatalogEntryV1[];
   }) {
     const desired = input.desired;
-    if (desired.schemaVersion === 3) {
+    if (desired.schemaVersion === 3 || desired.schemaVersion === 4) {
       if (input.assetCatalog !== undefined || input.knownPriorCohorts !== undefined) {
-        throw new TypeError("Consumer integration profile v3 does not accept V1 asset catalogs.");
+        throw new TypeError("Consumer integration profiles v3/v4 do not accept V1 asset catalogs.");
       }
       return compileWithPorts({
         desired,
@@ -46,6 +47,10 @@ export function createConsumerIntegrationPlanner(ports: ConsumerIntegrationPlann
   }): ConsumerIntegrationPlanV1;
   function planConsumerIntegration(input: {
     readonly desired: ConsumerIntegrationDesiredStateV3;
+    readonly snapshot: ConsumerIntegrationSnapshot;
+  }): ConsumerIntegrationPlanV1;
+  function planConsumerIntegration(input: {
+    readonly desired: ManagedSuccessorProfile;
     readonly snapshot: ConsumerIntegrationSnapshot;
   }): ConsumerIntegrationPlanV1;
   function planConsumerIntegration(input: {

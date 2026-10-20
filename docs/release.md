@@ -1,5 +1,26 @@
 # Release Procedure
 
+## Repository runtime and rollback
+
+Bun 1.4.3 is the frozen default for this repository's install, ordinary scripts
+and emitted Foundation CLI invocation. `bun tools/dev.mts install` performs a
+frozen dependency-script-disabled install and the connected installed-graph
+guard. Node qualification, raw V8/c8 coverage, npm/pnpm consumers, signing and
+release publication remain explicit Node lanes.
+
+Installed-graph admission checks each dependency's package identity and effective
+version range against the workspace catalog, declared workspace path, explicit
+npm alias and supported global overrides. Tags require an unambiguous exact
+coordinate from the retained pnpm lock v9; unsupported formats fail closed.
+A matching version cannot substitute a different package or a workspace shadow.
+
+The supported rollback is a separate clean profile projection:
+`node tools/dev.mts --profile node install` projects the private root
+`packageManager` field to pnpm 11.20.0 and the workflow v2 manager to pnpm,
+records both original and derived file digests, and installs the retained pnpm lock. Bun
+and Node profiles never share `node_modules`; switching is an operator action,
+not an automatic fallback.
+
 All ordinary releases of packages in the reviewed public-package catalog use
 npm Trusted Publishing from the protected `main` workflow with GitHub OIDC and
 automatic provenance. Manual workstation publication and persistent npm secrets
@@ -8,7 +29,11 @@ The sole exception is the reviewed one-time namespace bootstrap in ADR-0044;
 it cannot publish a supported release.
 
 Changesets maintains versions and release notes. The release workflow publishes
-only from protected `main`.
+only from protected `main`. It keeps Changesets versioning in the tracked Bun
+source worktree and uses the clean Node/pnpm projection for package, registry,
+and publication qualification. `tools/release-profile.mts` is the closed private
+route between those two roles; it never changes the tracked root
+`packageManager`.
 
 Release agents derive every exact current version from the reviewed manifests,
 Changesets state, and registry evidence; this runbook intentionally carries no
@@ -109,6 +134,15 @@ was created at the dispatch timestamp, expires within 24 hours, and has at least
 15 minutes remaining. Only then may the manual workflow run on the exact reviewed
 protected-main commit.
 
+Dispatch the workflow only after the `ci.yml` push run for that exact commit has
+completed green with all five proof contexts (`check`, `windows-check`,
+`macos-qualification`, `full-ci` and `linux-package`). The workflow no longer runs
+the test suite; its first step after the authority check proves that run through
+the Actions API and never waits, so an early dispatch fails at once with
+`CI_PROOF_PENDING` (or `CI_PROOF_NO_RUN`) and wastes the token window. The token
+is created at dispatch time. Create the token and dispatch only after that push run
+is green.
+
 The workflow performs one publish attempt only after the complete local and npm
 preflight. Public npm may expose only the requested `bootstrap` tag or may also
 create `latest` for a namespace's first version. The workflow never creates,
@@ -128,9 +162,19 @@ order with a fresh token for each package. Disable the bootstrap repository
 variable after the approved batch and confirm cleanup before merging the release
 PR.
 
+The bootstrap workflow installs and runs package operations exclusively in the
+clean Node/pnpm projection. Its package commands inherit explicit
+`GIT_DIR`/`GIT_WORK_TREE` bindings to the checked-out source repository, so the
+projection cannot acquire Git authority by ascent and the recorded package tree
+continues to identify the original tracked source tree.
+
 Ordinary `published-compatibility:e2e`, including CI and `pnpm verify`, checks
 bootstrap baselines, pinned old Foundation transaction barriers, published
-document authoring, and scaffolding compatibility. It explicitly defers current
+document authoring, and scaffolding compatibility at their unchanged public
+operation boundaries. These historical observations do not claim old CLI
+startup or rendered process-output compatibility; see the
+[exact qualification scope](development/quality-gates.md#historical-published-operations).
+It explicitly defers current
 public Docs completion: npm publication may precede the Git tags and GitHub
 releases that the ordered publisher must reconcile. To require current public
 completion explicitly, run `pnpm published-compatibility:e2e --require-public-docs`.
@@ -157,13 +201,74 @@ leaves the release run failed and blocks completion evidence.
 
 ## Current stable procedure
 
+### Native public API baseline transition
+
+The TypeScript 7 adapter uses the closed, reviewed transition in
+[`scripts/native-public-api-migration/intent.json`](../scripts/native-public-api-migration/intent.json).
+Its exact B-to-A comparison and archive origins are documented in
+[public API compatibility](architecture/public-api-compatibility.md#release-qualification-remains-required).
+Feature PRs retain the original release-owned baseline bytes. They qualify the
+transition separately while preserving the entire ordinary tool-mismatch
+report and its exit code.
+Explicit report destinations require an existing parent directory; the driver
+creates each report exclusively at its checked canonical path outside the source checkout.
+
+The declaration-data realization was replaced after full-CI run
+[`39181417326`, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39181417326)
+on `f6b84384cd36611c3732b8f9803e2fd88a9a9571` rejected the newly added research
+lock's unused legacy `sprintf-js` runtime dependency under
+[GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c).
+The successor lock installs the eight required external declaration packages
+with lifecycle scripts and optional native bindings omitted. It does not install
+the legacy extractor runtime. A separate fresh public npm `11.19.0` signature
+audit authenticates exactly the seven published archive subjects, their reviewed
+SHA-512 integrities and publication commits; their original manifests remain
+unchanged. This signature-subject namespace is not a complete historical runtime
+installation. The eighth archive retains its exact protected-main qualified RC
+origin. All old inputs remain in Git history. The actual native observation
+rechecks every archive, original configuration, baseline and declaration input;
+all 26 released entrypoints and the complete 256-change extractor comparison
+remain unchanged. The dependency-review policy is unchanged.
+
+After the reviewed source and intent reach `main`, the existing Release workflow
+runs Changesets version preparation and the private `apply-version` command.
+That fixed owner driver delegates to the same
+[public native transition operation](reference/public-api-native-transition.md)
+used by consumers; its private callback preserves the immediate protected-run
+and source fence. The content request grants no authority.
+The pinned Changesets action resets `changeset-release/main` to the processed
+main SHA before this command. The driver checks the actual current run attempt,
+repository, workflow, event and fresh main ref, then requires that exact checkout
+HEAD, unchanged index and only admitted Changesets metadata. The existing
+release file/content policies remain in force. Every committed old baseline
+must match the reviewed B bytes. Version, API and artifact checks finish before
+any baseline is written, and the run/main/source snapshot is rechecked at the
+write boundary.
+
+The named transition replaces all eight typed anchors, including unchanged
+same-version surfaces that the ordinary promoter normally skips. Its writer
+keeps exact physical preimages and accepts only the reviewed B or exact native
+postimages during typed replay. Preexisting ordinary artifact-baseline dirt is
+not admitted by the private driver. After an interruption that reached artifact
+writes, rerun the existing Changesets workflow from its clean main reset; do not
+manually continue from that dirty checkout. Existing generated release-PR
+metadata checks, fresh-parent binding and full CI remain mandatory.
+
+Once the committed baseline set has migrated, the version command uses the
+ordinary typed/artifact promoter with its existing guards. Neither a local
+qualification report, environment variables nor the input record authorizes
+workstation writes. GitHub Free does not provide required-workflow source
+attestation; live run and main observations retain the repository's existing
+main trust boundary and do not supply cryptographic proof of hosted execution.
+
 ### Private Markdown distribution
 
 Document Authoring keeps its maintained parser dependencies in the source
 manifest. The shared `scripts/markdown-publication.mjs` projection bundles only
 its private Markdown adapter in disposable post-build packages. Clean pack,
-registry qualification, protected publication, publint, and ATTW use that same
-projection; ordinary builds never rewrite the source package.
+registry qualification, protected publication, publint, and native package type
+qualification use that same projection; ordinary builds never rewrite the
+source package.
 
 Before hermetic staging, acquisition uses npm with lifecycle scripts disabled
 and empty authentication configs. Original pnpm-lock v9 identities authenticate
@@ -200,6 +305,11 @@ single canary-eligible record. The workflow has read-only repository permission,
 receives no secrets or OIDC authority, and never publishes, deprecates,
 unpublishes, or moves a dist-tag.
 
+The private builder profile is installed and built separately with admitted Node
+26.11.1. Only the read-only public canary executes under the cohort-selected
+Node 24.21.0 or 26.11.1; a historical cohort is never checked through Bun, and
+the builder Node is never substituted for the selected public runtime.
+
 The canary installs exactly Foundation, Docs Protocol, and the managed adapter as
 three roots in fresh npm and pnpm projects; Repository Mutation and Document
 Authoring must resolve only as their exact transitives. It cryptographically
@@ -234,13 +344,36 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-seven-package DAG owned solely by `scripts/publishable-packages.mjs`.
+eight-package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
 source package outside that documentation Cohort. Its `0.1.0-rc.0` registry
 adoption is complete, and the narrow predecessor policy above governs ordinary
 successors as recorded in
 [CI Input Proof source admission](development/ci-input-proof-admission.md).
+The opt-in Feature Module Standard package is a second independent source
+package outside that Cohort, admitted by
+[ADR-0062](decisions/0062-feature-module-standard-package-admission.md); it has
+only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
+integrity and package tree remain in the historical catalog; the runner and its
+first supported `0.1.0` release pass the normal release gates.
+An internal package is declared once, as `workspace:*`. The one exception is an
+optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
+minimum such as `workspace:^1.8.0`) together with the workspace
+link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
+one edge for the closed DAG. The symbolic caret publishes as `^<workspace version>`;
+an explicit minimum retains its declared range and requires the actual workspace
+version to satisfy it. FMS keeps its Foundation `^1.8.0` minimum: packed Node
+qualification runs against both the current qualified Foundation archive and the
+exact published `1.8.0` with strict peers, using the same public source and budget
+checks. Pure FMS entries are also checked without Foundation. The current exact
+development dependency still changes packed bytes and requires an FMS release.
+The pinned Changesets configuration preserves an explicitly selected dependent
+release when the peer update stays within that range. An out-of-range update
+still triggers the planner's compatibility bump and requires review of release
+intent; the existing Changeset coverage tests exercise both cases through the
+installed planner. This keeps the initial Foundation 1.8.0 and FMS 0.1.0 train
+from becoming an unintended FMS 1.0.0 release.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version
@@ -412,9 +545,9 @@ Release run regenerates the pull request. Protected `main` also requires the
 pull request branch to remain current, closing the final merge race after
 attestation.
 
-The attestation job provisions the repository's pinned Node and pnpm versions,
-then installs the frozen lockfile with dependency lifecycle scripts disabled
-before running its local evidence validators. A dependency bootstrap failure is
+The attestation job provisions the repository's pinned Bun and Node versions,
+then installs the actual tracked Bun source worktree with dependency lifecycle
+scripts disabled before running its local evidence validators. A dependency bootstrap failure is
 therefore an attestation failure and retains the same fail-closed status path.
 After Changesets creates or updates the release pull request, the release job
 polls for a bounded period until the owner PR, remote release branch, PR number,
@@ -426,8 +559,21 @@ Publication packages accepted implementations; it does not activate a capability
 inside any consumer. Consumers retain exact pins and adopt a capability in a
 separate reviewed change after its consumer-owned gates pass.
 
-`pnpm release:version` runs Changesets, rebuilds declarations, and invokes
-`public-api-promote-release`. Promotion requires a newer sufficient package
+`node tools/release-profile.mts version` runs `release:version` through the
+Bun-installed tracked source worktree. Versioning, declaration builds and native
+baseline promotion finish before `bun.lock` refresh and creation of the isolated
+Node projection for `pnpm-lock.yaml`. This ordering keeps a disposable repository
+copy out of native extraction's bounded repository inputs. Both locks refresh
+before the Changesets action commits the resulting Git tree. The route preserves the root
+`packageManager`, source Git authority, and complete version/changelog output.
+The release-file guard admits a modified `bun.lock` only when its exact Git blob
+bytes equal the base lock with the validated public workspace versions replaced
+in the pinned Bun serializer's canonical entries. Every other lock byte remains
+unchanged; adding or removing a lock, format changes, dependency graph or integrity changes
+fail closed. Version-only releases must preserve `pnpm-lock.yaml` unchanged.
+The guard reads regular mode-100644 Git blobs and needs no dependency install.
+`release:version` rebuilds declarations and invokes `public-api-promote-release`.
+Promotion requires a newer sufficient package
 version and accepted evidence for every breaking fingerprint. Existing API
 baselines are mutable only in `changeset-release/main`; first-time baseline
 creation is allowed during capability adoption only for a declared package at
@@ -436,6 +582,14 @@ the real declarations and uses create-no-replace publication; missing baselines
 for any later version fail closed. Multi-package promotion is validation-first
 and replay-safe after a partial process failure: an unchanged already-promoted
 package is skipped, while same-version API drift fails closed.
+
+The Changesets publish route prepares a fresh Node/pnpm projection from the
+current source tree, performs its frozen install and build, then executes the
+existing ordered `release:publish` gate there with explicit source Git authority.
+Both Changesets routes bind pnpm to the qualified setup step's physical executable.
+The pinned Changesets action revision,
+`setupGitUser: false`, owner identity, npm 11.19.0, Node 26.11.1, OIDC,
+environment, ordered publication, artifact, and consumer gates remain unchanged.
 
 The organization and Foundation disable GitHub Actions pull-request creation
 and approval. Changesets may push the generated branch and update an existing
@@ -460,7 +614,7 @@ release attester fails closed on ambiguous
 selection, a rerun attempt, a terminal approval-blocked run, changed provenance,
 an unexpected PR, forbidden diff, missing result, timeout, head change, or failed
 conclusion.
-Independent hosted review is recorded in pull-request comments and is not
+Independent review is recorded in the pull request and is not
 self-attested into a repository status. The obsolete `ReviewGate` workflow and
 required context were retired when repository governance decoupled hosted review
 from ReviewRouter OAuth. The stable required contexts remain `CodeQL`, `analyze`,
@@ -479,7 +633,7 @@ Before every publication:
   prerequisite in the security baseline; the one-writer bootstrap profile is
   not valid after another writer or merge automation is enabled;
 - build from a clean checkout;
-- run lint, typecheck, tests, publint, and Are The Types Wrong;
+- run lint, typecheck, tests, publint, and the native archive package type gate;
 - pack the real tarball;
 - install it into an isolated consumer;
 - verify public exports, CLI startup, and package self-check;

@@ -147,7 +147,7 @@ function validateCommands(
           subject: `instruction-command:${script}`,
           message: `Canonical instructions do not mention ${script}.`,
           path: policy.instructions.canonical,
-          remediation: `Document when agents must run pnpm ${script}.`
+          remediation: `Document when agents must run ${policy.packageManager} run ${script}.`
         })
       );
     }
@@ -159,11 +159,13 @@ function validateCommands(
     /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
   const successorRunner = /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+check-changed\s+--consumer\s+\.$/u;
   const successorDogfood = /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+check-changed\s+--consumer\s+\.$/u;
+  const repositoryCommandRunner =
+    /^node\s+tools\/repository-command\.mts\s+script\s+build\s*&&\s*node\s+tools\/repository-command\.mts\s+tool\s+check:changed$/u;
   if (
     changedCommand !== undefined &&
     !(successor
-      ? successorRunner.test(changedCommand.trim()) || successorDogfood.test(changedCommand.trim())
-      : installedRunner.test(changedCommand.trim()) || selfDogfoodRunner.test(changedCommand.trim()))
+      ? successorRunner.test(changedCommand.trim()) || successorDogfood.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim())
+      : installedRunner.test(changedCommand.trim()) || selfDogfoodRunner.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim()))
   ) {
     diagnostics.push(
       diagnostic({
@@ -182,7 +184,7 @@ function validateCommands(
  * It never relabels v1 changed execution or constructs a v2 coverage result. */
 export function workflowV2ConformancePolicy(policy: WorkflowCoveragePolicy): RepositoryAgentWorkflowPolicy {
   const scripts = [...new Set(policy.checks.flatMap((check) => [check.script, ...check.prerequisites]))];
-  return { instructions: policy.instructions, scripts: policy.scripts, changedChecks: scripts.map((script, index) => ({ id: `v2-conformance-${index}`, script, extensions: [], passPaths: false })), fullScanPaths: [] };
+  return { packageManager: policy.packageManager, instructions: policy.instructions, scripts: policy.scripts, changedChecks: scripts.map((script, index) => ({ id: `v2-conformance-${index}`, script, extensions: [], passPaths: false })), fullScanPaths: [] };
 }
 
 export function evaluateRepositoryAgentWorkflowV2(policy: WorkflowCoveragePolicy, evidence: RepositoryAgentWorkflowEvidence): readonly FoundationDiagnostic[] {

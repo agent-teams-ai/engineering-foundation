@@ -3,11 +3,29 @@ import type { GrowthWorkspaceReader } from "../../../application/ports/growth-wo
 import { createHash } from "node:crypto";
 import { readFile, readdir, lstat, realpath } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { Extractor } from "@microsoft/api-extractor";
+import { NATIVE_EXTRACTOR_VERSION } from "../api-extractor/load-pinned-audit-sdk.js";
 import { assertNotCancelled, publicApiInputError, publicApiFileFailure } from "../../../application/policies/public-api-evidence-errors.js";
 import type { PublicApiFileReader } from "../../../application/ports/public-api-evidence.js";
 import type { GrowthDigest, GrowthInvocation } from "../../../application/model/growth-observation.js";
 import { growthCanonicalJson, normalizeGrowthInvocation } from "../../../application/policies/normalize-growth-observation.js";
+
+/** The deadline of one source-identity git call. On Windows it also covers the Job Object wrapper (the PowerShell bootstrap that
+ * compiles its C# helper with `Add-Type`, plus the Node process host), not only git, and a cold runner can need more than ten seconds. */
+const GROWTH_GIT_TIMEOUT_MS = 60_000;
+
+/** The part of a process executor that the growth identity reads use; the composition root supplies the real one. */
+export interface GrowthGitProcesses {
+  run(request: {
+    readonly command: string; readonly args: readonly string[]; readonly cwd: string; readonly timeoutMs: number;
+    readonly signal?: AbortSignal;
+  }): Promise<{ readonly exitCode: number; readonly stdout: string }>;
+}
+
+/** The git runner of the growth identity reads, bound to one repository root. */
+export const createGrowthGitRunner = (processes: GrowthGitProcesses, consumerRoot: string) =>
+  (args: readonly string[], signal?: AbortSignal) => processes.run({
+    command: "git", args, cwd: consumerRoot, timeoutMs: GROWTH_GIT_TIMEOUT_MS, ...(signal === undefined ? {} : { signal })
+  });
 
 export const growthBytesDigest = (bytes: string | Uint8Array): GrowthDigest => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
@@ -88,9 +106,9 @@ export async function readGrowthInvocation(consumerRoot: string, inventory: Awai
   await git(["diff", "--quiet", "HEAD", "--"]);
   return normalizeGrowthInvocation({ repository: await git(["rev-parse", "--show-toplevel"]), sourceCommit, sourceTree,
     topologyDigest: growthBytesDigest(growthCanonicalJson({ workspace, manifests: manifests.toSorted((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0) })),
-    lockDigest: lock.digest, toolchainDigest: growthBytesDigest(growthCanonicalJson({ node: process.version, extractor: Extractor.version, lock: lock.digest })),
+    lockDigest: lock.digest, toolchainDigest: growthBytesDigest(growthCanonicalJson({ node: process.version, extractor: NATIVE_EXTRACTOR_VERSION, lock: lock.digest })),
     artifactDigests: [growthBytesDigest(growthCanonicalJson(build))],
-    tool: { version: toolManifest.version, artifactDigest: toolArtifactDigest, extractorVersion: Extractor.version } });
+    tool: { version: toolManifest.version, artifactDigest: toolArtifactDigest, extractorVersion: NATIVE_EXTRACTOR_VERSION } });
 }
 
 async function distributionDigest(root: string, reader: PublicApiFileReader, signal?: AbortSignal): Promise<GrowthDigest> {

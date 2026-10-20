@@ -312,11 +312,9 @@ async function verifyInstalledDocsProtocol(input) {
   "Generated registry Docs Profile did not parse under the installed portable profile policy.");
   const found = await docsJsonCommand(input.consumerRoot, ["find", "Hermetic", "--consumer", ".", "--profile", "architecture/foundation/docs-protocol.yaml"]);
   assertDocsInfoAndFind(info, found);
-  const contextOutput = await runCommand("pnpm", ["exec", "docs-protocol", "context",
+  const context = await docsJsonCommand(input.consumerRoot, ["context",
     "--consumer", ".", "--profile", docsProfilePath, "--max-documents", "8",
-    "--max-bytes", "32768", "--json"], input.consumerRoot, { timeoutMs });
-  assert(contextOutput.stderr === "", "Installed managed context command wrote unexpected stderr.");
-  const context = JSON.parse(contextOutput.stdout);
+    "--max-bytes", "32768"]);
   assert(context.outcome === "success" && context.result?.includedDocuments > 0 &&
     context.result?.limits?.maxDocuments === 8 && context.result?.limits?.maxBytes === 32768,
   "Managed Skill could not project bounded context through installed portable core.");

@@ -41,7 +41,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
     id: "docs-protocol-agent-teams.adapters",
     roots: [
       "agents-route-adapter-v1.ts", "bounded-repository-topology.ts",
-      "cohort-v2-authority-validator.ts", "consumer-integration-node-error.ts",
+      "cohort-v2-authority-validator.ts", "cohort-v3-authority-projector.ts",
+      "consumer-integration-node-error.ts",
       "consumer-integration-schema-validator.ts", "consumer-upgrade-file-projectors.ts",
       "foundation-known-file-transaction.ts", "github-cohort-authority-reader.ts",
       "managed-qualification-input.ts", "node-consumer-clock.ts",
@@ -88,7 +89,8 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       runtimeReferences: [],
     },
     entrypoints: [
-      "agents-route-adapter-v1.ts", "consumer-integration-schema-validator.ts",
+      "agents-route-adapter-v1.ts", "cohort-v3-authority-projector.ts",
+      "consumer-integration-schema-validator.ts",
       "consumer-upgrade-file-projectors.ts", "foundation-known-file-transaction.ts",
       "github-cohort-authority-reader.ts", "inbound/consumer-integration-cli.ts",
       "inbound/managed-cli.ts", "managed-qualification-input.ts",
@@ -100,11 +102,33 @@ test("Agent Teams consumer integration is absent from Core and owned by its adap
       "pnpm-manifest-adapter-v1.ts", "pnpm-manifest-adapter-v2.ts",
       "pnpm-manifest-planner.ts", "pnpm-runtime-closure-v1.ts",
       "pnpm-runtime-closure-v2.ts",
-      "node-managed-runtime.ts", "node-managed-runtime-identity.ts",
+      "unselected-cohort-v3-loader.ts", "node-managed-runtime.ts", "node-managed-runtime-identity.ts",
       "node-managed-runtime-process.ts",
       "node-managed-runtime-attempt.ts", "node-managed-runtime-install.ts",
       "node-managed-runtime-archive.ts",
     ].map((name) => `${adapterRoot}/${name}`),
+  });
+  const qualificationAdapterRoot = "packages/docs-protocol-agent-teams/src/qualification/adapters";
+  assert.deepEqual(policy.boundaries.find(
+    ({ id }) => id === "docs-protocol-agent-teams.qualification.adapters",
+  ), {
+    id: "docs-protocol-agent-teams.qualification.adapters",
+    roots: [qualificationAdapterRoot],
+    allow: {
+      boundaries: ["docs-protocol-agent-teams.qualification.application"],
+      packages: [docsProtocolName, "ajv", "jsonc-parser", "yaml"],
+      builtins: [
+        "node:child_process",
+        "node:crypto", "node:fs", "node:fs/promises", "node:os", "node:path",
+        "node:url", "node:util", "node:zlib",
+      ],
+      runtimeReferences: [],
+    },
+    entrypoints: [
+      "inbound/qualification-cli.ts", "outbound/node-managed-qualification.ts",
+      "outbound/node-qualification-api-factory.ts", "outbound/node-qualification-runtime.ts",
+      "outbound/restoration-lock-graph.ts", "outbound/restoration-lock-inputs.ts",
+    ].map((name) => `${qualificationAdapterRoot}/${name}`),
   });
   assert.deepEqual(policy.boundaries.find(
     ({ id }) => id === "docs-protocol-agent-teams.managed-runtime-probe",

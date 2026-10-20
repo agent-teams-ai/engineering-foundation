@@ -39,6 +39,7 @@ These terms describe different facts and must not be used interchangeably:
 | `workspace.dependency-declarations` | Yes | Yes | Yes | Only by explicit declaration |
 | `architecture.source-dependencies` | Yes | Yes | Yes | Only by explicit declaration |
 | `quality.suppression-governance` | Yes | Yes | Yes | Only by explicit declaration |
+| `quality.findings-baseline` | Yes, through the `baseline` commands | No | No | Only by explicit configuration file; not yet declarable in `foundation.config.yaml` |
 | `quality.executable-specifications` | Yes | Yes, since 0.10.0 | No donor catalog owned here | Only by explicit declaration after consumer qualification |
 | `package.public-api-compatibility` | Yes | Yes | Yes | Only by explicit declaration and release-owned baselines |
 | `repository.security-baseline` | Yes | Yes | Yes | Only for an applicable publishing repository |
@@ -75,20 +76,72 @@ a second JSON Schema family support claim.
 - a third-party plugin ecosystem;
 - a replacement for package managers, compilers, Nx, or specialized linters;
 - consumer business concepts, bounded-context catalogs, or authorization policy;
-- affected-only checks as a substitute for complete CI coverage.
+- affected-only checks as a substitute for complete CI coverage;
+- a mandated consumer architecture or source layout (see
+  [Architecture neutrality](#architecture-neutrality)).
+
+## Architecture neutrality
+
+Foundation serves repositories with different architectures. In this section,
+core means every package of this repository except opt-in architecture
+packages.
+
+- Core capabilities are limited to architecture-neutral mechanisms. Current
+  examples are dependency graphs and cycles, boundaries, and size and growth
+  budgets; the shrink-only [findings baseline](findings-baseline.md) for existing
+  violations of any rule belongs to the same class. They read every architecture fact (layers,
+  features, roles, allowed edges) from consumer-owned data.
+- A new or changed core capability never encodes the layout, vocabulary or
+  visibility rules of one architecture, for example what a feature, a
+  sub-feature, a layer or a contract surface is.
+- Known exception: `quality.source-coverage` reads its production topology only
+  from a Feature Module Standard v1 or v1.1 profile (`featureProfilePath`) and
+  rejects other profiles. It is not architecture-neutral until a neutral consumer-owned
+  topology input replaces that profile and the Feature Module Standard mapping
+  moves to the standard's opt-in package. That migration is a breaking change
+  of a released capability. Until then, changes to it may keep that dependency
+  and accept later versions of the same standard, but must not extend it to
+  another standard or capability.
+- Checks for a standard that defines one architecture's layout or vocabulary,
+  such as the organization Feature Module Standard, ship only as a separate
+  opt-in package named after that standard. The normative text stays with the
+  standard's owner. A consumer that does not adopt the standard never loads the
+  package. No core package or capability depends on it; the dependency points
+  only from the standard's package to the neutral core.
+- A standard that defines no architecture of its own, such as the Agent
+  Architecture Standard, is not covered by the previous rule; its dependency
+  direction is the one accepted in
+  [ADR-0036](../decisions/0036-incubate-agent-architecture-standard.md).
+- This repository's own [Feature Module Standard adoption](feature-module-standard.md)
+  governs its own source layout as a consumer of that standard. It is not a
+  requirement for other consumers.
+- A proposal for a shared check states which part is the neutral mechanism and
+  which part belongs to an opt-in architecture package.
 
 ## Extraction admission invariant
 
-A consumer-owned implementation moves into Foundation only after two real
-consumers demonstrate the same semantics. The extraction must include shared
-parity fixtures and a conformance test in every adopting consumer. The adoption
-sequence must also delete the superseded consumer implementations; merely
-wrapping or copying them into Foundation does not satisfy DRY.
+Foundation is designed for many consumers. When a reusable engineering-tooling
+concern within Foundation's [ownership boundary](ownership.md) is expected to
+serve more than one repository, it is implemented here as a shared library from
+the start, instead of growing inside one consumer and being extracted later.
+The number of consumers that exist today is not an admission gate: expected
+reuse as the organization grows is the reason to build it here. The same
+delivery validates the contract with disposable test projects and at least one
+real consumer, which proves the contract rather than incubating it. This follows
+the organization's
+[library-first rule](https://github.com/agent-teams-ai/.github/blob/main/docs/engineering-quality-standard.md#library-first-design-and-deliberate-evolution)
+and [ADR-0061](../decisions/0061-library-first-foundation-boundary-evolution.md).
 
-This is an admission rule for shared extractions, not a requirement to invent a
-second copy of a Foundation-owned mechanism. Similar syntax, a possible future
-consumer, or a shared dependency alone are insufficient evidence. Generalize
-the reason for change only after the repeated semantics are proved.
+Every admission still ships shared parity fixtures and a conformance test in
+every adopting consumer. The adoption sequence deletes the superseded consumer
+implementations; wrapping or copying them into Foundation does not satisfy DRY,
+and an old and a new implementation do not stay side by side without an owner
+and a removal step.
+
+Similar syntax or a shared dependency alone does not prove shared semantics:
+the shared contract generalizes only the semantics it defines, and product
+policy stays in the consumer. The Agent Architecture Standard keeps its own
+accepted admission rule ([ADR-0036](../decisions/0036-incubate-agent-architecture-standard.md)).
 
 ## Ownership and flow
 
@@ -128,10 +181,12 @@ The first implementation validates declared workspace dependency state:
 - exact versions in the accepted catalog when consumer policy requires them;
 - legal dependency sections and development-only tooling placement.
 
-Version 1 supports pnpm through an internal adapter selected explicitly by the
-capability configuration. The capability ID remains policy-oriented; support for
-another package manager requires a proven second adapter, not speculative generic
-interfaces in the public API.
+Configuration v1 retains its pnpm-only contract. Configuration v2 explicitly
+selects `pnpm` or `bun`; the evaluator requires that selected kind and checks the
+root's exact matching version. Both schemas retain the existing canonical
+`pnpm-workspace.yaml` inventory and catalog adapter. This admits Bun-managed
+repositories with that explicit authority, without claiming native Bun-only
+workspace discovery or adding a generic package-manager interface.
 
 ### `architecture.source-dependencies`
 
@@ -184,6 +239,33 @@ byte and filesystem revalidation. Pure markers do not hide nested `dist` or
 `coverage` source. Existing same-package development-output admission also
 requires stable marker evidence and rejects nested package authority.
 
+V3 admits a child package's development boundary reaching repository development
+source through a relative import only when all of these facts hold:
+
+- `rootPackage: true` selects the actual repository owner; normalized resolution
+  identifies the target manifest as root `package.json` and the source as a child
+  package;
+- both source and target boundaries declare `dependencyMode: development`;
+- the source's `allow.boundaries` explicitly includes the target boundary ID;
+- the resolved exact target path appears in that target's `entrypoints`.
+
+For example, a package test boundary may allow a repository qualification boundary
+whose entrypoints list `tests/qualification/prepare.mts`. That admits the exact
+declared development relationship, not other files beneath `tests`, private
+package development source, runtime-to-development imports, or the reverse
+repository-to-package direction. Boundary IDs and package names remain opaque;
+path names alone do not authorize an edge. A missing fact retains cross-package
+relative-import rejection. Admitted edges continue through ordinary boundary
+diagnostics and the immutable graph's cycle checks; entrypoint admission does
+not return an early successful capability result.
+
+This correction is source-implemented with rejecting fixtures. Delivery target
+1.7.4 remains pending independent exact-source review, real consumer use,
+artifact qualification and required CI. It changes no schema bytes or CMS
+composition contract. Consumers qualify the exact new package and update their
+development-only pin, lockfile and tooling profile together; existing governed
+roots and production prohibitions remain in force.
+
 V1/v2 schema bytes and behavior remain unchanged by this opt-in contract;
 Foundation's own policy remains v2. Root configuration and report versions stay
 independent of the capability schema. Combined producer checks and a separately
@@ -230,12 +312,16 @@ inside development boundaries.
 
 The source scanner, resolver, source-tree reader, and workspace inventory sit
 behind separate internal ports. Exact Oxc 0.142.0 is the accepted outbound parser
-adapter after comparison with a TypeScript 6 oracle. Parser-native types never
-cross into application policy or public contracts.
+adapter after the retained historical comparison with a TypeScript 6 oracle.
+The current independent oracle uses TypeScript 7 and retains the same corpus and
+explicit source-phase import divergence. Parser-native types never cross into
+application policy or public contracts.
 
-Documentation ownership, DDD feature layout, LikeC4, security classification,
-reliability catalogs, and scaffolding are separate capabilities or remain local
-consumer checks. They cannot be added to either dependency capability.
+Documentation ownership, LikeC4, security classification, reliability catalogs,
+and scaffolding are separate capabilities or remain local consumer checks. DDD
+feature layout belongs to an opt-in architecture package or a local consumer
+check (see [Architecture neutrality](#architecture-neutrality)). None of them
+can be added to either dependency capability.
 
 ### Governance capabilities
 
@@ -417,6 +503,7 @@ schemas/
   foundation-config/v1.schema.json
   foundation-check-report/v1.schema.json
   workspace-dependency-declarations/v1.schema.json
+  workspace-dependency-declarations/v2.schema.json
 ```
 
 Explicit package exports and `agent-teams-foundation schema <schema-id>` expose
@@ -493,6 +580,19 @@ including argument parsing and command-launch failures. Non-document commands
 use the versioned `foundation-command-error/v1` envelope; document commands keep
 their command-specific versioned envelopes.
 
+Process failure messages may include private producer observations: launch, child
+exit, timeout, cancellation, output limit, invalid UTF-8, stream or cleanup failure.
+These immutable identity-associated facts carry only integer exit codes from 0
+through 4,294,967,295, timeouts from 1 through 2,147,483,647 milliseconds, and an
+owned finite signal vocabulary. A signal exit's synthetic runner exit code is
+not reported as an observed child exit code. Unknown or invalid facts retain the
+fixed generic message. Reporting never parses process messages, output or causes.
+The facts remain internal to Foundation; consumers own fixture orchestration and
+artifact retention. The existing v1 problem shape, codes, outcomes and diagnostic
+counts stay unchanged. Human message wording is not a parseable API contract.
+This diagnostic repair does not establish the cause of Get Modular's Windows
+failure or prove that failure resolved.
+
 Each rule's ID and metadata are declared once in its owning capability. The same
 registry powers diagnostics, generated reference material, and:
 
@@ -508,6 +608,10 @@ The private composition root binds each capability definition to its owned rule
 metadata in one typed immutable module descriptor. Capability execution and
 `explain` registries are projections of that ordered descriptor list, so adding
 a capability does not require a second synchronized rule-registration list.
+Command-only modules, such as the [findings baseline](findings-baseline.md), are
+not capabilities of the `check` registry: their rules are added to the
+`explain` registry through one separate command-module list, and the
+capability registry stays equal to the keys of the root configuration schema.
 Composition rejects metadata/key drift and rule IDs outside the owning
 capability's `<capability-id>.` namespace before either registry can be used.
 The public root configuration schema remains the immutable wire contract and a
@@ -544,7 +648,11 @@ cannot consume another capability's report or rely on incidental execution order
 A shared read-only snapshot may be extracted internally only after repeated
 parsing cost or drift is measured.
 
-Normal capability checks are read-only and use no network, shell, or subprocess.
+Normal capability checks are read-only and use no network or shell. The public
+API adapter uses the pinned native TypeScript 7 compiler subprocess through its
+SDK, with a closed, bounded declaration/configuration filesystem and session
+cleanup. This compiler exception does not authorize subprocesses in the source,
+security, envelope, specification, or normal Buf scanners.
 Explicit baseline-promotion commands are separate write paths; they perform
 atomic adapter-local replacement only after complete evidence passes.
 Their Git ownership differs by semantic owner: accepted-decision baselines are
@@ -575,7 +683,15 @@ Exact consumer dependency pins make upgrades explicit. Patches preserve schema
 and rule meaning. New capabilities or rules require an upgrade note and
 conformance evidence. A breaking schema publishes a new schema version and a
 migration guide; existing immutable schemas remain available for the supported
-migration window.
+migration window. Claimed JSON Schema families retain this invariant.
+
+[ADR-0063](../decisions/0063-explicit-changed-check-coverage-policy-schema.md)
+records one narrow exception for the artifact-protected, unclaimed
+`repository-agent-workflow/v2` family: its exact approved artifact fingerprint
+adds coverage while retaining the legacy v2 policy shape, with a major package
+release. It grants no general permission to mutate versioned schemas, other
+artifacts or claimed families. A different artifact change requires its own
+approval; release-owned baselines and historical ADR bytes stay protected.
 
 Before version 1.0, an intentional public breaking change increments the minor
 version. After version 1.0 it increments the major version. Stable rule IDs are

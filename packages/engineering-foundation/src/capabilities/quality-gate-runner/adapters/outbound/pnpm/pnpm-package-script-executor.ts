@@ -2,20 +2,14 @@ import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import { rejectQualityGateExecutor } from "../../../application/policies/quality-gate-input.js";
-import {
-  ProcessCancellationError,
-  ProcessTimeoutError
-} from "../../../application/ports/managed-process-executor.js";
 import type { QualityGateManagedProcessExecutor } from "../../../application/ports/managed-process-executor.js";
 export type { QualityGateManagedProcessExecutor } from "../../../application/ports/managed-process-executor.js";
-import {
-  PackageScriptCancellationError,
-  PackageScriptTimeoutError,
-  type PackageScriptExecutor
-} from "../../../application/ports/package-script-executor.js";
+import type { PackageScriptExecutor } from "../../../application/ports/package-script-executor.js";
+import { runPackageScriptProcess } from "../package-script-process.js";
 
 export interface QualityGatePnpmEnvironment {
   readonly childEnvironment: Readonly<NodeJS.ProcessEnv>;
+  readonly nodeExecutablePath?: string;
   readonly npmExecPath?: string;
   readonly pnpmHome?: string;
   readonly pathValue?: string;
@@ -40,7 +34,7 @@ async function nodeEntrypoint(
       const canonical = await realpath(candidate).catch(() => null);
       if (
         canonical !== null &&
-        /\.(?:c|m)?js$/u.test(canonical) &&
+        /\.(?:c|m)?js$/iu.test(canonical) &&
         await isRegularFile(canonical)
       ) {
         return canonical;
@@ -56,15 +50,17 @@ async function resolvePnpmInvocation(
   if (
     process.platform !== "win32" &&
     environment.npmExecPath !== undefined &&
-    isAbsolute(environment.npmExecPath) &&
-    !/\.(?:c|m)?js$/u.test(environment.npmExecPath)
+    isAbsolute(environment.npmExecPath)
   ) {
     const canonical = await realpath(environment.npmExecPath).catch(() => null);
-    if (canonical === null || !await isRegularFile(canonical)) {
+    if (canonical !== null && await isRegularFile(canonical)) {
+      // Classify JS-vs-native on the canonical executed target, never the
+      // unresolved spelling, so an explicit native npmExecPath is never ignored.
+      if (!/\.(?:c|m)?js$/iu.test(canonical)) {
+        return { command: canonical, argsPrefix: [] };
+      }
+    } else if (!/\.(?:c|m)?js$/iu.test(environment.npmExecPath)) {
       rejectQualityGateExecutor();
-    }
-    if (!/\.(?:c|m)?js$/u.test(canonical)) {
-      return { command: canonical, argsPrefix: [] };
     }
   }
   const homeEntrypoint = environment.pnpmHome === undefined
@@ -81,7 +77,10 @@ async function resolvePnpmInvocation(
     ...pathEntrypoints
   ]);
   if (entrypoint !== undefined) {
-    return { command: process.execPath, argsPrefix: [entrypoint] };
+    if (environment.nodeExecutablePath === undefined) {
+      rejectQualityGateExecutor();
+    }
+    return { command: environment.nodeExecutablePath, argsPrefix: [entrypoint] };
   }
   if (process.platform !== "win32") {
     return { command: "pnpm", argsPrefix: [] };
@@ -111,33 +110,23 @@ export class PnpmQualityGateScriptExecutor implements PackageScriptExecutor {
   ) {}
 
   async run(input: {
+    readonly packageManager: "bun" | "pnpm";
     readonly consumerRoot: string;
     readonly scriptId: string;
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;
   }) {
-    const invocation = await resolvePnpmInvocation(this.environment);
-    try {
-      const result = await this.processExecutor.run({
-        command: invocation.command,
-        args: [...invocation.argsPrefix, "run", input.scriptId],
-        cwd: input.consumerRoot,
-        environment: this.environment.childEnvironment,
-        ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
-        ...(input.signal === undefined ? {} : { signal: input.signal })
-      });
-      return {
-        ...result,
-        exitCode: result.signal === null ? result.exitCode : null
-      };
-    } catch (error) {
-      if (error instanceof ProcessCancellationError) {
-        throw new PackageScriptCancellationError({ cause: error });
-      }
-      if (error instanceof ProcessTimeoutError) {
-        throw new PackageScriptTimeoutError(error.timeoutMs, { cause: error });
-      }
-      throw error;
+    if (input.packageManager !== "pnpm") {
+      rejectQualityGateExecutor();
     }
+    const invocation = await resolvePnpmInvocation(this.environment);
+    return runPackageScriptProcess(this.processExecutor, {
+      command: invocation.command,
+      args: [...invocation.argsPrefix, "run", input.scriptId],
+      cwd: input.consumerRoot,
+      environment: this.environment.childEnvironment,
+      ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
+      ...(input.signal === undefined ? {} : { signal: input.signal })
+    });
   }
 }

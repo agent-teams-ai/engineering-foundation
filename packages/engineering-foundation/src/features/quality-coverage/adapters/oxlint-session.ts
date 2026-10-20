@@ -2,9 +2,9 @@ import { isAbsolute, relative, sep } from "node:path";
 import { realpath } from "node:fs/promises";
 import {
   assertNotCancelled,
-  type ManagedProcessExecutor, type ManagedProcessResult, type QualityToolSession
+  type ManagedProcessExecutor, type ManagedProcessResult, type OxlintFindings, type QualityToolSession
 } from "../api.js";
-import { parseOxlintDiagnostics, parseOxlintSelection } from "./oxlint-output.js";
+import { parseOxlintDiagnostics, parseOxlintFindings, parseOxlintSelection } from "./oxlint-output.js";
 
 export interface OxlintSessionInput {
   readonly consumerRoot: string;
@@ -49,7 +49,10 @@ function sourceBatches(paths: readonly string[]): readonly (readonly string[])[]
 }
 
 /** Entrypoints have already been bound to the pinned consumer toolchain by preparation. */
-export function createOxlintSession(input: OxlintSessionInput, executor: ManagedProcessExecutor): QualityToolSession {
+export function createOxlintSession(input: OxlintSessionInput, executor: ManagedProcessExecutor): QualityToolSession & {
+  /** Findings per file and rule over the same targets and protective flags as `lint`. */
+  findings(measuredRules: ReadonlySet<string>, signal?: AbortSignal): Promise<OxlintFindings>;
+} {
   const lintArgs = [input.oxlintEntrypoint, "--config", input.configPath,
     "--deny-warnings", "--disable-nested-config", "--no-ignore", "--threads", "1", "--format", "json"];
   const run = (args: readonly string[], signal?: AbortSignal) => executor.run({
@@ -120,6 +123,18 @@ export function createOxlintSession(input: OxlintSessionInput, executor: Managed
         files: results.reduce((total, result) => total + result.files, 0),
         diagnostics: results.flatMap((result) => result.diagnostics)
       };
+    },
+    async findings(measuredRules, signal) {
+      assertExplicitTargets();
+      const results = await runSourceBatches(signal, async (paths, batchSignal) => {
+        // A batch may hold only ignored files; the producer decides whether zero linted files overall is an error.
+        const result = await run([...lintArgs, "--no-error-on-unmatched-pattern", ...paths], batchSignal);
+        if (result.signal !== null || result.stderr.trim().length !== 0) {
+          throw new Error("Oxlint did not produce valid lint evidence.");
+        }
+        return parseOxlintFindings(result.stdout, result.exitCode, measuredRules);
+      });
+      return { files: results.reduce((total, result) => total + result.files, 0), findings: results.flatMap((result) => result.findings) };
     }
   };
 }

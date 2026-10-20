@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { assertPnpmProfileQualificationRoot } from "../tools/dev.mts";
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 import { assertPackedDocsAdapterHistory } from "./pack-docs-adapter-history.mjs";
 import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
@@ -14,10 +15,12 @@ import { runQualifiedArtifactConsumer, withQualifiedPackageArtifacts } from "./p
 import {
   packageQualificationPhaseIds, runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
+import { resolveGeneration2Node } from "./generation2-node.mts";
 import { createPackedConsumerFixture } from "./packed-consumer-fixture.mjs";
 import { writePackedConsumerDocumentAuthoringFixture } from "./packed-consumer-document-authoring-fixture.mjs";
 import { verifyPackedConsumer } from "./packed-consumer-e2e.mjs";
 import { verifyPackedCiInputProof } from "./packed-ci-input-proof.mts";
+import { verifyPackedFeatureModuleStandard } from "./packed-feature-module-standard.mjs";
 import { verifyPackedLocalMode } from "./packed-local-mode-e2e.mjs";
 import {
   createPnpmRunner,
@@ -342,7 +345,9 @@ async function verifyPackedDocsConsumerIntegration(input) {
     `overrides:\n${Object.entries(localArtifactOverrides).map(([name, specifier]) =>
       `  ${JSON.stringify(name)}: ${JSON.stringify(specifier)}`).join("\n")}\n`
   );
-  await writeFile(join(consumerRoot, ".node-version"), `${process.versions.node}\n`);
+  // The managed generation2 consumer contract still requires Node >=24.18.0 <25 in .node-version,
+  // independent of the Node 26 repository default that runs this script.
+  await writeFile(join(consumerRoot, ".node-version"), "24.21.0\n");
   await runPnpm(["install", "--ignore-scripts"], consumerRoot);
   await rm(join(consumerRoot, "node_modules"), { force: true, recursive: true });
   await runPnpm(
@@ -456,10 +461,12 @@ snapshots:
     "dist",
     "cli.js"
   );
+  // Only the managed generation2 adapter CLI runs on the explicit Node 24; everything else stays on the default.
+  const generation2Node = await resolveGeneration2Node();
   const invoke = async (args) => {
     try {
       const result = await runCommand(
-        process.execPath,
+        generation2Node,
         [cli, ...args, "--consumer", consumerRoot, "--json"],
         consumerRoot
       );
@@ -538,6 +545,11 @@ export function qualifyPackedConsumers(handle, group) {
   packageQualificationPhaseIds("packed", group);
   return runQualifiedArtifactConsumer(handle, "packed", async ({ artifacts, temporaryRoot, checkpoint }) => {
     const runPnpm = createPnpmRunner();
+    const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
+    if (sourceRoot === undefined || sourceRoot === "") {
+      throw new Error("Package qualification requires an explicit source root.");
+    }
+    await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
     const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
     const packageManager = packageManagerVersion(repositoryManifest);
     const timedPhase = (name, run) => runPackedPhase(name, run, checkpoint);
@@ -594,6 +606,8 @@ export function qualifyPackedConsumers(handle, group) {
         await verifyPackedCiInputProof(
           artifacts["@agent-teams/ci-input-proof"], temporaryRoot, repositoryRoot, runPnpm,
         );
+        await verifyPackedFeatureModuleStandard({ artifacts, temporaryRoot, packageManager, runPnpm,
+          typescript: (await toolingVersions()).typescript });
       }),
       consumerPhase("SDK growth qualification", current =>
         testPackedSdkGrowth({ consumerRoot: current.consumerRoot, artifact })),

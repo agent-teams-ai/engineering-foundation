@@ -19,7 +19,7 @@ import {
   actualSourceDependenciesCLI,
   copySourcePolicyFixture,
   observeFoundationFeatureGraph
-} from "./helpers/local-mode-boundaries.mjs";
+} from "./helpers/local-mode-boundaries.ts";
 import { spawnSync } from "node:child_process";
 import { installedFoundationVersion } from "../packages/engineering-foundation/dist/transaction-coordination/adapters/node/installed-foundation-version.js";
 

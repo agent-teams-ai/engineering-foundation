@@ -31,6 +31,10 @@ export function rejectChangedWorkflowInput(message: string): never {
   throw new FoundationError("CONSUMER_INVALID", message);
 }
 
+export function rejectWorkflowBunExecutor(): never {
+  throw new FoundationError("PROCESS_FAILED", "Unable to resolve a verified Bun executable.");
+}
+
 export function rejectWorkflowExecutor(): never {
   throw new FoundationError(
     "PROCESS_FAILED",

@@ -116,13 +116,19 @@ test("five fixed Windows lanes retain exact real canonical inventory and mandato
   assert.deepEqual(byLane.get("c"), [loader]);
   const successor = "tests/npm-package-bootstrap-successor-policy.test.mts";
   const comparator = "tests/features/input-comparison/ci-input-proof.test.mts";
-  assert.deepEqual([canonical.indexOf(successor), canonical.indexOf(comparator)], [13, 30]);
+  const qualificationCohort = "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts";
+  const canaryGeneration3 = "tests/public-managed-registry-canary-generation3.test.mts";
+  assert.deepEqual([
+    canonical.indexOf(successor), canonical.indexOf(comparator),
+    canonical.indexOf(qualificationCohort), canonical.indexOf(canaryGeneration3),
+  ], [13, 32, 134, 215]);
+  const lanePolicy = JSON.parse(await readFile(new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"));
+  assert.deepEqual(Object.fromEntries(byLane), lanePolicy.lanes);
   const laneB = byLane.get("b")!;
   assert.ok(laneB.indexOf(successor) < laneB.indexOf(comparator));
-  for (const files of byLane.values()) {
+  for (const [lane, files] of byLane) {
     assert.ok(files.length > 0);
-    const originalPositions = files.map((file) => canonical.indexOf(file));
-    assert.deepEqual(originalPositions, originalPositions.toSorted((left, right) => left - right));
+    assert.deepEqual(files, lanePolicy.lanes[lane]);
   }
   assert.deepEqual(selectTestShardPaths(manifest, ids, false, "linux", "x64"), canonical);
   assert.deepEqual(selectTestShardPaths(manifest, ids, true, "linux", "x64").toSorted(),

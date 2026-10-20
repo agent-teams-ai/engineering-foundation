@@ -3,7 +3,7 @@ import type { WorkspaceDependencyDeclarationsSettings } from "../../../applicati
 
 export interface WorkspaceConfigurationDependencies {
   readonly readYaml: (consumerRoot: string, configPath: string, phase: string, signal?: AbortSignal) => Promise<unknown>;
-  readonly readSchema: (schemaId: "workspace-dependency-declarations/v1") => Promise<string>;
+  readonly readSchema: (schemaId: "workspace-dependency-declarations/v1" | "workspace-dependency-declarations/v2") => Promise<string>;
 }
 
 export async function loadCapabilityConfig(
@@ -18,8 +18,11 @@ export async function loadCapabilityConfig(
     "workspace-dependency-declarations-config",
     signal
   );
-  const schema = JSON.parse(
-    await dependencies.readSchema("workspace-dependency-declarations/v1")
-  ) as object;
+  const version = typeof input === "object" && input !== null && !Array.isArray(input)
+    ? (input as Record<string, unknown>)["schemaVersion"]
+    : undefined;
+  const schema = JSON.parse(await dependencies.readSchema(
+    version === 2 ? "workspace-dependency-declarations/v2" : "workspace-dependency-declarations/v1"
+  )) as object;
   return parseCapabilityConfig(input, schema);
 }

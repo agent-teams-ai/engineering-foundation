@@ -271,6 +271,36 @@
       "id": "ADR-0057",
       "path": "docs/decisions/0057-ci-input-proof-leaf-type-contract.md",
       "immutableDigest": "sha256:b05d5568ebfec29b51b9fb3b45b31d1ccd8b0b69f7d956927f90589ba9fd2613"
+    },
+    {
+      "id": "ADR-0058",
+      "path": "docs/decisions/0058-node26-current-policy-public-api-evolution.md",
+      "immutableDigest": "sha256:9436c5bf13a999272b69922f9a158e81c2955bc1873057d13ab1437e3bbcb7a9"
+    },
+    {
+      "id": "ADR-0059",
+      "path": "docs/decisions/0059-node26-current-policy-coherent-behavior-unit.md",
+      "immutableDigest": "sha256:a07726acf3b8e76c991190ddbcde895b36fdd79ad059987ad9568824d523fd8b"
+    },
+    {
+      "id": "ADR-0060",
+      "path": "docs/decisions/0060-node26-cohort3-projector-public-api-evolution.md",
+      "immutableDigest": "sha256:c07b8c29ff8362a866d4196e6abed41f10ca2d9b05a148aba17a6f7a3270d49c"
+    },
+    {
+      "id": "ADR-0061",
+      "path": "docs/decisions/0061-library-first-foundation-boundary-evolution.md",
+      "immutableDigest": "sha256:6ae637669146a88e302e5a458f3bc6245af4811c18075a1f0128891ea148acbe"
+    },
+    {
+      "id": "ADR-0062",
+      "path": "docs/decisions/0062-feature-module-standard-package-admission.md",
+      "immutableDigest": "sha256:d8e820f6f4209dadc5b35d6f859dfee4d8331f3a210b8047c20c7541fb41d4b0"
+    },
+    {
+      "id": "ADR-0063",
+      "path": "docs/decisions/0063-explicit-changed-check-coverage-policy-schema.md",
+      "immutableDigest": "sha256:9d0e5f6e6c936fd309ddc31948727215d7916d5729246af390f11b8b7176389f"
     }
   ]
 }

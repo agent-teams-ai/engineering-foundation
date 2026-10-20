@@ -281,15 +281,24 @@ ${Array.from({ length: 180 }, () => "  result += 1;").join("\n")}
   });
 });
 
-test("packaging package-manager runners ignore executable environment overrides", async () => {
+test("packaging package-manager runners ignore executable environment overrides", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "packaging-manager-custody-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(join(root, "package.json"), JSON.stringify({
+    name: "packaging-manager-custody-test", private: true, packageManager: "pnpm@11.20.0"
+  }));
   const environment = {
     ...process.env,
     ComSpec: join(repositoryRoot, "attacker-cmd.exe"),
     npm_execpath: join(repositoryRoot, "attacker-pnpm.cjs"),
     PATH: join(repositoryRoot, "attacker-bin"),
   };
-  const pnpm = await createPnpmRunner()(["--version"], repositoryRoot, { environment });
-  const npm = await runNpmCommand(["--version"], repositoryRoot, { environment });
+  const pnpm = await createPnpmRunner()(["--version"], root, { environment });
+  const npm = await runNpmCommand(["--version"], root, { environment });
+  const executed = await createPnpmRunner()([
+    "--reporter=silent", "exec", "node", "--eval", 'process.stdout.write("PACKAGING-PNPM-EXEC\\n")'
+  ], root, { environment });
+  assert.equal(executed.stdout, "PACKAGING-PNPM-EXEC\n");
   assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);
   assert.match(npm.stdout, /^11\./u);
 });
@@ -496,6 +505,7 @@ test("clean removes incremental state and permits a full rebuild", async () => {
 
     const fixturePackages = [
       ["ci-input-proof", "@agent-teams/ci-input-proof", {}],
+      ["feature-module-standard", "@agent-teams/feature-module-standard", {}],
       ["repository-mutation", "@agent-teams/repository-mutation", {}],
       ["document-authoring", "@agent-teams/document-authoring", {
         "@agent-teams/repository-mutation": "workspace:*",
@@ -540,6 +550,11 @@ test("clean removes incremental state and permits a full rebuild", async () => {
           join(repositoryRoot, "scripts", "publishable-packages.mjs"),
           "utf8",
         ),
+        "utf8",
+      ),
+      writeFile(
+        join(fixtureRoot, "scripts", "release-publish-registry-version.mjs"),
+        await readFile(join(repositoryRoot, "scripts", "release-publish-registry-version.mjs"), "utf8"),
         "utf8",
       ),
     ]);

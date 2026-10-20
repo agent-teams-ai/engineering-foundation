@@ -36,7 +36,7 @@ import {
 registerQualityGateObservationPortTests();
 
 function policy(tasks, concurrency = 2) {
-  return { packageManager: "pnpm", profiles: [{ id: "verify", concurrency, tasks }] };
+  return { profiles: [{ id: "verify", packageManager: "pnpm", concurrency, tasks }] };
 }
 
 function errorEvidence(error) {
@@ -263,7 +263,11 @@ profiles:
 `, "utf8");
     const requests = [];
     const executor = new PnpmQualityGateScriptExecutor(
-      { childEnvironment: {}, npmExecPath: pnpmEntrypoint },
+      {
+        childEnvironment: {},
+        nodeExecutablePath: "/verified/node",
+        npmExecPath: pnpmEntrypoint
+      },
       {
         async run(request) {
           requests.push(request);
@@ -292,7 +296,7 @@ profiles:
       },
       {
         args: [await realpath(pnpmEntrypoint), "run", "slow"],
-        command: process.execPath,
+        command: "/verified/node",
         cwd: root,
         timeoutMs,
       },
@@ -759,22 +763,14 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
         {
           name: "explicit native entrypoint takes precedence over a shadow PATH entrypoint",
           async prepare(marker) {
-            const entrypoint = join(root, "native pnpm with spaces");
-            const pathRoot = join(root, "shadow-path");
-            const shadowEntrypoint = join(root, "shadow-pnpm.cjs");
+            const entrypoint = join(root, "native pnpm with spaces"), pathRoot = join(root, "shadow-path"), shadowEntrypoint = join(root, "shadow-pnpm.cjs");
+            const shadowSource = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify(["shadow"]));\n`, runSource = `require("node:fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify(process.argv.slice(2)));\n`;
             await copyFile(process.execPath, entrypoint);
             await mkdir(pathRoot, { recursive: true });
-            await writeFile(shadowEntrypoint,
-              `require("node:fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify(["shadow"]));\n`,
-              "utf8");
+            await writeFile(shadowEntrypoint, shadowSource, "utf8");
             await symlink(shadowEntrypoint, join(pathRoot, "pnpm"));
-            await writeFile(join(root, "run"),
-              `require("node:fs").writeFileSync(${JSON.stringify(marker)}, JSON.stringify(process.argv.slice(2)));\n`,
-              "utf8");
-            return {
-              environment: { npmExecPath: entrypoint, pathValue: pathRoot },
-              expected: ["probe"],
-            };
+            await writeFile(join(root, "run"), runSource, "utf8");
+            return { environment: { npmExecPath: entrypoint, pathValue: pathRoot }, expected: ["probe"] };
           },
         },
         {
@@ -804,7 +800,9 @@ test("resolves pnpm entrypoints from focused environment candidates", async () =
       const result = await new PnpmQualityGateScriptExecutor({
         ...environment,
         childEnvironment: {},
+        nodeExecutablePath: process.execPath,
       }, createManagedProcessExecutor()).run({
+        packageManager: "pnpm",
         consumerRoot: root,
         scriptId: "probe",
       });

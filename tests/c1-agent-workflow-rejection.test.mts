@@ -38,7 +38,7 @@ void test('C1 actual run then revoke retains trace and rejects every revoked inp
     assert.equal(ran,true); assert.equal(await readFile(join(subject.output,'ran'),'utf8'),'actual command completed');
     assert.equal(report.outcome,'stale',JSON.stringify(report));
     assert.equal(report.steps.length,1); assert.deepEqual(report.steps[0]?.commands.map(c=>[c.script,c.exitCode]),[['lint',0]]);
-    assert.ok(report.steps[0].durationMs>0); assert.deepEqual(report.steps[0].qualifiedFacets,[]);
+    assert.ok((report.steps[0]?.durationMs ?? 0)>0); assert.deepEqual(report.steps[0]?.qualifiedFacets,[]);
     assert.ok(report.coverage.every(row=>row.state==='stale'));
   }
 }));
@@ -59,7 +59,7 @@ void test('C1 mid command cancellation retains interrupted history without cover
   const report=await runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json',signal:cancellation.signal},{custody:(await subject.freeze()).custody,runner,loadPolicy:subject.loadPolicy});
   assert.equal(report.outcome,'cancelled',JSON.stringify(report)); assert.equal(report.steps.length,1);
   assert.equal(report.steps[0]?.commands.length,1); assert.equal(report.steps[0]?.commands[0]?.script,'lint');
-  assert.ok(report.steps[0].durationMs>0); assert.ok(report.steps.every(step=>step.qualifiedFacets.length===0));
+  assert.ok((report.steps[0]?.durationMs ?? 0)>0); assert.ok(report.steps.every(step=>step.qualifiedFacets.length===0));
   assert.ok(report.coverage.every(row=>row.state!=='checked'));
 }));
 
@@ -139,7 +139,7 @@ void test('C1 qualified runner rejects nested output roots before command execut
   const frozen=await subject.freeze();const outputRoot=join(frozen.lease.executionRoot,'outputs');await mkdir(outputRoot);
   let ran=false;
   const runner=createQualifiedPnpmCheckRunner({tool:subject.tool,outputRoot,qualify:async(_lease,check)=>({checkId:check.id,scripts:subject.scripts,files:subject.files,supplies:check.supplies,runnerIdentity:null,effects:'read-only-inputs-owned-outputs',effectiveConfig:{enablePrePostScripts:false,verifyDepsBeforeRun:false,managePackageManagerVersions:false}})},async(command,args,options)=>{if(args.includes('run')){ran=true;}return execute(command,args,options);});
-  await assert.rejects(runner.run({lease:frozen.lease,check:lint}),/outside the source closure/u);assert.equal(ran,false);
+  await assert.rejects(runner.run({lease:frozen.lease,check:lint,packageManager:'pnpm'}),/outside the source closure/u);assert.equal(ran,false);
 }));
 
 // RED: a real output ancestor replacement makes transport cleanup reject

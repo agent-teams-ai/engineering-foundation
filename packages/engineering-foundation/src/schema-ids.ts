@@ -14,6 +14,7 @@ import { EXECUTABLE_SPECIFICATIONS_SCHEMA_IDS } from "./capabilities/executable-
 import { QUALITY_GATE_RUNNER_SCHEMA_IDS } from "./capabilities/quality-gate-runner/schemas.js";
 import { QUALITY_COVERAGE_SCHEMA_IDS } from "./features/quality-coverage/schemas.js";
 import { SUPPRESSION_GOVERNANCE_SCHEMA_IDS } from "./capabilities/suppression-governance/schemas.js";
+import { FINDINGS_BASELINE_SCHEMA_IDS } from "./capabilities/findings-baseline/schemas.js";
 import { REPOSITORY_AGENT_WORKFLOW_SCHEMA_IDS } from "./capabilities/repository-agent-workflow/schemas.js";
 import { REPOSITORY_SECURITY_BASELINE_SCHEMA_IDS } from "./capabilities/repository-security-baseline/schemas.js";
 import { SCAFFOLDING_SCHEMA_IDS } from "./scaffolding/schemas.js";
@@ -34,6 +35,7 @@ const { schemaIds: FOUNDATION_SCHEMA_IDS, firstSchemaId } = createSchemaList([
   QUALITY_GATE_RUNNER_SCHEMA_IDS,
   QUALITY_COVERAGE_SCHEMA_IDS,
   SUPPRESSION_GOVERNANCE_SCHEMA_IDS,
+  FINDINGS_BASELINE_SCHEMA_IDS,
   REPOSITORY_AGENT_WORKFLOW_SCHEMA_IDS,
   REPOSITORY_SECURITY_BASELINE_SCHEMA_IDS,
   SCAFFOLDING_SCHEMA_IDS,

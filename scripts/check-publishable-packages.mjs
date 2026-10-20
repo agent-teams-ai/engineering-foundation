@@ -40,8 +40,8 @@ export function publishablePackageCheckPlan(packages = PUBLISHABLE_PACKAGES) {
   return Object.freeze(packages.flatMap(({ root }) => [
     Object.freeze({ arguments: Object.freeze([root]), tool: "publint" }),
     Object.freeze({
-      arguments: Object.freeze(["--pack", "--profile", "esm-only", root]),
-      tool: "attw",
+      arguments: Object.freeze(["--pack", root]),
+      tool: "native-package-types",
     }),
   ]));
 }
@@ -49,7 +49,7 @@ export function publishablePackageCheckPlan(packages = PUBLISHABLE_PACKAGES) {
 export async function runPublishablePackageChecks({
   execute = runCommand,
   toolPaths = {
-    attw: packageBinary("@arethetypeswrong/cli", "attw"),
+    "native-package-types": join(repositoryRoot, "scripts/native-package-types-cli.ts"),
     publint: packageBinary("publint", "publint"),
   },
 } = {}) {

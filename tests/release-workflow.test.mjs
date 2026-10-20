@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parse as parseYaml } from "yaml";
+import { releaseBunLockViolations } from "../scripts/release-bun-lock.ts";
 
 import {
   readStreamText,
@@ -1899,6 +1900,25 @@ test("CI concurrency isolates pull request checks from attester dispatches", asy
   assert.equal(ci.concurrency["cancel-in-progress"], true);
 });
 
+function assertReleaseProfileSteps(releaseJob) {
+  assert.deepEqual([
+    releaseJob.permissions["id-token"],
+    releaseJob.permissions.contents,
+    releaseJob.steps.find(({ name }) => name === "Install the actual Bun source worktree")?.run,
+    releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases
+  ], ["write", "write", "node tools/dev.mts install", false]);
+  const changesets = releaseJob.steps.find((step) => step.id === "changesets");
+  const sourceInstall = releaseJob.steps.findIndex((step) => step.run === "node tools/dev.mts install");
+  assert.ok(sourceInstall >= 0 && sourceInstall < releaseJob.steps.indexOf(changesets));
+  assert.equal(releaseJob.steps.some((step) => step.run === "node tools/dev.mts --profile node install"), false);
+  assert.equal(changesets.uses, "changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d");
+  assert.equal(changesets.with.setupGitUser, false);
+  assert.equal(changesets.with.version, "node tools/release-profile.mts version");
+  assert.equal(changesets.with.publish, "node tools/release-profile.mts publish");
+  assert.equal(changesets.env.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT,
+    "${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm");
+}
+
 test("release pipeline keeps hosted review separate from generated-diff attestation", async () => {
   const release = await workflow("release.yml");
   const ci = await workflow("ci.yml");
@@ -1916,14 +1936,14 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   );
   assert.equal(releaseJob["timeout-minutes"], 60);
   const attestationIndex = attestationSteps.indexOf(attestation);
-  const attestationPnpmSetupIndex = attestationSteps.findIndex(
-    ({ uses }) => uses?.startsWith("pnpm/setup@"),
+  const attestationBunSetupIndex = attestationSteps.findIndex(
+    ({ uses }) => uses?.startsWith("oven-sh/setup-bun@"),
   );
   const attestationNodeSetupIndex = attestationSteps.findIndex(
     ({ uses }) => uses?.startsWith("actions/setup-node@"),
   );
   const attestationInstallIndex = attestationSteps.findIndex(
-    ({ run }) => run === "pnpm install --frozen-lockfile --ignore-scripts",
+    ({ run }) => run === "node tools/dev.mts install",
   );
 
   assert.equal(releaseJob.outputs.pullRequestNumber, "${{ steps.release-pr.outputs.number }}");
@@ -1944,19 +1964,25 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
     releaseBinding.run.indexOf("check-release-pr-files.mjs") <
       releaseBinding.run.indexOf("printf 'number=%s\\n'"),
   );
-  assert.deepEqual([releaseJob.permissions["id-token"], releaseJob.permissions.contents, releaseJob.steps.find(({ run }) => run?.startsWith("pnpm install"))?.run, releaseJob.steps.find((step) => step.id === "changesets").with.createGithubReleases], ["write", "write", "pnpm install --frozen-lockfile --ignore-scripts", false]);
+  assertReleaseProfileSteps(releaseJob);
+  const releaseNodeIndex = releaseJob.steps.findIndex(({ uses }) => uses?.startsWith("actions/setup-node@"));
+  const releaseNpmIndex = releaseJob.steps.findIndex(({ run }) => run === "npm install --global npm@11.19.0 --ignore-scripts");
+  const releaseNpmGuardIndex = releaseJob.steps.findIndex(({ run }) => /assertNpmVersion\(\)/u.test(run ?? ""));
+  assert.ok(releaseNodeIndex >= 0 && releaseNpmIndex > releaseNodeIndex && releaseNpmGuardIndex > releaseNpmIndex,
+    "release must provision the qualified npm 11.19.0 after Node setup and before its version guard");
+  assert.ok(releaseNpmGuardIndex < releaseJob.steps.findIndex((step) => step.id === "changesets"));
   assert.match(attestation.run, /node scripts\/check-release-pr-files\.mjs/u);
-  assert.ok(attestationPnpmSetupIndex > 0);
-  assert.ok(attestationNodeSetupIndex > attestationPnpmSetupIndex);
+  assert.ok(attestationBunSetupIndex > 0);
+  assert.ok(attestationNodeSetupIndex > attestationBunSetupIndex);
   assert.ok(attestationInstallIndex > attestationNodeSetupIndex);
   assert.ok(attestationIndex > attestationInstallIndex);
   assert.equal(
-    attestationSteps[attestationPnpmSetupIndex].uses,
-    "pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b",
+    attestationSteps[attestationBunSetupIndex].uses,
+    "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
   );
   assert.deepEqual(
-    attestationSteps[attestationPnpmSetupIndex].with,
-    { install: false },
+    attestationSteps[attestationBunSetupIndex].with,
+    { "bun-version": "1.4.3" },
   );
   assert.equal(
     attestationSteps[attestationNodeSetupIndex].uses,
@@ -1969,14 +1995,14 @@ test("release pipeline keeps hosted review separate from generated-diff attestat
   const changesetCoverage = ci.jobs["linux-static"].steps.find(
     ({ name }) => name === "Validate package Changeset coverage",
   );
-  assert.equal(changesetCoverage.run, "pnpm changeset:coverage");
+  assert.equal(changesetCoverage.run, "bun scripts/check-changeset-coverage.mjs");
   assert.match(changesetCoverage.if, /pull_request[\s\S]*changeset-release\/main/u);
   assert.match(
     changesetCoverage.if,
     /head\.repo\.full_name != github\.repository/u,
   );
   assert.equal(changesetCoverage.env.FOUNDATION_CHANGESET_BASE_SHA, "${{ github.event.pull_request.base.sha }}");
-  assert.equal(ci.jobs["linux-static"].steps.find(({ run }) => run === "pnpm release-owned-files:check").env.FOUNDATION_PR_HEAD_REPOSITORY, "${{ github.event.pull_request.head.repo.full_name }}");
+  assert.equal(ci.jobs["linux-static"].steps.find(({ run }) => run === "bun run release-owned-files:check").env.FOUNDATION_PR_HEAD_REPOSITORY, "${{ github.event.pull_request.head.repo.full_name }}");
   assert.equal(
     attestation.env.EXPECTED_RELEASE_BASE_SHA,
     "${{ needs.release.outputs.pullRequestBaseSha }}",
@@ -2151,7 +2177,7 @@ test("release publishing requires real Buf and hermetic registry qualification",
     assert.ok(coverageManifest.thresholds[threshold] > 0);
     assert.match(coverageRunner, new RegExp(`config\\.thresholds\\.${threshold}`, "u"));
   }
-  assert.match(manifest.scripts.check, /pnpm test:coverage:built/u);
+  assert.match(manifest.scripts.check, /node tools\/repository-command\.mts script test:coverage:built/u);
   const ci = await workflow("ci.yml");
   assert.match(
     manifest.scripts["release:publish"],
@@ -2171,37 +2197,40 @@ test("release publishing requires real Buf and hermetic registry qualification",
   );
   assert.match(
     manifest.scripts["release:publish"],
-    /release-publish\.mjs && pnpm public-docs-release:e2e$/u,
+    /release-publish\.mjs && node tools\/repository-command\.mts script public-docs-release:e2e$/u,
   );
   assert.equal(
     manifest.scripts["public-docs-release:e2e"],
-    "node scripts/public-docs-release-e2e.mjs",
+    "node tools/repository-command.mts tool public-docs-release:e2e",
   );
-  assert.match(manifest.scripts["release:publish"], /^pnpm build &&/u);
+  assert.match(manifest.scripts["release:publish"], /^node tools\/repository-command\.mts script build &&/u);
   assert.doesNotMatch(
     manifest.scripts["release:publish"],
     /(?:^|&&\s*)(?:changeset publish|pnpm check)(?:\s|&&|$)/u,
   );
   assert.equal(
     manifest.scripts["registry-install-e2e:built"],
-    "node scripts/registry-install-e2e.mjs",
+    "node tools/repository-command.mts tool registry-install-e2e:built",
   );
   assert.equal(
     manifest.scripts["npm-package-bootstrap:candidate-evidence"],
     "node scripts/npm-package-bootstrap-candidate-evidence.mjs",
   );
-  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run, "pnpm registry-install-e2e");
+  assert.equal(ci.jobs["linux-registry"].steps.at(-1).run,
+    "node tools/repository-command.mts tool registry-install-e2e:built");
+  assert.equal(ci.jobs["linux-registry"].steps.at(-1)["working-directory"],
+    ".worker-tmp/profiles/node-${{ github.sha }}");
   assert.equal(ci.jobs["linux-registry"]["timeout-minutes"], 30);
   const windowsRegistryCommands = ci.jobs["windows-registry"].steps
     .map((step) => step.run)
     .filter((command) => command !== undefined);
   assert.deepEqual(windowsRegistryCommands.slice(-2), [
-    "pnpm build",
-    'pnpm package:group:built registry "$env:QUALIFICATION_GROUP"',
+    "node tools/dev.mts --profile node build",
+    'node scripts/qualify-package-group.mts registry "$env:QUALIFICATION_GROUP"',
   ]);
   assert.equal(
     ci.jobs["windows-package"].steps.at(-1).run,
-    'pnpm package:group:built packed "$env:QUALIFICATION_GROUP"',
+    'node scripts/qualify-package-group.mts packed "$env:QUALIFICATION_GROUP"',
   );
   for (const [jobId, groups] of [
     ["windows-package", ["integration", "sdk-growth", "quality-coverage"]],
@@ -2220,15 +2249,16 @@ test("release publishing requires real Buf and hermetic registry qualification",
     matrix: { profile: ["foundation", "npm-docs", "pnpm-docs"] } });
   assert.equal(macos["runs-on"], "macos-15");
   assert.equal(macos["continue-on-error"], undefined);
-  assert.equal(macos.steps.at(-1).run, 'pnpm package:qualification:built "$QUALIFICATION_PROFILE"');
-  assert.deepEqual(macos.steps.at(-1).env, { QUALIFICATION_PROFILE: "${{ matrix.profile }}" });
+  assert.equal(macos.steps.at(-1).run, 'node scripts/qualify-package-artifacts.mts "$QUALIFICATION_PROFILE"');
+  assert.equal(macos.steps.at(-1).env.QUALIFICATION_PROFILE, "${{ matrix.profile }}");
+  assert.equal(macos.steps.at(-1).env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
   assert.deepEqual(ci.jobs["macos-qualification"].needs,
     ["dependency-review", "macos-native", "macos-package"]);
   assert.equal(ci.jobs["macos-qualification"].if,
     "${{ always() && (github.event_name != 'pull_request' || (github.event.label.name == 'ci:full' || startsWith(github.event.label.name, 'ci:full:'))) }}");
   assert.match(ci.jobs["macos-qualification"].steps[0].uses, /^re-actors\/alls-green@[a-f0-9]{40}$/u);
   const nativeCommands = ci.jobs["macos-native"].steps.flatMap(step => step.run ?? []);
-  assert.ok(nativeCommands.includes("pnpm test:qgr:lifecycle:built"));
+  assert.ok(nativeCommands.includes("bun tools/dev.mts test:qgr:lifecycle:built"));
   assert.ok(nativeCommands.includes("node scripts/run-selected-tests.mjs tests/tooling.test.mjs"));
   assert.ok(nativeCommands.some(command => command.includes("tests/document-authoring-scaffolding-race.test.mjs")));
   assert.equal(manifest.scripts["package:group:built"],
@@ -2238,20 +2268,20 @@ test("release publishing requires real Buf and hermetic registry qualification",
   assert.ok(ci.jobs["windows-check"].needs.includes("windows-test-c"));
   assert.equal(
     manifest.scripts["published-compatibility:e2e"],
-    "node scripts/published-compatibility-e2e.mjs",
+    "node tools/repository-command.mts tool published-compatibility:e2e",
   );
   for (const name of ["linux-published", "windows-published"]) {
     const step = ci.jobs[name].steps.at(-1);
     assert.deepEqual([step.run, step.env], [
-      "pnpm published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
+      "node tools/repository-command.mts tool published-compatibility:e2e", { GH_TOKEN: "${{ github.token }}" },
     ]);
   }
   for (const lane of ["a", "b", "c", "d", "e"]) {
     const id = `windows-test-${lane}`;
     const job = ci.jobs[id];
     assert.deepEqual(
-      [job.name, job.steps.find(step => step.run?.startsWith("pnpm test:shard:built ")).run],
-      [id, `pnpm test:shard:built -- --windows-lane ${lane} --timing-output "$env:RUNNER_TEMP/test-timing/${id}"`],
+      [job.name, job.steps.find(step => step.run?.startsWith("node scripts/run-test-shard.mjs ")).run],
+      [id, `node scripts/run-test-shard.mjs -- --windows-lane ${lane} --timing-output "$env:RUNNER_TEMP/test-timing/${id}"`],
     );
     assert.ok(ci.jobs["windows-check"].needs.includes(id));
     assert.equal(job["runs-on"], "windows-2022");
@@ -2461,6 +2491,12 @@ test("release diff policy accepts only normalized Changesets output", () => {
   ];
 
   assert.deepEqual(releasePullRequestFileViolations(validFiles), []);
+  for (const filename of ["bun.lock", "pnpm-lock.yaml"]) {
+    for (const status of ["modified", "added", "removed"]) {
+      assert.match(releasePullRequestFileViolations([...validFiles, { filename, status }])[0],
+        /forbidden change/u, `${filename}: ${status}`);
+    }
+  }
   assert.match(
     releasePullRequestFileViolations([
       ...validFiles,
@@ -2481,6 +2517,89 @@ test("release diff policy accepts only normalized Changesets output", () => {
     )[0],
     /must modify/u,
   );
+});
+
+function releaseBunLockFixture(foundation = "1.9.0", docs = "0.5.0") {
+  return Buffer.from(`{\n  "lockfileVersion": 2,\n  "configVersion": 1,\n  "workspaces": {
+    "packages/engineering-foundation": {
+      "name": "@agent-teams/engineering-foundation",
+      "version": "${foundation}",
+      "dependencies": { "example": "catalog:" },
+    },
+    "packages/docs-protocol-agent-teams": {
+      "name": "@agent-teams/docs-protocol-agent-teams",
+      "version": "${docs}",
+    },
+    "spikes/private": {
+      "name": "private",
+      "version": "1.9.0",
+    },
+  },
+  "catalog": { "example": "1.9.0" },
+  "packages": { "example": ["example@1.9.0", "", {}, "sha512-unchanged"] },
+}\n`);
+}
+
+const releaseBunVersions = [
+  { root: "packages/engineering-foundation", name: "@agent-teams/engineering-foundation", baseVersion: "1.9.0", headVersion: "1.10.0" },
+  { root: "packages/docs-protocol-agent-teams", name: "@agent-teams/docs-protocol-agent-teams", baseVersion: "0.5.0", headVersion: "0.5.1" },
+];
+
+test("Bun release lock admits only exact public version projection and legacy absence", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1");
+  assert.deepEqual(releaseBunLockViolations(base, head, releaseBunVersions), []);
+  assert.deepEqual(releaseBunLockViolations(base, base, []), []);
+  assert.deepEqual(releaseBunLockViolations(undefined, undefined, releaseBunVersions), []);
+  assert.match(releaseBunLockViolations(undefined, head, releaseBunVersions)[0], /preserve/u);
+  assert.match(releaseBunLockViolations(base, undefined, releaseBunVersions)[0], /preserve/u);
+});
+
+test("Bun release lock rejects graph, integrity and private workspace drift", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1").toString("utf8");
+  for (const changed of [
+    head.replace("sha512-unchanged", "sha512-forged"),
+    head.replace('"catalog": { "example": "1.9.0" }', '"catalog": { "example": "2.0.0" }'),
+    head.replace('"dependencies": { "example": "catalog:" }', '"dependencies": { "foreign": "catalog:" }'),
+    head.replace('"name": "private",\n      "version": "1.9.0"', '"name": "private",\n      "version": "2.0.0"'),
+    `${head}\n`,
+  ]) {
+    assert.notEqual(changed, head);
+    assert.match(releaseBunLockViolations(base, Buffer.from(changed), releaseBunVersions)[0], /only the exact/u);
+  }
+});
+
+test("Bun release lock refuses missing, mismatched and duplicate workspace preimages", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1");
+  for (const changed of [
+    { ...releaseBunVersions[0], root: "packages/missing" },
+    { ...releaseBunVersions[0], name: "@agent-teams/foreign" },
+    { ...releaseBunVersions[0], baseVersion: "1.8.0" },
+    { ...releaseBunVersions[0], root: "packages/../engineering-foundation" },
+    { ...releaseBunVersions[0], headVersion: "1.10.0\nforeign" },
+  ]) {
+    assert.match(releaseBunLockViolations(base, head, [changed, releaseBunVersions[1]])[0], /preimages/u);
+  }
+  assert.match(releaseBunLockViolations(base, head, [...releaseBunVersions, releaseBunVersions[0]])[0], /preimages/u);
+  const duplicate = Buffer.from(base.toString().replace('  "catalog":',
+    '    "packages/engineering-foundation": {\n      "name": "@agent-teams/engineering-foundation",\n      "version": "1.9.0",\n    },\n  "catalog":'));
+  assert.match(releaseBunLockViolations(duplicate, head, releaseBunVersions)[0], /preimages/u);
+  assert.match(releaseBunLockViolations(base, base, releaseBunVersions)[0], /only the exact/u);
+  assert.match(releaseBunLockViolations(base, head, [releaseBunVersions[0]])[0], /only the exact/u);
+});
+
+test("Bun release lock refuses other serializer headers and malformed encoding", () => {
+  const base = releaseBunLockFixture();
+  const head = releaseBunLockFixture("1.10.0", "0.5.1");
+  const other = Buffer.from(base.toString().replace('"configVersion": 1', '"configVersion": 2'));
+  assert.match(releaseBunLockViolations(other, other, [])[0], /canonical Bun/u);
+  const otherHead = Buffer.from(head.toString().replace('"lockfileVersion": 2', '"lockfileVersion": 3'));
+  assert.match(releaseBunLockViolations(base, otherHead, releaseBunVersions)[0], /canonical Bun/u);
+  const invalid = Buffer.concat([base, Buffer.from([0xff])]);
+  assert.match(releaseBunLockViolations(invalid, invalid, [])[0], /valid UTF-8/u);
+  assert.match(releaseBunLockViolations(base, Buffer.concat([head, Buffer.from([0xff])]), releaseBunVersions)[0], /valid UTF-8/u);
 });
 
 test("release diff policy accepts normalized prerelease Changesets output", () => {

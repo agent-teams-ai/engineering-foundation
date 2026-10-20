@@ -17,6 +17,7 @@ const MAX_POSITIONAL_ARGUMENTS: Readonly<Record<string, number>> = Object.freeze
   "assert-registry": 0,
   "agent-workflow": 2,
   "architecture-decisions-promote-baseline": 0,
+  baseline: 1,
   attach: 1,
   check: 1,
   quality: 1,
@@ -47,6 +48,8 @@ interface ArgumentState {
   bufExecutablePath?: string;
   write: boolean;
   scopeOnly: boolean;
+  nativeTransitionPath?: string;
+  qualificationOnly?: boolean;
   optionsEnded: boolean;
 }
 
@@ -174,6 +177,16 @@ function consumeArgument(
   if (qualificationOption !== undefined) {
     return qualificationOption;
   }
+  if (value === "--native-transition") {
+    provideScalarOption(state, "--native-transition", "--native-transition");
+    state.nativeTransitionPath = resolve(requiredOptionValue(args, index, "--native-transition"));
+    return 1;
+  }
+  if (value === "--qualification-only") {
+    provideScalarOption(state, "--qualification-only", "--qualification-only");
+    state.qualificationOnly = true;
+    return 0;
+  }
   if (value === "--consumer") {
     const candidate = requiredOptionValue(args, index, "--consumer");
     provideScalarOption(state, "--consumer", "--consumer");
@@ -204,6 +217,15 @@ function consumeArgument(
 
 function validateCommandOptions(command: string, state: ArgumentState): void {
   validateNonDocumentCommandOptions(command, state);
+  if (state.nativeTransitionPath !== undefined && command !== "public-api-promote-release") {
+    throw invalidCommand("--native-transition is supported only by public-api-promote-release.");
+  }
+  if (state.qualificationOnly === true && (command !== "public-api-promote-release" || state.nativeTransitionPath === undefined)) {
+    throw invalidCommand("--qualification-only requires public-api-promote-release --native-transition.");
+  }
+  if (command === "baseline" && !state.configPathProvided) {
+    throw invalidCommand("baseline requires --config <findings-baseline.yaml>.");
+  }
   if (command === "public-api-audit" && (!state.configPathProvided || state.format !== "json")) {
     throw invalidCommand("public-api-audit requires --config and --format json.");
   }
@@ -223,8 +245,8 @@ function validateNonDocumentCommandOptions(
   ) {
     throw invalidCommand("--base is supported only by agent-workflow changed or check-changed.");
   }
-  if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit") {
-    throw invalidCommand("--config is supported only by scaffold-plan or public-api-audit.");
+  if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit" && command !== "baseline") {
+    throw invalidCommand("--config is supported only by scaffold-plan, public-api-audit or baseline.");
   }
   if (state.write && command !== "protobuf-qualify-breaking") {
     throw invalidCommand("--write is supported only by protobuf-qualify-breaking.");
@@ -278,6 +300,8 @@ export function parseArguments(args: readonly string[]): ParsedArguments {
     format: state.format,
     write: state.write,
     ...(state.scopeOnly ? { scopeOnly: true } : {}),
+    ...(state.nativeTransitionPath === undefined ? {} : { nativeTransitionPath: state.nativeTransitionPath }),
+    ...(state.qualificationOnly === true ? { qualificationOnly: true } : {}),
     ...(state.baseRef === undefined ? {} : { baseRef: state.baseRef }),
     ...(state.bufExecutablePath === undefined
       ? {}

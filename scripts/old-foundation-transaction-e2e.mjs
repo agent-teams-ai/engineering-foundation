@@ -21,10 +21,11 @@ import {
   runCommand,
 } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
+import { publishedFoundationIntegrity } from "./published-foundation-imports.ts";
+import { executePublishedFoundationOperation } from "./published-foundation-operations.ts";
 
 const version = "0.11.0";
-const expectedIntegrity =
-  "sha512-L/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm+1hYbxcUrg==";
+const expectedIntegrity = publishedFoundationIntegrity(version);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const packageName = "@agent-teams/engineering-foundation";
 
@@ -148,25 +149,26 @@ async function mutationEvidence(consumerRoot) {
   });
 }
 
-async function assertOldMutationBlocked({ args, cliPath, consumerRoot, expected }) {
-  const failure = await captureFailure(() =>
-    runCommand(process.execPath, [cliPath, ...args], consumerRoot),
-  );
+async function assertOldMutationBlocked({ operation, packageRoot, consumerRoot, expected, targetRoot }) {
+  const observation = await executePublishedFoundationOperation({
+    packageRoot, version, consumerRoot, operation,
+    ...(targetRoot === undefined ? {} : { targetRoot }),
+  });
   if (
-    failure?.code !== 1 ||
-    failure.stdout !== "" ||
-    !/LOCAL_STATE_INVALID: (?:Foundation operation lock path must be a real local directory|Another foundation operation is active or its lock is not safely recoverable)\./u.test(
-      failure.stderr,
+    observation.outcome !== "threw" ||
+    observation.error.code !== "LOCAL_STATE_INVALID" ||
+    !/^(?:Foundation operation lock path must be a real local directory|Another foundation operation is active or its lock is not safely recoverable)\.$/u.test(
+      observation.error.message,
     )
   ) {
     throw new Error(
-      `Published Foundation ${version} did not fail closed for ${args[0]}.`,
-      { cause: failure },
+      `Published Foundation ${version} operation ${operation} did not fail closed.`,
+      { cause: observation },
     );
   }
   if ((await mutationEvidence(consumerRoot)) !== expected) {
     throw new Error(
-      `Published Foundation ${version} mutated consumer state while ${args[0]} was blocked.`,
+      `Published Foundation ${version} mutated consumer state while ${operation} was blocked.`,
     );
   }
 }
@@ -197,32 +199,27 @@ async function assertPersistentBarrier(consumerRoot) {
 }
 
 async function assertOldCommandsBlocked({
-  cliPath,
+  packageRoot,
   consumerRoot,
   targetRoot,
 }) {
   const beforeOldCommands = await mutationEvidence(consumerRoot);
   await assertOldMutationBlocked({
-    args: ["scaffold-recover", "--consumer", consumerRoot, "--json"],
-    cliPath,
+    operation: "recover",
+    packageRoot,
     consumerRoot,
     expected: beforeOldCommands,
   });
   await assertOldMutationBlocked({
-    args: [
-      "attach",
-      targetRoot,
-      "--consumer",
-      consumerRoot,
-      "--json",
-    ],
-    cliPath,
+    operation: "attach",
+    targetRoot,
+    packageRoot,
     consumerRoot,
     expected: beforeOldCommands,
   });
   await assertOldMutationBlocked({
-    args: ["detach", "--consumer", consumerRoot, "--json"],
-    cliPath,
+    operation: "detach",
+    packageRoot,
     consumerRoot,
     expected: beforeOldCommands,
   });
@@ -264,7 +261,7 @@ async function verifyOrphanTemporaryBarrier({
     throw new Error("Current Foundation changed orphan temporary evidence.");
   }
   await assertOldCommandsBlocked({
-    cliPath: installed.cliPath,
+    packageRoot: installed.packageRoot,
     consumerRoot,
     targetRoot: join(temporaryRoot, "unreachable-temporary-target"),
   });
@@ -378,7 +375,7 @@ export async function verifyOldFoundationTransactionBarrier({
     }
 
     await assertOldCommandsBlocked({
-      cliPath: installed.cliPath,
+      packageRoot: installed.packageRoot,
       consumerRoot,
       targetRoot: join(temporaryRoot, "unreachable-foundation-target"),
     });
@@ -392,7 +389,7 @@ export async function verifyOldFoundationTransactionBarrier({
       temporaryRoot,
     });
     process.stdout.write(
-      `Published downgrade barrier qualification PASS: ${version} recover/attach/detach for canonical and temporary transaction evidence; integrity ${expectedIntegrity}.\n`,
+      `Published operation-boundary downgrade barrier qualification PASS: ${version} recover/attach/detach for canonical and temporary transaction evidence; integrity ${expectedIntegrity}.\n`,
     );
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });

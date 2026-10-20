@@ -1,7 +1,8 @@
 import {
   QUALIFIED_DOCS_COHORT_V2_EDGES,
   qualifiedDocsCohortV2PackageEntries,
-  type ConsumerIntegrationDesiredStateV3
+  type ConsumerIntegrationDesiredStateV3,
+  type ManagedSuccessorProfile
 } from "../application-api.js";
 import { assertQualifiedPnpmLockfileTargets } from "./pnpm-lockfile-validator-v1.js";
 import { computePnpmRuntimeClosureDigestV2 } from "./pnpm-runtime-closure-v2.js";
@@ -10,7 +11,7 @@ const MAXIMUM_LOCKFILE_BYTES = 32 * 1024 * 1024;
 
 function validateQualifiedPnpmLockfileV2(
   bytes: Uint8Array,
-  desired: ConsumerIntegrationDesiredStateV3,
+  desired: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile,
   enforceRuntimeClosureDigest: boolean
 ): `sha256:${string}` {
   if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0 ||
@@ -20,6 +21,9 @@ function validateQualifiedPnpmLockfileV2(
     );
   }
   const entries = qualifiedDocsCohortV2PackageEntries(desired.cohort);
+  const expectedRuntimeClosureDigest = desired.cohort.schemaVersion === 3
+    ? desired.cohort.runtime.runtimeClosure.digest
+    : desired.cohort.runtime.runtimeClosureDigest;
   let runtimeClosureDigest: `sha256:${string}` | undefined;
   assertQualifiedPnpmLockfileTargets(bytes, {
     targets: entries.map(
@@ -27,7 +31,7 @@ function validateQualifiedPnpmLockfileV2(
     ),
     internalEdges: QUALIFIED_DOCS_COHORT_V2_EDGES,
     forbiddenAliasTargetPackageNames: entries.map(({ name }) => name),
-    runtimeClosureDigest: desired.cohort.runtime.runtimeClosureDigest,
+    runtimeClosureDigest: expectedRuntimeClosureDigest,
     enforceRuntimeClosureDigest,
     computeRuntimeClosureDigest(lockfile) {
       runtimeClosureDigest = computePnpmRuntimeClosureDigestV2(lockfile, desired.cohort);
@@ -42,14 +46,14 @@ function validateQualifiedPnpmLockfileV2(
 
 export function observeQualifiedPnpmLockfileV2(
   bytes: Uint8Array,
-  desired: ConsumerIntegrationDesiredStateV3
+  desired: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile
 ): `sha256:${string}` {
   return validateQualifiedPnpmLockfileV2(bytes, desired, false);
 }
 
 export function assertQualifiedPnpmLockfileV2(
   bytes: Uint8Array,
-  desired: ConsumerIntegrationDesiredStateV3
+  desired: ConsumerIntegrationDesiredStateV3 | ManagedSuccessorProfile
 ): void {
   validateQualifiedPnpmLockfileV2(bytes, desired, true);
 }

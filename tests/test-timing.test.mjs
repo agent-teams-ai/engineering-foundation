@@ -286,13 +286,29 @@ await runTestShardTests([], { timingDirectory: ${JSON.stringify(join(alias, "tim
 
 test("CI retains registry and package obligations and isolated advisory timing uploads", async () => {
   const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"));
-  assert.deepEqual(ci.jobs["linux-registry"].steps.filter((step) => step.run).map((step) => step.run),
-    ["pnpm install --frozen-lockfile", "pnpm registry-install-e2e"]);
-  assert.ok(ci.jobs["linux-package"].steps.some((step) => step.run === "pnpm package:check:built"));
+  const registrySteps = ci.jobs["linux-registry"].steps.filter((step) => step.run);
+  const temporary = registrySteps[0];
+  assert.equal(temporary.name, "Use a finite job-owned temporary directory");
+  assert.match(temporary.run, /tmpdir="\$\{RUNNER_TEMP\}\/linux-registry"/u);
+  assert.match(temporary.run, /printf 'TMPDIR=%s\\n' "\$\{tmpdir\}" >> "\$GITHUB_ENV"/u);
+  assert.deepEqual(registrySteps.slice(1).map((step) => step.run),
+    ["printf 'PACK_TEST_GENERATION2_NODE=%s\\n' \"$(command -v node)\" >> \"$GITHUB_ENV\"",
+      "node tools/dev.mts --profile node install", "node tools/dev.mts --profile node build",
+      "node tools/repository-command.mts tool registry-install-e2e:built"]);
+  const profileRoot = ".worker-tmp/profiles/node-${{ github.sha }}";
+  assert.equal(registrySteps.at(-1)["working-directory"], profileRoot);
+  assert.equal(registrySteps[2].env.AGENT_TEAMS_FOUNDATION_SOURCE_SHA, "${{ github.sha }}");
+  assert.equal(registrySteps.at(-1).env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
+  const packageCommands = ["node scripts/prepare-package.mjs", "node scripts/check-publishable-packages.mjs", "node scripts/pack-test.mjs"];
+  const packageSteps = ci.jobs["linux-package"].steps.filter((step) => packageCommands.includes(step.run));
+  assert.deepEqual(packageSteps.map((step) => step.run), packageCommands);
+  assert.ok(packageSteps.every((step) => step["working-directory"] === profileRoot));
   const scripts = JSON.parse(await readFile(resolve(repositoryRoot, "package.json"), "utf8")).scripts;
-  assert.equal(scripts["registry-install-e2e"], "pnpm build && pnpm package:qualification:built");
-  assert.equal(scripts["package:qualification:built"], "node scripts/qualify-package-artifacts.mts");
-  assert.ok(ci.jobs["macos-package"].steps.some((step) => step.run === 'pnpm package:qualification:built "$QUALIFICATION_PROFILE"'));
+  assert.equal(scripts["registry-install-e2e"], "node tools/repository-command.mts script build && node tools/repository-command.mts script package:qualification:built");
+  assert.equal(scripts["package:qualification:built"], "node tools/repository-command.mts tool package:qualification:built");
+  const macPackage = ci.jobs["macos-package"].steps.find((step) => step.run === 'node scripts/qualify-package-artifacts.mts "$QUALIFICATION_PROFILE"');
+  assert.equal(macPackage?.["working-directory"], profileRoot);
+  assert.equal(macPackage?.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
   assert.equal(scripts["package:check:built"], "node scripts/prepare-package.mjs && node scripts/check-publishable-packages.mjs && node scripts/pack-test.mjs");
   const producers = ci.jobs["linux-tests"];
   for (const key of ["first", "second"]) {
@@ -308,11 +324,10 @@ test("CI retains registry and package obligations and isolated advisory timing u
   const paths = new Set();
   for (const jobId of ["windows-test-a", "windows-test-b", "windows-test-c", "windows-test-d", "windows-test-e"]) {
     const job = ci.jobs[jobId];
-    const run = job.steps.find((step) => jobId === "windows-test-a"
-      ? step.name === "Run isolated Windows test partition"
-      : step.run?.includes("test:shard:built"));
+    const run = job.steps.find((step) => step.run?.startsWith("node scripts/run-test-shard.mjs "));
+    assert.ok(run, `${jobId} must retain its physical Node test runner`);
     assert.match(run.run, /--timing-output/u);
-    if (jobId.startsWith("windows-test-")) { assert.match(run.run, /--windows-lane [abcde] /u); }
+    assert.ok(run.run.includes(`--windows-lane ${jobId.at(-1)} `));
     const upload = job.steps.find((step) => step.name === "Upload advisory test timings");
     assert.equal(upload.if, "${{ always() }}");
     assert.equal(upload.with["if-no-files-found"], "warn");

@@ -47,6 +47,7 @@ async function executeStep(
   paths: readonly string[]
 ): Promise<AgentWorkflowStepReport> {
   const result = await runner.run({
+    packageManager: input.policy.packageManager,
     consumerRoot: input.consumerRoot,
     script,
     paths,

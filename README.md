@@ -8,8 +8,12 @@ used by this repository. In particular, authority is claim-specific, evidence is
 bounded to an observation, and qualification must name its subject.
 
 This repository contains reusable development tooling only. Product runtime code
-must not import it. Each consumer remains authoritative for its own domain model,
-package catalog, dependency permissions, security classifications, and ADRs.
+must not import it. Its core capabilities are meant to be architecture-neutral,
+and checks for an architecture-specific standard ship only as opt-in packages
+(see [Architecture neutrality](docs/architecture/executable-capabilities.md#architecture-neutrality),
+which also records the remaining exception).
+Each consumer remains authoritative for its own domain model, package catalog,
+dependency permissions, security classifications, and ADRs.
 
 The current integration implements the accepted new-only, independently
 versioned portable package boundary. Exact-head artifact qualification,
@@ -43,8 +47,9 @@ the [open-source Docs Protocol workflow](docs/reference/open-source-docs-protoco
 - isolated package-content and consumer verification;
 - release automation for immutable public npm versions.
 
-Capabilities are extracted incrementally from proven repositories. A capability
-moves here only with parity fixtures and a consumer conformance test.
+Shared concerns are built here library-first, for many consumers; each
+new capability ships with parity fixtures and a conformance test in each adopting
+consumer (see the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)).
 `workspace.dependency-declarations` is active.
 `architecture.source-dependencies` is active and dogfooded with its accepted
 Oxc adapter. This monorepo uses schema v2 with the explicit `packages` package
@@ -65,15 +70,27 @@ The repository explicitly adopts the [Feature Module Standard](docs/architecture
 ## Commands
 
 ```bash
-pnpm install
-pnpm check:changed
-pnpm check:fast
-pnpm check
-pnpm verify
-pnpm package:check
-pnpm quality:gate:fast
-pnpm foundation:qualification
+bun tools/dev.mts install
+bun tools/dev.mts check:changed
+bun tools/dev.mts check:fast
+bun tools/dev.mts security:workflows
+node tools/dev.mts --profile node install
+node tools/dev.mts --profile node verify
 ```
+
+Bun 1.4.3 is the default repository manager and ordinary tool runtime. The
+explicit rollback profile uses a clean, separate pnpm installation with its
+recorded workflow policy projected to pnpm:
+
+```bash
+node tools/dev.mts --profile node install
+node tools/dev.mts --profile node check:changed
+node tools/dev.mts --profile node check:fast
+```
+
+Node remains explicit for mandatory Node tests, raw V8 coverage, c8, npm/pnpm
+qualification, signing and release operations. Published Node 24/26 support is
+unchanged.
 
 Consumers use:
 

@@ -1,5 +1,6 @@
 import type { AgentInstructionPaths, AgentWorkflowScripts } from "./repository-agent-workflow.js";
 import type { RepositoryChanges } from "./changed-workflow.js";
+import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";
 
 export type CoverageFacet = "lint" | "typecheck" | "tests" | "standards" | "architecture";
 export interface CoverageCheck {
@@ -11,6 +12,7 @@ export interface CoverageCheck {
 }
 export interface WorkflowCoveragePolicy {
   readonly schemaVersion: 2;
+  readonly packageManager: RepositoryPackageManager;
   readonly instructions: AgentInstructionPaths;
   readonly scripts: AgentWorkflowScripts;
   readonly scopes: readonly {

@@ -174,19 +174,21 @@ for (const script of ["lint:typed", "architecture:patterns"]) {
   for (const mode of ["disconnect", "echo", "short-circuit", "mask", "wrong-arguments", "missing"]) {
     test(`full quality gate rejects ${script}: ${mode}`, async (t) => {
       const f = await fixture(t), pkg = await readJson("package.json"), terminal = pkg.scripts[script];
+      const before = JSON.stringify(pkg.scripts);
       if (mode === "disconnect") {
-        if (script === "lint:typed") {pkg.scripts.lint = "pnpm lint:fast";}
-        else {pkg.scripts.check = pkg.scripts.check.replace(" && pnpm architecture:patterns ", " ");}
+        if (script === "lint:typed") {pkg.scripts.lint = "node tools/repository-command.mts script lint:fast";}
+        else {pkg.scripts.check = pkg.scripts.check.replace(" && node tools/repository-command.mts script architecture:patterns", "");}
       } else if (mode === "missing") {delete pkg.scripts[script];}
       else {pkg.scripts[script] = ({ echo: `echo ${terminal}`, "short-circuit": `true || ${terminal}`, mask: `${terminal} || true`, "wrong-arguments": `${terminal} --help` })[mode];}
+      assert.notEqual(JSON.stringify(pkg.scripts), before, `${script}: ${mode} must mutate the current command`);
       await f.write("package.json", pkg);
       assert.ok((await f.check()).problems.some(({ code }) => code === "quality-command"));
     });
   }
-  test(`full quality gate retains fail-closed prerequisite for ${script}; fast needs no typed run`, async (t) => {
+  test(`full quality gate rejects a literal failing prerequisite for ${script}`, async (t) => {
     const f = await fixture(t), pkg = await readJson("package.json");
     pkg.scripts[script] = `false && ${pkg.scripts[script]}`;
     await f.write("package.json", pkg);
-    assert.deepEqual((await f.check()).problems, []);
+    assert.ok((await f.check()).problems.some(({ code }) => code === "quality-command"));
   });
 }

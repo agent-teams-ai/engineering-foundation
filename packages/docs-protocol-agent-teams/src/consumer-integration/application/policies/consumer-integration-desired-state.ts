@@ -1,6 +1,7 @@
 import type {
   ConsumerIntegrationDesiredStateV3,
   ConsumerIntegrationDesiredStateV1,
+  ManagedSuccessorProfile,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2
 } from "../../domain/model.js";
@@ -47,8 +48,7 @@ function isCanonicalUtcSeconds(value: unknown): boolean {
   return Number.isFinite(milliseconds) &&
     new Date(milliseconds).toISOString().replace(".000", "") === value;
 }
-
-function assertPlainBoundedJson(value: unknown): void {
+export function assertPlainBoundedJson(value: unknown): void {
   let remaining = 2048;
   const seen = new Set<object>();
   // oxlint-disable-next-line complexity
@@ -84,7 +84,7 @@ function assertPlainBoundedJson(value: unknown): void {
   visit(value, 0);
 }
 
-function hasValidAuthority(cohort: Record<string, unknown>, generation: 1 | 2): boolean {
+function hasValidAuthority(cohort: Record<string, unknown>, generation: 1 | 2 | 3): boolean {
   const upgrades = cohort["upgradeFrom"];
   const rollbacks = cohort["rollbackTo"];
   if (!stringList(upgrades) || !stringList(rollbacks)) {return false;}
@@ -143,6 +143,54 @@ function hasValidCohort(cohort: unknown, generation: 1 | 2): boolean {
     hasValidSchemasAndRuntime(cohort, generation);
 }
 
+function hasValidCohort3Policy(value: unknown): boolean {
+  return hasExactKeys(value, ["id", "version", "digest"]) &&
+    value["id"] === "agent-teams.docs-protocol-current-policy" &&
+    value["version"] === "3.0.0" && matches(value["digest"], NONZERO_SHA256);
+}
+
+function hasValidCohort3QualificationRuntime(value: unknown): boolean {
+  return hasExactKeys(value, ["nodeVersion", "pnpmVersion", "platform", "architecture"]) &&
+    matches(value["nodeVersion"], SEMVER) && matches(value["pnpmVersion"], SEMVER) &&
+    typeof value["platform"] === "string" && typeof value["architecture"] === "string";
+}
+
+function hasValidCohort3RuntimeClosure(value: unknown): boolean {
+  return hasExactKeys(value, ["domain", "digest"]) &&
+    value["domain"] === "agent-teams.docs-runtime-closure/v2" &&
+    matches(value["digest"], NONZERO_SHA256);
+}
+
+function hasValidCohort3Runtime(value: unknown): boolean {
+  return hasExactKeys(value, [
+    "policy", "selectedLane", "node", "pnpm", "qualificationRuntime", "runtimeClosure"
+  ]) && hasValidCohort3Policy(value["policy"]) && hasValidCohort3QualificationRuntime(value["qualificationRuntime"]) &&
+    hasValidCohort3RuntimeClosure(value["runtimeClosure"]) &&
+    (value["selectedLane"] === "node-24-production-default" || value["selectedLane"] === "node-26-managed-qualified") &&
+    value["node"] === (value["selectedLane"] === "node-24-production-default"
+      ? ">=24.18.0 <25"
+      : ">=26.0.0 <27") && value["pnpm"] === ">=11.17.0 <12";
+}
+
+function hasValidCohort3Schemas(value: unknown): boolean {
+  return hasExactKeys(value, ["consumerIntegration", "managedState", "qualificationReceipt", "docsProtocol"]) &&
+    value["consumerIntegration"] === 4 && value["managedState"] === 3 &&
+    value["qualificationReceipt"] === 1 && value["docsProtocol"] === 1;
+}
+
+function hasValidCohort3Binding(cohort: unknown): boolean {
+  const keys = [
+    "schemaVersion", "cohortId", "channel", "recordDigest", "qualificationEventDigest",
+    "eligibleAfter", "upgradeFrom", "rollbackTo", "candidateDigest", "packages", "workflow",
+    "assets", "schemas", "runtime"
+  ];
+  if (!hasExactKeys(cohort, keys) || !hasValidAuthority(cohort, 3)) {return false;}
+  return cohort["schemaVersion"] === 3 && matches(cohort["candidateDigest"], NONZERO_SHA256) &&
+    hasValidPackages(cohort["packages"], QUALIFIED_DOCS_COHORT_V2_PACKAGES.map(({ key }) => key)) &&
+    hasValidWorkflow(cohort["workflow"]) && hasValidAssets(cohort["assets"]) &&
+    hasValidCohort3Schemas(cohort["schemas"]) && hasValidCohort3Runtime(cohort["runtime"]);
+}
+
 export function assertQualifiedDocsCohortBindingV1(
   cohort: unknown
 ): asserts cohort is QualifiedDocsCohortBindingV1 {
@@ -173,13 +221,13 @@ function hasValidQualification(value: unknown): boolean {
     value["gateCommand"] === "pnpm docs:protocol:check";
 }
 
-function hasValidDesired(desired: unknown, version: 1 | 3): boolean {
+function hasValidDesired(desired: unknown, version: 1 | 3 | 4): boolean {
   if (typeof desired !== "object" || desired === null) {return false;}
   const roots = "governedDocsRoots" in desired ? desired.governedDocsRoots : undefined;
   if (!hasExactKeys(desired, [
     "schemaVersion", "repository", "integrationRoot", "packageManager", "profilePath",
     "skillPath", "callerWorkflowPath", "managedStatePath", "cohort",
-    ...(version === 3 ? ["qualification"] : []),
+    ...(version === 1 ? [] : ["qualification"]),
     ...(roots === undefined ? [] : ["governedDocsRoots"])
   ])) {return false;}
   const qualification = desired["qualification"];
@@ -188,7 +236,11 @@ function hasValidDesired(desired: unknown, version: 1 | 3): boolean {
     desired["skillPath"] === SKILL_PATH && desired["callerWorkflowPath"] === CALLER_WORKFLOW_PATH &&
     desired["managedStatePath"] === MANAGED_STATE_PATH &&
     hasValidRepository(desired["repository"]) && hasValidGovernedRoots(roots) &&
-    hasValidCohort(desired["cohort"], version === 1 ? 1 : 2) &&
+    (version === 1
+      ? hasValidCohort(desired["cohort"], 1)
+      : version === 3
+        ? hasValidCohort(desired["cohort"], 2)
+        : hasValidCohort3Binding(desired["cohort"])) &&
     (version === 1 || hasValidQualification(qualification));
 }
 
@@ -207,5 +259,15 @@ export function assertConsumerIntegrationDesiredStateV3(
   assertPlainBoundedJson(desired);
   if (!hasValidDesired(desired, 3)) {
     throw new TypeError("Consumer integration desired state v3 is invalid or unsupported.");
+  }
+}
+
+/** Validates the closed unselected Profile4 data seam without granting operational selection. */
+export function assertManagedSuccessorProfileV4(
+  desired: unknown
+): asserts desired is ManagedSuccessorProfile {
+  assertPlainBoundedJson(desired);
+  if (!hasValidDesired(desired, 4)) {
+    throw new TypeError("Managed successor profile v4 is invalid or unsupported.");
   }
 }

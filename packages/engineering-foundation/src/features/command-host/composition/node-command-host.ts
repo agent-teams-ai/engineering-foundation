@@ -1,4 +1,4 @@
-import { runPublicApiAudit, type PublicApiAuditSchemaAssertion } from "../../../capabilities/public-api-compatibility/node.js";
+import { runPublicApiAudit, runNativePublicApiTransition, type NativeTransitionSchemaAssertion, type PublicApiAuditSchemaAssertion } from "../../../capabilities/public-api-compatibility/node.js";
 import type { FoundationCommandServices } from "../api.js";
 import type { qualifyProtobufBreakingEvidence } from "../../../capabilities/contract-protobuf-evolution/qualification/module.js";
 import { renderFoundationReportText } from "../../../features/foundation-check/module.js";
@@ -6,7 +6,7 @@ import { runFoundationCli } from "../adapters/inbound/cli/foundation-cli.js";
 import { nodeCommandCancellation } from "../adapters/inbound/cli/node-process-lifecycle.js";
 import { foundationCommandFailureJson } from "../application/command-failure.js";
 import { createNodeCommandHost, readNodeProcessInputs } from "../adapters/inbound/cli/node-command-host.js";
-import { createManagedProcessExecutor } from "../../../process-execution/module.js";
+import { createManagedProcessExecutor, requireAdmittedNodeExecutable } from "../../../process-execution/module.js";
 import { promoteArchitectureDecisionBaseline, readAcceptedArchitectureDecisionEvidence } from "../../../capabilities/governance-architecture-decisions/module.js";
 import { promotePublicApiRelease } from "../../../capabilities/public-api-compatibility/module.js";
 import { createNodeAgentWorkflowCommands } from "../../../capabilities/repository-agent-workflow/command-module.js";
@@ -24,8 +24,10 @@ export interface CommandHostDependencies<SchemaId extends string> {
     & Parameters<typeof promoteArchitectureDecisionBaseline>[1]
     & Parameters<typeof promotePublicApiRelease>[2]
     & PublicApiAuditSchemaAssertion
+    & NativeTransitionSchemaAssertion
     & Parameters<typeof createNodeAgentWorkflowCommands>[2]
     & Parameters<typeof qualifyProtobufBreakingEvidence>[2];
+  readonly createFindingsBaselineCommands: (nodeExecutable: string, environment: Readonly<NodeJS.ProcessEnv>) => FoundationCommandServices["findingsBaseline"];
   readonly loadFoundationConfig: FoundationCommandServices["readConfig"];
   readonly runFoundationCheck: FoundationCommandServices["check"];
   readonly RULE_REGISTRY: FoundationCommandServices["rules"];
@@ -38,7 +40,9 @@ export interface CommandHostDependencies<SchemaId extends string> {
 // Select feature integrations without reaching back into module assembly.
 function createCommandServices<SchemaId extends string>(dependencies: CommandHostDependencies<SchemaId>, environment: NodeJS.ProcessEnv, readPackageRoot: () => string): FoundationCommandServices<SchemaId> {
   const processExecutor = createManagedProcessExecutor();
+  const nodeExecutable = requireAdmittedNodeExecutable(environment, process.execPath);
   const packageRoot = readPackageRoot();
+  const pnpmEntrypoint = environment.AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT ?? environment.npm_execpath;
   const { scaffoldingApi, assertSchema, loadFoundationConfig, runFoundationCheck, RULE_REGISTRY, FoundationLocalModeService, inspectFoundationPackage, isFoundationSchemaId, readFoundationSchema } = dependencies;
   const qualityGate = createQualityGateCliCommand({
     cancellationSource: new NodeSignalQualityGateCancellationSource(),
@@ -53,15 +57,23 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     readConfig: loadFoundationConfig,
     localMode: new FoundationLocalModeService({ runner: createNodeProcessRunner(environment), now: systemNow }),
     qualityGate: (input) => qualityGate(input, environment),
-    qualityCoverage: dependencies.createQualityCommand(processExecutor, process.execPath, environment),
+    qualityCoverage: dependencies.createQualityCommand(processExecutor, nodeExecutable, environment),
+    findingsBaseline: dependencies.createFindingsBaselineCommands(nodeExecutable, environment),
     agentWorkflow: createNodeAgentWorkflowCommands({
-      ...(environment.npm_execpath === undefined ? {} : { npmExecPath: environment.npm_execpath }),
+      ...(environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE === undefined
+        ? {}
+        : { bunExecutablePath: environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE }),
+      ...(environment.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE === undefined
+        ? {}
+        : { nodeExecutablePath: environment.AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE }),
+      ...(pnpmEntrypoint === undefined ? {} : { npmExecPath: pnpmEntrypoint }),
       ...(environment.PNPM_HOME === undefined ? {} : { pnpmHome: environment.PNPM_HOME }),
       ...(environment.PATH === undefined ? {} : { pathValue: environment.PATH })
     }, processExecutor, assertSchema),
     rules: RULE_REGISTRY,
     promoteDecisions: (input) => promoteArchitectureDecisionBaseline(input, assertSchema),
     auditPublicApi: async (input) => runPublicApiAudit({ ...input, foundationVersion: await installedFoundationVersion() }, assertSchema),
+    nativePublicApiTransition: (input) => runNativePublicApiTransition(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema, dependencies.artifactSchemaInspector),
     promotePublicApi: (input) => promotePublicApiRelease(input, (request) => readAcceptedArchitectureDecisionEvidence(request, assertSchema), assertSchema, dependencies.artifactSchemaInspector),
     loadProtobufQualifier: async () => {
       const { qualifyProtobufBreakingEvidence } = await import("../../../capabilities/contract-protobuf-evolution/qualification/module.js");

@@ -30,10 +30,22 @@ void test('C1 successor schema and parser reject malformed executable policy',as
   const schema=JSON.parse(await readFile(new URL('../packages/engineering-foundation/schemas/repository-agent-workflow/v2.schema.json',import.meta.url),'utf8')) as object;
   const validate=new Ajv2020({strict:true,allErrors:true}).compile(schema);
   const good=policyInput([tests],['tests']);assert.equal(validate(good),true);
-  for(const value of [{...good,unexpected:true},{...good,schemaVersion:1},{...good,checks:[{...tests,observation:'command'}]},{...good,exclusions:[{path:'../outside',reason:'unsafe'}]}]) {
-    assert.equal(validate(value),false,JSON.stringify(value));assert.throws(()=>parseAgentWorkflowPolicyV2(value));
+  for(const [value,message] of [
+    [{...good,unexpected:true},/requires exactly/u],
+    [{...good,schemaVersion:1},/check-changed requires repository-agent-workflow\/v2/u],
+    [{...good,checks:[{...tests,observation:'command'}]},/test-dispatch\/v1/u],
+    [{...good,exclusions:[{path:'../outside',reason:'unsafe'}]},/(?:CONFIG_PATH_INVALID|is invalid|repository-relative POSIX paths)/u]
+  ] as const) {
+    assert.equal(validate(value),false,JSON.stringify(value));assert.throws(()=>parseAgentWorkflowPolicyV2(value),message);
   }
-  for(const value of [{...good,escalationCheck:'missing'},{...good,checks:[{...tests,script:'check:changed'}]},{...good,checks:[{...tests,prerequisites:['check:changed']}]},{...good,scopes:[{id:'repo',roots:['*'],requiredFacets:['tests'],checks:['missing']}]}]) {assert.throws(()=>parseAgentWorkflowPolicyV2(value));}
+  for(const [value,message] of [
+    [{...good,escalationCheck:'missing'},/Unknown check mapping/u],
+    [{...good,checks:[{...tests,script:'check:changed'}]},/cannot invoke itself/u],
+    [{...good,checks:[{...tests,prerequisites:['check:changed']}]},/cannot invoke itself/u],
+    [{...good,scopes:[{id:'repo',roots:['*'],requiredFacets:['tests'],checks:['missing']}]},/Unknown check mapping/u],
+    [{...good,scopes:[{id:'repo',roots:['packages/critical'],requiredFacets:['tests'],checks:['tests']}],exclusions:[{path:'packages',reason:'TEST exclusion covers a more specific scope root'}]},/must not overlap scope roots/u],
+    [{...good,scopes:[{id:'repo',roots:['notes'],requiredFacets:['tests'],checks:['tests']}],exclusions:[{path:'notes',reason:'TEST exclusion equals its scope root'}]},/must not overlap scope roots/u]
+  ] as const) {assert.throws(()=>parseAgentWorkflowPolicyV2(value),message);}
 });
 
 // RED: the v2 capability can accidentally validate the old command route or

@@ -101,7 +101,13 @@ function execute(
         resolve({ code, stdout, stderr });
         return;
       }
-      const detail = (stderr || stdout).trim().slice(-4000);
+      // pnpm writes ERR_PNPM_* to stdout and configuration warnings to stderr: keep the tail of both, labelled.
+      const streams: readonly (readonly [string, string])[] = [["stderr", stderr], ["stdout", stdout]];
+      const detail = streams
+        .map(([label, text]) => ({ label, tail: text.trim().slice(-2000) }))
+        .filter(({ tail }) => tail !== "")
+        .map(({ label, tail }) => `${label}: ${tail}`)
+        .join("\n");
       reject(new ConsumerIntegrationNodeError(
         "DOCS_CONSUMER_UPGRADE_PROCESS_FAILED",
         `${executable} ${args[0] ?? ""} failed${detail === "" ? "." : `: ${detail}`}`,

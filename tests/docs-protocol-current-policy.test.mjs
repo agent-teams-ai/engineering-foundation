@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { importInstalledQualification } from "../scripts/node-engine-compatibility.mjs";
+import { assertNodeLane, importInstalledQualification } from "../scripts/node-engine-compatibility.mjs";
 
 const schemaPath = "architecture/contracts/docs-protocol-current-policy/v1.schema.json";
 const policyPath = "architecture/foundation/docs-protocol-current-policy.json";
@@ -105,7 +105,7 @@ function sha256(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-test("versioned Docs Protocol current policy validates and keeps Node 24 as the default", () => {
+test("versioned Docs Protocol current policy validates and freezes its historical Node 24 tuple", () => {
   assert.equal(validatePolicy(policy), true, JSON.stringify(validatePolicy.errors, null, 2));
   assert.deepEqual(policy.runtime.productionDefault, {
     id: "node-24-production-default",
@@ -141,7 +141,13 @@ test("current policy binds package engines, schema generations and the real qual
     const manifest = await json(path);
     assert.equal(manifest.engines.node, policy.runtime.packageEngine, path);
   }
-  assert.equal((await readFile(fromRoot(".node-version"), "utf8")).trim(), policy.runtime.productionDefault.qualificationVersion);
+  // The repository default is Node 26.11.1; the frozen v1 policy keeps its historical 24.21.0 / 26.10.0 tuple.
+  const repositoryDefault = (await readFile(fromRoot(".node-version"), "utf8")).trim();
+  assert.equal(repositoryDefault, "26.11.1");
+  assert.equal(Number(repositoryDefault.split(".")[0]), policy.runtime.compatibilityLane.nodeMajor);
+  assert.doesNotThrow(() => assertNodeLane(repositoryDefault, policy, repositoryDefault));
+  assert.doesNotThrow(() => assertNodeLane(policy.runtime.productionDefault.qualificationVersion, policy, repositoryDefault));
+  assert.throws(() => assertNodeLane("26.9.0", policy, repositoryDefault), /repository default or a policy-qualified/u);
 
   for (const [family, expectedPath] of [
     ["profile", "packages/docs-protocol/schemas/docs-protocol-profile"],

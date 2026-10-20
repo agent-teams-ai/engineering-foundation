@@ -6,7 +6,7 @@ import { assertGrowthReportDestination } from "./adapters/inbound/configuration/
 import { loadCapabilityConfig, type PublicApiConfigurationDependencies } from "./adapters/inbound/configuration/load-capability-config.js";
 import { createFilesystemGrowthInputContext } from "./adapters/outbound/filesystem/growth-input-context.js";
 import { assertGrowthMetadataRootSources } from "./adapters/outbound/filesystem/growth-metadata-root-sources.js";
-import { readGrowthInvocation, assertGrowthDestination, growthBytesDigest, readGrowthInputFile } from "./adapters/outbound/filesystem/growth-invocation.js";
+import { createGrowthGitRunner, readGrowthInvocation, assertGrowthDestination, growthBytesDigest, readGrowthInputFile } from "./adapters/outbound/filesystem/growth-invocation.js";
 import { createFilesystemGrowthReportWriter, parseFinalizedGrowthReport } from "./adapters/outbound/filesystem/growth-report-writer.js";
 import { createWorkspaceGrowthReader } from "./adapters/outbound/filesystem/workspace-growth-reader.js";
 import { ReviewRouterGrowthAuthorityAcl } from "./adapters/outbound/reviewrouter/reviewrouter-growth-authority-acl.js";
@@ -63,9 +63,7 @@ export function createSdkGrowthAuthorityModule(dependencies: SdkGrowthAuthorityM
     await assertGrowthDestination(input.consumerRoot, policy.sdkGrowth.reportPath);
     const inventory = await createWorkspaceGrowthReader(createWorkspaceInventoryReader()).read(input.consumerRoot, "pnpm-workspace.yaml", input.signal);
     assertGrowthReportDestination(policy.sdkGrowth.reportPath, inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]));
-    const identityInputs = { files, runGit: (args: readonly string[], signal?: AbortSignal) => processes.run({
-      command: "git", args, cwd: input.consumerRoot, timeoutMs: 10_000, ...(signal === undefined ? {} : { signal })
-    }) };
+    const identityInputs = { files, runGit: createGrowthGitRunner(processes, input.consumerRoot) };
     const binding = validateGrowthAuthorityBinding(input.binding);
     const mapInvocation = async (signal?: AbortSignal) => {
       const observed = await readGrowthInvocation(input.consumerRoot, inventory, identityInputs, signal);

@@ -10,6 +10,15 @@ import type { ExecuteWorkflowProcess } from "../../../application/ports/process-
 import { parseTestDispatchObservation } from "../../../application/policies/test-dispatch-observation.js";
 import { assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
 
+/** Shared pnpm invocation flags: no pre/post lifecycle hooks, no dependency
+ * verification, no package-manager version management. Both the qualified and
+ * the mutable check runners reuse this constant so they cannot diverge. */
+export const pnpmLifecycleIsolationArgs: readonly string[] = Object.freeze([
+  "--config.enablePrePostScripts=false",
+  "--config.verifyDepsBeforeRun=false",
+  "--config.managePackageManagerVersions=false"
+]);
+
 export interface PnpmToolIdentity {
   readonly packageRoot: string;
   readonly version: string;
@@ -149,7 +158,7 @@ function outputIsContained(source: string, output: string): boolean {
   return path === "" || (!isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`));
 }
 export function createQualifiedPnpmCheckRunner(qualification: PnpmCheckQualification, execute: ExecuteWorkflowProcess): CoverageCheckRunner {
-  const configArgs = ["--config.enablePrePostScripts=false", "--config.verifyDepsBeforeRun=false", "--config.managePackageManagerVersions=false"];
+  const configArgs = pnpmLifecycleIsolationArgs;
   async function verify(lease: CheckInputLease, check: CoverageCheck, closure: QualifiedScriptClosure, signal?: AbortSignal): Promise<string> {
     const tool = qualification.tool;
     const entrypoint = await verifyPinnedTool(tool, lease, qualification.outputRoot);

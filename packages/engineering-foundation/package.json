@@ -1,6 +1,6 @@
 {
   "name": "@agent-teams/engineering-foundation",
-  "version": "1.7.3",
+  "version": "1.10.1",
   "description": "Versioned engineering policy, tooling, and conformance for Agent Teams repositories.",
   "license": "Apache-2.0",
   "type": "module",
@@ -28,6 +28,14 @@
     "./scaffolding": {
       "types": "./dist/scaffolding/index.d.ts",
       "import": "./dist/scaffolding/index.js"
+    },
+    "./ratchet": {
+      "types": "./dist/ratchet.d.ts",
+      "import": "./dist/ratchet.js"
+    },
+    "./source-graph": {
+      "types": "./dist/source-graph.d.ts",
+      "import": "./dist/source-graph.js"
     },
     "./sdk-growth-authority": {
       "types": "./dist/sdk-growth-authority.d.ts",
@@ -66,15 +74,18 @@
     "schemas/package-public-api-audit-request/v1.schema.json",
     "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-baseline/v1.schema.json",
+    "schemas/package-public-api-native-transition/v1.schema.json",
     "schemas/package-public-api-compatibility/v1.schema.json",
     "schemas/package-public-api-compatibility/v2.schema.json",
     "schemas/quality-executable-specification-catalog/v1.schema.json",
     "schemas/quality-executable-specifications/v1.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
     "schemas/quality-gate-runner/v1.schema.json",
+    "schemas/quality-gate-runner/v2.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
     "schemas/quality-suppression-governance/v1.schema.json",
+    "schemas/quality-findings-baseline/v1.schema.json",
     "schemas/repository-agent-workflow/v1.schema.json",
     "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/repository-security-baseline/v1.schema.json",
@@ -86,6 +97,7 @@
     "schemas/scaffold-target-catalog/v1.schema.json",
     "schemas/scaffolding-config/v1.schema.json",
     "schemas/workspace-dependency-declarations/v1.schema.json",
+    "schemas/workspace-dependency-declarations/v2.schema.json",
     "assets/windows-managed-process/bootstrap.ps1",
     "assets/windows-managed-process/WindowsManagedProcess.cs",
     "LICENSE",
@@ -119,17 +131,19 @@
   "dependencies": {
     "@agent-teams/document-authoring": "workspace:*",
     "@agent-teams/repository-mutation": "workspace:*",
-    "@microsoft/api-extractor": "catalog:",
     "@microsoft/api-extractor-model": "catalog:",
+    "@microsoft/tsdoc": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
+    "jsonc-parser": "catalog:",
+    "node-or-bun": "catalog:",
     "oxc-parser": "catalog:",
     "proper-lockfile": "catalog:",
+    "typescript": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/proper-lockfile": "catalog:",
-    "typescript": "catalog:"
+    "@types/proper-lockfile": "catalog:"
   }
 }

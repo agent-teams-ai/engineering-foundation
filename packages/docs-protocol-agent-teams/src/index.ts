@@ -38,11 +38,14 @@ export type {
   ConsumerIntegrationSnapshot,
   ConsumerUpgradeAuthorityV1,
   ConsumerUpgradeAuthorityV2,
+  ManagedSuccessorAssetDigests,
+  ManagedSuccessorProfile,
   QualifiedDocsCohortBindingV1,
   QualifiedDocsCohortBindingV2,
   QualifiedDocsCohortV1,
   QualifiedDocsCohortV2,
-  QualifiedDocsPackageCoordinateV2
+  QualifiedDocsPackageCoordinateV2,
+  UnselectedCohortV3
 } from "./consumer-integration/index.js";
 export { runManagedDocsCli } from "./composition/managed-cli.js";
 export { runDocsProtocolQualificationV2, runDocsProtocolQualificationV3 } from "./qualification/index.js";
@@ -54,6 +57,10 @@ export type {
 } from "./qualification/index.js";
 export type {
   DocsProtocolQualificationCheckV3,
+  DocsProtocolQualificationCheckCohortV3,
+  DocsProtocolQualificationCohortEvidenceV3,
+  DocsProtocolQualificationCohortV3Receipt,
+  DocsProtocolQualificationCohortV3Request,
   DocsProtocolQualificationEvidenceV3,
   DocsProtocolQualificationObservedPackageV3,
   DocsProtocolQualificationPackageKeyV3,

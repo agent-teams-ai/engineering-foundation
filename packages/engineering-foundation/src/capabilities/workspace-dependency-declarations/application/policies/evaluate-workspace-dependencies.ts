@@ -5,6 +5,7 @@ import type {
 import { isExactVersion } from "../../../../semantic-version.js";
 import { parseNpmAlias } from "../../../../workspace-inventory/application/policies/normalize-dependency-declaration.js";
 import type { WorkspaceDependencyPolicy } from "../model/workspace-dependency-policy.js";
+import type { WorkspaceDependencyDeclarationsSettings } from "../model/workspace-dependency-settings.js";
 import type {
   DependencyDeclaration,
   WorkspaceSnapshot
@@ -78,19 +79,25 @@ function evaluateCatalogs(snapshot: WorkspaceSnapshot): FoundationDiagnostic[] {
   return diagnostics;
 }
 
-function evaluatePackageManager(snapshot: WorkspaceSnapshot): FoundationDiagnostic[] {
+function evaluatePackageManager(
+  snapshot: WorkspaceSnapshot,
+  expectedKind: WorkspaceDependencyDeclarationsSettings["packageManagerKind"]
+): FoundationDiagnostic[] {
   const root = snapshot.packages.find((entry) => entry.manifestPath === "package.json");
   const packageManager = root?.packageManager;
+  const prefix = `${expectedKind}@`;
   if (
     packageManager === undefined ||
-    !packageManager.startsWith("pnpm@") ||
-    !isExactVersion(packageManager.slice("pnpm@".length))
+    !packageManager.startsWith(prefix) ||
+    !isExactVersion(packageManager.slice(prefix.length))
   ) {
     return [
       diagnostic({
-        rule: RULES.packageManagerNotExact,
+        rule: expectedKind === "bun"
+          ? { ...RULES.packageManagerNotExact, remediation: "Pin packageManager to an exact bun semantic version." }
+          : RULES.packageManagerNotExact,
         subject: "workspace-root:packageManager",
-        message: "The workspace root must pin an exact pnpm version.",
+        message: `The workspace root must pin an exact ${expectedKind} version.`,
         path: "package.json",
         evidence: [{ kind: "actual", value: packageManager ?? "missing" }]
       })
@@ -247,6 +254,18 @@ function evaluateDeclaration(input: {
   return diagnostics;
 }
 
+// A peer range and the development copy of the same package are one intent, not a duplicate.
+const isPeerWithDevelopmentLink = (
+  declarations: readonly Pick<DependencyDeclaration, "section" | "targetPackageName">[]
+): boolean => {
+  const peer = declarations.find(({ section }) => section === "peerDependencies");
+  const development = declarations.find(({ section }) => section === "devDependencies");
+  return declarations.length === 2 &&
+    peer !== undefined &&
+    development !== undefined &&
+    peer.targetPackageName === development.targetPackageName;
+};
+
 function evaluateDeclarations(
   snapshot: WorkspaceSnapshot,
   policy: WorkspaceDependencyPolicy
@@ -274,7 +293,7 @@ function evaluateDeclarations(
       (declaration) => declaration.dependencyName
     );
     for (const [dependencyName, declarations] of grouped) {
-      if (declarations.length > 1) {
+      if (declarations.length > 1 && !isPeerWithDevelopmentLink(declarations)) {
         diagnostics.push(
           diagnostic({
             rule: RULES.dependencyDeclaredMultipleTimes,
@@ -319,11 +338,12 @@ function evaluateDeclarations(
 
 export function evaluateWorkspaceDependencies(
   snapshot: WorkspaceSnapshot,
-  policy: WorkspaceDependencyPolicy
+  policy: WorkspaceDependencyPolicy,
+  expectedManagerKind: WorkspaceDependencyDeclarationsSettings["packageManagerKind"]
 ): readonly FoundationDiagnostic[] {
   return [
     ...evaluateCatalogs(snapshot),
-    ...evaluatePackageManager(snapshot),
+    ...evaluatePackageManager(snapshot, expectedManagerKind),
     ...evaluatePackageNames(snapshot),
     ...evaluateDeclarations(snapshot, policy)
   ];

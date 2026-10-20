@@ -1,7 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.mjs";
+import { assertPublicApiAudit } from "./packed-consumer-public-api-audit-fixture.ts";
+import { assertPackedLegacyPublicApiBaseline } from "./packed-consumer-native-public-api.ts";
 
 import {
   captureFailure,
@@ -471,6 +472,7 @@ export async function verifyPackedConsumer(input) {
   await assertRemovedFoundationPackagePathsRejected(fixture);
   await assertSdkGrowthAuthorityPublicApi(fixture);
   await assertAdrPromotion(fixture);
+  await assertPackedLegacyPublicApiBaseline(fixture, expectedCapabilityIds);
   await assertCapabilityCheck(fixture);
   await assertSourceGraphViolation(fixture);
   await assertJsonSchemaFormats(fixture);

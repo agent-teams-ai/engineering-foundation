@@ -1,0 +1,18 @@
+{
+  "extends": "./spikes/source-dependency-parser/tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "skipDefaultLibCheck": false
+  },
+  "include": [
+    "scripts/native-package-types*.ts",
+    "tests/native-package-types.test.ts",
+    "scripts/public-api-native-migration*.ts",
+    "scripts/packed-consumer-native-public-api.ts",
+    "scripts/packed-consumer-public-api-audit-fixture.ts",
+    "tests/public-api-native-migration*.test.ts",
+    "scripts/published-foundation-*.ts",
+    "tests/published-foundation-operations.test.ts"
+  ]
+}

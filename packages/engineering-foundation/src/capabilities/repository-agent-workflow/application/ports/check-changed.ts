@@ -1,13 +1,30 @@
 import type { RepositoryChangesReader } from "./changed-workflow.js";
+import type { RepositoryPackageManager } from "../../../../process-execution/application/runtime-selection.js";
 import type { CoverageCheck, CoverageExecution, WorkflowCoveragePolicy } from "../model/check-changed.js";
 
 /** Preserve bounded execution history when admission is revoked after launch.
- * No raw error/output or qualified facets cross this failure boundary. */
+ * Callers must pass bounded output: this boundary freezes it but does not
+ * truncate raw text, and no raw error or qualified facets cross it. */
 export class CoverageExecutionFailure extends Error {
   readonly execution: CoverageExecution;
   constructor(execution: CoverageExecution, readonly admissionRevoked: boolean) {
     super("Check execution failed or its admission was revoked.");
-    this.execution = Object.freeze({ ...execution, qualifiedFacets: Object.freeze([]), observation: null });
+    this.execution = Object.freeze({
+      ...execution,
+      qualifiedFacets: Object.freeze([]),
+      observation: null,
+      commands: Object.freeze(execution.commands.map((command) => Object.freeze({ ...command }))),
+      binding: Object.freeze({ ...execution.binding })
+    });
+  }
+}
+
+/** Typed input-custody revocation: the observed input set drifted from the
+ * lease identity. Distinct from execution failures so unexpected errors are
+ * never relabeled as stale input. */
+export class InputRevocationError extends Error {
+  constructor() {
+    super("Input custody observation changed.");
   }
 }
 
@@ -31,6 +48,7 @@ export interface CoverageCheckRunner {
   run(input: {
     readonly lease: CheckInputLease;
     readonly check: CoverageCheck;
+    readonly packageManager: RepositoryPackageManager;
     readonly signal?: AbortSignal;
   }): Promise<CoverageExecution>;
 }

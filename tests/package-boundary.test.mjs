@@ -128,6 +128,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
       docsProtocolAgentTeamsName,
       docsProtocolMcpName,
       foundationName,
+      "@agent-teams/feature-module-standard",
     ],
   );
   const repositoryMutation = await json("packages/repository-mutation/package.json");
@@ -228,24 +229,24 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
 
 test("Foundation self-dogfood lifecycle is build-gated and source-owned", async () => {
   const workspace = await json("package.json");
-  assert.equal(workspace.scripts["foundation:bootstrap"], "pnpm build");
+  assert.equal(workspace.scripts["foundation:bootstrap"], "node tools/repository-command.mts script build");
   assert.equal(
     workspace.scripts["foundation:dogfood"],
-    "pnpm foundation:bootstrap && pnpm foundation:check:built",
+    "node tools/repository-command.mts script foundation:bootstrap && node tools/repository-command.mts script foundation:check:built",
   );
   assert.equal(
     workspace.scripts["foundation:qualification"],
-    "pnpm foundation:dogfood && pnpm package:check:built && pnpm registry-install-e2e:built && pnpm published-compatibility:e2e",
+    "node tools/repository-command.mts script foundation:dogfood && node tools/repository-command.mts script package:check:built && node tools/repository-command.mts script registry-install-e2e:built && node tools/repository-command.mts script published-compatibility:e2e",
   );
-  assert.equal(workspace.scripts["foundation:check"], "pnpm foundation:dogfood");
+  assert.equal(workspace.scripts["foundation:check"], "node tools/repository-command.mts script foundation:dogfood");
   assert.equal(
     workspace.scripts["foundation:check:built"],
-    "node packages/engineering-foundation/dist/cli.js check --consumer .",
+    "node tools/repository-command.mts tool foundation:check:built",
   );
   assert.doesNotMatch(
     workspace.scripts["foundation:check:built"],
     /(?:pnpm|npmjs\.org|published)/u,
-    "current-source dogfood must execute the freshly built CLI directly",
+    "current-source dogfood must retain the freshly built CLI inside its private native migration driver",
   );
 });
 
@@ -594,6 +595,83 @@ test("Agent Teams adapter policy classifies new application files and rejects ad
       configPath: "architecture/foundation/source-dependencies.yaml",
     });
     assert.equal(accepted.outcome, "passed", JSON.stringify(accepted, null, 2));
+  } finally {
+    await rm(temporaryRoot, { force: true, recursive: true });
+  }
+});
+
+const forbiddenAt = (report, suffix) => report.diagnostics.some(({ location, ruleId }) =>
+  ruleId === "architecture.source-dependencies.forbidden-builtin-dependency" && location.path.endsWith(suffix));
+
+test("quality-gate-runner adapters may import node:util; the application layer and a removed allowance may not", async () => {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "qgr-builtin-boundary-"));
+  try {
+    const policy = parseYaml(await readFile(join(
+      repositoryRoot,
+      "architecture/foundation/source-dependencies.yaml",
+    ), "utf8"));
+    const qgr = "packages/engineering-foundation/src/capabilities/quality-gate-runner";
+    const adapterFile = `${qgr}/adapters/inbound/node-test-execution/runner.ts`;
+    const applicationFile = `${qgr}/application/policies/probe.ts`;
+    const boundaryIds = new Set([
+      "capability.quality-gate-runner.adapters",
+      "capability.quality-gate-runner.application",
+    ]);
+    const policyWithoutUtil = (removeAdapterAllowance) => ({
+      schemaVersion: 2,
+      workspace: { kind: "pnpm", manifest: "pnpm-workspace.yaml" },
+      packageRoots: ["packages"],
+      governedRoots: [qgr],
+      boundaries: policy.boundaries.filter(({ id }) => boundaryIds.has(id)).map((boundary) => ({
+        ...boundary,
+        roots: boundary.roots.filter((root) => !root.endsWith(".ts")),
+        allow: {
+          ...boundary.allow,
+          boundaries: boundary.allow.boundaries.filter((id) => boundaryIds.has(id)),
+          packages: [],
+          builtins: removeAdapterAllowance && boundary.id.endsWith(".adapters")
+            ? boundary.allow.builtins.filter((builtin) => builtin !== "node:util") : boundary.allow.builtins,
+        },
+        entrypoints: [boundary.id.endsWith(".adapters") ? adapterFile : applicationFile],
+      })),
+    });
+    const safeSource = "export const marker = true;\n";
+    const utilSource = "import { types } from \"node:util\";\nexport const isProxy = (value: unknown) => types.isProxy(value);\n";
+    await Promise.all([
+      mkdir(join(temporaryRoot, "architecture/foundation"), { recursive: true }),
+      mkdir(dirname(join(temporaryRoot, adapterFile)), { recursive: true }),
+      mkdir(dirname(join(temporaryRoot, applicationFile)), { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(join(temporaryRoot, "package.json"), `${JSON.stringify({
+        name: "@fixture/repository", version: "0.0.0", private: true, type: "module", packageManager: "pnpm@11.20.0",
+      }, null, 2)}\n`),
+      writeFile(join(temporaryRoot, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n"),
+      writeFile(join(temporaryRoot, "packages/engineering-foundation/package.json"), `${JSON.stringify({
+        name: "@fixture/engineering-foundation", version: "0.0.0", private: true, type: "module",
+      }, null, 2)}\n`),
+    ]);
+    const run = async ({ adapter, application, removeAdapterAllowance = false }) => {
+      await Promise.all([
+        writeFile(join(temporaryRoot, "architecture/foundation/source-dependencies.yaml"),
+          stringifyYaml(policyWithoutUtil(removeAdapterAllowance), { lineWidth: 0 })),
+        writeFile(join(temporaryRoot, adapterFile), adapter),
+        writeFile(join(temporaryRoot, applicationFile), application),
+      ]);
+      return createSourceDependenciesCapability(sourceDependencyAdapters()).run({
+        consumerRoot: temporaryRoot,
+        configPath: "architecture/foundation/source-dependencies.yaml",
+      });
+    };
+
+    const accepted = await run({ adapter: utilSource, application: safeSource });
+    assert.equal(accepted.outcome, "passed", JSON.stringify(accepted, null, 2));
+    const application = await run({ adapter: safeSource, application: utilSource });
+    assert.equal(application.outcome, "violations", JSON.stringify(application, null, 2));
+    assert.ok(forbiddenAt(application, "application/policies/probe.ts"), JSON.stringify(application, null, 2));
+    const removed = await run({ adapter: utilSource, application: safeSource, removeAdapterAllowance: true });
+    assert.equal(removed.outcome, "violations", JSON.stringify(removed, null, 2));
+    assert.ok(forbiddenAt(removed, "node-test-execution/runner.ts"), JSON.stringify(removed, null, 2));
   } finally {
     await rm(temporaryRoot, { force: true, recursive: true });
   }

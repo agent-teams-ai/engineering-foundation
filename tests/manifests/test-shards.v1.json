@@ -3,7 +3,7 @@
   "source": {
     "runId": 37154414643,
     "headSha": "331e97758fd83e6a0da69a3400b3bfe8aa8d0aee",
-    "strategy": "Static eight-way partition from all 281 advisory whole-file timings of successful exact-source CI. Longest-first assignment minimizes the maximum normalized Linux raw-coverage (440s) and portable Windows (450s) load; ties use Linux load then shard ID. Loader stays in shard 3, both Linux-only managed suites stay in shard 4; original relative order within each resulting shard is retained. Canonical and raw-only inventories remain separate and complete, test execution stays serial. Projections (~439s Linux; <=448s Windows apart from the isolated loader) exclude setup, queue, cache effects and unobserved runtime variance; final exact-head CI qualifies actual behavior. One new portable materialization regression suite is assigned to shard 5 without a measured timing. The unmeasured restoration lock input suite is assigned to shard 7. The private full-PR-CI request regression suite is explicitly assigned to shard 5 without a measured timing. The focused CI Input Proof successor policy suite is explicitly assigned to shard 1 without a measured timing."
+    "strategy": "Static eight-way partition from all 281 advisory whole-file timings of successful exact-source CI. Longest-first assignment minimizes the maximum normalized Linux raw-coverage (440s) and portable Windows (450s) load; ties use Linux load then shard ID. Loader stays in shard 3, both Linux-only managed suites stay in shard 4; original relative order within each resulting shard is retained. Canonical and raw-only inventories remain separate and complete, test execution stays serial. Projections (~439s Linux; <=448s Windows apart from the isolated loader) exclude setup, queue, cache effects and unobserved runtime variance; final exact-head CI qualifies actual behavior. One new portable materialization regression suite is assigned to shard 5 without a measured timing. The unmeasured restoration lock input suite is assigned to shard 7. The private full-PR-CI request regression suite is explicitly assigned to shard 5 without a measured timing. The focused CI Input Proof successor policy suite is explicitly assigned to shard 1 without a measured timing. The focused process-runtime delegation suite is explicitly assigned to shard 1 without a measured timing. The new tests/features/feature-module-standard/node-runner.test.mts and tests/workspace-dependency-peer-link.test.mjs suites are explicitly assigned to shard 1 without measured timings in the source dataset; the historical load projections exclude both additions. The native TypeScript 7 public API extraction suite is assigned to shard 5 beside the existing SDK authority tests, including the moved curated-entrypoint control; no source timing is claimed for the new suite. The new native alias observation suite is assigned beside its observer in shard 6 without a measured timing. The private native projection differential suite is assigned to shard 5 beside production extraction; no source timing is claimed. The native package type qualification suite is assigned to shard 8 beside the package projection tests without a measured timing. The private native baseline migration suite is assigned to shard 5 beside native extraction without a measured timing. The published operation safety suite is assigned beside the published scaffolding compatibility suite without a measured timing. The private native migration driver safety suite is assigned beside its baseline migration suite without a measured timing. The portable shared native tool-transition public command suite is assigned to shard 5 beside its native extraction and private-owner delegation regressions; no historical timing is claimed. The Bun repository release and CI runtime suites are retained in shard 5 without measured source timings. The npm config manager admission observation suite is explicitly assigned to shard 1 beside the repository runtime tool suite without a measured timing. The successor command-host and coverage suites are also unmeasured placements: command-host-successor-cli in shard 1, and agent-workflow-versioned-capability, c1-agent-workflow-cli, c1-agent-workflow-configuration, c1-agent-workflow-coverage and c1-agent-workflow-rejection in shard 4, which raises shard 4's unmeasured load above its measured ~439s Linux projection; final exact-head CI qualifies their actual placement."
   },
   "shards": [
     {
@@ -31,16 +31,27 @@
         "packages/engineering-foundation/tests/public-api-artifact-inventory.test.mjs",
         "tests/document-reachability-projection.test.mjs",
         "tests/local-mode-process-runner.test.mjs",
+        "tests/process-runtime-delegation.test.mts",
         "tests/quality-gate-runner-lifecycle.test.mjs",
         "tests/windows-managed-process.test.mjs",
         "tests/cli.test.mjs",
         "tests/coverage-evidence.test.mjs",
         "tests/windows-test-partitions.test.mts",
         "tests/package-qualification-groups.test.mts",
+        "tests/generation2-node.test.mts",
         "tests/scaffolding-owned-cleanup-residue.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs",
         "tests/features/input-comparison/ci-input-proof.test.mts",
         "tests/features/input-comparison/ci-input-proof-process.test.mts",
+        "tests/features/feature-module-standard/conformance.test.mts",
+        "tests/features/feature-module-standard/dependencies.test.mts",
+        "tests/features/feature-module-standard/layout.test.mts",
+        "tests/features/feature-module-standard/module-check.test.mts",
+        "tests/features/feature-module-standard/node-runner.test.mts",
+        "tests/feature-module-kernel-adapter.test.mjs",
+        "tests/workspace-dependency-peer-link.test.mjs",
+        "tests/repository-runtime-tools.test.mts",
+        "tests/pnpm-manager-observation.test.mts",
         "tests/command-host-successor-cli.test.mts"
       ]
     },
@@ -147,8 +158,10 @@
         "packages/docs-protocol-agent-teams/tests/managed-runtime-pnpm-enforcement.test.mjs",
         "packages/docs-protocol-agent-teams/tests/managed-runtime-process.test.mjs",
         "packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs",
+        "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts",
         "packages/docs-protocol-agent-teams/tests/consumer-upgrade-archive.test.mjs",
         "tests/capability-public-api.test.mjs",
+        "tests/findings-baseline-capability.test.mjs",
         "tests/c1-agent-workflow-coverage.test.mts",
         "tests/agent-workflow-versioned-capability.test.mts",
         "tests/c1-agent-workflow-cli.test.mts",
@@ -159,6 +172,7 @@
     {
       "id": "5",
       "tests": [
+        "tests/process-failure-reporting.test.mts",
         "tests/capability-reporting-architecture.test.mjs",
         "packages/repository-mutation/tests/public-api-contract.test.mjs",
         "tests/local-mode-boundaries-graph.test.mts",
@@ -166,6 +180,7 @@
         "tests/docs-protocol-current-policy.test.mjs",
         "tests/repository-mutation-qualification-api.test.mjs",
         "tests/npm-package-bootstrap-workflow.test.mjs",
+        "tests/npm-package-bootstrap-ci-proof.test.mjs",
         "tests/release-workflow.test.mjs",
         "tests/ci-input-proof-rc.test.mts",
         "tests/scaffolding-journal-store.test.mjs",
@@ -189,7 +204,14 @@
         "packages/docs-protocol/tests/qualification-application.test.mjs",
         "tests/pack-stage-materialization.test.mts",
         "tests/request-full-pr-ci.test.mts",
-        "tests/merge-reviewed-pr.test.mts"
+        "tests/merge-reviewed-pr.test.mts",
+        "packages/engineering-foundation/tests/public-api-native-extraction.test.ts",
+        "packages/engineering-foundation/tests/public-api-native-projection.test.ts",
+        "tests/public-api-native-migration.test.ts",
+        "tests/public-api-native-migration-cli.test.ts",
+        "packages/engineering-foundation/tests/public-api-native-transition.test.ts",
+        "tests/repository-release-runtime.test.mts",
+        "tests/repository-ci-runtime.test.mts"
       ]
     },
     {
@@ -203,13 +225,14 @@
         "tests/package-boundary.test.mjs",
         "tests/public-api-prerelease-promotion.test.mjs",
         "packages/docs-protocol/tests/reviewed-authoring.test.mjs",
-        "packages/engineering-foundation/tests/public-api-audit-projection.test.mjs",
+        "packages/engineering-foundation/tests/public-api-audit-projection.test.ts",
         "tests/features/quality-coverage/cast-public-preset.test.mjs",
         "tests/document-authoring-contract-policy-security.test.mjs",
         "tests/document-authoring-qualification.test.mjs",
         "tests/legacy-document-transaction-envelope.test.mjs",
         "tests/local-mode-recovery.test.mjs",
         "tests/published-scaffolding-compatibility.test.mjs",
+        "tests/published-foundation-operations.test.ts",
         "tests/repository-mutation-publication.test.mjs",
         "tests/suppression-configuration.test.mjs",
         "tests/public-api-growth-execution.test.mjs",
@@ -226,7 +249,11 @@
         "tests/coverage-workflow.test.mjs",
         "tests/test-timing.test.mjs",
         "tests/public-managed-registry-canary.test.mjs",
-        "packages/engineering-foundation/tests/public-api-audit-observer.test.mjs"
+        "tests/public-managed-registry-canary-generation3.test.mts",
+        "packages/engineering-foundation/tests/public-api-audit-observer.test.ts",
+        "packages/engineering-foundation/tests/public-api-audit-alias.test.ts",
+        "tests/findings-baseline-ratchet.test.mjs",
+        "tests/findings-baseline-rules.test.mjs"
       ]
     },
     {
@@ -270,7 +297,7 @@
       "tests": [
         "packages/engineering-foundation/tests/capability-reporting-boundaries.test.mjs",
         "tests/contract-protobuf-qualification.test.mjs",
-        "tests/test-manifests-typescript.test.mts",
+        "tests/test-manifests-typescript.test.ts",
         "tests/engineering-quality-standard.test.mts",
         "tests/markdown-checkout.test.mjs",
         "tests/markdown-distribution.test.mjs",
@@ -303,8 +330,10 @@
         "tests/package-release-inventory.test.mjs",
         "tests/node-test-execution.test.mjs",
         "tests/root-package-projections.test.mjs",
+        "tests/native-package-types.test.ts",
         "tests/unexpected-failure-diagnostics.test.mjs",
-        "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs"
+        "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
+        "tests/source-graph.test.mjs"
       ]
     }
   ]

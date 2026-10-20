@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import test from 'node:test';
-import { fixture, git, lint, tests, typecheck, policyInput, sha, execute } from './c1-test-support.mts';
+import { fixture, git, lint, tests, typecheck, policyInput, sha, execute, custodyFiles } from './c1-test-support.mts';
 import { runCheckChangedAgentWorkflow } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/use-cases/run-check-changed-agent-workflow.js';
 import { createMutableCheckInputCustody } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/mutable-check-input-custody.js';
 import type { CoverageCheckRunner } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/ports/check-changed.js';
@@ -70,7 +70,7 @@ void test('C1 no changes and explicit exclusions are not checked',async()=>fixtu
 // runs the same real commands but always retains unverified custody.
 void test('C1 mutable successful checks remain feedback only',async()=>fixture(async subject=>{
   await writeFile(join(subject.root,'src.ts'),'export const value: number = 4;\n');
-  const report=await runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody:createMutableCheckInputCustody(execute),runner:subject.runner(),loadPolicy:subject.loadPolicy});
+  const report=await runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody:createMutableCheckInputCustody(execute, custodyFiles),runner:subject.runner(),loadPolicy:subject.loadPolicy});
   assert.equal(report.outcome,'feedback-only'); assert.equal(report.inputCustody.binding,'unverified');
 }));
 
@@ -140,23 +140,31 @@ writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+
   for(const frozen of [true,false]) {
     const {rm}=await import('node:fs/promises');
     for(const path of ['ready','gate','done','ack']) {await rm(join(output,path),{force:true});}
-    const custody=frozen?(await subject.freeze()).custody:createMutableCheckInputCustody(execute);
+    const custody=frozen?(await subject.freeze()).custody:createMutableCheckInputCustody(execute, custodyFiles);
     async function waitFile(name:string) {
       const path=join(output,name);try {await access(path);return;}catch{}
       await new Promise<void>((resolve,reject)=>{const timer=setTimeout(()=>{watcher.close();reject(new Error('TEST ABA barrier timed out'));},20_000);const watcher=fs.watch(output,()=>{void access(path).then(()=>{clearTimeout(timer);watcher.close();resolve();return null;},()=>null);});});
     }
     const ready=waitFile('ready');
     const operation=runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody,runner:subject.runner(),loadPolicy:subject.loadPolicy});
-    await ready; await writeFile(join(subject.root,'src.ts'),'export const value: number = 10;\n');
-    const done=waitFile('done');await writeFile(join(output,'gate'),'continue');await done;
-    const compilerExit=Number(await readFile(join(output,'done'),'utf8'));
-    await writeFile(join(subject.root,'src.ts'),invalid);await writeFile(join(output,'ack'),'restored');
-    const report=await operation;
-    assert.equal(report.outcome,frozen?'failed':'feedback-only',JSON.stringify(report));
-    assert.equal(compilerExit,frozen?1:0);
-    if(frozen) {assert.match(await readFile(join(output,'compiler-diagnostic'),'utf8'),/error TS2322/u);}
-    assert.equal(await readFile(join(subject.root,'src.ts'),'utf8'),invalid);
-    if(!frozen) {assert.equal(report.inputCustody.binding,'unverified');}
+    try {
+      await ready; await writeFile(join(subject.root,'src.ts'),'export const value: number = 10;\n');
+      const done=waitFile('done');await writeFile(join(output,'gate'),'continue');await done;
+      const compilerExit=Number(await readFile(join(output,'done'),'utf8'));
+      await writeFile(join(subject.root,'src.ts'),invalid);await writeFile(join(output,'ack'),'restored');
+      const report=await operation;
+      assert.equal(report.outcome,frozen?'failed':'feedback-only',JSON.stringify(report));
+      assert.equal(compilerExit,frozen?1:0);
+      if(frozen) {assert.match(await readFile(join(output,'compiler-diagnostic'),'utf8'),/error TS2322/u);}
+      assert.equal(await readFile(join(subject.root,'src.ts'),'utf8'),invalid);
+      if(!frozen) {assert.equal(report.inputCustody.binding,'unverified');}
+    } finally {
+      // Settle the workflow and release both barriers even on timeout so the
+      // child never outlives the fixture directory.
+      await writeFile(join(output,'gate'),'continue').catch(()=>{});
+      await writeFile(join(output,'ack'),'restored').catch(()=>{});
+      await operation.catch(()=>{});
+    }
   }
 }));
 
@@ -168,7 +176,7 @@ void test('C1 mutable adapter runs real commands with no qualified facets',async
   await writeFile(join(subject.root,'workflow.json'),JSON.stringify(policyInput([typecheck],['typecheck'])));
   await writeFile(join(subject.root,'src.ts'),'export const value: number = 6;\n');
   let text='',exit=-1;
-  const command=createAgentWorkflowCheckChangedCommand({custody:createMutableCheckInputCustody(execute),runner:createMutablePnpmCheckRunner({npmExecPath:join(subject.tool.packageRoot,'bin/pnpm.mjs')},execute),loadPolicy:subject.loadPolicy,writeReport:value=>{text=value;},setExitCode:value=>{exit=value;}});
+  const command=createAgentWorkflowCheckChangedCommand({custody:createMutableCheckInputCustody(execute, custodyFiles),runner:createMutablePnpmCheckRunner({npmExecPath:join(subject.tool.packageRoot,'bin/pnpm.mjs'),nodeExecutablePath:subject.tool.nodeExecutable},execute),loadPolicy:subject.loadPolicy,writeReport:value=>{text=value;},setExitCode:value=>{exit=value;}});
   await command({consumerRoot:subject.root,configPath:'workflow.json',format:'json'});
   const report=JSON.parse(text) as {outcome:string;coverage:{state:string}[];steps:{qualifiedFacets:string[];commands:{script:string;exitCode:number|null}[]}[]};
   assert.equal(exit,0);assert.equal(report.outcome,'feedback-only');assert.ok(report.coverage.every(row=>row.state==='uncovered'));assert.deepEqual(report.steps[0]?.qualifiedFacets,[]);assert.deepEqual(report.steps[0]?.commands.map(c=>[c.script,c.exitCode]),[['typecheck',0]]);

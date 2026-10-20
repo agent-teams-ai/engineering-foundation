@@ -48,6 +48,8 @@ allowedUses:
     transitiveUses: []
   - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc
     transitiveUses: []
+  - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+    transitiveUses: []
   - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b
     transitiveUses: []
   - uses: re-actors/alls-green@a638d6464689bbb24c325bb3fe9404d63a913030
@@ -68,6 +70,7 @@ privilegedJobs:
   - workflowPath: .github/workflows/npm-package-bootstrap.yml
     jobId: bootstrap
     permissions:
+      actions: read
       contents: read
       id-token: write
   - workflowPath: .github/workflows/npm-package-bootstrap.yml
@@ -99,6 +102,7 @@ privilegedJobs:
   - workflowPath: .github/workflows/release.yml
     jobId: release
     permissions:
+      actions: read
       contents: write
       id-token: write
       pull-requests: write
@@ -124,3 +128,4 @@ publishablePackageManifests:
   - packages/docs-protocol-agent-teams/package.json
   - packages/docs-protocol-mcp/package.json
   - packages/ci-input-proof/package.json
+  - packages/feature-module-standard/package.json

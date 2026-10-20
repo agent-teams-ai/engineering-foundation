@@ -7,6 +7,7 @@ packageRoots:
   - spikes
 governedRoots:
   - packages/ci-input-proof/src
+  - packages/feature-module-standard/src
   - packages/repository-mutation/src
   - packages/repository-mutation/tests
   - packages/document-authoring/src
@@ -474,6 +475,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/bounded-repository-topology.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v2-authority-validator.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v3-authority-projector.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-node-error.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts
@@ -536,6 +538,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/agents-route-adapter-v1.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/cohort-v3-authority-projector.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-integration-schema-validator.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/consumer-upgrade-file-projectors.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/foundation-known-file-transaction.ts
@@ -556,6 +559,7 @@ boundaries:
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-manifest-planner.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v1.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/pnpm-runtime-closure-v2.ts
+      - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-cohort-v3-loader.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-identity.ts
       - packages/docs-protocol-agent-teams/src/consumer-integration/adapters/node-managed-runtime-process.ts
@@ -619,6 +623,7 @@ boundaries:
         - jsonc-parser
         - yaml
       builtins:
+        - node:child_process
         - node:crypto
         - node:fs
         - node:fs/promises
@@ -631,6 +636,8 @@ boundaries:
     entrypoints:
       - packages/docs-protocol-agent-teams/src/qualification/adapters/inbound/qualification-cli.ts
       - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-managed-qualification.ts
+      - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-qualification-api-factory.ts
+      - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/node-qualification-runtime.ts
       - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/restoration-lock-graph.ts
       - packages/docs-protocol-agent-teams/src/qualification/adapters/outbound/restoration-lock-inputs.ts
   - id: docs-protocol-agent-teams.qualification.composition
@@ -720,6 +727,8 @@ boundaries:
       - packages/docs-protocol-agent-teams/tests/unselected-cohort-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/unselected-managed-profile-v4.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification-cli-v3.test.mjs
+      - packages/docs-protocol-agent-teams/tests/qualification-cohort-v3-fixtures.mts
+      - packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts
       - packages/docs-protocol-agent-teams/tests/qualification-v3.test.mjs
       - packages/docs-protocol-agent-teams/tests/qualification.test.mjs
       - packages/docs-protocol-agent-teams/tests/runtime-policy-checkout.test.mjs
@@ -832,6 +841,30 @@ boundaries:
       builtins: []
       runtimeReferences: []
     entrypoints: []
+  - id: foundation.ratchet
+    roots:
+      - packages/engineering-foundation/src/ratchet.ts
+    packageExports:
+      - ./ratchet
+    allow:
+      boundaries:
+        - capability.findings-baseline.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
+  - id: foundation.source-graph
+    roots:
+      - packages/engineering-foundation/src/source-graph.ts
+    packageExports:
+      - ./source-graph
+    allow:
+      boundaries:
+        - capability.source-dependencies.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints: []
   - id: foundation.cli
     roots:
       - packages/engineering-foundation/src/cli.ts
@@ -871,6 +904,7 @@ boundaries:
         - capability.repository-security.composition
         - capability.source-dependencies.composition
         - capability.suppression-governance.composition
+        - capability.findings-baseline.composition
         - capability.workspace-dependencies.composition
         - foundation.core
         - foundation.schema-validation
@@ -905,6 +939,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/effective-instructions.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/model/repository-agent-workflow.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/changed-workflow.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/contained-file-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/effective-instructions-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/repository-agent-workflow-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/rules.ts
@@ -951,6 +986,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/filesystem-repository-agent-workflow-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/git/git-repository-changes-reader.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/pnpm-package-script-runner.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/bun/bun-package-script-runner.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/changed-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/instructions-command.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/process/process-execution.ts
@@ -973,12 +1009,17 @@ boundaries:
         - capability.repository-agent-workflow.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.process-execution.application
+        - foundation.process-execution.composition
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
+        - node:path
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/module.ts
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/command-module.ts
+      - packages/engineering-foundation/src/capabilities/repository-agent-workflow/composition/select-package-script-runner.ts
   - id: capability.quality-gate-runner.application
     roots:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/application
@@ -1041,6 +1082,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/filesystem/filesystem-package-script-catalog-reader.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/pnpm/pnpm-package-script-executor.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/bun/bun-package-script-executor.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/outbound/time/performance-monotonic-clock.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/adapters/inbound/cli/quality-gate-cli-command.ts
   - id: capability.quality-gate-runner.composition
@@ -1057,12 +1099,17 @@ boundaries:
         - capability.quality-gate-runner.contract
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.process-execution.application
+        - foundation.process-execution.composition
       packages: []
-      builtins: []
+      builtins:
+        - node:fs/promises
+        - node:path
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/module.ts
       - packages/engineering-foundation/src/capabilities/quality-gate-runner/command-module.ts
+      - packages/engineering-foundation/src/capabilities/quality-gate-runner/composition/select-package-script-executor.ts
   - id: foundation.core
     roots:
       - packages/engineering-foundation/src/binary-string-comparator.ts
@@ -2126,6 +2173,7 @@ boundaries:
   - id: foundation.validation-reporting.error
     roots:
       - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
+      - packages/engineering-foundation/src/features/validation-reporting/process-failure-facts.ts
     allow:
       boundaries: []
       packages: []
@@ -2133,6 +2181,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/features/validation-reporting/foundation-error.ts
+      - packages/engineering-foundation/src/features/validation-reporting/process-failure-facts.ts
   - id: foundation.local-mode.application
     roots:
       - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
@@ -2240,6 +2289,8 @@ boundaries:
   - id: foundation.process-execution
     roots:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/windows-command-launch.ts
+      - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process.ts
       - packages/engineering-foundation/src/process-execution/windows-managed-process-diagnostics.ts
       - packages/engineering-foundation/src/process-execution/windows-process-host.ts
@@ -2248,7 +2299,7 @@ boundaries:
         - foundation.process-execution.application
         - foundation.validation-reporting.error
         - foundation.core
-      packages: []
+      packages: [ "node-or-bun" ]
       builtins:
         - node:child_process
         - node:events
@@ -2262,6 +2313,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/process-execution/node-process-runner.ts
+      - packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts
   - id: foundation.workspace-inventory.application
     roots:
       - packages/engineering-foundation/src/workspace-inventory/application
@@ -2362,6 +2414,7 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/workspace-inventory.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/model/source-file-snapshot.ts
       - packages/engineering-foundation/src/capabilities/source-dependencies/application/ports/source-tree-reader.ts
+      - packages/engineering-foundation/src/capabilities/source-dependencies/application/use-cases/observe-source-graph.ts
   - id: capability.public-api-compatibility.application
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application
@@ -2403,6 +2456,10 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/rules.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/analyze-public-api-compatibility.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/promote-public-api-baselines.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/native-tool-transition.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/native-tool-transition.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/policies/validate-native-tool-transition.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/use-cases/prepare-native-tool-transition.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/api.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/model/public-api-observation.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/application/ports/public-api-observer.ts
@@ -2501,10 +2558,13 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/link-staged-package-node-modules.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-observer.ts
-      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/pinned-audit-compiler.ts
-      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/prepare-public-api-extractor.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-engine.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-inputs.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-model.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-excerpt.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-item.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/native-public-api-reference.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/staged-public-api-input.ts
-      - packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts
     allow:
       boundaries:
         - capability.public-api-compatibility.pinned-sdk-loader
@@ -2513,8 +2573,9 @@ boundaries:
         - foundation.core
       packages:
         - typescript
-        - "@microsoft/api-extractor"
         - "@microsoft/api-extractor-model"
+        - "@microsoft/tsdoc"
+        - jsonc-parser
         - "@agent-teams/repository-mutation"
       builtins:
         - node:fs
@@ -2524,8 +2585,11 @@ boundaries:
         - node:os
         - node:path
         - node:util
+        - node:zlib
+        - node:url
       runtimeReferences: []
     entrypoints:
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/load-public-api-audit.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/parse-growth-config.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-invocation.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/growth-metadata-root-sources.ts
@@ -2545,27 +2609,33 @@ boundaries:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/reviewrouter-growth-authority-acl.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/verified-growth-input-context.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/reviewrouter/verified-growth-observation.ts
-      - packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/inbound/configuration/load-native-tool-transition.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-tool-transition-content.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/native-transition-archive.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/filesystem/observe-native-tool-transition.ts
   - id: capability.public-api-compatibility.pinned-sdk-loader
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/load-pinned-audit-sdk.ts
     allow:
       boundaries: []
       packages:
-        - "@microsoft/api-extractor"
         - typescript
-        - "@microsoft/tsdoc-config"
+        - "@microsoft/api-extractor-model"
       builtins:
         - node:module
         - node:path
-      runtimeReferences:
-        - commonjs
+        - node:fs
+        - node:url
+        - node:crypto
+      runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/adapters/outbound/api-extractor/load-pinned-audit-sdk.ts
   - id: capability.public-api-compatibility.composition
     roots:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/authority-module.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/native-transition-module.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts
     allow:
       boundaries:
         - foundation.process-execution.composition
@@ -2584,6 +2654,8 @@ boundaries:
     entrypoints:
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/module.ts
       - packages/engineering-foundation/src/capabilities/public-api-compatibility/authority-module.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/native-transition-module.ts
+      - packages/engineering-foundation/src/capabilities/public-api-compatibility/node.ts
   - id: capability.source-dependencies.contract
     roots:
       - packages/engineering-foundation/src/capabilities/source-dependencies/contract
@@ -2697,6 +2769,67 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/capabilities/suppression-governance/module.ts
+  - id: capability.findings-baseline.application
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application
+    allow:
+      boundaries:
+        - foundation.validation-reporting.application
+        - foundation.source-inventory.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/baseline.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/budgets.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/configuration-input.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/model.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/rules.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/application/use-cases/findings-baseline.ts
+  - id: capability.findings-baseline.contract
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/contract
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/contract/config.ts
+  - id: capability.findings-baseline.adapters
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/adapters
+    allow:
+      boundaries:
+        - capability.findings-baseline.application
+      packages: []
+      builtins:
+        - node:fs/promises
+        - node:path
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/adapters/inbound/configuration/load-capability-config.ts
+      - packages/engineering-foundation/src/capabilities/findings-baseline/adapters/outbound/filesystem/filesystem-findings-baseline-store.ts
+  - id: capability.findings-baseline.composition
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/module.ts
+    allow:
+      boundaries:
+        - capability.findings-baseline.adapters
+        - capability.findings-baseline.application
+        - capability.findings-baseline.contract
+        - foundation.validation-reporting.application
+        - foundation.configuration-input.composition
+        - foundation.quality-coverage.adapters
+        - foundation.quality-coverage.application
+        - foundation.process-execution.composition
+        - foundation.source-inventory.composition
+        - foundation.workspace-inventory.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/module.ts
   - id: foundation.dependency-aliases.tests
     dependencyMode: development
     roots:
@@ -3180,9 +3313,11 @@ boundaries:
       builtins:
         - node:assert/strict
         - node:perf_hooks
+        - node:path
       runtimeReferences: []
     entrypoints:
-      - spikes/source-dependency-parser/run.mjs
+      - spikes/source-dependency-parser/run.ts
+      - spikes/source-dependency-parser/typescript-parser-oracle.ts
   - id: foundation.scaffolding.parameters
     roots:
       - packages/engineering-foundation/src/scaffolding/adapters/outbound/ajv-parameter-validation.ts
@@ -3387,6 +3522,7 @@ boundaries:
     allow:
       boundaries:
         - foundation.quality-coverage.composition
+        - capability.findings-baseline.composition
         - capability.contract-json-schema.composition
         - foundation.source-inventory.composition
         - foundation.command-host.composition
@@ -3422,6 +3558,7 @@ boundaries:
         - foundation.schema-contribution.executable-specifications
         - foundation.schema-contribution.quality-gate-runner
         - foundation.schema-contribution.suppression-governance
+        - foundation.schema-contribution.findings-baseline
         - foundation.schema-contribution.repository-agent-workflow
         - foundation.schema-contribution.repository-security-baseline
         - foundation.schema-contribution.scaffolding
@@ -3559,6 +3696,16 @@ boundaries:
       packages: []
       builtins: []
       runtimeReferences: []
+  - id: foundation.schema-contribution.findings-baseline
+    roots:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/schemas.ts
+    entrypoints:
+      - packages/engineering-foundation/src/capabilities/findings-baseline/schemas.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
   - id: foundation.schema-contribution.repository-agent-workflow
     roots:
       - packages/engineering-foundation/src/capabilities/repository-agent-workflow/schemas.ts
@@ -3688,12 +3835,14 @@ boundaries:
       boundaries:
         - foundation.core
         - foundation.validation-reporting.application
+        - foundation.validation-reporting.error
       packages: []
       builtins: []
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/process-execution/application/process-failure-policy.ts
       - packages/engineering-foundation/src/process-execution/api.ts
+      - packages/engineering-foundation/src/process-execution/application/runtime-selection.ts
   - id: foundation.process-execution.composition
     roots:
       - packages/engineering-foundation/src/process-execution/module.ts
@@ -3908,20 +4057,29 @@ boundaries:
     roots:
       - packages/engineering-foundation/tests/public-api-audit-command.test.mjs
       - packages/engineering-foundation/tests/public-api-audit-inputs.test.mjs
-      - packages/engineering-foundation/tests/public-api-audit-observer.test.mjs
+      - packages/engineering-foundation/tests/public-api-audit-observer.test.ts
+      - packages/engineering-foundation/tests/public-api-audit-alias.test.ts
       - packages/engineering-foundation/tests/public-api-audit-policy.test.mjs
-      - packages/engineering-foundation/tests/public-api-audit-projection.test.mjs
+      - packages/engineering-foundation/tests/public-api-audit-projection.test.ts
+      - packages/engineering-foundation/tests/public-api-native-extraction.test.ts
+      - packages/engineering-foundation/tests/public-api-native-projection.test.ts
+      - packages/engineering-foundation/tests/public-api-native-transition.test.ts
     allow:
       boundaries:
         - capability.public-api-compatibility.application
         - capability.public-api-compatibility.adapters
+        - capability.public-api-compatibility.composition
         - foundation.command-host.adapters
+        - capability.public-api-compatibility.pinned-sdk-loader
+        - capability.public-api-compatibility.contract
+        - foundation.source-inventory.composition
       packages:
         - ajv
-        - "@microsoft/api-extractor"
+        - typescript
         - "@microsoft/api-extractor-model"
       builtins:
         - node:assert/strict
+        - node:child_process
         - node:crypto
         - node:fs
         - node:fs/promises
@@ -3929,6 +4087,9 @@ boundaries:
         - node:os
         - node:path
         - node:test
+        - node:url
+        - node:util
+        - node:zlib
       runtimeReferences: []
     entrypoints: []
   - id: foundation.quality-coverage.application
@@ -4016,6 +4177,139 @@ boundaries:
     allow:
       boundaries:
         - ci-input-proof.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+
+  - id: feature-module-standard.model.domain
+    roots:
+      - packages/feature-module-standard/src/features/feature-model/domain
+    entrypoints:
+      - packages/feature-module-standard/src/features/feature-model/domain/model.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.layout.application
+    roots:
+      - packages/feature-module-standard/src/features/feature-layout/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/feature-layout/application/analyze-feature-tree.ts
+      - packages/feature-module-standard/src/features/feature-layout/application/find-overlapping-roots.ts
+      - packages/feature-module-standard/src/features/feature-layout/application/infer-directory-layout.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.dependencies.application
+    roots:
+      - packages/feature-module-standard/src/features/feature-dependencies/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/feature-dependencies/application/check-feature-dependencies.ts
+      - packages/feature-module-standard/src/features/feature-dependencies/application/feature-graphs.ts
+      - packages/feature-module-standard/src/features/feature-dependencies/application/layer-direction.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.check.application
+    roots:
+      - packages/feature-module-standard/src/features/module-check/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/module-check/application/check-feature-module.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+        - feature-module-standard.dependencies.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.fixtures.testing
+    roots:
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing
+    entrypoints:
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/conformance-cases.ts
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-tree.ts
+      - packages/feature-module-standard/src/features/conformance-fixtures/testing/example-sources.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.public
+    roots:
+      - packages/feature-module-standard/src/index.ts
+    entrypoints:
+      - packages/feature-module-standard/src/index.ts
+    packageExports:
+      - .
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+        - feature-module-standard.dependencies.application
+        - feature-module-standard.check.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.fixtures
+    roots:
+      - packages/feature-module-standard/src/fixtures.ts
+    entrypoints:
+      - packages/feature-module-standard/src/fixtures.ts
+    packageExports:
+      - ./fixtures
+    allow:
+      boundaries:
+        - feature-module-standard.fixtures.testing
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.node-runner.application
+    roots:
+      - packages/feature-module-standard/src/features/node-runner/application
+    entrypoints:
+      - packages/feature-module-standard/src/features/node-runner/application/run-feature-module-check.ts
+    allow:
+      boundaries:
+        - feature-module-standard.model.domain
+        - feature-module-standard.layout.application
+        - feature-module-standard.check.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.node-runner.composition
+    roots:
+      - packages/feature-module-standard/src/features/node-runner/composition
+    entrypoints:
+      - packages/feature-module-standard/src/features/node-runner/composition/check-feature-module-on-disk.ts
+    allow:
+      boundaries:
+        - feature-module-standard.node-runner.application
+      packages:
+        - "@agent-teams/engineering-foundation"
+      builtins: []
+      runtimeReferences: []
+  - id: feature-module-standard.node
+    roots:
+      - packages/feature-module-standard/src/node.ts
+    entrypoints:
+      - packages/feature-module-standard/src/node.ts
+    packageExports:
+      - ./node
+    allow:
+      boundaries:
+        - feature-module-standard.node-runner.application
+        - feature-module-standard.node-runner.composition
       packages: []
       builtins: []
       runtimeReferences: []

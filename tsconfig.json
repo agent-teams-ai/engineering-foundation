@@ -21,6 +21,9 @@
     },
     {
       "path": "./packages/ci-input-proof"
+    },
+    {
+      "path": "./packages/feature-module-standard"
     }
   ]
 }

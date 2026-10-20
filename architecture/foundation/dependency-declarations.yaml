@@ -1,6 +1,6 @@
-schemaVersion: 1
+schemaVersion: 2
 packageManager:
-  kind: pnpm
+  kind: bun
   workspaceManifest: pnpm-workspace.yaml
 policies:
   externalDependencies: catalog
@@ -10,7 +10,6 @@ policies:
     - "@agent-teams/"
   developmentOnlyPackages:
     - "@ast-grep/cli"
-    - "@arethetypeswrong/cli"
     - "@changesets/changelog-github"
     - "@changesets/cli"
     - "@types/node"
@@ -20,5 +19,7 @@ policies:
     - oxlint
     - oxlint-tsgolint
     - publint
-    - typescript
+  # TypeScript is the exact native runtime SDK of the public API adapter.
+  # The source-dependency profile restricts its production imports to that adapter
+  # and its pinned SDK loader; other workspace declarations stay development-only.
   exactRegistryDevelopmentOnlyPackages: []

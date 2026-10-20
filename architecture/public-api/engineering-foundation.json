@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "1.7.3",
-  "extractorVersion": "7.58.12",
+  "packageVersion": "1.10.1",
+  "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
       "exportPath": ".",
@@ -47,7 +47,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "FOUNDATION_METADATA_SCHEMA_VERSION: 1"
+          "signature": "export declare const FOUNDATION_METADATA_SCHEMA_VERSION: 1;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!FastCheckParameters#numRuns:member",
@@ -208,7 +208,7 @@
           "kind": "TypeAlias",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"foundation-scaffolding-envelope-v6\" | \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"known-file-transaction\";\n    readonly format: \"known-file-transaction-envelope-v1\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: Extract<FoundationRecoveryRoute, {\n        readonly commandId: \"replace-known-file-recover\";\n    }>;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"known-file-transaction\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
+          "signature": "export type FoundationTransactionStatus = {\n    readonly state: \"idle\";\n    readonly diagnostics: readonly [\n    ];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"scaffolding\";\n    readonly format: \"foundation-scaffolding-envelope-v6\" | \"legacy-scaffolding-v1\";\n    readonly foundationVersion: string;\n    readonly recovery: FoundationRecoveryRoute;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"local-mode\";\n    readonly format: \"local-mode-v1\";\n    readonly recovery: {\n        readonly commandId: \"detach\";\n    };\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"pending\";\n    readonly operationKind: \"known-file-transaction\";\n    readonly format: \"known-file-transaction-envelope-v1\";\n    readonly foundationVersion: string;\n    readonly foundationBuildIdentity: string;\n    readonly recovery: Extract<FoundationRecoveryRoute, {\n        readonly commandId: \"replace-known-file-recover\";\n    }>;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n} | {\n    readonly state: \"manual-recovery-required\";\n    readonly reason: FoundationManualRecoveryReason;\n    readonly operationKind?: \"document-authoring\" | \"known-file-transaction\" | \"scaffolding\";\n    readonly format?: \"envelope-v2\";\n    readonly foundationVersion?: string;\n    readonly foundationBuildIdentity?: string;\n    readonly diagnostics: readonly FoundationTransactionDiagnostic[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!PropertyReplayEvidence#counterexampleDigest:member",
@@ -341,14 +341,14 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION: 1"
+          "signature": "export declare const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION: 1;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.FOUNDATION_PACKAGE_NAME:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "FOUNDATION_PACKAGE_NAME: \"@agent-teams/engineering-foundation\""
+          "signature": "export declare const FOUNDATION_PACKAGE_NAME: \"@agent-teams/engineering-foundation\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.FoundationDevOnlyStatus#consumerRoot:member",
@@ -670,28 +670,28 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "LOCAL_OPERATION_LOCK: \"foundation-operation.lock\""
+          "signature": "export declare const LOCAL_OPERATION_LOCK: \"foundation-operation.lock\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.LOCAL_REGISTRY_BACKUP:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "FOUNDATION_REGISTRY_BACKUP: \"foundation-registry-backup\""
+          "signature": "export declare const FOUNDATION_REGISTRY_BACKUP: \"foundation-registry-backup\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.LOCAL_STATE_DIRECTORY:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "LOCAL_STATE_DIRECTORY: \".agent-teams-local\""
+          "signature": "export declare const LOCAL_STATE_DIRECTORY: \".agent-teams-local\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.LOCAL_STATE_FILE:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!localMode:namespace",
           "parentKind": "Namespace",
-          "signature": "FOUNDATION_LINK_STATE_FILE: \"foundation-link.json\""
+          "signature": "export declare const FOUNDATION_LINK_STATE_FILE: \"foundation-link.json\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!localMode.NodeProcessRunner#run:member(1)",
@@ -906,14 +906,14 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION: 1"
+          "signature": "export declare const FOUNDATION_LOCAL_MODE_PROTOCOL_VERSION: 1;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!FOUNDATION_PACKAGE_NAME:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "FOUNDATION_PACKAGE_NAME: \"@agent-teams/engineering-foundation\""
+          "signature": "export declare const FOUNDATION_PACKAGE_NAME: \"@agent-teams/engineering-foundation\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!FoundationDevOnlyStatus#consumerRoot:member",
@@ -1235,28 +1235,28 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "LOCAL_OPERATION_LOCK: \"foundation-operation.lock\""
+          "signature": "export declare const LOCAL_OPERATION_LOCK: \"foundation-operation.lock\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!LOCAL_REGISTRY_BACKUP:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "FOUNDATION_REGISTRY_BACKUP: \"foundation-registry-backup\""
+          "signature": "export declare const FOUNDATION_REGISTRY_BACKUP: \"foundation-registry-backup\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!LOCAL_STATE_DIRECTORY:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "LOCAL_STATE_DIRECTORY: \".agent-teams-local\""
+          "signature": "export declare const LOCAL_STATE_DIRECTORY: \".agent-teams-local\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!LOCAL_STATE_FILE:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "FOUNDATION_LINK_STATE_FILE: \"foundation-link.json\""
+          "signature": "export declare const FOUNDATION_LINK_STATE_FILE: \"foundation-link.json\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!NodeProcessRunner#run:member(1)",
@@ -1401,6 +1401,263 @@
       ]
     },
     {
+      "exportPath": "./ratchet",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!BudgetWarning#max:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!BudgetWarning:interface",
+          "parentKind": "Interface",
+          "signature": "readonly max: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!BudgetWarning:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface BudgetWarning extends Measurement"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Finding#count:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Finding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly count: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Finding#max:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Finding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly max?: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Finding#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Finding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Finding#rule:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Finding:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rule: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Finding:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface Finding"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolation#baseline:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FindingViolation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly baseline?: Pick<Finding, \"count\" | \"max\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolation#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FindingViolation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: FindingViolationKind;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolation#observed:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FindingViolation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly observed?: Pick<Finding, \"count\" | \"max\">;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolation#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FindingViolation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolation#rule:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!FindingViolation:interface",
+          "parentKind": "Interface",
+          "signature": "readonly rule: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolation:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface FindingViolation"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingViolationKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type FindingViolationKind = \"new\" | \"worse\" | \"stale\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingsBaselineError#name:member",
+          "kind": "Property",
+          "parentReference": "@agent-teams/engineering-foundation!FindingsBaselineError:class",
+          "parentKind": "Class",
+          "signature": "readonly name = \"FindingsBaselineError\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!FindingsBaselineError:class",
+          "kind": "Class",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare class FindingsBaselineError extends Error"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Measurement#metric:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Measurement:interface",
+          "parentKind": "Interface",
+          "signature": "readonly metric: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Measurement#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Measurement:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Measurement#value:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Measurement:interface",
+          "parentKind": "Interface",
+          "signature": "readonly value: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Measurement:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface Measurement"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PrunedBaseline#entries:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PrunedBaseline:interface",
+          "parentKind": "Interface",
+          "signature": "readonly entries: readonly Finding[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PrunedBaseline#lowered:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PrunedBaseline:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lowered: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PrunedBaseline#remaining:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PrunedBaseline:interface",
+          "parentKind": "Interface",
+          "signature": "readonly remaining: readonly FindingViolation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PrunedBaseline#removed:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!PrunedBaseline:interface",
+          "parentKind": "Interface",
+          "signature": "readonly removed: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!PrunedBaseline:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface PrunedBaseline"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Threshold#max:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Threshold:interface",
+          "parentKind": "Interface",
+          "signature": "readonly max: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Threshold#metric:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Threshold:interface",
+          "parentKind": "Interface",
+          "signature": "readonly metric: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Threshold#subject:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!Threshold:interface",
+          "parentKind": "Interface",
+          "signature": "readonly subject?: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!Threshold:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface Threshold"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!checkBudgets:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function checkBudgets(input: {\n    readonly measurements: readonly Measurement[];\n    readonly thresholds: readonly Threshold[];\n}): readonly BudgetWarning[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!checkFindings:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function checkFindings(input: {\n    readonly baseline: readonly Finding[];\n    readonly observed: readonly Finding[];\n    readonly namespace: string;\n}): readonly FindingViolation[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!formatBaseline:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function formatBaseline(entries: readonly Finding[]): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!formatBudgetAnnotations:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function formatBudgetAnnotations(warnings: readonly BudgetWarning[]): string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!initBaseline:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function initBaseline(input: {\n    readonly observed: readonly Finding[];\n    readonly existing?: string;\n}): readonly Finding[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!parseBaseline:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function parseBaseline(text: string): readonly Finding[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!pruneBaseline:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function pruneBaseline(input: {\n    readonly baseline: readonly Finding[];\n    readonly observed: readonly Finding[];\n    readonly namespace: string;\n}): PrunedBaseline;"
+        }
+      ]
+    },
+    {
       "exportPath": "./scaffolding",
       "items": [
         {
@@ -1464,7 +1721,7 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "DEFAULT_SCAFFOLDING_CONFIG_PATH = \"architecture/foundation/scaffolding.yaml\""
+          "signature": "export declare const DEFAULT_SCAFFOLDING_CONFIG_PATH = \"architecture/foundation/scaffolding.yaml\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!DefinitionRef#contractVersion:member",
@@ -1513,7 +1770,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!MaterializeFileOperation:interface",
           "parentKind": "Interface",
-          "signature": "readonly after: {\n        readonly digest: Sha256Digest;\n        readonly size: number;\n        readonly mode: \"0644\";\n        readonly mediaType: string;\n        readonly contentBase64: string;\n    };"
+          "signature": "readonly after: {\n    readonly digest: Sha256Digest;\n    readonly size: number;\n    readonly mode: \"0644\";\n    readonly mediaType: string;\n    readonly contentBase64: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!MaterializeFileOperation#causes:member",
@@ -1548,7 +1805,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!MaterializeFileOperation:interface",
           "parentKind": "Interface",
-          "signature": "readonly precondition: {\n        readonly state: \"absent\";\n    };"
+          "signature": "readonly precondition: {\n    readonly state: \"absent\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!MaterializeFileOperation:interface",
@@ -1583,7 +1840,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly ownerDocument: {\n        readonly id: string;\n        readonly path: RepositoryPath;\n        readonly status: string;\n    };"
+          "signature": "readonly ownerDocument: {\n    readonly id: string;\n    readonly path: RepositoryPath;\n    readonly status: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence#projectId:member",
@@ -1604,7 +1861,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly sources: readonly [\n        ScaffoldAuthoritySourceAssertion & {\n            readonly role: \"config\";\n        },\n        ScaffoldAuthoritySourceAssertion & {\n            readonly role: \"owner-document\";\n        },\n        ScaffoldAuthoritySourceAssertion & {\n            readonly role: \"target-catalog\";\n        }\n    ];"
+          "signature": "readonly sources: readonly [\n    ScaffoldAuthoritySourceAssertion & {\n        readonly role: \"config\";\n    },\n    ScaffoldAuthoritySourceAssertion & {\n        readonly role: \"owner-document\";\n    },\n    ScaffoldAuthoritySourceAssertion & {\n        readonly role: \"target-catalog\";\n    }\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence#targetIdentityDigest:member",
@@ -1625,7 +1882,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly verifier: {\n        readonly id: \"foundation.markdown-yaml-owner\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly verifier: {\n    readonly id: \"foundation.markdown-yaml-owner\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
@@ -1688,7 +1945,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityVerifier:interface",
           "parentKind": "Interface",
-          "signature": "readonly parameters: {\n        readonly allowedStatuses: readonly string[];\n        readonly documentRoots: readonly RepositoryPath[];\n    };"
+          "signature": "readonly parameters: {\n    readonly allowedStatuses: readonly string[];\n    readonly documentRoots: readonly RepositoryPath[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityVerifier:interface",
@@ -1716,7 +1973,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldCompilationInput:interface",
           "parentKind": "Interface",
-          "signature": "readonly catalog: {\n        readonly version: 1;\n        readonly packages: readonly ScaffoldTarget[];\n    };"
+          "signature": "readonly catalog: {\n    readonly version: 1;\n    readonly packages: readonly ScaffoldTarget[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldCompilationInput#config:member",
@@ -1758,7 +2015,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldComposition:interface",
           "parentKind": "Interface",
-          "signature": "readonly authorityVerifiers: readonly [ScaffoldAuthorityVerifier];"
+          "signature": "readonly authorityVerifiers: readonly [\n    ScaffoldAuthorityVerifier\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldComposition#defaultRecipeParameters:member",
@@ -1772,7 +2029,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldComposition:interface",
           "parentKind": "Interface",
-          "signature": "readonly facets?: {\n        readonly fixed?: readonly ConfiguredDefinition[];\n        readonly default?: readonly ConfiguredDefinition[];\n        readonly allowed?: readonly DefinitionRef[];\n    };"
+          "signature": "readonly facets?: {\n    readonly fixed?: readonly ConfiguredDefinition[];\n    readonly default?: readonly ConfiguredDefinition[];\n    readonly allowed?: readonly DefinitionRef[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldComposition#fixedRecipeParameters:member",
@@ -2087,7 +2344,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: {\n        readonly configPath: RepositoryPath;\n        readonly targetCatalogPath: RepositoryPath;\n    };"
+          "signature": "readonly authority: {\n    readonly configPath: RepositoryPath;\n    readonly targetCatalogPath: RepositoryPath;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#authorityEvidence:member",
@@ -2108,21 +2365,21 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly compiler: {\n        readonly id: \"@agent-teams/engineering-foundation\";\n        readonly version: string;\n    };"
+          "signature": "readonly compiler: {\n    readonly id: \"@agent-teams/engineering-foundation\";\n    readonly version: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#composition:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly composition: {\n        readonly id: string;\n        readonly scaffoldProfile: DefinitionRef;\n        readonly recipe: DefinitionRef;\n        readonly facets: readonly DefinitionRef[];\n        readonly policies: readonly DefinitionRef[];\n    };"
+          "signature": "readonly composition: {\n    readonly id: string;\n    readonly scaffoldProfile: DefinitionRef;\n    readonly recipe: DefinitionRef;\n    readonly facets: readonly DefinitionRef[];\n    readonly policies: readonly DefinitionRef[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#definitions:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly definitions: readonly {\n        readonly kind: \"facet\" | \"policy\" | \"recipe\" | \"scaffold-profile\";\n        readonly ref: DefinitionRef;\n        readonly contractDigest: Sha256Digest;\n    }[];"
+          "signature": "readonly definitions: readonly {\n    readonly kind: \"facet\" | \"policy\" | \"recipe\" | \"scaffold-profile\";\n    readonly ref: DefinitionRef;\n    readonly contractDigest: Sha256Digest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#diagnostics:member",
@@ -2185,14 +2442,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly requiredAdapterCapabilities: readonly [\"materialize-file/v1\"];"
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n    \"materialize-file/v1\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#resolved:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly resolved: {\n        readonly profileParameters: JsonObject;\n        readonly recipeParameters: JsonObject;\n        readonly facets: readonly {\n            readonly ref: DefinitionRef;\n            readonly parameters: JsonObject;\n        }[];\n        readonly policies: readonly {\n            readonly ref: DefinitionRef;\n            readonly parameters: JsonObject;\n            readonly outcome: \"passed\";\n        }[];\n    };"
+          "signature": "readonly resolved: {\n    readonly profileParameters: JsonObject;\n    readonly recipeParameters: JsonObject;\n    readonly facets: readonly {\n        readonly ref: DefinitionRef;\n        readonly parameters: JsonObject;\n    }[];\n    readonly policies: readonly {\n        readonly ref: DefinitionRef;\n        readonly parameters: JsonObject;\n        readonly outcome: \"passed\";\n    }[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#schemaVersion:member",
@@ -2262,7 +2519,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldReceiptCommon:interface",
           "parentKind": "Interface",
-          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly adapter: {\n    readonly id: \"foundation.filesystem/v1\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldReceiptCommon#diagnostics:member",
@@ -2610,7 +2867,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!MaterializeFileOperation:interface",
           "parentKind": "Interface",
-          "signature": "readonly after: {\n        readonly digest: Sha256Digest;\n        readonly size: number;\n        readonly mode: \"0644\";\n        readonly mediaType: string;\n        readonly contentBase64: string;\n    };"
+          "signature": "readonly after: {\n    readonly digest: Sha256Digest;\n    readonly size: number;\n    readonly mode: \"0644\";\n    readonly mediaType: string;\n    readonly contentBase64: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!MaterializeFileOperation#causes:member",
@@ -2645,7 +2902,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!MaterializeFileOperation:interface",
           "parentKind": "Interface",
-          "signature": "readonly precondition: {\n        readonly state: \"absent\";\n    };"
+          "signature": "readonly precondition: {\n    readonly state: \"absent\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!MaterializeFileOperation:interface",
@@ -2680,7 +2937,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly ownerDocument: {\n        readonly id: string;\n        readonly path: RepositoryPath;\n        readonly status: string;\n    };"
+          "signature": "readonly ownerDocument: {\n    readonly id: string;\n    readonly path: RepositoryPath;\n    readonly status: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence#projectId:member",
@@ -2701,7 +2958,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly sources: readonly [\n        ScaffoldAuthoritySourceAssertion & {\n            readonly role: \"config\";\n        },\n        ScaffoldAuthoritySourceAssertion & {\n            readonly role: \"owner-document\";\n        },\n        ScaffoldAuthoritySourceAssertion & {\n            readonly role: \"target-catalog\";\n        }\n    ];"
+          "signature": "readonly sources: readonly [\n    ScaffoldAuthoritySourceAssertion & {\n        readonly role: \"config\";\n    },\n    ScaffoldAuthoritySourceAssertion & {\n        readonly role: \"owner-document\";\n    },\n    ScaffoldAuthoritySourceAssertion & {\n        readonly role: \"target-catalog\";\n    }\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence#targetIdentityDigest:member",
@@ -2722,7 +2979,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly verifier: {\n        readonly id: \"foundation.markdown-yaml-owner\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly verifier: {\n    readonly id: \"foundation.markdown-yaml-owner\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldAuthorityEvidence:interface",
@@ -2925,7 +3182,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: {\n        readonly configPath: RepositoryPath;\n        readonly targetCatalogPath: RepositoryPath;\n    };"
+          "signature": "readonly authority: {\n    readonly configPath: RepositoryPath;\n    readonly targetCatalogPath: RepositoryPath;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#authorityEvidence:member",
@@ -2946,21 +3203,21 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly compiler: {\n        readonly id: \"@agent-teams/engineering-foundation\";\n        readonly version: string;\n    };"
+          "signature": "readonly compiler: {\n    readonly id: \"@agent-teams/engineering-foundation\";\n    readonly version: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#composition:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly composition: {\n        readonly id: string;\n        readonly scaffoldProfile: DefinitionRef;\n        readonly recipe: DefinitionRef;\n        readonly facets: readonly DefinitionRef[];\n        readonly policies: readonly DefinitionRef[];\n    };"
+          "signature": "readonly composition: {\n    readonly id: string;\n    readonly scaffoldProfile: DefinitionRef;\n    readonly recipe: DefinitionRef;\n    readonly facets: readonly DefinitionRef[];\n    readonly policies: readonly DefinitionRef[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#definitions:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly definitions: readonly {\n        readonly kind: \"facet\" | \"policy\" | \"recipe\" | \"scaffold-profile\";\n        readonly ref: DefinitionRef;\n        readonly contractDigest: Sha256Digest;\n    }[];"
+          "signature": "readonly definitions: readonly {\n    readonly kind: \"facet\" | \"policy\" | \"recipe\" | \"scaffold-profile\";\n    readonly ref: DefinitionRef;\n    readonly contractDigest: Sha256Digest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#diagnostics:member",
@@ -3023,14 +3280,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly requiredAdapterCapabilities: readonly [\"materialize-file/v1\"];"
+          "signature": "readonly requiredAdapterCapabilities: readonly [\n    \"materialize-file/v1\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#resolved:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly resolved: {\n        readonly profileParameters: JsonObject;\n        readonly recipeParameters: JsonObject;\n        readonly facets: readonly {\n            readonly ref: DefinitionRef;\n            readonly parameters: JsonObject;\n        }[];\n        readonly policies: readonly {\n            readonly ref: DefinitionRef;\n            readonly parameters: JsonObject;\n            readonly outcome: \"passed\";\n        }[];\n    };"
+          "signature": "readonly resolved: {\n    readonly profileParameters: JsonObject;\n    readonly recipeParameters: JsonObject;\n    readonly facets: readonly {\n        readonly ref: DefinitionRef;\n        readonly parameters: JsonObject;\n    }[];\n    readonly policies: readonly {\n        readonly ref: DefinitionRef;\n        readonly parameters: JsonObject;\n        readonly outcome: \"passed\";\n    }[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldPlan#schemaVersion:member",
@@ -3128,7 +3385,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!ScaffoldReceiptCommon:interface",
           "parentKind": "Interface",
-          "signature": "readonly adapter: {\n        readonly id: \"foundation.filesystem/v1\";\n        readonly contractVersion: 1;\n    };"
+          "signature": "readonly adapter: {\n    readonly id: \"foundation.filesystem/v1\";\n    readonly contractVersion: 1;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!ScaffoldReceiptCommon#diagnostics:member",
@@ -3532,7 +3789,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
           "parentKind": "Interface",
-          "signature": "readonly policy: {\n        readonly contractRevision: \"foundation:sdk-growth:c0:5\";\n        readonly policyVersion: \"foundation:sdk-growth:policy:1\";\n        readonly enrollmentRevision: string;\n        readonly configurationDigest: GrowthDigest;\n        readonly scopeDigest: GrowthDigest;\n        readonly commandDigest: GrowthDigest;\n    };"
+          "signature": "readonly policy: {\n    readonly contractRevision: \"foundation:sdk-growth:c0:5\";\n    readonly policyVersion: \"foundation:sdk-growth:policy:1\";\n    readonly enrollmentRevision: string;\n    readonly configurationDigest: GrowthDigest;\n    readonly scopeDigest: GrowthDigest;\n    readonly commandDigest: GrowthDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#target:member",
@@ -3546,14 +3803,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
           "parentKind": "Interface",
-          "signature": "readonly tool: {\n        readonly packageName: \"@agent-teams/engineering-foundation\";\n        readonly version: string;\n        readonly archiveDigest: GrowthDigest;\n        readonly archiveIntegrity: string;\n        readonly distributionDigest: GrowthDigest;\n        readonly extractorVersion: string;\n    };"
+          "signature": "readonly tool: {\n    readonly packageName: \"@agent-teams/engineering-foundation\";\n    readonly version: string;\n    readonly archiveDigest: GrowthDigest;\n    readonly archiveIntegrity: string;\n    readonly distributionDigest: GrowthDigest;\n    readonly extractorVersion: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding#verifier:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
           "parentKind": "Interface",
-          "signature": "readonly verifier: {\n        readonly identity: string;\n        readonly immutableRevision: string;\n        readonly artifactDigest: GrowthDigest;\n    };"
+          "signature": "readonly verifier: {\n    readonly identity: string;\n    readonly immutableRevision: string;\n    readonly artifactDigest: GrowthDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityBinding:interface",
@@ -3609,7 +3866,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion:interface",
           "parentKind": "Interface",
-          "signature": "readonly promotion: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"plan\";\n        readonly planDigest: GrowthDigest;\n    };"
+          "signature": "readonly promotion: {\n    readonly kind: \"none\";\n} | {\n    readonly kind: \"plan\";\n    readonly planDigest: GrowthDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityCompletion#publication:member",
@@ -3672,7 +3929,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
           "parentKind": "Interface",
-          "signature": "readonly admissionReceipt: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"receipt\";\n        readonly receipt: GrowthAuthorityReceipt;\n    };"
+          "signature": "readonly admissionReceipt: {\n    readonly kind: \"none\";\n} | {\n    readonly kind: \"receipt\";\n    readonly receipt: GrowthAuthorityReceipt;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#archives:member",
@@ -3770,7 +4027,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant:interface",
           "parentKind": "Interface",
-          "signature": "readonly retainedHistory: {\n        readonly targetSource: GrowthAuthoritySource;\n        readonly targetSurfaceDigest: GrowthDigest;\n        readonly receiptDigest: GrowthDigest;\n        readonly custodyEvidenceDigest: GrowthDigest;\n        readonly custodyEvidence: GrowthAuthorityPackedEvidence[\"custodyEvidence\"];\n    };"
+          "signature": "readonly retainedHistory: {\n    readonly targetSource: GrowthAuthoritySource;\n    readonly targetSurfaceDigest: GrowthDigest;\n    readonly receiptDigest: GrowthDigest;\n    readonly custodyEvidenceDigest: GrowthDigest;\n    readonly custodyEvidence: GrowthAuthorityPackedEvidence[\"custodyEvidence\"];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityGrant#runRef:member",
@@ -3819,7 +4076,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot:interface",
           "parentKind": "Interface",
-          "signature": "readonly evidence: {\n        readonly kind: \"non-release-metadata-root\";\n        readonly packageName: string;\n        readonly rootPath: \".\";\n        readonly manifestPath: \"package.json\";\n        readonly classificationPath: string;\n        readonly historyDigest: GrowthDigest;\n        readonly base: GrowthMetadataRootSource;\n        readonly candidate: GrowthMetadataRootSource;\n    };"
+          "signature": "readonly evidence: {\n    readonly kind: \"non-release-metadata-root\";\n    readonly packageName: string;\n    readonly rootPath: \".\";\n    readonly manifestPath: \"package.json\";\n    readonly classificationPath: string;\n    readonly historyDigest: GrowthDigest;\n    readonly base: GrowthMetadataRootSource;\n    readonly candidate: GrowthMetadataRootSource;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityMetadataRoot#evidenceDigest:member",
@@ -3903,7 +4160,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly custodyEvidence: {\n        readonly archiveDigest: GrowthDigest;\n        readonly archiveIntegrity: string;\n        readonly archivePayload: string;\n        readonly archiveManifest: readonly {\n            readonly path: string;\n            readonly digest: GrowthDigest;\n        }[];\n        readonly installedFiles: readonly {\n            readonly path: string;\n            readonly digest: GrowthDigest;\n        }[];\n    };"
+          "signature": "readonly custodyEvidence: {\n    readonly archiveDigest: GrowthDigest;\n    readonly archiveIntegrity: string;\n    readonly archivePayload: string;\n    readonly archiveManifest: readonly {\n        readonly path: string;\n        readonly digest: GrowthDigest;\n    }[];\n    readonly installedFiles: readonly {\n        readonly path: string;\n        readonly digest: GrowthDigest;\n    }[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#custodyEvidenceDigest:member",
@@ -3917,7 +4174,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly installedDistribution: {\n        readonly packageName: string;\n        readonly packageVersion: string;\n        readonly source: GrowthAuthoritySource;\n        readonly archiveDigest: GrowthDigest;\n        readonly archiveIntegrity: string;\n        readonly observationDigest: GrowthDigest;\n    };"
+          "signature": "readonly installedDistribution: {\n    readonly packageName: string;\n    readonly packageVersion: string;\n    readonly source: GrowthAuthoritySource;\n    readonly archiveDigest: GrowthDigest;\n    readonly archiveIntegrity: string;\n    readonly observationDigest: GrowthDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityPackedEvidence#observation:member",
@@ -4036,14 +4293,14 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
           "parentKind": "Interface",
-          "signature": "readonly promotion: {\n        readonly kind: \"none\";\n    } | {\n        readonly kind: \"plan\";\n        readonly planDigest: GrowthDigest;\n    };"
+          "signature": "readonly promotion: {\n    readonly kind: \"none\";\n} | {\n    readonly kind: \"plan\";\n    readonly planDigest: GrowthDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#provenance:member",
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt:interface",
           "parentKind": "Interface",
-          "signature": "readonly provenance?: {\n        readonly grant: GrowthAuthorityGrant;\n        readonly completion: GrowthAuthorityCompletion;\n    };"
+          "signature": "readonly provenance?: {\n    readonly grant: GrowthAuthorityGrant;\n    readonly completion: GrowthAuthorityCompletion;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReceipt#qualification:member",
@@ -4106,7 +4363,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence:interface",
           "parentKind": "Interface",
-          "signature": "readonly evidence: {\n        readonly kind: \"released\";\n        readonly typed: PublicApiSnapshot;\n        readonly artifact: PublicApiSnapshot;\n    } | {\n        readonly kind: \"initial-unreleased\";\n        readonly historyDigest: GrowthDigest;\n    };"
+          "signature": "readonly evidence: {\n    readonly kind: \"released\";\n    readonly typed: PublicApiSnapshot;\n    readonly artifact: PublicApiSnapshot;\n} | {\n    readonly kind: \"initial-unreleased\";\n    readonly historyDigest: GrowthDigest;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthAuthorityReleasedEvidence#observation:member",
@@ -4351,7 +4608,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthContextRequest:interface",
           "parentKind": "Interface",
-          "signature": "readonly released: readonly ({\n        readonly packageName: string;\n    } & ({\n        readonly kind: \"released\";\n        readonly observationPath: string;\n    } | {\n        readonly kind: \"initial-unreleased\";\n        readonly trustedHistoryPath: string;\n    }))[];"
+          "signature": "readonly released: readonly ({\n    readonly packageName: string;\n} & ({\n    readonly kind: \"released\";\n    readonly observationPath: string;\n} | {\n    readonly kind: \"initial-unreleased\";\n    readonly trustedHistoryPath: string;\n}))[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthContextRequest#trustedBasePath:member",
@@ -4393,7 +4650,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
           "parentKind": "Interface",
-          "signature": "readonly subject: {\n        readonly kind: \"typed\";\n        readonly canonicalReference: string;\n    } | {\n        readonly kind: \"export-branch\";\n    } | {\n        readonly kind: \"bin\";\n        readonly name: string;\n    } | {\n        readonly kind: \"data\" | \"wildcard-member\";\n        readonly member: string;\n    } | {\n        readonly kind: \"package\";\n    };"
+          "signature": "readonly subject: {\n    readonly kind: \"typed\";\n    readonly canonicalReference: string;\n} | {\n    readonly kind: \"export-branch\";\n} | {\n    readonly kind: \"bin\";\n    readonly name: string;\n} | {\n    readonly kind: \"data\" | \"wildcard-member\";\n    readonly member: string;\n} | {\n    readonly kind: \"package\";\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoordinate:interface",
@@ -4414,7 +4671,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthCoverage:interface",
           "parentKind": "Interface",
-          "signature": "readonly dimensions: readonly {\n        readonly dimension: typeof growthDimensions[number];\n        readonly status: \"complete\" | \"limited\" | \"unsupported\" | \"unavailable\";\n        readonly reasons: readonly string[];\n    }[];"
+          "signature": "readonly dimensions: readonly {\n    readonly dimension: typeof growthDimensions[number];\n    readonly status: \"complete\" | \"limited\" | \"unsupported\" | \"unavailable\";\n    readonly reasons: readonly string[];\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthCoverage#packageName:member",
@@ -4477,7 +4734,7 @@
           "kind": "MethodSignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthInstalledInventoryReader:interface",
           "parentKind": "Interface",
-          "signature": "read(identity: Pick<GrowthAuthorityPackedEvidence, \"packageName\" | \"packageVersion\" | \"archiveDigest\" | \"archiveIntegrity\" | \"source\">, cancellation: GrowthCancellation): Promise<readonly {\n        readonly path: string;\n        readonly bytes: Uint8Array;\n    }[]>;"
+          "signature": "read(identity: Pick<GrowthAuthorityPackedEvidence, \"packageName\" | \"packageVersion\" | \"archiveDigest\" | \"archiveIntegrity\" | \"source\">, cancellation: GrowthCancellation): Promise<readonly {\n    readonly path: string;\n    readonly bytes: Uint8Array;\n}[]>;"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthInstalledInventoryReader:interface",
@@ -4526,7 +4783,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthInvocation:interface",
           "parentKind": "Interface",
-          "signature": "readonly tool: {\n        readonly version: string;\n        readonly artifactDigest: GrowthDigest;\n        readonly extractorVersion: string;\n    };"
+          "signature": "readonly tool: {\n    readonly version: string;\n    readonly artifactDigest: GrowthDigest;\n    readonly extractorVersion: string;\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthInvocation#toolchainDigest:member",
@@ -4603,7 +4860,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan:interface",
           "parentKind": "Interface",
-          "signature": "readonly writes: readonly {\n        readonly destination: string;\n        readonly operation: \"create\" | \"replace\";\n        readonly preimageDigest: GrowthDigest | null;\n        readonly proposedDigest: GrowthDigest;\n    }[];"
+          "signature": "readonly writes: readonly {\n    readonly destination: string;\n    readonly operation: \"create\" | \"replace\";\n    readonly preimageDigest: GrowthDigest | null;\n    readonly proposedDigest: GrowthDigest;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthPromotionPlan:interface",
@@ -4617,7 +4874,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
           "parentKind": "Interface",
-          "signature": "readonly authority: {\n        readonly status: \"verified\";\n        readonly workflowRef: string;\n        readonly runRef: string;\n        readonly receiptDigest: GrowthDigest;\n    } | {\n        readonly status: \"unverified\";\n        readonly reasons: readonly string[];\n    };"
+          "signature": "readonly authority: {\n    readonly status: \"verified\";\n    readonly workflowRef: string;\n    readonly runRef: string;\n    readonly receiptDigest: GrowthDigest;\n} | {\n    readonly status: \"unverified\";\n    readonly reasons: readonly string[];\n};"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#candidate:member",
@@ -4645,7 +4902,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
           "parentKind": "Interface",
-          "signature": "readonly phases: readonly {\n        readonly name: typeof growthReportPhases[number];\n        readonly status: \"complete\" | \"failed\" | \"unavailable\";\n    }[];"
+          "signature": "readonly phases: readonly {\n    readonly name: typeof growthReportPhases[number];\n    readonly status: \"complete\" | \"failed\" | \"unavailable\";\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#policyVersion:member",
@@ -4666,7 +4923,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
           "parentKind": "Interface",
-          "signature": "readonly released: readonly {\n        readonly packageName: string;\n        readonly evidence: {\n            readonly kind: \"released\";\n            readonly observation: GrowthEvidence<GrowthObservationReference>;\n        } | {\n            readonly kind: \"initial-unreleased\";\n            readonly history: GrowthEvidence<GrowthDigest>;\n        };\n    }[];"
+          "signature": "readonly released: readonly {\n    readonly packageName: string;\n    readonly evidence: {\n        readonly kind: \"released\";\n        readonly observation: GrowthEvidence<GrowthObservationReference>;\n    } | {\n        readonly kind: \"initial-unreleased\";\n        readonly history: GrowthEvidence<GrowthDigest>;\n    };\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#releasedComparison:member",
@@ -4694,7 +4951,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthReport:interface",
           "parentKind": "Interface",
-          "signature": "readonly transitionReceipts: readonly {\n        readonly before: GrowthDigest;\n        readonly after: GrowthDigest;\n        readonly decisions: readonly GrowthDigest[];\n        readonly transitions: readonly GrowthDigest[];\n        readonly trustedRunRef: string;\n    }[];"
+          "signature": "readonly transitionReceipts: readonly {\n    readonly before: GrowthDigest;\n    readonly after: GrowthDigest;\n    readonly decisions: readonly GrowthDigest[];\n    readonly transitions: readonly GrowthDigest[];\n    readonly trustedRunRef: string;\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthReport#trustedBase:member",
@@ -4750,7 +5007,7 @@
           "kind": "PropertySignature",
           "parentReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation:interface",
           "parentKind": "Interface",
-          "signature": "readonly entries: readonly {\n        readonly coordinate: GrowthCoordinate;\n        readonly value: {\n            readonly state: \"absent\";\n        } | {\n            readonly state: \"present\";\n            readonly digest: GrowthDigest;\n        };\n    }[];"
+          "signature": "readonly entries: readonly {\n    readonly coordinate: GrowthCoordinate;\n    readonly value: {\n        readonly state: \"absent\";\n    } | {\n        readonly state: \"present\";\n        readonly digest: GrowthDigest;\n    };\n}[];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!GrowthSurfaceObservation#observationVersion:member",
@@ -5156,35 +5413,348 @@
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "growthAuthorityRequiredPhases: readonly [\"topology\", \"observation\", \"packed\", \"decision\", \"trusted-base\", \"released\", \"authority\"]"
+          "signature": "export declare const growthAuthorityRequiredPhases: readonly [\n    \"topology\",\n    \"observation\",\n    \"packed\",\n    \"decision\",\n    \"trusted-base\",\n    \"released\",\n    \"authority\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!growthAuthoritySchemaVersion:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "growthAuthoritySchemaVersion: \"reviewrouter:sdk-growth-authority:3\""
+          "signature": "export declare const growthAuthoritySchemaVersion: \"reviewrouter:sdk-growth-authority:3\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!growthDimensions:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "growthDimensions: readonly [\"topology\", \"resolution\", \"typed\", \"reachable\", \"runtime\", \"bin\", \"data\", \"wildcard\", \"packed\", \"decision\"]"
+          "signature": "export declare const growthDimensions: readonly [\n    \"topology\",\n    \"resolution\",\n    \"typed\",\n    \"reachable\",\n    \"runtime\",\n    \"bin\",\n    \"data\",\n    \"wildcard\",\n    \"packed\",\n    \"decision\"\n];"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!growthPolicyVersion:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "growthPolicyVersion: \"foundation:sdk-growth:policy:1\""
+          "signature": "export declare const growthPolicyVersion: \"foundation:sdk-growth:policy:1\";"
         },
         {
           "canonicalReference": "@agent-teams/engineering-foundation!growthReportPhases:var",
           "kind": "Variable",
           "parentReference": "@agent-teams/engineering-foundation!",
           "parentKind": "EntryPoint",
-          "signature": "growthReportPhases: readonly [\"topology\", \"observation\", \"packed\", \"decision\", \"trusted-base\", \"released\", \"authority\"]"
+          "signature": "export declare const growthReportPhases: readonly [\n    \"topology\",\n    \"observation\",\n    \"packed\",\n    \"decision\",\n    \"trusted-base\",\n    \"released\",\n    \"authority\"\n];"
+        }
+      ]
+    },
+    {
+      "exportPath": "./source-graph",
+      "items": [
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput#consumerRoot:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly consumerRoot: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput#roots:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly roots: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal?: AbortSignal;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!ObserveSourceGraphInput:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ObserveSourceGraphInput"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#edges:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly edges: readonly SourceGraphEdge[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#external:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly external: readonly SourceGraphExternal[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#files:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly files: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#parseFailures:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly parseFailures: readonly string[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#runtimeExports:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly runtimeExports: readonly SourceGraphFileExports[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#unresolved:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly unresolved: readonly SourceGraphUnresolved[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph#unresolvedRuntimeReferences:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "parentKind": "Interface",
+          "signature": "readonly unresolvedRuntimeReferences: readonly SourceGraphRuntimeReference[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraph:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraph"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphEdge#from:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphEdge:interface",
+          "parentKind": "Interface",
+          "signature": "readonly from: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphEdge#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphEdge:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: SourceGraphReferenceKind;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphEdge#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphEdge:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphEdge#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphEdge:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: \"runtime\" | \"type-only\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphEdge#to:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphEdge:interface",
+          "parentKind": "Interface",
+          "signature": "readonly to: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphEdge:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraphEdge"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphExport#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphExport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"function\" | \"value\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphExport#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphExport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphExport#name:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphExport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly name: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphExport:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraphExport"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphExternal:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type SourceGraphExternal = SourceGraphUnresolved;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphFileExports#exports:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphFileExports:interface",
+          "parentKind": "Interface",
+          "signature": "readonly exports: readonly SourceGraphExport[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphFileExports#path:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphFileExports:interface",
+          "parentKind": "Interface",
+          "signature": "readonly path: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphFileExports#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphFileExports:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status: \"complete\" | \"unsupported\" | \"parse-failure\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphFileExports#unsupported:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphFileExports:interface",
+          "parentKind": "Interface",
+          "signature": "readonly unsupported: readonly SourceGraphUnsupportedExport[];"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphFileExports:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraphFileExports"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphReferenceKind:type",
+          "kind": "TypeAlias",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export type SourceGraphReferenceKind = \"commonjs\" | \"dynamic\" | \"export\" | \"export-type\" | \"import-equals\" | \"import-equals-type\" | \"static\" | \"static-type\" | \"type-query\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference#from:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference:interface",
+          "parentKind": "Interface",
+          "signature": "readonly from: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"commonjs\" | \"dynamic\" | \"type-query\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphRuntimeReference:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraphRuntimeReference"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved#from:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved:interface",
+          "parentKind": "Interface",
+          "signature": "readonly from: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: SourceGraphReferenceKind;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved#mode:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved:interface",
+          "parentKind": "Interface",
+          "signature": "readonly mode: \"runtime\" | \"type-only\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved#specifier:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved:interface",
+          "parentKind": "Interface",
+          "signature": "readonly specifier: string;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnresolved:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraphUnresolved"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnsupportedExport#kind:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnsupportedExport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly kind: \"binding\" | \"declaration\" | \"expression\" | \"reexport\" | \"module-format\";"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnsupportedExport#line:member",
+          "kind": "PropertySignature",
+          "parentReference": "@agent-teams/engineering-foundation!SourceGraphUnsupportedExport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly line: number;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!SourceGraphUnsupportedExport:interface",
+          "kind": "Interface",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface SourceGraphUnsupportedExport"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!observeSourceGraph:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function observeSourceGraph(input: ObserveSourceGraphInput): Promise<SourceGraph>;"
+        },
+        {
+          "canonicalReference": "@agent-teams/engineering-foundation!stronglyConnectedComponents:function(1)",
+          "kind": "Function",
+          "parentReference": "@agent-teams/engineering-foundation!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function stronglyConnectedComponents(edges: readonly Pick<SourceGraphEdge, \"from\" | \"to\">[]): readonly (readonly string[])[];"
         }
       ]
     }

@@ -271,7 +271,7 @@ async function writeNewFileExclusive(path, contents) {
 }
 
 windowsTest(
-  "PowerShell bootstrap compiles its helper outside the deep installed asset path without filesystem cmdlets",
+  "PowerShell bootstrap compiles its helper outside the deep installed asset path without Join-Path lookup",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));

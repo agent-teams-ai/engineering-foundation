@@ -49,6 +49,20 @@ The complete contract, compatibility, and migration rules are defined by
 The foundation is not a production dependency and is not a shared business
 kernel.
 
+Runtime selection is a narrow outer-composition concern. Engineering Foundation
+owns the minimal executable/profile selection policy and the closed Bun/pnpm
+package-script adapters. `quality.gate-runner` owns profile-manager semantics;
+`repository-agent-workflow` retains its existing policy-selected manager.
+Application request contracts carry the selected manager but never import a
+concrete package-manager adapter. The independently delivered process library
+remains a separate mechanism boundary. Functional process delegation uses the
+published exact `node-or-bun@0.2.1` coordinate and regenerated lock. Its registry
+archive matches the qualified CI artifact; SRI, registry signature, signed
+provenance source and fresh Node/Bun installed consumers were verified.
+Foundation retains process-tree custody and product-specific error translation.
+The exact closed static seam and its `not-adopted` Assembly classification are
+recorded in [Runtime profile static seam](runtime-profile-static-seam.md).
+
 Document authoring follows the same ownership boundary but remains a separate
 top-level mutation protocol rather than an executable capability. Consumers own
 document types, lifecycle, metadata, owner meaning, templates, placement
@@ -56,12 +70,20 @@ meaning, body rules, relationships, and prose or diagram tools. Profiles are
 data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
-[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md)
+[ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md),
+with the one-node amendment of
+[ADR-0062](../decisions/0062-feature-module-standard-package-admission.md),
 defines the implemented new-only package ownership boundary and is the sole
-authority for its dependency DAG:
+authority for the package dependency DAG:
 
 - `@agent-teams/ci-input-proof` owns pure CI leaf comparison; consumer Hosts retain
   completeness, classification, source admission and execution/merge authority;
+- `@agent-teams/feature-module-standard` owns the opt-in Feature Module Standard
+  checks (pure kernel and shared conformance fixtures); no other package depends
+  on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
+  adds its node to the ADR-0043 graph. Implementation status: the pure kernel
+  and fixtures have no package dependency; the `./node` runner implements its
+  accepted optional peer edge to the public Foundation source graph and budgets;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

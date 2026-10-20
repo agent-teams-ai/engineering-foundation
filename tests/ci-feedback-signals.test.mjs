@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -16,6 +15,12 @@ import {
 } from "../scripts/ci-feedback.mjs";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+
+async function ownedFixtureRoot(prefix) {
+  const temporaryBase = join(repositoryRoot, ".cache", "ci-test-tmp");
+  await mkdir(temporaryBase, { recursive: true });
+  return mkdtemp(join(temporaryBase, prefix));
+}
 
 function pathWithStub(directory, inheritedPath, separator = delimiter) {
   return `${directory}${separator}${inheritedPath}`;
@@ -269,7 +274,7 @@ test("Node compatibility qualification propagates the producer status and stdout
   assert.ok(step);
   assert.equal(step.shell, undefined);
 
-  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-compatibility-shell-"));
+  const fixtureRoot = await ownedFixtureRoot("foundation-compatibility-shell-");
   try {
     const pnpmPath = join(fixtureRoot, "pnpm");
     const markerPath = join(fixtureRoot, "stub-selected");
@@ -325,7 +330,7 @@ test("Node compatibility qualification propagates the producer status and stdout
 test("PATH separator normalization preserves qualification stub precedence", {
   skip: process.platform === "win32" && "Linux-only simulation; native Windows exercises the workflow-step test",
 }, async () => {
-  const fixtureRoot = await mkdtemp(join(tmpdir(), "foundation-compatibility-windows-path-"));
+    const fixtureRoot = await ownedFixtureRoot("foundation-compatibility-windows-path-");
   try {
     const markerPath = join(fixtureRoot, "stub-selected");
     const pnpmPath = join(fixtureRoot, "pnpm");

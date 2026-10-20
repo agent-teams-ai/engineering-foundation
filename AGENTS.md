@@ -8,6 +8,11 @@ Hard rules:
 - never import this package from production runtime code;
 - keep consumer-specific catalogs, bounded contexts, classifications, and ADRs in
   the consumer repository;
+- keep core capabilities architecture-neutral and do not extend the recorded
+  `quality.source-coverage` exception beyond the Feature Module Standard; checks
+  for a standard that defines one architecture's layout or vocabulary ship only
+  as an opt-in package named after it (see
+  [Architecture neutrality](docs/architecture/executable-capabilities.md#architecture-neutrality));
 - follow the [extraction admission invariant](docs/architecture/executable-capabilities.md#extraction-admission-invariant)
   before moving consumer implementations into Foundation;
 - keep registry mode reproducible and local mode explicit;
@@ -19,15 +24,26 @@ Hard rules:
 - machine-readable documentation indexes used only by developer tooling or AI
   agents may be evaluated independently, but they remain rebuildable caches and
   never become documentation sources of truth;
+- use ordinary `.ts` for new or substantially rewritten JavaScript-runtime source,
+  tests, scripts, and spikes; use the package's ESM declaration instead of adding
+  `.mts` or `.mjs`. Retained historical fixtures and narrow maintenance of existing
+  files do not require an unrelated repository-wide rename;
+- every executed TypeScript compiler or parser, including embedded tooling and
+  comparison oracles, must be version 7.0.2 or newer. Keep native SDK pins exact;
+  an unsupported tool is a reported gate blocker, never a reason to run an older
+  compiler or silently remove a gate;
+- put new `.ts` tooling and tests in a strict project on the required `typecheck`
+  route and preserve the complete test inventories; Node type stripping is not
+  type checking;
 - use conventional commits and short feature branches;
-- run `pnpm check:changed` while editing and `pnpm check:fast` before handoff;
-- before opening a pull request, run `pnpm check:changed`, `pnpm check:fast`,
-  `pnpm security:workflows`, and focused checks for the changed behavior;
+- run `bun tools/dev.mts check:changed` while editing and `bun tools/dev.mts check:fast` before handoff;
+- before opening a pull request, run `bun tools/dev.mts check:changed`, `bun tools/dev.mts check:fast`,
+  `bun tools/dev.mts security:workflows`, and focused checks for the changed behavior;
 - before merging, require independent technical review and the complete
   successful explicitly requested `full-ci` matrix on the final PR head/base
-  (`pnpm ci:full -- --pr N --wait`), including native qualification,
+  (`bun run ci:full -- --pr N --wait`), including native qualification,
   complete inventories, and the adopted coverage authority. Reuse that evidence
-  instead of also requiring a sequential local `pnpm verify`;
+  instead of also requiring a sequential local `node tools/dev.mts --profile node verify`;
 - treat `ci:full` and `ci:full:`-prefixed labels only as requests, never as
   qualification or trusted workflow-source authority. Feedback and full CI have
   separate concurrency groups; old snapshots may finish but cannot qualify a
@@ -36,10 +52,17 @@ Hard rules:
   blindly retry writes. Use the user's authorized credential for a labeled
   request; `GITHUB_TOKEN` labeling suppresses that workflow event. Follow the
   [request and recovery contract](docs/development/quality-gates.md);
-- use the reviewed pinned `ci:merge` operator path outside the candidate checkout,
-  binding the actual protected hosted receipt and complete source tree to the
-  final head/base/ref; do not substitute a caller-supplied review JSON;
-- retain independent hosted technical review in PR comments; `ReviewGate` is
+- `ci:merge` is an optional, stricter operator path for a change whose review
+  ran as a hosted job; when used, run the reviewed pinned tool outside the
+  candidate checkout, binding the actual protected hosted receipt and complete
+  source tree to the final head/base/ref; do not substitute a caller-supplied
+  review JSON;
+- the merging agent records the independent review in the pull request
+  (description or comment) with the reviewer role (not a model or tool name),
+  the reviewed head SHA and the verdict. It chooses the review form (for example
+  a separate local reviewer agent or a hosted review job); a completed
+  independent review of the current head is sufficient, so no additional hosted
+  review is required. `ReviewGate` is
   retired and review must not become a self-attested Actions status. Before an
   owner squash, revalidate the current PR head/base, merge intent, complete native
   evidence and independent review, then use the canonical organization
@@ -47,7 +70,8 @@ Hard rules:
   with `--expected-head`. Required-workflow authority is currently unavailable
   on GitHub Free; Actions integration `15368` alone does not authenticate
   workflow source. Keep this trust limitation explicit;
-- keep `pnpm verify` as the full local diagnostic path when full CI cannot run
+- prepare the isolated Node profile with `node tools/dev.mts --profile node install`;
+  keep `node tools/dev.mts --profile node verify` as the full local diagnostic path when full CI cannot run
   or does not cover the changed risk; retain any uncovered check. Pending CI
   alone does not require a duplicate local full run. Never relabel evidence
   from an older SHA as current-head CI;
@@ -81,5 +105,5 @@ The organization URL remains canonical authority; the snapshot is retained input
 not a separately maintained policy. Resolve its relative links at the exact
 canonical repository revision recorded in provenance. Report offline use; before
 updating this pin, review upstream delta instead of silently following main.
-`pnpm standards:check` enforces this pin in repository checks; missing or drifted retained input rejects.
+`bun run standards:check` enforces this pin in repository checks; missing or drifted retained input rejects.
 <!-- agent-teams:quality-standard:end -->

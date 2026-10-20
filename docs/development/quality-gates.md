@@ -10,8 +10,8 @@ weakening the merge gate.
 
 | Layer | Command | Purpose |
 | --- | --- | --- |
-| Changed | `pnpm check:changed` | Foundation-routed checks for the current Git delta |
-| Fast | `pnpm check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
+| Changed | `bun tools/dev.mts check:changed` | Foundation-routed checks for the current Git delta |
+| Fast | `bun tools/dev.mts check:fast` | Terminology contract, fail-closed test manifests, Oxlint syntax/correctness, and pinned TypeScript 7 |
 | Terminology | `pnpm docs:terminology:check` | Canonical glossary sections, qualification scopes, and entry-point links |
 | Architecture | `pnpm foundation:check` | All declared deterministic capabilities, including docs and ADR governance |
 | Workflow security | `pnpm security:workflows` | Pinned Actionlint and Zizmor capability qualification for all workflows and local actions |
@@ -20,7 +20,7 @@ weakening the merge gate.
 | Dead code | `pnpm dead-code:check` | Unused files, exports, types, and dependencies |
 | Full | `pnpm check` | Complete deterministic package and consumer conformance with coverage thresholds |
 | Full PR request | `pnpm ci:full -- --pr N --wait` | Explicit complete native qualification bound to the final PR head and base |
-| Local diagnostic | `pnpm verify` | Local sequential equivalent of all required Linux evidence |
+| Local diagnostic | `node tools/dev.mts --profile node verify` | Local sequential equivalent of all required Linux evidence |
 | Coverage | `pnpm test:coverage` | Local native Node coverage-threshold qualification for lines, branches, and functions |
 | Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the eight isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
@@ -34,8 +34,8 @@ Foundation's self-dogfood lifecycle is explicit and ordered:
    preceding build step succeeds.
 3. `pnpm foundation:qualification` first repeats that source dogfood, then runs
    artifact qualification against packed and hermetic-registry artifacts and
-   finally runs the pinned published-
-   version compatibility oracle. Published versions never govern current-source
+   finally runs the pinned published-operation compatibility oracle.
+   Published versions never govern current-source
    checking.
 
 The private root may link Foundation with `workspace:*` for tool resolution. The
@@ -44,10 +44,22 @@ depend on Docs Protocol, and no bootstrap package or published dependency cycle
 is part of this lifecycle.
 
 `pnpm check` is the deterministic repository and package conformance layer. It
-does not claim networked, hosted, or external-tool capability qualification. `pnpm verify`
+does not claim networked, hosted, or external-tool capability qualification. `node tools/dev.mts --profile node verify`
 is the single local command matching the union of Linux merge lanes: workflow
 security, the deterministic check, Buf, hermetic registry installation, published-version
 compatibility, dead-code analysis, and parser parity.
+
+During the single [native API baseline transition](../architecture/public-api-compatibility.md#release-qualification-remains-required),
+the private Foundation driver additionally authenticates fixed historical npm
+archives and the protected-main archive qualification record. This temporary
+migration route requires network access, GitHub Actions read access, and npm
+`11.19.0`; the complete ordinary deterministic report remains separate and
+unchanged. Successful ordinary checking after native baseline promotion skips
+that acquisition entirely. Archive acquisition and protected-host authentication
+remain private repository tooling. The shared comparison and promotion mechanism
+is the explicit [public native transition](../reference/public-api-native-transition.md)
+on the existing public API promotion command; it adds no capability enrollment
+or hosted qualification claim.
 
 Partitioned c8 coverage is the blocking Linux CI coverage authority. Each
 existing Linux test shard writes raw V8 coverage without rerunning its tests. Its
@@ -77,6 +89,17 @@ These two files are explicit Knip entries because those generated imports are
 not visible in its static test graph. Other internal facades remain subject to
 unused-export checks.
 
+The six source entrypoints in the repository-agent-workflow, source-dependencies
+v1/v2 and suppression-governance fixtures are also explicit Knip entries. Their
+owning tests copy those package trees and inspect them as source data, so there
+is no runtime import from a test to the fixture. Knip still traverses their
+ordinary imports, and all fixture files remain in the project inventory.
+Three exact source-dependency fixture leaves are classified only for the
+`unlisted` issue: their `@fixture/core` and `zod` imports are declared in the
+synthetic package manifests copied by the tests. Those independent fixtures
+reuse package names and a private catalog; they are not root workspace
+dependencies. All other issue checks still apply to those files.
+
 The shard's test result, all eight artifact uploads, evidence aggregation, and the
 stable `linux-coverage` context are fail-closed. An evidence setup or sidecar
 finalization failure may preserve the original shard test result, but the
@@ -85,7 +108,7 @@ shard's test process and its timeout.
 
 The former standalone native Node CI lane and the partitioned-coverage kill
 switch are removed. Native Node coverage remains available locally through
-`pnpm test:coverage` and remains part of `pnpm check` and `pnpm verify`; its
+`pnpm test:coverage` and remains part of `pnpm check` and `node tools/dev.mts --profile node verify`; its
 thresholds stay separate because Node and c8 calculate the measured universe
 differently.
 
@@ -157,7 +180,7 @@ focused checks for the changed behavior. Merge still requires independent
 technical review and the explicitly requested complete `full-ci` matrix on the
 final PR head and base, including all native
 qualifications and the partitioned coverage authority. A second sequential local
-`pnpm verify` is not an additional merge prerequisite when CI supplies that
+`node tools/dev.mts --profile node verify` is not an additional merge prerequisite when CI supplies that
 evidence. Keep the full local diagnostic command when full CI cannot run or a
 changed risk is not covered; retain any uncovered check. Pending CI alone does
 not require a duplicate local full run. Older-SHA results cannot be relabeled as
@@ -338,16 +361,19 @@ The label/gate delivery contract can be shared through the organization `.github
 standard; concrete GitHub orchestration and this product's native matrix belong
 to the repository Host. This helper is private and declares no published API.
 
-New CI tooling and test harnesses use `.mts` and run with the pinned Node's native
-TypeScript stripping. `typecheck:ci-tooling` checks their contracts with the pinned
-compiler as part of `typecheck`; stripping alone is not a typecheck. The blocking
-test inventory admits `.test.mts` with the same exact-once shard requirements.
+New CI tooling and test harnesses use ordinary `.ts` within ESM packages and run
+with the pinned Node's native TypeScript stripping. Every new executable belongs
+to a strict TypeScript project in the required `typecheck` chain; stripping alone
+is not a typecheck. Existing `.mts` tooling retains `typecheck:ci-tooling` coverage.
+The blocking test inventory admits `.test.ts`, `.test.mts`, and `.test.mjs` with
+the same exact-once shard requirements. The native API and local parser tests use
+strict projects with `skipLibCheck:false`.
 
 Repository protection requires the stable exact-head contexts `CodeQL`,
 `analyze`, `check`, `windows-check`, and `macos-qualification`. The integration
 owner must add required `full-ci` only after observing a successful actual PR
 request on the final implementation; each new head must then supply that check. Independent
-hosted-review evidence belongs in pull-request comments; it is not converted
+review evidence belongs in the pull request (description or comment); it is not converted
 into a workflow-authored or self-attested status check. `ReviewGate` is retired.
 
 The current GitHub Free organization cannot configure the required-workflow
@@ -361,8 +387,12 @@ candidate. Independently protected workflow authority remains an unavailable
 capability under the current plan and requires separate owner action; this
 delivery must not be described as establishing it.
 
-Independent hosted technical review remains mandatory for the current head,
-alongside complete native evidence and all required checks. Immediately before
+Independent technical review remains mandatory for the current head,
+alongside complete native evidence and all required checks. The merging agent
+chooses its form (a separate local reviewer agent, a hosted review job, or
+another independent review), and a completed review of the current head is
+sufficient. A review that did not run as a hosted job has no machine-verified
+receipt; its record in the pull request is the evidence. Immediately before
 an owner squash, revalidate the live PR head/base, intended target and reviewed
 change, native qualification and independent review. Use the canonical
 organization
@@ -449,6 +479,19 @@ prerequisite of every executable pull request job and is included by both
 required aggregators. CodeQL runs as a separate hosted analysis; none of these tools execute
 inside a normal capability check.
 
+Full local diagnostics use the isolated Node/pnpm projection. Run
+`node tools/dev.mts --profile node install` before
+`node tools/dev.mts --profile node verify`; package and coverage evidence must
+not be attributed to the source worktree's Bun dependency graph. The Bun default
+keeps changed and fast feedback in the source worktree.
+
+Package public API tests invoke the existing repository-owned pnpm command as a
+child process for the closed `pack --out ABS.tgz` operation. The Host verifies
+physical Node/pnpm identities, rejects lifecycle hooks before manager admission
+and disables scripts for packing. Package tests do not import repository tooling
+modules across their package source boundaries; no source-DAG exception or new
+module-system boundary is introduced.
+
 ## Feature ownership and complete production scope
 
 `pnpm quality:scope:check` retains EF-specific inventory, language, ambient-rule coverage and exact ambient exception validation. The [shared quality capability](../reference/quality-source-coverage.md) owns independent source/suppression coverage and actual Oxlint selection: `quality:coverage:scope` runs in the fast gate, and `lint:typed` runs the full CLI once in the full gate. `pnpm architecture:features:check` executes the [local adoption](../architecture/feature-module-standard.md) guard, including actual source edges. Both run in `check` and `check:fast`; unresolved ownership migrations fail closed. Typed lint covers every production `src`, including packaged qualification code, with unchanged rules and thresholds.
@@ -462,9 +505,10 @@ review gates as a handwritten change.
 
 Major `@types/node` updates remain on the accepted Node runtime line until a
 reviewed toolchain decision changes it. Major TypeScript updates are also manual
-because the repository owns a primary compiler and a separate parser-oracle
-compatibility lane. Related non-major API Extractor and Oxc updates are grouped
-so their coupled evidence is reviewed together.
+because the build, public API adapter, and independent parser oracle all use the
+exact TypeScript 7 compiler. The parser oracle and native API tests have strict
+TypeScript projects in the required `typecheck` command. Related non-major API
+model and Oxc updates are reviewed with their coupled evidence.
 
 ## Lint contract
 
@@ -525,7 +569,7 @@ oxlint-tsgolint, and TypeScript versions and proves the published type-aware
 preset, the source graph, documentation links and anchors, idempotent ADR baseline
 promotion, and both contract-evolution capabilities.
 Linux CI separately runs the real Aqua-pinned Buf capability-qualification E2E because the
-normal capability and package checks are intentionally process-free. The E2E
+normal Buf capability checks are intentionally process-free. The E2E
 proves compatible and breaking `FILE` behavior plus rejection of modified
 committed evidence after a fresh Buf rerun.
 The tarball is extracted and searched for a source-owned secret canary. Linux CI
@@ -555,6 +599,66 @@ Record each resumed command separately; platform skips and partial reruns do not
 establish full-suite, supported-platform or release qualification.
 
 ## Private combined artifact qualification
+
+### Native package type qualification
+
+`scripts/check-publishable-packages.mjs` applies publint and the private native
+TypeScript 7.0.2 qualifier to every package in the owner-derived publication
+projection. Each check packs its actual staged package with lifecycle scripts
+disabled. Markdown publication staging remains shared with registry and release
+qualification. The native compiler reads only the inspected archive through a
+closed virtual filesystem; checkout files cannot repair missing packed files.
+
+The admitted package contract is explicit: `type: module`, typed exports with
+exactly a first `types` condition followed by `import`, and JSON data exports or
+bounded JSON wildcards. Every typed export must resolve to its exact declaration
+target in both Node16 ESM and Bundler modes. Every packed code file must use
+ESM format and explicit import/export syntax under `dist`; native observations
+cover JavaScript and declarations. Valid syntax-free ESM, including files with
+only side effects, is outside this current compiled-package domain. Relative,
+self-package and `#` imports must resolve
+to real packed files, and JavaScript runtime references must separately identify
+packed JavaScript or JSON rather than just a declaration sibling.
+
+Exact exports take precedence over bounded JSON wildcard self-imports;
+overlapping wildcard subpath domains reject. Legacy resolution fields,
+alternate condition graphs, CommonJS files, nested
+package scopes, unsupported declaration export forms and unrecognized code
+layouts reject. These executable exclusions remove the CommonJS premises of the
+former ATTW interoperability checks. The former `esm-only` policy did not claim
+CommonJS-consumer support; the native qualifier makes no such claim either.
+Focused fixtures retain the twelve former problem-class premises, including
+missing types, fallback targets, format disagreement and internal resolution.
+This is a bounded ESM package qualifier, not a general ATTW compatibility layer
+or a replacement for the separately required complete declaration typecheck.
+
+### Historical published operations
+
+The mandatory published compatibility route installs exact-SRI Foundation
+`0.11.0`, `0.12.0` and `0.14.0` with lifecycle scripts disabled. Its private
+ordinary TypeScript driver calls their unchanged public scaffolding and local
+mode operations, using the same composition as each published CLI. It retains
+the canonical and orphan-temporary transaction barriers, actual Plan/Receipt
+and output-byte comparisons, and unsupported schema-v3 status and mutation
+refusals. Current candidate CLI qualification remains separate and required.
+
+These are explicitly **published operation-boundary** observations. They do not
+qualify old CLI startup, argument parsing, stdout rendering or process exit
+codes. Those old monolithic CLIs import a compiler below the repository's
+TypeScript 7.0.2 floor. The driver inspects each installed public import closure
+as data before evaluation and admits the original dormant computed import only
+at its exact path and content hash. A deny-only runtime hook rejects compiler
+and API Extractor loading, including aliases and realpaths, before evaluation.
+It never replaces modules or results, and a caught denial still fails the
+qualification. Separate managed-restoration obligations that require an actual
+historical CLI retain their own existing actual-CLI scenarios.
+
+All new tooling and safety tests belong to the required strict TypeScript
+project and complete Linux and Windows test inventories. Negative synthetic
+fixtures test the driver's refusal behavior; the positive compatibility oracle
+is the unchanged published implementation.
+
+### Shared packed and registry artifacts
 
 `pnpm package:qualification:built` prepares and checks publishable manifests,
 then runs the full packed and hermetic-registry consumers sequentially against
@@ -628,6 +732,11 @@ no product module boundary, capability contract or CMS adoption change.
 
 
 ### Trusted owner merge operation
+
+This is the optional stricter path for a change whose review ran as a hosted
+job. Without `ci:merge`, perform the revalidation described above (live PR
+head/base, complete native evidence and the recorded independent review), then
+run `merge-owner-pr.mjs` directly with `--expected-head`.
 
 Invoke the reviewed, pinned operator tool from outside the candidate checkout,
 with a trusted Node binary and without `NODE_OPTIONS` or `NODE_PATH` injection:

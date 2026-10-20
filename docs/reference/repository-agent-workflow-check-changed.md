@@ -1,12 +1,18 @@
 # Check-changed coverage and v2 migration
 
-Status: C1 continuation source, pending Root composition, artifact admission and
-candidate qualification. No release, production Host or consumer adoption claim.
+Status: Source implementation and additive composition are present. Artifact
+admission, candidate qualification and release remain pending. No production
+Host or consumer adoption claim.
 
 The additive `agent-workflow check-changed` command uses config v2 and report v2.
 The published `agent-workflow changed` command, v1 config/schema and typed root
-exports retain their historical feedback contract. A v1 policy on the successor
-route rejects with a migration diagnostic before executing any consumer script.
+exports retain their historical feedback contract. Legacy v2 policies with
+`packageManager`, `changedChecks` and `fullScanPaths` also retain that contract
+and use `changed`. The ordinary capability selects coverage validation when any
+own `scopes`, `checks`, `exclusions` or `escalationCheck` field is present in v2.
+A policy with both shapes uses coverage validation and `check-changed`; malformed
+or partial coverage never falls back to legacy validation. A v1 or legacy v2
+policy on the successor route rejects before executing any consumer script.
 
 Replace `changedChecks` and `fullScanPaths` with explicit `scopes`, `checks`,
 `exclusions` and `escalationCheck`. Scopes supply consumer-owned required facets
@@ -20,6 +26,7 @@ command semantics rather than infer facets from check names.
 
 ```yaml
 schemaVersion: 2
+packageManager: pnpm
 instructions:
   canonical: AGENTS.md
   claude: CLAUDE.md
@@ -46,8 +53,8 @@ escalationCheck: typecheck
 
 This minimal example covers only project typechecking. A consumer requiring
 lint, tests, standards or architecture declares those separately. Route its
-`check:changed` script to the installed successor CLI when Root's additive
-composition and schema registration are present. Keep dependencies pinned to the
+`check:changed` script to the installed successor CLI (`agent-teams-foundation
+agent-workflow check-changed --consumer .`). Keep dependencies pinned to the
 published version until an authorized release; candidate installs are TEST data.
 
 A successful mutable checkout returns `feedback-only`, binding `unverified`,

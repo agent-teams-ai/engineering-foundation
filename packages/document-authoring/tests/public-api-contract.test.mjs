@@ -29,11 +29,10 @@ async function linkDependency(source, destination) {
 async function copyInstalledPackage(sourceRoot, targetRoot) {
   await mkdir(targetRoot, { recursive: true });
   const archive = `${targetRoot}.tgz`;
-  const packed = spawnSync("pnpm", ["pack", "--out", archive], {
+  const packed = spawnSync(process.execPath, [join(repositoryRoot, "tools/pnpm-command.mts"), "pack", "--out", archive], {
     cwd: sourceRoot, encoding: "utf8", timeout: 60_000,
     env: { ...process.env, COREPACK_HOME: process.env.COREPACK_HOME ?? "/tmp/ef-corepack",
-      pnpm_config_verify_deps_before_run: "false" },
-    shell: process.platform === "win32"
+      pnpm_config_verify_deps_before_run: "false" }
   });
   assert.equal(packed.error, undefined, packed.error?.message);
   assert.equal(packed.status, 0, packed.stdout + packed.stderr);

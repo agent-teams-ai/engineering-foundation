@@ -35,6 +35,10 @@ export function assertPackageScriptCatalogActive(signal: AbortSignal | undefined
   assertNotCancelled(signal);
 }
 
+export function rejectQualityGateBunExecutor(): never {
+  throw new FoundationError("PROCESS_FAILED", "Unable to resolve a verified Bun executable.");
+}
+
 export function rejectQualityGateExecutor(): never {
   throw new FoundationError(
     "PROCESS_FAILED",

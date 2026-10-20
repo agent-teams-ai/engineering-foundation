@@ -160,7 +160,12 @@ async function stagePackageDirectory(input: {
     compareCanonicalReferences(left.name, right.name)
   )) {
     const sourcePath = join(input.sourceDirectory, entry.name);
-    if (entry.name === "node_modules" || entry.name.startsWith(STAGING_DIRECTORY_PREFIX)) {
+    if (
+      entry.name === "node_modules" ||
+      // Generated runtime-profile projection copies duplicate the source tree.
+      entry.name === ".worker-tmp" ||
+      entry.name.startsWith(STAGING_DIRECTORY_PREFIX)
+    ) {
       continue;
     }
     const destinationPath = join(input.destinationDirectory, entry.name);
@@ -216,6 +221,7 @@ async function stageRepositoryCompilerInputs(input: {
     if (
       entry.name === ".git" ||
       entry.name === "node_modules" ||
+      entry.name === ".worker-tmp" ||
       entry.name.startsWith(STAGING_DIRECTORY_PREFIX) ||
       sourcePath === input.sourcePackageRoot
     ) {

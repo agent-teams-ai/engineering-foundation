@@ -1,10 +1,11 @@
 import { configurationInputError as invalid, assertConfigRepositoryRelativePath } from "../../../application/configuration-input.js";
 import type { CoverageCheck, CoverageFacet, WorkflowCoveragePolicy } from "../../../application/model/check-changed.js";
 
-function object(value: unknown, keys: readonly string[], name: string): Record<string, unknown> {
+function object(value: unknown, keys: readonly string[], name: string, optional: readonly string[] = []): Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {invalid(`${name} must be an object.`);}
   const result = value as Record<string, unknown>;
-  if (Object.keys(result).some((key) => !keys.includes(key)) || keys.some((key) => !Object.hasOwn(result, key))) {invalid(`${name} requires exactly: ${keys.join(", ")}.`);}
+  const allowed = [...keys, ...optional];
+  if (Object.keys(result).some((key) => !allowed.includes(key)) || keys.some((key) => !Object.hasOwn(result, key))) {invalid(`${name} requires exactly: ${keys.join(", ")}${optional.length === 0 ? "" : ` (optional: ${optional.join(", ")})`}.`);}
   return result;
 }
 function text(value: unknown, name: string, pattern?: RegExp): string {
@@ -49,8 +50,11 @@ function check(value: unknown): CoverageCheck {
 }
 export function parseAgentWorkflowPolicyV2(value: unknown): WorkflowCoveragePolicy {
   if (typeof value === "object" && value !== null && "schemaVersion" in value && value.schemaVersion === 1) {invalid("check-changed requires repository-agent-workflow/v2. Migrate changedChecks to explicit repository scopes, requiredFacets, supplies and observations; keep changed for historical v1 feedback.");}
-  const input = object(value, ["schemaVersion", "instructions", "scripts", "scopes", "checks", "exclusions", "escalationCheck"], "workflow v2");
+  if (typeof value === "object" && value !== null && "changedChecks" in value && !("scopes" in value)) {invalid("check-changed requires explicit repository scopes, requiredFacets, supplies and observations; keep changed for historical changedChecks feedback.");}
+  const input = object(value, ["schemaVersion", "packageManager", "instructions", "scripts", "scopes", "checks", "exclusions", "escalationCheck"], "workflow v2", ["changedChecks", "fullScanPaths"]);
   if (input["schemaVersion"] !== 2) {invalid("check-changed requires schemaVersion: 2.");}
+  const packageManager = input["packageManager"];
+  if (packageManager !== "bun" && packageManager !== "pnpm") {invalid('packageManager must be "bun" or "pnpm".');}
   const ins = object(input["instructions"], ["canonical", "claude", "gemini", "copilot"], "instructions");
   const instructions = Object.freeze({ canonical: path(ins["canonical"]), claude: path(ins["claude"]), gemini: path(ins["gemini"]), copilot: path(ins["copilot"]) });
   unique(Object.values(instructions), "instruction paths");
@@ -70,7 +74,12 @@ export function parseAgentWorkflowPolicyV2(value: unknown): WorkflowCoveragePoli
     return Object.freeze({ path: path(entry["path"]), reason: text(entry["reason"], "exclusion reason") });
   }, 0);
   unique(exclusions.map((entry) => entry.path), "exclusions");
+  if (exclusions.some((entry) => scopes.some((scope) => scope.roots.some((root) =>
+    entry.path === "*" || (root !== "*" && (root === entry.path || root.startsWith(`${entry.path}/`)))
+  )))) {
+    invalid("Exclusions must not overlap scope roots; excluded paths would silently skip required facets.");
+  }
   const escalationCheck = id(input["escalationCheck"]);
   if (!checks.some((entry) => entry.id === escalationCheck) || scopes.some((scope) => scope.checks.some((name) => !checks.some((entry) => entry.id === name)))) {invalid("Unknown check mapping.");}
-  return Object.freeze({ schemaVersion: 2, instructions, scripts, scopes, checks, exclusions, escalationCheck });
+  return Object.freeze({ schemaVersion: 2, packageManager, instructions, scripts, scopes, checks, exclusions, escalationCheck });
 }

@@ -1,4 +1,4 @@
-import { lstat } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import type { PackageScriptRunner } from "../../../application/ports/changed-workflow.js";
@@ -6,6 +6,7 @@ import { rejectWorkflowExecutor } from "../../../application/policies/workflow-i
 import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
 
 export interface PnpmProcessEnvironment {
+  readonly nodeExecutablePath?: string;
   readonly npmExecPath?: string;
   readonly pnpmHome?: string;
   readonly pathValue?: string;
@@ -25,13 +26,15 @@ async function nodeEntrypoint(
   candidates: readonly (string | undefined)[]
 ): Promise<string | undefined> {
   for (const candidate of candidates) {
-    if (
-      candidate !== undefined &&
-      isAbsolute(candidate) &&
-      /\.(?:c|m)?js$/u.test(candidate) &&
-      await isRegularFile(candidate)
-    ) {
-      return candidate;
+    if (candidate !== undefined && isAbsolute(candidate)) {
+      const canonical = await realpath(candidate).catch(() => null);
+      if (
+        canonical !== null &&
+        /\.(?:c|m)?js$/iu.test(canonical) &&
+        await isRegularFile(canonical)
+      ) {
+        return canonical;
+      }
     }
   }
   return undefined;
@@ -40,6 +43,22 @@ async function nodeEntrypoint(
 async function resolvePnpmInvocation(
   environment: PnpmProcessEnvironment
 ): Promise<PnpmInvocation> {
+  if (
+    process.platform !== "win32" &&
+    environment.npmExecPath !== undefined &&
+    isAbsolute(environment.npmExecPath)
+  ) {
+    // Same precedence as the quality-gate executor: an explicit native
+    // npmExecPath wins, classified on the canonical executed target.
+    const canonical = await realpath(environment.npmExecPath).catch(() => null);
+    if (canonical !== null && await isRegularFile(canonical)) {
+      if (!/\.(?:c|m)?js$/iu.test(canonical)) {
+        return { command: canonical, argsPrefix: [] };
+      }
+    } else if (!/\.(?:c|m)?js$/iu.test(environment.npmExecPath)) {
+      rejectWorkflowExecutor();
+    }
+  }
   const pnpmPackageEntrypoint =
     environment.pnpmHome === undefined
       ? undefined
@@ -49,7 +68,10 @@ async function resolvePnpmInvocation(
     pnpmPackageEntrypoint
   ]);
   if (entrypoint !== undefined) {
-    return { command: process.execPath, argsPrefix: [entrypoint] };
+    if (environment.nodeExecutablePath === undefined) {
+      rejectWorkflowExecutor();
+    }
+    return { command: environment.nodeExecutablePath, argsPrefix: [entrypoint] };
   }
   if (process.platform !== "win32") {
     return { command: "pnpm", argsPrefix: [] };
@@ -80,11 +102,15 @@ export class PnpmPackageScriptRunner implements PackageScriptRunner {
   ) {}
 
   async run(input: {
+    readonly packageManager: "bun" | "pnpm";
     readonly consumerRoot: string;
     readonly script: string;
     readonly paths: readonly string[];
     readonly signal?: AbortSignal;
   }) {
+    if (input.packageManager !== "pnpm") {
+      rejectWorkflowExecutor();
+    }
     const args = [
       "run",
       input.script,

@@ -9,12 +9,14 @@ import { assertSchema, isFoundationSchemaId, readFoundationSchema } from "../sch
 import { loadFoundationConfig, runFoundationCheck } from "./foundation-check.js";
 import { RULE_REGISTRY } from "./rule-registry.js";
 import { createQualityCommand } from "./quality-coverage.js";
+import { createFindingsBaselineCommandsFactory } from "../capabilities/findings-baseline/module.js";
 
 const host = createFoundationCommandHost({
   artifactSchemaInspector: new AjvJsonSchemaReleaseInspector({ read: readContainedRegularFile }),
   scaffoldingApi, FoundationLocalModeService, inspectFoundationPackage,
   assertSchema, isFoundationSchemaId, readFoundationSchema,
-  loadFoundationConfig, runFoundationCheck, RULE_REGISTRY, createQualityCommand
+  loadFoundationConfig, runFoundationCheck, RULE_REGISTRY, createQualityCommand,
+  createFindingsBaselineCommands: createFindingsBaselineCommandsFactory(assertSchema)
 });
 
 export async function runProcessFoundationCli(): Promise<void> {

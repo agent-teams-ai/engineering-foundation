@@ -3,10 +3,12 @@ import { lstat, readFile, readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
 import YAML from "yaml";
 import { parseSync } from "oxc-parser";
+import { findOverlappingRoots, isWithin } from "../../packages/feature-module-standard/dist/index.js";
 
 export const roles = new Set(["domain", "integration", "platform", "sdk", "testing"]);
 export const layers = new Set(["domain", "application", "contracts", "adapters", "composition", "testing"]);
-export const within = (path, root) => path === root || path.startsWith(`${root}/`);
+// Path containment and root overlap are Feature Module Standard kernel semantics shared with every adopting checker.
+export const within = isWithin;
 export const problem = (problems, code, message) => problems.push({ code, message });
 export const digest = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 export function portable(path) {
@@ -88,20 +90,19 @@ async function hasArtifact(repositoryRoot, root) {
   return false;
 }
 async function validateRoots(repositoryRoot, module, problems) {
-  const roots = ownershipRoots(module);
-  for (const [index, item] of roots.entries()) {
+  const valid = [];
+  for (const item of ownershipRoots(module)) {
     if (!portable(item.root) || !within(item.root, module.sourceRoot) || item.root === module.sourceRoot) {
       problem(problems, "ownership-root", `${module.id}: invalid ownership root ${item.root}.`);
       continue;
     }
-    for (const previous of roots.slice(0, index)) {
-      if (within(item.root, previous.root) || within(previous.root, item.root)) {
-        problem(problems, "overlapping-ownership", `${previous.root} overlaps ${item.root}.`);
-      }
-    }
+    valid.push(item.root);
     if (!await hasArtifact(repositoryRoot, item.root)) {
       problem(problems, "empty-layer", `${item.root} has no production artifact.`);
     }
+  }
+  for (const [previous, root] of findOverlappingRoots(valid)) {
+    problem(problems, "overlapping-ownership", `${previous} overlaps ${root}.`);
   }
 }
 async function validateFeature(repositoryRoot, module, feature, problems) {

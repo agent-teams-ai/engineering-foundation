@@ -23,13 +23,34 @@ import {
   publicationClosureDecision,
 } from "./public-managed-registry-canary-policy.mjs";
 import { observeSupportingMcp, qualifySupportingMcp } from "./public-managed-registry-canary-mcp.mjs";
+import { observeQualificationRuntime } from "./public-managed-registry-canary-runtime-policy.mts";
+import {
+  assertCanonicalManagedState,
+  assertCohortV3QualificationReceiptDigest,
+  assertQualificationReceiptDigest,
+  managedQualificationCohortV2,
+  managedQualificationCohortV3,
+} from "./public-managed-registry-canary-qualification.mts";
 import { verifiedProvenanceFromNpmAudit } from "./release-publish-ordered-runtime.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const receiptSchemaPath = join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v1.schema.json");
+const receiptSchemaPaths = Object.freeze({
+  1: join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v1.schema.json"),
+  2: join(repositoryRoot, "architecture", "foundation", "schemas", "public-managed-registry-canary-receipt-v2.schema.json"),
+});
 const commandTimeout = 240_000;
-const adapterSegments = ["node_modules", "@agent-teams", "docs-protocol-agent-teams"];
 const FORBIDDEN_MCP = "@agent-teams/docs-protocol-mcp";
+const qualificationHost = Object.freeze({
+  parseJson: (value) => JSON.parse(value),
+  readSchema: async (path) => JSON.parse(await readFile(path, "utf8")),
+  run: async (command, args, cwd, options) => await runCommand(command, [...args], cwd, options),
+});
+
+export {
+  assertCanonicalManagedState,
+  assertCohortV3QualificationReceiptDigest,
+  assertQualificationReceiptDigest,
+};
 
 function sha256(bytes) { return `sha256:${createHash("sha256").update(bytes).digest("hex")}`; }
 
@@ -127,7 +148,18 @@ export function assertPnpmLockCoordinates(lockfileBytes, authority) {
   }
 }
 
-async function installConsumer(root, authority, manager) {
+async function installConsumer(root, authority, manager, runtimeObservation) {
+  if (authority.cohort.schemaVersion === 3 && manager === "pnpm" &&
+      (runtimeObservation === undefined ||
+       runtimeObservation.nodeVersion !== "26.11.1" ||
+       runtimeObservation.pnpmVersion !== "11.20.0" ||
+       runtimeObservation.platform !== "linux" ||
+       runtimeObservation.architecture !== "x64")) {
+    throw new Error("Pre-install runtime observation is not the exact qualified tuple.");
+  }
+  const boundRuntimeObservation = authority.cohort.schemaVersion === 3 && manager === "pnpm"
+    ? runtimeObservation
+    : undefined;
   await writeConsumer(root, authority, `public-managed-canary-${manager}`);
   if (manager === "npm") {
     await runNpmCommand([
@@ -156,6 +188,7 @@ async function installConsumer(root, authority, manager) {
   }
   return Object.freeze({
     lockfileBytes,
+    ...(boundRuntimeObservation === undefined ? {} : { runtimeObservation: boundRuntimeObservation }),
     receipt: Object.freeze({
       fivePackageLockValidated: true,
       lockfileDigest,
@@ -251,151 +284,12 @@ async function portableNegative(root, authority, docsInventory) {
   });
 }
 
-function qualificationProfile(cohort, repository) {
-  return Object.freeze({
-    schemaVersion: 3,
-    repository,
-    integrationRoot: ".",
-    packageManager: "pnpm",
-    profilePath: "architecture/foundation/docs-protocol.yaml",
-    skillPath: ".agents/skills/docs-authoring/SKILL.md",
-    callerWorkflowPath: ".github/workflows/docs-protocol.yml",
-    managedStatePath: "architecture/foundation/docs-protocol-managed-state.json",
-    qualification: {
-      contractPath: "architecture/foundation/docs-protocol-qualification.json",
-      gateCommand: "pnpm docs:protocol:check",
-    },
-    cohort,
-  });
-}
-
-function canonicalJson(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (value !== null && typeof value === "object") {
-    return `{${Object.entries(value).toSorted(([left], [right]) =>
-      Buffer.compare(Buffer.from(left), Buffer.from(right)))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
-export function assertQualificationReceiptDigest(receipt) {
-  const { receiptDigest, ...body } = receipt;
-  if (receiptDigest !== sha256(Buffer.from(canonicalJson(body), "utf8"))) {
-    throw new Error("Qualification v3 receipt digest is not independently canonical.");
-  }
-}
-
-export function assertCanonicalManagedState(serialization) {
-  if (typeof serialization !== "string" || !serialization.endsWith("\n")) {
-    throw new Error("Managed-state v2 serialization is not newline terminated.");
-  }
-  const state = JSON.parse(serialization);
-  if (serialization !== `${canonicalJson(state)}\n`) {
-    throw new Error("Managed-state v2 serialization is not canonical JSON.");
-  }
-  const { stateDigest, ...body } = state;
-  const expected = sha256(Buffer.from(canonicalJson({
-    domain: "agent-teams.docs-protocol.managed-state/v2",
-    body,
-  }), "utf8"));
-  if (stateDigest !== expected) {
-    throw new Error("Managed-state v2 stateDigest is invalid.");
-  }
-  return state;
-}
-
-async function validateManagedQualification(root, qualificationReceipt, managedStateSerialization, profile) {
-  assertQualificationReceiptDigest(qualificationReceipt);
-  const managedState = assertCanonicalManagedState(managedStateSerialization);
-  const schemaRoot = join(root, ...adapterSegments, "schemas");
-  const qualificationSchema = JSON.parse(await readFile(join(schemaRoot, "docs-protocol-qualification-receipt", "v3.schema.json"), "utf8"));
-  const cohortSchema = JSON.parse(await readFile(join(schemaRoot, "qualified-docs-cohort", "v2.schema.json"), "utf8"));
-  const profileSchema = JSON.parse(await readFile(join(schemaRoot, "docs-consumer-integration-profile", "v3.schema.json"), "utf8"));
-  const managedSchema = JSON.parse(await readFile(join(schemaRoot, "docs-consumer-managed-state", "v2.schema.json"), "utf8"));
-  const docsProtocolSchema = JSON.parse(await readFile(join(schemaRoot, "docs-protocol-profile", "v1.schema.json"), "utf8"));
-  if (profileSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-integration-profile/v3" ||
-      managedSchema.$id !== "https://agent-teams.ai/schemas/docs-consumer-managed-state/v2" ||
-      docsProtocolSchema.$id !== "https://agent-teams.ai/schemas/docs-protocol-profile/v1") {
-    throw new Error("Installed schema tuple identity is not exactly 3/2/1.");
-  }
-  const ajv = new Ajv2020({ allErrors: true, strict: true });
-  ajv.addSchema(cohortSchema);
-  for (const [label, schema, value] of [
-    ["consumer integration profile v3", profileSchema, profile],
-    ["qualification receipt v3", qualificationSchema, qualificationReceipt],
-    ["managed state v2", managedSchema, managedState],
-  ]) {
-    const validate = ajv.compile(schema);
-    if (!validate(value)) {
-      throw new Error(`Installed ${label} schema validation failed: ${JSON.stringify(validate.errors)}`);
-    }
-  }
-  ajv.compile(docsProtocolSchema);
-  return managedState;
-}
-
-async function managedQualification(root, authority, repository, observedPackages, lockfileEvidence) {
-  if (sha256(lockfileEvidence.lockfileBytes) !== lockfileEvidence.receipt.lockfileDigest) {
-    throw new Error("Captured pnpm lockfile bytes differ from install receipt digest.");
-  }
-  const authorityProfile = qualificationProfile(authority.cohort, repository);
-  const capturedLockfile = lockfileEvidence.lockfileBytes.toString("base64");
-  const program = [
-    "import { createHash } from 'node:crypto';",
-    `const authorityProfile = ${JSON.stringify(authorityProfile)};`,
-    `const capturedLockfileBytes = Buffer.from(${JSON.stringify(capturedLockfile)}, 'base64');`,
-    `const expectedLockfileDigest = ${JSON.stringify(lockfileEvidence.receipt.lockfileDigest)};`,
-    "if (`sha256:${createHash('sha256').update(capturedLockfileBytes).digest('hex')}` !== expectedLockfileDigest) throw new Error('Embedded lockfile capture digest mismatch.');",
-    "const exactLockfileBytes = () => Buffer.from(capturedLockfileBytes);",
-    "const { canonicalDocsScriptsDigest, canonicalManagedRoute, canonicalManagedState, describeCanonicalConsumerAssets } = await import('@agent-teams/docs-protocol-agent-teams');",
-    "const { observeDocsProtocolQualificationV3Lockfile, runDocsProtocolQualificationV3 } = await import('@agent-teams/docs-protocol-agent-teams/qualification');",
-    "const observed = observeDocsProtocolQualificationV3Lockfile({ profile: authorityProfile, lockfileBytes: exactLockfileBytes() });",
-    "if (observed.runtimeClosureDigest !== authorityProfile.cohort.runtime.runtimeClosureDigest) throw new Error('Observed runtime closure differs from Cohort authority.');",
-    "const trustedCohort = { ...authorityProfile.cohort, runtime: { ...authorityProfile.cohort.runtime, runtimeClosureDigest: observed.runtimeClosureDigest } };",
-    "const profile = { ...authorityProfile, cohort: trustedCohort };",
-    `const evidence = { packages: ${JSON.stringify(observedPackages)}, schemas: { consumerIntegration: 3, managedState: 2, docsProtocol: 1 }, runtimeClosureDigest: observed.runtimeClosureDigest };`,
-    "const receipt = runDocsProtocolQualificationV3({ profile, evidence, lockfileBytes: exactLockfileBytes() });",
-    "const canonical = describeCanonicalConsumerAssets(profile.cohort);",
-    "const routeDigest = `sha256:${createHash('sha256').update(canonicalManagedRoute(profile.skillPath)).digest('hex')}`;",
-    "const assets = { ...canonical, agentsRouteDigest: routeDigest, docsScriptsDigest: canonicalDocsScriptsDigest(profile.profilePath) };",
-    "const managedState = canonicalManagedState(profile, assets);",
-    "process.stdout.write(JSON.stringify({ managedState, observed, receipt }));",
-  ].join("\n");
-  const result = await runCommand(process.execPath, ["--input-type=module", "--eval", program], root, { timeoutMs: commandTimeout });
-  const output = JSON.parse(result.stdout);
-  const managedState = await validateManagedQualification(
-    root,
-    output.receipt,
-    output.managedState,
-    qualificationProfile(authority.cohort, repository),
-  );
-  if (output.observed.runtimeClosureDigest !== output.receipt.runtime.runtimeClosureDigest ||
-      managedState.schemaVersion !== 2) {
-    throw new Error("Managed qualification evidence is internally inconsistent.");
-  }
-  return Object.freeze({
-    actualRuntimeClosureDigest: output.observed.runtimeClosureDigest,
-    managedState: Object.freeze({
-      schemaVersion: 2,
-      schemaValidated: true,
-      serialization: output.managedState,
-      stateDigest: managedState.stateDigest,
-    }),
-    qualificationReceipt: Object.freeze(output.receipt),
-    schemaEvidence: Object.freeze({
-      consumerIntegration: 3,
-      docsProtocol: 1,
-      managedState: 2,
-      validated: true,
-    }),
-  });
-}
-
 async function validateReceipt(receipt) {
-  const schema = JSON.parse(await readFile(receiptSchemaPath, "utf8"));
+  const schemaPath = Reflect.get(receiptSchemaPaths, receipt.schemaVersion);
+  if (typeof schemaPath !== "string") {
+    throw new Error(`Unsupported canary receipt schemaVersion ${String(receipt.schemaVersion)}.`);
+  }
+  const schema = JSON.parse(await readFile(schemaPath, "utf8"));
   const validate = new Ajv2020({ allErrors: true, strict: true }).compile(schema);
   if (!validate(receipt)) {
     throw new Error(`Canary receipt schema validation failed: ${JSON.stringify(validate.errors)}`);
@@ -414,10 +308,13 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
     }
     assertRegistryObservations(authority, observations);
 
+    const runtimeObservation = authority.cohort.schemaVersion === 3
+      ? observeQualificationRuntime()
+      : undefined;
     const npmRoot = join(temporaryRoot, "npm-three-root");
     const pnpmRoot = join(temporaryRoot, "pnpm-three-root");
-    const npmInstall = await installConsumer(npmRoot, authority, "npm");
-    const pnpmInstall = await installConsumer(pnpmRoot, authority, "pnpm");
+    const npmInstall = await installConsumer(npmRoot, authority, "npm", runtimeObservation);
+    const pnpmInstall = await installConsumer(pnpmRoot, authority, "pnpm", runtimeObservation);
     const supportingReleasePrecondition = await qualifySupportingMcp(
       join(temporaryRoot, "npm-supporting-mcp"), authority, supportingMcpCoordinateValue,
     );
@@ -443,22 +340,36 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
       integrity: observations[name].integrity,
       version: observations[name].version,
     }]));
-    const qualification = await managedQualification(
-      pnpmRoot,
-      authority,
-      repository,
-      observedPackages,
-      pnpmInstall,
-    );
+    const qualification = authority.cohort.schemaVersion === 3
+      ? await managedQualificationCohortV3(
+        pnpmRoot,
+        authority,
+        repository,
+        { observedPackages, lockfileEvidence: pnpmInstall },
+        qualificationHost,
+      )
+      : await managedQualificationCohortV2(
+        pnpmRoot,
+        authority,
+        repository,
+        { observedPackages, lockfileEvidence: pnpmInstall },
+        qualificationHost,
+      );
     const hostile = [
       ...hostilePolicyMatrix(authority),
       { id: "tarball-inventory", mode: "installed-execution", outcome: "passed" },
       { id: "portable-managed-denylist", mode: "installed-execution", outcome: "passed" },
       { id: "qualification-v3", mode: "installed-execution", outcome: "passed" },
-      { id: "managed-state-v2-schema", mode: "installed-execution", outcome: "passed" },
+      {
+        id: authority.cohort.schemaVersion === 3
+          ? "managed-state-v3-schema"
+          : "managed-state-v2-schema",
+        mode: "installed-execution",
+        outcome: "passed",
+      },
     ];
     const receipt = finalizeCanaryReceipt({
-      schemaVersion: 1,
+      schemaVersion: authority.cohort.schemaVersion === 3 ? 2 : 1,
       run,
       authority: {
         central: authority.central,
@@ -468,7 +379,12 @@ export async function runPublicManagedRegistryCanary({ authority, outputPath, re
       },
       packages,
       supportingReleasePrecondition,
-      installs: [npmInstall.receipt, pnpmInstall.receipt],
+      installs: [
+        npmInstall.receipt,
+        authority.cohort.schemaVersion === 3
+          ? { ...pnpmInstall.receipt, runtimeObservation }
+          : pnpmInstall.receipt,
+      ],
       portableNegative: portable,
       managedQualification: qualification,
       hostile,

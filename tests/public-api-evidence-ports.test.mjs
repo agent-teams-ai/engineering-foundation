@@ -1,7 +1,7 @@
 import { registerGrowthAdmissionCases } from "./support/public-api-growth-admission-cases.mjs";
 import { parse as readArchitectureYaml } from "yaml";
 import assert from "node:assert/strict";
-import { readFile, readdir as readDirectory, realpath, rm, writeFile } from "node:fs/promises";
+import { readFile, readdir as readDirectory, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, sep } from "node:path";
 import test from "node:test";
 
@@ -9,7 +9,7 @@ import { withPublicApiFixture } from "./support/capability-fixtures.mjs";
 import { publicApiEvidenceAdapters, schemaConfigurationDependencies } from "./support/capability-adapters.mjs";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/inbound/configuration/load-capability-config.js";
 import { FilesystemPublicApiRepository } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/filesystem/filesystem-public-api-repository.js";
-import { MicrosoftPublicApiExtractor } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
+import { TypeScriptPublicApiExtractor } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
 import { stagePackageSnapshot } from "../packages/engineering-foundation/dist/capabilities/public-api-compatibility/adapters/outbound/api-extractor/staged-public-api-input.js";
 import { ContainedFileReadError } from "../packages/engineering-foundation/dist/source-inventory/api.js";
 
@@ -61,7 +61,7 @@ test("Public API extraction uses the selected source reader without fallback", a
   await withPublicApiFixture(async (root) => {
     const failure = new Error("selected extraction reader failed");
     const files = { async read() { throw failure; } };
-    await assert.rejects(new MicrosoftPublicApiExtractor({ ...defaults, files }).extract(root, await existingPolicy(root), "1.2.3"),
+    await assert.rejects(new TypeScriptPublicApiExtractor({ ...defaults, files }).extract(root, await existingPolicy(root), "1.2.3"),
       (error) => error === failure);
   });
 });
@@ -76,6 +76,20 @@ test("Public API staging preserves Uint8Array bytes and read limits", async () =
       assert.ok(calls.every((input) => input.root === root && input.maxBytes === 32 * 1024 * 1024));
       assert.deepEqual(await readFile(join(staged.packageRoot, "dist/index.d.ts")),
         await readFile(join(root, "packages/library/dist/index.d.ts")));
+    } finally { await rm(staged.stagingRoot, { recursive: true, force: true }); }
+  });
+});
+
+test("Public API staging excludes the generated runtime-profile projection", async () => {
+  await withPublicApiFixture(async (root) => {
+    const { mkdir: makeDirectory } = await import("node:fs/promises");
+    await makeDirectory(join(root, ".worker-tmp/profiles/node-source-sha/src"), { recursive: true });
+    await writeFile(join(root, ".worker-tmp/profiles/node-source-sha/src/duplicate.ts"), "export const duplicate = 1;\n");
+    await writeFile(join(root, ".worker-tmp/installed-dependencies.json"), "{}\n");
+    const staged = await stagePackageSnapshot({ root, policy: await existingPolicy(root) }, defaults);
+    try {
+      await assert.rejects(stat(join(staged.stagingRoot, ".worker-tmp")),
+        (error) => error.code === "ENOENT");
     } finally { await rm(staged.stagingRoot, { recursive: true, force: true }); }
   });
 });
@@ -196,7 +210,7 @@ test("Public API cancellation precedes selected evidence ports", async () => {
     const evidence = { ...defaults, files: { async read() { calls.push("read"); throw new Error("unexpected read"); } } };
     for (const operation of [
       new FilesystemPublicApiRepository(assertSchema, evidence).readReleasedBaseline(root, selected, AbortSignal.abort()),
-      new MicrosoftPublicApiExtractor(evidence).extract(root, selected, "1.2.3", AbortSignal.abort())
+      new TypeScriptPublicApiExtractor(evidence).extract(root, selected, "1.2.3", AbortSignal.abort())
     ]) { await assert.rejects(operation, ({ problem }) => problem?.code === "EXECUTION_CANCELLED"); }
     assert.deepEqual(calls, []);
   });
@@ -252,7 +266,7 @@ test("audit pinned SDK has exact disjoint ownership and opaque loads elsewhere r
   assert.equal(loader[0].id, "capability.public-api-compatibility.pinned-sdk-loader");
   assert.deepEqual(loader[0].roots, [path]);
   assert.deepEqual(loader[0].entrypoints, [path]);
-  assert.deepEqual(loader[0].allowedRuntimeReferences, ["commonjs"]);
+  assert.deepEqual(loader[0].allowedRuntimeReferences, []);
   const files = (await readdir(root, { recursive: true })).filter(file => file.endsWith(".ts")).map(file => `${root}/${file.split(sep).join("/")}`);
   assert.ok(files.length > 10);
   for (const file of files) {
@@ -262,14 +276,14 @@ test("audit pinned SDK has exact disjoint ownership and opaque loads elsewhere r
   const parser = new OxcSourceDependencyParser();
   const parsed = parser.parse({ path, source: await readFile(path, "utf8") });
   assert.equal(parsed.parseErrorCount, 0);
-  assert.deepEqual(parsed.unresolved.map(reference => reference.kind), ["commonjs", "commonjs"]);
+  assert.deepEqual(parsed.unresolved, []);
   const evaluate = (file, references) => evaluateSourceDependencies({ policy: { ...architecturePolicy, boundaries: architecturePolicy.boundaries.map(boundary => ({ ...boundary, entrypoints: [] })) }, graph: {
     nodes: [], edges: [], parseFailures: [], unclassifiedSourcePaths: [],
     unresolvedRuntimeReferences: references.map(reference => ({ ...reference, path: file, boundaryId: owner(file)[0].id }))
   } });
   assert.deepEqual(evaluate(path, parsed.unresolved), []);
   const source = 'import { createRequire } from "node:module"; const load = createRequire("/opaque/sdk.cjs"); load("typescript");';
-  for (const file of files.filter(candidate => candidate !== path)) {
+  for (const file of files) {
     const witness = parser.parse({ path: file, source });
     assert.equal(witness.unresolved.length, 1);
     const rejected = evaluate(file, witness.unresolved);
@@ -680,17 +694,18 @@ const growthTypedEntries = result => result.surface.value.entries.filter(row => 
     const files = { read: readContainedRegularFile };
     const evidence = { files, paths: { traversesSymbolicLink: pathTraversesSymbolicLink } };
     const workspace = new PnpmWorkspaceInventoryReader({ async readYaml() { return { packages: ["package"] }; } }, new PnpmPackageManifestSnapshotReader({ read: readContainedRegularFile, pathTraversesSymbolicLink }));
-    const port = createGrowthObservation({ consumerRoot: root, workspaceManifestPath: "pnpm-workspace.yaml", subjects: [{ packageVersion: "1.0.0", policy: { packageName: "growth-fixture", packageRoot: "package", manifestPath: "package/package.json", tsconfigPath: "package/tsconfig.json", releasedBaselinePath: "architecture/public-api/growth-fixture.json", approvedBreakingChanges: [], entrypoints: [{ exportPath: ".", declarationEntryPoint: "package/dist/index.d.ts" }], nonTypeExports: [{ exportPath: "./schemas/*", kind: "wildcard" }] } }] }, { workspace: createWorkspaceGrowthReader(workspace), typed: new MicrosoftPublicApiExtractor(evidence), artifact: new FilesystemPackageArtifactInventory(new AjvJsonSchemaReleaseInspector(files), evidence), fingerprint: { sha256(value) { return createHash("sha256").update(value).digest("hex"); } } });
-    const before = await port.observe(invocation, cancellation);
+    const port = createGrowthObservation({ consumerRoot: root, workspaceManifestPath: "pnpm-workspace.yaml", subjects: [{ packageVersion: "1.0.0", policy: { packageName: "growth-fixture", packageRoot: "package", manifestPath: "package/package.json", tsconfigPath: "package/tsconfig.json", releasedBaselinePath: "architecture/public-api/growth-fixture.json", approvedBreakingChanges: [], entrypoints: [{ exportPath: ".", declarationEntryPoint: "package/dist/index.d.ts" }], nonTypeExports: [{ exportPath: "./schemas/*", kind: "wildcard" }] } }] }, { workspace: createWorkspaceGrowthReader(workspace), typed: new TypeScriptPublicApiExtractor(evidence), artifact: new FilesystemPackageArtifactInventory(new AjvJsonSchemaReleaseInspector(files), evidence), fingerprint: { sha256(value) { return createHash("sha256").update(value).digest("hex"); } } });
+    const nativeInvocation = { ...invocation, tool: { ...invocation.tool, extractorVersion: "typescript-native/7.0.2" } };
+    const before = await port.observe(nativeInvocation, cancellation);
     const retained = before.compatibilitySnapshots.find(row => row.packageName === "growth-fixture");
     assert.equal(retained.typed.snapshot.status, "available");
     assert.equal(retained.artifact.snapshot.status, "available");
-    assert.equal(retained.typed.snapshot.value.extractorVersion, "7.58.12");
+    assert.equal(retained.typed.snapshot.value.extractorVersion, "typescript-native/7.0.2");
     assert.equal(retained.artifact.snapshot.value.extractorVersion, "package-artifact-inventory/1");
     assert.equal(before.surface.status, "available");
     await writeFile(join(root, "package/dist/index.d.ts"), "export declare function stable(value: number): number;\n");
     await writeFile(join(root, "package/schemas/v1.schema.json"), JSON.stringify({ ...schema, minLength: 2 }));
-    const after = await port.observe(invocation, cancellation);
+    const after = await port.observe(nativeInvocation, cancellation);
     assert.equal(after.surface.status, "available");
     for (const kind of ["typed", "wildcard-member"]) {
       const first = before.surface.value.entries.filter(row => row.coordinate.subject.kind === kind);

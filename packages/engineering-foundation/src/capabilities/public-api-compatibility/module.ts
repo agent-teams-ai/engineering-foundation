@@ -1,13 +1,13 @@
 import { createManagedProcessExecutor } from "../../process-execution/module.js";
 import { assertGrowthReportDestination } from "./adapters/inbound/configuration/parse-growth-config.js";
-import { readGrowthInvocation, assertGrowthDestination } from "./adapters/outbound/filesystem/growth-invocation.js";
+import { createGrowthGitRunner, readGrowthInvocation, assertGrowthDestination } from "./adapters/outbound/filesystem/growth-invocation.js";
 import {
   capabilityFailureReport,
   capabilityReport,
   type CapabilityDefinition,
   type CapabilityInvocation
 } from "../../features/validation-reporting/api.js";
-import { MicrosoftPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
+import { TypeScriptPublicApiExtractor } from "./adapters/outbound/api-extractor/microsoft-public-api-extractor.js";
 import { NodeChangeFingerprint } from "./adapters/outbound/crypto/node-change-fingerprint.js";
 import { FilesystemPublicApiRepository } from "./adapters/outbound/filesystem/filesystem-public-api-repository.js";
 import { GovernanceAcceptedDecisionEvidenceAcl } from "./adapters/outbound/governance/governance-accepted-decision-evidence-acl.js";
@@ -46,7 +46,7 @@ const evidence: PublicApiRepositoryEvidence = {
 export { PUBLIC_API_COMPATIBILITY_RULES_BY_ID };
 
 export function createPublicApiExtractor(): PublicApiExtractor {
-  return new MicrosoftPublicApiExtractor(evidence);
+  return new TypeScriptPublicApiExtractor(evidence);
 }
 
 export function createPublicApiCompatibilityDependencies(readAcceptedDecisions: import("./application/ports/accepted-decision-evidence.js").AcceptedArchitectureDecisionReader, assertSchema: PublicApiConfigurationDependencies["assertSchema"]) {
@@ -104,9 +104,7 @@ export function createPublicApiCompatibilityCapability(readAcceptedDecisions: im
           await assertGrowthDestination(invocation.consumerRoot, policy.sdkGrowth.reportPath);
           const inventory = await createWorkspaceGrowthReader(createWorkspaceInventoryReader()).read(invocation.consumerRoot, "pnpm-workspace.yaml", invocation.signal);
           assertGrowthReportDestination(policy.sdkGrowth.reportPath, inventory.packages.flatMap((pkg) => [pkg.rootPath, pkg.manifestPath]));
-          const identityInputs = { files: evidence.files, runGit: (args: readonly string[], signal?: AbortSignal) =>
-            processes.run({ command: "git", args, cwd: invocation.consumerRoot, timeoutMs: 10_000,
-              ...(signal === undefined ? {} : { signal }) }) };
+          const identityInputs = { files: evidence.files, runGit: createGrowthGitRunner(processes, invocation.consumerRoot) };
           return await checkSdkGrowth({ consumerRoot: invocation.consumerRoot, policy,
             invocation: await readGrowthInvocation(invocation.consumerRoot, inventory, identityInputs, invocation.signal),
             ...(invocation.signal === undefined ? {} : { signal: invocation.signal }) }, {

@@ -5,32 +5,56 @@
     "prlimit"
   ],
   "ignoreDependencies": [
-    "@arethetypeswrong/cli",
     "@openai/codex",
     "c8",
     "publint",
     "vfile"
   ],
+  "ignoreIssues": {
+    "tests/fixtures/source-dependencies/valid/packages/app/src/application/execute.ts": [
+      "unlisted"
+    ],
+    "tests/fixtures/source-dependencies/valid/packages/app/src/infrastructure/adapter.ts": [
+      "unlisted"
+    ],
+    "tests/fixtures/source-dependencies/v2-valid/packages/app/src/index.ts": [
+      "unlisted"
+    ]
+  },
   "workspaces": {
     ".": {
       "entry": [
         "scripts/*.mts",
         "tests/**/*.test.mts",
         "scripts/*.mjs",
+        "scripts/*.ts",
         "tests/**/*.test.mjs",
         "tests/fixtures/coverage-process-tree.fixture.mjs",
         "tests/fixtures/foundation-transaction-holder.mjs",
         "tests/fixtures/scaffolding-crash-worker.mjs",
         "tests/fixtures/ci-input-proof/foundation-pilot.TEST.mts",
+        "tests/fixtures/quality-gate-v1-consumer/contract.ts",
+        "tests/fixtures/repository-agent-workflow/valid/src/index.ts",
+        "tests/fixtures/source-dependencies/valid/packages/app/src/index.ts",
+        "tests/fixtures/source-dependencies/valid/packages/core/src/index.ts",
+        "tests/fixtures/source-dependencies/v2-valid/packages/app/src/index.ts",
+        "tests/fixtures/source-dependencies/v2-valid/packages/core/src/index.ts",
+        "tests/fixtures/suppression-governance/valid/src/index.ts",
         "tests/support/document-authoring-schema-closures.mjs",
-        "tests/fixtures/**/scripts/*.mjs"
+        "tests/support/record-repository-runtime.mts",
+        "tests/support/swap-git-marker-before-open.mts",
+        "tests/fixtures/**/scripts/*.mjs",
+        "tests/**/*.test.ts",
+        "tests/process-runtime-delegation-under-bun.mts"
       ],
       "project": [
         "scripts/*.mts",
         "tests/**/*.mts",
         "scripts/*.mjs",
+        "scripts/*.ts",
         "scripts/feature-modules/commands.mjs",
-        "tests/**/*.mjs"
+        "tests/**/*.mjs",
+        "tests/**/*.ts"
       ]
     },
     "packages/engineering-foundation": {
@@ -40,10 +64,12 @@
         "src/public-api-surface.ts",
         "tests/**/*.test.mjs",
         "src/foundation-state-contract.ts",
-        "src/schema-ids.ts"
+        "src/schema-ids.ts",
+        "tests/**/*.test.ts"
       ],
       "project": [
-        "src/**/*.ts"
+        "src/**/*.ts",
+        "tests/**/*.ts"
       ]
     },
     "packages/document-authoring": {
@@ -77,7 +103,7 @@
     },
     "spikes/source-dependency-parser": {
       "project": [
-        "*.mjs"
+        "*.ts"
       ]
     }
   }

@@ -12,6 +12,7 @@ import {
   combinedPackageQualificationGroups, parseCombinedQualificationArguments,
 } from "../scripts/package-qualification-groups.mts";
 import { createPnpmRunner } from "../scripts/pack-test-support.mjs";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const pause = (ms: number) => new Promise<void>(resolve => { setTimeout(resolve, ms); });
@@ -96,6 +97,9 @@ async function producerFixture(t: TestContext, failureName?: string) {
   for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
   }
+  const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
+  manifest.packageManager = `pnpm@${(await readRepositoryRuntimePolicy()).toolchain.pnpm.version}`;
+  await writeFile(join(source, "package.json"), JSON.stringify(manifest));
   await writeFile(join(source, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
   const leaves = ["a", "b", "c"] as const;
   const catalog = leaves.map(leaf => ({ name: `@fixture/${leaf}`, root: `packages/${leaf}`,
@@ -358,14 +362,24 @@ if (new URL(import.meta.url).searchParams.get("fixture-build") !== "1") {
   });
 
   test("actual pnpm group wrapper rejects invalid arguments before allocating", async t => {
-    const root = await directory(t, "ga-");
+    const wrapperRoot = await directory(t, "gw-");
+    const root = join(wrapperRoot, "allocations");
+    await mkdir(root);
+    const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+    await writeFile(join(wrapperRoot, "package.json"), JSON.stringify({
+      private: true, type: "module",
+      packageManager: `pnpm@${(await readRepositoryRuntimePolicy()).toolchain.pnpm.version}`,
+      scripts: { "package:group:built": manifest.scripts["package:group:built"] },
+    }));
+    await symlink(join(repositoryRoot, "scripts"), join(wrapperRoot, "scripts"),
+      process.platform === "win32" ? "junction" : "dir");
     const sentinel = join(repositoryRoot, "packages/engineering-foundation/dist/group-refusal-TEST.js");
     await writeFile(sentinel, "TEST stale distribution sentinel\n", { flag: "wx" });
     t.after(() => rm(sentinel, { force: true }));
     const runPnpm = createPnpmRunner();
     for (const args of [[], ["packed"], ["packed", "unknown"], ["packed", "integration", "integration"],
       ["registry", "npm-docs", "--archive", "/tmp/forged.tgz"]]) {
-      await assert.rejects(runPnpm(["package:group:built", ...args], repositoryRoot, {
+      await assert.rejects(runPnpm(["package:group:built", ...args], wrapperRoot, {
         environment: { ...process.env, TMPDIR: root, TMP: root, TEMP: root, NODE_DISABLE_COMPILE_CACHE: "1" },
       }), error => {
         assert.ok(error instanceof Error && "stderr" in error && typeof error.stderr === "string");

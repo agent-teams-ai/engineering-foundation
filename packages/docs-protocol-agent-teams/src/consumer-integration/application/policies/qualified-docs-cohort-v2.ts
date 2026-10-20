@@ -73,7 +73,7 @@ export const QUALIFIED_DOCS_COHORT_V2_EDGES = Object.freeze([
 ]);
 
 export function qualifiedDocsCohortV2PackageEntries(
-  cohort: QualifiedDocsCohortBindingV2
+  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {
   return QUALIFIED_DOCS_COHORT_V2_PACKAGES.map((descriptor) => Object.freeze({
     ...descriptor,
@@ -82,7 +82,7 @@ export function qualifiedDocsCohortV2PackageEntries(
 }
 
 export function qualifiedDocsCohortV2DirectPackageEntries(
-  cohort: QualifiedDocsCohortBindingV2
+  cohort: Pick<QualifiedDocsCohortBindingV2, "packages">
 ): readonly (QualifiedDocsCohortV2PackageDescriptor & QualifiedDocsPackageCoordinateV2)[] {
   return qualifiedDocsCohortV2PackageEntries(cohort).filter(({ direct }) => direct);
 }

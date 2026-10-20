@@ -95,10 +95,11 @@ function printHelp(): void {
   agent-teams-foundation agent-workflow instructions <repository-file> [--consumer <path>] [--format text|json]
   agent-teams-foundation gate run <profile> [--consumer <path>] [--format text|json]
   agent-teams-foundation quality check [--scope-only] [--consumer <path>] [--format text|json]
+  agent-teams-foundation baseline check|init|prune --config <findings-baseline.yaml> [--consumer <path>] [--format text|json]
   agent-teams-foundation explain <rule-id> [--format text|json]
   agent-teams-foundation architecture-decisions-promote-baseline [--consumer <path>] [--json]
   agent-teams-foundation public-api-audit --consumer <path> --config <request.json> --format json
-  agent-teams-foundation public-api-promote-release [--consumer <path>] [--json]
+  agent-teams-foundation public-api-promote-release [--consumer <path>] [--native-transition <request.json> [--qualification-only]] [--json]
   agent-teams-foundation protobuf-qualify-breaking --buf-executable <absolute-path> [--consumer <path>] [--write] [--json]
   agent-teams-foundation scaffold-plan <intent-path> [--consumer <path>] [--config <path>] [--json]
   agent-teams-foundation scaffold-apply <plan-path> [--consumer <path>] [--json]
@@ -224,6 +225,30 @@ async function runQualityCommand<SchemaId extends string>(
     }), await services.installedVersion());
     process.stdout.write(json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report));
     process.exitCode = checkCommandExitCode(report.outcome);
+  });
+  return true;
+}
+
+async function runBaselineCommand<SchemaId extends string>(
+  services: FoundationCommandServices<SchemaId>, parsed: ParsedArguments, json: boolean
+): Promise<boolean> {
+  if (parsed.command !== "baseline") { return false; }
+  const action = parsed.positional[0];
+  if (action !== "check" && action !== "init" && action !== "prune") { throw invalidCommand("baseline requires the check, init or prune subcommand."); }
+  await services.cancellation.withSignal(["SIGINT", "SIGTERM"], async (signal) => {
+    const invocation = { consumerRoot: parsed.consumerRoot, configPath: parsed.configPath, signal };
+    if (action === "check") {
+      const report = selectedCommandReport(await services.findingsBaseline.check(invocation), await services.installedVersion());
+      process.stdout.write(json ? `${JSON.stringify(report, null, 2)}\n` : services.renderCheck(report));
+      process.exitCode = checkCommandExitCode(report.outcome);
+      return;
+    }
+    const result = await services.findingsBaseline.write({ ...invocation, action });
+    process.stdout.write(json ? `${JSON.stringify({ baseline: result }, null, 2)}\n` :
+      `Findings baseline ${result.action} ${result.path}: ${result.entries} entries, ${result.lowered} lowered, ${result.removed} removed.\n` +
+      result.remaining.map(({ kind, path, rule }) => `Not accepted (${kind}): ${path} ${rule}\n`).join(""));
+    // A new or worse finding stays a failure of the check; pruning cannot accept it.
+    if (result.remaining.length > 0) { process.exitCode = 1; }
   });
   return true;
 }
@@ -355,6 +380,14 @@ async function runPolicyCommand<SchemaId extends string>(
       if (declaration === undefined) {
         throw invalidCommand("package.public-api-compatibility must be declared before baseline promotion.");
       }
+      if (parsed.nativeTransitionPath !== undefined) {
+        const result = await services.cancellation.withSignal(["SIGINT", "SIGTERM"], (signal) => services.nativePublicApiTransition({
+          consumerRoot: parsed.consumerRoot, configPath: declaration.configPath,
+          requestPath: parsed.nativeTransitionPath!, qualificationOnly: parsed.qualificationOnly === true, signal
+        }));
+        process.stdout.write(`${JSON.stringify(result)}\n`);
+        return true;
+      }
       const snapshots = await services.promotePublicApi({
         consumerRoot: parsed.consumerRoot,
         configPath: declaration.configPath
@@ -424,6 +457,7 @@ async function main<SchemaId extends string>(createServices: () => FoundationCom
     (input) => runLocalModeCommand(services, input, services.localMode, json),
     services.qualityGate,
     (input) => runQualityCommand(services, input, json),
+    (input) => runBaselineCommand(services, input, json),
     (input) => runAgentWorkflowCommand(services, input),
     (input) => runProtobufQualificationCommand(services, input, json),
     (input) => runCheckCommand(services, input, json),

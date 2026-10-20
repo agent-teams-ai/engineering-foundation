@@ -321,5 +321,15 @@ export function compileConsumerIntegration(input: {
         snapshot: input.snapshot,
         ...(input.assetCatalog === undefined ? {} : { assetCatalog: input.assetCatalog })
       }, ports);
+    case 4:
+      if (input.assetCatalog !== undefined || input.knownPriorCohorts !== undefined) {
+        throw new TypeError("Consumer integration profile v4 does not accept historical asset catalogs.");
+      }
+      return compileConsumerIntegrationV3({
+        desired: input.desired,
+        snapshot: input.snapshot
+      }, ports);
+    default:
+      throw new TypeError("Unsupported consumer integration profile generation.");
   }
 }

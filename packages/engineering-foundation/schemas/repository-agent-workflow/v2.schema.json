@@ -1,21 +1,62 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agent-teams.ai/engineering-foundation/repository-agent-workflow/v2",
-  "title": "Repository-wide sufficient checks with explicit facet observations",
+  "title": "Explicit package-manager repository agent workflow policy with explicit changed-check coverage",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
+    "packageManager",
     "instructions",
-    "scripts",
-    "scopes",
-    "checks",
-    "exclusions",
-    "escalationCheck"
+    "scripts"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "changedChecks",
+        "fullScanPaths"
+      ],
+      "properties": {
+        "changedChecks": {
+          "$ref": "#/properties/changedChecks"
+        },
+        "fullScanPaths": {
+          "$ref": "#/properties/fullScanPaths"
+        }
+      }
+    },
+    {
+      "required": [
+        "scopes",
+        "checks",
+        "exclusions",
+        "escalationCheck"
+      ],
+      "properties": {
+        "scopes": {
+          "$ref": "#/properties/scopes"
+        },
+        "checks": {
+          "$ref": "#/properties/checks"
+        },
+        "exclusions": {
+          "$ref": "#/properties/exclusions"
+        },
+        "escalationCheck": {
+          "$ref": "#/properties/escalationCheck"
+        }
+      }
+    }
   ],
   "properties": {
     "schemaVersion": {
       "const": 2
+    },
+    "packageManager": {
+      "enum": [
+        "bun",
+        "pnpm"
+      ]
     },
     "instructions": {
       "type": "object",
@@ -59,6 +100,52 @@
         "full": {
           "$ref": "#/$defs/scriptName"
         }
+      }
+    },
+    "changedChecks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "script",
+          "extensions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "script": {
+            "$ref": "#/$defs/scriptName"
+          },
+          "extensions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^\\.[A-Za-z0-9][A-Za-z0-9.-]{0,15}$"
+            }
+          },
+          "passPaths": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    },
+    "fullScanPaths": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/repositoryPath"
       }
     },
     "scopes": {
@@ -235,7 +322,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 240,
-      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$"
+      "pattern": "^(?!/)(?!.*\\\\)(?!(?:[^/]+/)*(?:\\.\\.?)(?:/|$))[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*$"
     },
     "scriptName": {
       "type": "string",

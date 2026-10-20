@@ -7,13 +7,21 @@ import { fileURLToPath } from 'node:url';
 import { executeManagedProcess } from '../packages/engineering-foundation/dist/process-execution/node-process-runner.js';
 import { createQualifiedPnpmCheckRunner, fingerprintPnpmPackage, type PnpmToolIdentity, type QualifiedScriptClosure } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/pnpm/qualified-pnpm-check-runner.js';
 import { createMutableCheckInputCustody } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/outbound/filesystem/mutable-check-input-custody.js';
+import { readContainedRegularFile } from '../packages/engineering-foundation/dist/source-inventory/node.js';
 import { parseAgentWorkflowPolicyV2 } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/adapters/inbound/configuration/parse-agent-workflow-policy-v2.js';
-import type { CheckInputCustody, CheckInputLease } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/ports/check-changed.js';
+import { InputRevocationError, type CheckInputCustody, type CheckInputLease } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/ports/check-changed.js';
 import type { CoverageCheck } from '../packages/engineering-foundation/dist/capabilities/repository-agent-workflow/application/model/check-changed.js';
 
 export const testRunnerIdentity = `node-test/${process.versions.node}`;
+export const custodyFiles = { read: readContainedRegularFile };
 export const sha = (bytes: string | Uint8Array): string => createHash('sha256').update(bytes).digest('hex');
 const failedCommands = new AsyncLocalStorage<Error[]>();
+function rememberFailure(error: Error): void {
+  const trace = failedCommands.getStore();
+  if (trace === undefined) { return; }
+  trace.push(error);
+  if (trace.length > 4) { trace.shift(); }
+}
 function diagnosticText(value: string, maximum = 2048): string {
   const bytes=Buffer.from(value);let end=Math.min(bytes.length,maximum);
   while(end<bytes.length&&end>0&&(bytes[end]!&0xc0)===0x80){end--;}
@@ -44,7 +52,7 @@ async function commandScratch(cwd:string):Promise<string> {
   return scratch;
 }
 export const execute = async (command: string, args: readonly string[], options: { cwd: string; signal?: AbortSignal; strictUtf8?: boolean }) => {
-  const record=(detail:unknown)=>{const trace=failedCommands.getStore();if(trace!==undefined){trace.push(new Error(`TEST owned command: ${diagnosticText(JSON.stringify({command,args,cwd:options.cwd,detail}),6000)}`));if(trace.length>4){trace.shift();}}};
+  const record=(detail:unknown)=>{rememberFailure(new Error(`TEST owned command: ${diagnosticText(JSON.stringify({command,args,cwd:options.cwd,detail}),6000)}`));};
   const scratch=await commandScratch(options.cwd);
   try {
     const result=await executeManagedProcess({ command, args, ...options, timeoutMs: 30_000, environment: { HOME: process.env['C1_TEST_SCRATCH'], XDG_CACHE_HOME: process.env['C1_TEST_SCRATCH'], XDG_DATA_HOME: process.env['C1_TEST_SCRATCH'], XDG_CONFIG_HOME: process.env['C1_TEST_SCRATCH'], PATH: process.env['PATH'], TMPDIR: scratch, TMP: scratch, TEMP: scratch, CI: 'true' } });
@@ -57,6 +65,7 @@ const cliObserverSource = "import { spawn } from 'node:child_process';\nimport {
 export async function executeCli(cli:string,args:readonly string[],options:{cwd:string}) {
   const observerRoot=await commandScratch(options.cwd);
   const directory=await mkdtemp(join(observerRoot,'cli-witness-'));
+  try {
   const observer=join(directory,'observer.mts'),preload=join(directory,'preload.mts'),record=join(directory,'record.json');
   await writeFile(observer,cliObserverSource);await writeFile(preload,cliProgressSource);
   try {
@@ -64,8 +73,7 @@ export async function executeCli(cli:string,args:readonly string[],options:{cwd:
     if(result.exitCode!==0){
       try {
         const startup=await readFile(join(directory,'startup.json'),'utf8');
-        const trace=failedCommands.getStore();
-        if(trace!==undefined){trace.push(new Error(`TEST CLI returned failure observation: ${diagnosticText(JSON.stringify({controls:observedControls(startup),progress:diagnosticText(startup,2048)}),3600)}`));if(trace.length>4){trace.shift();}}
+        rememberFailure(new Error(`TEST CLI returned failure observation: ${diagnosticText(JSON.stringify({controls:observedControls(startup),progress:diagnosticText(startup,2048)}),3600)}`));
       } catch { /* A missing diagnostic never replaces the actual CLI result. */ }
     }
     return result;
@@ -80,6 +88,9 @@ export async function executeCli(cli:string,args:readonly string[],options:{cwd:
       summary=diagnosticText(JSON.stringify({controls,event:snapshot['event'],stderr:typeof snapshot['stderr']==='string'?diagnosticText(snapshot['stderr'],1536):null,progress,stdout:typeof snapshot['stdout']==='string'?diagnosticText(snapshot['stdout'],256):null,detail:diagnosticText(JSON.stringify(snapshot['detail'])??'',256)}),3600);
     } catch {}
     throw new AggregateError([primary,new Error(`TEST real CLI partial evidence: ${detail}`)],`TEST CLI execution failed; bounded child evidence: ${summary}`,{cause:primary});
+  }
+  } finally {
+    await rm(directory,{recursive:true,force:true});
   }
 }
 
@@ -98,7 +109,7 @@ async function toolIdentity(selectedPackage: string, selectedNode: string): Prom
   return { packageRoot, nodeExecutable, version: '11.20.0', entrypointSha256: sha(await readFile(join(packageRoot,'bin/pnpm.mjs'))), packageJsonSha256: sha(await readFile(join(packageRoot,'package.json'))), packageTreeSha256: await fingerprintPnpmPackage(packageRoot), nodeSha256: sha(await readFile(nodeExecutable)) };
 }
 export function policyInput(checks: readonly CoverageCheck[], requiredFacets: readonly string[] = ['lint','typecheck','tests']) {
-  return { schemaVersion: 2, instructions: { canonical: 'AGENTS.md', claude: 'CLAUDE.md', gemini: 'GEMINI.md', copilot: '.github/copilot-instructions.md' }, scripts: {changed:'check:changed',fast:'check:fast',full:'check'}, scopes:[{id:'repository',roots:['*'],requiredFacets,checks:checks.map(check=>check.id)}], checks, exclusions:[], escalationCheck:checks.at(-1)!.id };
+  return { schemaVersion: 2, packageManager: 'pnpm', instructions: { canonical: 'AGENTS.md', claude: 'CLAUDE.md', gemini: 'GEMINI.md', copilot: '.github/copilot-instructions.md' }, scripts: {changed:'check:changed',fast:'check:fast',full:'check'}, scopes:[{id:'repository',roots:['*'],requiredFacets,checks:checks.map(check=>check.id)}], checks, exclusions:[], escalationCheck:checks.at(-1)!.id };
 }
 const loadPolicy = async (executionRoot:string) => parseAgentWorkflowPolicyV2(JSON.parse(await readFile(join(executionRoot,'workflow.json'),'utf8')));
 export const lint: CoverageCheck = {id:'lint',script:'lint',prerequisites:[],supplies:['lint'],observation:'command'};
@@ -184,10 +195,10 @@ process.exitCode=failed?1:0;\n`);
     const snapshot = join(directory,`snapshot-${Math.random().toString(36).slice(2)}`);
     await cp(root,snapshot,{recursive:true});
     await assertScriptToolPaths(snapshot);
-    const mutable = await createMutableCheckInputCustody(execute).acquire({consumerRoot:snapshot,configPath:'workflow.json'});
+    const mutable = await createMutableCheckInputCustody(execute, custodyFiles).acquire({consumerRoot:snapshot,configPath:'workflow.json'});
     // TEST Host owns this private execution copy and all cooperative writers.
     // The real compiler reads its original bytes; origin edits have no alias.
-    const lease:CheckInputLease={...mutable,classification:'frozen-closure',closureIdentity:`TEST-private-copy:${mutable.sourceIdentity}:${pinnedTooling}`,assertCurrent:async(signal)=>{await mutable.assertCurrent(signal);assert.equal(await toolingDigest(),pinnedTooling,'TEST tooling closure revoked');},release:async()=>{}};
+    const lease:CheckInputLease={...mutable,classification:'frozen-closure',closureIdentity:`TEST-private-copy:${mutable.sourceIdentity}:${pinnedTooling}`,assertCurrent:async(signal)=>{await mutable.assertCurrent(signal);if(await toolingDigest()!==pinnedTooling){throw new InputRevocationError();}},release:async()=>{}};
     return {lease,custody:{acquire:async()=>lease}};
   }
   const runner = (mutate?: (lease:CheckInputLease,check:CoverageCheck)=>Promise<void>, selectedTool = tool, executor = execute) => createQualifiedPnpmCheckRunner({tool:selectedTool,outputRoot:output,qualify:async(lease,check)=>{

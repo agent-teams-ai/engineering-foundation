@@ -51,6 +51,7 @@ void test('C1 candidate v2 CLI runs native compiler and retains mutable feedback
   const valid=await invoke(subject.root,'check-changed');assert.equal(valid.exitCode,0,valid.stdout+valid.stderr);
   const feedback=JSON.parse(valid.stdout) as {reportSchemaVersion:number;outcome:string;inputCustody:{binding:string};coverage:{state:string}[];steps:{qualifiedFacets:string[]}[]};
   assert.equal(feedback.reportSchemaVersion,2);assert.equal(feedback.outcome,'feedback-only');assert.equal(feedback.inputCustody.binding,'unverified');
+  assert.ok(feedback.coverage.length>0);assert.ok(feedback.steps.length>0);
   assert.ok(feedback.coverage.every(row=>row.state!=='checked'));assert.ok(feedback.steps.every(step=>step.qualifiedFacets.length===0));
   const schema=await execute(process.execPath,[cli,'schema','repository-agent-workflow/v2'],{cwd:subject.root});assert.equal(schema.exitCode,0);assert.equal((JSON.parse(schema.stdout) as {properties:{schemaVersion:{const:number}}}).properties.schemaVersion.const,2);
 }));

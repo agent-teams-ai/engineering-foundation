@@ -1,6 +1,6 @@
 import { isCheckCancelled } from "../policies/check-cancellation.js";
 import type { CheckChangedDependencies, CheckInputLease } from "../ports/check-changed.js";
-import { CoverageExecutionFailure } from "../ports/check-changed.js";
+import { CoverageExecutionFailure, InputRevocationError } from "../ports/check-changed.js";
 import type { CheckChangedReport, CoverageRow, CoverageCheck, WorkflowCoveragePolicy } from "../model/check-changed.js";
 import { planCheckCoverage } from "../policies/check-coverage.js";
 import { readCapabilityInputProblem } from "../../../../features/validation-reporting/api.js";
@@ -58,10 +58,18 @@ function addEscalation(policy: WorkflowCoveragePolicy, plan: Plan, state: Execut
     if (row.facet !== null) { plan.rows[index] = { ...row, checkIds: [...row.checkIds, policy.escalationCheck] }; }
   }
 }
-async function runStep(check: CoverageCheck, input: CheckChangedInput, dependencies: Dependencies, lease: CheckInputLease, state: ExecutionState): Promise<boolean> {
+interface StepContext {
+  readonly input: CheckChangedInput;
+  readonly dependencies: Dependencies;
+  readonly packageManager: WorkflowCoveragePolicy["packageManager"];
+  readonly lease: CheckInputLease;
+  readonly state: ExecutionState;
+}
+async function runStep(context: StepContext, check: CoverageCheck): Promise<boolean> {
+  const { input, dependencies, packageManager, lease, state } = context;
   let result;
   try {
-    result = await dependencies.runner.run({ lease, check, ...(input.signal === undefined ? {} : { signal: input.signal }) });
+    result = await dependencies.runner.run({ lease, check, packageManager, ...(input.signal === undefined ? {} : { signal: input.signal }) });
   } catch (error) {
     executionFailed(state, check, error, input.signal); return false;
   }
@@ -107,7 +115,7 @@ async function executePlan(context: { readonly input: CheckChangedInput; readonl
     await lease.assertCurrent(input.signal);
     if (isCheckCancelled(input.signal)) { failure(state, "cancelled", "cancelled-before-step"); break; }
     const check = policy.checks.find((entry) => entry.id === id)!;
-    if (!await runStep(check, input, dependencies, lease, state)) { break; }
+    if (!await runStep({ input, dependencies, packageManager: policy.packageManager, lease, state }, check)) { break; }
     // Only confirmed empty selection permits escalation. Missing/forged/no-op/
     // skipped observations and assertion failures never trigger a retry.
     if (state.steps.at(-1)?.observation?.outcome === "empty-selection") { addEscalation(policy, plan, state); }
@@ -138,8 +146,14 @@ export async function runCheckChangedAgentWorkflow(input: CheckChangedInput, dep
     try {
       await executePlan({ input, dependencies }, policy, plan, lease, state);
       await lease.assertCurrent(input.signal);
-    } catch {
-      failure(state, isCheckCancelled(input.signal) ? "cancelled" : "stale", "input-or-admission-revoked");
+    } catch (error) {
+      if (isCheckCancelled(input.signal) || (error instanceof Error && error.name === "AbortError")) {
+        failure(state, "cancelled", "cancelled");
+      } else if (error instanceof InputRevocationError) {
+        failure(state, "stale", "input-or-admission-revoked");
+      } else {
+        throw error;
+      }
     }
     const coverage = reportCoverage(plan, lease, state);
     return Object.freeze({ reportSchemaVersion: 2, outcome: state.outcome, reason: state.reason, source,

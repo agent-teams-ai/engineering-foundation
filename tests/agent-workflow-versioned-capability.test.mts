@@ -34,7 +34,7 @@ test("workflow capability validates both schema versions with their own changed 
   for (const version of [1, 2] as const) {
     const policy = version === 1
       ? { schemaVersion: 1, instructions, scripts, changedChecks: [{ id: "lint", script: "lint", extensions: [".ts"] }], fullScanPaths: ["package.json"] }
-      : { schemaVersion: 2, instructions, scripts, scopes: [{ id: "repository", roots: ["*"], requiredFacets: ["lint"], checks: ["lint"] }], checks: [{ id: "lint", script: "lint", prerequisites: [], supplies: ["lint"], observation: "command" }], exclusions: [], escalationCheck: "lint" };
+      : { schemaVersion: 2, packageManager: "pnpm", instructions, scripts, scopes: [{ id: "repository", roots: ["*"], requiredFacets: ["lint"], checks: ["lint"] }], checks: [{ id: "lint", script: "lint", prerequisites: [], supplies: ["lint"], observation: "command" }], exclusions: [], escalationCheck: "lint" };
     await writeFile(join(root, "workflow.json"), JSON.stringify(policy));
     const route = version === 1 ? "changed" : "check-changed";
     await writeFile(join(root, "package.json"), JSON.stringify({ scripts: {
@@ -63,4 +63,80 @@ test("workflow capability retains v2 identity on configuration rejection", async
   const report = await capability.run({ consumerRoot: root, configPath: "workflow.json" });
   assert.equal(report.outcome, "invalid-input");
   assert.equal(report.capabilityConfigSchemaVersion, 2);
+}));
+
+function legacyV2Policy(packageManager: "pnpm" | "bun") {
+  return {
+    schemaVersion: 2, packageManager, instructions, scripts,
+    changedChecks: [{ id: "lint", script: "lint", extensions: [".ts"] }],
+    fullScanPaths: ["package.json"],
+  };
+}
+
+function coverageV2Fields() {
+  return {
+    scopes: [{ id: "repository", roots: ["*"], requiredFacets: ["lint"], checks: ["lint"] }],
+    checks: [{ id: "lint", script: "lint", prerequisites: [], supplies: ["lint"], observation: "command" }],
+    exclusions: [], escalationCheck: "lint",
+  };
+}
+
+async function writePackage(root: string, route: "changed" | "check-changed") {
+  await writeFile(join(root, "package.json"), JSON.stringify({ scripts: {
+    "check:changed": `agent-teams-foundation agent-workflow ${route} --consumer .`,
+    "check:fast": "echo fast", verify: "echo full", lint: "echo lint",
+  } }));
+}
+
+// RED: routing every v2 policy to the coverage parser rejects the released
+// package-manager shape even though the v2 schema still admits it.
+test("workflow capability preserves legacy v2 changed feedback for pnpm and Bun", async () => withConsumer(async (root) => {
+  for (const packageManager of ["pnpm", "bun"] as const) {
+    await writeFile(join(root, "workflow.json"), JSON.stringify(legacyV2Policy(packageManager)));
+    await writePackage(root, "changed");
+    const report = await capability.run({ consumerRoot: root, configPath: "workflow.json" });
+    assert.equal(report.outcome, "passed", JSON.stringify({ packageManager, report }));
+    assert.equal(report.capabilityConfigSchemaVersion, 2);
+    await writePackage(root, "check-changed");
+    const rejected = await capability.run({ consumerRoot: root, configPath: "workflow.json" });
+    assert.equal(rejected.outcome, "violations");
+    assert.ok(rejected.diagnostics.some((item) => item.ruleId === "repository.agent-workflow.changed-runner-invalid"));
+  }
+}));
+
+// RED: choosing the legacy branch first silently ignores explicit coverage
+// when both schema branches are present.
+test("workflow capability gives complete dual-shape v2 policies coverage semantics", async () => withConsumer(async (root) => {
+  for (const packageManager of ["pnpm", "bun"] as const) {
+    const policy = { ...legacyV2Policy(packageManager), ...coverageV2Fields() };
+    await writeFile(join(root, "workflow.json"), JSON.stringify(policy));
+    await writePackage(root, "check-changed");
+    const report = await capability.run({ consumerRoot: root, configPath: "workflow.json" });
+    assert.equal(report.outcome, "passed", JSON.stringify({ packageManager, report }));
+    assert.equal(report.capabilityConfigSchemaVersion, 2);
+    await writePackage(root, "changed");
+    const rejected = await capability.run({ consumerRoot: root, configPath: "workflow.json" });
+    assert.equal(rejected.outcome, "violations");
+    assert.ok(rejected.diagnostics.some((item) => item.ruleId === "repository.agent-workflow.changed-runner-invalid"));
+  }
+}));
+
+// RED: detecting only a complete coverage shape, or falling back on parser
+// failure, lets partial or malformed coverage pass as valid legacy feedback.
+test("workflow capability rejects partial or malformed coverage alongside valid legacy v2", async () => withConsumer(async (root) => {
+  await writePackage(root, "changed");
+  const coverage = coverageV2Fields();
+  const partialOrMalformed = [
+    ...Object.entries(coverage).map(([field, value]) => ({ [field]: value })),
+    { ...coverage, scopes: [] },
+    { ...coverage, checks: null },
+  ];
+  for (const packageManager of ["pnpm", "bun"] as const) {
+    for (const fields of partialOrMalformed) {
+      await writeFile(join(root, "workflow.json"), JSON.stringify({ ...legacyV2Policy(packageManager), ...fields }));
+      const report = await capability.run({ consumerRoot: root, configPath: "workflow.json" });
+      assert.equal(report.outcome, "invalid-input", JSON.stringify({ packageManager, fields, report }));
+      assert.equal(report.capabilityConfigSchemaVersion, 2);
+    }
+  }
 }));

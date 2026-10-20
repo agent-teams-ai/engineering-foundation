@@ -214,7 +214,7 @@ test("validates the release-owned public API baseline and freezes the package ex
   assert.equal(baseline.schemaVersion, 1);
   assert.equal(baseline.packageName, packageManifest.name);
   assert.equal(baseline.packageVersion, packageManifest.version);
-  assert.match(baseline.extractorVersion, /^\d+\.\d+\.\d+$/u);
+  assert.ok(["7.58.12", "typescript-native/7.0.2"].includes(baseline.extractorVersion));
   assert.ok(baseline.entrypoints.length > 0);
   assert.equal(
     new Set(baseline.entrypoints.map(({ exportPath }) => exportPath)).size,
@@ -250,9 +250,17 @@ test("validates the release-owned public API baseline and freezes the package ex
       types: "./dist/scaffolding/qualification.d.ts",
       import: "./dist/scaffolding/qualification.js"
     },
+    "./ratchet": {
+      types: "./dist/ratchet.d.ts",
+      import: "./dist/ratchet.js"
+    },
     "./sdk-growth-authority": {
       types: "./dist/sdk-growth-authority.d.ts",
       import: "./dist/sdk-growth-authority.js"
+    },
+    "./source-graph": {
+      types: "./dist/source-graph.d.ts",
+      import: "./dist/source-graph.js"
     }
   });
 });
@@ -274,12 +282,17 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/foundation-command-error/v1.schema.json",
     "schemas/package-public-api-audit-report/v1.schema.json",
     "schemas/package-public-api-audit-request/v1.schema.json",
+    "schemas/package-public-api-native-transition/v1.schema.json",
     "schemas/foundation-config/v2.schema.json",
     "schemas/package-public-api-compatibility/v2.schema.json",
+    "schemas/quality-findings-baseline/v1.schema.json",
     "schemas/quality-gate-run-report/v1.schema.json",
     "schemas/quality-gate-runner/v1.schema.json",
+    "schemas/quality-gate-runner/v2.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
+    "schemas/repository-agent-workflow/v2.schema.json",
+    "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();
   assert.deepEqual(runtimeSchemaFiles, expectedSchemaFiles);
   assert.deepEqual(
@@ -303,15 +316,15 @@ test("keeps packed and registry-install qualification wired", async () => {
   );
   assert.equal(
     repositoryManifest.scripts["registry-install-e2e:built"],
-    vector.packedE2e.registryInstallBuilt,
+    "node tools/repository-command.mts tool registry-install-e2e:built",
   );
   assert.equal(
     repositoryManifest.scripts["published-compatibility:e2e"],
-    "node scripts/published-compatibility-e2e.mjs",
+    "node tools/repository-command.mts tool published-compatibility:e2e",
   );
   assert.equal(
     repositoryManifest.scripts["public-docs-release:e2e"],
-    "node scripts/public-docs-release-e2e.mjs",
+    "node tools/repository-command.mts tool public-docs-release:e2e",
   );
   assert.match(
     await readFile(join(repositoryRoot, "scripts", "pack-test.mjs"), "utf8"),
@@ -343,15 +356,20 @@ test("keeps packed and registry-install qualification wired", async () => {
       join(repositoryRoot, "scripts", "old-foundation-transaction-e2e.mjs"),
       "utf8",
     ),
-    /sha512-L\/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm\+1hYbxcUrg==/u,
+    /const version = "0\.11\.0";\s+const expectedIntegrity = publishedFoundationIntegrity\(version\);/u,
   );
   assert.match(
     await readFile(
       join(repositoryRoot, "scripts", "published-scaffolding-compatibility-e2e.mjs"),
       "utf8",
     ),
-    /sha512-LWey96bQBwA\/91eD1T9pZRKrNUPlAt\/8NEOQ5gnWfW6Mzs\+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==/u,
+    /const publishedVersion = "0\.12\.0";\s+const expectedIntegrity = publishedFoundationIntegrity\(publishedVersion\);/u,
   );
+  const { publishedFoundationIntegrity } = await import("../scripts/published-foundation-imports.ts");
+  assert.equal(publishedFoundationIntegrity("0.11.0"),
+    "sha512-L/mWa40ziy3veWzEwp3uH4PTSNInmQb02Na0FeyTk8VoXHNApJon2tegQLOkpbwxEAZCP9aSywCm+1hYbxcUrg==");
+  assert.equal(publishedFoundationIntegrity("0.12.0"),
+    "sha512-LWey96bQBwA/91eD1T9pZRKrNUPlAt/8NEOQ5gnWfW6Mzs+kdvyOUNQFXUUR2TTrfzfgiYPgjg5aBTUkCrZ0WQ==");
   const ciSource = await readFile(
     join(repositoryRoot, ".github", "workflows", "ci.yml"),
     "utf8",

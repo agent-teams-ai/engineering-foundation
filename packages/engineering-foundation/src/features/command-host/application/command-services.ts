@@ -24,6 +24,18 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
   };
   readonly qualityGate: (input: CommandInvocation) => Promise<boolean>;
   readonly qualityCoverage: (input: CapabilityInvocation & { readonly scopeOnly: boolean }) => Promise<CapabilityReport>;
+  /** `baseline check`, `baseline init` and `baseline prune` over the findings baseline of one config file. */
+  readonly findingsBaseline: {
+    check(input: CapabilityInvocation): Promise<CapabilityReport>;
+    write(input: CapabilityInvocation & { readonly action: "init" | "prune" }): Promise<{
+      readonly action: "init" | "prune";
+      readonly path: string;
+      readonly entries: number;
+      readonly lowered: number;
+      readonly removed: number;
+      readonly remaining: readonly { readonly kind: string; readonly path: string; readonly rule: string }[];
+    }>;
+  };
   readonly agentWorkflow: {
     changed(input: CapabilityInvocation & { readonly format: "json" | "text"; readonly baseRef?: string }): Promise<void>;
     checkChanged(input: CapabilityInvocation & { readonly format: "json" | "text"; readonly baseRef?: string }): Promise<void>;
@@ -32,6 +44,7 @@ export interface FoundationCommandServices<SchemaId extends string = string> {
   readonly rules: ReadonlyMap<string, RuleExplanation>;
   readonly promoteDecisions: (input: CapabilityInvocation) => Promise<{ readonly writeResult: string }>;
   readonly auditPublicApi: (input: { readonly consumerRoot: string; readonly configPath: string; readonly signal?: AbortSignal }) => Promise<PublicApiAuditReport>;
+  readonly nativePublicApiTransition: (input: CapabilityInvocation & { readonly requestPath: string; readonly qualificationOnly: boolean }) => Promise<unknown>;
   readonly promotePublicApi: (input: CapabilityInvocation) => Promise<readonly unknown[]>;
   readonly loadProtobufQualifier: () => Promise<(input: CapabilityInvocation & { readonly executablePath: string; readonly write: boolean }) => Promise<{
     readonly writeResult: string;

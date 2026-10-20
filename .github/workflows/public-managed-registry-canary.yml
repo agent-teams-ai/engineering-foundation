@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       cohort_id:
-        description: Explicit Cohort v2 ID already registered as a central canary candidate
+        description: Explicit Cohort v2 or v3 ID already registered as a central canary candidate
         required: true
         type: string
       authority_revision:
@@ -41,19 +41,80 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           ref: ${{ inputs.expected_commit }}
+      - name: Select exact registered cohort runtime
+        id: select-cohort-runtime
+        env:
+          CENTRAL_REGISTRY_URL: https://raw.githubusercontent.com/agent-teams-ai/.github/${{ inputs.authority_revision }}/governance/docs-qualified-cohorts.json
+          PUBLIC_CANARY_COHORT_ID: ${{ inputs.cohort_id }}
+        run: |
+          set -euo pipefail
+          registry="$(curl --fail --silent --show-error --location \
+            --proto '=https' --tlsv1.2 --max-time 15 --max-filesize 1048576 \
+            "$CENTRAL_REGISTRY_URL")"
+          node_version="$(printf '%s' "$registry" | PUBLIC_CANARY_COHORT_ID="$PUBLIC_CANARY_COHORT_ID" node -e '
+            let source = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", chunk => { source += chunk; });
+            process.stdin.on("end", () => {
+              let registry;
+              try {
+                registry = JSON.parse(source);
+              } catch {
+                throw new Error("Central registry is not exact JSON.");
+              }
+              if (!Array.isArray(registry?.cohorts)) {
+                throw new Error("Central registry cohorts are missing.");
+              }
+              const matches = registry.cohorts.filter(record =>
+                record?.cohort_id === process.env.PUBLIC_CANARY_COHORT_ID
+              );
+              if (matches.length === 0) {
+                throw new Error("Selected cohort is not registered.");
+              }
+              if (matches.length !== 1) {
+                throw new Error("Selected cohort generation is duplicated.");
+              }
+              const generation = matches[0].cohort_generation;
+              if (generation !== 2 && generation !== 3) {
+                throw new Error("Selected cohort generation is missing, unknown, or non-exact.");
+              }
+              process.stdout.write(generation === 2 ? "24.21.0" : "26.11.1");
+            });
+          ')"
+          case "$node_version" in
+            24.21.0|26.11.1) ;;
+            *) echo "Central registry selected an unsupported Node version." >&2; exit 1 ;;
+          esac
+          printf 'node=%s\n' "$node_version" >> "$GITHUB_OUTPUT"
       - uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
-        with: { install: false }
+        env: { pnpm_config_pm_on_fail: ignore }
+        id: setup-pnpm
+        with: { version: "11.20.0", install: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version-file: .node-version
-          cache: pnpm
+          node-version: "26.11.1"
+      - name: Retain admitted Node 26 for the private builder profile
+        run: printf 'AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
+      - name: Install the clean Node/pnpm private builder projection
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ github.sha }}
+          AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
+        run: node tools/dev.mts --profile node install
+      - run: node tools/dev.mts --profile node build
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ steps.select-cohort-runtime.outputs.node }}
           registry-url: https://registry.npmjs.org
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm build
+      - name: Retain the exact selected public qualification Node
+        run: |
+          printf 'PUBLIC_CANARY_NODE_EXECUTABLE=%s\n' "$(command -v node)" >> "$GITHUB_ENV"
       - name: Run read-only six-package public managed registry canary
         env:
           PUBLIC_CANARY_RECEIPT_PATH: ${{ runner.temp }}/public-managed-registry-canary/receipt.json
-        run: node scripts/public-managed-registry-canary.mjs
+        run: |
+          "${PUBLIC_CANARY_NODE_EXECUTABLE}" scripts/public-managed-registry-canary.mjs
+        working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - name: Retain canonical canary receipt
         if: ${{ success() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

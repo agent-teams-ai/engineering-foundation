@@ -9,11 +9,16 @@ const cliPath = fileURLToPath(new URL(
 ));
 
 function runCli(args: readonly string[]) {
-  return spawnSync(process.execPath, [cliPath, ...args], {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
     encoding: "utf8",
     timeout: 10_000,
     maxBuffer: 32_768,
   });
+  // Surface the real spawn failure or timeout instead of asserting on empty
+  // output when the CLI never ran to completion.
+  assert.ifError(result.error);
+  assert.equal(result.signal, null);
+  return result;
 }
 
 // RED regression: a correctly composed successor becomes unreachable through

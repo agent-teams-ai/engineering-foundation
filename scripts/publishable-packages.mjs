@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { compareVersionCore, parsePublishedVersion, parseStableVersion } from "./release-publish-registry-version.mjs";
 
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
 const PORTABLE_PATH = /^(?!\/)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[A-Za-z0-9._@/-]+$/u;
@@ -16,6 +17,12 @@ export const PUBLISHABLE_PACKAGE_CATALOG = Object.freeze([
     manifestPath: "packages/ci-input-proof/package.json",
     name: "@agent-teams/ci-input-proof",
     root: "packages/ci-input-proof",
+  }),
+  Object.freeze({
+    changelogPath: "packages/feature-module-standard/CHANGELOG.md",
+    manifestPath: "packages/feature-module-standard/package.json",
+    name: "@agent-teams/feature-module-standard",
+    root: "packages/feature-module-standard",
   }),
   Object.freeze({
     changelogPath: "packages/repository-mutation/CHANGELOG.md",
@@ -114,8 +121,53 @@ function manifestFor(manifestsByName, entry) {
   return manifest;
 }
 
-function dependencyDeclarations(manifest, ownerName, qualifiedNames) {
-  const declarations = [];
+// Explicit stable caret floors retain the supported minimum when the workspace advances.
+export function workspacePeerRange(reference, workspaceVersion) {
+  const version = typeof workspaceVersion === "string" ? parsePublishedVersion(workspaceVersion) : undefined;
+  if (version === undefined) {
+    fail("optional workspace peer requires an actual workspace version");
+  }
+  if (reference === "workspace:^") {
+    return `^${workspaceVersion}`;
+  }
+  const minimum = reference.startsWith("workspace:^")
+    ? parseStableVersion(reference.slice("workspace:^".length)) : undefined;
+  if (minimum === undefined || version.iteration !== undefined) {
+    fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
+  }
+  const [major, minor, patch] = minimum;
+  const upper = major > 0n ? [major + 1n, 0n, 0n]
+    : minor > 0n ? [0n, minor + 1n, 0n] : [0n, 0n, patch + 1n];
+  if (compareVersionCore(version.core, minimum) < 0 || compareVersionCore(version.core, upper) >= 0) {
+    fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
+  }
+  return reference.slice("workspace:".length);
+}
+
+// An internal package is declared once, as workspace:*. The one allowed pair is an optional runtime peer caret
+// (peerDependencies workspace:^ or an explicit stable floor) together with the workspace link that builds and tests it
+// (devDependencies workspace:*); the pair is one ordering edge, recorded under peerDependencies.
+function internalDeclaration(ownerName, name, uses, optionalPeer, workspaceVersion) {
+  const peer = uses.find(({ section }) => section === "peerDependencies");
+  const pair = uses.length === 2 &&
+    optionalPeer === true &&
+    peer?.reference.startsWith("workspace:^") &&
+    uses.some(({ reference, section }) => section === "devDependencies" && reference === "workspace:*");
+  if (pair) {
+    workspacePeerRange(peer.reference, workspaceVersion);
+    return Object.freeze({ name, section: "peerDependencies" });
+  }
+  if (uses.length > 1) {
+    fail(`${ownerName} declares an internal package in multiple dependency sections`);
+  }
+  if (uses[0].reference !== "workspace:*") {
+    fail(`${ownerName} must reference internal package ${name} as workspace:*`);
+  }
+  return Object.freeze({ name, section: uses[0].section });
+}
+
+function dependencyDeclarations(manifest, ownerName, qualifiedNames, manifestsByName) {
+  const found = new Map();
   for (const section of DEPENDENCY_SECTIONS) {
     const dependencies = manifest[section];
     if (dependencies === undefined) {
@@ -137,16 +189,12 @@ function dependencyDeclarations(manifest, ownerName, qualifiedNames) {
       if (name === ownerName) {
         fail(`${ownerName} declares a self dependency`);
       }
-      if (reference !== "workspace:*") {
-        fail(`${ownerName} must reference internal package ${name} as workspace:*`);
-      }
-      declarations.push(Object.freeze({ name, section }));
+      found.set(name, [...(found.get(name) ?? []), { reference, section }]);
     }
   }
-  const names = declarations.map(({ name }) => name);
-  if (new Set(names).size !== names.length) {
-    fail(`${ownerName} declares an internal package in multiple dependency sections`);
-  }
+  const declarations = [...found].map(([name, uses]) =>
+    internalDeclaration(ownerName, name, uses, manifest.peerDependenciesMeta?.[name]?.optional,
+      manifestsByName.get(name)?.version));
   return Object.freeze(declarations.toSorted((left, right) =>
     left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
@@ -205,7 +253,7 @@ export function derivePublishablePackageProjection({ catalog, manifestsByName })
       fail(`duplicate manifest identity ${manifest.name}`);
     }
     identities.add(manifest.name);
-    declarations[entry.name] = dependencyDeclarations(manifest, entry.name, qualifiedNames);
+    declarations[entry.name] = dependencyDeclarations(manifest, entry.name, qualifiedNames, manifestsByName);
     dependencies[entry.name] = Object.freeze(declarations[entry.name]
       .filter(({ section }) => section === "dependencies")
       .map(({ name }) => name));

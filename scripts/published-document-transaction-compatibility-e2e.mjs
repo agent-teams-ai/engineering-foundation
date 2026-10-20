@@ -3,28 +3,29 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createDocumentEnvelopeV3 } from "../tests/fixtures/document-authoring-envelope-v3.mjs";
-import { captureFailure, runCommand } from "./pack-test-support.mjs";
 import { installPublishedFoundation } from "./published-foundation-install.mjs";
+import { publishedFoundationIntegrity } from "./published-foundation-imports.ts";
+import { executePublishedFoundationOperation } from "./published-foundation-operations.ts";
 
 const publishedVersion = "0.14.0";
-const expectedIntegrity =
-  "sha512-4wLDBtGKwLvvd9LuD6g6nuI/BE/qD0IlKATegMqo0ItT1eeT8Lhd0x6lnV6QnHkKWx+sX+H6vsKs/9fNSDhm9Q==";
+const expectedIntegrity = publishedFoundationIntegrity(publishedVersion);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
-async function assertPublishedMutationBlocked({ args, cliPath, consumerRoot }) {
-  const failure = await captureFailure(() =>
-    runCommand(process.execPath, [cliPath, ...args], consumerRoot),
-  );
+async function assertPublishedMutationBlocked({ operation, packageRoot, consumerRoot, targetRoot }) {
+  const observation = await executePublishedFoundationOperation({
+    packageRoot, version: publishedVersion, consumerRoot, operation,
+    ...(targetRoot === undefined ? {} : { targetRoot }),
+  });
   if (
-    failure?.code !== 1 ||
-    failure.stdout !== "" ||
-    !/(?:SCAFFOLD_RECOVERY_REQUIRED|FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED): Foundation transaction schema version 3 is unsupported and was preserved\.|LOCAL_STATE_INVALID: (?:Foundation operation lock path must be a real local directory|Another foundation operation is active or its lock is not safely recoverable)\./u.test(
-      failure.stderr,
-    )
+    observation.outcome !== "threw" || !(
+      (["SCAFFOLD_RECOVERY_REQUIRED", "FOUNDATION_TRANSACTION_MANUAL_RECOVERY_REQUIRED"].includes(observation.error.code) &&
+        observation.error.message === "Foundation transaction schema version 3 is unsupported and was preserved.") ||
+      (observation.error.code === "LOCAL_STATE_INVALID" &&
+        /^(?:Foundation operation lock path must be a real local directory|Another foundation operation is active or its lock is not safely recoverable)\.$/u.test(observation.error.message)))
   ) {
     throw new Error(
-      `Published Foundation ${publishedVersion} did not fail closed for ${args[0]}.`,
-      { cause: failure },
+      `Published Foundation ${publishedVersion} operation ${operation} did not fail closed.`,
+      { cause: observation },
     );
   }
 }
@@ -67,40 +68,29 @@ export async function verifyPublishedDocumentTransactionCompatibility({
   const sentinelBytes = Buffer.from("consumer bytes must remain unchanged\n", "utf8");
   await writeFile(sentinelPath, sentinelBytes);
 
-  const statusFailure = await captureFailure(() =>
-    runCommand(
-      process.execPath,
-      [installed.cliPath, "status", "--consumer", consumerRoot, "--json"],
-      consumerRoot,
-    ),
-  );
-  const status = JSON.parse(statusFailure?.stdout ?? "null");
+  const statusObservation = await executePublishedFoundationOperation({
+    packageRoot: installed.packageRoot, version: publishedVersion, consumerRoot, operation: "status",
+  });
+  const status = statusObservation.outcome === "returned" ? statusObservation.value : undefined;
   if (
-    statusFailure?.code !== 1 ||
-    statusFailure.stderr !== "" ||
+    status?.mode !== "INVALID" ||
     status.transaction?.state !== "manual-recovery-required" ||
     status.transaction.reason !== "unsupported-schema"
   ) {
     throw new Error(
       `Published Foundation ${publishedVersion} did not report envelope v3 as preserved unsupported evidence.`,
-      { cause: statusFailure },
+      { cause: statusObservation },
     );
   }
 
-  for (const args of [
-    ["scaffold-recover", "--consumer", consumerRoot, "--json"],
-    ["detach", "--consumer", consumerRoot, "--json"],
-    [
-      "attach",
-      join(temporaryRoot, "unreachable-foundation-target"),
-      "--consumer",
-      consumerRoot,
-      "--json",
-    ],
+  for (const request of [
+    { operation: "recover" },
+    { operation: "detach" },
+    { operation: "attach", targetRoot: join(temporaryRoot, "unreachable-foundation-target") },
   ]) {
     await assertPublishedMutationBlocked({
-      args,
-      cliPath: installed.cliPath,
+      ...request,
+      packageRoot: installed.packageRoot,
       consumerRoot,
     });
     if (
@@ -108,12 +98,12 @@ export async function verifyPublishedDocumentTransactionCompatibility({
       !(await readFile(sentinelPath)).equals(sentinelBytes)
     ) {
       throw new Error(
-        `Published Foundation ${publishedVersion} changed consumer bytes while ${args[0]} was blocked.`,
+        `Published Foundation ${publishedVersion} changed consumer bytes while ${request.operation} was blocked.`,
       );
     }
   }
 
   process.stdout.write(
-    `Published document transaction compatibility PASS: ${publishedVersion} preserves envelope v3 and blocks mutation; integrity ${expectedIntegrity}.\n`,
+    `Published document transaction operation-boundary compatibility PASS: ${publishedVersion} preserves envelope v3 and blocks mutation; integrity ${expectedIntegrity}.\n`,
   );
 }

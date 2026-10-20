@@ -18,7 +18,8 @@ function scriptsFrom(value: unknown): Readonly<Record<string, string>> {
 }
 
 function nativeScriptPath(command: string | undefined): string | undefined {
-  const path = /^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "")?.[1];
+  const path = (/^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "")?.[1]) ??
+    (/^node (tools\/repository-command\.mts) tool [\w:.-]+$/u.exec(command ?? "")?.[1]);
   return path === undefined ? undefined : normalize(path).split(sep).join("/");
 }
 
@@ -26,9 +27,11 @@ function requiredRoute(
   scripts: Readonly<Record<string, string>>, entry: string, target: string, scopeOnly: boolean
 ): boolean {
   const suffix = ` quality check --consumer .${scopeOnly ? " --scope-only" : ""}`;
-  return ["agent-teams-foundation", "node packages/engineering-foundation/dist/cli.js"].some((host) =>
-    executesScript(scripts, entry, target, `${host}${suffix}`)
-  );
+  return [
+    `agent-teams-foundation${suffix}`,
+    `node packages/engineering-foundation/dist/cli.js${suffix}`,
+    `node tools/repository-command.mts tool ${scopeOnly ? "quality:coverage:scope" : "lint:typed"}`
+  ].some((expected) => executesScript(scripts, entry, target, expected));
 }
 
 /** The same static observation is used by aggregate checks and explicit execution. */

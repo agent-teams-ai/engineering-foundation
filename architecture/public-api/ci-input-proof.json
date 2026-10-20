@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/ci-input-proof",
-  "packageVersion": "0.1.0",
-  "extractorVersion": "7.58.12",
+  "packageVersion": "0.1.1",
+  "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {
       "exportPath": ".",

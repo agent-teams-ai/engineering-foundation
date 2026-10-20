@@ -1,5 +1,127 @@
 # @agent-teams/engineering-foundation
 
+## 1.10.1
+
+### Patch Changes
+
+- [#414](https://github.com/agent-teams-ai/engineering-foundation/pull/414) [`7d317d4`](https://github.com/agent-teams-ai/engineering-foundation/commit/7d317d473d3daa3c1cc4773af66313bc072e7a09) Thanks [@777genius](https://github.com/777genius)! - Exclude the generated runtime-profile projection from public API extraction
+  staging so a qualified workspace cannot duplicate the source tree or exhaust
+  the staged repository entry budget during release versioning.
+
+## 1.10.0
+
+### Minor Changes
+
+- [#410](https://github.com/agent-teams-ai/engineering-foundation/pull/410) [`0ab3744`](https://github.com/agent-teams-ai/engineering-foundation/commit/0ab37446fe3716eba25eebde73af32393a756fc5) Thanks [@777genius](https://github.com/777genius)! - Add the Bun default repository runtime profile, closed Bun package-script
+  adapter, deterministic workspace projection and explicit clean Node/pnpm
+  rollback while preserving supported public Node 24/26 and Node-owned test,
+  coverage, package-manager and release lanes.
+
+  Publish repository-agent-workflow policy schema v2 with an explicit Bun or pnpm
+  manager. Version 1 remains pnpm-only. The repository adopts v2; its clean Node
+  projection records and verifies the corresponding pnpm policy bytes.
+
+  Republish Feature Module Standard with the updated Foundation peer range and
+  exact development dependency produced by its workspace manifest projection.
+
+  Publish workspace-dependency-declarations policy schema v2 with an explicit Bun
+  or pnpm manager and the existing pnpm-workspace.yaml catalog authority. Version 1
+  remains pnpm-only. The Node projection records and verifies both dependency
+  policy digests alongside its root manifest and workflow policy evidence.
+
+  Observe the pinned pnpm version without triggering installation when the
+  read-only qualification observer runs from a Bun-managed workspace.
+
+  Resolve built-in source imports through the runtime's `node:module.isBuiltin`
+  contract, including prefix-only `node:test` under Bun. Bare `test` retains normal
+  package declaration checks, and unknown `node:` imports remain unsupported.
+
+- [#408](https://github.com/agent-teams-ai/engineering-foundation/pull/408) [`93b6ec4`](https://github.com/agent-teams-ai/engineering-foundation/commit/93b6ec468c50cd6110e2a9284ae7c0de170b01af) Thanks [@777genius](https://github.com/777genius)! - Use exact TypeScript 7.0.2 for public API extraction, independently collected
+  compiler diagnostics, and rich declaration-graph observation. Keep the existing
+  Microsoft API model, public ports, schemas, comparison policies, and release-owned
+  baseline guards. Remove the old API Extractor runtime and its embedded compiler.
+
+  The new extractor identity is `typescript-native/7.0.2`. Existing baselines remain
+  immutable and require an explicitly reviewed, release-owned tool migration before
+  consumer adoption; identical declarations do not waive the identity mismatch.
+  This changeset does not authorize baseline replacement or publication. See the
+  native adapter migration section in `docs/architecture/public-api-compatibility.md`.
+
+- [#408](https://github.com/agent-teams-ai/engineering-foundation/pull/408) [`93b6ec4`](https://github.com/agent-teams-ai/engineering-foundation/commit/93b6ec468c50cd6110e2a9284ae7c0de170b01af) Thanks [@777genius](https://github.com/777genius)! - Support the explicit API Extractor 7.58.12 to native TypeScript 7.0.2 baseline
+  transition through the existing public-api-promote-release command. Consumers
+  retain authenticated historical archives, original configurations, frozen
+  resolution data and the complete reviewed tool difference. The command recomputes
+  historical and candidate observations and preserves ordinary compatibility,
+  version, accepted-decision and leased physical-preimage guards.
+
+  Use --native-transition with a versioned content request. --qualification-only
+  performs the same read-only observation without promoting baselines. Ordinary
+  checks and promotion without this option retain their existing mismatch refusal.
+  The request supplies content evidence and grants no release or publication
+  authority. Foundation's fixed eight-package driver and a real Get Modular
+  two-package consumer use the same owned mechanism.
+
+## 1.9.0
+
+### Minor Changes
+
+- [#393](https://github.com/agent-teams-ai/engineering-foundation/pull/393) [`3699a9c`](https://github.com/agent-teams-ai/engineering-foundation/commit/3699a9c941b2fcd3d20b39e9b70f2651413e5233) Thanks [@777genius](https://github.com/777genius)! - Delegate managed process execution to the accepted process runtime while
+  preserving Foundation result facts, error translation, POSIX process-group
+  containment and Windows Job Object cleanup. Retain a bounded Windows diagnostic
+  suffix and require the profile-composed explicit Node executable for the Windows
+  bootstrap when Bun executes Foundation. This does not change the repository's
+  current default runtime.
+
+  Add the version 2 quality-gate runner schema for the explicit runtime profile.
+  The additive exported schema requires a minor release; its artifact baseline is
+  promoted by the ordinary Changesets release workflow.
+
+## 1.8.0
+
+### Minor Changes
+
+- [#397](https://github.com/agent-teams-ai/engineering-foundation/pull/397) [`73c3814`](https://github.com/agent-teams-ai/engineering-foundation/commit/73c3814d1026750e92c9d2f2aa4e1c3a4d64706b) Thanks [@777genius](https://github.com/777genius)! - Add the architecture-neutral core mechanisms: a shrink-only findings baseline
+  (`baseline check`, `init` and `prune` commands for Oxlint findings, and pure
+  functions on `@agent-teams/engineering-foundation/ratchet`), growth budgets that
+  only warn, and a public source graph with strongly connected components on
+  `@agent-teams/engineering-foundation/source-graph`. `quality.source-coverage`
+  also reads Feature Module Standard v1.1 production mappings; its topology and
+  all existing diagnostics are unchanged.
+
+- [#407](https://github.com/agent-teams-ai/engineering-foundation/pull/407) [`43dbe80`](https://github.com/agent-teams-ai/engineering-foundation/commit/43dbe80844ac639573019312a72393156549714d) Thanks [@777genius](https://github.com/777genius)! - Preserve reference kinds and unresolved computed loaders in the public source
+  graph. Observe direct ESM runtime export names and kinds through the existing
+  Oxc parser, with per-file coverage and explicit unsupported forms instead of
+  fabricated complete counts. Keep unresolved, external and parse-failure lanes.
+
+  Consumers retain ownership of syntax restrictions and CMS/FMS profile mappings.
+  This additive source API changes no dependency-policy schema, architecture
+  standard, consumer pin or release admission.
+
+- [#400](https://github.com/agent-teams-ai/engineering-foundation/pull/400) [`dd99260`](https://github.com/agent-teams-ai/engineering-foundation/commit/dd99260b5f394d464357eecbd9c8e5d3e1dddbdb) Thanks [@777genius](https://github.com/777genius)! - Allow a declared peer contract together with the development dependency used to
+  build and test it. Each declaration retains its version and placement checks;
+  other duplicate dependency sections remain rejected. This supports the optional
+  Foundation peer of the Feature Module Standard Node runner.
+
+### Patch Changes
+
+- [#406](https://github.com/agent-teams-ai/engineering-foundation/pull/406) [`dbecf5d`](https://github.com/agent-teams-ai/engineering-foundation/commit/dbecf5d8e9f9886a59d1f0ab289be2217a15b9b7) Thanks [@777genius](https://github.com/777genius)! - Give the git calls that read repository identity in `package.public-api-compatibility`
+  a 60 second deadline instead of 10 seconds. A cold Windows runner could exceed ten
+  seconds and fail with `UNEXPECTED_PROCESS_FAILURE`. On Windows the deadline also covers
+  the Job Object wrapper (the PowerShell bootstrap with its `Add-Type` C# compilation and the
+  Node process host), not only git.
+
+## 1.7.4
+
+### Patch Changes
+
+- [#382](https://github.com/agent-teams-ai/engineering-foundation/pull/382) [`9bdca2f`](https://github.com/agent-teams-ai/engineering-foundation/commit/9bdca2f70d541ea943ce9bfe4e5b15d31311282d) Thanks [@777genius](https://github.com/777genius)! - Preserve private bounded process observations in safe v1 failure messages without exposing process output or changing outcome and exit classification.
+
+- [#387](https://github.com/agent-teams-ai/engineering-foundation/pull/387) [`b9e1a67`](https://github.com/agent-teams-ai/engineering-foundation/commit/b9e1a670d5c93b54bf7455580842281ca91773ad) Thanks [@777genius](https://github.com/777genius)! - Correct SourceDeps v3 admission of explicitly allowed child-package development
+  imports into exact declared repository development entrypoints. Root package
+  ownership, both development classifications, boundary permission and the exact
+  entrypoint must all be proven. Preserve cross-package rejection for missing
+  facts and retain boundary diagnostics and cycle checks.
+
 ## 1.7.3
 
 ### Patch Changes

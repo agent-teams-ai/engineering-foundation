@@ -3,6 +3,7 @@ import { lstat, mkdir, open, opendir, realpath, symlink, writeFile } from "node:
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { mapStageIo, reserveStageBytes } from "./pack-stage-io.mts";
 import { materializeStagedCompiler } from "./pack-staged-compiler.mts";
+import { workspacePeerRange } from "./publishable-packages.mjs";
 
 // A clean stage includes the full isolated dependency closure needed to build
 // each package. Keep traversal bounded while allowing the current workspace
@@ -22,7 +23,14 @@ function compareCodePoints([left], [right]) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function exactPublishSpecifier(packageName, specifier, context) {
+function exactPublishSpecifier(packageName, specifier, context, section) {
+  if (specifier.startsWith("workspace:^") && section === "peerDependencies") {
+    const version = context.internalPackageVersions.get(packageName);
+    if (typeof version !== "string" || parseVersion(version) === undefined) {
+      throw new Error(`Staged publish manifest cannot resolve workspace version for ${packageName}.`);
+    }
+    return workspacePeerRange(specifier, version);
+  }
   if (specifier === "workspace:*") {
     const version = context.internalPackageVersions.get(packageName);
     if (typeof version !== "string" || parseVersion(version) === undefined) {
@@ -74,7 +82,7 @@ export function canonicalPublishManifest(manifest, context) {
         if (typeof specifier !== "string" || specifier === "") {
           throw new Error(`Package manifest has malformed ${section} request for ${name}.`);
         }
-        return [name, exactPublishSpecifier(name, specifier, context)];
+        return [name, exactPublishSpecifier(name, specifier, context, section)];
       })
       .toSorted(compareCodePoints));
   }

@@ -11,12 +11,14 @@ not repeat their rules.
 | Core terminology | [Foundation glossary](reference/glossary.md) | Active terminology contract for current documentation |
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
 | CI input comparison | [Source admission](development/ci-input-proof-admission.md) | Initial source checkpoint; consumer conformance, package qualification and registry adoption pending |
+| Feature Module Standard checks | [Package admission](development/feature-module-standard-admission.md) | Kernel and runner implemented; deprecated bootstrap retained; supported release and consumer registry adoption pending |
 | Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Implemented and released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |
 | Suppression governance | [Suppression governance](architecture/suppression-governance.md) | Accepted and implemented |
+| Findings baseline, growth budgets, source graph | [Findings baseline](architecture/findings-baseline.md) | Implemented |
 | Executable specifications | [Executable specifications](reference/executable-specifications.md) | Accepted and implemented; activation is explicit |
-| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; consumer mutation gate required |
+| Public API compatibility | [Public API compatibility](architecture/public-api-compatibility.md) | Accepted and implemented; native TypeScript 7 adapter requires release qualification and baseline migration |
 | SDK growth S2 remediation | [Configuration, projection and evidence](reference/sdk-growth-s2-remediation.md) | Local remediation evidence; packed qualification and S3 authority remain separate |
 | SDK growth S3 authority | [Trusted authority integration](reference/sdk-growth-s3-authority.md) | EF port/adapter and exact-receipt promotion gate implemented; external qualification and activation remain separate |
 | SDK growth checkpoint | [EF C0 contract](reference/sdk-growth-c0.md) | Boundary revision 6; v5 wire bytes retained, authority v3 qualifies metadata roots; external activation remains separate |
@@ -34,12 +36,13 @@ not repeat their rules.
 | Document authoring security | [Cooperative writer threat model](security/document-authoring-threat-model.md) | Cooperative-writer boundary implemented and released; registry qualification complete |
 | Node TypeScript library recipe | [Recipe reference](reference/node-typescript-library-boundary.md) | Implemented; qualification remains consumer-owned |
 | Local package development | [Local mode](development/local-mode.md) | Active |
-| Node compatibility | [Node 24 default and Node 26 lane](development/node-26-compatibility.md) | Implemented compatibility policy; Node 24 remains production/default |
+| Node compatibility | [Node 26 default and Node 24 lane](development/node-26-compatibility.md) | Repository default is Node 26.11.1; Node 24 is a compatibility lane |
 | Managed runtime observation | [Private Node/pnpm observation](reference/node26-managed-runtime-observation.md) | Unselected P2a source; installation and qualification remain separate |
 | Consumer adoption | [Consumer adoption](development/consumer-adoption.md) | Active |
 | Hardening migration preparation | [Seven-consumer migration packets](development/docs-new-package-migration.md) | Draft; exact artifacts, recovery and consumer qualification pending |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
+| Check-changed successor | [Check-changed coverage and v2 migration](reference/repository-agent-workflow-check-changed.md) | Source and additive composition implemented; artifact admission, candidate qualification and release pending |
 | Deterministic quality gates | [Quality gate runner](reference/quality-gate-runner.md) | Implemented and post-build dogfooded; activation is explicit |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Production quality coverage | [Coverage contract](reference/quality-source-coverage.md) | Implementation in progress; CLI and packed qualification pending |
@@ -49,7 +52,7 @@ not repeat their rules.
 | Agent architecture standard delivery | [Implementation plan](research/agent-architecture-standard-implementation-plan.md) | Accepted overlay-first vertical plan; irreversible contracts remain gated by neutral ADRs and conformance |
 | Agent architecture standard decisions | [Product decision brief](research/agent-architecture-standard-product-decisions.md) | D0-D11 accepted; D5 resolved overlay-first and D9 selects public non-latest RCs |
 | Agent architecture standard D5 evidence | [Operation spike](research/agent-architecture-standard-operation-spike.md) | Complete; independent adversarial review rejected three initial public operations |
-| Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0035 |
+| Foundation architecture readiness | [Independent audit](research/foundation-architecture-audit-2026-08-23.md) | Revalidated at 8.8/10; remaining migrations governed by ADR-0061, which superseded ADR-0035 |
 | Source parser evidence | [Parser spike](research/source-dependency-parser-spike.md) | Implemented; decision accepted |
 | Governance capability acceptance | [Acceptance review](research/governance-capability-acceptance-review.md) | Complete |
 | Package release | [Release](release.md) | Active |

@@ -1,11 +1,11 @@
 import { normalize, relative, resolve, sep } from "node:path";
 import {
-  assertNotCancelled, classifyQualityCensus, executesScript, qualitySourceLanguage,
+  assertNotCancelled, classifyQualityCensus, executesScript, qualitySourceLanguage, qualityHostCommand, nativeScriptEntrypoint,
   type QualityCoverageObservation, type QualityCoverageReader,
   type QualityObservationPorts, type QualityFileReader
 } from "../api.js";
 import { inspectProtectedConfig } from "./protected-config.js";
-import { invalidQualityInput, mapQualityProfile, mapQualityTopology, qualityRecord, qualityString } from "./profile-input.js";
+import { invalidQualityInput, mapQualityProfile, mapQualityTopology, qualityRecord, qualityScriptCommand } from "./profile-input.js";
 
 export interface QualityConfigurationReader {
   read(consumerRoot: string, path: string, phase: string, signal?: AbortSignal): Promise<unknown>;
@@ -14,12 +14,11 @@ export interface QualityConfigurationReader {
 
 function scriptsFrom(value: unknown): Readonly<Record<string, string>> {
   const scripts = qualityRecord(qualityRecord(value)["scripts"]);
-  return Object.fromEntries(Object.entries(scripts).map(([name, command]) => [name, qualityString(command)]));
+  return Object.fromEntries(Object.entries(scripts).map(([name, command]) => [name, qualityScriptCommand(command)]));
 }
 
 function nativeScriptPath(command: string | undefined): string | undefined {
-  const path = (/^node (scripts\/[\w./-]+\.mjs)$/u.exec(command ?? "")?.[1]) ??
-    (/^node (tools\/repository-command\.mts) tool [\w:.-]+$/u.exec(command ?? "")?.[1]);
+  const path = nativeScriptEntrypoint(command);
   return path === undefined ? undefined : normalize(path).split(sep).join("/");
 }
 
@@ -27,7 +26,9 @@ function requiredRoute(
   scripts: Readonly<Record<string, string>>, entry: string, target: string, scopeOnly: boolean
 ): boolean {
   const suffix = ` quality check --consumer .${scopeOnly ? " --scope-only" : ""}`;
+  const hostCommand = scripts[target];
   return [
+    ...(hostCommand !== undefined && qualityHostCommand(hostCommand, scopeOnly) ? [hostCommand] : []),
     `agent-teams-foundation${suffix}`,
     `node packages/engineering-foundation/dist/cli.js${suffix}`,
     `node tools/repository-command.mts tool ${scopeOnly ? "quality:coverage:scope" : "lint:typed"}`

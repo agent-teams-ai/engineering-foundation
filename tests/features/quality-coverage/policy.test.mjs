@@ -325,3 +325,48 @@ test("required script routes reject direct and nested literal failure", async ()
     assert.equal(executesScript(scripts, "check", "lint:typed", expected), false);
   }
 });
+
+
+test("static Host quality routes preserve failure, missing-script and cycle rejection", async () => {
+  const { executesScript, qualityHostCommand, nativeScriptEntrypoint } = await import("../../../packages/engineering-foundation/dist/features/quality-coverage/application/script-route.js");
+  const host = "node architecture/tooling/runtime/command.ts";
+  const other = "node .tools/dispatch.mjs";
+  const full = `${host} tool agent-teams-foundation quality check --consumer .`;
+  const scope = `${other} tool agent-teams-foundation quality check --consumer . --scope-only`;
+  assert.equal(qualityHostCommand(full, false), true);
+  assert.equal(qualityHostCommand(scope, true), true);
+  assert.equal(qualityHostCommand(scope, false), false);
+  assert.equal(qualityHostCommand(full, true), false);
+  for (const command of [full + " extra", full + "\n", full.replace("quality check", "quality plan"),
+    full.replace("--consumer .", "--consumer other"), full.replace("agent-teams-foundation", "other"),
+    full.replace("architecture/", "../"), full.replace("architecture/", "/architecture/"),
+    full.replace("node ", "env X=1 node "), full.replace("node ", "node --import x "),
+    full.replace("command.ts", "command.txt"), full.replace("command.ts", "'command.ts'"),
+    full.replace("architecture/", "https://host/"), full + " || true"]) {
+    assert.equal(qualityHostCommand(command, false), false, command);
+  }
+  const valid = { check: `${host} run build && ${other} run nested`, build: "tsc --build",
+    nested: `${host} script lint:typed`, "lint:typed": full };
+  assert.equal(executesScript(valid, "check", "lint:typed", full), true);
+  for (const scripts of [
+    { ...valid, build: "false" }, { ...valid, build: `${host} run missing` },
+    { ...valid, build: `${host} run build` }, { ...valid, build: "pnpm missing" },
+    { ...valid, nested: `${host} run absent` }, { ...valid, nested: "true" },
+    { ...valid, check: `${host} run nested || true` },
+    { ...valid, check: `${host} run nested\n` },
+    { ...valid, check: `${host} run nested extra` },
+    { ...valid, "lint:typed": "true" }
+  ]) { assert.equal(executesScript(scripts, "check", "lint:typed", full), false); }
+  const deep = { ...valid, build: `${host} run depth0` };
+  for (let index = 0; index < 129; index += 1) { deep[`depth${index}`] = `${host} run depth${index + 1}`; }
+  deep.depth129 = "true";
+  assert.equal(executesScript(deep, "check", "lint:typed", full), false);
+  // Readability/declaration only: even this no-op dispatcher body is not inspected here.
+  assert.equal(nativeScriptEntrypoint(`${host} tool native:check`), "architecture/tooling/runtime/command.ts");
+  assert.equal(nativeScriptEntrypoint(`${other} tool architecture/checks/native.mjs`), ".tools/dispatch.mjs");
+  for (const command of [`${host} run native:check`, `${host} tool native:check extra`,
+    `${host} tool ../native.mjs`, `${host} tool C:/outside.ts`, `${host} tool https://host/native.ts`,
+    `${host} tool /outside.ts`, `${host} tool native:check\n`, "true"]) {
+    assert.equal(nativeScriptEntrypoint(command), undefined);
+  }
+});

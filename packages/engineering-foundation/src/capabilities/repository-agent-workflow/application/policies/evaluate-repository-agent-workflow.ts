@@ -1,3 +1,4 @@
+import { parseStaticHostCommand } from "../../../../features/configuration-input/application/static-host-command.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type {
@@ -34,6 +35,15 @@ function fileSource(evidence: InstructionFileEvidence): string | null {
 
 function isExactAdapter(source: string, candidates: readonly string[]): boolean {
   return candidates.includes(source.trim());
+}
+
+// Recognize the declaration only; Host code and runtime qualification are separate.
+function isStaticHostToolRunner(command: string, successor: boolean): boolean {
+  const host = parseStaticHostCommand(command);
+  return host !== undefined && host.arguments.length === 6 &&
+    host.arguments[0] === "tool" && host.arguments[1] === "agent-teams-foundation" &&
+    host.arguments[2] === "agent-workflow" && host.arguments[3] === (successor ? "check-changed" : "changed") &&
+    host.arguments[4] === "--consumer" && host.arguments[5] === ".";
 }
 
 function importCandidates(adapterPath: string, canonicalPath: string): readonly string[] {
@@ -163,6 +173,7 @@ function validateCommands(
     /^node\s+tools\/repository-command\.mts\s+script\s+build\s*&&\s*node\s+tools\/repository-command\.mts\s+tool\s+check:changed$/u;
   if (
     changedCommand !== undefined &&
+    !isStaticHostToolRunner(changedCommand, successor) &&
     !(successor
       ? successorRunner.test(changedCommand.trim()) || successorDogfood.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim())
       : installedRunner.test(changedCommand.trim()) || selfDogfoodRunner.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim()))

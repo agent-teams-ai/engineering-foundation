@@ -199,3 +199,18 @@ The shared parser distinguishes structural script inclusion from this stricter
 quality-route check. FMS retains its existing structural guard: a failing
 prerequisite is still a failed shell gate, not a successful bypass. Quality
 coverage separately rejects literal failure anywhere in its required route.
+
+Package script bodies have a separate nonempty 16 KiB UTF-8 limit; profile names
+and paths retain their 1024-character bound and configuration reads retain their
+existing size bound. This admits explicit monorepo command chains without making
+command bodies unbounded.
+
+Static route declarations support literal manager script calls and `node
+<repository-relative JavaScript-or-TypeScript-file> run <script>` (or `script`).
+A Host `tool agent-teams-foundation quality check --consumer .` declaration is a
+full route; only the scope route includes `--scope-only`. Exact arguments and
+safe paths are required. Known script edges must exist, and literal failures,
+cycles, excessive depth, OR and multiline route chains reject. Opaque atomic
+build siblings retain their existing declaration-only treatment. Selecting and
+reading a native Host dispatcher proves file readability, not its implementation
+or native execution. Runtime observations and qualification remain separate.

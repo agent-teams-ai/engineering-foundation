@@ -229,6 +229,13 @@ test("projection and staging validation fail closed", async (t) => {
     for (const version of ["1.7.4", "2.0.0", "1.10.0-rc.0"]) {
       assert.throws(() => derive(minimum, version), /does not admit workspace version/u);
     }
+    const union = { ...minimum, peerDependencies: { [a.name]: "workspace:^1.8.0 || ^2.0.0" } };
+    for (const version of ["1.8.0", "1.10.1", "2.0.0", "2.9.9"]) {
+      assert.deepEqual(derive(union, version).declarations[b.name], peer.declarations[b.name]);
+    }
+    for (const version of ["1.7.9", "3.0.0", "2.0.0-rc.0"]) {
+      assert.throws(() => derive(union, version), /does not admit workspace version/u);
+    }
     assert.throws(() => derive(minimum, ""), /requires an actual workspace version/u);
     assert.throws(() => derive({ ...minimum, peerDependencies: { [a.name]: "workspace:^1.8" } }), /does not admit workspace version/u);
     assert.throws(() => derive({ ...minimum, peerDependenciesMeta: undefined }), /multiple dependency sections/u);

@@ -359,11 +359,13 @@ integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
 An internal package is declared once, as `workspace:*`. The one exception is an
 optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
-minimum such as `workspace:^1.8.0`) together with the workspace
+minimum such as `workspace:^1.8.0`, or explicit stable caret branches such as
+`workspace:^1.8.0 || ^2.0.0`) together with the workspace
 link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
 one edge for the closed DAG. The symbolic caret publishes as `^<workspace version>`;
-an explicit minimum retains its declared range and requires the actual workspace
-version to satisfy it. FMS keeps its Foundation `^1.8.0` minimum: packed Node
+explicit stable caret branches retain their declared range and require the actual
+workspace version to satisfy at least one branch. Floating, partial and prerelease
+branches reject. FMS supports Foundation `^1.8.0 || ^2.0.0`: packed Node
 qualification runs against both the current qualified Foundation archive and the
 exact published `1.8.0` with strict peers, using the same public source and budget
 checks. Pure FMS entries are also checked without Foundation. The current exact
@@ -373,7 +375,9 @@ release when the peer update stays within that range. An out-of-range update
 still triggers the planner's compatibility bump and requires review of release
 intent; the existing Changeset coverage tests exercise both cases through the
 installed planner. This keeps the initial Foundation 1.8.0 and FMS 0.1.0 train
-from becoming an unintended FMS 1.0.0 release.
+from becoming an unintended FMS 1.0.0 release. The Foundation 2.0.0 workflow
+schema artifact change leaves the public source graph and ratchet contracts used
+by FMS unchanged; its explicit compatible-window Changeset selects FMS 0.2.0.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version

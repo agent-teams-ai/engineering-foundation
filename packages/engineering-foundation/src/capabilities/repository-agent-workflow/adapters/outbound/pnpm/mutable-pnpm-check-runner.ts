@@ -11,7 +11,7 @@ import { BunPackageScriptRunner, type BunProcessEnvironment } from "../bun/bun-p
 
 /** Honest feedback for the current CLI Host: no trusted tool/script closure or
  * frozen custody is available. No facets or test observations are qualified. */
-export function createMutableCheckRunner(scriptRunner: PackageScriptRunner): CoverageCheckRunner {
+function createMutableCheckRunner(scriptRunner: PackageScriptRunner): CoverageCheckRunner {
   return {
     async run({ lease, check, packageManager, signal }) {
       if (lease.classification !== "mutable") {throw new Error("Feedback runner requires mutable custody.");}

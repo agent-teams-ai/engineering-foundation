@@ -23,6 +23,8 @@
   "include": [
     "scripts/**/*.mts",
     "scripts/release-bun-lock.ts",
+    "scripts/public-docs-quickstart.ts",
+    "scripts/public-docs-documented-e2e.ts",
     "tools/**/*.mts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
@@ -30,6 +32,7 @@
     "tests/test-manifests-typescript.test.ts",
     "tests/source-inline-types.test.ts",
     "tests/package-export-matcher.test.ts",
+    "tests/public-docs-documented.test.ts",
     "tests/support/ci-input-proof-collector-install.ts"
   ]
 }

@@ -12,6 +12,11 @@ import {
 } from "./registry-install-policy.mjs";
 import { parsePublishedVersion } from "./release-publish-registry-version.mjs";
 import {
+  documentedInstallCommands,
+  readDocumentedQuickstart,
+  runDocumentedQuickstart,
+} from "./public-docs-quickstart.ts";
+import {
   verifyRegistryDocsProtocolCli,
   verifyRegistryDocsProtocolMcp,
 } from "./registry-docs-protocol-mcp-e2e.mjs";
@@ -40,14 +45,16 @@ async function json(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-async function currentPublicCoordinates(authority, readPackageManifest) {
+async function currentPublicCoordinates(authority, readPackageManifest, quickstart) {
   return Object.freeze(await Promise.all(
     Object.entries(authority.packages).map(async ([id, { name }]) => {
       const identity = PUBLIC_PACKAGE_IDENTITIES[id];
       if (identity?.name !== name) {
         throw new Error(`Public Docs authority contains an untrusted package identity for ${id}.`);
       }
-      const manifest = await readPackageManifest(new URL(identity.manifestPath, import.meta.url));
+      const manifest = quickstart === undefined
+        ? await readPackageManifest(new URL(identity.manifestPath, import.meta.url))
+        : quickstart.coordinates.find((coordinate) => coordinate.name === name);
       if (manifest?.name !== identity.name) {
         throw new Error(`Public Docs manifest contains an untrusted package identity for ${id}.`);
       }
@@ -162,8 +169,9 @@ function hasLocalLockfileReference(lockfile) {
   return false;
 }
 
-export function assertRegistryOnlyInstallEvidence({ lockfile, manifests }) {
-  if (hasLocalLockfileReference(parsedLockfileEvidence(lockfile))) {
+export function assertRegistryOnlyInstallEvidence({ artifacts, lockfile, manifests }) {
+  const parsed = parsedLockfileEvidence(lockfile);
+  if (hasLocalLockfileReference(parsed)) {
     throw new Error("Public Docs lockfile contains a local or workspace dependency.");
   }
   for (const { manifest, name, version } of manifests) {
@@ -178,10 +186,23 @@ export function assertRegistryOnlyInstallEvidence({ lockfile, manifests }) {
         throw new Error(`Public install retained a local dependency in ${name} ${section}.`);
       }
     }
+    if (artifacts !== undefined) {
+      const artifact = artifacts.find((candidate) => candidate.name === name && candidate.version === version);
+      const entry = parsed.lockfileVersion === 3
+        ? parsed.packages?.["node_modules/" + name]
+        : parsed.lockfileVersion === "9.0"
+          ? parsed.packages?.[name + "@" + version]
+          : undefined;
+      const nativeIntegrity = parsed.lockfileVersion === 3 ? entry?.integrity : entry?.resolution?.integrity;
+      if (artifact === undefined || canonicalIntegrity(nativeIntegrity, name) !== artifact.integrity ||
+          (parsed.lockfileVersion === 3 && entry?.version !== version)) {
+        throw new Error("Public Docs native lockfile does not bind the observed artifact for " + name + ".");
+      }
+    }
   }
 }
 
-async function installAndQualify({ coordinates, matrixEntry, mcpName, registry, temporaryRoot }) {
+async function installAndQualify({ artifacts, coordinates, matrixEntry, mcpName, quickstart, registry, temporaryRoot }) {
   const root = join(temporaryRoot, "public-docs-install", matrixEntry.id);
   await mkdir(root, { recursive: true });
   const userConfigPath = join(root, ".npmrc");
@@ -190,6 +211,7 @@ async function installAndQualify({ coordinates, matrixEntry, mcpName, registry, 
     `@agent-teams:registry=${registry}`,
     "audit=false",
     "fund=false",
+    "ignore-scripts=true",
     "",
   ].join("\n"), "utf8");
   const selected = coordinates.filter(({ name }) => matrixEntry.packageNames.includes(name));
@@ -197,9 +219,28 @@ async function installAndQualify({ coordinates, matrixEntry, mcpName, registry, 
     name: `public-docs-install-${matrixEntry.id}`,
     private: true,
     type: "module",
-    devDependencies: Object.fromEntries(selected.map(({ name, version }) => [name, version])),
+    devDependencies: quickstart === undefined
+      ? Object.fromEntries(selected.map(({ name, version }) => [name, version]))
+      : {},
   }, null, 2)}\n`, "utf8");
-  if (matrixEntry.manager === "npm") {
+  if (quickstart !== undefined) {
+    const runManager = matrixEntry.manager === "npm" ? runNpmCommand : runPnpm;
+    const environment = {
+      ...process.env,
+      npm_config_userconfig: userConfigPath,
+      npm_config_cache: join(temporaryRoot, "documented-npm-cache"),
+      npm_config_store_dir: join(temporaryRoot, "documented-pnpm-store"),
+    };
+    for (const command of documentedInstallCommands(quickstart, matrixEntry.manager, matrixEntry.profile === "docs-mcp")) {
+      const result = await runManager(command.slice(1), root, { environment, timeoutMs: 240_000 });
+      if (command[1] === "view") {
+        const expected = selected.find(({ name, version }) => name + "@" + version === command[2]);
+        if (expected === undefined || JSON.parse(result.stdout) !== expected.version) {
+          throw new Error("Documented public registry view did not return its exact coordinate.");
+        }
+      }
+    }
+  } else if (matrixEntry.manager === "npm") {
     await runNpmCommand([
       "install", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=true",
       "--registry", registry, "--userconfig", userConfigPath,
@@ -220,6 +261,7 @@ async function installAndQualify({ coordinates, matrixEntry, mcpName, registry, 
     }];
   })));
   assertRegistryOnlyInstallEvidence({
+    artifacts,
     lockfile: await readFile(join(
       root,
       matrixEntry.manager === "npm" ? "package-lock.json" : "pnpm-lock.yaml",
@@ -227,12 +269,15 @@ async function installAndQualify({ coordinates, matrixEntry, mcpName, registry, 
     manifests: [...installed.values()],
   });
   const docsRoot = installed.get("@agent-teams/docs-protocol").installedRoot;
+  const documented = quickstart === undefined ? undefined : await runDocumentedQuickstart({
+    quickstart, root, installedDocsRoot: docsRoot,
+  });
   if (matrixEntry.profile === "docs-only") {
     await verifyRegistryDocsProtocolCli({
       consumerRoot: join(root, "cli-consumer"),
       installedDocsRoot: docsRoot,
     });
-    return Object.freeze({ root, userConfigPath });
+    return Object.freeze({ documented, root, userConfigPath });
   }
   const mcpRoot = installed.get("@agent-teams/docs-protocol-mcp").installedRoot;
   await verifyRegistryDocsProtocolMcp({
@@ -241,7 +286,7 @@ async function installAndQualify({ coordinates, matrixEntry, mcpName, registry, 
     installedMcpRoot: mcpRoot,
     mcpVersion: coordinates.find(({ name }) => name === mcpName).version,
   });
-  return Object.freeze({ root, userConfigPath });
+  return Object.freeze({ documented, root, userConfigPath });
 }
 
 function canonicalIntegrity(value, name) {
@@ -253,7 +298,7 @@ function canonicalIntegrity(value, name) {
   return value;
 }
 
-function registryDecision(coordinates, published) {
+function registryDecision(coordinates, published, selection) {
   const publishedVersions = Object.fromEntries(coordinates.map(({ name }) => [
     name,
     published[name]?.versions ?? [],
@@ -264,12 +309,12 @@ function registryDecision(coordinates, published) {
   }
   const artifacts = coordinates.map(({ name, version }) => {
     const evidence = published[name];
-    if (evidence.latest !== version) {
+    if (selection === "release" && evidence.latest !== version) {
       throw new Error(`Public npm latest dist-tag drifted for ${name}@${version}.`);
     }
     return Object.freeze({
       integrity: canonicalIntegrity(evidence.integrity, name),
-      latest: evidence.latest,
+      ...(selection === "release" ? { latest: evidence.latest } : {}),
       name,
       version,
     });
@@ -295,7 +340,10 @@ function githubRepository(repository) {
   return path;
 }
 
-export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, dependencies = {}) {
+export async function verifyPublicExactDocsCoordinates({ temporaryRoot, selection = "release" }, dependencies = {}) {
+  if (selection !== "release" && selection !== "documented") {
+    throw new Error("Public Docs coordinate selection must be release or documented.");
+  }
   const authority = await json(new URL(
     "../architecture/foundation/open-source-docs-release.json",
     import.meta.url,
@@ -303,13 +351,17 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
   if (authority.registry !== PUBLIC_NPM_REGISTRY) {
     throw new Error("Public Docs authority must use the pinned public npm registry.");
   }
+  const quickstart = selection === "documented"
+    ? await (dependencies.readDocumentedQuickstart ?? readDocumentedQuickstart)()
+    : undefined;
   const coordinates = await currentPublicCoordinates(
     authority,
     dependencies.readPackageManifest ?? json,
+    quickstart,
   );
   const observe = dependencies.observePublishedPackages ?? observePublishedPackages;
   const published = await observe(coordinates, PUBLIC_NPM_REGISTRY, dependencies);
-  const decision = registryDecision(coordinates, published);
+  const decision = registryDecision(coordinates, published, selection);
   if (decision.status === "pending") {
     return decision;
   }
@@ -322,9 +374,11 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
   });
   for (const matrixEntry of matrix) {
     installs.set(matrixEntry.id, await qualify({
+      artifacts: decision.artifacts,
       coordinates,
       matrixEntry,
       mcpName: authority.packages.mcp.name,
+      quickstart,
       registry: PUBLIC_NPM_REGISTRY,
       temporaryRoot,
     }));
@@ -356,16 +410,25 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot }, depend
     await verifyGithub(`${artifact.name}@${artifact.version}`, commit, { repository });
   }
   const finalPublished = await observe(coordinates, PUBLIC_NPM_REGISTRY, dependencies);
-  const finalDecision = registryDecision(coordinates, finalPublished);
+  const finalDecision = registryDecision(coordinates, finalPublished, selection);
   if (finalDecision.status !== "ready") {
     throw new Error("Public Docs coordinates became unavailable during qualification.");
   }
   if (JSON.stringify(finalDecision.artifacts) !== JSON.stringify(decision.artifacts)) {
     throw new Error("Public Docs registry identity drifted during qualification.");
   }
+  const documented = selection === "documented" ? matrix.map(({ id }) => {
+    const evidence = installs.get(id)?.documented;
+    if (typeof evidence?.binary !== "string" || evidence.completedCommands !== 7 ||
+        evidence.rejectedStalePlans !== 2 || evidence.manualReachability !== true) {
+      throw new Error("Documented qualification did not return complete real command evidence for " + id + ".");
+    }
+    return Object.freeze({ id, ...evidence });
+  }) : undefined;
   return Object.freeze({
     ...finalDecision,
     commit,
+    ...(documented === undefined ? {} : { documented: Object.freeze(documented) }),
     matrix: Object.freeze(matrix.map(({ id }) => id)),
   });
 }

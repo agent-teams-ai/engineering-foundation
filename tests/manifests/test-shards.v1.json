@@ -137,7 +137,6 @@
         "tests/repository-security-hardening.test.mjs",
         "tests/source-dependency-development-mode.test.mjs",
         "tests/source-dependency-export-authority.test.mjs",
-        "tests/package-export-matcher.test.ts",
         "tests/document-authoring-writer-concurrency.test.mjs",
         "tests/public-api-evidence-safety.test.mjs",
         "tests/scaffolding-qualification.test.mjs",
@@ -329,7 +328,9 @@
         "tests/unexpected-failure-diagnostics.test.mjs",
         "packages/docs-protocol-agent-teams/tests/managed-portable-profile.test.mjs",
         "tests/source-graph.test.mjs",
-        "tests/source-inline-types.test.ts"
+        "tests/source-inline-types.test.ts",
+        "tests/package-export-matcher.test.ts",
+        "tests/public-docs-documented.test.ts"
       ]
     }
   ]

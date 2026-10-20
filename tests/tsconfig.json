@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.ci-tooling.json",
-  "include": ["**/*.mts", "support/release-changesets-fixture.ts", "public-api-native-migration-cli.test.ts", "source-inline-types.test.ts", "package-export-matcher.test.ts"]
+  "include": ["**/*.mts", "support/release-changesets-fixture.ts", "public-api-native-migration-cli.test.ts", "source-inline-types.test.ts", "package-export-matcher.test.ts", "public-docs-documented.test.ts"]
 }

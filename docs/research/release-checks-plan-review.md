@@ -38,7 +38,7 @@ These were source reads, not executed engine, CI, registry or E2E evidence.
 | I2 | Admission, sequencing and operational recovery | `8a34565` | CHANGE; I2-01 through I2-04 addressed in draft 3 |
 | I3 | Minimal consumer integration and acceptance scope | `a4f835967e33020a7ef8e98b4bf4966350cc6f4f` | GO; no material findings, proceed to C1 |
 | C1 | Independent correctness and counterexamples | `d6d1240acca66126e9d9aed64a58e0015395d55e` | CHANGES; C1-01 through C1-03 addressed in draft 4 |
-| C2 | Independent operational/consumer criticism | Pending | Pending |
+| C2 | Independent operational/consumer criticism | `d3dd0b129c5d2c6c709078bbce8e877ca0b72b41` | GO; no material findings, proceed to C3 |
 | C3 | Independent final scope and consistency review | Pending | Pending |
 
 Each round reads the actual revised plan, reports concrete findings and their
@@ -138,3 +138,22 @@ The reviewer found no further changes necessary for whole-tree observation,
 manifest content restrictions, pre-baseline/current-PR placement, honest DRY
 scope, v2/v3 unchanged records, or the existing provider-readiness boundary.
 Implementation remains pending C2-C3.
+
+## C2 — independent release operations and consumers
+
+Reviewed plan SHA-256:
+`ddaed322c6d2409ad7b283c16e72824df9eb7a1e7c5ca00615a87d6f5d1e9b82`.
+Independent role: release operations and consumer reviewer. Verdict: GO.
+No material findings or plan changes were required.
+
+The reviewer checked the actual push-only release/bootstrap continuation,
+exact-main CI and timed credential ordering, coherent admission recovery,
+Get Modular's current and retained build-input policies, node-or-bun's metadata
+release precedent and corrected npm lock order, and the TEST target's actual
+missing owner-PR extension. The retained Get Modular root manifest at
+`2cd561688bb223f944425718cc093e55ff4bc20d` was now locally readable; no retained
+archive isolation claim was inferred merely from that read.
+
+This read-only GO admits the plan to C3. It does not establish implementation,
+new CI, publication or provider readiness. Public admission remains unmerged
+until the existing interactive npm route is available.

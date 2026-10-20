@@ -40,7 +40,7 @@ void test('workflow conformance admits only static Host tool declarations for th
       `agent-teams-foundation agent-workflow ${mode} --consumer .`,
       `pnpm build && node packages/engineering-foundation/dist/cli.js agent-workflow ${mode} --consumer .`,
       'node tools/repository-command.mts script build && node tools/repository-command.mts tool check:changed',
-    ]) assert.deepEqual(diagnostics(command), [], command);
+    ]) { assert.deepEqual(diagnostics(command), [], command); }
 
     for (const entry of [
       '../dispatcher.ts', 'tools/../dispatcher.ts', './tools/dispatcher.ts',
@@ -49,7 +49,7 @@ void test('workflow conformance admits only static Host tool declarations for th
       'tools/dispatcher', 'tools/dispatcher.jsx', 'tools/dispatcher.ts?query',
       '"tools/dispatcher.ts"', '`tools/dispatcher.ts`', '$(echo tools/dispatcher.ts)',
       'tools/dispatcher;noop.ts', 'tools/dispatcher|noop.ts', 'tools/dispatcher\n.ts',
-    ]) assert.ok(diagnostics(`node ${entry} ${tail}`).some(d => d.ruleId === 'repository.agent-workflow.changed-runner-invalid'), entry);
+    ]) { assert.ok(diagnostics(`node ${entry} ${tail}`).some(d => d.ruleId === 'repository.agent-workflow.changed-runner-invalid'), entry); }
 
     const command = `node tools/dispatcher.ts ${tail}`;
     for (const invalid of [
@@ -64,7 +64,7 @@ void test('workflow conformance admits only static Host tool declarations for th
       `${command} --format json`, `${command} && echo done`, `${command} || true`,
       `${command}; true`, `${command} > output`, `${command}\n`, `\r${command}`,
       command.replace('node ', 'node\n'), command.replace(' tool ', '\rtool '),
-    ]) assert.ok(diagnostics(invalid).some(d => d.ruleId === 'repository.agent-workflow.changed-runner-invalid'), JSON.stringify(invalid));
+    ]) { assert.ok(diagnostics(invalid).some(d => d.ruleId === 'repository.agent-workflow.changed-runner-invalid'), JSON.stringify(invalid)); }
   }
 });
 

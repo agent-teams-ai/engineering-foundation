@@ -37,7 +37,7 @@ These were source reads, not executed engine, CI, registry or E2E evidence.
 | I1 | Contract, Clean Architecture and semantic reuse | `80fcc900f0f0844aac1ee07647515556828a00e3` | CHANGE; I1-01 through I1-03 addressed in draft 2 |
 | I2 | Admission, sequencing and operational recovery | `8a34565` | CHANGE; I2-01 through I2-04 addressed in draft 3 |
 | I3 | Minimal consumer integration and acceptance scope | `a4f835967e33020a7ef8e98b4bf4966350cc6f4f` | GO; no material findings, proceed to C1 |
-| C1 | Independent correctness and counterexamples | Pending | Pending |
+| C1 | Independent correctness and counterexamples | `d6d1240acca66126e9d9aed64a58e0015395d55e` | CHANGES; C1-01 through C1-03 addressed in draft 4 |
 | C2 | Independent operational/consumer criticism | Pending | Pending |
 | C3 | Independent final scope and consistency review | Pending | Pending |
 
@@ -113,3 +113,28 @@ isolation or historical manifest bytes. P4 retains that implementation gate.
 
 The required improvement sequence is complete. Implementation remains pending
 the three sequential critical-review rounds C1-C3.
+
+## C1 — independent correctness and counterexamples
+
+Reviewed plan SHA-256:
+`e540a0dcf3556e84e69ed2f50547c89163bbac3ef85a9e346c439ca5c3431347`.
+Independent role: release consistency and counterexample reviewer.
+Verdict: CHANGES. All three findings were medium severity plan clarifications.
+
+| Finding | Disposition in draft 4 |
+| --- | --- |
+| C1-01: visibility alone cannot define reciprocal intended-package coverage | Separated Host-qualified version eligibility and pending/retained intent participation; required corresponding direct plan links for every eligible pending request; preserved existing prerelease metadata consumption |
+| C1-02: equal physical paths across distinct checkouts would reject legitimate PR qualification, while ignoring them would lose execution custody | Separated portable source/engine/content binding from per-execution root/Git/working-directory/installation custody and retained substitution negatives |
+| C1-03: Changesets alone leaves npm root lock versions stale | Added explicit lock-only npm synchronization after engine versioning and before complete candidate observation; retained metadata-only comparison and graph-drift rejection |
+
+The additional actual npm canary probe is retained in
+[its P0 report](evidence/release-checks/p0-canary-engine-qualification.json),
+SHA-256 `dff1fc07f65a4444087127cb16f7781ada50af3c1e6fafa71a3bc14ce54fbc88`.
+It qualifies isolated Changesets 3.0.2 single-package generation and lock-only
+normalization, not the future shared checker, owner PR, hosted action or new
+publication. The real TEST checkout remains unchanged by that probe.
+
+The reviewer found no further changes necessary for whole-tree observation,
+manifest content restrictions, pre-baseline/current-PR placement, honest DRY
+scope, v2/v3 unchanged records, or the existing provider-readiness boundary.
+Implementation remains pending C2-C3.

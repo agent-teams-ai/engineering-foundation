@@ -1,6 +1,6 @@
 # Release candidate checks delivery
 
-Status: draft 3 after improvement I2, implementation not started. The owner authorized this bounded
+Status: draft 4 after critical review C1, implementation not started. The owner authorized this bounded
 delivery on 2026-10-20 after the release-tooling research, with three sequential
 plan-improvement rounds followed by three independent critical-review rounds.
 Their actual findings and dispositions are recorded in
@@ -92,6 +92,17 @@ Expected inputs come from the accepted source before generation:
   links, dependent releases, and explicit consumed-intent expectation;
 - consumer-owned exact permitted output paths, kinds and content authorities.
 
+Public/private visibility is separate from version eligibility. The Host maps
+its exact engine/configuration into qualified versioned, unversioned or ignored
+package facts, or an equivalent complete per-request disposition. The core
+requires every eligible pending requested package to have its corresponding
+official direct plan link; it does not implement the engine's eligibility rule.
+Retain the full raw intent inventory while distinguishing pending from already
+applied or otherwise retained intents under existing Host selection. Existing
+Foundation prerelease consumption can record an intent in Host-validated
+metadata while retaining the source file. Keep that effect in the complete diff
+and preserve the current prerelease content guard; add no new prerelease lane.
+
 Observed inputs are read independently after generation:
 
 - re-observed original input binding, separate from the new candidate head/tree;
@@ -119,6 +130,16 @@ collector so bootstrap policy and candidate checks use the same frozen plan
 projection for a candidate. Host-owned in-process or short-lived evidence is
 sufficient; the library owns no persistence mechanism or second version oracle.
 
+Separate the portable candidate binding from physical execution custody.
+Repository/source identity, processed commit and exact engine/config/input/plan
+content identities can be compared across authenticated checkouts. Actual
+repository root/Git directory, engine working directory and resolved installed
+entrypoint belong to Host-local execution evidence and are re-observed within
+the planning/versioning execution they attest. Independent legitimate PR
+qualification need not use identical absolute paths. That portability never
+permits a foreign-root/Git-directory or substituted engine within one bound
+execution.
+
 ### Enforced invariants
 
 1. Inventory identities, manifest paths and intents are unique and unambiguous;
@@ -131,7 +152,9 @@ sufficient; the library owns no persistence mechanism or second version oracle.
    presence in `plan.changesets` alone does not determine consumption. No second
    SemVer or dependency-range computation exists.
 3. Planned direct and dependent releases have the engine's actual intent links;
-   consumed intent identities/digests match the qualified engine behavior.
+   every eligible pending requested package is covered reciprocally. Consumed
+   intent identities/digests/effects match the qualified engine behavior,
+   including existing retained-file prerelease bookkeeping.
 4. The full diff has admitted paths, kinds and file types/modes. Classification
    never authorizes unrelated source, workflow or authority changes.
 5. Full manifest content is equal except the exact planned version. No generic
@@ -352,6 +375,14 @@ precedent with an honest owning Changeset describing this package change; let
 Changesets generate version/changelog. Do not fabricate a runtime change or
 bump unrelated packages merely to obtain a publication.
 
+For the npm-managed route, freeze the official plan, run the same qualified
+Changesets CLI, synchronize `package-lock.json` through
+`npm install --package-lock-only --ignore-scripts --no-audit --no-fund`, then
+independently observe/check the complete candidate before commit/push or PR
+qualification. The lock guard admits only the matching root version metadata
+changes and rejects dependency graph or unrelated lock drift. Changesets alone
+decides the version; no hand bump or general lock exemption is added.
+
 Keep the original exact-source CI archive, existing Node/Bun/Node-in-Bun installed
 qualification, shared publisher pin, readback and promotion. Same-version
 reconciliation is admissible only if actual archive bytes/SRI match. If the
@@ -373,6 +404,11 @@ effects. Reuse current publisher
 negative/receipt tests; add only the missing assertion that candidate rejection
 cannot bypass the existing publication admission. Demonstrate that negative
 without merging or publishing the rejected candidate.
+
+The nested npm canary uses the same qualified order: official plan, Changesets
+version, npm lock-only synchronization, then whole-candidate checks. Its P0
+probe proved that Changesets 3.0.2 leaves both root lock version fields stale
+until npm synchronizes them. Keep that metadata-only lock relation enforced.
 
 The TEST target currently has unprotected main. Preserve its protections and
 inspect actual review/CI/merge facts; it does not prove protected-branch
@@ -421,12 +457,12 @@ status, protection change, bot PR or additional routine approval ritual is added
 | Pure contract | Handwritten direct+dependent positive fixture and targeted negatives for exact versions, unknown/duplicate identities, intent coverage/digest, stale binding and unexpected files |
 | Content guarantees | Planned version plus hidden scripts/exports/dependency edit rejects; private manifest changes remain visible; allowed labels cannot bypass content checks |
 | Observation | Full independently observed diff includes missing/untracked/type/mode changes; before/after facts agree with manifests and consumed intents |
-| Engine adapters | Actual pinned v2/v3 execution covers symbolic workspace ranges, existing peer behavior, private/ignored/no-release cases and an unchanged record beside a real release; fixture literals are independent expected values |
+| Engine adapters | Actual pinned v2/v3 execution covers symbolic workspace ranges, existing peer behavior, private-versioned/private-unversioned/public-ignored cases, pending versus retained intents, no-release and an unchanged record beside a real release; fixture literals are independent expected values |
 | Foundation integration | Existing authentic release/lock fixture, source-built adoption, content/history guards, strict typecheck, packed and hermetic-registry imports in P1, distinct exact public npm import in P3 |
-| Execution binding | Changed actual processed HEAD/root/Git authority or substituted CLI/config rejects despite unchanged supplied expected JSON; retain existing foreign-Git-selector negatives |
+| Execution binding | Changed actual processed HEAD/root/Git authority or substituted CLI/config within one bound execution rejects despite unchanged supplied expected JSON; portable source binding admits independent legitimate checkouts; retain existing foreign-Git-selector negatives |
 | Failure recovery | Existing clean-current-main and partial version/baseline/lock failure tests; no partial push or dirty replay |
 | Get Modular | Exact leaf+lock addition accepted only by reviewed successor; compiler/build/unrelated graph drift rejected; retained archives keep exact SRI |
-| node-or-bun | Real generated metadata patch and complete Node/Bun installed consumer qualification; unchanged byte requirement remains enforced |
+| node-or-bun | Real generated metadata patch, exact npm root-lock version synchronization without graph drift, and complete Node/Bun installed consumer qualification; unchanged byte requirement remains enforced |
 | Operations | Required exact-head/base native CI and independent review, existing uncertain/partial/rollback publisher tests, one fresh full owner-PR chain in the existing TEST target and safe replay; separate real-repository protection evidence |
 
 Use each repository's documented focused, changed, fast and final native gates.

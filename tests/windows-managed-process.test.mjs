@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
@@ -260,6 +261,29 @@ async function waitForJsonFile(path) {
   }
   assert.fail(`managed process did not write ${path} before the deadline`);
 }
+
+// Cooperative TEST readiness only; corrupt production-control fixtures stay raw.
+function publishReadyJson(path, value, io = { writeFileSync, renameSync }) {
+  const temporary = `${path}.pending`; io.writeFileSync(temporary, JSON.stringify(value), { flag: "wx", encoding: "utf8", mode: 0o600 });
+  io.renameSync(temporary, path);
+}
+const readyJsonPublisher = `const { writeFileSync, renameSync } = require("node:fs");\n${publishReadyJson.toString()}`;
+const readyPidSource = `${readyJsonPublisher}\npublishReadyJson(process.argv[1], { pid: process.pid }); setInterval(() => {}, 1000)`;
+
+test("publishes complete cooperative readiness JSON before exposing its final path", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation ready publication ")), path = join(root, "ready.json"), expected = { pid: process.pid };
+  try {
+    let renames = 0; publishReadyJson(path, expected, { writeFileSync, renameSync: (source, target) => {
+      renames++; assert.equal(source, `${path}.pending`); assert.equal(target, path);
+      assert.deepEqual(JSON.parse(readFileSync(source, "utf8")), expected); assert.throws(() => readFileSync(target), { code: "ENOENT" });
+      renameSync(source, target);
+    } });
+    assert.equal(renames, 1); assert.deepEqual(await waitForJsonFile(path), expected);
+    await rm(path); const writer = spawnSync(process.execPath, ["--eval", `${readyJsonPublisher}\npublishReadyJson(process.argv[1], ${JSON.stringify(expected)});`, path], { timeout: 10_000, encoding: "utf8" });
+    assert.equal(writer.status, 0, writer.stderr); assert.deepEqual(await waitForJsonFile(path), expected);
+    await writeFile(path, ""); await assert.rejects(waitForJsonFile(path), SyntaxError);
+  } finally { await rm(root, { force: true, recursive: true }); }
+});
 
 async function writeNewFileExclusive(path, contents) {
   const handle = await open(path, "wx", 0o600);
@@ -565,10 +589,10 @@ windowsTest("terminates and awaits every descendant in the assigned Job Object",
   let child;
   const source = [
     'const { spawn } = require("node:child_process");',
-    'const { writeFileSync } = require("node:fs");',
+    readyJsonPublisher,
     'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"],',
     '  { stdio: "ignore", windowsHide: true });',
-    'writeFileSync(process.argv[1], JSON.stringify({ pid: descendant.pid }), "utf8");',
+    'publishReadyJson(process.argv[1], { pid: descendant.pid });',
     "setInterval(() => {}, 1000);"
   ].join("\n");
 
@@ -610,10 +634,7 @@ windowsTest("marker write failure forces wrapper termination without leaking con
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: [
-        "-e",
-        `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-      ],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -651,10 +672,7 @@ for (const confirmationFailure of ["invalid", "read"]) {
     try {
       child = spawnWindowsManagedProcess({
         command: process.execPath,
-        args: [
-          "-e",
-          `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-        ],
+        args: ["-e", readyPidSource, startedPath],
         cwd: root
       });
       const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -697,10 +715,7 @@ windowsTest("retains controls and both errors when forced wrapper cleanup fails"
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: [
-        "-e",
-        `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-      ],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -751,10 +766,7 @@ windowsTest("does not fabricate cleanup failure when kill returns false as the w
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: [
-        "-e",
-        `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-      ],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -800,16 +812,11 @@ windowsTest("forces and awaits the wrapper after containment confirmation times 
   const startedPath = join(root, "started.json");
   let child;
   let managedPid;
-  const source = [
-    'const { writeFileSync } = require("node:fs");',
-    'writeFileSync(process.argv[1], JSON.stringify({ pid: process.pid }), "utf8");',
-    "setInterval(() => {}, 1000);"
-  ].join("\n");
 
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: ["-e", source, startedPath],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     ({ pid: managedPid } = await waitForJsonFile(startedPath));

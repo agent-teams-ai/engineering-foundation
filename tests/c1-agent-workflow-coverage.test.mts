@@ -25,17 +25,24 @@ function abaBarrier(probe:()=>boolean, subscribe:(notify:()=>void,fail:(error:un
   try{closeWatcher=subscribe(sample,error=>finish(error));if(settled){closeWatcher();}else{sample();}}catch(error){finish(error);}
   return {promise,arm:()=>{if(!settled&&timer===undefined){timer=clock.set(()=>finish(new Error(`${context}: 20s barrier timed out`)));}},close:()=>finish(new Error(`${context}: barrier disposed`))};
 }
-function armAbaDispatch(executor:typeof execute,node:string,entrypoint:string,arm:()=>void):typeof execute {
+function armAbaDispatch(executor:typeof execute,node:string,entrypoint:string,arm:()=>void,settled?:()=>void):typeof execute {
   return async(command,args,options)=>{
-    if(command===node&&args[0]===entrypoint&&args.at(-2)==='run'&&args.at(-1)==='typecheck'){arm();}
-    return executor(command,args,options);
+    const dispatched=command===node&&args[0]===entrypoint&&args.at(-2)==='run'&&args.at(-1)==='typecheck';
+    if(dispatched){arm();}
+    try{return await executor(command,args,options);}finally{if(dispatched){settled?.();}}
   };
 }
 async function awaitAbaPhase(barrier:ReturnType<typeof abaBarrier>,operation:Promise<unknown>,context:string):Promise<void> {
   await Promise.race([barrier.promise,operation.then(report=>{throw new Error(`${context}: workflow ended before barrier; report=${(JSON.stringify(report)??String(report)).slice(0,6000)}`);},error=>{throw new Error(`${context}: workflow rejected before barrier; error=${(error instanceof Error?`${error.name}: ${error.message}`:String(error)).slice(0,2000)}`,{cause:error});})]);
 }
+function abaCompilerExit(status:string):number {
+  assert.match(status,/^(?:0|[1-9]\d*)$/u,'TEST ABA compiler status must be complete unsigned decimal text');
+  return Number(status);
+}
 
 void test('C1 ABA barriers retain publication and start readiness budget at exact dispatch',async()=>{
+  for(const status of ['', ' ', '00', '0x0', 'NaN', '0\n', '1.0']){assert.throws(()=>abaCompilerExit(status));}
+  assert.equal(abaCompilerExit('0'),0);assert.equal(abaCompilerExit('1'),1);
   for(const preexisting of [true,false]) {
     let published=preexisting,closes=0,probes=0;
     const barrier=abaBarrier(()=>{probes++;return published;},()=>{published=true;return ()=>{closes++;};},'TEST immediate ready');
@@ -174,40 +181,47 @@ void test('C1 cancellation and stale closure cannot pass',async()=>fixture(async
 // RED: invalid→valid→invalid between equal hash brackets can create false PASS.
 // A real child barrier starts before mutation, then invokes the native project
 // compiler against the admitted closure, with outputs and synchronization outside.
-void test('C1 frozen influencing closure rejects real ABA while mutable remains unverified',{timeout:60_000},async()=>fixture(async subject=>{
-  const output=subject.output;
-  const compilerPath=join(dirname(dirname(subject.tool.nodeExecutable)),'node_modules/typescript/bin/tsc');
-  subject.scripts['typecheck']=`${JSON.stringify(subject.tool.nodeExecutable)} compile.mts`;
-  await writeFile(join(subject.root,'package.json'),JSON.stringify({type:'module',packageManager:'pnpm@11.20.0',scripts:subject.scripts}));
-  await writeFile(join(subject.root,'workflow.json'),JSON.stringify(policyInput([typecheck],['typecheck'])));
-  const invalid='export const value: number = "independent invalid input";\n';
-  await writeFile(join(subject.root,'compile.mts'),`import {watch,writeFileSync,existsSync} from 'node:fs'; import {spawnSync} from 'node:child_process';
+// Each independent proof owns cold preparation and cleanup within 60s. Splitting
+// the former combined test increases the aggregate bound from 60s to 2 × 60s.
+for(const frozen of [true,false]) {
+  const mode=frozen?'frozen':'mutable';
+  void test(frozen?'C1 frozen influencing closure rejects real ABA':'C1 mutable real ABA remains feedback only and unverified',{timeout:60_000},async context=>fixture(async subject=>{
+    const phase=subject.abaPhase;assert.ok(phase);phase('proof-setup-start');
+    const output=subject.output;
+    const compilerPath=join(dirname(dirname(subject.tool.nodeExecutable)),'node_modules/typescript/bin/tsc');
+    subject.scripts['typecheck']=`${JSON.stringify(subject.tool.nodeExecutable)} compile.mts`;
+    await writeFile(join(subject.root,'package.json'),JSON.stringify({type:'module',packageManager:'pnpm@11.20.0',scripts:subject.scripts}));
+    await writeFile(join(subject.root,'workflow.json'),JSON.stringify(policyInput([typecheck],['typecheck'])));
+    const invalid='export const value: number = "independent invalid input";\n';
+    await writeFile(join(subject.root,'compile.mts'),`import {watch,writeFileSync,renameSync,existsSync} from 'node:fs'; import {spawnSync} from 'node:child_process';
 const output=${JSON.stringify(output)};
 ${abaBarrier.toString()}
 async function barrier(name){const waiting=abaBarrier(()=>existsSync(output+'/'+name),(notify,fail)=>{const watcher=watch(output,notify);watcher.on('error',fail);return ()=>watcher.close();},'TEST child '+name);try{await waiting.promise;}finally{waiting.close();}}
 writeFileSync(output+'/ready','started');await barrier('gate');
 const result=spawnSync(${JSON.stringify(subject.tool.nodeExecutable)},[${JSON.stringify(compilerPath)},'--project','tsconfig.json','--pretty','false'],{encoding:'utf8'});
-writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+'/done',String(result.status));await barrier('ack');process.stdout.write(result.stdout);process.stderr.write(result.stderr);process.exitCode=result.status??1;\n`);
-  for(const path of ['package.json','workflow.json','compile.mts']) {subject.files[path]=sha(await readFile(join(subject.root,path)));}
-  await git(subject.root,'add','.');await git(subject.root,'commit','-m','test: ABA barrier');
-  await writeFile(join(subject.root,'src.ts'),invalid);
-  for(const frozen of [true,false]) {
-    const {rm}=await import('node:fs/promises');
-    for(const path of ['ready','gate','done','ack']) {await rm(join(output,path),{force:true});}
+writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+'/done.pending',String(result.status),{flag:'wx',mode:0o600});renameSync(output+'/done.pending',output+'/done');await barrier('ack');process.stdout.write(result.stdout);process.stderr.write(result.stderr);process.exitCode=result.status??1;\n`);
+    for(const path of ['package.json','workflow.json','compile.mts']) {subject.files[path]=sha(await readFile(join(subject.root,path)));}
+    await git(subject.root,'add','.');await git(subject.root,'commit','-m','test: ABA barrier');
+    await writeFile(join(subject.root,'src.ts'),invalid);
+    phase('proof-setup-ready');
     const custody=frozen?(await subject.freeze()).custody:createMutableCheckInputCustody(execute, custodyFiles);
-    const mode=frozen?'frozen':'mutable';
+    phase('custody-ready');
     function waitFile(name:string) {
       return abaBarrier(()=>existsSync(join(output,name)),(notify,fail)=>{const watcher=watch(output,notify);watcher.on('error',fail);return ()=>watcher.close();},`TEST ABA ${mode} ${name}`);
     }
     const ready=waitFile('ready');
-    const executor=armAbaDispatch(execute,subject.tool.nodeExecutable,join(subject.tool.packageRoot,'bin/pnpm.mjs'),ready.arm);
-    const operation=runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json'},{custody,runner:subject.runner(undefined,subject.tool,executor),loadPolicy:subject.loadPolicy});
+    const executor=armAbaDispatch(execute,subject.tool.nodeExecutable,join(subject.tool.packageRoot,'bin/pnpm.mjs'),()=>{phase('command-dispatch');ready.arm();},()=>phase('command-settled'));
+    // Node's outer timeout still fails the test; its signal uses the existing
+    // workflow cancellation port to settle owned work before fixture removal.
+    phase('workflow-start');
+    const operation=runCheckChangedAgentWorkflow({consumerRoot:subject.root,configPath:'workflow.json',signal:context.signal},{custody,runner:subject.runner(undefined,subject.tool,executor),loadPolicy:subject.loadPolicy})
+      .then(report=>{phase('workflow-settled');return report;},error=>{phase('workflow-rejected');throw error;});
     let done:ReturnType<typeof abaBarrier>|undefined;
     try {
-      await awaitAbaPhase(ready,operation,`TEST ABA ${mode} ready/dispatch`); await writeFile(join(subject.root,'src.ts'),'export const value: number = 10;\n');
-      done=waitFile('done');done.arm();await writeFile(join(output,'gate'),'continue');await awaitAbaPhase(done,operation,`TEST ABA ${mode} done/compiler`);
-      const compilerExit=Number(await readFile(join(output,'done'),'utf8'));
-      await writeFile(join(subject.root,'src.ts'),invalid);await writeFile(join(output,'ack'),'restored');
+      await awaitAbaPhase(ready,operation,`TEST ABA ${mode} ready/dispatch`);phase('ready');await writeFile(join(subject.root,'src.ts'),'export const value: number = 10;\n');
+      done=waitFile('done');done.arm();await writeFile(join(output,'gate'),'continue');phase('gate');await awaitAbaPhase(done,operation,`TEST ABA ${mode} done/compiler`);phase('done');
+      const compilerExit=abaCompilerExit(await readFile(join(output,'done'),'utf8'));
+      await writeFile(join(subject.root,'src.ts'),invalid);phase('origin-restored');await writeFile(join(output,'ack'),'restored');phase('ack');
       const report=await operation;
       assert.equal(report.outcome,frozen?'failed':'feedback-only',JSON.stringify({mode,report}));
       assert.equal(compilerExit,frozen?1:0,`TEST ABA ${mode} native compiler exit`);
@@ -217,13 +231,15 @@ writeFileSync(output+'/compiler-diagnostic',result.stdout);writeFileSync(output+
     } finally {
       // Settle the workflow and release both barriers even on timeout so the
       // child never outlives the fixture directory.
+      phase('finally-start');
       await writeFile(join(output,'gate'),'continue').catch(()=>{});
+      await writeFile(join(subject.root,'src.ts'),invalid).catch(()=>{});
       await writeFile(join(output,'ack'),'restored').catch(()=>{});
       ready.close();done?.close();
-      await operation.catch(()=>{});
+      await operation.catch(()=>{});phase('operation-settled');
     }
-  }
-}));
+  },mode));
+}
 
 // RED: the current Host feedback composition could grant qualified facets,
 // skip the real native compiler, or accidentally enable implicit lifecycle.

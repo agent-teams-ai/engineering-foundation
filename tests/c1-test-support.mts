@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { writeFileSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -131,11 +132,25 @@ export const lint: CoverageCheck = {id:'lint',script:'lint',prerequisites:[],sup
 export const typecheck: CoverageCheck = {id:'typecheck',script:'typecheck',prerequisites:[],supplies:['typecheck'],observation:'command'};
 export const tests: CoverageCheck = {id:'tests',script:'tests',prerequisites:[],supplies:['tests'],observation:'test-dispatch/v1'};
 
-export async function fixture(body: (subject: {root:string;output:string;tool:PnpmToolIdentity; scripts: Record<string,string>; files: Record<string,string>; freeze: () => Promise<{custody:CheckInputCustody;lease:CheckInputLease}>; runner: (mutate?: (lease: CheckInputLease, check: CoverageCheck) => Promise<void>, tool?:PnpmToolIdentity, executor?: typeof execute) => ReturnType<typeof createQualifiedPnpmCheckRunner>; loadPolicy: (root:string) => Promise<ReturnType<typeof parseAgentWorkflowPolicyV2>> }) => Promise<void>): Promise<void> {
+type AbaProofPhase = 'setup-start'|'setup-ready'|'proof-setup-start'|'proof-setup-ready'|'freeze-start'|'freeze-ready'|'custody-ready'|'workflow-start'|'command-dispatch'|'command-settled'|'ready'|'gate'|'done'|'origin-restored'|'ack'|'workflow-settled'|'workflow-rejected'|'finally-start'|'operation-settled'|'cleanup-start'|'cleanup-done';
+
+export async function fixture(body: (subject: {root:string;output:string;abaPhase?: (phase:AbaProofPhase)=>void;tool:PnpmToolIdentity; scripts: Record<string,string>; files: Record<string,string>; freeze: () => Promise<{custody:CheckInputCustody;lease:CheckInputLease}>; runner: (mutate?: (lease: CheckInputLease, check: CoverageCheck) => Promise<void>, tool?:PnpmToolIdentity, executor?: typeof execute) => ReturnType<typeof createQualifiedPnpmCheckRunner>; loadPolicy: (root:string) => Promise<ReturnType<typeof parseAgentWorkflowPolicyV2>> }) => Promise<void>, abaScope?: 'frozen'|'mutable'): Promise<void> {
   const scratch = process.env['C1_TEST_SCRATCH'] ?? process.env['TMPDIR'] ?? process.env['TEMP'];
   assert.ok(scratch !== undefined && scratch.length > 0, 'Provide job-owned C1_TEST_SCRATCH; no system scratch fallback.');
   await mkdir(scratch,{recursive:true});
   const directory = await mkdtemp(join(scratch,'c1-TEST-'));
+  let abaPhase:((phase:AbaProofPhase)=>void)|undefined;
+  let phaseFailure:Error|undefined;
+  if(abaScope!==undefined) {
+    const started=performance.now(),phases:{phase:AbaProofPhase;elapsedMs:number}[]=[];
+    abaPhase=phase=>{
+      try {
+        if(phases.length>=32){return;}phases.push({phase,elapsedMs:Math.round(performance.now()-started)});
+        writeFileSync(`${directory}-phase.json`,JSON.stringify({schemaVersion:1,scope:abaScope,phases}),{mode:0o600});
+      } catch(error) {phaseFailure??=new Error('TEST ABA phase retention failed.',{cause:error});}
+    };
+    abaPhase('setup-start');
+  }
   const root = join(directory,'source'), output = join(directory,'output');
   await mkdir(root); await mkdir(output);
   const toolchain = join(directory,'toolchain');
@@ -207,6 +222,7 @@ process.exitCode=failed?1:0;\n`);
   }
   const pinnedTooling = await toolingDigest();
   async function freeze() {
+    abaPhase?.('freeze-start');
     const snapshot = join(directory,`snapshot-${Math.random().toString(36).slice(2)}`);
     await cp(root,snapshot,{recursive:true});
     await assertScriptToolPaths(snapshot);
@@ -214,6 +230,7 @@ process.exitCode=failed?1:0;\n`);
     // TEST Host owns this private execution copy and all cooperative writers.
     // The real compiler reads its original bytes; origin edits have no alias.
     const lease:CheckInputLease={...mutable,classification:'frozen-closure',closureIdentity:`TEST-private-copy:${mutable.sourceIdentity}:${pinnedTooling}`,assertCurrent:async(signal)=>{await mutable.assertCurrent(signal);if(await toolingDigest()!==pinnedTooling){throw new InputRevocationError();}},release:async()=>{}};
+    abaPhase?.('freeze-ready');
     return {lease,custody:{acquire:async()=>lease}};
   }
   const runner = (mutate?: (lease:CheckInputLease,check:CoverageCheck)=>Promise<void>, selectedTool = tool, executor = execute) => createQualifiedPnpmCheckRunner({files:custodyFiles,tool:selectedTool,outputRoot:output,qualify:async(lease,check)=>{
@@ -222,13 +239,20 @@ process.exitCode=failed?1:0;\n`);
     return closure;
   }},executor);
   const trace:Error[]=[];let primary:unknown,failed=false;
-  try { await failedCommands.run(trace,()=>body({root,output,tool,scripts,files,freeze,runner,loadPolicy})); }
+  abaPhase?.('setup-ready');
+  try { await failedCommands.run(trace,()=>body({root,output,abaPhase,tool,scripts,files,freeze,runner,loadPolicy})); }
   catch(error) {
     failed=true;primary=trace.length===0?error:new AggregateError([error,...trace],'TEST fixture failed; original error and bounded owned command evidence.');
     try {await writeFile(`${directory}-failure.json`,fixtureFailureEvidence(error,trace));}
     catch(recordFailure){primary=new AggregateError([primary,recordFailure],'TEST fixture and diagnostic retention failed.');}
   }
+  abaPhase?.('cleanup-start');
   try {await rm(directory,{recursive:true,force:true});}
-  catch(cleanup) {if(failed){throw new AggregateError([primary,cleanup],'TEST fixture and cleanup failed.',{cause:cleanup});}throw cleanup;}
+  catch(cleanup) {
+    if(phaseFailure!==undefined){throw new AggregateError([...(failed?[primary]:[]),cleanup,phaseFailure],'TEST fixture cleanup and phase retention failed.',{cause:cleanup});}
+    if(failed){throw new AggregateError([primary,cleanup],'TEST fixture and cleanup failed.',{cause:cleanup});}throw cleanup;
+  }
+  abaPhase?.('cleanup-done');
+  if(phaseFailure!==undefined){if(failed){throw new AggregateError([primary,phaseFailure],'TEST fixture and phase retention failed.');}throw phaseFailure;}
   if(failed){throw primary;}
 }

@@ -33,9 +33,15 @@ export async function withGitIndexSnapshot<T>(
       // against the original index timestamp. Round down, never newer than it.
       await utimes(snapshot, metadata.atime, Math.floor(metadata.mtimeMs) / 1_000);
     }
-    const read: ExecuteWorkflowProcess = (command, args, options) => execute(command, args, {
-      ...options, environment: { ...process.env, GIT_OPTIONAL_LOCKS: "0", GIT_INDEX_FILE: snapshot }
-    });
+    const read: ExecuteWorkflowProcess = (command, args, options) => {
+      const environment = { ...options.environment };
+      // Append forced names last even when callers supplied both Windows casings.
+      delete environment.GIT_OPTIONAL_LOCKS;
+      delete environment.GIT_INDEX_FILE;
+      return execute(command, args, {
+        ...options, environment: { ...environment, GIT_OPTIONAL_LOCKS: "0", GIT_INDEX_FILE: snapshot }
+      });
+    };
     return await operation(read);
   } finally {
     await rm(owned, { recursive: true });

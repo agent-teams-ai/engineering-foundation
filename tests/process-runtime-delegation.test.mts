@@ -549,7 +549,8 @@ test("agent workflow composition rejects Node as Bun before script effects", asy
   }));
   const scriptRequests: ManagedProcessRequest[] = [];
   const commands = createNodeAgentWorkflowCommands({
-    nodeExecutablePath: childRuntime, bunExecutablePath: childRuntime
+    nodeExecutablePath: childRuntime, bunExecutablePath: childRuntime,
+    processEnvironment: process.env
   }, { async run(request) {
     if (request.command === "git") {
       return executeManagedProcess(request);

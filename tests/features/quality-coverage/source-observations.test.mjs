@@ -11,7 +11,7 @@ import { readContainedRegularFile } from "../../../packages/engineering-foundati
 import { loadStrictYamlFile } from "../../../packages/engineering-foundation/dist/features/configuration-input/node.js";
 import { createQualityCoverageReader } from "../../../packages/engineering-foundation/dist/features/quality-coverage/node.js";
 import { classifyQualityCensus, checkStaticQualityCoverage, qualitySourceLanguage } from "../../../packages/engineering-foundation/dist/features/quality-coverage/api.js";
-import { mapQualityTopology } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
+import { mapQualityTopology, qualityString, qualityScriptCommand } from "../../../packages/engineering-foundation/dist/features/quality-coverage/adapters/profile-input.js";
 import { copyPinnedToolchain } from "./copied-toolchain.mjs";
 
 const moduleRoot = "packages/contexts/private-worker";
@@ -321,6 +321,18 @@ test("static reader joins owned authorities and rejects removed or scope-only fu
   const run = () => checkStaticQualityCoverage({ consumerRoot: root, configPath: "quality.yaml" }, reader);
   await put("package.json", JSON.stringify({ scripts }));
   assert.equal((await run()).outcome, "passed");
+  const host = "node architecture/tooling/runtime/command.ts";
+  const hostScripts = { ...scripts,
+    "check:fast": `${"true && ".repeat(180)}${host} run quality:scope`,
+    check: `${host} run lint:typed`,
+    "quality:scope": `${host} tool agent-teams-foundation quality check --consumer . --scope-only`,
+    "lint:typed": `${host} tool agent-teams-foundation quality check --consumer .`
+  };
+  await put("package.json", JSON.stringify({ scripts: hostScripts }));
+  assert.equal((await run()).outcome, "passed", "long Host run/tool declarations retain both mode-specific routes");
+  await put("package.json", JSON.stringify({ scripts: { ...hostScripts, "lint:typed": hostScripts["quality:scope"] } }));
+  assert.equal((await run()).outcome, "violations", "scope-only Host tools cannot activate the full route");
+  await put("package.json", JSON.stringify({ scripts }));
   const lintBytes = await readFile(join(root, "lint.json"), "utf8");
   await put("suppression-base.json", lintBytes);
   await put("lint.json", JSON.stringify({ extends: ["./suppression-base.json"] }));
@@ -541,7 +553,7 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   // The real nested consumer uses these product/lint chains. A scoped native
   // script is additive wiring; quality coverage does not execute product tests.
   const nativeScripts = { ...scripts, check: "pnpm product:check && pnpm lint && pnpm native:check",
-    lint: "pnpm lint:typed",
+    lint: "pnpm lint:typed", "product:build": "tsc --build",
     "product:check": "pnpm --filter './packages/**' -r run clean && pnpm product:build && pnpm --filter './packages/**' -r run test",
     "native:check": "node scripts/architecture/../architecture/native-quality.mjs" };
   // Static qualification proves wiring only: this consumer leaf must never execute here.
@@ -550,6 +562,14 @@ async function qualifyNativeRoutes({ root, put, invoke, profile, scripts }) {
   await put("quality.yaml", JSON.stringify(nativeProfile));
   await put("package.json", JSON.stringify({ name: "fixture-root", private: true, scripts: nativeScripts }));
   assert.equal((await invoke(["check", "quality.source-coverage"])).code, 0);
+  const dispatcher = ".tools/native-dispatch.ts";
+  await put(dispatcher, "throw new Error('static Host readability never authenticates execution');\n");
+  const hostScripts = { ...nativeScripts, "native:check": `node ${dispatcher} tool native:check` };
+  await put("package.json", JSON.stringify({ scripts: hostScripts }));
+  assert.equal((await invoke(["check", "quality.source-coverage"])).code, 0, "a readable static Host dispatcher establishes only the native declaration");
+  await rm(join(root, dispatcher));
+  assert.equal((await invoke(["check", "quality.source-coverage"])).code, 2, "a missing Host dispatcher rejects before native qualification");
+  await put("package.json", JSON.stringify({ scripts: nativeScripts }));
   for (const command of [undefined, "true", "true || node scripts/architecture/native-quality.mjs"]) {
     await put("package.json", JSON.stringify({ scripts: { ...nativeScripts, "native:check": command } }));
     const rejected = await invoke(["check", "quality.source-coverage"]);
@@ -608,4 +628,16 @@ test("a v1.1 production mapping with a sub-feature and a composition contract re
     assert.throws(() => mapQualityTopology(profile("v2"), source), /FMS v1 or v1\.1/u);
   }
   assert.throws(() => mapQualityTopology({ ...nested("v1.1"), authority: { id: "agent-teams.other-standard", version: "v1.1" } }, "source.yaml"), /FMS v1 or v1\.1/u);
+});
+
+
+test("package script command bounds use UTF-8 bytes without widening profile paths", () => {
+  assert.equal(qualityScriptCommand("a".repeat(16384)).length, 16384);
+  assert.equal(qualityScriptCommand("é".repeat(8192)).length, 8192);
+  assert.equal(qualityScriptCommand("a".repeat(2061)).length, 2061);
+  for (const value of [undefined, null, 1, {}, "", "a".repeat(16385), "é".repeat(8192) + "a"]) {
+    assert.throws(() => qualityScriptCommand(value), /16384 UTF-8 bytes/u);
+  }
+  assert.equal(qualityString("a".repeat(1024)).length, 1024);
+  assert.throws(() => qualityString("a".repeat(1025)), /bounded nonempty string/u);
 });

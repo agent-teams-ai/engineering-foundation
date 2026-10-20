@@ -344,6 +344,27 @@
         "C1 output cleanup failure retains completed command history"
       ],
       "kind": "test"
+    },
+    {
+      "file": "tests/features/quality-coverage/policy.test.mjs",
+      "names": [
+        "static Host quality routes preserve failure, missing-script and cycle rejection"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/features/quality-coverage/source-observations.test.mjs",
+      "names": [
+        "package script command bounds use UTF-8 bytes without widening profile paths"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/features/quality-coverage/source-observations.test.mjs",
+      "names": [
+        "static reader joins owned authorities and rejects removed or scope-only full activation"
+      ],
+      "kind": "test"
     }
   ],
   "exceptions": [

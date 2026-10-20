@@ -1,3 +1,4 @@
+import { parseStaticHostCommand } from "../../../../features/configuration-input/application/static-host-command.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type {
@@ -38,15 +39,11 @@ function isExactAdapter(source: string, candidates: readonly string[]): boolean 
 
 // Recognize the declaration only; Host code and runtime qualification are separate.
 function isStaticHostToolRunner(command: string, successor: boolean): boolean {
-  if (/[\r\n]/u.test(command)) { return false; }
-  const tokens = command.replace(/^[ \t]+|[ \t]+$/gu, "").split(/[ \t]+/u);
-  const entry = tokens[1];
-  return tokens.length === 8 && tokens[0] === "node" && entry !== undefined &&
-    !entry.startsWith("-") && /^[A-Za-z0-9_./-]+\.(?:[cm]?[jt]s)$/u.test(entry) &&
-    entry.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..") &&
-    tokens[2] === "tool" && tokens[3] === "agent-teams-foundation" &&
-    tokens[4] === "agent-workflow" && tokens[5] === (successor ? "check-changed" : "changed") &&
-    tokens[6] === "--consumer" && tokens[7] === ".";
+  const host = parseStaticHostCommand(command);
+  return host !== undefined && host.arguments.length === 6 &&
+    host.arguments[0] === "tool" && host.arguments[1] === "agent-teams-foundation" &&
+    host.arguments[2] === "agent-workflow" && host.arguments[3] === (successor ? "check-changed" : "changed") &&
+    host.arguments[4] === "--consumer" && host.arguments[5] === ".";
 }
 
 function importCandidates(adapterPath: string, canonicalPath: string): readonly string[] {

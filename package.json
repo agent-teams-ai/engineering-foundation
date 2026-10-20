@@ -106,7 +106,8 @@
     "typescript": "catalog:",
     "verdaccio": "catalog:",
     "yaml": "catalog:",
-    "semver": "catalog:"
+    "semver": "catalog:",
+    "pnpm": "catalog:"
   },
   "workspaces": {
     "packages": [
@@ -139,6 +140,7 @@
       "oxlint-tsgolint": "7.0.2001",
       "oxc-parser": "0.142.0",
       "proper-lockfile": "4.1.2",
+      "pnpm": "11.20.0",
       "publint": "0.3.22",
       "remark-frontmatter": "5.0.0",
       "remark-gfm": "4.0.1",
@@ -179,6 +181,7 @@
     "oxlint-tsgolint": "7.0.2001",
     "oxc-parser": "0.142.0",
     "proper-lockfile": "4.1.2",
+    "pnpm": "11.20.0",
     "publint": "0.3.22",
     "remark-frontmatter": "5.0.0",
     "remark-gfm": "4.0.1",

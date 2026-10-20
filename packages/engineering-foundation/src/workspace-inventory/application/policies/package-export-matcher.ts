@@ -138,8 +138,7 @@ function resolveStringTarget(
 
 function resolveTarget(
   target: PackageExportTarget,
-  capture: string,
-  pattern: boolean,
+  match: { readonly capture: string; readonly pattern: boolean },
   conditions: ReadonlySet<string>,
   budget: { nodes: number },
   depth: number
@@ -149,7 +148,7 @@ function resolveTarget(
     return { kind: "invalid-resolution" };
   }
   if (typeof target === "string") {
-    return resolveStringTarget(target, capture, pattern, conditions.has("require"));
+    return resolveStringTarget(target, match.capture, match.pattern, conditions.has("require"));
   }
   if (target === null) {
     return { kind: "blocked" };
@@ -157,7 +156,7 @@ function resolveTarget(
   if (isTargetArray(target)) {
     let last: TargetResolution = { kind: "blocked" };
     for (const candidate of target) {
-      const resolved = resolveTarget(candidate, capture, pattern, conditions, budget, depth + 1);
+      const resolved = resolveTarget(candidate, match, conditions, budget, depth + 1);
       if (resolved.kind === "available" || resolved.kind === "invalid-resolution") {
         return resolved;
       }
@@ -170,7 +169,7 @@ function resolveTarget(
   }
   for (const [condition, candidate] of Object.entries(target)) {
     if (condition === "default" || conditions.has(condition)) {
-      const resolved = resolveTarget(candidate, capture, pattern, conditions, budget, depth + 1);
+      const resolved = resolveTarget(candidate, match, conditions, budget, depth + 1);
       if (resolved.kind !== "undefined") {
         return resolved;
       }
@@ -194,8 +193,7 @@ export function resolvePackageExport(
   }
   const resolved = resolveTarget(
     selected.target,
-    targetCapture(selected, subpath),
-    selected.subpath.includes("*"),
+    { capture: targetCapture(selected, subpath), pattern: selected.subpath.includes("*") },
     typeOnly
       ? new Set([condition, "types", "node"])
       : new Set(["node", "node-addons", "module-sync", condition]),

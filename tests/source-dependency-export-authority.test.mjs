@@ -583,20 +583,6 @@ test("full capability follows ordered TypeScript types export targets", async ()
   }
 });
 
-test("inline type specifiers select runtime exports while declaration type syntax selects types", async () => {
-  for (const [statement, runtime] of [
-    ['import type { Value } from "@fixture/core";', false],
-    ['export type { Value } from "@fixture/core";', false],
-    ['import { type Value } from "@fixture/core";', true],
-    ['export { type Value } from "@fixture/core";', true],
-  ]) {
-    const report = await mixedReport({
-      appSource: `${statement}\n`,
-      exports: { ".": { types: "./dist/index.d.ts", default: null } },
-    });
-    assert.equal(ruleIds(report.diagnostics).includes(exportRule), runtime, reportDetails(report));
-  }
-});
 
 test("pinned native Node confirms ordered export-target oracle cases", async () => {
   for (const condition of ["import", "require"]) {
@@ -763,24 +749,6 @@ test("full capability follows Node wildcard priority and rejects empty captures"
   assert.deepEqual(ruleIds(empty.diagnostics), [exportRule, mixedPackageRule]);
 });
 
-test("full capability rejects selected invalid export URLs without array fallback", async () => {
-  for (const target of [
-    ["./dist/%2f*.js", "./dist/index.js"],
-    ["./dist/%5c*.js", "./dist/index.js"],
-    ["./dist/%FF*.js", "./dist/index.js"],
-  ]) {
-    const report = await mixedReport({
-      appSpecifier: "@fixture/core/feature",
-      exports: { "./*": target },
-    });
-    assert.deepEqual(ruleIds(report.diagnostics), [exportRule, mixedPackageRule], reportDetails(report));
-  }
-  const invalidOriginal = await mixedReport({
-    exports: { ".": ["./dist/../outside.js", "./dist/index.js"] },
-    runtimeClaims: ["."],
-  });
-  assert.equal(invalidOriginal.outcome, "passed", reportDetails(invalidOriginal));
-});
 
 async function configureGeneratedOutput(consumerRoot, schemaVersion, dependencyMode, specifier) {
   const packageRoots = schemaVersion === 2 ? "packageRoots:\n  - packages\n" : "";

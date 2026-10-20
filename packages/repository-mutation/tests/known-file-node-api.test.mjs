@@ -10,11 +10,12 @@ const nodeBindings = [
   ["", "inspectKnownFileTransactionBarrier"],
   ["/node", "classifyExactFilePostimage"], ["/node", "cleanupIdentityMatchingOwnedTemporary"],
   ["/node", "prepareExactSiblingTemporary"], ["/node", "publishAbsentFile"],
+  ["/node", "observeAtomicFileReplacement"],
   ["/qualification", "applyKnownFileTransaction"], ["/qualification", "recoverKnownFileTransaction"],
   ["/qualification", "prepareExactSiblingTemporary"], ["/qualification", "publishAbsentFile"]
 ];
 
-test("known-file Node factory forwards all eleven operations without binding or changing completion", () => {
+test("known-file Node factory forwards all twelve operations without binding or changing completion", () => {
   const script = `
     import assert from "node:assert/strict";
     import { mock } from "node:test";
@@ -23,6 +24,7 @@ test("known-file Node factory forwards all eleven operations without binding or 
       "node-known-file-transaction": ["applyKnownFileTransaction", "applyKnownFileTransactionWithFaults"],
       "node-absent-file-publication": ["classifyExactFilePostimage", "publishAbsentFile", "publishAbsentFileWithFaults"],
       "node-cleanup-owned-temporary": ["cleanupIdentityMatchingOwnedTemporary"],
+      "node-atomic-file-replacement": ["observeAtomicFileReplacement"],
       "node-known-file-transaction-inspection": ["inspectKnownFileTransactionBarrier"],
       "node-prepare-exact-sibling-temporary": ["prepareExactSiblingTemporary", "prepareExactSiblingTemporaryWithFaults"],
       "node-known-file-transaction-recovery": ["recoverKnownFileTransaction", "recoverKnownFileTransactionWithFaults"]
@@ -41,6 +43,9 @@ test("known-file Node factory forwards all eleven operations without binding or 
           get() { assert.fail("An adapter must not interpret an operation's bind property"); }
         });
         namedExports[name] = operation;
+      }
+      if (module === "node-atomic-file-replacement") {
+        namedExports.NodeAtomicFileReplacementError = class extends Error {};
       }
       mock.module(new URL("adapters/node/" + module + ".js", root).href, { namedExports });
     }
@@ -86,7 +91,7 @@ test("known-file Node factory forwards all eleven operations without binding or 
   assert.equal(invocation.status, 0, invocation.stdout + invocation.stderr);
 });
 
-test("the actual workspace graph resolves the eleven Node bindings to their adapter owner", (t) => {
+test("the actual workspace graph resolves the twelve Node bindings to their adapter owner", (t) => {
   const script = `
     import { readFile } from "node:fs/promises";
     import { fileURLToPath } from "node:url";
@@ -157,14 +162,14 @@ test("the actual workspace graph resolves the eleven Node bindings to their adap
     assert.ok(group.owners.every((owner) => owner !== null), JSON.stringify(group));
     assert.ok(group.owners.some((owner) => owner.path === adapter && owner.layer === "adapters"), JSON.stringify(group));
   }
-  assert.equal(evidence.perBinding.length, 11);
+  assert.equal(evidence.perBinding.length, 12);
   for (const binding of evidence.perBinding) {
     assert.deepEqual(binding.owners, [{ path: adapter, module: "repository-mutation",
       feature: "known-file-transactions", layer: "adapters" }], JSON.stringify(binding));
   }
 });
 
-test("real domain and application imports reject all eleven public Node bindings by layer direction", async (t) => {
+test("real domain and application imports reject all twelve public Node bindings by layer direction", async (t) => {
   const fixture = await mkdtemp(join(tmpdir(), "known-file-node-boundaries-"));
   t.after(() => rm(fixture, { recursive: true, force: true }));
   const script = `
@@ -246,7 +251,7 @@ test("real domain and application imports reject all eleven public Node bindings
   for (const negative of evidence.negatives) {
     const expected = { code: "layer-direction", message:
       `${negative.path} -> ${adapter}: ${negative.role} cannot import adapters.` };
-    assert.equal(negative.perBinding.length, 11);
+    assert.equal(negative.perBinding.length, 12);
     for (const [index, binding] of negative.perBinding.entries()) {
       const [suffix, name] = nodeBindings[index];
       assert.equal(binding.kind, "workspace-package");

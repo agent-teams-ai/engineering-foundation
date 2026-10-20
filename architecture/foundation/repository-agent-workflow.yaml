@@ -38,3 +38,16 @@ fullScanPaths:
   - pnpm-workspace.yaml
   - sgconfig.yml
   - tsconfig.json
+scopes:
+  - id: repository
+    roots: ['*']
+    requiredFacets: [lint, typecheck, tests, standards, architecture]
+    checks: [repository]
+checks:
+  - id: repository
+    script: check
+    prerequisites: []
+    supplies: [lint, typecheck, tests, standards, architecture]
+    observation: test-dispatch/v1
+exclusions: []
+escalationCheck: repository

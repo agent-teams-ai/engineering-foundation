@@ -176,3 +176,20 @@ hashes and is not relabeled as evidence for these later baseline versions.
 
 Final required source gates, independent commit confirmation and hosted CI
 must qualify the reconciled head against the updated protected base.
+
+Protected main subsequently advanced to
+`d5cbfc7bc9f9b735e2874de669814aa8c2435d44`, admitting the explicit changed-check
+coverage successor. The branch incorporates its implementation, six canonical
+tests, 49 mandatory Node test identities, strict TypeScript project, workflow
+diagnostic paths, exact pnpm development input and both release intentions.
+The combined canonical inventory contains 300 files; all three release-checks
+suites retain their explicit Linux and Windows placements. The existing
+Foundation archive bound remains 2,776 and the supported FMS peer windows retain
+their upstream declaration. Changesets owns the combined release plan.
+
+Both branches had independently allocated ADR-0063. The protected schema ADR,
+its API-disposition reference and immutable digest are preserved. Only the
+unmerged release-checks admission is renumbered to ADR-0064, with its owning
+links and actual digest updated; its decision text changes only that identifier.
+The prior branch identity and bytes remain in Git history. None of the six
+completed plan-review revisions or their recorded hashes is rewritten.

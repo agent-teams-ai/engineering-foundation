@@ -1,41 +1,105 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agent-teams.ai/engineering-foundation/repository-agent-workflow/v2",
-  "title": "Explicit package-manager repository agent workflow policy",
+  "title": "Explicit package-manager repository agent workflow policy with explicit changed-check coverage",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schemaVersion",
     "packageManager",
     "instructions",
-    "scripts",
-    "changedChecks",
-    "fullScanPaths"
+    "scripts"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "changedChecks",
+        "fullScanPaths"
+      ],
+      "properties": {
+        "changedChecks": {
+          "$ref": "#/properties/changedChecks"
+        },
+        "fullScanPaths": {
+          "$ref": "#/properties/fullScanPaths"
+        }
+      }
+    },
+    {
+      "required": [
+        "scopes",
+        "checks",
+        "exclusions",
+        "escalationCheck"
+      ],
+      "properties": {
+        "scopes": {
+          "$ref": "#/properties/scopes"
+        },
+        "checks": {
+          "$ref": "#/properties/checks"
+        },
+        "exclusions": {
+          "$ref": "#/properties/exclusions"
+        },
+        "escalationCheck": {
+          "$ref": "#/properties/escalationCheck"
+        }
+      }
+    }
   ],
   "properties": {
     "schemaVersion": {
       "const": 2
     },
-    "packageManager": { "enum": ["bun", "pnpm"] },
+    "packageManager": {
+      "enum": [
+        "bun",
+        "pnpm"
+      ]
+    },
     "instructions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["canonical", "claude", "gemini", "copilot"],
+      "required": [
+        "canonical",
+        "claude",
+        "gemini",
+        "copilot"
+      ],
       "properties": {
-        "canonical": { "$ref": "#/$defs/repositoryPath" },
-        "claude": { "$ref": "#/$defs/repositoryPath" },
-        "gemini": { "$ref": "#/$defs/repositoryPath" },
-        "copilot": { "$ref": "#/$defs/repositoryPath" }
+        "canonical": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "claude": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "gemini": {
+          "$ref": "#/$defs/repositoryPath"
+        },
+        "copilot": {
+          "$ref": "#/$defs/repositoryPath"
+        }
       }
     },
     "scripts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["changed", "fast", "full"],
+      "required": [
+        "changed",
+        "fast",
+        "full"
+      ],
       "properties": {
-        "changed": { "$ref": "#/$defs/scriptName" },
-        "fast": { "$ref": "#/$defs/scriptName" },
-        "full": { "$ref": "#/$defs/scriptName" }
+        "changed": {
+          "$ref": "#/$defs/scriptName"
+        },
+        "fast": {
+          "$ref": "#/$defs/scriptName"
+        },
+        "full": {
+          "$ref": "#/$defs/scriptName"
+        }
       }
     },
     "changedChecks": {
@@ -45,13 +109,19 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "script", "extensions"],
+        "required": [
+          "id",
+          "script",
+          "extensions"
+        ],
         "properties": {
           "id": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9-]{0,62}$"
           },
-          "script": { "$ref": "#/$defs/scriptName" },
+          "script": {
+            "$ref": "#/$defs/scriptName"
+          },
           "extensions": {
             "type": "array",
             "minItems": 1,
@@ -74,7 +144,177 @@
       "minItems": 1,
       "maxItems": 64,
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/repositoryPath" }
+      "items": {
+        "$ref": "#/$defs/repositoryPath"
+      }
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "roots",
+          "requiredFacets",
+          "checks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "roots": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "anyOf": [
+                {
+                  "const": "*"
+                },
+                {
+                  "$ref": "#/$defs/repositoryPath"
+                }
+              ]
+            }
+          },
+          "requiredFacets": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "lint",
+                "typecheck",
+                "tests",
+                "standards",
+                "architecture"
+              ]
+            }
+          },
+          "checks": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,62}$"
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "script",
+          "prerequisites",
+          "supplies",
+          "observation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "script": {
+            "$ref": "#/$defs/scriptName"
+          },
+          "prerequisites": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/scriptName"
+            }
+          },
+          "supplies": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "lint",
+                "typecheck",
+                "tests",
+                "standards",
+                "architecture"
+              ]
+            }
+          },
+          "observation": {
+            "enum": [
+              "command",
+              "test-dispatch/v1"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "supplies": {
+                  "type": "array",
+                  "contains": {
+                    "const": "tests"
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "observation": {
+                  "const": "test-dispatch/v1"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "reason"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/repositoryPath"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      }
+    },
+    "escalationCheck": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
     }
   },
   "$defs": {
@@ -82,7 +322,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 240,
-      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+$"
+      "pattern": "^(?!/)(?!.*\\\\)(?!(?:[^/]+/)*(?:\\.\\.?)(?:/|$))[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*$"
     },
     "scriptName": {
       "type": "string",

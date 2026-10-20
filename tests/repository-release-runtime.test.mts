@@ -466,9 +466,14 @@ void test("Node dispatcher routes changed checks to source Bun policy and source
     assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
     const child = JSON.parse(result.stdout) as { readonly cwd: string; readonly git: string };
     assert.deepEqual({ ...child, cwd: await realpath(child.cwd), git: await realpath(child.git) }, { cwd: expectedRoot,
-      args: ["agent-workflow", "changed", "--consumer", "."],
+      args: ["agent-workflow", "check-changed", "--consumer", "."],
       profile: "bun", bun: "1.4.3", manager: "bun@1.4.3", git: expectedRoot });
   }
+  const rejected = spawnSync(process.execPath, [join(repositoryRoot, "tools/repository-command.mts"),
+    "tool", "check:changed", "--paths", "unowned"], { encoding: "utf8", timeout: 20_000 });
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr, /does not accept extra arguments/u);
+  assert.equal(rejected.stdout, "");
 });
 
 void test("Git source authority rejects a real marker inode replacement between metadata and read", async (t) => {

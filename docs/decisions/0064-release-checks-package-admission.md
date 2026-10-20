@@ -1,11 +1,11 @@
 ---
-id: ADR-0063
+id: ADR-0064
 status: accepted
 supersedes: []
 superseded_by: []
 ---
 
-# ADR-0063: Release Checks Package Admission
+# ADR-0064: Release Checks Package Admission
 
 Status: Accepted. Decision owner: Product owner. Date: 2026-10-20.
 

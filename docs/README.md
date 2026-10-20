@@ -43,6 +43,7 @@ not repeat their rules.
 | Hardening migration preparation | [Seven-consumer migration packets](development/docs-new-package-migration.md) | Draft; exact artifacts, recovery and consumer qualification pending |
 | Dependency declaration rules | [Rule reference](reference/workspace-dependency-declarations.md) | Active |
 | Portable agent workflow | [Agent workflow](reference/repository-agent-workflow.md) | Implemented and dogfooded; activation is explicit |
+| Check-changed successor | [Check-changed coverage and v2 migration](reference/repository-agent-workflow-check-changed.md) | Source and additive composition implemented; artifact admission, candidate qualification and release pending |
 | Deterministic quality gates | [Quality gate runner](reference/quality-gate-runner.md) | Implemented and post-build dogfooded; activation is explicit |
 | Quality gates | [Quality gates](development/quality-gates.md) | Active |
 | Production quality coverage | [Coverage contract](reference/quality-source-coverage.md) | Implementation in progress; CLI and packed qualification pending |

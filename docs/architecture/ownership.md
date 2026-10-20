@@ -73,7 +73,7 @@ data-only and cannot load consumer code. See the
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md),
 with the independent-node amendments of
 [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md) and
-[ADR-0063](../decisions/0063-release-checks-package-admission.md),
+[ADR-0064](../decisions/0064-release-checks-package-admission.md),
 defines the implemented new-only package ownership boundary and is the sole
 authority for the package dependency DAG:
 
@@ -89,7 +89,9 @@ authority for the package dependency DAG:
   on it, and [ADR-0062](../decisions/0062-feature-module-standard-package-admission.md)
   adds its node to the ADR-0043 graph. Implementation status: the pure kernel
   and fixtures have no package dependency; the `./node` runner implements its
-  accepted optional peer edge to the public Foundation source graph and budgets;
+  accepted optional peer edge to the public Foundation source graph and budgets.
+  The compatible `^1.8.0 || ^2.0.0` peer window preserves those contracts and the
+  1.8.0 minimum; Foundation's workflow schema change does not change FMS ownership;
 - `@agent-teams/repository-mutation` owns portable operation barriers,
   exact-preimage known-file transactions, journals, and exact-build recovery;
 - `@agent-teams/document-authoring` owns portable authoring contracts,

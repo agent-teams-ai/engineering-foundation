@@ -299,8 +299,13 @@
     },
     {
       "id": "ADR-0063",
-      "path": "docs/decisions/0063-release-checks-package-admission.md",
-      "immutableDigest": "sha256:0db32a986d2949e8c04dca4424c16b1bf89e9101a7ac202e763bda8ea09564ed"
+      "path": "docs/decisions/0063-explicit-changed-check-coverage-policy-schema.md",
+      "immutableDigest": "sha256:9d0e5f6e6c936fd309ddc31948727215d7916d5729246af390f11b8b7176389f"
+    },
+    {
+      "id": "ADR-0064",
+      "path": "docs/decisions/0064-release-checks-package-admission.md",
+      "immutableDigest": "sha256:6986050c236531eb2e2670819a0140c204d13431e326c4c353866b6c223072c8"
     }
   ]
 }

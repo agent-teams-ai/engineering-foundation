@@ -127,7 +127,7 @@ function manifestFor(manifestsByName, entry) {
   return manifest;
 }
 
-// Explicit stable caret floors retain the supported minimum when the workspace advances.
+// Explicit stable caret branches retain the supported windows when the workspace advances.
 export function workspacePeerRange(reference, workspaceVersion) {
   const version = typeof workspaceVersion === "string" ? parsePublishedVersion(workspaceVersion) : undefined;
   if (version === undefined) {
@@ -136,22 +136,27 @@ export function workspacePeerRange(reference, workspaceVersion) {
   if (reference === "workspace:^") {
     return `^${workspaceVersion}`;
   }
-  const minimum = reference.startsWith("workspace:^")
-    ? parseStableVersion(reference.slice("workspace:^".length)) : undefined;
-  if (minimum === undefined || version.iteration !== undefined) {
+  const branches = reference.startsWith("workspace:^")
+    ? reference.slice("workspace:".length).split(" || ") : [];
+  const minimums = branches.map(branch => branch.startsWith("^")
+    ? parseStableVersion(branch.slice(1)) : undefined);
+  if (minimums.length === 0 || minimums.some(minimum => minimum === undefined) || version.iteration !== undefined) {
     fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
   }
-  const [major, minor, patch] = minimum;
-  const upper = major > 0n ? [major + 1n, 0n, 0n]
-    : minor > 0n ? [0n, minor + 1n, 0n] : [0n, 0n, patch + 1n];
-  if (compareVersionCore(version.core, minimum) < 0 || compareVersionCore(version.core, upper) >= 0) {
+  const admitted = minimums.some(minimum => {
+    const [major, minor, patch] = minimum;
+    const upper = major > 0n ? [major + 1n, 0n, 0n]
+      : minor > 0n ? [0n, minor + 1n, 0n] : [0n, 0n, patch + 1n];
+    return compareVersionCore(version.core, minimum) >= 0 && compareVersionCore(version.core, upper) < 0;
+  });
+  if (!admitted) {
     fail(`optional workspace peer ${reference} does not admit workspace version ${workspaceVersion}`);
   }
   return reference.slice("workspace:".length);
 }
 
 // An internal package is declared once, as workspace:*. The one allowed pair is an optional runtime peer caret
-// (peerDependencies workspace:^ or an explicit stable floor) together with the workspace link that builds and tests it
+// (peerDependencies workspace:^ or explicit stable caret branches) together with the workspace link that builds and tests it
 // (devDependencies workspace:*); the pair is one ordering edge, recorded under peerDependencies.
 function internalDeclaration(ownerName, name, uses, optionalPeer, workspaceVersion) {
   const peer = uses.find(({ section }) => section === "peerDependencies");

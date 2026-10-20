@@ -574,6 +574,7 @@ test("typecheck rejects errors in every strict project outside the production bu
     ["typecheck:local-mode-oracles", "tsconfig.local-mode-oracles.json", "local-mode-oracles.ts"],
     ["typecheck:native-api-tests", "tsconfig.native-api-tests.json", "native-api-tests.ts"],
     ["typecheck:native-release-tooling", "tsconfig.native-release-tooling.json", "native-release-tooling.ts"],
+    ["typecheck:agent-workflow", "tsconfig.agent-workflow-tests.json", "agent-workflow.ts"],
     // This required project is invoked as a dispatcher tool, not a package script.
     [null, "spikes/source-dependency-parser/tsconfig.json", "spikes/source-dependency-parser/parser-spike.ts"]
   ] as const;

@@ -12,13 +12,13 @@ const expected = Object.freeze({
   size: 18134,
 });
 
-const cmsPrefix = 'docs/architecture/evidence/runtime-profile-guidance-20261018/common-assembly';
+const cmsPrefix = 'docs/architecture/evidence/runtime-profile-guidance-20261020/common-assembly';
 const cmsExpected = Object.freeze({
   repository: 'agent-teams-ai/get-modular', path: 'docs/architecture/common-assembly.md',
-  anchor: 'consumer-module-standard', commit: '3dd68a6b26f42159714a4640b613534a55c2c6aa',
-  blob: '250f312d3cae733935d0ac48ddde8502665417df',
-  sha256: 'e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919',
-  size: 77511,
+  anchor: 'consumer-module-standard', commit: '300e7e1c459c08f5e271627e4ca7d2486bdf5e1f',
+  blob: 'ae6792543bd19acc948e177e8d55632c9d51134e',
+  sha256: 'c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3',
+  size: 81436,
 });
 
 const runtimeSeam = Object.freeze({
@@ -27,9 +27,14 @@ const runtimeSeam = Object.freeze({
     'CMS guidance SHA-256': cmsExpected.sha256,
     'EQS guidance commit': expected.commit,
     'EQS guidance SHA-256': expected.sha256,
+    'Workflow boundary': 'existing-static-adapter',
+    'Workflow owner': 'engineering-foundation/repository-agent-workflow',
+    'Workflow lifecycle': 'Host custody and cleanup; no Assembly or lifecycle-kernel adoption',
   }),
   tokens: Object.freeze([
     'Status: `not-adopted`; closed static selection only',
+    '3dd68a6b26f42159714a4640b613534a55c2c6aa',
+    'e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919',
     '7d6535dd86533566620040233290869825000d2b',
     '20c281b3137f5d3c198250e9f8101c0ecd4cbc75',
     '5287ef4ebae3dce19feb9378a9a0ac9267b30878',
@@ -47,6 +52,11 @@ const runtimeSeam = Object.freeze({
     'packages/engineering-foundation/src/process-execution/node-process-runner.ts',
     'packages/engineering-foundation/src/process-execution/windows-command-launch.ts',
     'packages/engineering-foundation/src/process-execution/node-runtime-verifier.ts',
+    'packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/check-changed-command.ts',
+    'packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/check-changed.ts',
+    'packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/mutable-check-input-custody.ts',
+    'packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/mutable-pnpm-check-runner.ts',
+    'packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/qualified-pnpm-check-runner.ts',
   ]),
 });
 
@@ -72,7 +82,7 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
   await checkRetainedPin(resolve(root, cmsPrefix), cmsExpected, 'CMS', '.txt');
   const delta = await readFile(resolve(root, `${cmsPrefix}.diff`));
   if (createHash('sha256').update(delta).digest('hex') !==
-      'f1b259ad7dfde879dff1c4c073fa46772427d35e6034ff6083a31895ac8a421b') {
+      '65b7b1e9d0cc45836fc188ef332ffcc8c35227df6045ef1acde0e8f6b9346af5') {
     throw new Error('CMS retained delta does not match the reviewed input');
   }
   const seam = await readFile(resolve(root, 'docs/architecture/runtime-profile-static-seam.md'), 'utf8');

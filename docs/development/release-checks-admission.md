@@ -1,7 +1,7 @@
 # Release Checks source admission
 
 `@agent-teams/release-checks` is an independent development library admitted by
-[ADR-0063](../decisions/0063-release-checks-package-admission.md) under
+[ADR-0064](../decisions/0064-release-checks-package-admission.md) under
 [ADR-0061](../decisions/0061-library-first-foundation-boundary-evolution.md).
 The [accepted delivery plan](release-checks-delivery-plan.md) and
 [review record](../research/release-checks-plan-review.md) retain the completed

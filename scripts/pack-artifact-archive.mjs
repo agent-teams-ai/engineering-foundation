@@ -23,12 +23,17 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Full Foundation inventory: 2,720 actual files. Independent clean builds and
-  // npm archives qualify eight artifacts from architecture-decision-baseline-replacement.ts
-  // and git-index-snapshot.ts above the 2,712-file release inventory: each module
-  // emits .js, .js.map, .d.ts, and .d.ts.map. That release inventory contains the
-  // qualified shared-native inventory of 2,710 plus the repository-agent-workflow/v2
-  // and workspace-dependency-declarations/v2 schemas.
+  // Full Foundation inventory: 2,776 actual files: the qualified shared-native
+  // inventory of 2,710 plus the repository-agent-workflow/v2 and
+  // workspace-dependency-declarations/v2 schemas, plus 52 compiled artifacts
+  // from the 13 check-changed successor modules (the v2 policy loaders and
+  // parser, mutable input custody, the mutable and qualified check runners,
+  // the check-changed model, policies, ports and use case; four artifacts per
+  // module, while the add/add repository-agent-workflow/v2 schema resolves to
+  // the single union superset file already counted), plus 4 compiled artifacts
+  // from the mutable-custody contained-file-reader port module, plus eight
+  // compiled artifacts from architecture-decision-baseline-replacement.ts and
+  // git-index-snapshot.ts merged from the qualified main inventory.
   // The shared native transition adds 36 compiled artifacts from nine ordinary .ts modules and one request
   // schema to the previously qualified 2,673-file inventory (+37). Earlier growth:
   // the quality-gate-runner v2 schema and 32 compiled artifacts because eight TypeScript
@@ -41,7 +46,7 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // the quality-findings-baseline/v1 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_720,
+  "@agent-teams/engineering-foundation": 2_776,
 });
 
 export function maximumArchiveEntries(packageName) {

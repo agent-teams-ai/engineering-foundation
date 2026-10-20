@@ -145,7 +145,7 @@ function fixtureDependencies() {
       coordinates.map(({ name, version }) => [name, { integrity, latest: "99.0.0", versions: [version, "99.0.0"] }]),
     ),
     readPackageManifest: async () => { throw new Error("Documented mode must not derive a current source manifest version."); },
-    verifyGithub: async () => undefined,
+    verifyGithub: async () => null,
     verifyProvenance: () => ({ commit: "a".repeat(40) }),
   };
 }

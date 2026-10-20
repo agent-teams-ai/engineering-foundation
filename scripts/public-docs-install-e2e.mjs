@@ -169,6 +169,20 @@ function hasLocalLockfileReference(lockfile) {
   return false;
 }
 
+function assertNativeArtifactBinding({ artifacts, parsed, name, version }) {
+  const artifact = artifacts.find((candidate) => candidate.name === name && candidate.version === version);
+  const entry = parsed.lockfileVersion === 3
+    ? parsed.packages?.["node_modules/" + name]
+    : parsed.lockfileVersion === "9.0"
+      ? parsed.packages?.[name + "@" + version]
+      : undefined;
+  const nativeIntegrity = parsed.lockfileVersion === 3 ? entry?.integrity : entry?.resolution?.integrity;
+  if (artifact === undefined || canonicalIntegrity(nativeIntegrity, name) !== artifact.integrity ||
+      (parsed.lockfileVersion === 3 && entry?.version !== version)) {
+    throw new Error("Public Docs native lockfile does not bind the observed artifact for " + name + ".");
+  }
+}
+
 export function assertRegistryOnlyInstallEvidence({ artifacts, lockfile, manifests }) {
   const parsed = parsedLockfileEvidence(lockfile);
   if (hasLocalLockfileReference(parsed)) {
@@ -187,17 +201,7 @@ export function assertRegistryOnlyInstallEvidence({ artifacts, lockfile, manifes
       }
     }
     if (artifacts !== undefined) {
-      const artifact = artifacts.find((candidate) => candidate.name === name && candidate.version === version);
-      const entry = parsed.lockfileVersion === 3
-        ? parsed.packages?.["node_modules/" + name]
-        : parsed.lockfileVersion === "9.0"
-          ? parsed.packages?.[name + "@" + version]
-          : undefined;
-      const nativeIntegrity = parsed.lockfileVersion === 3 ? entry?.integrity : entry?.resolution?.integrity;
-      if (artifact === undefined || canonicalIntegrity(nativeIntegrity, name) !== artifact.integrity ||
-          (parsed.lockfileVersion === 3 && entry?.version !== version)) {
-        throw new Error("Public Docs native lockfile does not bind the observed artifact for " + name + ".");
-      }
+      assertNativeArtifactBinding({ artifacts, parsed, name, version });
     }
   }
 }
@@ -340,6 +344,18 @@ function githubRepository(repository) {
   return path;
 }
 
+function documentedWorkflowEvidence(selection, matrix, installs) {
+  if (selection !== "documented") { return; }
+  return matrix.map(({ id }) => {
+    const evidence = installs.get(id)?.documented;
+    if (typeof evidence?.binary !== "string" || evidence.completedCommands !== 7 ||
+        evidence.rejectedStalePlans !== 2 || evidence.manualReachability !== true) {
+      throw new Error("Documented qualification did not return complete real command evidence for " + id + ".");
+    }
+    return Object.freeze({ id, ...evidence });
+  });
+}
+
 export async function verifyPublicExactDocsCoordinates({ temporaryRoot, selection = "release" }, dependencies = {}) {
   if (selection !== "release" && selection !== "documented") {
     throw new Error("Public Docs coordinate selection must be release or documented.");
@@ -417,14 +433,7 @@ export async function verifyPublicExactDocsCoordinates({ temporaryRoot, selectio
   if (JSON.stringify(finalDecision.artifacts) !== JSON.stringify(decision.artifacts)) {
     throw new Error("Public Docs registry identity drifted during qualification.");
   }
-  const documented = selection === "documented" ? matrix.map(({ id }) => {
-    const evidence = installs.get(id)?.documented;
-    if (typeof evidence?.binary !== "string" || evidence.completedCommands !== 7 ||
-        evidence.rejectedStalePlans !== 2 || evidence.manualReachability !== true) {
-      throw new Error("Documented qualification did not return complete real command evidence for " + id + ".");
-    }
-    return Object.freeze({ id, ...evidence });
-  }) : undefined;
+  const documented = documentedWorkflowEvidence(selection, matrix, installs);
   return Object.freeze({
     ...finalDecision,
     commit,

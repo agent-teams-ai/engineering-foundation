@@ -17,6 +17,7 @@ import { projectNodeAgentWorkflowPolicy, projectNodeDependencyDeclarationsPolicy
 import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 import { withoutGitRepositorySelectors } from "../tools/git-environment.ts";
 import { qualifyActualChangesetsRelease } from "./support/release-changesets-fixture.ts";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const workflowPaths = [
@@ -169,6 +170,7 @@ void test("public canary keeps builder Node 26 separate from selected public coh
 });
 
 void test("Node profile qualification requires a real virtual store outside lock refresh", async () => {
+  const actualSourceRoot = await repositorySourceRoot();
   await mkdir(join(repositoryRoot, ".worker-tmp"), { recursive: true });
   const temporary = await mkdtemp(join(repositoryRoot, ".worker-tmp/profile-qualification-"));
   const sourceRoot = join(temporary, "source");
@@ -195,12 +197,12 @@ void test("Node profile qualification requires a real virtual store outside lock
     await writeFile(join(sourceRoot, "architecture/foundation/repository-runtime.json"), policy);
     await writeFile(join(profileRoot, "architecture/foundation/repository-runtime.json"), policy);
     const workflowPath = "architecture/foundation/repository-agent-workflow.yaml";
-    const workflow = await readFile(join(repositoryRoot, workflowPath), "utf8");
+    const workflow = await readFile(join(actualSourceRoot, workflowPath), "utf8");
     const projectedWorkflow = projectNodeAgentWorkflowPolicy(workflow);
     await writeFile(join(sourceRoot, workflowPath), workflow);
     await writeFile(join(profileRoot, workflowPath), projectedWorkflow);
     const dependencyPath = "architecture/foundation/dependency-declarations.yaml";
-    const dependencies = await readFile(join(repositoryRoot, dependencyPath), "utf8");
+    const dependencies = await readFile(join(actualSourceRoot, dependencyPath), "utf8");
     const projectedDependencies = projectNodeDependencyDeclarationsPolicy(dependencies);
     await writeFile(join(sourceRoot, dependencyPath), dependencies);
     await writeFile(join(profileRoot, dependencyPath), projectedDependencies);
@@ -297,13 +299,14 @@ async function actualChangesetsVersioningTest(context: TestContext): Promise<voi
 void test("actual pinned Changesets TEST versioning passes final release file admission", actualChangesetsVersioningTest);
 
 async function realLinkedGitFixture(t: TestContext) {
+  const sourceRoot = await repositorySourceRoot();
   const parent = join(repositoryRoot, ".worker-tmp/profiles");
   await mkdir(parent, { recursive: true });
   const temporary = await mkdtemp(join(parent, "TEST-git-authority-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));
   const root = join(temporary, "source");
   const cloned = spawnSync("git", ["clone", "--quiet", "--no-checkout", "--depth=1", "--no-hardlinks",
-    pathToFileURL(repositoryRoot).href, root], { encoding: "utf8", timeout: 60_000,
+    pathToFileURL(sourceRoot).href, root], { encoding: "utf8", timeout: 60_000,
     env: { ...process.env, GIT_DIR: undefined, GIT_WORK_TREE: undefined, GIT_COMMON_DIR: undefined } });
   assert.equal(cloned.status, 0, `${cloned.stdout}${cloned.stderr}`);
   const normal = await assertExplicitSourceGitAuthority(root);
@@ -437,13 +440,14 @@ void test("dispatcher tool and script children own their cwd instead of inherite
 });
 
 void test("Node dispatcher routes changed checks to source Bun policy and source dependencies", async (t) => {
+  const sourceRoot = await repositorySourceRoot();
   const fixture = await realLinkedGitFixture(t);
   const expectedRoot = await realpath(fixture.root);
   assert.notEqual(expectedRoot, await realpath(repositoryRoot));
   for (const file of ["package.json", "pnpm-workspace.yaml"]) {
-    await copyFile(join(repositoryRoot, file), join(fixture.root, file));
+    await copyFile(join(sourceRoot, file), join(fixture.root, file));
   }
-  await symlink(join(repositoryRoot, "node_modules"), join(fixture.root, "node_modules"), "junction");
+  await symlink(join(sourceRoot, "node_modules"), join(fixture.root, "node_modules"), "junction");
   const entry = join(fixture.root, "packages/engineering-foundation/dist/cli.js");
   await mkdir(join(fixture.root, "packages/engineering-foundation/dist"), { recursive: true });
   await writeFile(entry, [
@@ -494,7 +498,7 @@ void test("Git source authority rejects a real marker inode replacement between 
 });
 
 void test("Node dependency policy projection changes one manager line and rejects unsupported source shapes", async () => {
-  const source = await readFile(join(repositoryRoot, "architecture/foundation/dependency-declarations.yaml"), "utf8");
+  const source = await readFile(join(await repositorySourceRoot(), "architecture/foundation/dependency-declarations.yaml"), "utf8");
   for (const newline of ["\n", "\r\n"]) {
     const original = source.replaceAll("\r\n", "\n").replaceAll("\n", newline);
     assert.equal(projectNodeDependencyDeclarationsPolicy(original), original.replace("  kind: bun", "  kind: pnpm"));

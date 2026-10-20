@@ -304,3 +304,41 @@ exact observation that only installation ran. Production status propagation,
 containment, all test registrations and platform selections remain unchanged;
 the test is not skipped. Its fresh native Windows result belongs to the new
 complete head/base run, not the earlier failed run.
+
+## Source inputs in the full Node profile
+
+Revision `ee99b559e2dde8bcce779b422457ed679e76783d` completed
+[full CI 39488511960, attempt 2](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39488511960/attempts/2)
+against `d43f9aeb245549d5efe64c2cfe7fb4013098a71a`, with all 35 jobs successful.
+The local source-owned changed check then returned a numeric failed step during
+the complete built-test phase. Its mutable runner deliberately omits raw child
+output; that original result remains failed.
+
+Independent source review and direct Node execution in the retained genuine
+profile reproduced 15 failures in six existing test files. The three diagnostic
+runs executed 119 tests: 103 passed, 15 failed and the existing opt-in external
+Changesets TEST remained skipped. These runs identify concrete failures without
+claiming to reconstruct the discarded original report. The strict-project
+admission test passed in 74.7 seconds; its timeout remains unchanged.
+
+The affected fixtures treated their execution directory as the original Bun
+checkout. A small test-only helper now resolves source inputs through the
+existing explicit Git authority. Original policies, intended Bun manifests and
+source Git objects come from that checkout. Runtime imports, tools, compiled
+code and temporary profile roots keep their execution ownership. The fixture
+which explicitly represents a Bun source also uses the actual Bun installation.
+The pnpm setup probe has its own literal workspace boundary, preserving the
+rejected manager policy and the observed setup-step exception.
+
+The correction preserves all test identities, negative assertions, strict
+projectors, production guards, timeouts and governed inventories. The new helper
+belongs to the existing strict tooling project. Fresh focused qualification and
+complete final-head CI are required for the corrected revision; the successful
+`ee99` run is evidence only for its own head/base.
+
+The existing install/build owners created a fresh genuine Node profile for the
+correction. All six focused suites then completed: 119 tests, 118 passed, no
+failures or cancellations and the same one existing opt-in skip. The strict
+tooling project passed on TypeScript 7.0.2. Independent semantic review returned
+GO for the source-input correction and preserved test registrations and guards.
+Final committed-source local gates and full CI are recorded on the owner PR.

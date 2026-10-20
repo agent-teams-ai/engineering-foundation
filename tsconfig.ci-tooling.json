@@ -32,6 +32,7 @@
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
     "tests/support/release-changesets-fixture.ts",
+    "tests/support/repository-source.ts",
     "tests/release-candidate-host.test.ts",
     "tests/features/release-checks/candidate-checking.test.ts",
     "tests/features/release-checks/conformance.test.ts",

@@ -11,6 +11,7 @@ import { parse as parseYaml } from "yaml";
 
 import { reconcileGithubTagRelease } from "../scripts/github-release-reconciliation.mjs";
 import { PUBLISHABLE_PACKAGE_CATALOG } from "../scripts/publishable-packages.mjs";
+import { repositorySourceRoot } from "./support/repository-source.ts";
 
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const pnpmHooks = createRequire(import.meta.url)("../.pnpmfile.cjs").hooks;
@@ -138,7 +139,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   );
   const ci = await workflow("ci.yml");
   const release = await workflow("release.yml");
-  const repositoryManifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8"));
+  const repositoryManifest = JSON.parse(await readFile(join(await repositorySourceRoot(), "package.json"), "utf8"));
   const job = bootstrap.jobs.bootstrap;
   const ciWriter = ci.jobs["linux-package"];
   const publish = job.steps.find(

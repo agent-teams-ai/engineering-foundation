@@ -17,6 +17,22 @@ when both parent tools naturally resolve a patched parser; do not remove it
 until both frozen installations and the installed-graph gate confirm that
 no affected copy returns.
 
+## Patched Nx HTTP client
+
+Nx 23.3.0 removes Axios but pins `undici@7.29.0`. Review of every newly
+introduced package coordinate found ten current advisories for that client,
+including the
+[BalancedPool TLS validation bypass](https://github.com/advisories/GHSA-w293-vg96-wgc3)
+and [WebSocket denial of service](https://github.com/advisories/GHSA-rfgv-xxqx-mfg5).
+Their corrected 7.x version is 7.29.1. The global `undici: 7.29.1` override
+selects that patch in both development profiles; it does not change the
+published packages' runtime dependencies.
+
+Reassess this pin with every Nx update. Remove it only when the ordinary Nx
+dependency graph resolves a patched client in both locks, the installed
+graphs confirm the selection, and the existing native/tool qualification
+passes. A new upstream client major requires separate compatibility review.
+
 ## Retained formatter dependency
 
 [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c)

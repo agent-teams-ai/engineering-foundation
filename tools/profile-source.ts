@@ -102,4 +102,3 @@ export async function sourceTreeDigest(sourceRoot: string = repositoryRoot, norm
   }
   return hash.digest("hex");
 }
-

@@ -1,6 +1,7 @@
 # Correctness and existing-tool reuse delivery
 
-Status: reconstruction plan v4 approved in four rounds; implementation in progress.
+Status: reconstruction plan v4 approved in four rounds; implementation integrated;
+final review and native CI are pending.
 
 ## Goal and source
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- [#386](https://github.com/agent-teams-ai/engineering-foundation/pull/386) [`d5cbfc7`](https://github.com/agent-teams-ai/engineering-foundation/commit/d5cbfc7bc9f9b735e2874de669814aa8c2435d44) Thanks [@777genius](https://github.com/777genius)! - Admit Foundation `^1.8.0 || ^2.0.0` for the optional Node runner peer while retaining the published 1.8.0 minimum and current-workspace development link. Foundation 2 changes the workflow policy schema artifact; the source-graph and ratchet contracts used by this runner remain unchanged. This compatible peer-window expansion keeps Feature Module Standard on its 0.x release line.
+
 ## 0.1.3
 
 ### Patch Changes

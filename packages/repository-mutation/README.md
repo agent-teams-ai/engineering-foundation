@@ -43,3 +43,22 @@ its recorded build. Impossible Plans or ambiguous partial effects remain manual.
 Current public declarations and executable exports stay unchanged. The schema
 correction requires Authoring, Foundation, and Managed reference closure before
 the coordinated package set can be published.
+
+The Node adapter also exports `retainMutationBarrierOnEvidence(lease)` for
+closed owner-package compositions that must retain a recovery barrier when common
+mutation evidence exists or cannot be inspected safely. The helper returns whether
+the barrier was retained. It does not grant mutation authority or revalidate the
+physical repository root; compositions use `observeMutationState(lease)` for that
+identity check and keep admission policy with their owning operation.
+
+`observeAtomicFileReplacement({ root, candidate })` returns a
+`NodeAtomicFileReplacement` resource contract that owns physical root, parent and
+temporary observations without exposing the observation identity primitive. Its
+caller acquires the repository-root lease, creates and validates a safe parent,
+and performs preimage admission. `bindParent`, `prepare`, `assertCurrent`,
+`replace` and `cleanup` keep the physical observations with this Node adapter.
+Preparation creates a sibling with exclusive ownership and preserves write, sync
+and close failures. Cleanup uses the existing identity-matching retirement
+mechanism and preserves foreign substitutions. Replacement supplies atomic
+visibility only; the contract grants no lease, preimage compare-and-swap, journal
+recovery or power-loss durability guarantee.

@@ -188,6 +188,13 @@ root's exact matching version. Both schemas retain the existing canonical
 repositories with that explicit authority, without claiming native Bun-only
 workspace discovery or adding a generic package-manager interface.
 
+Feature composition creates a scoped instance of the shared configuration
+schema catalog. The filesystem loader reads bounded YAML, asserts the selected
+v1/v2 schema through its narrow dependency, then maps and freezes settings.
+Schema validators and reads are cached within that capability instance; there
+is no additional Ajv constructor or module-assembly singleton in the adapter.
+Formats remain annotations under the existing configuration-catalog contract.
+
 ### `architecture.source-dependencies`
 
 The second implementation validates observed source relationships:
@@ -290,6 +297,15 @@ any directly observed source target. Wildcards, stale or duplicate claims fail
 closed. Exact dotted subpaths such as `./qualification.js` and `./package.json`
 remain valid under the same portable path rules. Manifest wildcard selection
 uses Node's longest-prefix, then longest-key priority and rejects empty captures.
+Exact export keys preserve literal `*` characters in target paths; only pattern
+keys substitute captures. Original invalid package targets can fall through an
+array, while a selected URL with an invalid pathname cannot. ESM checks encoded
+separators in the pathname; Node's CommonJS exports bridge checks the entire
+selected URL. Query/fragment annotations stay out of the filesystem target.
+Structural traversal or reserved segments formed by
+substitution remain rejected by the inspected-source model, before URL
+normalization can erase them. Target selection does not check whether a file
+exists and never falls back merely because a selected file is missing.
 Runtime and type-only imports of a package containing development source
 require an exact claim owned by a runtime boundary. Version 1 retains its
 conservative mixed-package rejection.
@@ -737,3 +753,28 @@ agent-oriented until a real SARIF consumer exists.
 - [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 - [pnpm catalogs](https://pnpm.io/catalogs)
 - [pnpm workspace protocol](https://pnpm.io/workspaces#workspace-protocol-workspace)
+
+### ADR baseline replacement boundary
+
+Accepted-decision baseline promotion uses Repository Mutation's existing
+cooperative repository-root lease around its final preimage check and same-directory
+atomic replacement. A held lease can reject another writer immediately; callers
+re-read repository state before retrying. Common mutation evidence blocks
+promotion and retains its recovery barrier. Root, parent and temporary identities
+are checked before replacement; the adapter does not claim conditional filesystem
+compare-and-swap against nonparticipating writers or power-loss durability.
+
+Temporary bytes are exclusively created as a sibling of the baseline. A normal
+failure retires only identity-matching owned temporary evidence through the
+existing cleanup mechanism. Its `.foundation-retired-evidence-` directory and
+the root lease's terminal retirement records are intentional retained evidence.
+Foreign substituted temporaries are preserved and reported. An abruptly killed
+process can leave a sibling temporary whose ownership a later invocation cannot
+prove; a fresh promotion recovers the existing root lease but does not delete
+that unproven evidence.
+
+A thrown error after rename, parent-directory synchronization or lease release
+can accompany committed replacement bytes. Inspect the actual baseline and obtain
+a fresh expected revision before deciding whether another promotion is needed.
+Write, sync, close, cleanup and lease-release failures are retained together;
+cleanup or release does not replace an earlier failure.

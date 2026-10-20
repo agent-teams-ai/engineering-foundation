@@ -1,8 +1,8 @@
 # Open-Source Docs Protocol
 
 Status: Community workflow accepted by ADR-0039 and implemented for the
-artifact-qualified coordinates `@agent-teams/docs-protocol@0.4.0` and optional
-`@agent-teams/docs-protocol-mcp@0.1.0`. Source or release-branch state never
+artifact-qualified coordinates `@agent-teams/docs-protocol@0.6.2` and optional
+`@agent-teams/docs-protocol-mcp@0.2.5`. Source or release-branch state never
 proves availability: proceed only when the exact registry checks below resolve
 both requested versions from public npm.
 
@@ -12,7 +12,7 @@ It does not require the Agent Teams managed preset, a site, or a portal.
 
 ## Requirements
 
-- Node `>=24.18.0 <25` for the exact published coordinates documented here;
+- Node `^24.18.0 || ^26.0.0` for the exact published coordinates documented here;
 - a clean reviewable repository state before bootstrap apply;
 - one exact package version, committed in the consumer manifest and lockfile;
 - no `latest`, ranges, floating `npx`, or floating `dlx` invocation.
@@ -26,40 +26,41 @@ release explicitly adds durable Windows transaction evidence.
 
 ## Install one exact version
 
-This published workflow remains Node 24-only. Node 26 compatibility is
-[staged separately](../development/node-26-compatibility.md).
+The published coordinates below support Node 24 and Node 26. See the
+[Node runtime contract](../development/node-26-compatibility.md) for the
+qualified lanes and the separate legacy managed-generation exceptions.
 
 The initial portable release qualifies npm and pnpm. First prove that the exact
 CLI coordinate exists. Override both the default and scoped registry so user or
 repository configuration cannot silently redirect one request:
 
 ```bash
-npm view @agent-teams/docs-protocol@0.4.0 version --json \
+npm view @agent-teams/docs-protocol@0.6.2 version --json \
   --registry=https://registry.npmjs.org/ \
   --@agent-teams:registry=https://registry.npmjs.org/
 ```
 
 ```bash
-pnpm view @agent-teams/docs-protocol@0.4.0 version --json \
+pnpm view @agent-teams/docs-protocol@0.6.2 version --json \
   --config.registry=https://registry.npmjs.org/ \
   --config.@agent-teams:registry=https://registry.npmjs.org/
 ```
 
-The command must return exactly `0.4.0`. Then use the package manager already
+The command must return exactly `0.6.2`. Then use the package manager already
 authoritative for the repository:
 
 ```bash
 npm install --save-dev --save-exact \
   --registry=https://registry.npmjs.org/ \
   --@agent-teams:registry=https://registry.npmjs.org/ \
-  @agent-teams/docs-protocol@0.4.0
+  @agent-teams/docs-protocol@0.6.2
 ```
 
 ```bash
 pnpm add --save-dev --save-exact \
   --config.registry=https://registry.npmjs.org/ \
   --config.@agent-teams:registry=https://registry.npmjs.org/ \
-  @agent-teams/docs-protocol@0.4.0
+  @agent-teams/docs-protocol@0.6.2
 ```
 
 Commit the resulting manifest and native lockfile. Do not create a second
@@ -182,13 +183,13 @@ proof above, then prove the compatible MCP coordinate with the same authoritativ
 package manager:
 
 ```bash
-npm view @agent-teams/docs-protocol-mcp@0.1.0 version --json \
+npm view @agent-teams/docs-protocol-mcp@0.2.5 version --json \
   --registry=https://registry.npmjs.org/ \
   --@agent-teams:registry=https://registry.npmjs.org/
 ```
 
 ```bash
-pnpm view @agent-teams/docs-protocol-mcp@0.1.0 version --json \
+pnpm view @agent-teams/docs-protocol-mcp@0.2.5 version --json \
   --config.registry=https://registry.npmjs.org/ \
   --config.@agent-teams:registry=https://registry.npmjs.org/
 ```
@@ -201,16 +202,16 @@ record a half-configured transport:
 npm install --save-dev --save-exact \
   --registry=https://registry.npmjs.org/ \
   --@agent-teams:registry=https://registry.npmjs.org/ \
-  @agent-teams/docs-protocol@0.4.0 \
-  @agent-teams/docs-protocol-mcp@0.1.0
+  @agent-teams/docs-protocol@0.6.2 \
+  @agent-teams/docs-protocol-mcp@0.2.5
 ```
 
 ```bash
 pnpm add --save-dev --save-exact \
   --config.registry=https://registry.npmjs.org/ \
   --config.@agent-teams:registry=https://registry.npmjs.org/ \
-  @agent-teams/docs-protocol@0.4.0 \
-  @agent-teams/docs-protocol-mcp@0.1.0
+  @agent-teams/docs-protocol@0.6.2 \
+  @agent-teams/docs-protocol-mcp@0.2.5
 ```
 
 Configure the installed MCP binary directly in the client; do not invoke it
@@ -242,5 +243,6 @@ multi-tenant operation are not part of the portable profile.
 - Bootstrap uses only reviewed create-absent and exact-preimage operations.
 - The Agent Teams managed preset and Cohort workflow remain separate and
   unchanged.
-- This published workflow remains Node 24-only. Node 26 compatibility is
-  [staged separately](../development/node-26-compatibility.md).
+- These published coordinates support Node 24 and Node 26 under the
+  [Node runtime contract](../development/node-26-compatibility.md), which also
+  documents the separate legacy managed-generation exceptions.

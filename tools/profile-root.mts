@@ -3,6 +3,7 @@ import { constants, type BigIntStats } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 import { repositoryRoot } from "./runtime-policy.mts";
+import { withoutGitRepositorySelectors } from "./git-environment.ts";
 
 function within(parent: string, child: string): boolean {
   const childRelative = relative(parent, child);
@@ -123,7 +124,7 @@ export async function assertExplicitSourceGitAuthority(sourceRoot: string): Prom
     gitDir = resolve(canonicalSourceRoot, match[1]);
   }
   const environment: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...withoutGitRepositorySelectors(),
     GIT_OPTIONAL_LOCKS: "0",
     GIT_DIR: gitDir,
     GIT_WORK_TREE: canonicalSourceRoot,

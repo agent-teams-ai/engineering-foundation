@@ -583,6 +583,7 @@ test("full capability follows ordered TypeScript types export targets", async ()
   }
 });
 
+
 test("pinned native Node confirms ordered export-target oracle cases", async () => {
   for (const condition of ["import", "require"]) {
     assert.notEqual(
@@ -747,6 +748,7 @@ test("full capability follows Node wildcard priority and rejects empty captures"
   });
   assert.deepEqual(ruleIds(empty.diagnostics), [exportRule, mixedPackageRule]);
 });
+
 
 async function configureGeneratedOutput(consumerRoot, schemaVersion, dependencyMode, specifier) {
   const packageRoots = schemaVersion === 2 ? "packageRoots:\n  - packages\n" : "";

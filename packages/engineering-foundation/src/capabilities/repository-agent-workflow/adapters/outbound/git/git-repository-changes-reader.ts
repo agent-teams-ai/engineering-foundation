@@ -8,6 +8,7 @@ import type {
   RepositoryChangeGroups
 } from "../../../application/model/changed-workflow.js";
 import type { ExecuteWorkflowProcess } from "../../../application/ports/process-execution.js";
+import { withGitIndexSnapshot } from "./git-index-snapshot.js";
 
 const AUTO_BASE_REFS = [
   { display: "origin/main", ref: "refs/remotes/origin/main" },
@@ -414,54 +415,55 @@ export class GitRepositoryChangesReader implements RepositoryChangesReader {
     readonly baseRef?: string;
     readonly signal?: AbortSignal;
   }) {
-    const execute = this.execute;
     if (input.baseRef !== undefined && input.baseRef.startsWith("-")) {
       rejectChangedWorkflowInput("The base ref cannot start with a dash.");
     }
     const root = await realpath(input.consumerRoot).catch(() =>
       rejectChangedWorkflowInput("The consumer root is unavailable.")
     );
-    const topLevel = await git(execute,
-      root,
-      ["rev-parse", "--show-toplevel"],
-      input.signal
-    );
-    if (topLevel.exitCode !== 0) {
-      rejectChangedWorkflowInput("The consumer root must be a Git repository.");
-    }
-    const gitRoot = await realpath(topLevel.stdout.trim());
-    if (gitRoot !== root) {
-      rejectChangedWorkflowInput("The consumer root must be the Git repository root.");
-    }
-    const baseline = await resolveBaseline(execute, root, input.baseRef, input.signal);
-    const changeGroups = await changedPathGroups(execute, root, baseline, input.signal);
-    const groups: readonly RepositoryChangeGroup[] = [
-      changeGroups.committed,
-      changeGroups.staged,
-      changeGroups.unstaged,
-      changeGroups.untracked
-    ];
-    const changedPaths = [
-      ...new Set(groups.flatMap(({ paths }) => paths))
-    ].toSorted(comparePaths);
-    const deletedPaths = [
-      ...new Set(groups.flatMap(({ deletedPaths: paths }) => paths))
-    ].toSorted(comparePaths);
-    [...changedPaths, ...deletedPaths].forEach(assertSafeRepositoryPath);
-    return Object.freeze({
-      baselineRef: baseline.baselineRef,
-      baselineCommit: baseline.baselineCommit,
-      requestedBaseRef: baseline.requestedRef,
-      resolvedBaseRef: baseline.resolvedRef,
-      baseCommit: baseline.baseCommit,
-      headRef: "HEAD" as const,
-      headCommit: baseline.headCommit,
-      mergeBaseCommit: baseline.mergeBaseCommit,
-      changeGroups,
-      scopeDigest: await scopeDigest(baseline, changeGroups),
-      changedPaths: Object.freeze(changedPaths),
-      deletedPaths: Object.freeze(deletedPaths),
-      existingPaths: await existingFiles(root, changedPaths)
-    });
+    return withGitIndexSnapshot(this.execute, root, async (execute) => {
+      const topLevel = await git(execute,
+        root,
+        ["rev-parse", "--show-toplevel"],
+        input.signal
+      );
+      if (topLevel.exitCode !== 0) {
+        rejectChangedWorkflowInput("The consumer root must be a Git repository.");
+      }
+      const gitRoot = await realpath(topLevel.stdout.trim());
+      if (gitRoot !== root) {
+        rejectChangedWorkflowInput("The consumer root must be the Git repository root.");
+      }
+      const baseline = await resolveBaseline(execute, root, input.baseRef, input.signal);
+      const changeGroups = await changedPathGroups(execute, root, baseline, input.signal);
+      const groups: readonly RepositoryChangeGroup[] = [
+        changeGroups.committed,
+        changeGroups.staged,
+        changeGroups.unstaged,
+        changeGroups.untracked
+      ];
+      const changedPaths = [
+        ...new Set(groups.flatMap(({ paths }) => paths))
+      ].toSorted(comparePaths);
+      const deletedPaths = [
+        ...new Set(groups.flatMap(({ deletedPaths: paths }) => paths))
+      ].toSorted(comparePaths);
+      [...changedPaths, ...deletedPaths].forEach(assertSafeRepositoryPath);
+      return Object.freeze({
+        baselineRef: baseline.baselineRef,
+        baselineCommit: baseline.baselineCommit,
+        requestedBaseRef: baseline.requestedRef,
+        resolvedBaseRef: baseline.resolvedRef,
+        baseCommit: baseline.baseCommit,
+        headRef: "HEAD" as const,
+        headCommit: baseline.headCommit,
+        mergeBaseCommit: baseline.mergeBaseCommit,
+        changeGroups,
+        scopeDigest: await scopeDigest(baseline, changeGroups),
+        changedPaths: Object.freeze(changedPaths),
+        deletedPaths: Object.freeze(deletedPaths),
+        existingPaths: await existingFiles(root, changedPaths)
+      });
+    }, input.signal);
   }
 }

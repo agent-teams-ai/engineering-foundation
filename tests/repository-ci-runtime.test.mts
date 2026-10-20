@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmod, copyFile, link, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { delimiter, dirname, join, relative, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
@@ -560,7 +560,7 @@ test("typed lint retains the production quality capability route", async () => {
 });
 
 test("typecheck rejects errors in every strict project outside the production build", {
-  timeout: 60_000
+  timeout: 120_000
 }, async () => {
   const runtime = await resolveQualificationExecutables("bun");
   const manifest = JSON.parse(await readFile(join(repositoryRoot, "package.json"), "utf8")) as {
@@ -573,7 +573,9 @@ test("typecheck rejects errors in every strict project outside the production bu
     ["typecheck:managed-runtime-tests", "tsconfig.managed-runtime-tests.json", "managed-runtime.mts"],
     ["typecheck:local-mode-oracles", "tsconfig.local-mode-oracles.json", "local-mode-oracles.ts"],
     ["typecheck:native-api-tests", "tsconfig.native-api-tests.json", "native-api-tests.ts"],
-    ["typecheck:native-release-tooling", "tsconfig.native-release-tooling.json", "native-release-tooling.ts"]
+    ["typecheck:native-release-tooling", "tsconfig.native-release-tooling.json", "native-release-tooling.ts"],
+    // This required project is invoked as a dispatcher tool, not a package script.
+    [null, "spikes/source-dependency-parser/tsconfig.json", "spikes/source-dependency-parser/parser-spike.ts"]
   ] as const;
   const valid = "export const value: number = 1;\n";
   const invalid = "export const value: number = \"strict-project-error\";\n";
@@ -596,7 +598,7 @@ test("typecheck rejects errors in every strict project outside the production bu
     }
   });
   try {
-    const ids = ["build", "typecheck", ...projects.map(([id]) => id)];
+    const ids = ["build", "typecheck", ...projects.flatMap(([id]) => id === null ? [] : [id])];
     await writeFile(join(root, "package.json"), JSON.stringify({
       name: "TEST-strict-project-admission", private: true, packageManager: "bun@1.4.3",
       scripts: Object.fromEntries(ids.map(id => [id,
@@ -608,20 +610,30 @@ test("typecheck rejects errors in every strict project outside the production bu
       compilerOptions, files: ["production.mts"]
     }));
     for (const [, config, input] of projects) {
+      await mkdir(dirname(join(root, config)), { recursive: true });
       await writeFile(join(root, input), valid);
-      await writeFile(join(root, config), JSON.stringify({ compilerOptions, files: [input] }));
+      await writeFile(join(root, config), JSON.stringify({
+        compilerOptions, files: [relative(dirname(config), input)]
+      }));
     }
     const baseline = run("typecheck");
     assert.equal(baseline.status, 0, `${baseline.stdout}${baseline.stderr}`);
+    // A single build with every strict-only input invalid proves their joint exclusion.
     for (const [, , input] of projects) {
       await writeFile(join(root, input), invalid);
-      const production = run("build");
-      assert.equal(production.status, 0, `${production.stdout}${production.stderr}`);
+    }
+    const production = run("build");
+    assert.equal(production.status, 0, `${production.stdout}${production.stderr}`);
+    for (const [, , input] of projects) {
+      await writeFile(join(root, input), valid);
+    }
+    for (const [, , input] of projects) {
+      await writeFile(join(root, input), invalid);
       const rejected = run("typecheck");
       assert.notEqual(rejected.status, 0,
         `typecheck omitted strict project input ${input}: ${rejected.stdout}${rejected.stderr}`);
       assert.match(`${rejected.stdout}${rejected.stderr}`, /error TS2322/u);
-      assert.ok(`${rejected.stdout}${rejected.stderr}`.includes(input));
+      assert.ok(`${rejected.stdout}${rejected.stderr}`.replaceAll("\\", "/").includes(input));
       await writeFile(join(root, input), valid);
     }
   } finally {

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { assertExplicitSourceGitAuthority, assertPnpmProfileQualificationRoot, prepareProfileProjection } from "./dev.mts";
 import { resolveQualificationExecutables } from "./executable-policy.mts";
 import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
+import { withoutGitRepositorySelectors } from "./git-environment.ts";
 
 interface ReleaseCommand {
   readonly sourceRoot: string;
@@ -31,7 +32,7 @@ function run(
   environment: NodeJS.ProcessEnv
 ): Promise<number> {
   return new Promise((_resolve, reject) => {
-    const child = spawn(command, [...args], { cwd, env: environment, shell: false, stdio: "inherit" });
+    const child = spawn(command, [...args], { cwd, env: withoutGitRepositorySelectors(environment), shell: false, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
       if (signal !== null) {

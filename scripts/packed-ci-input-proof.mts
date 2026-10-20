@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { chmod, cp, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { writeJson, writePackedCiInputProofHarness } from './ci-input-proof-packed-harness.mts';
@@ -104,23 +104,53 @@ async function packInstalledTypeScript(
   });
 }
 
-async function copyInstalledTypeSupport(
+async function packInstalledTypeSupport(
+  temporaryRoot: string,
+  repositoryRoot: string,
+  runPnpm: RunPnpm,
+): Promise<Readonly<{ typesNodeArchiveSpecifier: string; undiciTypesArchiveSpecifier: string }>> {
+  const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
+  const typesNodeManifestPath = requireFromRepository.resolve('@types/node/package.json');
+  const undiciTypesManifestPath = createRequire(typesNodeManifestPath).resolve('undici-types/package.json');
+  const toolchainRoot = join(temporaryRoot, 'toolchain-archives');
+  const specifiers: string[] = [];
+  for (const [manifestPath, name, version] of [
+    [typesNodeManifestPath, '@types/node', '24.13.3'],
+    [undiciTypesManifestPath, 'undici-types', '7.18.2'],
+  ] as const) {
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Readonly<{
+      name?: unknown;
+      version?: unknown;
+    }>;
+    if (manifest.name !== name || manifest.version !== version) {
+      throw new Error(`Packed CI Input Proof type support donor differs from the exact ${name} pin.`);
+    }
+    const packed = await runPnpm([
+      '--dir', dirname(manifestPath), 'pack', '--pack-destination', toolchainRoot, '--json',
+    ], repositoryRoot);
+    const report = JSON.parse(packed.stdout) as Readonly<{
+      name?: unknown;
+      version?: unknown;
+      filename?: unknown;
+    }>;
+    if (report.name !== name || report.version !== version || typeof report.filename !== 'string') {
+      throw new Error(`Packed CI Input Proof could not materialize the exact ${name} type support.`);
+    }
+    specifiers.push(`file:${resolve(report.filename)}`);
+  }
+  const [typesNodeArchiveSpecifier, undiciTypesArchiveSpecifier] = specifiers;
+  if (typesNodeArchiveSpecifier === undefined || undiciTypesArchiveSpecifier === undefined) {
+    throw new Error('Packed CI Input Proof type support archives are incomplete.');
+  }
+  return Object.freeze({ typesNodeArchiveSpecifier, undiciTypesArchiveSpecifier });
+}
+
+async function verifyInstalledTypeScriptPlatform(
   repositoryRoot: string,
   consumerRoot: string,
   platformPackageName: string,
 ): Promise<Readonly<{ typescriptPlatforms: readonly string[] }>> {
   const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
-  const typesNodeManifestPath = requireFromRepository.resolve('@types/node/package.json');
-  const typesNodeRoot = dirname(typesNodeManifestPath);
-  const undiciTypesManifestPath = createRequire(typesNodeManifestPath)
-    .resolve('undici-types/package.json');
-  await mkdir(join(consumerRoot, 'node_modules', '@types'), { recursive: true });
-  await cp(typesNodeRoot, join(consumerRoot, 'node_modules', '@types', 'node'), { recursive: true });
-  await cp(
-    dirname(undiciTypesManifestPath),
-    join(consumerRoot, 'node_modules', 'undici-types'),
-    { recursive: true },
-  );
   const requireFromRepositoryTypeScript = createRequire(requireFromRepository.resolve('typescript/package.json'));
   const installedTypeScriptManifestPath = await realpath(
     join(consumerRoot, 'node_modules', 'typescript', 'package.json'),
@@ -152,6 +182,32 @@ async function copyInstalledTypeSupport(
   return Object.freeze({ typescriptPlatforms: Object.freeze([platformPackageName]) });
 }
 
+async function verifyInstalledTypeSupport(
+  repositoryRoot: string,
+  consumerRoot: string,
+): Promise<void> {
+  const requireFromRepository = createRequire(join(repositoryRoot, 'package.json'));
+  const sourceTypesNodeManifestPath = requireFromRepository.resolve('@types/node/package.json');
+  const installedTypesNodeManifestPath = await realpath(
+    join(consumerRoot, 'node_modules', '@types', 'node', 'package.json'),
+  );
+  const installedUndiciTypesManifestPath = createRequire(installedTypesNodeManifestPath)
+    .resolve('undici-types/package.json');
+  const sourceUndiciTypesManifestPath = createRequire(sourceTypesNodeManifestPath)
+    .resolve('undici-types/package.json');
+  for (const [source, installed] of [
+    [sourceTypesNodeManifestPath, installedTypesNodeManifestPath],
+    [sourceUndiciTypesManifestPath, installedUndiciTypesManifestPath],
+  ] as const) {
+    const entrypoint = await realpath(join(dirname(installed), 'index.d.ts'));
+    const custodyPath = relative(consumerRoot, entrypoint);
+    if (custodyPath.startsWith('..') || isAbsolute(custodyPath)
+        || !(await readFile(join(dirname(source), 'index.d.ts'))).equals(await readFile(entrypoint))) {
+      throw new Error('Packed CI Input Proof installed type declaration entrypoint differs from its repository donor.');
+    }
+  }
+}
+
 async function installPackedCiInputProofToolchain(
   artifact: PackedArtifact,
   temporaryRoot: string,
@@ -164,6 +220,7 @@ async function installPackedCiInputProofToolchain(
     repositoryRoot,
     runPnpm,
   );
+  const typeSupport = await packInstalledTypeSupport(temporaryRoot, repositoryRoot, runPnpm);
   const installStarted = performance.now();
   await runPnpm([
     'add',
@@ -173,10 +230,11 @@ async function installPackedCiInputProofToolchain(
     '--store-dir',
     join(temporaryRoot, 'pnpm-store-TEST'),
     toolchain.platformArchiveSpecifier,
+    typeSupport.undiciTypesArchiveSpecifier,
   ], consumerRoot);
   await writeFile(
     join(consumerRoot, 'pnpm-workspace.yaml'),
-    `overrides:\n  ${JSON.stringify(toolchain.platformPackageName)}: ${JSON.stringify(toolchain.platformArchiveSpecifier)}\n`,
+    `overrides:\n  ${JSON.stringify(toolchain.platformPackageName)}: ${JSON.stringify(toolchain.platformArchiveSpecifier)}\n  undici-types: ${JSON.stringify(typeSupport.undiciTypesArchiveSpecifier)}\n`,
     'utf8',
   );
   await runPnpm([
@@ -187,6 +245,7 @@ async function installPackedCiInputProofToolchain(
     '--store-dir',
     join(temporaryRoot, 'pnpm-store-TEST'),
     toolchain.typescriptArchiveSpecifier,
+    typeSupport.typesNodeArchiveSpecifier,
     artifact.archiveFileSpecifier,
   ], consumerRoot);
   const installMs = performance.now() - installStarted;
@@ -198,7 +257,7 @@ async function installPackedCiInputProofToolchain(
       || installedManifest.version !== artifact.packageVersion) {
     throw new Error('Packed CI Input Proof installed artifact identity contradicts the source manifest.');
   }
-  const typeSupport = await copyInstalledTypeSupport(
+  const platform = await verifyInstalledTypeScriptPlatform(
     repositoryRoot,
     consumerRoot,
     toolchain.platformPackageName,
@@ -219,7 +278,7 @@ async function installPackedCiInputProofToolchain(
     installMs,
     installedTypesNode: installedTypesNodeManifest.version,
     installedTypescript: installedTypescriptManifest.version,
-    typescriptPlatforms: typeSupport.typescriptPlatforms,
+    typescriptPlatforms: platform.typescriptPlatforms,
   });
 }
 
@@ -267,7 +326,8 @@ export async function verifyPackedCiInputProof(
     repositoryRoot,
     consumerRoot,
     runPnpm,
-  );  await writePackedCiInputProofHarness(consumerRoot, repositoryRoot);
+  );
+  await writePackedCiInputProofHarness(consumerRoot, repositoryRoot);
 
   const typecheckStarted = performance.now();
   const compilerVersion = await runPnpm(['--reporter=silent', 'exec', 'tsc', '--version'], consumerRoot);
@@ -279,6 +339,7 @@ export async function verifyPackedCiInputProof(
       expectedLinePresent: lines.includes('Version 7.0.2'), stderrNonempty: compilerVersion.stderr.trim() !== '' };
     throw new Error(`Packed CI Input Proof consumer resolved a compiler other than TypeScript 7.0.2. ${JSON.stringify(observation)}`);
   }
+  await verifyInstalledTypeSupport(repositoryRoot, consumerRoot);
   await runPnpm(['exec', 'tsc', '--project', join(consumerRoot, 'tsconfig.json')], consumerRoot);
   const typecheckMs = performance.now() - typecheckStarted;
   const conformanceStarted = performance.now();

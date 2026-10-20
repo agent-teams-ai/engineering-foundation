@@ -6,6 +6,14 @@ import { parse, stringify } from "yaml";
 
 import { readFoundationSchema } from "../dist/schema-catalog.js";
 import { loadStrictYamlFile } from "../dist/features/configuration-input/node.js";
+import { createSchemaCatalog } from "../dist/features/configuration-input/module.js";
+
+function workspaceAssertion(readSchema) {
+  return createSchemaCatalog({
+    schemaIds: ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2"],
+    dependencies: {}, readSchema,
+  }).assertSchema;
+}
 
 import { createWorkspaceDependencyDeclarationsCapability } from "../dist/capabilities/workspace-dependency-declarations/module.js";
 import { createWorkspaceInventoryReader } from "../dist/workspace-inventory/module.js";
@@ -18,6 +26,27 @@ const rule = (suffix) => `workspace.dependency-declarations.${suffix}`;
 const has = (report, suffix, slot, section = "dependencies") => report.diagnostics.some(
   (entry) => entry.ruleId === rule(suffix) && entry.subject === `@fixture/app:${section}:${slot}`,
 );
+
+test("workspace feature composition owns one catalog cache for its selected v1/v2 schemas", async () => {
+  await withFixture(async (consumerRoot) => {
+    const reads = [];
+    const create = () => createWorkspaceDependencyDeclarationsCapability(createWorkspaceInventoryReader(), async (id) => {
+      reads.push(id);
+      return readFoundationSchema(id);
+    });
+    const capability = create();
+    for (const version of [1, 1, 2, 2]) {
+      const path = join(consumerRoot, configPath);
+      const config = parse(await readFile(path, "utf8"));
+      config.schemaVersion = version;
+      await writeFile(path, stringify(config));
+      assert.equal((await capability.run({ consumerRoot, configPath })).outcome, "passed");
+    }
+    assert.deepEqual(reads, ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2"]);
+    assert.equal((await create().run({ consumerRoot, configPath })).outcome, "passed");
+    assert.deepEqual(reads, ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2", "workspace-dependency-declarations/v2"]);
+  });
+});
 
 async function configure(root, { slot = "alias", target = "typescript", version = "7.0.2", route = "catalog:", section = "dependencies", bundle, policy = {} } = {}) {
   const raw = `npm:${target}@${version}`;
@@ -155,17 +184,23 @@ for (const entry of configBaseline.cases) {
       };
       if (entry.name === "future-version") {
         const selected = [];
-        const actual = await loadCapabilityConfig({ readYaml: loadStrictYamlFile, readSchema: async (id) => {
+        const actual = await loadCapabilityConfig({ readYaml: loadStrictYamlFile, assertSchema: workspaceAssertion(async (id) => {
           selected.push(id);
           return readFoundationSchema(id);
-        } }, root, configPath);
+        }) }, root, configPath);
         assert.deepEqual(selected, ["workspace-dependency-declarations/v2"]);
         assert.deepEqual(actual, configBaseline.cases.find(({ name }) => name === "valid").settings);
       } else {
-        await settings(() => loadCapabilityConfig({ readYaml: loadStrictYamlFile, readSchema: readFoundationSchema }, root, configPath));
+        await settings(() => loadCapabilityConfig({ readYaml: loadStrictYamlFile, assertSchema: workspaceAssertion(readFoundationSchema) }, root, configPath));
       }
       if (!entry.loaderOnly) {
-        await settings(async () => parseCapabilityConfig(parse(entry.yaml), configSchema));
+        await settings(async () => {
+          const input = parse(entry.yaml);
+          await workspaceAssertion(async () => JSON.stringify(configSchema))(
+            "workspace-dependency-declarations/v1", input, "workspace-dependency-declarations-config"
+          );
+          return parseCapabilityConfig(input);
+        });
       }
       assert.equal(await readFile(path, "utf8"), entry.yaml);
     });

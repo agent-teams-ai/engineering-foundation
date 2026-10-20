@@ -5,6 +5,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertFeatureOutsideSchemaCycles, assertSchemaAssemblyImportRejected } from "./helpers/schema-assembly-boundaries.mjs";
 import { loadCapabilityConfig } from "../packages/engineering-foundation/dist/capabilities/workspace-dependency-declarations/adapters/inbound/filesystem/load-capability-config.js";
+import { createSchemaCatalog } from "../packages/engineering-foundation/dist/features/configuration-input/module.js";
+
+function workspaceAssertion(readSchema) {
+  return createSchemaCatalog({
+    schemaIds: ["workspace-dependency-declarations/v1", "workspace-dependency-declarations/v2"],
+    dependencies: {}, readSchema,
+  }).assertSchema;
+}
 
 const schema = await readFile(new URL("../packages/engineering-foundation/schemas/workspace-dependency-declarations/v1.schema.json", import.meta.url), "utf8");
 
@@ -27,7 +35,7 @@ test("workspace configuration reads the exact schema after the bounded YAML inpu
   const calls = [], signal = new AbortController().signal;
   const settings = await loadCapabilityConfig({
     async readYaml(...args) { calls.push(["read", ...args]); return input; },
-    async readSchema(...args) { calls.push(["schema", ...args]); return schema; }
+    assertSchema: workspaceAssertion(async (...args) => { calls.push(["schema", ...args]); return schema; })
   }, "explicit-memory-consumer", "dependencies.yaml", signal);
   assert.deepEqual(calls, [
     ["read", "explicit-memory-consumer", "dependencies.yaml", "workspace-dependency-declarations-config", signal],
@@ -45,13 +53,30 @@ test("workspace configuration preserves failure identity and does not read schem
   let schemaReads = 0;
   await assert.rejects(loadCapabilityConfig({
     async readYaml() { throw failure; },
-    async readSchema() { schemaReads += 1; return schema; }
+    assertSchema: workspaceAssertion(async () => { schemaReads += 1; return schema; })
   }, "explicit-memory-consumer", "dependencies.yaml"), (error) => error === failure);
   assert.equal(schemaReads, 0);
   await assert.rejects(loadCapabilityConfig({
     async readYaml() { return null; },
-    async readSchema() { throw failure; }
+    assertSchema: workspaceAssertion(async () => { throw failure; })
   }, "explicit-memory-consumer", "dependencies.yaml"), (error) => error === failure);
+});
+
+test("workspace shared validation keeps formats as annotations and reports schema failures before mapping", async () => {
+  const annotated = JSON.parse(schema);
+  annotated.properties.packageManager.properties.kind.type = "string";
+  annotated.properties.packageManager.properties.kind.format = "email";
+  const input = { schemaVersion: 1, packageManager: { kind: "pnpm", workspaceManifest: "pnpm-workspace.yaml" }, policies: {
+    externalDependencies: "catalog", catalogVersions: "exact", internalDependencies: "workspace-protocol",
+    reservedScopes: [], developmentOnlyPackages: [], exactRegistryDevelopmentOnlyPackages: [],
+  } };
+  const dependencies = {
+    async readYaml() { return input; },
+    assertSchema: workspaceAssertion(async () => JSON.stringify(annotated)),
+  };
+  assert.equal((await loadCapabilityConfig(dependencies, "memory", "dependencies.yaml")).packageManagerKind, "pnpm");
+  await assert.rejects(loadCapabilityConfig({ ...dependencies, async readYaml() { return null; } }, "memory", "dependencies.yaml"),
+    (error) => error.problem.code === "SCHEMA_INVALID" && error.problem.phase === "workspace-dependency-declarations-config");
 });
 
 test("configuration observations preserve recognized errors and unknown thrown identity", async () => {
@@ -155,10 +180,10 @@ test("workspace configuration dispatches explicit v2 managers and rejects unsupp
   ]) {
     const input = { ...base, schemaVersion: version, packageManager: { kind, workspaceManifest: manifest } };
     const selected = [];
-    const operation = () => loadCapabilityConfig({ async readYaml() { return input; }, async readSchema(id) {
+    const operation = () => loadCapabilityConfig({ async readYaml() { return input; }, assertSchema: workspaceAssertion(async (id) => {
       selected.push(id);
       return id === "workspace-dependency-declarations/v2" ? v2 : schema;
-    } }, "explicit-memory-consumer", "dependencies.yaml");
+    }) }, "explicit-memory-consumer", "dependencies.yaml");
     if (accepted) { assert.equal((await operation()).packageManagerKind, kind); }
     else { await assert.rejects(operation, (error) => error.problem.code === "SCHEMA_INVALID"); }
     assert.deepEqual(selected, [`workspace-dependency-declarations/v${version === 2 ? 2 : 1}`]);

@@ -1,9 +1,10 @@
+import type { WorkspaceConfigurationSchemaAssertion } from "../../../application/configuration-input.js";
 import { parseCapabilityConfig } from "./parse-capability-config.js";
 import type { WorkspaceDependencyDeclarationsSettings } from "../../../application/model/workspace-dependency-settings.js";
 
 export interface WorkspaceConfigurationDependencies {
   readonly readYaml: (consumerRoot: string, configPath: string, phase: string, signal?: AbortSignal) => Promise<unknown>;
-  readonly readSchema: (schemaId: "workspace-dependency-declarations/v1" | "workspace-dependency-declarations/v2") => Promise<string>;
+  readonly assertSchema: WorkspaceConfigurationSchemaAssertion;
 }
 
 export async function loadCapabilityConfig(
@@ -21,8 +22,10 @@ export async function loadCapabilityConfig(
   const version = typeof input === "object" && input !== null && !Array.isArray(input)
     ? (input as Record<string, unknown>)["schemaVersion"]
     : undefined;
-  const schema = JSON.parse(await dependencies.readSchema(
-    version === 2 ? "workspace-dependency-declarations/v2" : "workspace-dependency-declarations/v1"
-  )) as object;
-  return parseCapabilityConfig(input, schema);
+  await dependencies.assertSchema(
+    version === 2 ? "workspace-dependency-declarations/v2" : "workspace-dependency-declarations/v1",
+    input,
+    "workspace-dependency-declarations-config"
+  );
+  return parseCapabilityConfig(input);
 }

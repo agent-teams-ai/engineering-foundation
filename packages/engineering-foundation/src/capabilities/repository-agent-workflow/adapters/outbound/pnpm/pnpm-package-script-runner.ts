@@ -1,4 +1,4 @@
-import { lstat } from "node:fs/promises";
+import { lstat, realpath } from "node:fs/promises";
 import { delimiter, isAbsolute, resolve } from "node:path";
 
 import type { PackageScriptRunner } from "../../../application/ports/changed-workflow.js";
@@ -26,13 +26,15 @@ async function nodeEntrypoint(
   candidates: readonly (string | undefined)[]
 ): Promise<string | undefined> {
   for (const candidate of candidates) {
-    if (
-      candidate !== undefined &&
-      isAbsolute(candidate) &&
-      /\.(?:c|m)?js$/u.test(candidate) &&
-      await isRegularFile(candidate)
-    ) {
-      return candidate;
+    if (candidate !== undefined && isAbsolute(candidate)) {
+      const canonical = await realpath(candidate).catch(() => null);
+      if (
+        canonical !== null &&
+        /\.(?:c|m)?js$/iu.test(canonical) &&
+        await isRegularFile(canonical)
+      ) {
+        return canonical;
+      }
     }
   }
   return undefined;
@@ -41,6 +43,22 @@ async function nodeEntrypoint(
 async function resolvePnpmInvocation(
   environment: PnpmProcessEnvironment
 ): Promise<PnpmInvocation> {
+  if (
+    process.platform !== "win32" &&
+    environment.npmExecPath !== undefined &&
+    isAbsolute(environment.npmExecPath)
+  ) {
+    // Same precedence as the quality-gate executor: an explicit native
+    // npmExecPath wins, classified on the canonical executed target.
+    const canonical = await realpath(environment.npmExecPath).catch(() => null);
+    if (canonical !== null && await isRegularFile(canonical)) {
+      if (!/\.(?:c|m)?js$/iu.test(canonical)) {
+        return { command: canonical, argsPrefix: [] };
+      }
+    } else if (!/\.(?:c|m)?js$/iu.test(environment.npmExecPath)) {
+      rejectWorkflowExecutor();
+    }
+  }
   const pnpmPackageEntrypoint =
     environment.pnpmHome === undefined
       ? undefined

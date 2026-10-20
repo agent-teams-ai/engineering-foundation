@@ -21,6 +21,7 @@
         "oxc-parser": "catalog:",
         "oxlint": "catalog:",
         "oxlint-tsgolint": "catalog:",
+        "pnpm": "catalog:",
         "publint": "catalog:",
         "semver": "catalog:",
         "typescript": "catalog:",
@@ -143,7 +144,7 @@
         "typescript": "catalog:",
       },
       "peerDependencies": {
-        "@agent-teams/engineering-foundation": "workspace:^1.8.0",
+        "@agent-teams/engineering-foundation": "workspace:^1.8.0 || ^2.0.0",
       },
       "optionalPeers": [
         "@agent-teams/engineering-foundation",
@@ -196,6 +197,7 @@
     "oxc-parser": "0.142.0",
     "oxlint": "1.83.0",
     "oxlint-tsgolint": "7.0.2001",
+    "pnpm": "11.20.0",
     "proper-lockfile": "4.1.2",
     "publint": "0.3.22",
     "remark-frontmatter": "5.0.0",
@@ -1351,6 +1353,8 @@
     "pino-abstract-transport": ["pino-abstract-transport@2.0.0", "", { "dependencies": { "split2": "4.2.0" } }, "sha512-F63x5tizV6WCh4R6RHyi2Ml+M70DNRXt/+HANowMflpgGFMAym/VKm6G7ZOQRjqN7XbGxK1Lg9t6ZrtzOaivMw=="],
 
     "pino-std-serializers": ["pino-std-serializers@7.1.0", "", {}, "sha512-BndPH67/JxGExRgiX1dX0w1FvZck5Wa4aal9198SrRhZjH3GxKQUKIBnYJTdj2HDN3UQAS06HlfcSbQj2OHmaw=="],
+
+    "pnpm": ["pnpm@11.20.0", "", { "bin": { "pn": "bin/pnpm.mjs", "pnx": "bin/pnpx.mjs", "pnpm": "bin/pnpm.mjs", "pnpx": "bin/pnpx.mjs" } }, "sha512-mm8zCpW2ZEbqCI+vFSFAWooB8H/ecSTMmVjf7VLUu0NnN+ZbCPhfN7Rvy6N1CSVYrFEmK4FoRLIvY0Bu0Wa/7g=="],
 
     "prettier": ["prettier@2.8.8", "", { "bin": { "prettier": "bin-prettier.js" } }, "sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q=="],
 

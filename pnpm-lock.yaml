@@ -78,6 +78,9 @@ catalogs:
     oxlint-tsgolint:
       specifier: 7.0.2001
       version: 7.0.2001
+    pnpm:
+      specifier: 11.20.0
+      version: 11.20.0
     proper-lockfile:
       specifier: 4.1.2
       version: 4.1.2
@@ -174,6 +177,9 @@ importers:
       oxlint-tsgolint:
         specifier: 'catalog:'
         version: 7.0.2001
+      pnpm:
+        specifier: 'catalog:'
+        version: 11.20.0
       publint:
         specifier: 'catalog:'
         version: 0.3.22
@@ -2944,6 +2950,11 @@ packages:
 
   pino@9.14.0:
     resolution: {integrity: sha512-8OEwKp5juEvb/MjpIc4hjqfgCNysrS94RIOMXYvpYCdm/jglrKEiAYmiumbmGhCvs+IcInsphYDFwqrjr7398w==}
+    hasBin: true
+
+  pnpm@11.20.0:
+    resolution: {integrity: sha512-mm8zCpW2ZEbqCI+vFSFAWooB8H/ecSTMmVjf7VLUu0NnN+ZbCPhfN7Rvy6N1CSVYrFEmK4FoRLIvY0Bu0Wa/7g==}
+    engines: {node: '>=22.13'}
     hasBin: true
 
   prettier@2.8.8:
@@ -6246,6 +6257,8 @@ snapshots:
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.1
       thread-stream: 3.2.0
+
+  pnpm@11.20.0: {}
 
   prettier@2.8.8: {}
 

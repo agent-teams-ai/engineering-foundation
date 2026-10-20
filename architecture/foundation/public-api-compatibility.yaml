@@ -79,6 +79,8 @@ packages:
         decisionId: ADR-0013
       - fingerprint: sha256:cd3b61b7d835a912ddbd87d9c4a7b3e26efa39b9f0638cad7fba9317b1fe5d07
         decisionId: ADR-0014
+      - fingerprint: sha256:bf6fd082d951c6857f0de414d4472cfbeae3b7357004c3d3911d9820b3b516e6
+        decisionId: ADR-0063
   - packageName: "@agent-teams/document-authoring"
     packageRoot: packages/document-authoring
     manifestPath: packages/document-authoring/package.json

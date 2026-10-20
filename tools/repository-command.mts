@@ -42,13 +42,14 @@ const SCRIPT_IDS = new Set([
   "typecheck", "typecheck:ci-tooling", "typecheck:restoration-lock-inputs",
   "typecheck:restoration-lock", "typecheck:managed-runtime-tests",
   "typecheck:local-mode-oracles", "typecheck:native-api-tests", "typecheck:native-release-tooling",
+  "typecheck:agent-workflow",
   "quality:scope:check", "architecture:features:check", "architecture:features:plan",
   "quality:coverage:scope", "package:qualification:built"
 ]);
 
 const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "standards:check": { entry: "scripts/check-engineering-quality-standard.mts", args: [], role: "runtime" },
-  "check:changed": { entry: "packages/engineering-foundation/dist/cli.js", args: ["agent-workflow", "changed", "--consumer", "."], role: "runtime" },
+  "check:changed": { entry: "packages/engineering-foundation/dist/cli.js", args: ["agent-workflow", "check-changed", "--consumer", "."], role: "runtime" },
   "check:fast": { entry: "packages/engineering-foundation/dist/cli.js", args: ["gate", "run", "bun-check-fast", "--consumer", ".", "--format", "text"], role: "runtime" },
   "dependencies:peers:check": { entry: "tools/pnpm-command.mts", args: ["peers", "check", "--lockfile-only"], role: "node-qualification" },
   "dependencies:installed:check": { entry: "tools/dependencies-installed-check.mts", args: [], role: "runtime" },
@@ -82,6 +83,7 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "typecheck:local-mode-oracles": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.local-mode-oracles.json"], role: "node-tool" },
   "typecheck:native-api-tests": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.native-api-tests.json"], role: "node-tool" },
   "typecheck:native-release-tooling": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.native-release-tooling.json"], role: "node-tool" },
+  "typecheck:agent-workflow": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.agent-workflow-tests.json", "--pretty", "false"], role: "node-tool" },
   "lint:fast": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool" },
   "lint:fast:files": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool", acceptsPaths: true },
   "lint:typed": { entry: "packages/engineering-foundation/dist/cli.js", args: ["quality", "check", "--consumer", "."], role: "runtime" },
@@ -194,13 +196,15 @@ async function invokeSourceChanged(): Promise<number> {
   await assertExplicitSourceGitAuthority(sourceRoot);
   await assertBunRootProjection(sourceRoot);
   const runtime = await resolveQualificationExecutables("bun");
-  const entry = resolve(sourceRoot, "packages/engineering-foundation/dist/cli.js");
+  const command = TOOL_COMMANDS["check:changed"];
+  if (command === undefined) { throw new Error("Missing source-owned changed-check command."); }
+  const entry = resolve(sourceRoot, command.entry);
   if (!await isFile(entry) || !await isFile(resolve(sourceRoot, "node_modules/typescript/bin/tsc")) ||
       await isFile(resolve(sourceRoot, "node_modules/.pnpm/lock.yaml"))) {
     throw new Error("Source-owned check:changed requires the source Bun installation and build.");
   }
   return run(runtime.bun ?? runtime.node,
-    [entry, "agent-workflow", "changed", "--consumer", "."], sourceRoot,
+    [entry, ...command.args], sourceRoot,
     runtimeEnvironment(runtime, { ...withoutGitRepositorySelectors(),
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: sourceRoot, AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun" }));
 }

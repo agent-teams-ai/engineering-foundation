@@ -7,6 +7,10 @@ workflow without trusting an agent-specific hook. Foundation owns validation,
 changed-file discovery, escalation, and execution. Each consumer owns only its
 instruction text, small adapter files, script mapping, and CI invocation.
 
+The additive `agent-workflow check-changed` successor route and its v2 coverage
+policy are documented in
+[Check-changed coverage and v2 migration](repository-agent-workflow-check-changed.md).
+
 ## Package manager policy
 
 Published policy version 1 remains pnpm-only. Policy version 2 requires an

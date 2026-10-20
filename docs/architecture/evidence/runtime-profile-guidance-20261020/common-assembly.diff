@@ -1,0 +1,128 @@
+--- 3dd68a6b26f42159714a4640b613534a55c2c6aa/docs/architecture/common-assembly.md
++++ 300e7e1c459c08f5e271627e4ca7d2486bdf5e1f/docs/architecture/common-assembly.md
+@@ -12,6 +12,7 @@
+   - ADR-0031
+   - ADR-0032
+   - ADR-0033
++  - ADR-0034
+   - ADR-0035
+   - ADR-0036
+   - ADR-0037
+@@ -191,11 +192,14 @@
+    implementation ID, not by intent.
+ 4. Give a child scope only ports whose setup completed before the child was
+    created. Never pass `Resources` of an ancestor or any `ScopeControl` down.
+-5. When subscribing to a provider, register the returned disposer in your own
+-   scope.
+-6. Running work is not a resource. Register dependencies, then the drain set,
+-   then the subscription, so release runs unsubscribe, drain, close; or make
+-   each operation a `child()`.
++5. Subscribe in your own scope, through an API that takes your `resources` and binds to `resources.signal`, such
++   as `watch` and `load` of `@get-modular/observation`. Work shorter than the module subscribes in a `child()`
++   scope that it closes when the work ends. A provider API that still returns a disposer is wrapped as
++   `{ [Symbol.dispose]: unsubscribe }` and registered with `resources.use`.
++6. Running work is not a resource. Register dependencies, then the drain set, then the subscription, so release
++   runs unsubscribe, drain, close; or make each operation a `child()`. A subscription bound to the scope's signal
++   detaches before any cleanup, whatever its registration order; the order applies to subscriptions released by a
++   disposer.
+ 7. A domain shutdown protocol, such as retire, settle and delete in a fixed
+    order, stays inside one cleanup. A scope orders independent entries; it
+    does not replace an authority sequence.
+@@ -205,9 +209,12 @@
+    receives SIGTERM, `http.Server` waits for active requests. Use the README
+    recipes that react to the escalation signal.
+ 10. Wrap a thenable resource: `setup: () => ({ proc: execa(...) })`.
+-11. Domain and application code never sees `Resources`; only the composition or
+-    adapter layer of the module does. Only the `scoped` adapter reads
+-    `FactoryContext.scope`; never cast it.
++11. Domain and application code never sees `Resources`; only the composition or adapter layer of the module does.
++    Only the `scoped` adapter reads `FactoryContext.scope`; never cast it. `watch` and `load` are called in the
++    module's composition file, which receives `resources`; adapters receive values or a consumer-owned port,
++    because domain and application code never see `Resources` and the lint snippet in
++    [Feature layout and implementation form](#feature-layout-and-implementation-form) keeps `@get-modular/*` out
++    of `adapters/`.
+ 12. Never await `close()` of your own or an ancestor scope inside a cleanup.
+ 13. A cleanup that must not run twice guards itself; the Host may retry.
+ 
+@@ -323,6 +330,29 @@
+ Out of scope: release order derived from the graph, reference-counted sharing,
+ durable recovery, dependency-loss health contracts, lifecycle hooks, plugin
+ managers and process or worker control.
++
++### Module communication
++
++[ADR-0034](../decisions/0034-admit-the-module-change-observation-package.md) admits the optional
++`@get-modular/observation` package: state with one writer, read-only facets and subscriptions owned by the
++subscriber's scope. Core and Assembly do not import it; a module that does not follow changes needs nothing from
++it. The [module authoring guide](../guides/module-authoring.md#21-module-communication) shows each rule.
++
++1. A module that needs a value only at construction reads it and does not follow it. A module that follows a
++   value depends on its own slice, typed only as `ReadonlyStore<Slice>`.
++2. A store has one writer, its owner. The owner creates it in its own scope, wires `reportError` to the Host's
++   error port and hands out `store.readonly()` through an ordinary contract and a `required` slot. Any module may
++   own a store, so a parent passes changed data to its children by owning a derived store.
++3. An owner publishes a few area contracts, such as theme, logging and region, and hands out the same facet under
++   each, so a new key changes only its area's consumers.
++4. A child asks its owner for a change through a command port that returns a typed result; the confirmed change
++   comes back as new state. A module never writes another module's state.
++5. A handler never changes a key its subscription follows, directly or through a command; such a commit fails
++   with `observation.delivery.echo`.
++6. Reading a durable authority, such as a database or a file, at the moment of each operation stays valid; a
++   store is for state that modules follow, not a cache in front of such an authority.
++7. A listener that module code adds to a signal a Get Modular package hands out must not throw: the platform
++   reports it as an uncaught exception, which no package can isolate.
+ 
+ ### Dynamic instances
+ 
+@@ -495,6 +525,9 @@
+ 
+ ```json
+ { "overrides": [
++  { "files": ["src/**/*.ts"], "excludeFiles": ["**/*.test.ts"], "rules": {
++    "no-restricted-imports": ["error", { "paths": [
++      { "name": "@get-modular/observation/testing", "message": "@get-modular/observation/testing is imported only from test files" }] }] } },
+   { "files": ["src/features/**/*.ts"], "excludeFiles": ["**/*.test.ts"], "rules": {
+     "max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+     "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }],
+@@ -503,7 +536,8 @@
+     "max-lines": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
+   { "files": ["src/features/**/contracts/**", "src/features/**/domain/**", "src/features/**/application/**",
+               "src/features/**/adapters/**"], "rules": {
+-    "no-restricted-imports": ["error", { "patterns": [
++    "no-restricted-imports": ["error", { "paths": [
++      { "name": "@get-modular/observation/testing", "message": "@get-modular/observation/testing is imported only from test files" }], "patterns": [
+       { "group": ["@get-modular/*"], "message": "Get Modular is imported only in composition/ and tests" }] }] } },
+   { "files": ["src/features/**/composition/*.declaration.ts"], "rules": {
+     "no-restricted-imports": ["error", {
+@@ -633,7 +667,7 @@
+   a dirty Git tree, or a directory outside Git, unless `--allow-dirty`), then typecheck.
+ - Identify errors by `code`, never by class or message:
+   `assembly.<area>.<reason>`, `resources.<area>.<reason>` and
+-  `conformance.<area>.<reason>`. Core diagnostics carry their catalog codes in
++  `conformance.<area>.<reason>` and `observation.<area>.<reason>`. Core diagnostics carry their catalog codes in
+   `Diagnostic.code`.
+ 
+ #### Module template
+@@ -964,6 +998,10 @@
+ 10. A feature's tests import only its own code, the public surfaces and
+     `testing.ts` of features it may see, and Get Modular; they live at the path
+     that mirrors the feature, and a sub-feature's at the mirrored path.
++11. Import `@get-modular/observation/testing` only from test files; in production code its waits would be a hidden
++    global synchronization point between modules. The lint snippet rejects it in every non-test file. A module
++    test that uses a store closes its scopes, asserts the store-wide `liveSubscriptions(facet) === 0` and waits
++    with `delivered({ stores })` or `settled({ stores })`, never with a tick count.
+ 
+ ### Scoped acceptance and evidence
+ 
+@@ -1019,6 +1057,11 @@
+ extend them, with the [profile completion tests](../../tests/assembly/profile-completion.test.mjs). These belong to the existing `pnpm assembly:test`, `pnpm resources:check`
+ and `pnpm conformance:check` commands, invoked by both fast and full gates, after
+ `pnpm assembly:build`.
++The [production import lint test](../../tests/assembly/consumer-standard-lint.test.mjs)
++checks the documented observation testing-entry restriction. The guide's compiled
++[communication example](../guides/module-authoring.md#21-module-communication) shows
++the ownership recipe. Observation runtime, type, writer, mutation and archive
++tests run in `pnpm observation:check`.
+ Consumers must additionally link their own executable slice and independent
+ binding oracle; copied Markdown examples do not count as evidence.
+ 

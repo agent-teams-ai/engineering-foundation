@@ -20,10 +20,6 @@ import {
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
 import { collectPlannedReleaseVersions, plannedReleaseVersions } from "./npm-package-bootstrap-release-plan.mts";
-import {
-  freezeReleaseCandidate, removeReleaseCandidateContext, shouldRunChangesetsAction,
-  writeReleaseCandidateContext,
-} from "./release-candidate-host.ts";
 import { fail } from "./npm-package-bootstrap-catalog.mjs";
 import {
   REGISTRY_OBSERVATION_ATTEMPTS,
@@ -237,6 +233,10 @@ const handlers = Object.freeze({
   "check-release": async (args, options = {}) => {
     const catalog = options.catalog ?? NPM_PACKAGE_BOOTSTRAP;
     assertBootstrapReleaseApprovals(catalog);
+    const {
+      freezeReleaseCandidate, removeReleaseCandidateContext, shouldRunChangesetsAction,
+      writeReleaseCandidateContext,
+    } = await import("./release-candidate-host.ts");
     const frozen = options.plannedReleaseVersions === undefined && options.collectPlannedReleaseVersions === undefined
       ? await freezeReleaseCandidate(options.cwd ?? process.cwd()) : undefined;
     const releaseVersions = frozen === undefined ? options.plannedReleaseVersions ??

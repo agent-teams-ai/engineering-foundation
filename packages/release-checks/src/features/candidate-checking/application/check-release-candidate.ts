@@ -6,7 +6,7 @@ import { checkDiff, checkPlanAndIntents } from './intent-diff-relation.js';
 
 function report(diagnostics: Diagnostic[], changes: PackageChange[]): CheckReport {
   const packageChanges = Object.freeze(changes.toSorted((a, b) => ordinal(a.packageName, b.packageName) || ordinal(a.manifestPath, b.manifestPath)));
-  if (diagnostics.length === 0) { return Object.freeze({ schemaVersion: 1, outcome: 'passed', diagnostics: Object.freeze([]) as readonly [], packageChanges }); }
+  if (diagnostics.length === 0) { return Object.freeze({ schemaVersion: 1, outcome: 'passed', diagnostics: Object.freeze([] as const), packageChanges }); }
   const ordered = diagnostics.toSorted((a, b) => ordinal(a.packageName ?? '', b.packageName ?? '') || ordinal(a.path ?? '', b.path ?? '')
     || ordinal(a.code, b.code) || ordinal(a.intentId ?? '', b.intentId ?? '') || ordinal(a.message, b.message));
   return Object.freeze({ schemaVersion: 1, outcome: 'rejected', diagnostics: Object.freeze(ordered), packageChanges });

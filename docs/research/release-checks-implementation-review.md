@@ -35,7 +35,7 @@ qualify its own exact head/base and cannot reuse these as hosted receipts.
 
 | Boundary | Observed result |
 | --- | --- |
-| Pure core and shared conformance | 22 tests passed with normal Node process isolation; with the six actual-engine Host tests, the corrected candidate passed all 28 focused cases |
+| Pure core and shared conformance | 22 tests passed again after the typed correction below with normal Node process isolation; before that correction the combined core and six actual-engine Host tests passed all 28 cases |
 | Actual-engine Foundation Host | 6 integration tests passed, covering frozen plans, pre-baseline checks, independent base reconstruction, complete diff, execution drift and the actual pinned reader's filename rules |
 | Retained release, freshness, bootstrap and migration routes | 118 tests passed; final collector/registry delta suite passed 16 tests |
 | Authentic pinned action/Changesets lock fixture | Actual Changesets 2.31.1, Bun 1.4.3, pnpm 11.20.0 and Node 26.11.1 passed generation and source/lock checks; the FMS peer floor was preserved and a forged Bun SRI rejected |
@@ -47,7 +47,7 @@ qualify its own exact head/base and cannot reuse these as hosted receipts.
 
 The retained [installed qualification](evidence/release-checks/p1-installed-qualification.json)
 binds archive SHA-256
-`4c46ed8e2aa0cdd24e2b6b3d45acdf22f0614a777f9baccdf687f0630a55a027`.
+`d5e6eb3a48ea65f900ec18060dc1bfdb46fa2c3b694d2db1b239c698329318fe`.
 This is candidate `0.0.0` from local clean stages and a local registry; it is not
 the protected Ubuntu publication writer, a public npm release or E2E completion.
 The [initial API record](evidence/release-checks/p1-initial-api-baseline.json)
@@ -86,12 +86,81 @@ adapter does not inherit the additional instruction-document exclusions in the
 consumers' Changesets 3.0.2. Ignored files remain in the complete Git observation
 and have no permitted candidate change. The added actual-engine case passes
 both a release and a no-release source, then rejects edits to every ignored
-document. This Host-only correction leaves the qualified leaf archive above
-unchanged and remains included in the pending exact-commit confirmation.
+document. This Host-only correction left the then-qualified leaf archive
+unchanged. The later typed correction and its new archive are recorded below.
 
 Required final-head CI, owner PR, publication and three separate real consumer
 adoptions will be recorded here as they are observed. The existing canary's
 fresh complete owner-PR chain remains a distinct P6 requirement.
+
+## First full CI corrections
+
+[PR 421](https://github.com/agent-teams-ai/engineering-foundation/pull/421) was
+opened at `f849ec4882df164d357f2c2e1ac3271488aaff56` against protected base
+`4ca4ad30b1efc5e3b43a2c012348ea8afea21864`. Independent exact-commit review
+returned GO and is recorded on the PR. The explicitly requested
+[first full CI](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39464340579)
+then exposed additional integration gaps. Its failed results remain failed;
+they do not qualify the subsequent corrected head.
+
+- Typed source coverage rejected a double `unknown` assertion at the input
+  boundary. The complete runtime validator now expresses its result through an
+  assertion signature. Explicit descriptor booleans and an immutable empty tuple
+  also satisfy the actual typed linter. No validation or governed source scope
+  was removed. Build, full typed lint and all 22 pure/common cases passed.
+- Historical published compatibility called the global publication guard before
+  inspecting the newly admitted `0.0.0` candidate. Its separate owning entrypoint
+  now validates all source manifests and reports bootstrap-stage packages as
+  pending, with publication unclaimed. Every advanced historical baseline keeps
+  its previous verification. Both candidate admission and the later approved
+  `0.0.0` approval PR can run compatibility before the first publication. Default
+  live-baseline verification and full-baseline verification remain strict.
+  The ordinary release entry additionally checks the complete approval catalog
+  before selecting a release subset. The scoped bootstrap/compatibility suite
+  passed 65 tests, including rejecting counterexamples for the publication hold.
+- Current publication fixtures still modeled eight packages. They now contain
+  the ninth leaf with its own archive identity and provenance, retaining exact
+  publication, inspection, recovery, tag and signature assertions. Ordered
+  publication passed 42 tests, publication policy passed 14 and diagnostics
+  passed 42. The runtime probe supplies the unreleased leaf's staged changelog
+  only inside its disposable intercepted child. Historical accepted evidence
+  and the real unreleased changelog are unchanged.
+- Architecture and clean-rebuild fixtures now represent the actual ninth
+  package. Complete Windows traversal expectations include the newly admitted
+  tests; neither their union nor their platform scope was reduced. The focused
+  inventory suite passed 15 tests and the actual compile-clean-rebuild case
+  passed.
+- Two Windows Host fixture failures were reproduced independently. Git checkout
+  filters changed accepted source bytes during replay, and a copied CLI fixture
+  assumed all dependencies were installed in one ancestor directory. Owned test
+  repositories now set `core.autocrlf=false` before their initial commit, and the
+  copied CLI preserves real declared dependency links resolved by its original
+  issuer. Raw source and installation digests remain mandatory. All six Host
+  scenarios passed; the affected prerelease case passed again after replacing
+  its unchecked JSON assertion. The same confirmed checkout-filter correction
+  in the owned freshness fixture passed all 32 existing freshness cases.
+  Production Host custody was not weakened.
+- Independent review rejected an initial bootstrap fixture correction: seeding
+  YAML concealed that the real authority step runs before dependency install.
+  The bootstrap CLI now loads the Host only in `check-release`, after the global
+  approval guard. The clean-source fixture again has no `node_modules` or
+  generated package output. Actual token-window, prepare and early candidate
+  rejection are covered by the 74 passing scoped bootstrap tests.
+
+Three macOS jobs in the first run were cancelled before acquiring a runner.
+Their check annotations report hosted macOS arm64 capacity constraints. They
+executed no qualification and require real native execution in the fresh matrix.
+
+Separate independent reviewers returned GO for the typed correction and the
+bootstrap/fixture corrections. The retained installed qualification now binds
+the new archive above: two byte-identical clean builds, unchanged declarations,
+all 12 public common cases, packed and local-registry consumers, and no runtime
+dependencies. The earlier archive
+`4c46ed8e2aa0cdd24e2b6b3d45acdf22f0614a777f9baccdf687f0630a55a027`
+remains historical preparation evidence in the consumer repositories.
+
+The corrected combined commit still requires its own complete head/base CI.
+The npm maintainer-readiness and public-adoption holds remain in force.
 
 ## Upstream release reconciliation
 

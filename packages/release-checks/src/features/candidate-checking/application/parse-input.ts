@@ -8,7 +8,7 @@ function jsonArray(value: unknown[], keyCount: number, path: string, depth: numb
   const result: Json[] = [];
   for (let i = 0; i < value.length; i += 1) {
     const descriptor = Object.getOwnPropertyDescriptor(value, String(i));
-    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) { invalid(path); }
+    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || descriptor.enumerable !== true) { invalid(path); }
     const item: unknown = descriptor.value;
     result.push(json(item, `${path}[${i}]`, depth + 1, budget));
   }
@@ -20,7 +20,7 @@ function jsonObject(value: object, keys: readonly PropertyKey[], path: string, d
     if (typeof key !== 'string') { invalid(path); }
     budget.characters -= key.length;
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable || budget.characters < 0) { invalid(path); }
+    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || descriptor.enumerable !== true || budget.characters < 0) { invalid(path); }
     const item: unknown = descriptor.value;
     result[key] = json(item, `${path}.${key}`, depth + 1, budget);
   }
@@ -121,7 +121,7 @@ function changes(value: Json | undefined, path: string, observed: boolean): void
   }
 }
 
-function validate(value: Json): void {
+function validate(value: Json): asserts value is Json & ReleaseCandidateInput {
   const root = object(value, '$', ['schemaVersion', 'expected', 'observed']);
   if (root['schemaVersion'] !== 1) { invalid('$.schemaVersion'); }
   const expected = object(root['expected'], '$.expected', ['binding', 'packages', 'intents', 'plan', 'permittedChanges']);
@@ -175,6 +175,6 @@ export function parseInput(input: unknown): Readonly<{ value: ReleaseCandidateIn
   try {
     const value = json(input, '$', 0, { nodes: 262_144, characters: 8_388_608, ancestors: new Set() });
     validate(value);
-    return { value: value as unknown as ReleaseCandidateInput };
+    return { value: value };
   } catch (error) { return { error: error instanceof Error ? error.message : 'Invalid release candidate input.' }; }
 }

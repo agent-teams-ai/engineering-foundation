@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -45,6 +46,7 @@ async function fixture(options: { readonly empty?: boolean; readonly ignored?: b
     await json(root, '.changeset/pre.json', { mode: 'pre', tag: 'rc', initialVersions: { [packageName]: '1.0.0', '@qualification/private': '0.0.0' }, changesets: [] });
   }
   await git(root, 'init', '-b', 'main');
+  await git(root, 'config', 'core.autocrlf', 'false');
   await git(root, 'config', 'user.name', 'iliya');
   await git(root, 'config', 'user.email', 'iliyazelenkog@gmail.com');
   await git(root, 'add', '.');
@@ -176,12 +178,13 @@ void test('existing prerelease intent recording uses actual retained source and 
   try {
     const candidate = await freezeReleaseCandidate(root); await version(candidate);
     const qualified = await checkWorkingReleaseCandidate(candidate);
-    assert.deepEqual(qualified.observed.consumptions, [{ intentId: 'release', digest: candidate.expected.intents[0]!.digest,
+    assert.deepEqual(qualified.observed.consumptions, [{ intentId: 'release', digest: candidate.expected.intents[0].digest,
       effect: { kind: 'record', evidencePath: '.changeset/pre.json' } }]);
     assert.ok((await readFile(join(root, '.changeset/release.md'), 'utf8')).includes('Actual Changesets release.'));
     const prePath = join(root, '.changeset/pre.json');
-    const pre = JSON.parse(await readFile(prePath, 'utf8')) as { changesets: string[] };
-    pre.changesets.push('unobserved-intent');
+    const pre = releaseObject(await readFile(prePath), 'TEST prerelease state');
+    assert.ok(Array.isArray(pre['changesets']));
+    pre['changesets'].push('unobserved-intent');
     await writeFile(prePath, `${JSON.stringify(pre, null, 2)}\n`);
     await assert.rejects(checkWorkingReleaseCandidate(candidate), /unknown source intent/u);
   } finally { await rm(root, { recursive: true, force: true }); }
@@ -196,6 +199,16 @@ void test('execution custody rejects changed processed HEAD, config, context and
     const cliRoot = join(toolRoot, 'cli');
     await cp(originalCliRoot, cliRoot, { recursive: true, filter: path => !path.slice(originalCliRoot.length + 1).split(/[\\/]/u).includes('node_modules') });
     await symlink(dirname(dirname(originalCliRoot)), join(toolRoot, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
+    const issuer = createRequire(join(originalCliRoot, 'package.json'));
+    const declarations = releaseObject(await readFile(join(originalCliRoot, 'package.json')), 'TEST CLI')['dependencies'];
+    assert.ok(declarations !== null && typeof declarations === 'object' && !Array.isArray(declarations));
+    for (const name of Object.keys(declarations)) {
+      const installedRoot = issuer.resolve.paths(name)?.map(path => join(path, name)).find(path => existsSync(join(path, 'package.json')));
+      assert.ok(installedRoot !== undefined, `Installed TEST CLI dependency is missing: ${name}`);
+      const target = join(cliRoot, 'node_modules', name);
+      await mkdir(dirname(target), { recursive: true });
+      await symlink(await realpath(installedRoot), target, process.platform === 'win32' ? 'junction' : 'dir');
+    }
     if (process.platform !== 'win32') { await chmod(join(cliRoot, 'bin.js'), 0o644); }
     const candidate = await freezeReleaseCandidate(root, { cliEntrypoint: join(cliRoot, 'bin.js') });
     const configBytes = await readFile(join(root, '.changeset/config.json'));

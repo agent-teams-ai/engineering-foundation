@@ -78,6 +78,7 @@ async function createFixture(summary = "Alpha package change.", { version = "1.0
   );
   await writeFile(join(root, ".changeset", "alpha.md"), changeset(summary, releaseType));
   await git(root, "init", "-b", "main");
+  await git(root, "config", "core.autocrlf", "false");
   await git(root, "config", "user.name", "Foundation Test");
   await git(root, "config", "user.email", "foundation-test@example.invalid");
   await git(root, "add", ".");

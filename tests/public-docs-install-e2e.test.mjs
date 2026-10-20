@@ -544,7 +544,7 @@ function strictCompatibilityOptions(qualifyPublicDocs) {
     args: ["--require-public-docs"],
     qualifyPublicDocs,
     verifyAuthoring: async () => {},
-    verifyBootstrap: async () => [],
+    verifyBootstrap: async () => ({ pending: [], verified: [] }),
     verifyScaffolding: async () => {},
     verifyTransactions: async () => {},
     write: () => {},

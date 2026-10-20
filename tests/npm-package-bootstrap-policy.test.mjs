@@ -9,6 +9,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 
 import {
   NPM_PACKAGE_BOOTSTRAP,
+  assertBootstrapReleaseApprovals,
   assertBootstrapMutationPreconditions,
   assertBootstrapPostconditions,
   assertBootstrapQuarantineCandidate,
@@ -26,8 +27,10 @@ import {
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "../scripts/npm-package-bootstrap.mjs";
+import { verifyPublishedCompatibilityBootstrapBaselines } from "../scripts/published-compatibility-e2e.mjs";
 import {
   assertWorkspaceManifestMatchesProfile,
+  main as bootstrapCliMain,
   prove as proveLiveBootstrap,
   proveQuarantine,
 } from "../scripts/npm-package-bootstrap-cli.mjs";
@@ -990,4 +993,121 @@ test("live baseline verification blocks a candidate before network access", asyn
     readManifest: async () => ({ name: candidate.name, version: "0.1.0" }),
   }), /before reviewed bootstrap approval/u);
   assert.equal(fetched, false);
+});
+
+function compatibilityCatalog(state = "candidate") {
+  const value = structuredClone(approvedMcpCatalog());
+  const pending = structuredClone(bootstrapPackageById("release-checks"));
+  pending.state = state;
+  pending.approval = state === "candidate" ? null : structuredClone(mcpProfile.approval);
+  value.packages = [structuredClone(authoringProfile), pending, ...value.packages];
+  return parseBootstrapCatalog(value);
+}
+
+test("historical compatibility preserves every old baseline through admission and approval staging", async () => {
+  for (const state of ["candidate", "approved"]) {
+    const catalog = compatibilityCatalog(state);
+    const pending = catalog.packages[1];
+    const events = [];
+    const result = await verifyPublishedCompatibilityBootstrapBaselines({
+      auditPackage: async (profile) => {
+        events.push(`audit:${profile.name}`);
+        assert.notEqual(profile.name, pending.name);
+        return auditEvidence(profile);
+      },
+      catalog,
+      fetchImplementation: async (url) => {
+        const name = decodeURIComponent(new URL(url).pathname.slice(1));
+        const profile = catalog.packages.find((entry) => entry.name === name);
+        assert.notEqual(name, pending.name);
+        events.push(`registry:${name}`);
+        return new Response(JSON.stringify({
+          versions: {
+            "0.0.0": {
+              deprecated: profile.deprecationMessage,
+              dist: { integrity: profile.approval.archiveIntegrity },
+            },
+          },
+          "dist-tags": { bootstrap: "0.0.0", latest: "1.0.0" },
+        }), { status: 200 });
+      },
+      observationOptions: { attempts: 1, wait: async () => {} },
+      readManifest: async (path) => {
+        const profile = catalog.packages.find((entry) => resolve(entry.manifestPath) === path);
+        events.push(`manifest:${profile.name}`);
+        return { name: profile.name, version: profile.name === pending.name ? "0.0.0" : "1.0.0" };
+      },
+    });
+    const oldProfiles = catalog.packages.filter((profile) => profile.name !== pending.name);
+    assert.deepEqual(result, {
+      pending: [`${pending.name}@0.0.0`],
+      verified: oldProfiles.map((profile) => `${profile.name}@0.0.0`),
+    });
+    assert.deepEqual(events.slice(0, 3), catalog.packages.map((profile) => `manifest:${profile.name}`));
+    assert.deepEqual(events.filter((entry) => entry.startsWith("audit:")), oldProfiles.map((profile) => `audit:${profile.name}`));
+    assert.equal(events.filter((entry) => entry.startsWith("registry:")).length, oldProfiles.length * 2);
+    assert.equal(Object.isFrozen(result) && Object.isFrozen(result.pending) && Object.isFrozen(result.verified), true);
+  }
+});
+
+test("historical compatibility rejects advanced or malformed pending candidates before qualification IO", async () => {
+  const catalog = compatibilityCatalog();
+  const pending = catalog.packages[1];
+  for (const manifest of [
+    { name: pending.name, version: "0.1.0" },
+    { name: "wrong-package", version: "0.0.0" },
+    { name: pending.name, version: null },
+    { name: pending.name },
+    null,
+  ]) {
+    const io = [];
+    await assert.rejects(() => verifyPublishedCompatibilityBootstrapBaselines({
+      auditPackage: async () => { io.push("audit"); },
+      catalog,
+      fetchImplementation: async () => { io.push("registry"); },
+      readManifest: async (path) => path === resolve(pending.manifestPath)
+        ? manifest : { name: catalog.packages.find((profile) => resolve(profile.manifestPath) === path).name, version: "1.0.0" },
+    }), /bootstrap catalog identity|unapproved 0\.0\.0 bootstrap identity/u);
+    assert.deepEqual(io, []);
+  }
+  const malformed = structuredClone(catalog);
+  malformed.packages[1].approval = structuredClone(mcpProfile.approval);
+  await assert.rejects(() => verifyPublishedCompatibilityBootstrapBaselines({
+    catalog: malformed,
+    readManifest: async (path) => ({
+      name: catalog.packages.find((profile) => resolve(profile.manifestPath) === path).name,
+      version: "0.0.0",
+    }),
+  }), /unapproved 0\.0\.0 bootstrap identity/u);
+});
+
+test("compatibility staging never relaxes default, full-baseline, release-subset or CLI approval holds", async () => {
+  const catalog = compatibilityCatalog();
+  const old = catalog.packages[0];
+  const io = [];
+  const options = {
+    auditPackage: async () => { io.push("audit"); },
+    catalog,
+    fetchImplementation: async () => { io.push("registry"); },
+    readManifest: async () => { io.push("manifest"); },
+  };
+  assert.throws(() => assertBootstrapReleaseApprovals(catalog), /before reviewed bootstrap approval/u);
+  for (const verify of [
+    () => verifyLiveBootstrapBaselines(options),
+    () => verifyLiveBootstrapBaselines({ ...options, requireAllBaselines: true }),
+    () => verifyReleaseBootstrapBaselines(options),
+    () => verifyReleaseBootstrapBaselines({ ...options, releaseVersions: { [old.name]: "1.0.1" } }),
+    () => verifyReleaseBootstrapBaselines({ ...options, releaseState: releaseState(old, "1.0.1") }),
+    () => bootstrapCliMain(["check-release"], { ...options, plannedReleaseVersions: { [old.name]: "1.0.1" } }),
+  ]) {
+    await assert.rejects(verify, /before reviewed bootstrap approval/u);
+  }
+  assert.deepEqual(io, []);
+  await assert.rejects(() => verifyLiveBootstrapBaselines({
+    catalog: approvedMcpCatalog(),
+    fetchImplementation: async () => new Response("not found", { status: 404 }),
+    observationOptions: { attempts: 1, wait: async () => {} },
+    readManifest: async () => ({ name: mcpProfile.name, version: "0.0.0" }),
+    requireAllBaselines: true,
+  }), /baseline is absent/u);
 });

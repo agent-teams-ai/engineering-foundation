@@ -20,6 +20,12 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
   context.after(() => rm(created, { recursive: true, force: true }));
   const temporary = await realpath(created);
   await cp(join(repositoryRoot, "scripts"), join(temporary, "scripts"), { recursive: true });
+  // Tracked private source remains available before any dependency installation.
+  await mkdir(join(temporary, "tools"));
+  for (const path of ["git-environment.ts", "profile-root.mts", "runtime-policy.mts"]) {
+    await cp(join(repositoryRoot, "tools", path), join(temporary, "tools", path));
+  }
+  await assert.rejects(readdir(join(temporary, "node_modules")), { code: "ENOENT" });
   for (const { root, manifestPath } of PUBLISHABLE_PACKAGE_CATALOG) {
     await mkdir(join(temporary, root), { recursive: true });
     await cp(join(repositoryRoot, manifestPath), join(temporary, manifestPath));
@@ -27,6 +33,7 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
   }
   const catalogPath = "architecture/foundation/npm-package-bootstrap.json";
   const catalog = JSON.parse(await readFile(join(repositoryRoot, catalogPath), "utf8"));
+  const approved = structuredClone(catalog.packages[0]);
   // Test-only authority: the real release handler must reject before any fetch or audit.
   const candidate = catalog.packages[0];
   candidate.state = "candidate";
@@ -66,6 +73,22 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
       `${candidate.bootstrapVersion} before reviewed bootstrap approval.`,
     ), result.stderr);
     assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|TEST external I\/O/u);
+  });
+  await context.test("prepare succeeds before dependencies are installed", async () => {
+    const preparationCatalog = structuredClone(catalog);
+    preparationCatalog.packages[0] = { ...approved, state: "approved" };
+    await writeFile(join(temporary, catalogPath), JSON.stringify(preparationCatalog));
+    const manifestPath = join(temporary, approved.manifestPath);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    await writeFile(manifestPath, JSON.stringify({ ...manifest, version: approved.bootstrapVersion }));
+    const outputPath = join(temporary, "prepared.env");
+    const result = run(["prepare", approved.id, outputPath]);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+    assert.match(await readFile(outputPath, "utf8"), /version=0\.0\.0\n/u);
+    await assert.rejects(readdir(join(temporary, "node_modules")), { code: "ENOENT" });
   });
 });
 

@@ -1,6 +1,6 @@
 # Correctness and existing-tool reuse delivery
 
-Status: reconstruction plan v2, after round-one review; awaiting round two.
+Status: reconstruction plan v3, after round-two approval; awaiting round three.
 
 ## Goal and source
 
@@ -37,7 +37,8 @@ Preserve exact-target priority, import/require/types conditions, existing
 targetless compatibility behavior, query/fragment handling and budgets.
 
 An exact export key must preserve a literal `*` in its target; substitution is
-specific to pattern keys. An invalid array element may permit fallback under the current Node contract;
+specific to pattern keys. An invalid array element may permit fallback under
+the current Node contract;
 failure while finalizing a selected URL must not silently select a later array
 element. Classify invalid package targets separately from fatal selected-URL or
 request failures. Encoded-separator rejection inspects the URL pathname, not
@@ -45,8 +46,7 @@ query or fragment annotations. Preserve condition insertion order, null/undefine
 continuation and exact-key priority. Assert the resulting filesystem target and
 use independent Node import/require probes for invalid-target fallback, selected
 encoded separators, literal wildcard targets and a selected missing file.
-Use real
-graph fixtures for the admitted filesystem model. Do not substitute Node's
+Use real graph fixtures for the admitted filesystem model. Do not substitute Node's
 filesystem lookup for the capability's inspected source graph.
 
 ### S3. Coordinate atomic baseline replacement through Repository Mutation
@@ -62,7 +62,10 @@ parent and temporary identities through final observation, rename and cleanup;
 refuse a replaced temporary without deleting another writer's bytes.
 Preserve refusal of unsafe targets, conflicting mutation evidence and stale
 preimages. Inspect and retain existing common mutation evidence before effects
-or release. The existing evidence-retention helper does not itself verify the
+or release. Existing common evidence rejects promotion before rename and retains
+the barrier; inspect again before release. The root lock's identity-verified
+terminal retirement records are permitted evidence, distinct from leaked ADR
+temporaries or active locks. The existing evidence-retention helper does not itself verify the
 physical root: use the public mutation observation or an explicit bound identity
 check as well. Release only owned temporary resources and retain all relevant
 write, sync, close, cleanup and lease-release failures. An error after rename may
@@ -74,7 +77,8 @@ Qualify the actual public baseline operation, held root leases, preimage
 conflicts, root/temporary substitution and process interruption/recovery.
 Cooperative contention may safely reject; the root lease does not promise
 queued writers. Fault cases cover pre-rename write/sync/close and owned cleanup,
-plus post-rename cleanup/release uncertainty without adding a durability claim.
+plus post-rename parent-directory sync, cleanup and release uncertainty without
+adding a durability claim.
 Permission refusal tests
 must run under a process that actually respects those permissions.
 
@@ -205,6 +209,7 @@ the existing package-manager fixtures only where runtime ownership requires it.
 | Round | Reviewed version | Dependency/schema critic | Mutation/JSON critic | Installation/tooling critic |
 | --- | --- | --- | --- | --- |
 | 1 | v1, `4218ef3e` | Changes requested: loader oracle, export failure boundaries, schema composition | Changes requested: physical identity, failure ownership, JSON compatibility | Changes requested: exact documented release, source/projection ownership, real lint selection |
+| 2 | v2, `f46bdfd3` | Approved | Approved; clarify retained terminal evidence and parent-directory sync | Approved |
 
 Run four sequential rounds with three independent planning critics, revising
 the plan between rounds. Record source-backed objections and their resolution;

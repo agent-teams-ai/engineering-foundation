@@ -25,6 +25,26 @@ weakening the merge gate.
 | Partitioned coverage | `pnpm test:coverage:evidence:built -- --input <artifacts> --head-sha <sha>` | Blocking CI coverage qualification of exact-head raw V8 evidence from the eight isolated Linux test shards |
 | Performance | `pnpm test:performance:built` | Advisory 100/1,000/5,000-document timing evidence outside the pull request gate |
 
+`check:changed` always belongs to the actual source checkout: its consumer,
+workflow policy, Bun installation and Git cwd are the source's. A Node-profile
+launcher routes this command back to that source-owned operation; this is not
+isolated Node-profile qualification. Git diff reads an owned disposable copy of
+the real index, because stat-only refresh can otherwise change index bytes even
+with optional locks disabled. Selected change groups retain normal Git semantics.
+Ordinary child commands discard inherited repository, index, object-store and
+injected-config selectors while preserving Git transport, identity and normal
+global configuration. Explicit source authority is local to source Git reads.
+
+Node-profile lint first checks all non-generated source bytes and paths against
+the source checkout. Only the three declared manager/workflow/dependency-policy
+projections are normalized, after validating their exact derived bytes. The
+pinned Oxlint CLI selects files in the source checkout and reselects those
+explicit filenames in the isolated tree; this avoids ignored-parent traversal
+without disabling intentional ignores or substituting another scanner. Both
+observations and lint use the same configuration and protective flags. Empty
+selection fails, and command arguments are bounded and passed without a shell.
+
+
 Foundation's self-dogfood lifecycle is explicit and ordered:
 
 1. `pnpm foundation:bootstrap` builds current workspace source with the pinned

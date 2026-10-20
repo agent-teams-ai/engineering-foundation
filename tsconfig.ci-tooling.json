@@ -24,10 +24,15 @@
     "scripts/**/*.mts",
     "scripts/release-bun-lock.ts",
     "tools/**/*.mts",
+    "tools/git-environment.ts",
+    "tools/profile-source.ts",
+    "tools/repository-oxlint.ts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
     "tests/support/release-changesets-fixture.ts",
     "tests/test-manifests-typescript.test.ts",
+    "tests/repository-profile-lint.test.ts",
+    "tests/repository-profile-git.test.ts",
     "tests/support/ci-input-proof-collector-install.ts"
   ]
 }

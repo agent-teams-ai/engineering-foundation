@@ -1,12 +1,14 @@
 import { spawn } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
+import { assertBunRootProjection, readRepositoryRuntimePolicy, repositoryRoot } from "./runtime-policy.mts";
 import { resolveQualificationExecutables, type RuntimeExecutables } from "./executable-policy.mts";
+import { withoutGitRepositorySelectors } from "./git-environment.ts";
+import { runRepositoryOxlint } from "./repository-oxlint.ts";
 import {
   assertExplicitSourceGitAuthority,
-  assertPnpmProfileQualificationRoot
+  assertPnpmProfileQualificationRoot, assertPnpmProfileSourceIdentity
 } from "./dev.mts";
 
 type RuntimeProfile = "bun" | "node";
@@ -79,7 +81,7 @@ const TOOL_COMMANDS: Readonly<Record<string, ToolCommand>> = Object.freeze({
   "typecheck:local-mode-oracles": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.local-mode-oracles.json"], role: "node-tool" },
   "typecheck:native-api-tests": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.native-api-tests.json"], role: "node-tool" },
   "typecheck:native-release-tooling": { entry: "node_modules/typescript/bin/tsc", args: ["--project", "tsconfig.native-release-tooling.json"], role: "node-tool" },
-  "lint:fast": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config", "."], role: "node-tool" },
+  "lint:fast": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool" },
   "lint:fast:files": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool", acceptsPaths: true },
   "lint:typed": { entry: "packages/engineering-foundation/dist/cli.js", args: ["quality", "check", "--consumer", "."], role: "runtime" },
   "lint:typed:files": { entry: "node_modules/oxlint/bin/oxlint", args: ["--config", ".oxlintrc.type-aware.json", "--deny-warnings", "--disable-nested-config"], role: "node-tool", acceptsPaths: true },
@@ -149,7 +151,7 @@ function run(
   environment: NodeJS.ProcessEnv = process.env
 ): Promise<number> {
   return new Promise((_resolve, reject) => {
-    const child = spawn(command, [...args], { cwd, env: environment, shell: false, stdio: "inherit" });
+    const child = spawn(command, [...args], { cwd, env: withoutGitRepositorySelectors(environment), shell: false, stdio: "inherit" });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
       if (signal !== null) {
@@ -177,6 +179,7 @@ async function invokeScript(id: string): Promise<number> {
   if (!SCRIPT_IDS.has(id)) {
     throw new Error(`Unknown repository script ID: ${id}`);
   }
+  if (id === "check:changed") { return invokeTool(id, []); }
   const runtime = await runtimeExecutables();
   const command = runtime.profile === "bun" ? runtime.bun : runtime.node;
   const args = runtime.profile === "bun"
@@ -185,11 +188,48 @@ async function invokeScript(id: string): Promise<number> {
   return run(command ?? (() => { throw new Error("Selected manager executable is unavailable."); })(), args, process.cwd(), runtimeEnvironment(runtime));
 }
 
+async function invokeSourceChanged(): Promise<number> {
+  const sourceRoot = await realpath(process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"] ?? repositoryRoot);
+  await assertExplicitSourceGitAuthority(sourceRoot);
+  await assertBunRootProjection(sourceRoot);
+  const runtime = await resolveQualificationExecutables("bun");
+  const entry = resolve(sourceRoot, "packages/engineering-foundation/dist/cli.js");
+  if (!await isFile(entry) || !await isFile(resolve(sourceRoot, "node_modules/typescript/bin/tsc")) ||
+      await isFile(resolve(sourceRoot, "node_modules/.pnpm/lock.yaml"))) {
+    throw new Error("Source-owned check:changed requires the source Bun installation and build.");
+  }
+  return run(runtime.bun ?? runtime.node,
+    [entry, "agent-workflow", "changed", "--consumer", "."], sourceRoot,
+    runtimeEnvironment(runtime, { ...withoutGitRepositorySelectors(),
+      AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: sourceRoot, AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: "bun" }));
+}
+
+async function invokeLintTool(input: {
+  readonly id: string; readonly command: ToolCommand; readonly paths: readonly string[];
+  readonly profile: RuntimeProfile; readonly runtime: RuntimeExecutables; readonly entry: string;
+}): Promise<number> {
+  const { id, command, paths, profile, runtime, entry } = input;
+  const consumerRoot = await realpath(process.cwd());
+  const sourceRoot = profile === "node"
+    ? await realpath(process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"] ?? repositoryRoot)
+    : consumerRoot;
+  if (sourceRoot !== consumerRoot) { await assertPnpmProfileSourceIdentity(consumerRoot, sourceRoot); }
+  return runRepositoryOxlint({ node: runtime.node, entry, args: command.args,
+    targets: id === "lint:fast" ? ["."] : paths, sourceRoot, consumerRoot,
+    environment: runtimeEnvironment(runtime) });
+}
+
 async function invokeTool(
   id: string,
   paths: readonly string[],
   toolArguments: readonly string[] = []
 ): Promise<number> {
+  if (id === "check:changed") {
+    if (paths.length !== 0 || toolArguments.length !== 0) {
+      throw new Error("Source-owned check:changed does not accept extra arguments.");
+    }
+    return invokeSourceChanged();
+  }
   const profile = await selectedRuntimeProfile();
   const command = id === "dependencies:peers:check" && profile === "bun"
     ? TOOL_COMMANDS["dependencies:installed:check"]
@@ -207,13 +247,16 @@ async function invokeTool(
   if (!await isFile(entry)) {
     throw new Error(`Tool entrypoint is unavailable: ${command.entry}`);
   }
+  if (["lint:fast", "lint:fast:files", "lint:typed:files"].includes(id)) {
+    return invokeLintTool({ id, command, paths, profile, runtime, entry });
+  }
   if (id === "npm-package-bootstrap:candidate-evidence") {
     const sourceRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
     if (sourceRoot === undefined || sourceRoot === "") {
       throw new Error("Bootstrap candidate evidence requires an explicit source root.");
     }
     await assertPnpmProfileQualificationRoot(repositoryRoot, sourceRoot);
-    const sourceAuthority = await assertExplicitSourceGitAuthority(sourceRoot);
+    await assertExplicitSourceGitAuthority(sourceRoot);
     const invocation = resolveToolInvocation(
       command.role,
       entry,
@@ -223,7 +266,6 @@ async function invokeTool(
     );
     return run(invocation.command, invocation.args, process.cwd(), runtimeEnvironment(runtime, {
       ...process.env,
-      ...sourceAuthority.environment,
       AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: sourceRoot
     }));
   }
@@ -231,7 +273,10 @@ async function invokeTool(
     ? ["gate", "run", `${runtime.profile}-check-fast`, "--consumer", ".", "--format", "text"]
     : [...command.args, ...toolArguments];
   const invocation = resolveToolInvocation(command.role, entry, effectiveArgs, paths, runtime);
-  return run(invocation.command, invocation.args, process.cwd(), runtimeEnvironment(runtime));
+  const cwd = id === "release-owned-files:check"
+    ? (await assertExplicitSourceGitAuthority(process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"] ?? repositoryRoot)).sourceRoot
+    : process.cwd();
+  return run(invocation.command, invocation.args, cwd, runtimeEnvironment(runtime));
 }
 
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

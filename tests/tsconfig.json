@@ -1,4 +1,4 @@
 {
   "extends": "../tsconfig.ci-tooling.json",
-  "include": ["**/*.mts", "support/release-changesets-fixture.ts", "public-api-native-migration-cli.test.ts"]
+  "include": ["**/*.mts", "support/release-changesets-fixture.ts", "public-api-native-migration-cli.test.ts", "repository-profile-lint.test.ts", "repository-profile-git.test.ts"]
 }

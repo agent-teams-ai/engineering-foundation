@@ -60,7 +60,7 @@
     "release-owned-files:check": "node tools/repository-command.mts tool release-owned-files:check",
     "release-graph:check": "node tools/repository-command.mts tool release-graph:check",
     "security:workflows": "node tools/repository-command.mts tool security:workflows",
-    "release:version": "changeset version && node tools/repository-command.mts script build && node tools/repository-command.mts tool release:version:apply",
+    "release:version": "node tools/release-profile.mts version",
     "spike:source-parser": "node tools/repository-command.mts tool spike:source-parser",
     "test": "node tools/repository-command.mts script build && node tools/repository-command.mts script test:built",
     "test:built": "node tools/repository-command.mts tool test:built",

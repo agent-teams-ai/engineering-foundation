@@ -432,6 +432,47 @@
         "archiveIntegrity": "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
         "packageTree": "d2686d208af115b731ba135fc1980aa9355ff747"
       }
+    },
+    {
+      "id": "release-checks",
+      "state": "candidate",
+      "name": "@agent-teams/release-checks",
+      "root": "packages/release-checks",
+      "manifestPath": "packages/release-checks/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ],
+        "prefixes": [
+          "dist/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported @agent-teams/release-checks release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": null
     }
   ]
 }

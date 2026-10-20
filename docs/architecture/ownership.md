@@ -71,11 +71,17 @@ data-only and cannot load consumer code. See the
 [Document authoring protocol](document-authoring-protocol.md).
 
 [ADR-0043](../decisions/0043-new-only-portable-documentation-package-boundary.md),
-with the one-node amendment of
-[ADR-0062](../decisions/0062-feature-module-standard-package-admission.md),
+with the independent-node amendments of
+[ADR-0062](../decisions/0062-feature-module-standard-package-admission.md) and
+[ADR-0063](../decisions/0063-release-checks-package-admission.md),
 defines the implemented new-only package ownership boundary and is the sole
 authority for the package dependency DAG:
 
+- `@agent-teams/release-checks` owns pure release-candidate relations and shared
+  conformance data, with no package dependency; repository Hosts retain input
+  observation, official version engines, authentication and effects. Its
+  Foundation source-built adoption and installed qualification remain separate
+  from the pending namespace bootstrap, supported release and external adoption;
 - `@agent-teams/ci-input-proof` owns pure CI leaf comparison; consumer Hosts retain
   completeness, classification, source admission and execution/merge authority;
 - `@agent-teams/feature-module-standard` owns the opt-in Feature Module Standard

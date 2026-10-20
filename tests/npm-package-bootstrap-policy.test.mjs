@@ -149,9 +149,18 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
       { id: "docs-protocol-mcp", state: "historical" },
       { id: "ci-input-proof", state: "historical" },
       { id: "feature-module-standard", state: "historical" },
+      { id: "release-checks", state: "candidate" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
+  const releaseChecks = bootstrapPackageById("release-checks");
+  assert.equal(releaseChecks.state, "candidate");
+  assert.equal(releaseChecks.approval, null);
+  assert.deepEqual(releaseChecks.dependencies, []);
+  assert.throws(() => bootstrapPackageById("release-checks", { approved: true }), /not approved/u);
+  assert.throws(() => assertBootstrapReleasePolicy(
+    releaseState(releaseChecks, "0.1.0"), [], NPM_PACKAGE_BOOTSTRAP,
+  ), /release-checks release requires reviewed bootstrap approval/u);
   const standard = bootstrapPackageById("feature-module-standard");
   assert.deepEqual(standard.approval, {
     archiveIntegrity: "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",

@@ -51,7 +51,10 @@ jobs:
         run: node --input-type=module -e 'import { assertNpmVersion } from "./scripts/release-publish-ordered-runtime.mjs"; assertNpmVersion();'
       - name: Install the actual Bun source worktree
         run: node tools/dev.mts install
+      - name: Build source release checks
+        run: node tools/repository-command.mts script build
       - name: Guard public package bootstrap baselines
+        id: release-plan
         run: node scripts/npm-package-bootstrap-cli.mjs check-release
       - name: Configure and verify release Git identity
         run: |
@@ -63,6 +66,7 @@ jobs:
             [[ "${identity% * *}" == 'iliya <iliyazelenkog@gmail.com>' ]]
           done
       - id: changesets
+        if: ${{ steps.release-plan.outputs.run_action == 'true' }}
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           setupGitUser: false
@@ -79,6 +83,10 @@ jobs:
           GIT_AUTHOR_EMAIL: iliyazelenkog@gmail.com
           GIT_COMMITTER_NAME: iliya
           GIT_COMMITTER_EMAIL: iliyazelenkog@gmail.com
+
+      - name: Remove owned release plan context
+        if: ${{ always() }}
+        run: node tools/release-profile.mts cleanup
 
       - name: Bind release pull request revision
         id: release-pr
@@ -205,6 +213,8 @@ jobs:
           node-version-file: .node-version
       - name: Install the actual Bun source worktree
         run: node tools/dev.mts install
+      - name: Build source release checks
+        run: node tools/repository-command.mts script build
       - name: Dispatch and attest release pull request checks
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

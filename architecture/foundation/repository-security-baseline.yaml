@@ -129,3 +129,4 @@ publishablePackageManifests:
   - packages/docs-protocol-mcp/package.json
   - packages/ci-input-proof/package.json
   - packages/feature-module-standard/package.json
+  - packages/release-checks/package.json

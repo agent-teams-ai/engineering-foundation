@@ -5,6 +5,16 @@ material findings were addressed before the next round. Implementation may
 begin under the accepted delivery plan; implementation review and runtime
 qualification remain separate.
 
+Implementation qualification found one proportional build adjustment after the
+six plan rounds: a compiler-built leaf must declare the exact catalog TypeScript
+development dependency for the existing isolated archive builder to capture and
+materialize its compiler. The implementation uses that existing mechanism. It
+does not add runtime, peer or optional dependencies, a consumer compiler
+installation, or a new special staging policy. The delivery plan and new
+admission record were clarified accordingly; final implementation review and
+the installed-package checks must verify this boundary. The reviewed historical
+plan identities below remain unchanged.
+
 The owner requested three sequential improvement rounds followed by three
 independent critical-review rounds before implementation. This record concerns
 the [current delivery plan](../development/release-checks-delivery-plan.md).

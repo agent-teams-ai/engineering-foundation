@@ -363,6 +363,12 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  packages/release-checks:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
   packages/repository-mutation:
     devDependencies:
       '@types/node':

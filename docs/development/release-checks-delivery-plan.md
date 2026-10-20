@@ -57,10 +57,12 @@ require unrelated filename or architecture migrations.
 
 The independent package owns one normalized contract, runtime input validation,
 release-specific pure comparisons, deterministic diagnostics and common
-conformance cases. It has no runtime or peer dependency, Foundation dependency,
-compiler/parser dependency, credentials, filesystem/process/network API,
-Changesets DTO, package-manager object or consumer architecture vocabulary.
-The repository's root toolchain builds it. A separate package makes it usable
+conformance cases. It has no runtime, peer or optional dependency, Foundation
+dependency, credentials, filesystem/process/network API, Changesets DTO,
+package-manager object or consumer architecture vocabulary. Its only development
+dependency is the repository's exact catalog TypeScript compiler, using the
+existing clean-stage build and compiler custody mechanism. Consumers do not
+install that development toolchain. A separate package makes it usable
 without installing the Foundation compiler stack; its source location does not
 create a dependency on `@agent-teams/engineering-foundation`.
 

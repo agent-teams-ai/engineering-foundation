@@ -12,6 +12,7 @@ not repeat their rules.
 | Foundation ownership | [Ownership boundary](architecture/ownership.md) | Active |
 | CI input comparison | [Source admission](development/ci-input-proof-admission.md) | Initial source checkpoint; consumer conformance, package qualification and registry adoption pending |
 | Feature Module Standard checks | [Package admission](development/feature-module-standard-admission.md) | Kernel and runner implemented; deprecated bootstrap retained; supported release and consumer registry adoption pending |
+| Release candidate relations | [Source admission](development/release-checks-admission.md) | Dependency-free source and existing-phase installed qualification; final-source checks, bootstrap, supported publication and external adoption remain separately gated |
 | Executable capability model | [Executable capabilities](architecture/executable-capabilities.md) | Implemented and released; consumer activation is explicit |
 | Documentation integrity | [Executable capabilities](architecture/executable-capabilities.md#documentation-governance) | Accepted and implemented |
 | Contract evolution | [Executable capabilities](architecture/executable-capabilities.md#contract-evolution) | Accepted and implemented |

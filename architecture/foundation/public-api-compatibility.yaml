@@ -193,3 +193,17 @@ packages:
     tsconfigPath: packages/feature-module-standard/tsconfig.json
     releasedBaselinePath: architecture/public-api/feature-module-standard.json
     approvedBreakingChanges: []
+  - packageName: "@agent-teams/release-checks"
+    packageRoot: packages/release-checks
+    manifestPath: packages/release-checks/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/release-checks/dist/index.d.ts
+      - exportPath: "./conformance"
+        declarationEntryPoint: packages/release-checks/dist/features/candidate-checking/conformance.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+    tsconfigPath: packages/release-checks/tsconfig.json
+    releasedBaselinePath: architecture/public-api/release-checks.json
+    approvedBreakingChanges: []

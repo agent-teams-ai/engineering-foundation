@@ -503,6 +503,9 @@ void test("the successor baseline exception is immune to unrelated package relea
 void test("the Changesets plan collector drives the actual pre-version CLI guard", async () => {
   const plan = changesetPlan(name, "0.1.0");
   assert.deepEqual(plannedReleaseVersions(plan), { [name]: "0.1.0" });
+  const unchanged = { changesets: [], releases: [{ name, type: "none", oldVersion: "1.0.0", newVersion: "1.0.0", changesets: [] }] };
+  assert.deepEqual(plannedReleaseVersions(unchanged), { [name]: "1.0.0" });
+  assert.throws(() => plannedReleaseVersions({ ...unchanged, releases: [{ ...unchanged.releases[0], newVersion: "1.0.1" }] }), /Changesets release/u);
 
   let outputPath = "";
   const collected = await collectPlannedReleaseVersions({

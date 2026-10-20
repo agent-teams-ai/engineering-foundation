@@ -344,7 +344,7 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-eight-package DAG owned solely by `scripts/publishable-packages.mjs`.
+nine-package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
 source package outside that documentation Cohort. Its `0.1.0-rc.0` registry
@@ -357,6 +357,18 @@ package outside that Cohort, admitted by
 only the deprecated bootstrap `0.0.0` registry version. Its reviewed bootstrap
 integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
+The dependency-free `@agent-teams/release-checks` is a third independent source
+package outside that Cohort, admitted by
+[ADR-0063](decisions/0063-release-checks-package-admission.md). Its source
+manifest is `0.0.0` with minor Changesets intent; the
+[admission record](development/release-checks-admission.md) distinguishes its
+current source, installed qualification and pending publication. Its candidate
+bootstrap profile has no approval. Adding it to the closed catalog blocks
+**every ordinary Foundation publication** until the existing protected
+namespace bootstrap has reviewed approval and the immutable deprecated
+`0.0.0` baseline. Required interactive npm readiness was blocked at preflight,
+so public admission remains unmerged while source/review/CI preparation is
+completed. Provision no short-lived token or bootstrap enablement early.
 An internal package is declared once, as `workspace:*`. The one exception is an
 optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
 minimum such as `workspace:^1.8.0`) together with the workspace

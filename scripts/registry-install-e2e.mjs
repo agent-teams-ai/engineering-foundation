@@ -47,6 +47,7 @@ import {
   assertPackageQualificationPhaseIds, packageQualificationPhaseIds, runPackageQualificationPhases,
 } from "./package-qualification-groups.mts";
 import { readQualifiedReleaseArtifact } from "./pack-artifact-archive.mjs";
+import { verifyInstalledReleaseChecks } from "./packed-release-checks.ts";
 import {
   DOCS_PROTOCOL_PACKAGE_NAME,
   registryQualificationPackages,
@@ -56,6 +57,7 @@ const FOUNDATION_PACKAGE_NAME = "@agent-teams/engineering-foundation";
 const DOCUMENT_AUTHORING_PACKAGE_NAME = "@agent-teams/document-authoring";
 const DOCS_PROTOCOL_ADAPTER_PACKAGE_NAME = "@agent-teams/docs-protocol-agent-teams";
 const DOCS_PROTOCOL_MCP_PACKAGE_NAME = "@agent-teams/docs-protocol-mcp";
+const RELEASE_CHECKS_PACKAGE_NAME = "@agent-teams/release-checks";
 const FOUNDATION_FEATURE_IMPORTS = [
   FOUNDATION_PACKAGE_NAME,
   `${FOUNDATION_PACKAGE_NAME}/local-mode`, `${FOUNDATION_PACKAGE_NAME}/scaffolding`,
@@ -450,6 +452,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
   const authoringTarget = requiredTarget(DOCUMENT_AUTHORING_PACKAGE_NAME);
   const docsTarget = requiredTarget(DOCS_PROTOCOL_PACKAGE_NAME);
   const mcpTarget = requiredTarget(DOCS_PROTOCOL_MCP_PACKAGE_NAME);
+  const releaseChecksTarget = requiredTarget(RELEASE_CHECKS_PACKAGE_NAME);
   const selectedTargets = targets.filter((target) =>
     matrixEntry.packageNames.includes(target.manifest.name),
   );
@@ -507,6 +510,11 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
       verifyInstalledBufQualifier,
     });
     await verifyRegistryQualityCast({ consumerRoot, installedRoot: installedFoundationRoot });
+    if (installedRoots.get(RELEASE_CHECKS_PACKAGE_NAME) === undefined) {
+      throw new Error("Installed release-checks registry qualification target is missing.");
+    }
+    await verifyInstalledReleaseChecks({ consumerRoot, packageVersion: releaseChecksTarget.manifest.version,
+      repositoryRoot });
   }
   const lockPath = join(
     consumerRoot,
@@ -529,6 +537,7 @@ function registryQualificationMatrix() {
     docsPackageName: DOCS_PROTOCOL_PACKAGE_NAME,
     foundationPackageName: FOUNDATION_PACKAGE_NAME,
     mcpPackageName: DOCS_PROTOCOL_MCP_PACKAGE_NAME,
+    releaseChecksPackageName: RELEASE_CHECKS_PACKAGE_NAME,
   });
   return [...matrix, foundationEntry];
 }

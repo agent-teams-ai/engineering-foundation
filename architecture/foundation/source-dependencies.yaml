@@ -6,6 +6,7 @@ packageRoots:
   - packages
   - spikes
 governedRoots:
+  - packages/release-checks/src
   - packages/ci-input-proof/src
   - packages/feature-module-standard/src
   - packages/repository-mutation/src
@@ -4299,6 +4300,56 @@ boundaries:
       boundaries:
         - feature-module-standard.node-runner.application
         - feature-module-standard.node-runner.composition
+      packages: []
+      builtins: []
+      runtimeReferences: []
+
+  - id: release-checks.application
+    roots:
+      - packages/release-checks/src/features/candidate-checking/application
+    entrypoints:
+      - packages/release-checks/src/features/candidate-checking/application/check-release-candidate.ts
+      - packages/release-checks/src/features/candidate-checking/application/model.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: release-checks.feature-api
+    roots:
+      - packages/release-checks/src/features/candidate-checking/api.ts
+    entrypoints:
+      - packages/release-checks/src/features/candidate-checking/api.ts
+    allow:
+      boundaries:
+        - release-checks.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: release-checks.conformance
+    roots:
+      - packages/release-checks/src/features/candidate-checking/conformance.ts
+    entrypoints:
+      - packages/release-checks/src/features/candidate-checking/conformance.ts
+    packageExports:
+      - ./conformance
+    allow:
+      boundaries:
+        - release-checks.feature-api
+        - release-checks.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: release-checks.public
+    roots:
+      - packages/release-checks/src/index.ts
+    entrypoints:
+      - packages/release-checks/src/index.ts
+    packageExports:
+      - .
+    allow:
+      boundaries:
+        - release-checks.feature-api
       packages: []
       builtins: []
       runtimeReferences: []

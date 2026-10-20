@@ -19,7 +19,11 @@ import {
   verifyLiveBootstrapBaselines,
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
-import { collectPlannedReleaseVersions } from "./npm-package-bootstrap-release-plan.mts";
+import { collectPlannedReleaseVersions, plannedReleaseVersions } from "./npm-package-bootstrap-release-plan.mts";
+import {
+  freezeReleaseCandidate, removeReleaseCandidateContext, shouldRunChangesetsAction,
+  writeReleaseCandidateContext,
+} from "./release-candidate-host.ts";
 import { fail } from "./npm-package-bootstrap-catalog.mjs";
 import {
   REGISTRY_OBSERVATION_ATTEMPTS,
@@ -233,11 +237,13 @@ const handlers = Object.freeze({
   "check-release": async (args, options = {}) => {
     const catalog = options.catalog ?? NPM_PACKAGE_BOOTSTRAP;
     assertBootstrapReleaseApprovals(catalog);
-    const releaseVersions = options.plannedReleaseVersions ??
+    const frozen = options.plannedReleaseVersions === undefined && options.collectPlannedReleaseVersions === undefined
+      ? await freezeReleaseCandidate(options.cwd ?? process.cwd()) : undefined;
+    const releaseVersions = frozen === undefined ? options.plannedReleaseVersions ??
       await (options.collectPlannedReleaseVersions ?? collectPlannedReleaseVersions)({
         cwd: options.cwd ?? process.cwd(),
         temporaryRoot: options.temporaryRoot,
-      });
+      }) : plannedReleaseVersions(frozen.officialPlan);
     const verified = await verifyReleaseBootstrapBaselines({
       auditPackage: options.auditPackage,
       catalog,
@@ -249,6 +255,16 @@ const handlers = Object.freeze({
     });
     const writeOutput = options.writeOutput ?? ((value) => process.stdout.write(value));
     writeOutput(`Verified required npm bootstrap baselines: ${verified.join(", ")}.\n`);
+    if (frozen !== undefined && process.env.GITHUB_ENV !== undefined && process.env.GITHUB_OUTPUT !== undefined) {
+      const context = await writeReleaseCandidateContext(frozen);
+      try {
+        await output(process.env.GITHUB_ENV, context.environment);
+        await output(process.env.GITHUB_OUTPUT, { run_action: String(shouldRunChangesetsAction(frozen)) });
+      } catch (error) {
+        await removeReleaseCandidateContext(context.environment);
+        throw error;
+      }
+    }
   },
   "pack-evidence": packEvidence,
   "mutation-proof": (args) => prove(

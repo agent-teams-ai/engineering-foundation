@@ -11,6 +11,7 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0063: Release Checks Package Admission](0063-release-checks-package-admission.md)
 - [ADR-0062: Feature Module Standard Package Admission](0062-feature-module-standard-package-admission.md)
 - [ADR-0061: Library-First Foundation Boundary Evolution](0061-library-first-foundation-boundary-evolution.md)
 - [ADR-0060: Node 26 Cohort3 Projector Public API Evolution](0060-node26-cohort3-projector-public-api-evolution.md)

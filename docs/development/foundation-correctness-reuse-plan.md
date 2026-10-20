@@ -1,7 +1,8 @@
 # Correctness and existing-tool reuse delivery
 
-Status: reconstruction plan v4 approved in four rounds; implementation integrated;
-final review and native CI are pending.
+Status: reconstruction plan v4 approved in four rounds. Implementation integrated;
+independent implementation reviews and final native CI evidence are recorded in
+[PR #418](https://github.com/agent-teams-ai/engineering-foundation/pull/418).
 
 ## Goal and source
 
@@ -206,6 +207,27 @@ the existing package-manager fixtures only where runtime ownership requires it.
   Syncpack and canonical-JSON unification are outside this delivery. Optional
   Repomix/Lychee adoption and additional property tests require a concrete later
   task; they are not blockers for these fixes.
+
+### Archive census requalification
+
+The full CI run `39401529327` rejected the actual Foundation npm archive at its
+first member above the qualified 2,712-entry limit. Before changing that census,
+independent clean builds and npm 11.19.0 archives measured the approved release
+base `66984d7a71b469acfe557131f9a95295cc6b8553` and integrated source
+`daded1d9dd2fa8bf1f69cafe551d14b095c95d3b`. npm's member lists and an independent
+tar reader agree on 2,712 and 2,720 regular files respectively, with no removed,
+directory or special members. The complete added set is `.js`, `.js.map`, `.d.ts`
+and `.d.ts.map` for `architecture-decision-baseline-replacement.ts` and
+`git-index-snapshot.ts`. Git source membership independently accounts for the
+same increase: 664 to 666 modules, four emitted artifacts each, plus 56 unchanged
+manifest-selected files outside `dist`.
+
+The Foundation-only census is therefore exactly 2,720 entries. Its regression
+requires the complete built inventory and all eight added artifacts, and rejects
+one additional member through both listing and compressed-archive inspection.
+Other packages retain 2,500 entries. This requalifies measured source growth;
+it adds no spare entry allowance and changes no byte, member, portability,
+allowlist or special-entry protection.
 
 ## Review and delivery
 

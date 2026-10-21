@@ -329,3 +329,10 @@ contract.
 
 Version 0.2 intentionally removes the executable `foundation.config.mjs`, broad
 placeholder capabilities, `enabled: false`, and `projectKind`.
+
+### Stack Toolchain dynamic tool inventory
+
+The Oxlint, tsgolint and Oxfmt adapters resolve exact installed package metadata
+and native executables dynamically. The repository Knip policy records only
+these three dependencies at the `packages/stack-toolchain` boundary because
+they are executed as tools rather than imported as JavaScript modules.

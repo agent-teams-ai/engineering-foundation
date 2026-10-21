@@ -3,9 +3,8 @@
 One versioned development dependency for TypeScript checking, linting,
 format checking and compilation in ordinary Node and Bun projects.
 
-Status: implementation in progress. This package is not yet published or
-qualified for installation. `stack-toolchain` is the proposed public package
-and executable name; publication rights must be verified before release.
+The CLI runs on supported Node.js 24 (24.18.0 or newer) and Node.js 26.
+Bun is an installed checker fallback, not the CLI host runtime.
 
 ## When to use it
 
@@ -23,7 +22,7 @@ The initial profiles are `typescript-node` and `typescript-bun`. Additional
 profiles require a real consumer. Unrelated language toolchains belong in
 separate packages rather than mandatory dependencies of every installation.
 
-## Commands being implemented
+## Commands
 
 | Command | Responsibility |
 | --- | --- |
@@ -33,10 +32,6 @@ separate packages rather than mandatory dependencies of every installation.
 | `compile --project <path>` | Compile with the pinned official TypeScript compiler |
 | `compile --build <path>` | Build a TypeScript reference graph explicitly |
 | `doctor` | Explain profile, tool versions and executable availability |
-
-These are the implementation contract, not currently available installation
-instructions. Released usage and supported platforms will be documented here
-after packed-artifact and real-consumer qualification.
 
 ## Type checking and fallback
 
@@ -51,9 +46,10 @@ A different compiler must never turn a known project error into success.
 Fallback restarts the complete project group and reports the actual engine and
 reason. It shares the original deadline instead of resetting the budget.
 
-The candidate tsrs version implements a newer TypeScript development revision
-than the other engines. Qualification checks a defined corpus; it cannot prove
-complete language equivalence or detect every newer feature after success.
+The pinned tsrs `0.18.0-ts7.1.0-dev.20260929` implements a TypeScript 7.1
+development revision; Bun 1.4.3 and the official fallback use TypeScript 7.0.2.
+Qualification checks a defined corpus; it cannot prove complete language
+equivalence or detect every newer feature after success.
 
 The first read-only profile rejects project references explicitly, including
 reference-only roots. Effective `noCheck: true` is also rejected. Standalone
@@ -78,7 +74,7 @@ on-demand download is a substitute for a qualified installed dependency.
 
 ### Technical presets
 
-This first package release includes candidate TypeScript and Oxlint presets,
+This package includes TypeScript and Oxlint presets,
 retaining the existing Foundation settings and strictness. Foundation 2.x remains
 the authority for its existing preset exports until the separately reviewed
 consumer migration. New independent consumers may select these presets directly;
@@ -99,8 +95,8 @@ presets; product policy and organization conformance remain in their consumers.
 
 ## Minimal adoption
 
-The first planned supported version is `0.1.0`. The following install command is
-prospective and becomes usable only after that exact release is published:
+Install an exact released version as a development dependency. For version
+`0.1.0`:
 
 ```sh
 npm install --save-dev --save-exact stack-toolchain@0.1.0

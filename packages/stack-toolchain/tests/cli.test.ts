@@ -40,3 +40,12 @@ test('API budget expiration is tooling failure rather than caller cancellation',
   assert.equal(result.exitCode, 2);
   assert.equal(controller.signal.aborted, false);
 });
+
+test('doctor rejects Bun as the mandatory CLI runtime', async () => {
+  const { resolveExecutables } = await import('../src/features/toolchain-execution/adapters/executables.ts');
+  const bun = resolveExecutables().bun;
+  assert.notEqual(bun, null);
+  const result = spawnSync(bun!.command, [entry, 'doctor', '--json'], { encoding: 'utf8' });
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /TOOLCHAIN_UNSUPPORTED_NODE_RUNTIME/u);
+});

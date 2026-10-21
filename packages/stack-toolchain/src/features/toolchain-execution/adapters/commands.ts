@@ -65,6 +65,12 @@ function checkExit(result: Awaited<ReturnType<typeof typecheck>>, callerSignal: 
   if (result.code === 'TOOLCHAIN_DIAGNOSTICS') { return 1; }
   return result.code === 'TOOLCHAIN_CANCELLED' && callerSignal.aborted ? 130 : 2;
 }
+function assertRuntime(): void {
+  const [major, minor] = process.versions.node.split('.').map(Number);
+  if (process.release.name !== 'node' || 'bun' in process.versions || !((major === 24 && minor! >= 18) || major === 26)) {
+    throw new Error('TOOLCHAIN_UNSUPPORTED_NODE_RUNTIME');
+  }
+}
 function toolEnvironment(command: CommandInput['command']): Readonly<Record<string, string>> | undefined {
   return command === 'lint' ? { OXLINT_TSGOLINT_PATH: resolveTsgolintExecutable() } : undefined;
 }
@@ -75,6 +81,7 @@ export async function runCommand(input: CommandInput): Promise<CommandReport> {
     ({ command: input.command, status, exitCode, durationMs: performance.now() - started, details, versions });
   let versions: unknown = null;
   try {
+    assertRuntime();
     const budget = input.budgetMs ?? 300_000;
     if (!Number.isSafeInteger(budget) || budget <= 0 || budget > 2_147_483_647) { throw new Error('TOOLCHAIN_INVALID_BUDGET'); }
     const callerSignal = input.signal;

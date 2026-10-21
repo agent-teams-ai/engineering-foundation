@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
+import { verifyQualificationNode } from "../tools/executable-policy.mts";
 
 const secretCanary = "AGENT_TEAMS_PACKAGE_SECRET_CANARY_DO_NOT_PUBLISH_7A13D6C4";
 const commandMaxBufferBytes = 16 * 1024 * 1024;
@@ -69,8 +72,20 @@ function packageManagerOptions(options) {
 }
 
 export function createPnpmRunner() {
-  return async (args, cwd, options = {}) =>
-    runCommand("pnpm", args, cwd, packageManagerOptions(options));
+  return async (args, cwd, options = {}) => {
+    // A pnpm-generated shell shim exports its repository's NODE_PATH into the
+    // consumer. Invoke the installed public CLI with the verified Node instead.
+    const manifestPath = createRequire(import.meta.url).resolve("pnpm");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    const policy = await readRepositoryRuntimePolicy();
+    if (manifest.name !== "pnpm" || manifest.version !== policy.toolchain.pnpm.version ||
+        manifest.bin?.pnpm !== "bin/pnpm.mjs") {
+      throw new Error("Package qualification requires the installed pinned pnpm public CLI.");
+    }
+    const node = await verifyQualificationNode(process.execPath);
+    return runCommand(node, [join(dirname(manifestPath), manifest.bin.pnpm), ...args],
+      cwd, packageManagerOptions(options));
+  };
 }
 
 export function runNpmCommand(args, cwd, options = {}) {

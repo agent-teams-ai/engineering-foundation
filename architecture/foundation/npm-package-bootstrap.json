@@ -519,7 +519,7 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-pe4OCLmgZEDwP72R9G5cVrQ5S88OrTYRoA1yJDMZ2CkCyO87xU0SVhBDE3+y6Ev3P1DhuYSuHfQEEv56xHlxVg==",
+        "archiveIntegrity": "sha512-SF0dnOmHrhkJTXYNZwrz7UgigTe0/2+X36+WoUEYMnqWLiX1HjvRHItujsG+0sy9OVP81QOEUQ1DvJ+oEY/5rQ==",
         "packageTree": "aa197ab942033769991e2d603eb3317541e36e6a"
       }
     }

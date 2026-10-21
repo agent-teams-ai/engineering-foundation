@@ -65,7 +65,6 @@ export async function loadConfiguration(input: { readonly cwd: string; readonly 
   const projects = paths(typecheck['projects']).map(item => path.resolve(root, item));
   for (const project of projects) {
     const executable = resolveCompilerExecutable();
-    if (executable === null) {throw new Error('TOOLCHAIN_REQUIRED_COMPILER_MISSING');}
     const result = await createProcessExecutor(createNodeProcessAdapter()).run({
       command: executable.command, args: [...executable.prefix, '--showConfig', '--project', project],
       cwd: root, timeoutMs: 30_000, ...(input.signal === undefined ? {} : { signal: input.signal }), strictUtf8: true

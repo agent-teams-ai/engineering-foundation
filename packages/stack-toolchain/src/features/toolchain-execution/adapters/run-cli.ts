@@ -20,7 +20,7 @@ export async function main(args: readonly string[]): Promise<number> {
     for (let index = 0; index < values.length; index++) {
       const value = values[index]!;
       if (value === '--json' && !json) {json = true;}
-      else if (value === '--config' && configPath === undefined && values[index + 1] && !values[index + 1]!.startsWith('-')) {configPath = values[++index]!;}
+      else if (value === '--config' && configPath === undefined && values[index + 1] !== undefined && values[index + 1] !== '' && !values[index + 1]!.startsWith('-')) {configPath = values[++index]!;}
       else if (command === 'compile') {compileArgs.push(value);}
       else {throw new Error(`TOOLCHAIN_UNKNOWN_ARGUMENT:${value}`);}
     }

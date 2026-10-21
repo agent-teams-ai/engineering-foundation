@@ -46,7 +46,7 @@ function validateOwner(tool: keyof typeof pins, root: string): void {
   if (owner.name === 'stack-toolchain' && declaration === 'catalog:') {
     const workspaceRoot = path.resolve(root, '../..');
     const workspace = JSON.parse(fs.readFileSync(path.join(workspaceRoot, 'package.json'), 'utf8')) as { private?: boolean; workspaces?: { packages?: string[]; catalog?: Record<string, string> } };
-    if (workspace.private !== true || fs.realpathSync(root) !== fs.realpathSync(path.join(workspaceRoot, 'packages/stack-toolchain')) || !workspace.workspaces?.packages?.includes('packages/*')) {throw new Error('TOOLCHAIN_WORKSPACE_AUTHORITY');}
+    if (workspace.private !== true || fs.realpathSync(root) !== fs.realpathSync(path.join(workspaceRoot, 'packages/stack-toolchain')) || workspace.workspaces?.packages?.includes('packages/*') !== true) {throw new Error('TOOLCHAIN_WORKSPACE_AUTHORITY');}
     declaredPin = workspace.workspaces.catalog?.[tool];
   }
   if (owner.name === 'stack-toolchain' && declaredPin !== pins[tool]) {throw new Error(`TOOLCHAIN_DEPENDENCY_DECLARATION:${tool}`);}
@@ -54,7 +54,7 @@ function validateOwner(tool: keyof typeof pins, root: string): void {
 function nativePlatform(tool: keyof typeof pins): { name: string; arch: string; libc: string } {
   const platform = process.platform === 'win32' ? 'windows' : process.platform;
   const arch = process.arch === 'arm64' && tool === 'bun' ? 'aarch64' : process.arch;
-  const libc = process.platform === 'linux' ? ((process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header.glibcVersionRuntime ? 'gnu' : 'musl') : '';
+  const libc = process.platform === 'linux' ? ((process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header.glibcVersionRuntime !== undefined ? 'gnu' : 'musl') : '';
   const name = tool === 'typescript' ? `@typescript/typescript-${process.platform}-${process.arch}`
     : tool === 'bun' ? `@oven/bun-${platform}-${arch}${libc === 'musl' ? '-musl' : ''}`
     : tool === 'tsrs' ? `@tsrs/${process.platform}-${arch}${libc ? `-${libc}` : ''}`

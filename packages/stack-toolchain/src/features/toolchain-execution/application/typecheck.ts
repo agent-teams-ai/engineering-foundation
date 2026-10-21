@@ -103,6 +103,8 @@ export async function typecheck(input: {
       case "passed":
         return { status: attempts.length === 1 ? "passed" : "passed-with-fallback",
           engine, attempts: Object.freeze([...attempts]) };
+      case "diagnostics": return failed("TOOLCHAIN_DIAGNOSTICS");
+      case "cancelled": return failed("TOOLCHAIN_CANCELLED");
       case "unclassified": return failed("TOOLCHAIN_UNCLASSIFIED_FAILURE");
       case "unavailable":
       case "engine-failure":

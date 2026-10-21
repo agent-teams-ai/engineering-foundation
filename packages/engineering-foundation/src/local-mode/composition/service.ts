@@ -49,7 +49,7 @@ export function createNodeLocalPackageLifecyclePorts(dependencies: NodeLocalPack
       prepare: (root, path) => guarded(root, () => links.prepare(root, path)),
       ignoreLocalState: (root) => guarded(root, () => links.ignoreLocalState(root)),
       replace: (value) => guarded(value.consumerRoot, () => links.replace(value)),
-      restore: links.restore
+      restore: (root, spec, value) => links.restore(root, spec, value)
     },
     coordinator: async (path) => {
       await assertNodeLocalMutationSupported(path);

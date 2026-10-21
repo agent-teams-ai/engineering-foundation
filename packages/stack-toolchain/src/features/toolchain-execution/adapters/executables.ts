@@ -73,7 +73,14 @@ function native(tool: keyof typeof pins, root: string): CheckerExecutable | null
   if (nativeDirectory === null) { if (tool === 'typescript') {throw new Error('TOOLCHAIN_REQUIRED_COMPILER_MISSING');} return null; }
   const installed = JSON.parse(fs.readFileSync(path.join(nativeDirectory, 'package.json'), 'utf8')) as { version: string };
   if (installed.version !== pins[tool]) {throw new Error(`TOOLCHAIN_NATIVE_PIN_MISMATCH:${tool}`);}
-  return nativeCommand(tool, directory, nativeDirectory, arch, libc);
+  try {
+    return nativeCommand(tool, directory, nativeDirectory, arch, libc);
+  } catch (error) {
+    // Optional checker installation may exist without execution permission
+    // (for example a scripts-disabled installation). Never repair consumer files.
+    if ((tool === 'tsrs' || tool === 'bun') && (error as NodeJS.ErrnoException).code === 'EACCES') { return null; }
+    throw error;
+  }
 }
 function nativeCommand(tool: keyof typeof pins, directory: string, nativeDirectory: string, arch: string, libc: string): CheckerExecutable {
   if (tool === 'oxlint' || tool === 'oxfmt') {

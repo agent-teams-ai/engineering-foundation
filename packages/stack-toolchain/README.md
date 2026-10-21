@@ -35,6 +35,8 @@ separate packages rather than mandatory dependencies of every installation.
 
 ## Type checking and fallback
 
+Optional tsrs and Bun binaries without execution permission are reported as unavailable; lifecycle scripts are never enabled to repair them.
+
 The normal route starts only tsrs. Success ends the command. A classified
 engine failure or unavailable executable permits Bun check; its success ends
 the command. Only failure or unavailability of both engines permits the pinned

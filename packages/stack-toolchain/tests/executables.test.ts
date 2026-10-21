@@ -42,3 +42,33 @@ test('installed qualified checker and NAPI routes resolve to existing files', ()
     assert.ok(fs.statSync(executable.prefix[0]!).isFile());
   }
 });
+
+test('non-executable optional checker is unavailable while compiler remains mandatory', { skip: process.platform === 'win32' }, () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'TEST-toolchain-permission-'));
+  const pins = JSON.parse(fs.readFileSync(new URL('../toolchain-manifest.json', import.meta.url), 'utf8')) as Record<string, string>;
+  try {
+    fs.writeFileSync(path.join(root, 'package.json'), '{}');
+    const libc = process.platform === 'linux' ? ((process.report.getReport() as { header: { glibcVersionRuntime?: string } }).header.glibcVersionRuntime !== undefined ? '-gnu' : '-musl') : '';
+    const nativeName = `@tsrs/${process.platform}-${process.arch}${libc}`;
+    const wrapper = path.join(root, 'node_modules', 'tsrs');
+    const native = path.join(root, 'node_modules', nativeName);
+    fs.mkdirSync(wrapper, { recursive: true });
+    fs.mkdirSync(native, { recursive: true });
+    fs.writeFileSync(path.join(wrapper, 'package.json'), JSON.stringify({ version: pins['tsrs'], optionalDependencies: { [nativeName]: pins['tsrs'] } }));
+    fs.writeFileSync(path.join(native, 'package.json'), JSON.stringify({ version: pins['tsrs'] }));
+    fs.writeFileSync(path.join(native, 'tsrs'), 'not executable', { mode: 0o644 });
+    const compiler = path.join(root, 'node_modules', 'typescript');
+    const compilerName = `@typescript/typescript-${process.platform}-${process.arch}`;
+    const compilerNative = path.join(root, 'node_modules', compilerName);
+    fs.mkdirSync(compiler, { recursive: true });
+    fs.mkdirSync(path.join(compilerNative, 'lib'), { recursive: true });
+    fs.writeFileSync(path.join(compiler, 'package.json'), JSON.stringify({ version: pins['typescript'], optionalDependencies: { [compilerName]: pins['typescript'] } }));
+    fs.writeFileSync(path.join(compilerNative, 'package.json'), JSON.stringify({ version: pins['typescript'] }));
+    const binary = path.join(compilerNative, 'lib', 'tsc');
+    fs.writeFileSync(binary, 'compiler', { mode: 0o755 });
+    assert.equal(resolveExecutables(root).tsrs, null);
+    assert.equal(fs.statSync(path.join(native, 'tsrs')).mode & 0o777, 0o644);
+    fs.chmodSync(binary, 0o644);
+    assert.throws(() => resolveCompilerExecutable(root), { code: 'EACCES' });
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

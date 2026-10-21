@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.7
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @agent-teams/docs-protocol@0.6.4
+
 ## 0.2.6
 
 ### Patch Changes

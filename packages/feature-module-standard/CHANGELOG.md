@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- [#426](https://github.com/agent-teams-ai/engineering-foundation/pull/426) [`5a01735`](https://github.com/agent-teams-ai/engineering-foundation/commit/5a0173568f051a4cf7273d621441499a038430b5) Thanks [@777genius](https://github.com/777genius)! - Add exact owned Protobuf and SQL migration asset validator mappings in quality coverage v3. Preserve ordinary semantic and suppression governance, and distinguish physically verified retired temporary duplicates from product sources without ignoring arbitrary retirement namespaces.
+
+  Version Feature Module Standard for the changed exact Foundation dev dependency in its canonical published manifest, retaining the compatible optional peer window and immutable released package bytes.
+
 ## 0.2.1
 
 ### Patch Changes

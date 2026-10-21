@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.3
+
+### Patch Changes
+
+- [#428](https://github.com/agent-teams-ai/engineering-foundation/pull/428) [`cef8f6f`](https://github.com/agent-teams-ai/engineering-foundation/commit/cef8f6f840ef471df612c7a7c6e3b8fcfbcca644) Thanks [@777genius](https://github.com/777genius)! - Reuse portable path identities within source-policy validation, and index
+  portable roots within each coverage and classification operation so file lookups
+  visit their path ancestors instead of comparing every declared root. Preserve
+  schema v1 specificity, raw-path validation, ownership, overlap, ambiguity and
+  diagnostic ordering. Skip the nested assembly-surface scan for top-level FMS
+  features, where the missing-parent-assembly rule cannot apply; nested checks and
+  cycle semantics remain unchanged.
+
 ## 0.2.2
 
 ### Patch Changes

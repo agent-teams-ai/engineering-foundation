@@ -1,5 +1,9 @@
 import { runCommand, type CommandInput } from './commands.js';
 
+function isHelp(args: readonly string[]): boolean {
+  return args.length === 1 && ['--help', '-h'].includes(args[0]!);
+}
+
 export async function main(args: readonly string[]): Promise<number> {
   const controller = new AbortController();
   let cancelled = 0;
@@ -10,6 +14,10 @@ export async function main(args: readonly string[]): Promise<number> {
   try {
     const values = [...args];
     const command = values.shift();
+    if (isHelp(args)) {
+      process.stdout.write('Usage: stack-toolchain typecheck|lint|format:check|compile|doctor [--json] [--config path]\nCompile: stack-toolchain compile --project path | --build path...\n');
+      return 0;
+    }
     if (!['typecheck', 'lint', 'format:check', 'compile', 'doctor'].includes(command ?? '')) {
       process.stderr.write('Usage: stack-toolchain typecheck|lint|format:check|compile|doctor [--json] [--config path]\n');
       return 2;

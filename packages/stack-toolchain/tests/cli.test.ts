@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -49,3 +52,17 @@ test('doctor rejects Bun as the mandatory CLI runtime', async () => {
   assert.equal(result.status, 2);
   assert.match(result.stdout, /TOOLCHAIN_UNSUPPORTED_NODE_RUNTIME/u);
 });
+
+for (const flag of ['--help', '-h']) {
+  test(`CLI ${flag} succeeds without consumer configuration`, () => {
+    const directory = mkdtempSync(join(tmpdir(), 'stack-toolchain-help-'));
+    try {
+      const result = spawnSync(process.execPath, [entry, flag], { cwd: directory, encoding: 'utf8', timeout: 10_000 });
+      assert.equal(result.status, 0);
+      assert.match(result.stdout, /Usage: stack-toolchain/u);
+      assert.equal(result.stderr, '');
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}

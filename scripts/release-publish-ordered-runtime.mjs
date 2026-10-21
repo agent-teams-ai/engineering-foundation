@@ -85,7 +85,9 @@ export function publishNpmArtifact(artifact, tag, { cwd, spawn = spawnSync } = {
     "raw output omitted",
   ].join("; ");
   throw Object.assign(new Error(diagnostic), {
-    publishFailure: { diagnostic, notStarted },
+    publishFailure: { diagnostic, notStarted,
+      outcome: result.error === undefined && Number.isInteger(result.status) && result.status !== 0
+        ? "nonzero" : "unknown" },
   });
 }
 
@@ -393,44 +395,50 @@ function registryUrl(artifact, path) {
   return new URL(path, registry.endsWith("/") ? registry : `${registry}/`);
 }
 
+function registryRequestSignal(signal) {
+  const timeout = AbortSignal.timeout(10_000);
+  return signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
+}
+
 async function fetchJson(url, init) {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(10_000) });
+  const response = await fetch(url, { ...init, signal: registryRequestSignal(init?.signal) });
   if (!response.ok) {
+    await response.body?.cancel();
     throw new Error(`registry returned ${response.status} for ${url}`);
   }
   return await response.json();
 }
 
-async function inspectVersion(artifact) {
-  let response;
+async function inspectVersion(artifact, { remainingMilliseconds } = {}) {
+  // One shared signal includes all response bodies in the remaining visibility budget.
+  // Preflight/final observations retain their existing independent 10s request bounds.
+  const signal = remainingMilliseconds === undefined ? undefined
+    : AbortSignal.timeout(Math.max(1, Math.ceil(remainingMilliseconds)));
+  let stage = "metadata";
   try {
-    response = await fetch(registryUrl(artifact, encodeURIComponent(artifact.name)), {
-      headers: { accept: "application/json" }, signal: AbortSignal.timeout(10_000),
+    const response = await fetch(registryUrl(artifact, encodeURIComponent(artifact.name)), {
+      headers: { accept: "application/json" }, signal: registryRequestSignal(signal),
     });
-  } catch (error) {
-    return { error, status: "unknown" };
-  }
-  if (response.status === 404) {
-    return { status: "absent" };
-  }
-  if (!response.ok) {
-    return { error: new Error(`registry returned ${response.status}`), status: "unknown" };
-  }
-  const packument = await response.json();
-  const version = packument?.versions?.[artifact.version];
-  if (version === undefined) {
-    return { status: "absent" };
-  }
-  try {
-    const archiveResponse = await fetch(version.dist.tarball, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) {
+      await response.body?.cancel();
+      return { stage, status: response.status === 404 ? "absent" : "unknown" };
+    }
+    const packument = await response.json();
+    const version = packument?.versions?.[artifact.version];
+    if (version === undefined) { return { stage, status: "absent" }; }
+    stage = "tarball";
+    const archiveResponse = await fetch(version.dist.tarball, { signal: registryRequestSignal(signal) });
     if (!archiveResponse.ok) {
+      await archiveResponse.body?.cancel();
       throw new Error(`tarball download returned ${archiveResponse.status}`);
     }
     const archive = Buffer.from(await archiveResponse.arrayBuffer());
     assertDownloadedTarballIntegrity(archive, version.dist.integrity, artifact.name);
     const manifest = packedManifestFromBytes(archive);
+    stage = "attestation";
     const attestations = await fetchJson(
       registryUrl(artifact, `-/npm/v1/attestations/${encodeURIComponent(artifact.name)}@${artifact.version}`),
+      { signal },
     );
     return {
       distTags: packument["dist-tags"] ?? {},
@@ -440,8 +448,8 @@ async function inspectVersion(artifact) {
       publishedAt: packument.time?.[artifact.version],
       status: "present",
     };
-  } catch (error) {
-    return { error, status: "unknown" };
+  } catch {
+    return { stage, status: "unknown" };
   }
 }
 
@@ -492,6 +500,7 @@ export async function publishOrderedRelease({ cwd, decision, state }) {
         publishNpmArtifact(artifact, tag, { cwd });
       },
       reportPublishFailure: (message) => process.stderr.write(`${message}\n`),
+      reportProgress: (record) => process.stdout.write(`Ordered release stage: ${JSON.stringify(record)}\n`),
       reconcileRelease: reconcileGithubRelease,
       source,
       verifySignature: async (artifact) => await verifyNpmSignature(artifact, source),

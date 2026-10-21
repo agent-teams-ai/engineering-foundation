@@ -8,18 +8,23 @@ historical ADR bytes.
 
 ## Authority delta reviewed
 
-CMS guidance commit: `3dd68a6b26f42159714a4640b613534a55c2c6aa`
+CMS guidance commit: `300e7e1c459c08f5e271627e4ca7d2486bdf5e1f`
 
-CMS guidance SHA-256: `e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919`
+CMS guidance SHA-256: `c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3`
 
 The complete reviewed Consumer Module Standard input is Get Modular
 `docs/architecture/common-assembly.md#consumer-module-standard`, blob
-`250f312d3cae733935d0ac48ddde8502665417df`. This exact commit was observed as
-upstream `main` on 2026-10-18. The complete current document, provenance and
-reviewed delta are retained as [review evidence](evidence/runtime-profile-guidance-20261018/README.md).
-The bytes equal the process-runtime section 6 review at
-`ccd815eac780b603a4cb6d01d07c995348c7b0f5`; this migrates Foundation's guidance
-pin explicitly rather than following a moving branch.
+`ae6792543bd19acc948e177e8d55632c9d51134e`. This exact commit was observed as
+upstream `main` on 2026-10-20. The complete current document, provenance and
+delta against the previously reviewed pin are retained as
+[review evidence](evidence/runtime-profile-guidance-20261020/README.md).
+The previous reviewed commit `3dd68a6b26f42159714a4640b613534a55c2c6aa`, blob
+`250f312d3cae733935d0ac48ddde8502665417df`, SHA-256
+`e5cb510c5ea83e54a6833cc40b6ad31fc5cf8c70d9838e4e0c6923edc6f70919` remains
+[historical evidence](evidence/runtime-profile-guidance-20261018/README.md).
+Those bytes matched the process-runtime section 6 review at
+`ccd815eac780b603a4cb6d01d07c995348c7b0f5`; this pin migration follows the
+retained delta rather than a moving branch.
 
 Historical CMS guidance: commit `7d6535dd86533566620040233290869825000d2b`,
 blob `20c281b3137f5d3c198250e9f8101c0ecd4cbc75`, SHA-256
@@ -36,8 +41,8 @@ EQS guidance SHA-256: `a65fb5150837b010a71abe36cefd26c32709eb9b9e89f3938498a647e
 
 These are Foundation's existing accepted organization Engineering Quality
 Standard identities in `standards/engineering-quality-standard.provenance.json`.
-Organization `main` at `3a203362c25c5ebbe6e44b745ba3f8a5eecbaad0` was checked
-on 2026-10-18 and has identical EQS document bytes. The historical
+Organization `main` at `a34ecc6bc9bb165771f3962dccd25970dd5c0d98` was checked
+on 2026-10-20 and has identical EQS document bytes. The historical
 `f9f4c8ad381254fb07cba737d6443542348395c1` and
 `66d6d3d2c2643edac414ded48c0ee0586774dd07` inputs shared SHA-256
 `d55f9f498da213dfa7b14aeac5df5b2fcf37b2cfed4c63dd88b51bde6f56ebe8`;
@@ -45,12 +50,18 @@ they no longer describe the current EQS pin.
 
 ### Reviewed delta and applicability
 
-The full CMS delta replaces bound factory handles with module entries,
+The earlier CMS delta replaced bound factory handles with module entries,
 `implement`/`input`, static groups and `prepare({ modules })` (ADR-0036).
 ADR-0037 pins providers, roots and non-completed rows in independent wiring
 oracles. Module examples, layout checks, prototype-port rejection, codemods and
 per-root smoke/wiring/namespace guidance now follow those forms. Static module
 lists remain supported; being static alone is not a reason to reject Assembly.
+
+The current delta adds observation communication rules and signal-bound
+subscription detachment before cleanup, keeps resources in composition,
+restricts observation testing imports to tests and requires subscription leak
+checks. This seam introduces no observation store or subscription. Its existing
+Host custody and cleanup contracts remain the applicable ownership mechanism.
 
 The updated CMS and EQS describe FMS v1.1 sub-features and composition
 contracts. Foundation's accepted `architecture/foundation/feature-modules.json`
@@ -146,8 +157,9 @@ actual pinned manager, and `tools/release-profile.mts` owns Node-only package
 operations and lock projection. These are repository policy and fixed adapters,
 not independent Assembly entries or a new library runtime.
 
-The full retained CMS and EQS inputs above were compared to current upstream on
-2026-10-18 and remain byte-identical. The current evidence, CRLF protection and
+The full CMS input was migrated through the retained reviewed delta on
+2026-10-20. The EQS input was compared to current upstream and remains
+byte-identical to its existing pin. The current evidence, CRLF protection and
 rejecting standards checker remain authoritative. Process execution continues to
 use `node-or-bun@0.2.1`; no mechanism is duplicated by the repository profile.
 Tests, raw coverage, TypeScript/native launchers, package qualification and
@@ -165,3 +177,46 @@ and derived file pairs' digests, and rejects policy drift before building or
 running commands. Historical seven-field evidence is not current qualification.
 This closed repository projection is Host policy; public parsers never read a
 profile environment override. Both published v1 pnpm-only schemas remain unchanged.
+
+## Repository workflow coverage seam
+
+Workflow boundary: `existing-static-adapter`
+
+Workflow owner: `engineering-foundation/repository-agent-workflow`
+
+Workflow lifecycle: `Host custody and cleanup; no Assembly or lifecycle-kernel adoption`
+
+The check-changed command and its input-custody and check-runner contracts extend
+the existing repository-agent-workflow capability. The exact additional seam is:
+
+- `packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/inbound/cli/check-changed-command.ts`;
+- `packages/engineering-foundation/src/capabilities/repository-agent-workflow/application/ports/check-changed.ts`;
+- `packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/filesystem/mutable-check-input-custody.ts`;
+- `packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/mutable-pnpm-check-runner.ts`; and
+- `packages/engineering-foundation/src/capabilities/repository-agent-workflow/adapters/outbound/pnpm/qualified-pnpm-check-runner.ts`.
+
+The existing `composition/node-commands.ts` supplies fixed adapters through
+consumer-owned ports. These additions create no independently assembled
+capability, configurable module relationship or independent module lifetime.
+They remain inside the existing owning feature and require no Assembly entry.
+The Host owns input-closure enforcement, executable identity, output custody,
+physical cleanup and recovery. A lease's release ends its custody contract;
+it does not certify physical cleanup. The mutable CLI reports unverified
+feedback and cannot claim qualified coverage from a successful command alone.
+
+The reusable option is the existing Foundation coverage mechanism, approximately
+200 lines of policy, model and port contracts, rather than a new package or a
+consumer-local copy. Consumer development tooling depends on Foundation's public
+CLI; Foundation owns coverage planning and observation contracts, while each
+consumer Host retains its policy and custody. No production runtime dependency
+or general cross-consumer Host runtime is introduced. The review trigger above
+also applies to any future independently assembled workflow capability.
+
+The private static Host command lexer belongs to the existing
+`foundation.configuration-input.application` boundary. Workflow and quality
+policies share only literal token and safe repository-path recognition; each
+owns its operation, tool, mode and argument requirements. The declared source
+edges and private entrypoint add no independently composed module or lifetime,
+public npm export or runtime manager. The retained CMS pin was compared with
+Get Modular `ddf1e0b0053f546f12ca70190b237b4f7e78d09d`: its guidance bytes are
+identical. The outstanding later private guidance follow-up remains pending.

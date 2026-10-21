@@ -199,3 +199,67 @@ The shared parser distinguishes structural script inclusion from this stricter
 quality-route check. FMS retains its existing structural guard: a failing
 prerequisite is still a failed shell gate, not a successful bypass. Quality
 coverage separately rejects literal failure anywhere in its required route.
+
+Package script bodies have a separate nonempty 16 KiB UTF-8 limit; profile names
+and paths retain their 1024-character bound and configuration reads retain their
+existing size bound. This admits explicit monorepo command chains without making
+command bodies unbounded.
+
+Static route declarations support literal manager script calls and `node
+<repository-relative JavaScript-or-TypeScript-file> run <script>` (or `script`).
+A Host `tool agent-teams-foundation quality check --consumer .` declaration is a
+full route; only the scope route includes `--scope-only`. Exact arguments and
+safe paths are required. Known script edges must exist, and literal failures,
+cycles, excessive depth, OR and multiline route chains reject. Opaque atomic
+build siblings retain their existing declaration-only treatment. Selecting and
+reading a native Host dispatcher proves file readability, not its implementation
+or native execution. Runtime observations and qualification remain separate.
+
+## Exact nonrunnable assets (v3)
+
+The additive `quality-source-coverage/v3` profile retains v2 bridge admissions
+and adds optional `assets`. Each entry has exactly `path`, `kind`, `boundaryId`
+and `script`. Kinds are closed: `protobuf` requires an exact `.proto` path;
+`sql-migration` requires an exact `.sql` path. No directories, globs or arbitrary
+extensions are admitted. The path must be a current production-census file with
+exactly the named semantic owner; it retains suppression governance. Duplicate,
+stale, unknown-owner and extension-mismatched mappings reject. Existing v1/v2
+profiles cannot declare assets and retain their unsupported-language behavior.
+
+The named root package script must be reachable from the full entrypoint. Its
+bounded declaration may contain contained Node checker files (including `.ts`),
+`buf build`, `buf lint`, `buf format --diff --exit-code`, and a preceding
+`tsc --project <path>.json --noEmit`, joined only with `&&`. Readable Node Host
+dispatch declarations retain their existing static-only meaning. Literal failures,
+no-ops, cycles, shell masking and missing checker files reject. Foundation does
+not start validators or certify their implementation, pinning or result. Consumers
+must qualify actual Buf and database migration gates, including malformed and
+renamed executable inputs, and preserve those gates in full checking. Assets
+never participate in TypeScript/Oxlint selection or compiler context. An adjacent
+undeclared file remains governed and unsupported; an asset declaration cannot
+transfer to a renamed executable or hide a new sibling.
+
+For example, `assets: [{path: packages/example/src/contracts/example.proto,
+kind: protobuf, boundaryId: example.contracts, script: wire:check}]` binds an
+existing owned input to its existing validator. This is connectivity evidence,
+not a source-language parser or an execution receipt.
+
+## Retired temporary duplicate observation
+
+Repository Mutation's read-only Node `inspectRetiredTemporaryDuplicates` seam
+recognizes only its native `.foundation-retired-evidence-/UUID/owned-temporary`
+geometry. A bounded contained census supplies candidate names. A terminal leaf
+requires real symlink-free ancestors, a single leaf in its retirement directory,
+exactly two hardlinks, stable bounded bytes and physical identity matching one
+ordinary canonical sibling. That sibling remains in the ordinary census; native
+retirement spelling alone grants no exemption. This establishes duplicate custody,
+not authenticity of historical execution, deletion or recovery authority.
+
+Quality coverage removes only those proved duplicate leaves from its product
+source classification. It retains the broad filesystem census and every canonical
+counterpart. Unknown tokens, extension changes, additional or nested files,
+symlinks, replaced inodes, missing counterparts and ambiguous hardlinks cannot
+hide product source. Evidence that no longer has a physical counterpart stays
+unqualified and fails ordinary coverage; no persisted transaction format changes.
+The source implementation and focused fixtures do not establish release, registry
+adoption or a successful complete consumer gate.

@@ -1,10 +1,6 @@
-import { CapabilityInputError } from "../../../features/validation-reporting/api.js";
-
-export function configurationSchemaError(message: string): never {
-  throw new CapabilityInputError({
-    code: "SCHEMA_INVALID",
-    message,
-    phase: "workspace-dependency-declarations-config",
-    retryable: false
-  });
-}
+/** Schema validation belongs to the shared catalog, selected at composition. */
+export type WorkspaceConfigurationSchemaAssertion = (
+  schemaId: "workspace-dependency-declarations/v1" | "workspace-dependency-declarations/v2",
+  input: unknown,
+  phase: string
+) => Promise<void>;

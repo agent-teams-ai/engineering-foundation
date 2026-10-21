@@ -23,11 +23,25 @@
   "include": [
     "scripts/**/*.mts",
     "scripts/release-bun-lock.ts",
+    "scripts/public-docs-quickstart.ts",
+    "scripts/public-docs-documented-e2e.ts",
+    "scripts/pack-quality-assets.ts",
     "tools/**/*.mts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
     "tests/support/release-changesets-fixture.ts",
     "tests/test-manifests-typescript.test.ts",
-    "tests/support/ci-input-proof-collector-install.ts"
+    "tests/source-inline-types.test.ts",
+    "tests/package-export-matcher.test.ts",
+    "tests/public-docs-documented.test.ts",
+    "tests/support/ci-input-proof-collector-install.ts",
+    "tests/sdk-json-record.test.ts",
+    "tests/architecture-baseline-replacement.test.ts",
+    "tools/git-environment.ts",
+    "tools/profile-source.ts",
+    "tools/repository-oxlint.ts",
+    "tests/repository-profile-lint.test.ts",
+    "tests/repository-profile-git.test.ts",
+    "tests/features/quality-coverage/governed-assets.test.ts"
   ]
 }

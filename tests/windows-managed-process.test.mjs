@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { createHash } from "node:crypto";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { cp, copyFile, mkdir, mkdtemp, open, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { performance } from "node:perf_hooks";
@@ -260,6 +262,29 @@ async function waitForJsonFile(path) {
   assert.fail(`managed process did not write ${path} before the deadline`);
 }
 
+// Cooperative TEST readiness only; corrupt production-control fixtures stay raw.
+function publishReadyJson(path, value, io = { writeFileSync, renameSync }) {
+  const temporary = `${path}.pending`; io.writeFileSync(temporary, JSON.stringify(value), { flag: "wx", encoding: "utf8", mode: 0o600 });
+  io.renameSync(temporary, path);
+}
+const readyJsonPublisher = `const { writeFileSync, renameSync } = require("node:fs");\n${publishReadyJson.toString()}`;
+const readyPidSource = `${readyJsonPublisher}\npublishReadyJson(process.argv[1], { pid: process.pid }); setInterval(() => {}, 1000)`;
+
+test("publishes complete cooperative readiness JSON before exposing its final path", async () => {
+  const root = await mkdtemp(join(tmpdir(), "foundation ready publication ")), path = join(root, "ready.json"), expected = { pid: process.pid };
+  try {
+    let renames = 0; publishReadyJson(path, expected, { writeFileSync, renameSync: (source, target) => {
+      renames++; assert.equal(source, `${path}.pending`); assert.equal(target, path);
+      assert.deepEqual(JSON.parse(readFileSync(source, "utf8")), expected); assert.throws(() => readFileSync(target), { code: "ENOENT" });
+      renameSync(source, target);
+    } });
+    assert.equal(renames, 1); assert.deepEqual(await waitForJsonFile(path), expected);
+    await rm(path); const writer = spawnSync(process.execPath, ["--eval", `${readyJsonPublisher}\npublishReadyJson(process.argv[1], ${JSON.stringify(expected)});`, path], { timeout: 10_000, encoding: "utf8" });
+    assert.equal(writer.status, 0, writer.stderr); assert.deepEqual(await waitForJsonFile(path), expected);
+    await writeFile(path, ""); await assert.rejects(waitForJsonFile(path), SyntaxError);
+  } finally { await rm(root, { force: true, recursive: true }); }
+});
+
 async function writeNewFileExclusive(path, contents) {
   const handle = await open(path, "wx", 0o600);
   try {
@@ -270,7 +295,7 @@ async function writeNewFileExclusive(path, contents) {
 }
 
 windowsTest(
-  "PowerShell bootstrap compiles its helper outside the deep installed asset path",
+  "PowerShell bootstrap compiles its helper outside the deep installed asset path without unqualified cmdlet lookup",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const root = await mkdtemp(join(tmpdir(), "foundation deep installed helper "));
@@ -298,25 +323,51 @@ windowsTest(
           helperPath
         )
       ]);
+      const actualBootstrap = (await readFile(bootstrapPath, "utf8")).replaceAll("\r\n", "\n");
+      assert.equal(createHash("sha256").update(actualBootstrap).digest("hex"),
+        "ab3abf73c5d389625db11666c063b4cd295f42b0236d20f33bd14ba9bf3a3be9");
+      const legacyBootstrap = actualBootstrap.replace(
+        '[System.IO.Path]::Combine($PSScriptRoot, "WindowsManagedProcess.cs"))))',
+        'Join-Path $PSScriptRoot "WindowsManagedProcess.cs")))');
+      assert.equal(createHash("sha256").update(legacyBootstrap).digest("hex"),
+        "f2e7d1abb795d45635a7bb1a4715eb440256c20a4409e0963b48dca64e6a0fe9");
+      const unqualifiedBootstrap = actualBootstrap.replace(
+        "Microsoft.PowerShell.Utility\\Add-Type", "Add-Type");
+      assert.equal(createHash("sha256").update(unqualifiedBootstrap).digest("hex"),
+        "7373da6764e631c222eefb42d56967e5adc5e4cc905ea229b18d30da56e4d3b7");
       const systemRoot = Object.entries(process.env).find(
         ([name]) => name.toLowerCase() === "systemroot"
       )?.[1];
       assert.equal(typeof systemRoot, "string");
-      const child = spawn(
-        join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-        ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
-        { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
-      );
-      let stderr = "";
-      child.stderr.setEncoding("utf8");
-      child.stderr.on("data", (chunk) => { stderr += chunk; });
-      const closed = once(child, "close");
-      child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
-      const [exitCode] = await once(child, "exit");
-      await closed;
-      assert.equal(exitCode, 1);
-      assert.match(stderr, /\[phase=bootstrap-request\]/u);
-      assert.doesNotMatch(stderr, /\[phase=helper-(?:source-read|compile)\]/u);
+      async function rejectSchemaWithBlockedCmdlets(source) {
+        // Same fixed installed asset and real C# helper, with only a TEST cmdlet trap.
+        await writeFile(bootstrapPath,
+          'function Join-Path { throw "TEST helper lookup must not invoke Join-Path." }\n' +
+          'function Add-Type { throw "TEST helper compilation must use module-qualified Add-Type." }\n' + source);
+        const child = spawn(
+          join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+          ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", bootstrapPath],
+          { cwd: helperRoot, stdio: ["pipe", "pipe", "pipe"], windowsHide: true }
+        );
+        let stderr = "";
+        child.stderr.setEncoding("utf8");
+        child.stderr.on("data", (chunk) => { stderr += chunk; });
+        const closed = once(child, "close");
+        child.stdin.end(JSON.stringify({ schemaVersion: 0 }));
+        const [exitCode] = await once(child, "exit");
+        await closed;
+        assert.equal(exitCode, 1);
+        return stderr;
+      }
+      const rejectedLegacy = await rejectSchemaWithBlockedCmdlets(legacyBootstrap);
+      assert.match(rejectedLegacy, /\[phase=helper-source-read\]/u);
+      assert.match(rejectedLegacy, /TEST helper lookup must not invoke Join-Path/u);
+      const rejectedUnqualified = await rejectSchemaWithBlockedCmdlets(unqualifiedBootstrap);
+      assert.match(rejectedUnqualified, /\[phase=helper-compile\]/u);
+      assert.match(rejectedUnqualified, /TEST helper compilation must use module-qualified Add-Type/u);
+      const acceptedCurrent = await rejectSchemaWithBlockedCmdlets(actualBootstrap);
+      assert.match(acceptedCurrent, /\[phase=bootstrap-request\]/u);
+      assert.doesNotMatch(acceptedCurrent, /\[phase=helper-(?:source-read|compile)\]/u);
     } finally {
       await rm(root, { force: true, recursive: true });
     }
@@ -538,10 +589,10 @@ windowsTest("terminates and awaits every descendant in the assigned Job Object",
   let child;
   const source = [
     'const { spawn } = require("node:child_process");',
-    'const { writeFileSync } = require("node:fs");',
+    readyJsonPublisher,
     'const descendant = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"],',
     '  { stdio: "ignore", windowsHide: true });',
-    'writeFileSync(process.argv[1], JSON.stringify({ pid: descendant.pid }), "utf8");',
+    'publishReadyJson(process.argv[1], { pid: descendant.pid });',
     "setInterval(() => {}, 1000);"
   ].join("\n");
 
@@ -583,10 +634,7 @@ windowsTest("marker write failure forces wrapper termination without leaking con
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: [
-        "-e",
-        `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-      ],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -624,10 +672,7 @@ for (const confirmationFailure of ["invalid", "read"]) {
     try {
       child = spawnWindowsManagedProcess({
         command: process.execPath,
-        args: [
-          "-e",
-          `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-        ],
+        args: ["-e", readyPidSource, startedPath],
         cwd: root
       });
       const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -670,10 +715,7 @@ windowsTest("retains controls and both errors when forced wrapper cleanup fails"
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: [
-        "-e",
-        `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-      ],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -724,10 +766,7 @@ windowsTest("does not fabricate cleanup failure when kill returns false as the w
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: [
-        "-e",
-        `require('node:fs').writeFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid })); setInterval(() => {}, 1000)`
-      ],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     const controlRoot = await waitForNewWindowsControlRoot(previousRoots);
@@ -773,16 +812,11 @@ windowsTest("forces and awaits the wrapper after containment confirmation times 
   const startedPath = join(root, "started.json");
   let child;
   let managedPid;
-  const source = [
-    'const { writeFileSync } = require("node:fs");',
-    'writeFileSync(process.argv[1], JSON.stringify({ pid: process.pid }), "utf8");',
-    "setInterval(() => {}, 1000);"
-  ].join("\n");
 
   try {
     child = spawnWindowsManagedProcess({
       command: process.execPath,
-      args: ["-e", source, startedPath],
+      args: ["-e", readyPidSource, startedPath],
       cwd: root
     });
     ({ pid: managedPid } = await waitForJsonFile(startedPath));

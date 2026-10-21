@@ -60,6 +60,7 @@ function createCommandServices<SchemaId extends string>(dependencies: CommandHos
     qualityCoverage: dependencies.createQualityCommand(processExecutor, nodeExecutable, environment),
     findingsBaseline: dependencies.createFindingsBaselineCommands(nodeExecutable, environment),
     agentWorkflow: createNodeAgentWorkflowCommands({
+      processEnvironment: environment,
       ...(environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE === undefined
         ? {}
         : { bunExecutablePath: environment.AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE }),

@@ -23,6 +23,13 @@ types, import-equals declarations, malformed input, non-literal references,
 escaped specifiers, comments, strings, and unrelated call shapes. Oxc also has
 an explicit modern-syntax case for source-phase imports.
 
+The retained corpus distinguishes declaration-level type-only imports and
+exports from inline `type` specifiers. Ordinary declarations keep a runtime
+module request even when every binding is type-only; Node type stripping
+independently demonstrates that distinction in the production source-graph
+regressions. The 2026-10-18 correction keeps those corpus forms and fixes their
+expected classification and both parser mappings.
+
 Run deterministic conformance with:
 
 ```text

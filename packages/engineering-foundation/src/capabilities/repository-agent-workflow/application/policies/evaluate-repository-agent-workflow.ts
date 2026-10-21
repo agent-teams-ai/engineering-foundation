@@ -1,3 +1,4 @@
+import { parseStaticHostCommand } from "../../../../features/configuration-input/application/static-host-command.js";
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
 import type {
@@ -5,6 +6,7 @@ import type {
   RepositoryAgentWorkflowEvidence,
   RepositoryAgentWorkflowPolicy
 } from "../model/repository-agent-workflow.js";
+import type { WorkflowCoveragePolicy } from "../model/check-changed.js";
 
 function diagnostic(input: {
   readonly ruleId: string;
@@ -33,6 +35,15 @@ function fileSource(evidence: InstructionFileEvidence): string | null {
 
 function isExactAdapter(source: string, candidates: readonly string[]): boolean {
   return candidates.includes(source.trim());
+}
+
+// Recognize the declaration only; Host code and runtime qualification are separate.
+function isStaticHostToolRunner(command: string, successor: boolean): boolean {
+  const host = parseStaticHostCommand(command);
+  return host !== undefined && host.arguments.length === 6 &&
+    host.arguments[0] === "tool" && host.arguments[1] === "agent-teams-foundation" &&
+    host.arguments[2] === "agent-workflow" && host.arguments[3] === (successor ? "check-changed" : "changed") &&
+    host.arguments[4] === "--consumer" && host.arguments[5] === ".";
 }
 
 function importCandidates(adapterPath: string, canonicalPath: string): readonly string[] {
@@ -114,7 +125,8 @@ function validateAdapters(
 
 function validateCommands(
   policy: RepositoryAgentWorkflowPolicy,
-  evidence: RepositoryAgentWorkflowEvidence
+  evidence: RepositoryAgentWorkflowEvidence,
+  successor = false
 ): FoundationDiagnostic[] {
   const diagnostics: FoundationDiagnostic[] = [];
   const canonicalSource = fileSource(evidence.instructionFiles.canonical);
@@ -155,13 +167,16 @@ function validateCommands(
     /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
   const selfDogfoodRunner =
     /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+changed\s+--consumer\s+\.$/u;
+  const successorRunner = /^(?:pnpm\s+build\s*&&\s*)?agent-teams-foundation\s+agent-workflow\s+check-changed\s+--consumer\s+\.$/u;
+  const successorDogfood = /^pnpm\s+build\s*&&\s*node\s+packages\/engineering-foundation\/dist\/cli\.js\s+agent-workflow\s+check-changed\s+--consumer\s+\.$/u;
   const repositoryCommandRunner =
     /^node\s+tools\/repository-command\.mts\s+script\s+build\s*&&\s*node\s+tools\/repository-command\.mts\s+tool\s+check:changed$/u;
   if (
     changedCommand !== undefined &&
-    !installedRunner.test(changedCommand.trim()) &&
-    !selfDogfoodRunner.test(changedCommand.trim()) &&
-    !repositoryCommandRunner.test(changedCommand.trim())
+    !isStaticHostToolRunner(changedCommand, successor) &&
+    !(successor
+      ? successorRunner.test(changedCommand.trim()) || successorDogfood.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim())
+      : installedRunner.test(changedCommand.trim()) || selfDogfoodRunner.test(changedCommand.trim()) || repositoryCommandRunner.test(changedCommand.trim()))
   ) {
     diagnostics.push(
       diagnostic({
@@ -174,6 +189,22 @@ function validateCommands(
     );
   }
   return diagnostics;
+}
+
+/** Compatibility projection is only for instruction/package-script conformance.
+ * It never relabels v1 changed execution or constructs a v2 coverage result. */
+export function workflowV2ConformancePolicy(policy: WorkflowCoveragePolicy): RepositoryAgentWorkflowPolicy {
+  const scripts = [...new Set(policy.checks.flatMap((check) => [check.script, ...check.prerequisites]))];
+  return { packageManager: policy.packageManager, instructions: policy.instructions, scripts: policy.scripts, changedChecks: scripts.map((script, index) => ({ id: `v2-conformance-${index}`, script, extensions: [], passPaths: false })), fullScanPaths: [] };
+}
+
+export function evaluateRepositoryAgentWorkflowV2(policy: WorkflowCoveragePolicy, evidence: RepositoryAgentWorkflowEvidence): readonly FoundationDiagnostic[] {
+  const compatibility = workflowV2ConformancePolicy(policy);
+  return Object.freeze([
+    ...validateInstructionFiles(compatibility, evidence),
+    ...validateAdapters(compatibility, evidence),
+    ...validateCommands(compatibility, evidence, true)
+  ].toSorted((left, right) => compareBinaryStrings(`${left.ruleId}:${left.subject}`, `${right.ruleId}:${right.subject}`)));
 }
 
 export function evaluateRepositoryAgentWorkflow(

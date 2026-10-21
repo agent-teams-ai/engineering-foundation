@@ -18,8 +18,8 @@ const nodeRuntime = await resolveQualificationExecutables("node");
 const expected = [
   { name: "oxlint", entry: resolve(root, "node_modules/oxlint/bin/oxlint"), args: ["--version"], contains: "1.83.0" },
   { name: "typescript", entry: resolve(root, "node_modules/typescript/bin/tsc"), args: ["--version"], contains: "7.0.2" },
-  // Nx 23.2.1 patches GHSA-hrvq-x7jp-36xv and retains the Bun lock v2 repair.
-  { name: "nx", entry: resolve(root, "node_modules/nx/dist/bin/nx.js"), args: ["--version"], contains: "23.2.1" },
+  // Nx 23.3.0 removes Axios and uses the patched TOML parser.
+  { name: "nx", entry: resolve(root, "node_modules/nx/dist/bin/nx.js"), args: ["--version"], contains: "23.3.0" },
   // esbuild's supported JS entry resolves its optional native package in the
   // package's own installed context; do not assume root hoisting or a platform map.
   { name: "esbuild", entry: resolve(root, "node_modules/esbuild/bin/esbuild"), args: ["--version"], contains: "0.28.2" }

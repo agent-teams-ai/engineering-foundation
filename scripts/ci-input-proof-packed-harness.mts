@@ -34,6 +34,15 @@ import { typedPublicApiReference } from './typed-public-api.TEST.mts';
 assert.equal(typescriptVersion, '7.0.2');
 assert.equal(versionMajorMinor, '7.0');
 
+const consumerManifest = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as {
+  devDependencies: Record<string, string>;
+};
+assert.match(consumerManifest.devDependencies['@types/node'] ?? '', /^file:/u);
+assert.match(consumerManifest.devDependencies['undici-types'] ?? '', /^file:/u);
+const consumerLock = readFileSync(resolve(process.cwd(), 'pnpm-lock.yaml'), 'utf8');
+assert.ok(consumerLock.includes("'@types/node@file:"));
+assert.ok(consumerLock.includes('undici-types@file:'));
+
 const categories: readonly ScopeCategory[] = [
   'source', 'helpers', 'fixtures', 'config', 'lock', 'toolchain', 'installedGraph',
 ];

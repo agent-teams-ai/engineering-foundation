@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0
+
+### Minor Changes
+
+- [#426](https://github.com/agent-teams-ai/engineering-foundation/pull/426) [`5a01735`](https://github.com/agent-teams-ai/engineering-foundation/commit/5a0173568f051a4cf7273d621441499a038430b5) Thanks [@777genius](https://github.com/777genius)! - Add exact owned Protobuf and SQL migration asset validator mappings in quality coverage v3. Preserve ordinary semantic and suppression governance, and distinguish physically verified retired temporary duplicates from product sources without ignoring arbitrary retirement namespaces.
+
+  Version Feature Module Standard for the changed exact Foundation dev dependency in its canonical published manifest, retaining the compatible optional peer window and immutable released package bytes.
+
+## 0.3.0
+
+### Minor Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Coordinate ADR baseline promotion with the existing cooperative repository-root mutation lease. Use exclusively owned sibling temporary files, bind physical root and parent identities, preserve conflicting mutation evidence, and report failures without hiding write, close, cleanup or lease-release errors. Expose the existing evidence-retention helper and a narrow Node atomic replacement resource contract through Repository Mutation's Node adapter API. Physical root, parent and temporary identities stay with the existing mutation owner.
+
 ## 0.2.2
 
 ### Patch Changes

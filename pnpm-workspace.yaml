@@ -30,11 +30,12 @@ catalog:
   minisearch: 7.2.0
   mdast-util-to-string: 4.0.0
   node-or-bun: 0.2.1
-  nx: 23.2.1
+  nx: 23.3.0
   oxlint: 1.83.0
   oxlint-tsgolint: 7.0.2001
   oxc-parser: 0.142.0
   proper-lockfile: 4.1.2
+  pnpm: 11.20.0
   publint: 0.3.22
   remark-frontmatter: 5.0.0
   remark-gfm: 4.0.1
@@ -43,7 +44,7 @@ catalog:
   typescript: 7.0.2
   unified: 11.0.5
   unist-util-visit: 5.1.0
-  verdaccio: 6.9.2
+  verdaccio: 6.10.6
   vfile: 6.0.3
   yaml: 2.9.0
 
@@ -56,3 +57,7 @@ allowBuilds:
 
 overrides:
   brace-expansion: 5.0.12
+  # Keep Knip's compatible parser patched; see docs/security/dependency-triage.md.
+  smol-toml: 1.9.0
+  # Nx 23.3.0 pins the affected 7.29.0 client; qualify the patched 7.x release.
+  undici: 7.29.1

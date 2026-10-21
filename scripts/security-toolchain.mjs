@@ -478,6 +478,8 @@ export async function runWorkflowSecurityTools(options = {}) {
       "exec",
       "--",
       "zizmor",
+      "--config",
+      ".github/zizmor.yml",
       "--offline",
       "--strict-collection",
       "--persona",

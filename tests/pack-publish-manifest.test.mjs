@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { runNpmCommand } from "../scripts/pack-test-support.mjs";
 import { readQualifiedReleaseArtifact } from "../scripts/release-publish-ordered-runtime.mjs";
 import { PUBLISHABLE_PACKAGES } from "../scripts/publishable-packages.mjs";
 import { packAndInspectArtifact, snapshotVerifiedArtifact } from "../scripts/pack-artifact-e2e.mjs";
@@ -32,14 +34,67 @@ test("pending Foundation releases version FMS when its canonical packed manifest
   });
   const before = project(foundation.oldVersion);
   const after = project(foundation.newVersion);
-  assert.equal(before.peerDependencies[foundationName], "^1.8.0");
-  assert.equal(after.peerDependencies[foundationName], "^1.8.0");
+  assert.equal(before.peerDependencies[foundationName], "^1.8.0 || ^2.0.0");
+  assert.equal(after.peerDependencies[foundationName], "^1.8.0 || ^2.0.0");
   assert.equal(before.devDependencies[foundationName], foundation.oldVersion);
   assert.equal(after.devDependencies[foundationName], foundation.newVersion);
   assert.notDeepEqual(before, after, "The exact dev dependency still alters published FMS bytes");
   const fms = plan.releases.find(release => release.name === manifest.name);
   assert.ok(fms && fms.type !== "none" && fms.newVersion !== fms.oldVersion,
     "Changed packed FMS bytes require a new FMS version; an optional compatible peer does not make existing npm bytes mutable");
+  if (foundation.newVersion === "2.0.0" && manifest.version === "0.1.2") {
+    assert.equal(fms.newVersion, "0.2.0", "The compatible peer-window expansion must keep FMS on its intended 0.x minor train");
+  }
+});
+
+test("official Changesets status and version keep the compatible Foundation 2 FMS release on 0.x", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "fms-compatible-release-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  // Status consults Git's base; borrow only committed objects, with fixture-owned refs.
+  const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+  const clone = spawnSync("git", ["clone", "--shared", "--no-checkout", "--quiet", sourceRoot, root], { encoding: "utf8" });
+  assert.equal(clone.status, 0, clone.stdout + clone.stderr);
+  const base = spawnSync("git", ["update-ref", "refs/heads/main", "HEAD"], { cwd: root, encoding: "utf8" });
+  assert.equal(base.status, 0, base.stdout + base.stderr);
+  const require = createRequire(import.meta.url);
+  const cli = require.resolve("@changesets/cli/bin.js");
+  const foundationName = "@agent-teams/engineering-foundation";
+  const standardName = "@agent-teams/feature-module-standard";
+  const config = JSON.parse(await readFile(new URL("../.changeset/config.json", import.meta.url), "utf8"));
+  const standard = JSON.parse(await readFile(new URL("../packages/feature-module-standard/package.json", import.meta.url), "utf8"));
+  await mkdir(join(root, ".changeset"));
+  await writeFile(join(root, "DISPOSABLE_SANDBOX"), "Official Changesets release-plan fixture.\n");
+  await writeFile(join(root, "package.json"), JSON.stringify({ name: "fms-release-TEST", private: true, workspaces: ["packages/*"] }));
+  await writeFile(join(root, ".changeset/config.json"), JSON.stringify({ ...config, changelog: false }));
+  for (const [directory, manifest] of [
+    ["foundation", { name: foundationName, version: "1.10.1" }],
+    ["standard", { name: standardName, version: "0.1.2", peerDependencies: standard.peerDependencies,
+      peerDependenciesMeta: standard.peerDependenciesMeta, devDependencies: { [foundationName]: "workspace:*" } }],
+  ]) {
+    await mkdir(join(root, "packages", directory), { recursive: true });
+    await writeFile(join(root, "packages", directory, "package.json"), JSON.stringify(manifest));
+  }
+  await writeFile(join(root, ".changeset/compatible-release.md"), [
+    "---", `"${foundationName}": major`, `"${standardName}": minor`, "---", "", "Compatible peer window TEST release.", "",
+  ].join("\n"));
+  const run = args => {
+    const result = spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: "utf8", timeout: 30_000 });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  };
+  run(["status", "--output", "release-plan.json"]);
+  const plan = JSON.parse(await readFile(join(root, "release-plan.json"), "utf8"));
+  const versions = Object.fromEntries(plan.releases.map(({ name, newVersion }) => [name, newVersion]));
+  assert.deepEqual(versions, { [foundationName]: "2.0.0", [standardName]: "0.2.0" });
+  run(["version"]);
+  const versioned = JSON.parse(await readFile(join(root, "packages/standard/package.json"), "utf8"));
+  assert.equal(versioned.version, "0.2.0");
+  // The official versioner may retain workspace:; the canonical pack must strip it.
+  assert.equal(canonicalPublishManifest(versioned, {
+    catalogVersions: new Map(), internalPackageVersions: new Map([[foundationName, "2.0.0"]]),
+  }).peerDependencies[foundationName], "^1.8.0 || ^2.0.0");
+  assert.equal(JSON.parse(await readFile(join(root, "packages/foundation/package.json"), "utf8")).version, "2.0.0");
+  t.diagnostic(`Official Changesets release plan: ${JSON.stringify(versions)}`);
 });
 
 test("publish manifest canonicalizes exact dependency authorities without reordering other fields", async (t) => {
@@ -105,7 +160,7 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
         ...context, internalPackageVersions: new Map([["@fixture/core", rejected]]),
       }), /does not admit workspace version/u);
     }
-    for (const specifier of ["workspace:^1.8", "workspace:^01.8.0", "workspace:^1.8.0-rc.0", "workspace:^1.8.0 || ^2.0.0"]) {
+    for (const specifier of ["workspace:^1.8", "workspace:^01.8.0", "workspace:^1.8.0-rc.0", "workspace:^1.8.0 || *", "workspace:^1.8.0 || ^2.0", "workspace:^1.8.0 || ^2.0.0-rc.0", "workspace:^1.8.0||^2.0.0", "workspace:^1.8.0 || >=2.0.0", "workspace:^1.8.0 || "]) {
       assert.throws(() => canonicalPublishManifest({ peerDependencies: { "@fixture/core": specifier } }, {
         catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", "1.9.0"]]),
       }), /does not admit workspace version/u);
@@ -116,6 +171,19 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
     assert.throws(() => canonicalPublishManifest({ dependencies: peerDependencies }, {
       catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", "1.9.0"]]),
     }), /requires workspace:\*/u);
+  });
+  await t.test("retains only validated stable caret union branches", () => {
+    const peerDependencies = { "@fixture/core": "workspace:^1.8.0 || ^2.0.0" };
+    for (const version of ["1.8.0", "1.10.1", "2.0.0", "2.9.9"]) {
+      assert.deepEqual(canonicalPublishManifest({ peerDependencies }, {
+        catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", version]]),
+      }).peerDependencies, { "@fixture/core": "^1.8.0 || ^2.0.0" });
+    }
+    for (const version of ["1.7.9", "3.0.0", "2.0.0-rc.0"]) {
+      assert.throws(() => canonicalPublishManifest({ peerDependencies }, {
+        catalogVersions: new Map(), internalPackageVersions: new Map([["@fixture/core", version]]),
+      }), /does not admit workspace version/u);
+    }
   });
   await t.test("rejects unresolved exact authorities", () => {
     assert.throws(() => canonicalPublishManifest({ dependencies: { dependency: "workspace:*" } }, {
@@ -130,6 +198,30 @@ test("publish manifest canonicalizes exact dependency authorities without reorde
       catalogVersions: new Map(), internalPackageVersions: new Map(),
     }), /cannot use publishConfig\.directory/u);
   });
+});
+
+test("packed FMS peer union admits the minimum and Foundation 2 under strict peers only", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "fms-strict-peers-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const foundationName = "@agent-teams/engineering-foundation";
+  const standard = JSON.parse(await readFile(new URL("../packages/feature-module-standard/package.json", import.meta.url), "utf8"));
+  const packed = canonicalPublishManifest({ name: standard.name, version: "0.2.0",
+    peerDependencies: standard.peerDependencies, peerDependenciesMeta: standard.peerDependenciesMeta }, {
+    catalogVersions: new Map(), internalPackageVersions: new Map([[foundationName, "2.0.0"]]),
+  });
+  await writeFile(join(root, "standard.tgz"), qualifiedArchive(packed));
+  for (const version of ["1.8.0", "2.0.0", "1.7.9", "3.0.0"]) {
+    const consumer = join(root, version);
+    await mkdir(consumer);
+    await writeFile(join(consumer, "foundation.tgz"), qualifiedArchive({ name: foundationName, version }));
+    await writeFile(join(consumer, "package.json"), JSON.stringify({ private: true, dependencies: {
+      [foundationName]: "file:./foundation.tgz", [standard.name]: "file:../standard.tgz",
+    } }));
+    const install = runNpmCommand(["install", "--offline", "--ignore-scripts", "--strict-peer-deps", "--no-audit", "--no-fund",
+      "--cache", join(root, "cache")], consumer, { timeoutMs: 30_000 });
+    if (version === "1.8.0" || version === "2.0.0") { await install; }
+    else { await assert.rejects(install, error => /ERESOLVE/u.test(error.stderr)); }
+  }
 });
 
 test("isolated publish manifest matches npm pack top-level key order", () => {

@@ -359,11 +359,13 @@ integrity and package tree remain in the historical catalog; the runner and its
 first supported `0.1.0` release pass the normal release gates.
 An internal package is declared once, as `workspace:*`. The one exception is an
 optional peer caret range (`peerDependencies` `workspace:^`, or an explicit stable
-minimum such as `workspace:^1.8.0`) together with the workspace
+minimum such as `workspace:^1.8.0`, or explicit stable caret branches such as
+`workspace:^1.8.0 || ^2.0.0`) together with the workspace
 link that builds and tests it (`devDependencies` `workspace:*`); the pair counts as
 one edge for the closed DAG. The symbolic caret publishes as `^<workspace version>`;
-an explicit minimum retains its declared range and requires the actual workspace
-version to satisfy it. FMS keeps its Foundation `^1.8.0` minimum: packed Node
+explicit stable caret branches retain their declared range and require the actual
+workspace version to satisfy at least one branch. Floating, partial and prerelease
+branches reject. FMS supports Foundation `^1.8.0 || ^2.0.0`: packed Node
 qualification runs against both the current qualified Foundation archive and the
 exact published `1.8.0` with strict peers, using the same public source and budget
 checks. Pure FMS entries are also checked without Foundation. The current exact
@@ -373,7 +375,9 @@ release when the peer update stays within that range. An out-of-range update
 still triggers the planner's compatibility bump and requires review of release
 intent; the existing Changeset coverage tests exercise both cases through the
 installed planner. This keeps the initial Foundation 1.8.0 and FMS 0.1.0 train
-from becoming an unintended FMS 1.0.0 release.
+from becoming an unintended FMS 1.0.0 release. The Foundation 2.0.0 workflow
+schema artifact change leaves the public source graph and ratchet contracts used
+by FMS unchanged; its explicit compatible-window Changeset selects FMS 0.2.0.
 No second hand-maintained package list or release order is authoritative.
 Publication uses the resulting order under the final `rc` or `latest` tag with
 npm Trusted Publishing and the npm version
@@ -436,6 +440,29 @@ new version; no further publication or GitHub release reconciliation occurs.
 Contradictory, mixed or unknown prerelease state still fails before npm
 publication, and an RC cannot move `latest`. Returning to stable publication
 requires a separately reviewed Changesets prerelease-exit change.
+
+Registry visibility after one npm publication invocation has a separate
+15-minute monotonic elapsed deadline. Metadata, tarball and attestation requests
+and their response bodies share the remaining observation budget; each request
+also retains its 10-second bound. A reply returned at or after the deadline is
+rejected, including a late `present` reply. The wait only observes: it never
+issues another publish. A zero npm exit is reported as acknowledgement, followed
+by separate visibility, cryptographic verification and reconciliation records;
+constructed records include the coordinate, stage, status and elapsed time,
+without raw npm/provider output or configuration.
+
+This budget addresses observed late convergence, not an npm availability
+guarantee. [Release run `39451813115`](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39451813115)
+first exhausted its visibility wait for
+Document Authoring `0.3.3`, then for Foundation `1.10.2`; in both cases the
+qualified immutable artifact became visible after the attempt had failed. The
+npm signature audit retains its independent six-minute deadline, retries only
+the exact package attestation E404, and keeps the 120-second subprocess bound
+and forced termination. The Release job remains bounded to 60 minutes overall;
+eight worst-case visibility waits need not fit in one run. A failed partial
+train still requires fresh state review and exact immutable reuse before an
+owner-controlled continuation; availability alone does not complete the
+GitHub reconciliation or required public consumer qualification.
 
 Every pull request that changes a published package must include a normal
 Changeset. CI enforces this with the official `changeset status` command against
@@ -724,7 +751,9 @@ archive-verification or protected-main diagnostic; arbitrary provider exception
 text remains omitted. Authorization, permission and provenance
 configuration should be investigated using that initial diagnostic.
 Other failures, including HTTP errors, conflicts, timeouts, signals and unknown
-errors, retain the existing 73-observation bound with five-second intervals.
-They never cause a second publish attempt. Exact integrity, manifest, final tag,
+errors, use the separate 15-minute elapsed registry visibility deadline with
+five-second intervals between observations. They never cause a second publish
+attempt. The npm signature audit retains its independent six-minute policy of
+73 observations with five-second intervals. Exact integrity, manifest, final tag,
 provenance and signature checks remain required before release reconciliation.
 An absent registry version alone does not identify the original npm failure.

@@ -42,7 +42,7 @@ export function rejectQualityGateBunExecutor(): never {
 export function rejectQualityGateExecutor(): never {
   throw new FoundationError(
     "PROCESS_FAILED",
-    "Unable to resolve a shell-free pnpm entrypoint on Windows."
+    "Unable to resolve a shell-free pnpm entrypoint."
   );
 }
 

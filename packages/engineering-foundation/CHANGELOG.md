@@ -1,5 +1,76 @@
 # @agent-teams/engineering-foundation
 
+## 2.1.0
+
+### Minor Changes
+
+- [#426](https://github.com/agent-teams-ai/engineering-foundation/pull/426) [`5a01735`](https://github.com/agent-teams-ai/engineering-foundation/commit/5a0173568f051a4cf7273d621441499a038430b5) Thanks [@777genius](https://github.com/777genius)! - Add exact owned Protobuf and SQL migration asset validator mappings in quality coverage v3. Preserve ordinary semantic and suppression governance, and distinguish physically verified retired temporary duplicates from product sources without ignoring arbitrary retirement namespaces.
+
+  Version Feature Module Standard for the changed exact Foundation dev dependency in its canonical published manifest, retaining the compatible optional peer window and immutable released package bytes.
+
+### Patch Changes
+
+- Updated dependencies [[`5a01735`](https://github.com/agent-teams-ai/engineering-foundation/commit/5a0173568f051a4cf7273d621441499a038430b5)]:
+  - @agent-teams/repository-mutation@0.4.0
+  - @agent-teams/document-authoring@0.3.4
+
+## 2.0.1
+
+### Patch Changes
+
+- [#424](https://github.com/agent-teams-ai/engineering-foundation/pull/424) [`39d283d`](https://github.com/agent-teams-ai/engineering-foundation/commit/39d283dba54d9e1cb38ae01b457e53b1eba30048) Thanks [@777genius](https://github.com/777genius)! - Accept static Host tool dispatchers with the exact Foundation workflow command
+  arguments during repository agent workflow conformance. Reject unsafe paths,
+  shell syntax and mismatched command modes while preserving runtime identity and
+  coverage qualification requirements.
+
+  Publish the Feature Module Standard with its updated exact Foundation development
+  dependency so the existing package coordinate retains immutable archive bytes.
+
+  Share the private static Host declaration lexer with quality coverage. Admit
+  bounded package command bodies separately from profile paths, and follow closed
+  Host script/tool routes while retaining failure, cycle and mode rejection.
+  Static declarations and readable native dispatchers remain separate from actual
+  execution and qualification evidence.
+
+## 2.0.0
+
+### Major Changes
+
+- [#386](https://github.com/agent-teams-ai/engineering-foundation/pull/386) [`d5cbfc7`](https://github.com/agent-teams-ai/engineering-foundation/commit/d5cbfc7bc9f9b735e2874de669814aa8c2435d44) Thanks [@777genius](https://github.com/777genius)! - Add `agent-workflow check-changed` with explicit v2 coverage policy and reports, preserving the existing `changed` command and v1 schema contract. Breaking: `schemas/repository-agent-workflow/v2.schema.json` changes its published bytes (the policy schema now admits both the legacy `changedChecks`/`fullScanPaths` shape and the explicit `scopes`/`checks`/`exclusions`/`escalationCheck` coverage shape, and its `repositoryPath` pattern rejects the same dot and empty path segments as the runtime path validator); the exact change fingerprint is approved under ADR-0063. No typed export changes. Limitation: the current mutable Host returns feedback-only results with unverified input binding and no qualified coverage facets, so `check-changed` observes and reports coverage but does not gate it yet.
+
+  Qualify the built-in PowerShell `Add-Type` command to avoid slow command discovery in restricted Windows launch environments, retaining the existing deadlines and Job Object containment.
+
+## 1.10.2
+
+### Patch Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Coordinate ADR baseline promotion with the existing cooperative repository-root mutation lease. Use exclusively owned sibling temporary files, bind physical root and parent identities, preserve conflicting mutation evidence, and report failures without hiding write, close, cleanup or lease-release errors. Expose the existing evidence-retention helper and a narrow Node atomic replacement resource contract through Repository Mutation's Node adapter API. Physical root, parent and temporary identities stay with the existing mutation owner.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Correct source-dependency and source-graph classification of ordinary imports
+  and export-from declarations containing only inline `type` specifiers. Their
+  module request survives Node type stripping and TypeScript verbatim emit, so
+  they now retain runtime mode. Runtime boundaries reject these references to
+  development-only dependencies, and source-graph consumers see their load-cycle
+  edges. Declaration-level `import type` and `export type` remain type-only.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Keep literal wildcard characters in exact package export targets and validate
+  the original target before pattern substitution. Invalid selected URL paths and
+  structural wildcard captures now reject without trying a later array fallback;
+  invalid original package targets retain Node's array fallback behavior. Query
+  and fragment annotations follow Node's import/require finalization rules. Export
+  selection remains bounded and independent of file existence.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Keep changed-file Git inspection read-only by using an owned index snapshot that preserves racy-edit detection. Repository tooling separates source Git authority from ordinary child commands and keeps changed-file checks with the source checkout.
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Validate workspace dependency configuration through the existing shared schema
+  catalog, scoped to the capability's composition. Filesystem loaders receive a
+  narrow assertion dependency and map only validated v1/v2 input. Preserve schema
+  diagnostics, format annotations, manager dispatch and immutable settings while
+  removing the duplicate Ajv constructor and validation-message formatter.
+- Updated dependencies [[`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d)]:
+  - @agent-teams/repository-mutation@0.3.0
+  - @agent-teams/document-authoring@0.3.3
+
 ## 1.10.1
 
 ### Patch Changes

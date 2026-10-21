@@ -95,11 +95,11 @@ test("workflow process adapters use the selected executor and preserve process e
   const execute = createProcessExecution({ async run(request) {
     requests.push(request);
     return { exitCode: 17, signal: "SIGTERM", stdout: "observed", stderr: "failure" };
-  } });
+  } }, {});
   assert.deepEqual(await execute("git", ["status"], { cwd: "/inert", signal, strictUtf8: true }), {
     exitCode: 17, stdout: "observed", stderr: "failure",
   });
-  assert.deepEqual(requests[0], { command: "git", args: ["status"], cwd: "/inert", signal, strictUtf8: true });
+  assert.deepEqual(requests[0], { command: "git", args: ["status"], cwd: "/inert", signal, strictUtf8: true, environment: {} });
   const runner = new PnpmPackageScriptRunner({
     npmExecPath: cliPath,
     nodeExecutablePath: "/verified/node"
@@ -118,6 +118,6 @@ test("workflow process adapters use the selected executor and preserve process e
     assert.equal(request.strictUtf8, true);
     assert.equal(request.signal, signal);
     throw new Error("Process output is not valid UTF-8.");
-  } }));
+  } }, {}));
   await assert.rejects(reader.collect({ consumerRoot: process.cwd(), signal }), /not valid UTF-8/u);
 });

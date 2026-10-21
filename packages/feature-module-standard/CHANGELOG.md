@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.2.2
+
+### Patch Changes
+
+- [#426](https://github.com/agent-teams-ai/engineering-foundation/pull/426) [`5a01735`](https://github.com/agent-teams-ai/engineering-foundation/commit/5a0173568f051a4cf7273d621441499a038430b5) Thanks [@777genius](https://github.com/777genius)! - Add exact owned Protobuf and SQL migration asset validator mappings in quality coverage v3. Preserve ordinary semantic and suppression governance, and distinguish physically verified retired temporary duplicates from product sources without ignoring arbitrary retirement namespaces.
+
+  Version Feature Module Standard for the changed exact Foundation dev dependency in its canonical published manifest, retaining the compatible optional peer window and immutable released package bytes.
+
+## 0.2.1
+
+### Patch Changes
+
+- [#424](https://github.com/agent-teams-ai/engineering-foundation/pull/424) [`39d283d`](https://github.com/agent-teams-ai/engineering-foundation/commit/39d283dba54d9e1cb38ae01b457e53b1eba30048) Thanks [@777genius](https://github.com/777genius)! - Accept static Host tool dispatchers with the exact Foundation workflow command
+  arguments during repository agent workflow conformance. Reject unsafe paths,
+  shell syntax and mismatched command modes while preserving runtime identity and
+  coverage qualification requirements.
+
+  Publish the Feature Module Standard with its updated exact Foundation development
+  dependency so the existing package coordinate retains immutable archive bytes.
+
+  Share the private static Host declaration lexer with quality coverage. Admit
+  bounded package command bodies separately from profile paths, and follow closed
+  Host script/tool routes while retaining failure, cycle and mode rejection.
+  Static declarations and readable native dispatchers remain separate from actual
+  execution and qualification evidence.
+
+## 0.2.0
+
+### Minor Changes
+
+- [#386](https://github.com/agent-teams-ai/engineering-foundation/pull/386) [`d5cbfc7`](https://github.com/agent-teams-ai/engineering-foundation/commit/d5cbfc7bc9f9b735e2874de669814aa8c2435d44) Thanks [@777genius](https://github.com/777genius)! - Admit Foundation `^1.8.0 || ^2.0.0` for the optional Node runner peer while retaining the published 1.8.0 minimum and current-workspace development link. Foundation 2 changes the workflow policy schema artifact; the source-graph and ratchet contracts used by this runner remain unchanged. This compatible peer-window expansion keeps Feature Module Standard on its 0.x release line.
+
+## 0.1.3
+
+### Patch Changes
+
+- [#418](https://github.com/agent-teams-ai/engineering-foundation/pull/418) [`be70ad0`](https://github.com/agent-teams-ai/engineering-foundation/commit/be70ad0b011644382df6c3f5f7c2cb082b841c4d) Thanks [@777genius](https://github.com/777genius)! - Release FMS with the pending Foundation patch so its canonical packed manifest
+  records the updated exact Foundation development dependency under a new immutable
+  package version. Preserve the optional Foundation peer minimum at `^1.8.0`.
+
 ## 0.1.2
 
 ### Patch Changes

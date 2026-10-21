@@ -240,9 +240,10 @@ function validateNonDocumentCommandOptions(
   }
   if (
     state.baseRef !== undefined &&
-    (command !== "agent-workflow" || state.positional[0] !== "changed")
+    (command !== "agent-workflow" ||
+      (state.positional[0] !== "changed" && state.positional[0] !== "check-changed"))
   ) {
-    throw invalidCommand("--base is supported only by agent-workflow changed.");
+    throw invalidCommand("--base is supported only by agent-workflow changed or check-changed.");
   }
   if (state.configPathProvided && command !== "scaffold-plan" && command !== "public-api-audit" && command !== "baseline") {
     throw invalidCommand("--config is supported only by scaffold-plan, public-api-audit or baseline.");

@@ -106,7 +106,7 @@ export function registerBaselineObservationPortCases() {
         assert.equal(paths, pathsAtFailure);
         assert.deepEqual(await readFile(baselinePath(root)), winnerBytes);
         assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) =>
-          name.startsWith(".architecture-decision-baseline-") || name.endsWith(".lock")), []);
+          name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
       });
     });
 
@@ -136,7 +136,7 @@ export function registerBaselineObservationPortCases() {
           assert.equal(reads, observationNumber);
           assert.deepEqual(await readFile(baselinePath(root)), before);
           assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) =>
-            name.startsWith(".architecture-decision-baseline-") || name.endsWith(".lock")), []);
+            name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
         }
       });
     });
@@ -207,9 +207,9 @@ export function registerBaselineObservationPortCases() {
           reads += 1;
           if (reads === 3) {
             const temporary = (await readdir(dirname(location.candidate)))
-              .filter((name) => name.startsWith(".architecture-decision-baseline-"));
+              .filter((name) => name.startsWith(".foundation-atomic-replacement-"));
             assert.equal(temporary.length, 1);
-            assert.deepEqual(JSON.parse(await readFile(join(dirname(location.candidate), temporary[0], "baseline.json"))), baseline);
+            assert.deepEqual(JSON.parse(await readFile(join(dirname(location.candidate), temporary[0]))), baseline);
             await writeFile(location.candidate, externalBytes);
           }
           return readContainedRegularFile(location);
@@ -219,7 +219,7 @@ export function registerBaselineObservationPortCases() {
         (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_CONFLICT"));
       assert.equal(reads, 3);
       assert.equal(await readFile(baselinePath(root), "utf8"), externalBytes);
-      assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) => name.startsWith(".architecture-decision-baseline-") || name.endsWith(".lock")), []);
+      assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
       const fresh = await ordinary.read(input);
       assert.equal(await ordinary.write({ ...input, baseline, expected: { kind: "valid", revision: fresh.revision } }), "updated");
     });
@@ -249,7 +249,7 @@ export function registerBaselineObservationPortCases() {
         (error) => hasProblemCode(error, "ARCHITECTURE_DECISION_BASELINE_WRITE_SYMLINK_PROHIBITED"));
       assert.equal(reads, 3);
       assert.deepEqual(await readFile(target), bytes);
-      assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) => name.startsWith(".architecture-decision-baseline-") || name.endsWith(".lock")), []);
+      assert.deepEqual((await readdir(dirname(baselinePath(root)))).filter((name) => name.startsWith(".foundation-atomic-replacement-") || name.endsWith(".lock")), []);
     });
   });
 }

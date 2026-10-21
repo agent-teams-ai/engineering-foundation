@@ -432,6 +432,7 @@ export async function cleanupSyntheticFixture({
   executions = [],
   remove = removeFixtureRoot,
   roots = [],
+  primaryFailures = [],
   stageDeadlineMs = actionDeadlineMs * 2,
 }) {
   const failures = [];
@@ -454,7 +455,7 @@ export async function cleanupSyntheticFixture({
   });
   if (failures.length > 0) {
     throw new AggregateError(
-      failures,
+      [...primaryFailures, ...failures],
       "Synthetic QGR fixture cleanup stopped before fixture deletion because process containment failed.",
     );
   }
@@ -470,6 +471,6 @@ export async function cleanupSyntheticFixture({
     stageDeadlineMs,
   });
   if (failures.length > 0) {
-    throw new AggregateError(failures, "Synthetic QGR fixture cleanup failed.");
+    throw new AggregateError([...primaryFailures, ...failures], "Synthetic QGR fixture cleanup failed.");
   }
 }

@@ -156,11 +156,14 @@ function harness(initial = {}) {
 }
 
 async function run(runtime, overrides = {}) {
+  let elapsed = 0;
   return await orderedRelease({
     artifacts: [docsMcp, docsAdapter, docs, foundation, authoring, mutation, featureModuleStandard, ciInputProof],
-    attempts: 2,
+    visibilityTimeoutMilliseconds: 2,
     finalTag: "latest",
-    retryDelayMilliseconds: 0,
+    retryDelayMilliseconds: 1,
+    now: () => elapsed,
+    wait: async (milliseconds) => { elapsed += milliseconds; },
     source,
     ...runtime,
     ...overrides,

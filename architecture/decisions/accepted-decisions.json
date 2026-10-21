@@ -296,6 +296,11 @@
       "id": "ADR-0062",
       "path": "docs/decisions/0062-feature-module-standard-package-admission.md",
       "immutableDigest": "sha256:d8e820f6f4209dadc5b35d6f859dfee4d8331f3a210b8047c20c7541fb41d4b0"
+    },
+    {
+      "id": "ADR-0063",
+      "path": "docs/decisions/0063-explicit-changed-check-coverage-policy-schema.md",
+      "immutableDigest": "sha256:9d0e5f6e6c936fd309ddc31948727215d7916d5729246af390f11b8b7176389f"
     }
   ]
 }

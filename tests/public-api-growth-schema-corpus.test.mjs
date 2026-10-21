@@ -43,8 +43,13 @@ const assertCandidateSources = async candidate => {
       const currentPackages = parseCapabilityConfig(parse(await readFile(path, "utf8"))).packages;
       const evidencedFoundationPolicy = foundationPackage(historicalPackages);
       assert.ok(evidencedFoundationPolicy);
-      const { entrypoints: currentEntrypoints, ...currentRest } = foundationPackage(currentPackages);
-      const { entrypoints: evidencedEntrypoints, ...evidencedRest } = evidencedFoundationPolicy;
+      const { entrypoints: currentEntrypoints, approvedBreakingChanges: currentApprovals, ...currentRest } = foundationPackage(currentPackages);
+      const { entrypoints: evidencedEntrypoints, approvedBreakingChanges: evidencedApprovals, ...evidencedRest } = evidencedFoundationPolicy;
+      // ADR-0063 authorizes only the later workflow schema mutation; retained evidence stays exact.
+      assert.deepEqual(currentApprovals, [...evidencedApprovals, {
+        decisionId: "ADR-0063",
+        fingerprint: "sha256:bf6fd082d951c6857f0de414d4472cfbeae3b7357004c3d3911d9820b3b516e6"
+      }]);
       assert.deepEqual(currentRest, evidencedRest,
         "SDK v2 qualification policy must preserve the evidenced Foundation package configuration");
       assert.ok(evidencedEntrypoints.every((entry) => currentEntrypoints.some((current) =>

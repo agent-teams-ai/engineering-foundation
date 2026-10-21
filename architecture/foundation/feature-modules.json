@@ -190,6 +190,14 @@
             {
               "path": "packages/repository-mutation/src/transaction-coordination/application/ports/mutation-lease-port.ts",
               "owner": "repository-mutation/mutation-coordination"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-atomic-file-replacement.ts",
+              "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-retired-temporary-duplicates.ts",
+              "owner": "repository-mutation/known-file-transactions"
             }
           ]
         },
@@ -411,6 +419,10 @@
             },
             {
               "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/unselected-cohort-v3-loader.ts",
+              "owner": "docs-protocol-agent-teams/consumer-integration"
+            },
+            {
+              "path": "packages/docs-protocol-agent-teams/src/consumer-integration/adapters/strict-json-record.ts",
               "owner": "docs-protocol-agent-teams/consumer-integration"
             },
             {
@@ -1731,7 +1743,12 @@
           ],
           "testRoots": [
             "tests/agent-workflow.test.mjs",
-            "tests/agent-workflow-changed-scope.test.mjs"
+            "tests/agent-workflow-changed-scope.test.mjs",
+            "tests/c1-agent-workflow-coverage.test.mts",
+            "tests/agent-workflow-versioned-capability.test.mts",
+            "tests/c1-agent-workflow-cli.test.mts",
+            "tests/c1-agent-workflow-configuration.test.mts",
+            "tests/c1-agent-workflow-rejection.test.mts"
           ]
         },
         {
@@ -1918,7 +1935,8 @@
           ],
           "testRoots": [
             "tests/cli.test.mjs",
-            "tests/reporting-rest.test.mjs"
+            "tests/reporting-rest.test.mjs",
+            "tests/command-host-successor-cli.test.mts"
           ]
         },
         {

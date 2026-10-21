@@ -14,6 +14,15 @@ export function qualityString(value: unknown): string {
   return value;
 }
 
+/** Package scripts are command bodies, not short profile/path scalars. */
+export function qualityScriptCommand(value: unknown): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 16 * 1024 ||
+    new TextEncoder().encode(value).byteLength > 16 * 1024) {
+    invalidQualityInput("Expected a nonempty package script command of at most 16384 UTF-8 bytes.");
+  }
+  return value;
+}
+
 export function qualityStrings(value: unknown): readonly string[] {
   if (!Array.isArray(value) || value.length > 10_000) { invalidQualityInput("Expected a bounded list in the quality profile inputs."); }
   return value.map(qualityString);
@@ -34,8 +43,25 @@ export function mapQualityProfile(value: unknown): QualityCoverageProfile {
     ...(input["bridgeAdmissionsPath"] === undefined ? {} : { bridgeAdmissionsPath: qualityString(input["bridgeAdmissionsPath"]) }),
     compilerProjects,
     ...(input["nativeChecks"] === undefined ? {} : { nativeChecks: nativeChecks(input["nativeChecks"]) }),
+    ...(input["assets"] === undefined ? {} : { assets: assets(input["assets"]) }),
     scripts: { fast: qualityString(scripts["fast"]), full: qualityString(scripts["full"]), scope: qualityString(scripts["scope"]), typed: qualityString(scripts["typed"]) }
   };
+}
+
+function assets(value: unknown): NonNullable<QualityCoverageProfile["assets"]> {
+  if (!Array.isArray(value) || value.length > 1000) { invalidQualityInput("Expected bounded exact asset mappings."); }
+  const paths = new Set<string>();
+  return value.map((entry: unknown) => {
+    const item = qualityRecord(entry);
+    const path = qualityString(item["path"]);
+    const kind = item["kind"];
+    if ((kind !== "protobuf" && kind !== "sql-migration") ||
+      !path.endsWith(kind === "protobuf" ? ".proto" : ".sql") || paths.has(path)) {
+      invalidQualityInput("Asset mappings require one exact path with its fixed protobuf or sql-migration extension.");
+    }
+    paths.add(path);
+    return { path, kind, boundaryId: qualityString(item["boundaryId"]), script: qualityString(item["script"]) };
+  });
 }
 
 function boundedModules(value: unknown): readonly Record<string, unknown>[] {

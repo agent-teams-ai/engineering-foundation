@@ -5,7 +5,8 @@ export {
   claimMutation,
   observeMutationState,
   releaseMutationLease,
-  retainMutationBarrier
+  retainMutationBarrier,
+  retainMutationBarrierOnEvidence
 } from "./transaction-coordination/application/mutation-lease.js";
 export { acquireMutationLease } from "./transaction-coordination/composition/node-mutation-lease.js";
 export type {
@@ -26,6 +27,7 @@ export type {
 } from "./transaction-coordination/adapters/node/node-terminal-evidence-directory.js";
 export { ownedTemporaryCleanupResiduePrefix, OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "./repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 export { cleanupIdentityMatchingOwnedTemporary } from "./composition/node-known-file.js";
+export { inspectRetiredTemporaryDuplicates } from "./composition/node-known-file.js";
 export { syncDirectoryDurably, syncDirectoryStrictly } from "./repository-mutation/adapters/node/node-directory-durability.js";
 export type {
   DirectoryDurability,
@@ -54,6 +56,9 @@ export { classifyExactFilePostimage, publishAbsentFile } from "./composition/nod
 export type { AbsentFilePublicationOptions } from "./repository-mutation/adapters/node/node-absent-file-publication.js";
 export { ensureMutationStateDirectory, pruneMutationStateDirectory, syncMutationStateDirectory, syncMutationStateDirectoryStrictly } from "./transaction-coordination/adapters/node/node-state-directory.js";
 export { NodeJournalSlotStore } from "./transaction-coordination/adapters/node/node-journal-slot-store.js";
+export { observeAtomicFileReplacement } from "./composition/node-known-file.js";
+export { NodeAtomicFileReplacementError } from "./composition/node-known-file.js";
+export type { NodeAtomicFileReplacement } from "./composition/node-known-file.js";
 export { sameJournalSlotAuthority } from "./transaction-coordination/application/journal-slot-profile.js";
 export type {
   JournalSlotAuthority,

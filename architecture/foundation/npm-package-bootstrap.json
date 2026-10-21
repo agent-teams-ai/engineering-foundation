@@ -435,7 +435,7 @@
     },
     {
       "id": "stack-toolchain",
-      "state": "candidate",
+      "state": "approved",
       "name": "stack-toolchain",
       "root": "packages/stack-toolchain",
       "manifestPath": "packages/stack-toolchain/package.json",
@@ -518,7 +518,10 @@
         "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
         "ref": "refs/heads/main"
       },
-      "approval": null
+      "approval": {
+        "archiveIntegrity": "sha512-pe4OCLmgZEDwP72R9G5cVrQ5S88OrTYRoA1yJDMZ2CkCyO87xU0SVhBDE3+y6Ev3P1DhuYSuHfQEEv56xHlxVg==",
+        "packageTree": "aa197ab942033769991e2d603eb3317541e36e6a"
+      }
     }
   ]
 }

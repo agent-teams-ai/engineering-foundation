@@ -149,7 +149,7 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
       { id: "docs-protocol-mcp", state: "historical" },
       { id: "ci-input-proof", state: "historical" },
       { id: "feature-module-standard", state: "historical" },
-      { id: "stack-toolchain", state: "candidate" },
+      { id: "stack-toolchain", state: "approved" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");

@@ -7,6 +7,7 @@ export interface QualitySource {
   readonly suppressionCovered: boolean;
   /** Wiring evidence only; Foundation does not execute native gates. */
   readonly nativeGates?: readonly { readonly script: string; readonly reached: boolean }[];
+  readonly assetGates?: readonly { readonly script: string; readonly reached: boolean }[];
 }
 
 export interface ProtectedSetting {

@@ -340,7 +340,8 @@
         "tests/sdk-json-record.test.ts",
         "tests/architecture-baseline-replacement.test.ts",
         "tests/repository-profile-git.test.ts",
-        "tests/repository-profile-lint.test.ts"
+        "tests/repository-profile-lint.test.ts",
+        "tests/features/quality-coverage/governed-assets.test.ts"
       ]
     }
   ]

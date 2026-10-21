@@ -6,6 +6,7 @@ const RULES = {
   "source-package": ["Every package in the production census must be classified independently of workspace and lint filters.", "Map the package in the existing consumer topology and source authority."],
   "source-classification": ["Every production source has exactly one consumer-owned classification.", "Classify this source in the existing source authority."],
   "native-route": ["Every native production source requires one reachable consumer-owned gate.", "Map its existing source boundary to a native gate script required by the full entrypoint; qualify native execution in the consumer."],
+  "asset-route": ["Every declared nonrunnable asset requires one reachable consumer-owned validator.", "Restore the exact owned asset mapping and required validator route; qualify its actual behavior in the consumer."],
   "source-language": ["The qualified runner supports TypeScript source and JavaScript modules.", "Qualify the new language before activating this source."],
   "source-empty": ["An active typed coverage claim requires TypeScript production source.", "Restore the applicable production source or remove the unsupported activation."],
   "suppression-coverage": ["Production source must remain under suppression governance.", "Include this source in the existing suppression policy."],

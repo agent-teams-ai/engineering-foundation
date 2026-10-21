@@ -5,6 +5,7 @@ import { dirname, isAbsolute, join, relative } from "node:path";
 import { runCommand } from "./pack-test-support.mjs";
 import { inspectCompressedTarArchive, readRegularArchive, sha256 } from "./pack-artifact-archive.mjs";
 import { copyInstalledClosure } from "./pack-quality-closure.mjs";
+import { qualifyPackedQualityAssets } from "./pack-quality-assets.ts";
 
 export { copyInstalledClosure };
 
@@ -163,6 +164,7 @@ async function qualifyLayout({ consumerRoot, nested, artifact }) {
   await put(main, "export const value = 1;\nvoid Promise.resolve(2);\n");
   assert.equal((await invoke(["quality", "check"])).outcome, "passed");
   if (nested) {
+    await qualifyPackedQualityAssets({ root, put, invoke, sourceRoot, boundaryId: "worker" });
     await qualifyNestedRejections({ root, put, invoke, main, sourceRoot, moduleRoot, scripts, devDependencies, activation });
   }
   return { outcome: "passed", consumerRoot: root, foundationVersion: devDependencies["@agent-teams/engineering-foundation"] };

@@ -194,6 +194,10 @@
             {
               "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-atomic-file-replacement.ts",
               "owner": "repository-mutation/known-file-transactions"
+            },
+            {
+              "path": "packages/repository-mutation/src/repository-mutation/adapters/node/node-retired-temporary-duplicates.ts",
+              "owner": "repository-mutation/known-file-transactions"
             }
           ]
         },

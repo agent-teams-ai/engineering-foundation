@@ -69,7 +69,8 @@
       "tests/foundation-local-mode-transaction-e2e.test.mjs",
       "tests/registry-package-boundary.test.mjs",
       "tests/command-host-successor-cli.test.mts",
-      "tests/c1-agent-workflow-coverage.test.mts"
+      "tests/c1-agent-workflow-coverage.test.mts",
+      "tests/features/quality-coverage/governed-assets.test.ts"
     ],
     "b": [
       "tests/process-runtime-delegation.test.mts",

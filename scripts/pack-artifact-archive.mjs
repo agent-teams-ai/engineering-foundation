@@ -23,7 +23,9 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Full Foundation inventory: 2,780 actual files: the qualified shared-native
+  // Full Foundation inventory: 2,781 actual files: the exact quality-source-
+  // coverage/v3 schema adds one member to the qualified 2,780-file inventory.
+  // The previously qualified inventory consists of the shared-native
   // inventory of 2,710 plus the repository-agent-workflow/v2 and
   // workspace-dependency-declarations/v2 schemas, plus 52 compiled artifacts
   // from the 13 check-changed successor modules (the v2 policy loaders and
@@ -48,7 +50,7 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // the quality-findings-baseline/v1 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_780,
+  "@agent-teams/engineering-foundation": 2_781,
 });
 
 export function maximumArchiveEntries(packageName) {

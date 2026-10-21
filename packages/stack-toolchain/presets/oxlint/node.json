@@ -1,0 +1,8 @@
+{
+  "extends": ["./base.json"],
+  "plugins": ["node"],
+  "rules": {
+    "node/no-path-concat": "error",
+    "unicorn/prefer-node-protocol": "error"
+  }
+}

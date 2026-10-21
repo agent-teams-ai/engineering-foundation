@@ -2210,6 +2210,61 @@
         "tests/features/feature-module-standard/module-check.test.mts",
         "tests/features/feature-module-standard/node-runner.test.mts"
       ]
+    },
+    {
+      "id": "stack-toolchain",
+      "packageName": "stack-toolchain",
+      "root": "packages/stack-toolchain",
+      "sourceRoot": "packages/stack-toolchain/src",
+      "role": "platform",
+      "preferredFeatureRoot": "packages/stack-toolchain/src/features",
+      "publicEntrypoints": [
+        "packages/stack-toolchain/src/index.ts"
+      ],
+      "moduleAssembly": [
+        "packages/stack-toolchain/src/index.ts",
+        "packages/stack-toolchain/src/cli.ts"
+      ],
+      "generatedRoots": [],
+      "exceptions": [],
+      "features": [
+        {
+          "id": "toolchain-execution",
+          "role": "platform",
+          "layers": [
+            {
+              "role": "application",
+              "roots": [
+                "packages/stack-toolchain/src/features/toolchain-execution/application/typecheck.ts"
+              ]
+            },
+            {
+              "role": "adapters",
+              "roots": [
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts",
+                "packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts"
+              ]
+            }
+          ],
+          "testRoots": [
+            "packages/stack-toolchain/tests/cli.test.ts",
+            "packages/stack-toolchain/tests/configuration.test.ts",
+            "packages/stack-toolchain/tests/executables.test.ts",
+            "packages/stack-toolchain/tests/process.test.ts",
+            "packages/stack-toolchain/tests/typecheck.test.ts"
+          ]
+        }
+      ],
+      "testRoots": [
+        "packages/stack-toolchain/tests/cli.test.ts",
+        "packages/stack-toolchain/tests/configuration.test.ts",
+        "packages/stack-toolchain/tests/executables.test.ts",
+        "packages/stack-toolchain/tests/process.test.ts",
+        "packages/stack-toolchain/tests/typecheck.test.ts"
+      ]
     }
   ],
   "productionRoots": [

@@ -40,7 +40,7 @@ function consumerManifest(foundationVersion, packageManager) {
 async function writeInstallManifests(input) {
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    consumerManifest(input.foundationVersion, input.packageManager)
+    { ...consumerManifest(input.foundationVersion, input.packageManager), devDependencies: { ...consumerManifest(input.foundationVersion, input.packageManager).devDependencies, "stack-toolchain": input.stackToolchainArchiveFileSpecifier } }
   );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),

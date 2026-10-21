@@ -11,6 +11,7 @@ editing the accepted decision.
 
 ## Accepted
 
+- [ADR-0064: Independent Stack Toolchain Package Boundary](0064-independent-stack-toolchain-package-boundary.md)
 - [ADR-0063: Explicit Changed-Check Coverage Policy Schema](0063-explicit-changed-check-coverage-policy-schema.md)
 - [ADR-0062: Feature Module Standard Package Admission](0062-feature-module-standard-package-admission.md)
 - [ADR-0061: Library-First Foundation Boundary Evolution](0061-library-first-foundation-boundary-evolution.md)

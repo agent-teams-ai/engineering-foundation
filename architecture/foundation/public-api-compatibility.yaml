@@ -195,3 +195,33 @@ packages:
     tsconfigPath: packages/feature-module-standard/tsconfig.json
     releasedBaselinePath: architecture/public-api/feature-module-standard.json
     approvedBreakingChanges: []
+  - packageName: stack-toolchain
+    packageRoot: packages/stack-toolchain
+    manifestPath: packages/stack-toolchain/package.json
+    entrypoints:
+      - exportPath: "."
+        declarationEntryPoint: packages/stack-toolchain/dist/index.d.ts
+    nonTypeExports:
+      - exportPath: "./package.json"
+        kind: data
+      - exportPath: "./toolchain-manifest.json"
+        kind: data
+      - exportPath: "./presets/typescript/node.json"
+        kind: data
+      - exportPath: "./presets/typescript/bun.json"
+        kind: data
+      - exportPath: "./presets/oxlint/base.json"
+        kind: data
+      - exportPath: "./presets/typescript/base.json"
+        kind: data
+      - exportPath: "./presets/oxlint/maintainability-tests.json"
+        kind: data
+      - exportPath: "./presets/oxlint/maintainability.json"
+        kind: data
+      - exportPath: "./presets/oxlint/type-aware.json"
+        kind: data
+      - exportPath: "./presets/oxlint/node.json"
+        kind: data
+    tsconfigPath: packages/stack-toolchain/tsconfig.json
+    releasedBaselinePath: architecture/public-api/stack-toolchain.json
+    approvedBreakingChanges: []

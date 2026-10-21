@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "packageName": "stack-toolchain",
+  "packageVersion": "0.0.0",
+  "extractorVersion": "typescript-native/7.0.2",
+  "entrypoints": [
+    {
+      "exportPath": ".",
+      "items": [
+        {
+          "canonicalReference": "stack-toolchain!AttemptInput#deadline:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly deadline: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptInput#engine:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly engine: Engine;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptInput#projects:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projects: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptInput#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal: AbortSignal;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptInput:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AttemptInput"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptOutcome:type",
+          "kind": "TypeAlias",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export type AttemptOutcome = {\n    readonly kind: \"passed\";\n} | {\n    readonly kind: \"diagnostics\";\n    readonly output: string;\n} | {\n    readonly kind: \"unavailable\";\n    readonly reason: string;\n} | {\n    readonly kind: \"engine-failure\";\n    readonly reason: string;\n} | {\n    readonly kind: \"timeout\";\n} | {\n    readonly kind: \"cancelled\";\n} | {\n    readonly kind: \"unclassified\";\n    readonly reason: string;\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptRecord#durationMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptRecord:interface",
+          "parentKind": "Interface",
+          "signature": "readonly durationMs: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptRecord#engine:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptRecord:interface",
+          "parentKind": "Interface",
+          "signature": "readonly engine: Engine;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptRecord#result:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptRecord:interface",
+          "parentKind": "Interface",
+          "signature": "readonly result: AttemptResult;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptRecord:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AttemptRecord"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptResult#captureComplete:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly captureComplete: boolean;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptResult#cleanupComplete:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cleanupComplete: boolean;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptResult#diagnostics:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly diagnostics: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptResult#outcome:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!AttemptResult:interface",
+          "parentKind": "Interface",
+          "signature": "readonly outcome: AttemptOutcome;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!AttemptResult:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface AttemptResult"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput#budgetMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly budgetMs?: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput#command:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly command: 'typecheck' | 'lint' | 'format:check' | 'compile' | 'doctor';"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput#compileArgs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly compileArgs?: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput#configPath:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly configPath?: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput#cwd:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly cwd: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput#signal:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandInput:interface",
+          "parentKind": "Interface",
+          "signature": "readonly signal: AbortSignal;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandInput:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CommandInput"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport#command:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly command: CommandInput['command'];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport#details:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly details: unknown;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport#durationMs:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly durationMs: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport#exitCode:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly exitCode: number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport#status:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly status: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport#versions:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!CommandReport:interface",
+          "parentKind": "Interface",
+          "signature": "readonly versions: unknown;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!CommandReport:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface CommandReport"
+        },
+        {
+          "canonicalReference": "stack-toolchain!Engine:type",
+          "kind": "TypeAlias",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export type Engine = \"tsrs\" | \"bun\" | \"typescript\";"
+        },
+        {
+          "canonicalReference": "stack-toolchain!ToolchainConfiguration#format:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
+          "parentKind": "Interface",
+          "signature": "readonly format: {\n    readonly paths: readonly string[];\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!ToolchainConfiguration#lint:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
+          "parentKind": "Interface",
+          "signature": "readonly lint: {\n    readonly config: string;\n    readonly paths: readonly string[];\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!ToolchainConfiguration#profile:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
+          "parentKind": "Interface",
+          "signature": "readonly profile: 'typescript-node' | 'typescript-bun';"
+        },
+        {
+          "canonicalReference": "stack-toolchain!ToolchainConfiguration#projects:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
+          "parentKind": "Interface",
+          "signature": "readonly projects: readonly string[];"
+        },
+        {
+          "canonicalReference": "stack-toolchain!ToolchainConfiguration#root:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!ToolchainConfiguration:interface",
+          "parentKind": "Interface",
+          "signature": "readonly root: string;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!ToolchainConfiguration:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface ToolchainConfiguration"
+        },
+        {
+          "canonicalReference": "stack-toolchain!TypecheckDependencies#now:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!TypecheckDependencies:interface",
+          "parentKind": "Interface",
+          "signature": "readonly now: () => number;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!TypecheckDependencies#run:member",
+          "kind": "PropertySignature",
+          "parentReference": "stack-toolchain!TypecheckDependencies:interface",
+          "parentKind": "Interface",
+          "signature": "readonly run: (input: AttemptInput) => Promise<AttemptResult>;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!TypecheckDependencies:interface",
+          "kind": "Interface",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export interface TypecheckDependencies"
+        },
+        {
+          "canonicalReference": "stack-toolchain!TypecheckResult:type",
+          "kind": "TypeAlias",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export type TypecheckResult = {\n    readonly status: \"passed\" | \"passed-with-fallback\";\n    readonly engine: Engine;\n    readonly attempts: readonly AttemptRecord[];\n} | {\n    readonly status: \"failed\";\n    readonly code: \"TOOLCHAIN_DIAGNOSTICS\" | \"TOOLCHAIN_CAPTURE_FAILURE\" | \"TOOLCHAIN_CLEANUP_FAILURE\" | \"TOOLCHAIN_CANCELLED\" | \"TOOLCHAIN_DEADLINE\" | \"TOOLCHAIN_UNCLASSIFIED_FAILURE\" | \"TOOLCHAIN_ALL_ENGINES_FAILED\";\n    readonly attempts: readonly AttemptRecord[];\n};"
+        },
+        {
+          "canonicalReference": "stack-toolchain!loadConfiguration:function(1)",
+          "kind": "Function",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function loadConfiguration(input: {\n    readonly cwd: string;\n    readonly configPath?: string;\n    readonly signal?: AbortSignal;\n}): Promise<ToolchainConfiguration>;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!runCommand:function(1)",
+          "kind": "Function",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function runCommand(input: CommandInput): Promise<CommandReport>;"
+        },
+        {
+          "canonicalReference": "stack-toolchain!typecheck:function(1)",
+          "kind": "Function",
+          "parentReference": "stack-toolchain!",
+          "parentKind": "EntryPoint",
+          "signature": "export declare function typecheck(input: {\n    readonly projects: readonly string[];\n    readonly signal: AbortSignal;\n    readonly budgetMs?: number;\n    readonly attemptBudgetMs?: number;\n}, dependencies: TypecheckDependencies): Promise<TypecheckResult>;"
+        }
+      ]
+    }
+  ]
+}

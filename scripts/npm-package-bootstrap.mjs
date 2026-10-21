@@ -6,6 +6,7 @@ import { assertArchiveSafety } from "./pack-artifact-archive.mjs";
 import {
   NPM_PACKAGE_BOOTSTRAP,
   PORTABLE_PATH,
+  assertOptionalDependencyManifest,
   exactStringArray,
   fail,
   isRecord,
@@ -130,6 +131,7 @@ function assertPackedManifest(profile, packedManifest) {
   ) {
     fail("packed manifest does not match the public bootstrap identity.");
   }
+  assertOptionalDependencyManifest(profile, packedManifest, true);
   const expectedDependencies = Object.fromEntries(
     profile.dependencies.map(({ name, version }) => [name, version]),
   );
@@ -138,7 +140,7 @@ function assertPackedManifest(profile, packedManifest) {
     JSON.stringify(Object.fromEntries(Object.entries(packedDependencies).toSorted())) ===
       JSON.stringify(Object.fromEntries(Object.entries(expectedDependencies).toSorted()));
   const extraRuntimeSections = [
-    "optionalDependencies", "peerDependencies", "bundleDependencies", "bundledDependencies",
+    "peerDependencies", "bundleDependencies", "bundledDependencies",
   ].some((key) => packedManifest[key] !== undefined);
   if (!exactDependencies || extraRuntimeSections) {
     fail("packed manifest runtime dependencies differ from the exact reviewed dependency map.");
@@ -221,7 +223,7 @@ export function classifyRegistryPreflight({
   if (profile.state !== "approved" || profile.approval === null) {
     fail(`${profile.name} bootstrap is not approved.`);
   }
-  for (const dependency of profile.dependencies) {
+  for (const dependency of [...profile.dependencies, ...(profile.optionalDependencies ?? [])]) {
     if (dependencyVersions?.[dependency.name] !== dependency.version) {
       fail(`${dependency.name}@${dependency.version} is not available from npm.`);
     }

@@ -61,6 +61,12 @@ export const PUBLISHABLE_PACKAGE_CATALOG = Object.freeze([
     name: "@agent-teams/docs-protocol-agent-teams",
     root: "packages/docs-protocol-agent-teams",
   }),
+  Object.freeze({
+    changelogPath: "packages/stack-toolchain/CHANGELOG.md",
+    manifestPath: "packages/stack-toolchain/package.json",
+    name: "stack-toolchain",
+    root: "packages/stack-toolchain",
+  }),
 ]);
 
 function fail(message) {

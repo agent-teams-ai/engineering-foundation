@@ -1,4 +1,5 @@
 // oxlint-disable max-lines -- The registry matrix remains one auditable disposable orchestration.
+import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
 import { createHash } from "node:crypto";
 import {
   mkdir,
@@ -436,6 +437,7 @@ async function verifyPnpmRegistryPackage({ consumerRoot, registryUrl, target, us
 }
 
 async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
+  if (matrixEntry.profile === 'foundation-full') { matrixEntry = { ...matrixEntry, packageNames: [...matrixEntry.packageNames, 'stack-toolchain'] }; }
   const { consumerRoot, userConfigPath } = await installConsumer(
     targets, registryUrl, matrixEntry, commands,
   );
@@ -495,6 +497,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
     if (installedFoundationRoot === undefined || installedAdapterRoot === undefined) {
       throw new Error("Installed Foundation qualification package is missing.");
     }
+    await qualifyInstalledStackToolchain(consumerRoot);
     await verifyFoundationFeatures({
       consumerRoot,
       authoringVersion: authoringTarget.manifest.version,

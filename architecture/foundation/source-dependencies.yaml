@@ -22,6 +22,8 @@ governedRoots:
   - packages/docs-protocol-mcp/src
   - packages/docs-protocol-mcp/tests
   - spikes/source-dependency-parser
+  - packages/stack-toolchain/src
+  - packages/stack-toolchain/tests
 boundaries:
   - id: docs-protocol.module
     roots:
@@ -4320,4 +4322,87 @@ boundaries:
         - feature-module-standard.node-runner.composition
       packages: []
       builtins: []
+      runtimeReferences: []
+  - id: stack-toolchain.typecheck.application
+    roots:
+      - packages/stack-toolchain/src/features/toolchain-execution/application/typecheck.ts
+    entrypoints:
+      - packages/stack-toolchain/src/features/toolchain-execution/application/typecheck.ts
+    allow:
+      boundaries: []
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stack-toolchain.execution.adapters
+    roots:
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts
+    entrypoints:
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/commands.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/configuration.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/executables.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/process.ts
+      - packages/stack-toolchain/src/features/toolchain-execution/adapters/run-cli.ts
+    allow:
+      boundaries:
+        - stack-toolchain.typecheck.application
+      packages:
+        - jsonc-parser
+        - node-or-bun
+      builtins:
+        - node:fs
+        - node:os
+        - node:module
+        - node:path
+        - node:url
+      runtimeReferences: []
+  - id: stack-toolchain.module
+    roots:
+      - packages/stack-toolchain/src/index.ts
+    entrypoints:
+      - packages/stack-toolchain/src/index.ts
+    packageExports:
+      - .
+    allow:
+      boundaries:
+        - stack-toolchain.execution.adapters
+        - stack-toolchain.typecheck.application
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stack-toolchain.cli
+    roots:
+      - packages/stack-toolchain/src/cli.ts
+    entrypoints:
+      - packages/stack-toolchain/src/cli.ts
+    allow:
+      boundaries:
+        - stack-toolchain.execution.adapters
+      packages: []
+      builtins: []
+      runtimeReferences: []
+  - id: stack-toolchain.tests
+    dependencyMode: development
+    roots:
+      - packages/stack-toolchain/tests
+    entrypoints: []
+    allow:
+      boundaries:
+        - stack-toolchain.cli
+        - stack-toolchain.execution.adapters
+        - stack-toolchain.module
+        - stack-toolchain.typecheck.application
+      packages: []
+      builtins:
+        - node:assert/strict
+        - node:child_process
+        - node:fs
+        - node:fs/promises
+        - node:os
+        - node:path
+        - node:test
+        - node:url
       runtimeReferences: []

@@ -63,6 +63,20 @@ Foundation retains process-tree custody and product-specific error translation.
 The exact closed static seam and its `not-adopted` Assembly classification are
 recorded in [Runtime profile static seam](runtime-profile-static-seam.md).
 
+The independently published `stack-toolchain` package owns exact tool versions,
+its candidate technical presets (Foundation 2.x exports remain authoritative until consumer migration), executable resolution and the sequential checker fallback
+policy. Its `toolchain-execution` feature keeps pure fallback policy separate
+from filesystem, executable and process adapters; the public root and CLI are
+exact outer assembly files. It depends on the published node-or-bun mechanism,
+never on Foundation. Consumers keep their source scopes, TypeScript projects,
+environment types, outputs and tests. Foundation retains quality scope,
+qualification, process containment and its existing command DAG. The package
+admission and closed development bootstrap are recorded in
+[ADR-0064](../decisions/0064-independent-stack-toolchain-package-boundary.md).
+Source admission does not establish publication or real-consumer qualification;
+those remain release and consumer-adoption evidence. This static library adds
+no Assembly Host scope, plugin lifecycle or independent scheduler.
+
 Document authoring follows the same ownership boundary but remains a separate
 top-level mutation protocol rather than an executable capability. Consumers own
 document types, lifecycle, metadata, owner meaning, templates, placement

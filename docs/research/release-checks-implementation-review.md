@@ -554,3 +554,47 @@ The existing optional Node 24 case was not activated by this focused run; native
 compatibility evidence remains a separate CI responsibility. Independent review
 and the final committed-source gates are recorded on the owner PR. This correction
 does not change inventories, timeouts or the maintainer-readiness publication hold.
+
+## Complete pnpm fixture distribution
+
+[Native run 39646438463](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39646438463)
+failed for `93e0289272d5638284995a53d80f9ccbbdb80143` on base
+`cef8f6f840ef471df612c7a7c6e3b8fcfbcca644`. Windows B rejected the new nested-pnpm
+fixture; the retained diagnostic omitted the failed command phase and child
+output, so its precise cause is not established. Linux pair 3–4 separately
+exceeded its existing 25-minute bound after broad timing increases. Its partial
+raw coverage cannot replace a complete producer result. No Linux implementation,
+inventory, coverage or timeout change follows from that observation.
+
+The exact installed pnpm 11.20.0 directory fetcher recursively excludes every
+directory named `node_modules`. Using that directory as a `file:` dependency
+therefore drops pnpm's genuine bundled native dependencies beneath
+`dist/node_modules`. A workspace-copy alternative preserved those files but
+failed the unchanged contamination control: its workspace-only dependency graph
+did not populate the shim's hoist directory. That intermediate fixture was
+rejected, not counted as a successful regression check.
+
+The test now packs the genuine installed pinned manager through the existing npm
+helper, with lifecycle scripts disabled and a disposable cache and destination.
+It validates the single pnpm 11.20.0 tarball result, installs a short relative
+tarball dependency through real offline pnpm, and compares an installed bundled
+manifest with its source bytes. Actual pnpm still creates the platform shim.
+The control must reproduce ambient CommonJS resolution before either corrected
+qualification mode runs. All runtime, ESM, environment-immutability and isolation
+assertions remain mandatory on Windows as well as other platforms.
+
+A test-local wrapper places the phase, exit status and bounded child output
+before the original exception's absolute command path. It preserves that
+exception as the cause and leaves command timeouts, process handling and cleanup
+unchanged. The six complete affected files passed on the recorded corrected
+test bytes: 76 pass, no failures or cancellations, and two existing platform
+skips. Complete fast and workflow-security checks also passed. The old-helper
+negative control, committed-source review and fresh native result remain bound
+to their actual evidence on the owner PR; Linux execution does not establish
+Windows success.
+
+The source also preserves the complete nine-file owning release delta at
+`0e0de78d4c2089be8effc37da4cfd70eab22358c`, including Foundation 2.1.1, Feature
+Module Standard 0.2.3, their consumed Changeset, changelogs, versioned baselines
+and Bun workspace versions. The public-admission hold remains in force until
+actual npm maintainer readiness permits the existing bootstrap/OIDC sequence.

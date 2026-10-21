@@ -129,6 +129,18 @@ function packagingObservations(stdout: string) {
     });
 }
 
+async function runPackagingFixtureCommand(phase: string, execute: () => ReturnType<typeof runCommand>) {
+  try {
+    return await execute();
+  } catch (error) {
+    const failure = error as { readonly stderr?: unknown; readonly stdout?: unknown; readonly code?: unknown };
+    const output = [failure.stderr, failure.stdout]
+      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+      .map((value) => value.trim().slice(0, 1_024)).join("\n");
+    throw new Error(`pnpm ${phase} (exit ${String(failure.code)}): ${output || "no child output"}`, { cause: error });
+  }
+}
+
 test("nested pnpm scripts keep packaged consumers isolated from the owner workspace", async () => {
   const root = await mkdtemp(join(tmpdir(), "packaging-pnpm-isolation-"));
   try {
@@ -144,10 +156,24 @@ test("nested pnpm scripts keep packaged consumers isolated from the owner worksp
     assert.equal(manager.name, "pnpm");
     assert.equal(manager.version, "11.20.0");
     const entry = join(managerRoot, manager.bin.pnpm);
+    const environment: NodeJS.ProcessEnv = { ...process.env, PATH: [dirname(node), process.env.PATH].join(delimiter),
+      npm_config_cache: join(root, "npm-cache") };
+    delete environment.NODE_PATH;
+    delete environment.NODE_OPTIONS;
+    delete environment.npm_config_user_agent;
+    // A file: directory install strips every nested node_modules directory,
+    // including pnpm's real bundled native dependencies on Windows and Darwin.
+    const packed = await runPackagingFixtureCommand("manager-pack", () => runNpmCommand(
+      ["pack", "--ignore-scripts", "--json", "--pack-destination", root], managerRoot, { environment }));
+    const archives = JSON.parse(packed.stdout) as { readonly name: string; readonly version: string; readonly filename: string }[];
+    assert.equal(archives.length, 1);
+    assert.equal(archives[0]!.name, "pnpm");
+    assert.equal(archives[0]!.version, "11.20.0");
+    assert.equal(archives[0]!.filename, "pnpm-11.20.0.tgz");
     await writeFile(join(ambient, "package.json"), JSON.stringify({ name: "packaging-ambient-test", version: "0.0.0" }));
     await writeFile(join(owner, "package.json"), JSON.stringify({
       name: "packaging-owner-test", private: true, type: "module", packageManager: "pnpm@11.20.0",
-      devDependencies: { pnpm: `file:${managerRoot}`, "packaging-ambient-test": "workspace:*" },
+      devDependencies: { pnpm: "file:../pnpm-11.20.0.tgz", "packaging-ambient-test": "workspace:*" },
       scripts: {
         contamination: "pnpm --dir ../consumer --reporter=silent exec node observe.ts",
         qualification: "node qualify.ts",
@@ -184,12 +210,13 @@ process.stdout.write(result.stdout);
 assert.deepEqual(environment, environmentBefore);
 assert.deepEqual({ ...process.env }, before);
 `);
-    const environment: NodeJS.ProcessEnv = { ...process.env, PATH: [dirname(node), process.env.PATH].join(delimiter) };
-    delete environment.NODE_PATH;
-    delete environment.NODE_OPTIONS;
-    delete environment.npm_config_user_agent;
-    await runCommand(node, [entry, "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--store-dir", join(root, "store")], owner, { environment });
-    const control = packagingObservations((await runCommand(node, [entry, "--reporter=silent", "run", "contamination"], owner, { environment })).stdout);
+    await runPackagingFixtureCommand("fixture-install", () => runCommand(node,
+      [entry, "install", "--offline", "--ignore-scripts", "--no-frozen-lockfile", "--store-dir", join(root, "store")], owner, { environment }));
+    const bundledManifest = "dist/node_modules/@reflink/reflink/package.json";
+    assert.equal(await readFile(join(owner, "node_modules", "pnpm", bundledManifest), "utf8"),
+      await readFile(join(managerRoot, bundledManifest), "utf8"));
+    const control = packagingObservations((await runPackagingFixtureCommand("contamination-control", () => runCommand(node,
+      [entry, "--reporter=silent", "run", "contamination"], owner, { environment }))).stdout);
     assert.equal(control.length, 1);
     assert.notEqual(control[0]!.commonJs, "MODULE_NOT_FOUND", JSON.stringify({ control,
       shim: await readFile(join(owner, "node_modules", ".bin", process.platform === "win32" ? "pnpm.cmd" : "pnpm"), "utf8") }));
@@ -199,7 +226,8 @@ assert.deepEqual({ ...process.env }, before);
     assert.equal(await realpath(control[0]!.nodeExecutable), await realpath(node));
     assert.ok(control[0]!.nodePath, "The genuine generated pnpm shim must reproduce ambient CJS lookup.");
     for (const mode of [[], ["explicit"]]) {
-      const actual = packagingObservations((await runCommand(node, [entry, "--reporter=silent", "run", "qualification", ...mode], owner, { environment })).stdout);
+      const actual = packagingObservations((await runPackagingFixtureCommand(mode.length === 0 ? "qualification-default" : "qualification-explicit", () => runCommand(node,
+        [entry, "--reporter=silent", "run", "qualification", ...mode], owner, { environment }))).stdout);
       assert.equal(actual.length, 1);
       const result = actual[0]!;
       assert.equal(result.commonJs, "MODULE_NOT_FOUND");

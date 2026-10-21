@@ -481,3 +481,29 @@ reviewed file bytes passed the TypeScript 7.0.2 strict tooling project.
 Independent source review returned GO. Final committed-source gates and native
 Windows qualification remain recorded on the owner PR; no test inventory,
 timeout, source-census scope or publication control is relaxed.
+
+## Owned-asset release reconciliation
+
+Protected main advanced to `145a3fb20392239fe4979c9e4f06684d6af08848`, the
+existing Changesets release of the implementation already integrated from
+`5a0173568f051a4cf7273d621441499a038430b5`. Its complete 28-file delta is
+retained: consumed intent, seven package versions and changelogs, matching Bun
+workspace versions, and twelve public API/artifact records. Those records also
+capture the already implemented v3 quality schema and retired-duplicate API;
+they are preserved as actual upstream records, not reduced to version edits.
+The lock retains the new release-checks workspace. Runtime source, fixtures,
+CI workflows, inventories, the leaf and its private Host remain unchanged.
+
+A genuine clean checkout of `d7109cc347ecbbd62afb484a97ea72303743e680` passed
+source install and build. Its fast gate then rejected a filesystem stability
+observation for `packages/docs-protocol-mcp`. The generic retained message
+does not identify the changed field or actor. The same architecture owner
+subsequently passed all nine modules on unchanged source in 18.012 seconds;
+the separately observed directory metadata stayed stable during that run.
+This diagnostic does not rewrite the initial failure or qualify the full fast
+gate. The clean checkout avoids reusing historical disposable source profiles.
+
+Independent review, fresh source-bound local gates and complete native CI for
+this release reconciliation are recorded on the owner PR. Earlier executions
+remain bound to their own source/base. Maintainer readiness still precedes
+public admission and the existing bootstrap/OIDC route.

@@ -25,6 +25,7 @@
     "scripts/release-bun-lock.ts",
     "scripts/public-docs-quickstart.ts",
     "scripts/public-docs-documented-e2e.ts",
+    "scripts/pack-quality-assets.ts",
     "tools/**/*.mts",
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
@@ -41,6 +42,7 @@
     "tools/repository-oxlint.ts",
     "tests/repository-profile-lint.test.ts",
     "tests/repository-profile-git.test.ts",
-    "tests/local-mode-bun.test.ts"
+    "tests/local-mode-bun.test.ts",
+    "tests/features/quality-coverage/governed-assets.test.ts"
   ]
 }

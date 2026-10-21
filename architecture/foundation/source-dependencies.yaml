@@ -1267,6 +1267,7 @@ boundaries:
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-absent-file-publication.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-atomic-file-replacement.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-cleanup-owned-temporary.ts
+      - packages/repository-mutation/src/repository-mutation/adapters/node/node-retired-temporary-duplicates.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-create-and-bind-directory.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-directory-durability.ts
       - packages/repository-mutation/src/repository-mutation/adapters/node/node-existing-repository-ancestors.ts
@@ -4128,6 +4129,7 @@ boundaries:
         - foundation.quality-coverage.application
       packages:
         - oxc-parser
+        - '@agent-teams/repository-mutation'
       builtins:
         - node:crypto
         - node:path

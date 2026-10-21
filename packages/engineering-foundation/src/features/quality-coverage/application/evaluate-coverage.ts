@@ -1,5 +1,5 @@
 import type { FoundationDiagnostic } from "../../validation-reporting/api.js";
-import type { ProtectedSetting, QualityCoverageObservation } from "./model.js";
+import type { ProtectedSetting, QualityCoverageObservation, QualitySource } from "./model.js";
 import { qualitySourceLanguage } from "./source-coverage.js";
 import { qualityDiagnostic } from "./rules.js";
 
@@ -15,19 +15,35 @@ export function evaluateStaticCoverage(observation: QualityCoverageObservation):
     if (source.owners.length !== 1) {
       diagnostics.push(qualityDiagnostic("source-classification", source.path, source.path, "one semantic owner", source.owners.join(", ")));
     }
-    if (qualitySourceLanguage(source.path) === "native") {
-      const gates = source.nativeGates ?? [];
-      if (gates.length !== 1 || gates[0]?.reached !== true) {
-        diagnostics.push(qualityDiagnostic("native-route", source.path, source.path, "one required consumer native gate", "missing, ambiguous or unreachable gate"));
-      }
-    } else if (qualitySourceLanguage(source.path) === "unsupported") {
-      diagnostics.push(qualityDiagnostic("source-language", source.path, source.path, "TypeScript source or JavaScript module", source.path));
-    }
+    diagnostics.push(...evaluateSourceGate(source));
     if (!source.suppressionCovered) {
       diagnostics.push(qualityDiagnostic("suppression-coverage", source.path, source.path, "governed", "outside suppression scope"));
     }
   }
   diagnostics.push(...evaluateProtectedSettings(observation));
+  diagnostics.push(...evaluateRoutes(observation));
+  return diagnostics;
+}
+
+function evaluateSourceGate(source: QualitySource): readonly FoundationDiagnostic[] {
+  const diagnostics: FoundationDiagnostic[] = [];
+  if (qualitySourceLanguage(source.path) === "native") {
+    const gates = source.nativeGates ?? [];
+    if (gates.length !== 1 || gates[0]?.reached !== true) {
+      diagnostics.push(qualityDiagnostic("native-route", source.path, source.path, "one required consumer native gate", "missing, ambiguous or unreachable gate"));
+    }
+  } else if (source.assetGates !== undefined) {
+    if (source.assetGates.length !== 1 || source.assetGates[0]?.reached !== true) {
+      diagnostics.push(qualityDiagnostic("asset-route", source.path, source.path, "one required consumer asset validator", "missing, ambiguous or unreachable gate"));
+    }
+  } else if (qualitySourceLanguage(source.path) === "unsupported") {
+    diagnostics.push(qualityDiagnostic("source-language", source.path, source.path, "TypeScript source or JavaScript module", source.path));
+  }
+  return diagnostics;
+}
+
+function evaluateRoutes(observation: QualityCoverageObservation): readonly FoundationDiagnostic[] {
+  const diagnostics: FoundationDiagnostic[] = [];
   for (const mode of ["scope", "full"] as const) {
     if (!observation.requiredRoutes.some((route) => route.mode === mode)) {
       diagnostics.push(qualityDiagnostic("required-route", "package.json", "routes", mode, "missing required mode observation"));

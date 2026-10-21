@@ -125,9 +125,10 @@ and does not authorize publication by itself.
 
 ### Pending Stack Toolchain namespace
 
-`stack-toolchain` is a `candidate` in the bootstrap catalog with `approval: null`.
-Its source version remains `0.0.0`, with a minor changeset for its first supported
-`0.1.0`. Prepare candidate evidence on the implementation PR before merge: the
+`stack-toolchain` starts as a `candidate` with `approval: null`; its current
+admission state and reviewed archive identity are recorded only in the bootstrap
+catalog. Its source version remains `0.0.0`, with a minor changeset for its first
+supported `0.1.0`. Prepare candidate evidence on the implementation PR before merge: the
 Ubuntu `linux-bootstrap-evidence` lane runs on a requested full-CI PR as well as
 on protected-main pushes. The ordinary release guard deliberately stops before
 Changesets versioning while any bootstrap candidate remains unapproved, so avoid

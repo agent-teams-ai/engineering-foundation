@@ -414,3 +414,35 @@ shard 1 and that shards 2-8 retain every previous assignment. No shard or timeou
 change is justified by a new-test concentration claim. Fresh final-source review,
 complete local gates and exact current-head/base CI remain required and are
 recorded on the owner PR. Public admission retains the maintainer-readiness hold.
+
+## Governed asset integration and disposable producer metadata
+
+The preceding `eee9230897c27bb05372c168b87b641416befa74` completed all 35
+required CI jobs, including the four aggregates, in attempt 1 of
+[CI 39514277272](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39514277272)
+against base `1218dbb53369d3beb3ee5b1b7544c261bf93136c`. Its separate local
+changed check returned exit 1 after 5,423.881 seconds. The mutable C1 adapter
+omits raw child output; no retained inner failure report was recovered. The
+failed local run is not qualification, and CI applies only to its recorded pair.
+
+A direct existing-owner diagnostic in that unchanged genuine Node profile ran
+all 24 package-artifact-reuse tests: 16 passed and eight failed in fixture setup.
+The fixture passed an already projected pnpm manifest through the source
+package-manager projector a second time. It now sets its own disposable
+producer metadata from the existing validated runtime policy, following the
+neighboring package-qualification fixture. Scripts, compiled packages and
+dependencies retain the executing profile's ownership. Production projectors,
+archive custody, negative assertions and test inventories remain unchanged.
+This counterexample does not reconstruct the discarded full-run diagnostics or
+establish that it was their only cause.
+
+Protected main also advanced to
+`5a0173568f051a4cf7273d621441499a038430b5`. This integration retains its
+complete 34-file governed-asset and retired-duplicate observation change,
+including the v3 schema, packed consumer, exact archive-entry budget and
+Changeset. The five overlapping ownership, strict-project and inventory files
+preserve both upstream additions and release-checks registrations. The leaf,
+private release Host, C1 wrapper and publication workflows are unchanged by
+this integration. Focused correction evidence, independent source review and
+fresh final-source gates belong to the owner PR; the npm maintainer-readiness
+hold remains in force.

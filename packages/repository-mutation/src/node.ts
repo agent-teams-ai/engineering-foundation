@@ -27,6 +27,7 @@ export type {
 } from "./transaction-coordination/adapters/node/node-terminal-evidence-directory.js";
 export { ownedTemporaryCleanupResiduePrefix, OWNED_TEMPORARY_CLEANUP_RESIDUE_MARKER } from "./repository-mutation/adapters/node/node-cleanup-owned-temporary.js";
 export { cleanupIdentityMatchingOwnedTemporary } from "./composition/node-known-file.js";
+export { inspectRetiredTemporaryDuplicates } from "./composition/node-known-file.js";
 export { syncDirectoryDurably, syncDirectoryStrictly } from "./repository-mutation/adapters/node/node-directory-durability.js";
 export type {
   DirectoryDurability,

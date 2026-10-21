@@ -290,6 +290,7 @@ test("freezes the runtime, filesystem, and published schema allowlists", async (
     "schemas/quality-gate-runner/v2.schema.json",
     "schemas/quality-source-coverage/v1.schema.json",
     "schemas/quality-source-coverage/v2.schema.json",
+    "schemas/quality-source-coverage/v3.schema.json",
     "schemas/repository-agent-workflow/v2.schema.json",
     "schemas/workspace-dependency-declarations/v2.schema.json",
   ].toSorted();

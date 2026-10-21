@@ -6,6 +6,8 @@ export interface QualityCoverageProfile {
   readonly bridgeAdmissionsPath?: string;
   /** Existing source boundary and consumer-owned native gate script identities. */
   readonly nativeChecks?: readonly { readonly boundaryId: string; readonly script: string }[];
+  /** Exact nonrunnable inputs; source ownership remains authoritative. */
+  readonly assets?: readonly { readonly path: string; readonly kind: "protobuf" | "sql-migration"; readonly boundaryId: string; readonly script: string }[];
   readonly compilerProjects: readonly string[];
   readonly scripts: {
     readonly fast: string;

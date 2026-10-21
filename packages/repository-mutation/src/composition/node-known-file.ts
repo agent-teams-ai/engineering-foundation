@@ -157,3 +157,9 @@ export function recoverKnownFileTransactionWithFaults(options: {
 }): Promise<KnownFileTransactionReceiptV1> {
   return knownFileNodeApi.recoverKnownFileTransactionWithFaults(options);
 }
+
+export function inspectRetiredTemporaryDuplicates(
+  consumerRoot: string, filePaths: readonly string[]
+): Promise<readonly { readonly path: string; readonly counterpart: string }[]> {
+  return knownFileNodeApi.inspectRetiredTemporaryDuplicates(consumerRoot, filePaths);
+}

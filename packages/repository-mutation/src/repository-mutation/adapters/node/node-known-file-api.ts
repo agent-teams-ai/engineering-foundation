@@ -6,6 +6,7 @@ import type { KnownFileCoordination } from "./known-file-coordination.js";
 import { applyKnownFileTransaction as applyTransaction, applyKnownFileTransactionWithFaults as applyTransactionWithFaults } from "./node-known-file-transaction.js";
 import { classifyExactFilePostimage as classifyPostimage, publishAbsentFile as publishFile, publishAbsentFileWithFaults as publishFileWithFaults } from "./node-absent-file-publication.js";
 import { cleanupIdentityMatchingOwnedTemporary as cleanupTemporary } from "./node-cleanup-owned-temporary.js";
+import { inspectRetiredTemporaryDuplicates as inspectDuplicates } from "./node-retired-temporary-duplicates.js";
 import { inspectKnownFileTransactionBarrier as inspectBarrier } from "./node-known-file-transaction-inspection.js";
 import { prepareExactSiblingTemporary as prepareTemporary, prepareExactSiblingTemporaryWithFaults as prepareTemporaryWithFaults } from "./node-prepare-exact-sibling-temporary.js";
 import { recoverKnownFileTransaction as recoverTransaction, recoverKnownFileTransactionWithFaults as recoverTransactionWithFaults } from "./node-known-file-transaction-recovery.js";
@@ -65,6 +66,7 @@ export function createKnownFileNodeAdapter(coordination: KnownFileCoordination) 
     applyKnownFileTransactionWithFaults,
     classifyExactFilePostimage,
     cleanupIdentityMatchingOwnedTemporary,
+    inspectRetiredTemporaryDuplicates: (consumerRoot: string, filePaths: readonly string[]) => inspectDuplicates(coordination, consumerRoot, filePaths),
     inspectKnownFileTransactionBarrier,
     prepareExactSiblingTemporary,
     prepareExactSiblingTemporaryWithFaults,

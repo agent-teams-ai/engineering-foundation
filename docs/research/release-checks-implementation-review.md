@@ -598,3 +598,56 @@ The source also preserves the complete nine-file owning release delta at
 Module Standard 0.2.3, their consumed Changeset, changelogs, versioned baselines
 and Bun workspace versions. The public-admission hold remains in force until
 actual npm maintainer readiness permits the existing bootstrap/OIDC sequence.
+
+## Native fixture environment and bounded shard redistribution
+
+[Native run 39655280660, attempt 1](https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39655280660)
+is terminal for head `5b4740bcc845072cada7fe035c4ce3fe236c3b0c` and base
+`0e0de78d4c2089be8effc37da4cfd70eab22358c`: 35 jobs, with 29 successful,
+four failed, one cancelled and one skipped. The canonical protected-base helper
+actually exited 1. Its overall cancelled result and skipped coverage owner do
+not qualify this pair. The separately completed ordinary local package owner
+and architecture owner actually exited 0 on that source; their exact receipts
+and source bindings remain on the owner PR.
+
+Windows B now identifies the fixture installation phase, after the actual npm
+pack succeeded and before the contamination control. The retained 48-character
+error prefix identifies the managed Windows wrapper, but omits its full child
+diagnostic. Source review found a concrete fixture defect: copying `process.env`
+into a plain object and adding `PATH` can retain Windows `Path` as a second key.
+The existing native environment builder correctly refuses names that differ
+only by case. The npm helper already normalizes its path, whereas this fixture
+installation invokes the command runner directly. That supports the diagnosis;
+it does not reconstruct the unavailable child stderr as established evidence.
+
+The fixture now removes every case variant of each deliberately replaced or
+removed variable before setting its one Node-prefixed path and disposable npm
+cache. It leaves the original environment untouched. Its bounded diagnostic
+prefers stderr, falls back to stdout and puts the actual stream's final 48
+characters first while preserving the original exception as the cause. The
+native duplicate-name rejection, process containment, real pnpm tarball,
+generated-shim control, both qualification modes and all assertions remain.
+
+Linux pair 3–4 completed both full selected inventories: shard 3 passed all 26
+files and 836 tests; shard 4 passed all 52 files and 635 tests with three existing
+platform skips. The job nevertheless exceeded its unchanged 25-minute limit.
+Its observed whole-file sums were 584.541 seconds and 1457.257 seconds; the
+portable C1 rejection file accounted for 346.855 seconds in shard 4. These are
+diagnostic timings from a failed job, not accepted coverage qualification.
+
+Only that file moves from canonical shard 4 to shard 3. The observed sums
+project approximately 931.396 and 1110.402 seconds before setup and runtime
+variance. The canonical 301-file union and the full 345-file union retain their
+exact multiplicities. The loader remains in shard 3, all managed-runtime suites
+remain in shard 4, and Windows lane bytes, all eight shards, 35 native jobs,
+coverage thresholds and timeouts are unchanged. One canonical traversal index
+in the existing Windows partition test changes from 137 to 138; its lane
+assertions remain intact.
+
+The moved file needs no shard-4 managed-tool provisioning and retains its seven
+mandatory identities. Shard 3 consequently uses the existing mandatory Node
+execution route for its complete selection; that route retains serial process
+isolation and the existing coverage inputs. Final-source qualification must
+prove this actual route, including the loader and all selected files. No timing
+projection or earlier source result replaces the fresh complete native run.
+The maintainer-readiness and public-admission hold remains in force.

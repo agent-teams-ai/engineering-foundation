@@ -135,9 +135,10 @@ async function runPackagingFixtureCommand(phase: string, execute: () => ReturnTy
   } catch (error) {
     const failure = error as { readonly stderr?: unknown; readonly stdout?: unknown; readonly code?: unknown };
     const output = [failure.stderr, failure.stdout]
-      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-      .map((value) => value.trim().slice(0, 1_024)).join("\n");
-    throw new Error(`pnpm ${phase} (exit ${String(failure.code)}): ${output || "no child output"}`, { cause: error });
+      .find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim();
+    // The mandatory runner bounds error messages to 48 characters. Keep the
+    // child failure's meaningful suffix visible and retain the full cause.
+    throw new Error(`${output?.slice(-48) || "no child output"} (pnpm ${phase}, exit ${String(failure.code)})`, { cause: error });
   }
 }
 
@@ -156,11 +157,15 @@ test("nested pnpm scripts keep packaged consumers isolated from the owner worksp
     assert.equal(manager.name, "pnpm");
     assert.equal(manager.version, "11.20.0");
     const entry = join(managerRoot, manager.bin.pnpm);
-    const environment: NodeJS.ProcessEnv = { ...process.env, PATH: [dirname(node), process.env.PATH].join(delimiter),
-      npm_config_cache: join(root, "npm-cache") };
-    delete environment.NODE_PATH;
-    delete environment.NODE_OPTIONS;
-    delete environment.npm_config_user_agent;
+    const environment: NodeJS.ProcessEnv = { ...process.env };
+    // A plain copy of Windows process.env can retain Path beside a new PATH.
+    // The managed launcher correctly rejects case-insensitive duplicate names.
+    const replacedNames = new Set(["path", "node_path", "node_options", "npm_config_cache", "npm_config_user_agent"]);
+    for (const key of Object.keys(environment)) {
+      if (replacedNames.has(key.toLowerCase())) { delete environment[key]; }
+    }
+    environment.PATH = [dirname(node), process.env.PATH].filter(Boolean).join(delimiter);
+    environment.npm_config_cache = join(root, "npm-cache");
     // A file: directory install strips every nested node_modules directory,
     // including pnpm's real bundled native dependencies on Windows and Darwin.
     const packed = await runPackagingFixtureCommand("manager-pack", () => runNpmCommand(

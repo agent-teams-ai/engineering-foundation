@@ -382,3 +382,25 @@ for (const scenario of ["valid-wave", "digest-mismatch", "advance-after-authoriz
     });
   }
 }
+
+test("repository packing hook restores scripts ordering after pnpm projection", async t => {
+  const root = await mkdtemp(join(tmpdir(), "TEST-pack-manifest-order-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const pnpm = fileURLToPath(new URL("../node_modules/pnpm/bin/pnpm.cjs", import.meta.url));
+  const hook = fileURLToPath(new URL("../.pnpmfile.cjs", import.meta.url));
+  const manifest = { name: "manifest-order-fixture", version: "1.0.0", scripts: { build: "true" }, sideEffects: false };
+  await writeFile(join(root, "package.json"), JSON.stringify(npmPackManifest(manifest)));
+  const outputs = [];
+  for (const ignore of ["true", "false"]) {
+    const result = spawnSync(process.execPath, [pnpm, "pack", "--pack-destination", root, "--config.ignore-scripts=true", `--config.pnpmfile=${hook}`], {
+      cwd: root, encoding: "utf8", env: { ...process.env, pnpm_config_ignore_pnpmfile: ignore },
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    const listing = spawnSync("tar", ["-xOf", join(root, "manifest-order-fixture-1.0.0.tgz"), "package/package.json"], { encoding: "utf8" });
+    assert.equal(listing.status, 0, listing.stderr);
+    outputs.push(JSON.parse(listing.stdout));
+  }
+  assert.deepEqual(outputs[0], outputs[1]);
+  assert.notDeepEqual(Object.keys(outputs[0]), Object.keys(outputs[1]));
+  assert.deepEqual(Object.keys(outputs[1]), Object.keys(npmPackManifest(manifest)));
+});

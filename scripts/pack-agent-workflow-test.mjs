@@ -13,6 +13,7 @@ async function verifyPackedEffectiveInstructions({ consumerRoot, runPnpm }) {
   );
   const { stdout } = await runPnpm(
     [
+      "--silent",
       "exec",
       "agent-teams-foundation",
       "agent-workflow",
@@ -114,6 +115,7 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
 
   const { stdout: capabilityOutput } = await runPnpm(
     [
+      "--silent",
       "exec",
       "agent-teams-foundation",
       "check",
@@ -147,6 +149,7 @@ await appendFile(".agent-workflow-invocations.jsonl", JSON.stringify({ kind, pat
   await verifyPackedEffectiveInstructions({ consumerRoot, runPnpm });
   const { stdout: workflowOutput } = await runPnpm(
     [
+      "--silent",
       "exec",
       "agent-teams-foundation",
       "agent-workflow",

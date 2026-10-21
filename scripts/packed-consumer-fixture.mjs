@@ -70,7 +70,7 @@ async function installPackedPackage(input) {
   }
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    consumerManifest(packedManifest.version, input.packageManager)
+    { ...consumerManifest(packedManifest.version, input.packageManager), devDependencies: { ...consumerManifest(packedManifest.version, input.packageManager).devDependencies, "stack-toolchain": input.stackToolchainArchiveFileSpecifier } }
   );
   return packedManifest;
 }

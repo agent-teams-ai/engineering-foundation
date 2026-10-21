@@ -446,3 +446,38 @@ private release Host, C1 wrapper and publication workflows are unchanged by
 this integration. Focused correction evidence, independent source review and
 fresh final-source gates belong to the owner PR; the npm maintainer-readiness
 hold remains in force.
+
+## Changed-check profile lifetime and bounded diagnostics
+
+On `0bba3c82f7aa5bb60118280da1fbe6cc0b54d41b`, the corrected producer-fixture
+owner and C1 configuration owner passed in a newly installed and built genuine
+Node profile. The strict tooling project also passed. The subsequent fast gate
+rejected a symbolic link inside a retained, completed changed-check profile.
+The existing source census rejects that link before the newly integrated
+retired-duplicate observer runs; its scope and rejection remain unchanged.
+The original full-run failure still has no recovered inner report.
+
+Independent review confirmed that the private changed-check wrapper allocated
+a profile without releasing it after ordinary completion. It now waits for
+child output to drain, rechecks its existing owned-root guard and removes only
+its own freshly allocated profile in `finally`. Install failure still prevents
+check execution; original failure and handled cancellation statuses are retained.
+Unsafe cleanup refuses the target, preserves an existing nonzero result and
+turns an otherwise successful invocation into failure. Disposable invocations
+set the supported `NX_DAEMON=false`; the graph operation remains in the check.
+
+The same private wrapper retains the first 1 MiB of diagnostics in a fresh
+mode-0600 log beside the profile directory. Both streams continue draining after
+the limit, and a truncation marker identifies an incomplete log. A late failure
+may therefore be absent. This is mutable diagnostic feedback, not a qualified
+receipt; the public C1 output, input-binding classification and facets do not
+change. Cleanup covers ordinary completion and handled run cancellation, not
+SIGKILL or every interruption during asynchronous cleanup.
+
+The existing real-child suite passed all eleven tests, without skips, including
+concurrent ownership, install/check/signal/cancellation results, bounded output,
+generated-source cleanup and refusal of a substituted symlink target. The same
+reviewed file bytes passed the TypeScript 7.0.2 strict tooling project.
+Independent source review returned GO. Final committed-source gates and native
+Windows qualification remain recorded on the owner PR; no test inventory,
+timeout, source-census scope or publication control is relaxed.

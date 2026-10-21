@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -22,6 +22,7 @@ interface ProfileObservation {
   readonly cwd: string;
   readonly selectors: readonly string[];
   readonly preserved: string;
+  readonly nxDaemon: string;
 }
 
 async function changedProfileFixture(t: TestContext) {
@@ -40,7 +41,7 @@ async function changedProfileFixture(t: TestContext) {
   // receipts and package installation remain covered by the existing profile-owner tests.
   await writeFile(join(root, "tools/dev.mts"), [
     'import assert from "node:assert/strict";',
-    'import { appendFile, readFile, rm, mkdir, writeFile } from "node:fs/promises";',
+    'import { appendFile, readFile, rm, mkdir, symlink, writeFile } from "node:fs/promises";',
     'import { join } from "node:path";',
     'const operation = process.argv[4], profileRoot = process.env["AGENT_TEAMS_FOUNDATION_PROFILE_ROOT"];',
     'assert.deepEqual(process.argv.slice(2), ["--profile", "node", operation]);',
@@ -48,16 +49,24 @@ async function changedProfileFixture(t: TestContext) {
     'sourceRoot: process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"], sourceSha: process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"],',
     'runtime: process.env["AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE"], node: process.env["AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE"],',
     'cwd: process.cwd(), selectors: Object.keys(process.env).filter(key => /^(?:GIT_DIR|GIT_WORK_TREE|GIT_INDEX_FILE|GIT_CONFIG_(?:COUNT|KEY_0|VALUE_0))$/u.test(key)),',
-    'preserved: process.env["C1_TEST_PRESERVED"] }) + "\\n");',
+    'preserved: process.env["C1_TEST_PRESERVED"], nxDaemon: process.env["NX_DAEMON"] }) + "\\n");',
+    'process.stdout.write(`observed ${operation}\\n`);',
     'if (operation === "install") {',
     'await rm(profileRoot, { recursive: true, force: true }); await mkdir(profileRoot);',
     'await writeFile(join(profileRoot, "installed.marker"), "installed by boundary probe");',
+    'await writeFile(join(profileRoot, "generated-source.ts"), "export const temporary = true;\\n");',
+    'await symlink(join(process.cwd(), ".worker-tmp/profiles/operator-profile"), join(profileRoot, "generated-link"), process.platform === "win32" ? "junction" : "dir");',
     'if (process.env["C1_TEST_WAIT_FOR_SIGNAL"] === "1") {',
     'await new Promise(fulfill => { process.once("SIGTERM", fulfill); process.stdout.write("ready\\n"); });',
     '} else if (process.env["C1_TEST_INSTALL_SIGNAL"] === "1") { process.kill(process.pid, "SIGTERM"); }',
     'process.exitCode = Number(process.env["C1_TEST_INSTALL_STATUS"] ?? 0);',
     '} else {',
     'assert.equal(await readFile(join(profileRoot, "installed.marker"), "utf8"), "installed by boundary probe");',
+    'if (process.env["C1_TEST_LARGE_OUTPUT"] === "1") { process.stdout.write("x".repeat(2 * 1024 * 1024)); }',
+    'if (process.env["C1_TEST_UNSAFE_PROFILE"] === "1") {',
+    'await rm(profileRoot, { recursive: true, force: true });',
+    'await symlink(join(process.cwd(), ".worker-tmp/profiles/operator-profile"), profileRoot, process.platform === "win32" ? "junction" : "dir");',
+    '}',
     'process.exitCode = Number(process.env["C1_TEST_CHECK_STATUS"] ?? 0);',
     '}'
   ].join("\n"));
@@ -80,7 +89,8 @@ async function changedProfileFixture(t: TestContext) {
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: process.execPath,
     GIT_DIR: join(root, "foreign.git"), GIT_WORK_TREE: join(root, "foreign-source"),
     GIT_INDEX_FILE: join(root, "foreign-index"), GIT_CONFIG_COUNT: "1",
-    GIT_CONFIG_KEY_0: "core.worktree", GIT_CONFIG_VALUE_0: join(root, "foreign-source"), C1_TEST_PRESERVED: "keep"
+    GIT_CONFIG_KEY_0: "core.worktree", GIT_CONFIG_VALUE_0: join(root, "foreign-source"), C1_TEST_PRESERVED: "keep",
+    NX_DAEMON: "true"
   };
   const entry = join(root, "tools/check-changed-repository.ts");
   const observations = async (): Promise<ProfileObservation[]> =>
@@ -96,6 +106,7 @@ function runChangedProfile(fixture: Awaited<ReturnType<typeof changedProfileFixt
       cwd: fixture.root, env: { ...fixture.environment, ...overrides }, stdio: ["ignore", "pipe", "pipe"]
     });
     let stderr = "";
+    child.stdout.resume();
     child.stderr.setEncoding("utf8").on("data", (text: string) => { stderr += text; });
     child.once("error", reject);
     child.once("exit", (code, signal) => {
@@ -117,8 +128,11 @@ void test("changed repository composition owns concurrent profiles and overrides
     assert.notEqual(target, fixture.existing);
     assert.deepEqual(observations.filter((entry) => entry.profileRoot === target), ["install", "check"].map((operation) => ({
       operation, profileRoot: target, sourceRoot: fixture.root, sourceSha: fixture.sourceSha,
-      runtime: "node", node: process.execPath, cwd: fixture.root, selectors: [], preserved: "keep"
+      runtime: "node", node: process.execPath, cwd: fixture.root, selectors: [], preserved: "keep", nxDaemon: "false"
     })));
+    await assert.rejects(lstat(target), { code: "ENOENT" });
+    const log = await readFile(join(fixture.root, ".worker-tmp", `${target.split(/[\\/]/u).at(-1)}.log`), "utf8");
+    assert.match(log, /observed install\nobserved check\n/u);
   }
   assert.equal(await readFile(join(fixture.existing, "operator.marker"), "utf8"), "do not replace");
 });
@@ -127,9 +141,11 @@ void test("changed repository composition preserves install/check failures and r
   const fixture = await changedProfileFixture(t);
   assert.equal(await runChangedProfile(fixture, { C1_TEST_INSTALL_STATUS: "23" }), 23);
   assert.deepEqual((await fixture.observations()).map((entry) => entry.operation), ["install"]);
+  assert.deepEqual(await readdir(join(fixture.root, ".worker-tmp/profiles")), ["operator-profile"]);
   await rm(join(fixture.root, "observations.jsonl"));
   assert.equal(await runChangedProfile(fixture, { C1_TEST_CHECK_STATUS: "29" }), 29);
   assert.deepEqual((await fixture.observations()).map((entry) => entry.operation), ["install", "check"]);
+  assert.deepEqual(await readdir(join(fixture.root, ".worker-tmp/profiles")), ["operator-profile"]);
   await rm(join(fixture.root, "observations.jsonl"));
   const profiles = await readdir(join(fixture.root, ".worker-tmp/profiles"));
   assert.equal(await runChangedProfile(fixture, { AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: resolve(fixture.root, "missing-node") }), 1);
@@ -142,6 +158,31 @@ void test("changed repository composition stops after an installation child is t
   const expectedTerminationStatus = process.platform === "win32" ? 1 : 143;
   assert.equal(await runChangedProfile(fixture, { C1_TEST_INSTALL_SIGNAL: "1" }), expectedTerminationStatus);
   assert.deepEqual((await fixture.observations()).map((entry) => entry.operation), ["install"]);
+  assert.deepEqual(await readdir(join(fixture.root, ".worker-tmp/profiles")), ["operator-profile"]);
+});
+
+void test("changed repository composition bounds retained diagnostics without changing check failure", async (t) => {
+  const fixture = await changedProfileFixture(t);
+  assert.equal(await runChangedProfile(fixture, { C1_TEST_LARGE_OUTPUT: "1", C1_TEST_CHECK_STATUS: "29" }), 29);
+  const logs = (await readdir(join(fixture.root, ".worker-tmp"))).filter((name) => name.endsWith(".log"));
+  assert.equal(logs.length, 1);
+  const path = join(fixture.root, ".worker-tmp", logs[0]!);
+  const metadata = await lstat(path);
+  assert.ok(metadata.isFile());
+  assert.ok(metadata.size <= 1024 * 1024);
+  assert.match(await readFile(path, "utf8"), /Diagnostic output truncated at 1 MiB/u);
+  if (process.platform !== "win32") { assert.equal(metadata.mode & 0o777, 0o600); }
+  assert.deepEqual(await readdir(join(fixture.root, ".worker-tmp/profiles")), ["operator-profile"]);
+});
+
+void test("changed repository composition refuses unsafe cleanup and preserves operator files", async (t) => {
+  for (const status of [0, 29]) {
+    const fixture = await changedProfileFixture(t);
+    assert.equal(await runChangedProfile(fixture, { C1_TEST_UNSAFE_PROFILE: "1", C1_TEST_CHECK_STATUS: String(status) }), status || 1);
+    const target = (await fixture.observations())[0]!.profileRoot;
+    assert.ok((await lstat(target)).isSymbolicLink());
+    assert.equal(await readFile(join(fixture.existing, "operator.marker"), "utf8"), "do not replace");
+  }
 });
 
 void test("changed repository composition refuses a linked profile parent before creating a target", async (t) => {
@@ -171,6 +212,7 @@ void test("changed repository composition forwards cancellation and never starts
   });
   assert.equal(code, 143);
   assert.deepEqual((await fixture.observations()).map((entry) => entry.operation), ["install"]);
+  assert.deepEqual(await readdir(join(fixture.root, ".worker-tmp/profiles")), ["operator-profile"]);
 });
 
 test("Git snapshot preserves the explicit operator environment and owns only its forced overrides", async (t) => {

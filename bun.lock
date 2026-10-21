@@ -172,6 +172,9 @@
         "oxlint-tsgolint": "catalog:",
         "typescript": "catalog:",
       },
+      "devDependencies": {
+        "@types/node": "catalog:",
+      },
       "optionalDependencies": {
         "bun": "catalog:",
         "tsrs": "catalog:",

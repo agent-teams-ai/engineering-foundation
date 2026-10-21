@@ -60,5 +60,8 @@
     "type": "git",
     "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
     "directory": "packages/stack-toolchain"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

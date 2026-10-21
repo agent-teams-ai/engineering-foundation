@@ -73,6 +73,10 @@ environment types, outputs and tests. Foundation retains quality scope,
 qualification, process containment and its existing command DAG. The package
 admission and closed development bootstrap are recorded in
 [ADR-0064](../decisions/0064-independent-stack-toolchain-package-boundary.md).
+Oxlint and its typed companion are required runtime dependencies of this bundle
+only. The repository package-boundary gate rejects runtime, optional and peer
+declarations in every other workspace; ordinary development use remains allowed.
+Their exact versions come from the canonical catalog and package manifest.
 Source admission does not establish publication or real-consumer qualification;
 those remain release and consumer-adoption evidence. This static library adds
 no Assembly Host scope, plugin lifecycle or independent scheduler.

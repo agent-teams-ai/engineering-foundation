@@ -2,7 +2,7 @@ import { readFile, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseDocument } from "yaml";
 import { inspectBunRegistryProvenance, readBoundedConsumerManifest } from "./bun-registry-inspection.js";
-import { FoundationError } from "../../../features/validation-reporting/foundation-error.js";
+import { bunLocalMutationUnsupported } from "../../application/inspection-failures.js";
 import { inspectConsumerManifest, inspectLockfile, isSupportedPnpmManager } from "../../application/consumer-policy.js";
 import type { ConsumerPolicyInspection, RegistryProvenanceInspection } from "../../application/model.js";
 import { FOUNDATION_PACKAGE_NAME } from "../../application/model.js";
@@ -134,6 +134,6 @@ export async function inspectCanonicalConsumerDevOnly(consumerPath: string): Pro
 export async function assertNodeLocalMutationSupported(consumerPath: string): Promise<void> {
   const consumer = await inspectCanonicalConsumerDevOnly(consumerPath);
   if (consumer.packageManager === undefined || !isSupportedPnpmManager(consumer.packageManager)) {
-    throw new FoundationError("CONSUMER_INVALID", "Local attach and detach require pnpm 11; Bun consumers support registry inspection only.");
+    throw bunLocalMutationUnsupported();
   }
 }

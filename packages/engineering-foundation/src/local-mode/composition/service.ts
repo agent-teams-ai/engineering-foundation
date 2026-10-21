@@ -1,6 +1,7 @@
 import type { LocalPackageLifecyclePorts } from "../application/ports.js";
 import type { ProcessRunner } from "../application/model.js";
 import type { FoundationPackageSelfCheck } from "../application/package-metadata.js";
+import { LocalPackageLifecycle, type LocalPackageLifecycleOptions } from "../application/service.js";
 import { inspectCanonicalConsumerDevOnly, assertNodeLocalMutationSupported } from "../adapters/node/consumer-inspection.js";
 import { createNodeLocalLinkStateStore, type LocalStateDirectory } from "../adapters/node/local-state-store.js";
 import { createNodeRegistryLinks } from "../adapters/node/registry-links.js";
@@ -12,6 +13,37 @@ export interface NodeLocalPackageLifecycleDependencies {
   readonly inspectPackage: (packageRoot: string) => Promise<FoundationPackageSelfCheck>;
   readonly stateDirectory: LocalStateDirectory;
   readonly coordinator: LocalPackageLifecyclePorts["coordinator"];
+}
+
+/** Concrete Node facade owns manager admission before lifecycle inspection. */
+export class NodeLocalPackageLifecycle {
+  readonly #lifecycle: LocalPackageLifecycle;
+
+  constructor(options: LocalPackageLifecycleOptions) {
+    this.#lifecycle = new LocalPackageLifecycle(options);
+  }
+
+  status(path: string) {
+    return this.#lifecycle.status(path);
+  }
+
+  async attach(path: string, target: string) {
+    await assertNodeLocalMutationSupported(path);
+    return this.#lifecycle.attach(path, target);
+  }
+
+  async detach(path: string) {
+    await assertNodeLocalMutationSupported(path);
+    return this.#lifecycle.detach(path);
+  }
+
+  assertRegistry(path: string) {
+    return this.#lifecycle.assertRegistry(path);
+  }
+
+  assertDevOnly(path: string) {
+    return this.#lifecycle.assertDevOnly(path);
+  }
 }
 
 async function guarded<T>(root: string, effect: () => Promise<T>): Promise<T> {

@@ -111,13 +111,13 @@ profiles:
     };
     await writeFixture(bunRoot, "bun@1.4.3");
     await writeFixture(nodeRoot, "pnpm@11.20.0");
-    const environment = {
+    const environment = Object.fromEntries(Object.entries({
       ...process.env,
       AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
       AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: node,
       AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: bun,
       AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpm
-    };
+    }).filter(([name]) => name.toLowerCase() !== "npm_config_user_agent"));
     const bunRun = spawnSync(bun, [cli, "gate", "run", "bun-check-fast", "--consumer", bunRoot, "--format", "json"], {
       cwd: bunRoot, encoding: "utf8", env: environment
     });

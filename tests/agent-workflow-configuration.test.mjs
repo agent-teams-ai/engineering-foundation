@@ -204,10 +204,7 @@ capabilities:
     for (const [profile, root, executable] of [
       ["bun", sourceRoot, tools.bun], ["node", targetRoot, tools.node]
     ]) {
-      const result = spawnSync(executable, [
-        join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
-        "agent-workflow", "changed", "--base", "HEAD", "--consumer", root, "--format", "json"
-      ], { cwd: root, encoding: "utf8", env: {
+      const environment = Object.fromEntries(Object.entries({
         ...process.env, ...authority.environment,
         GIT_WORK_TREE: root,
         AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: profile,
@@ -216,7 +213,11 @@ capabilities:
         AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: pnpmEntrypoint,
         AGENT_TEAMS_FOUNDATION_RUNTIME_OBSERVATION: observation,
         npm_execpath: pnpmEntrypoint
-      } });
+      }).filter(([name]) => name.toLowerCase() !== "npm_config_user_agent"));
+      const result = spawnSync(executable, [
+        join(repositoryRoot, "packages/engineering-foundation/dist/cli.js"),
+        "agent-workflow", "changed", "--base", "HEAD", "--consumer", root, "--format", "json"
+      ], { cwd: root, encoding: "utf8", env: environment });
       assert.equal(result.status, 0, `${profile}: ${result.stdout}${result.stderr}`);
     }
     const records = (await readFile(observation, "utf8")).trim().split("\n").map((line) => JSON.parse(line));

@@ -507,3 +507,34 @@ Independent review, fresh source-bound local gates and complete native CI for
 this release reconciliation are recorded on the owner PR. Earlier executions
 remain bound to their own source/base. Maintainer readiness still precedes
 public admission and the existing bootstrap/OIDC route.
+
+## Nested manager observations and permission-test prerequisites
+
+On `1cb6bcadc702391f2f95d2c5ba1973644b505cf0`, source install, build, the
+complete fast gate and workflow security passed. The bounded local changed-check
+log then exposed an inherited pnpm user-agent in a real Bun fixture and a failed
+permission-test child launch. These observations are failures, not qualification.
+
+Reproducing the observed outer pnpm environment through the existing selected
+owner ran all 50 tests in the workflow configuration, gate configuration and ADR
+replacement suites: 48 passed and both Bun manager observations failed. The two
+fixtures now remove only the case-insensitive `npm_config_user_agent` field from
+their final child environment. Actual managers must supply their own observations;
+explicit executable selection, Git authority and every runtime assertion remain.
+Production environment handling and the global process environment are unchanged.
+
+The dropped-UID test could not traverse the private ancestor of the original
+Node executable. A byte-identical physical Node 26.11.1 in a dedicated traversable
+runtime directory passed an actual UID/GID 65534 launch. Its test scratch parent
+is also traversable; workspace permissions are unchanged. The unchanged ADR test
+already passed with these execution inputs before the source correction. Its
+only source edit retains a useful spawn error when stderr is null. The protected
+baseline directory remains mode 0555, and child status, exact EACCES, unchanged
+baseline bytes and absence of temporary files remain mandatory.
+
+With the same reproduced ambient user-agent, all 50 tests then passed without
+skips in 48.210 seconds; strict TypeScript 7.0.2 tooling passed in 2.754 seconds.
+The existing optional Node 24 case was not activated by this focused run; native
+compatibility evidence remains a separate CI responsibility. Independent review
+and the final committed-source gates are recorded on the owner PR. This correction
+does not change inventories, timeouts or the maintainer-readiness publication hold.

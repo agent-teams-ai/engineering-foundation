@@ -383,7 +383,7 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-eight-package DAG owned solely by `scripts/publishable-packages.mjs`.
+package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
 source package outside that documentation Cohort. Its `0.1.0-rc.0` registry

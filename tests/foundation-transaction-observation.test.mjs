@@ -243,12 +243,13 @@ test("public Foundation attach, detach, scaffold apply and recover preserve fore
       await cp(scaffoldFixtureRoot, root, { recursive: true });
       const manifestPath = join(root, "package.json");
       const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+      manifest.packageManager = "pnpm@11.20.0";
       manifest.devDependencies = { ...manifest.devDependencies, "@agent-teams/engineering-foundation": "0.21.0" };
       await writeJson(manifestPath, manifest);
       const plan = await planScaffoldFromFile({ consumerRoot: root, intentPath: "intents/create-fixture.yaml" });
       const source = await historicalFixture(name); await mkdir(dirname(slotPath(root)), { recursive: true }); await writeFile(slotPath(root), source);
-      await assert.rejects(service.attach(root, "unreached-target"), (error) => error instanceof FoundationTransactionError);
-      await assert.rejects(service.detach(root), (error) => error instanceof FoundationTransactionError);
+      await assert.rejects(service.attach(root, "unreached-target"), (error) => error instanceof FoundationTransactionError && error.status.state === "manual-recovery-required");
+      await assert.rejects(service.detach(root), (error) => error instanceof FoundationTransactionError && error.status.state === "manual-recovery-required");
       await assert.rejects(applyFilesystemScaffold(root, plan), (error) => error?.code === "SCAFFOLD_RECOVERY_REQUIRED");
       await assert.rejects(recoverFilesystemScaffold(root), (error) => error?.code === "SCAFFOLD_RECOVERY_REQUIRED");
       assert.deepEqual(await readFile(slotPath(root)), source);

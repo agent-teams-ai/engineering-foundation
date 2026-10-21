@@ -116,12 +116,13 @@ test("five fixed Windows lanes retain exact real canonical inventory and mandato
   assert.deepEqual(byLane.get("c"), [loader]);
   const successor = "tests/npm-package-bootstrap-successor-policy.test.mts";
   const comparator = "tests/features/input-comparison/ci-input-proof.test.mts";
+  const bunRegistry = "tests/local-mode-bun.test.ts";
   const qualificationCohort = "packages/docs-protocol-agent-teams/tests/qualification-cohort-v3.test.mts";
   const canaryGeneration3 = "tests/public-managed-registry-canary-generation3.test.mts";
   assert.deepEqual([
-    canonical.indexOf(successor), canonical.indexOf(comparator),
+    canonical.indexOf(successor), canonical.indexOf(comparator), canonical.indexOf(bunRegistry),
     canonical.indexOf(qualificationCohort), canonical.indexOf(canaryGeneration3),
-  ], [13, 32, 134, 215]);
+  ], [13, 32, 100, 135, 216]);
   const lanePolicy = JSON.parse(await readFile(new URL("../tests/manifests/windows-lanes.v1.json", import.meta.url), "utf8"));
   assert.deepEqual(Object.fromEntries(byLane), lanePolicy.lanes);
   const laneB = byLane.get("b")!;

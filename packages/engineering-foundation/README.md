@@ -76,6 +76,11 @@ agent-teams-foundation assert-dev-only
 agent-teams-foundation assert-registry
 ```
 
+Exact stable Bun 1 consumers support registry inspection with the active text
+lock and contained isolated installed identity; this is cooperative selection
+evidence without an installed lock mirror or archive authentication. Local
+attach and detach remain pnpm 11 only. See [local mode](../../docs/development/local-mode.md).
+
 Local attach accepts only a built target whose versioned local-mode protocol,
 exports, runtime dependencies, and real CLI self-check agree with its package
 metadata.

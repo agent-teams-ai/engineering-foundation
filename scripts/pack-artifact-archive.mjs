@@ -23,7 +23,7 @@ const forbiddenEntries = [
 const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_ARCHIVE_ENTRIES = 2_500;
 const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
-  // Full Foundation inventory: 2,780 actual files: the qualified shared-native
+  // Full Foundation inventory: 2,788 actual files: the qualified shared-native
   // inventory of 2,710 plus the repository-agent-workflow/v2 and
   // workspace-dependency-declarations/v2 schemas, plus 52 compiled artifacts
   // from the 13 check-changed successor modules (the v2 policy loaders and
@@ -35,7 +35,10 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // compiled artifacts from architecture-decision-baseline-replacement.ts and
   // git-index-snapshot.ts merged from the qualified main inventory, plus four
   // compiled artifacts (.js, .js.map, .d.ts, .d.ts.map) from the private
-  // configuration-input/application/static-host-command.ts declaration lexer.
+  // configuration-input/application/static-host-command.ts declaration lexer, plus
+  // eight compiled artifacts from the private local-mode Bun registry policy and
+  // installed-selection adapter. The actual 2,788-member pack retains all 2,780
+  // previous members; its only additions are those two modules (four files each).
   // The shared native transition adds 36 compiled artifacts from nine ordinary .ts modules and one request
   // schema to the previously qualified 2,673-file inventory (+37). Earlier growth:
   // the quality-gate-runner v2 schema and 32 compiled artifacts because eight TypeScript
@@ -48,7 +51,7 @@ const PACKAGE_MAX_ARCHIVE_ENTRIES = Object.freeze({
   // the quality-findings-baseline/v1 schema.
   // The full-inventory regression requires requalification for any growth;
   // every other package retains the existing 2,500-entry bound.
-  "@agent-teams/engineering-foundation": 2_780,
+  "@agent-teams/engineering-foundation": 2_788,
 });
 
 export function maximumArchiveEntries(packageName) {

@@ -1284,7 +1284,8 @@
             }
           ],
           "testRoots": [
-            "tests/local-mode.test.mjs"
+            "tests/local-mode.test.mjs",
+            "tests/local-mode-bun.test.ts"
           ]
         },
         {

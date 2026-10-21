@@ -1,3 +1,4 @@
+import { assertNodeLocalMutationSupported } from "./adapters/node/consumer-inspection.js";
 import { LocalPackageLifecycle } from "./api.js";
 import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus, FoundationLocalModeServiceOptions } from "./api.js";
 import { createNodeLocalPackageLifecyclePorts } from "../composition/local-mode-ports.js";
@@ -50,9 +51,11 @@ export class FoundationLocalModeService {
     return this.#lifecycle.status(consumerPath);
   }
   async attach(consumerPath: string, targetPath: string): Promise<AttachResult> {
+    await assertNodeLocalMutationSupported(consumerPath);
     return this.#lifecycle.attach(consumerPath, targetPath);
   }
   async detach(consumerPath: string): Promise<FoundationStatus> {
+    await assertNodeLocalMutationSupported(consumerPath);
     return this.#lifecycle.detach(consumerPath);
   }
   async assertRegistry(consumerPath: string): Promise<FoundationStatus> {

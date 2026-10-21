@@ -264,7 +264,7 @@ async function createArtifact(input, stage) {
   const hookPath = join(stage.stageRoot, "canonical-packing-hook.cjs");
   const hook = await readStableRegularFile(new URL("../.pnpmfile.cjs", import.meta.url), { bytes: 0 }, "Canonical packing hook");
   await writeFile(hookPath, hook.bytes, { flag: "wx", mode: 0o444 });
-  await input.runPnpm(["pack", "--pack-destination", destination, `--config.pnpmfile=${hookPath}`], stage.packageRoot, {
+  await input.runPnpm(["pack", "--pack-destination", destination, `--config.pnpmfile=${hookPath}`, "--config.global-pnpmfile=", "--config.config-dependencies="], stage.packageRoot, {
     environment: {
       ...process.env,
       pnpm_config_ignore_pnpmfile: "false",

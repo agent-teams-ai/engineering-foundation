@@ -1,7 +1,8 @@
 import type { LocalPackageLifecyclePorts } from "../application/ports.js";
 import type { ProcessRunner } from "../application/model.js";
 import type { FoundationPackageSelfCheck } from "../application/package-metadata.js";
-import { LocalPackageLifecycle, type LocalPackageLifecycleOptions } from "../application/service.js";
+import { LocalPackageLifecycle } from "../api.js";
+import type { LocalPackageLifecycleOptions } from "../application/service.js";
 import { inspectCanonicalConsumerDevOnly, assertNodeLocalMutationSupported } from "../adapters/node/consumer-inspection.js";
 import { createNodeLocalLinkStateStore, type LocalStateDirectory } from "../adapters/node/local-state-store.js";
 import { createNodeRegistryLinks } from "../adapters/node/registry-links.js";

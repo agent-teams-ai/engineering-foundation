@@ -90,7 +90,7 @@ export function isSupportedPnpmManager(value: string): boolean {
   return /^pnpm@11\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value);
 }
 
-export function isSupportedBunManager(value: string): boolean {
+function isSupportedBunManager(value: string): boolean {
   return /^bun@1\.\d+\.\d+$/u.test(value) && isExactVersion(value.slice(4));
 }
 

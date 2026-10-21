@@ -62,9 +62,7 @@ async function installPackedPackage(input) {
     ["--reporter=silent", "exec", "agent-teams-foundation", "--version"],
     input.consumerRoot
   );
-  const packedManifest = await readJson(
-    join(input.consumerRoot, "node_modules", "@agent-teams", "engineering-foundation", "package.json")
-  );
+  const packedManifest = await readJson(join(input.consumerRoot, "node_modules", foundationPackage, "package.json"));
   if (versionOutput.trim() !== packedManifest.version) {
     throw new Error("Packed CLI version differs from packed package version.");
   }

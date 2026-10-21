@@ -301,6 +301,11 @@
       "id": "ADR-0063",
       "path": "docs/decisions/0063-explicit-changed-check-coverage-policy-schema.md",
       "immutableDigest": "sha256:9d0e5f6e6c936fd309ddc31948727215d7916d5729246af390f11b8b7176389f"
+    },
+    {
+      "id": "ADR-0064",
+      "path": "docs/decisions/0064-independent-stack-toolchain-package-boundary.md",
+      "immutableDigest": "sha256:a60d107c0fd78952869fce811e9211b09321c54db54356c629e1b35503b65625"
     }
   ]
 }

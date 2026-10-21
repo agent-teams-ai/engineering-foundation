@@ -259,10 +259,15 @@ export async function createCleanBuildStage(input, label) {
 async function createArtifact(input, stage) {
   const destination = join(stage.stageRoot, "pack");
   await mkdir(destination, { recursive: true });
-  await input.runPnpm(["pack", "--pack-destination", destination], stage.packageRoot, {
+  // Use only this repository-owned canonical packing hook, never an ambient
+  // consumer pnpmfile. pnpm inserts scripts after its manifest projection.
+  const hookPath = join(stage.stageRoot, "canonical-packing-hook.cjs");
+  const hook = await readStableRegularFile(new URL("../.pnpmfile.cjs", import.meta.url), { bytes: 0 }, "Canonical packing hook");
+  await writeFile(hookPath, hook.bytes, { flag: "wx", mode: 0o444 });
+  await input.runPnpm(["pack", "--pack-destination", destination, `--config.pnpmfile=${hookPath}`, "--config.global-pnpmfile=", "--config.config-dependencies="], stage.packageRoot, {
     environment: {
       ...process.env,
-      pnpm_config_ignore_pnpmfile: "true",
+      pnpm_config_ignore_pnpmfile: "false",
       pnpm_config_ignore_scripts: "true",
     },
   });

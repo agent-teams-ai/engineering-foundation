@@ -1,3 +1,4 @@
+import { normalizeDependencyDeclaration } from "../packages/engineering-foundation/dist/workspace-inventory/application/policies/normalize-dependency-declaration.js";
 import { sourceDependencyAdapters } from "./support/capability-adapters.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -129,6 +130,7 @@ test("publishable package catalog and manifests preserve one-way layering", asyn
       docsProtocolMcpName,
       foundationName,
       "@agent-teams/feature-module-standard",
+      "stack-toolchain",
     ],
   );
   const repositoryMutation = await json("packages/repository-mutation/package.json");
@@ -724,5 +726,71 @@ test("document authoring public surface exposes no directory rollback capability
       /DocumentParentRollbackResultV2|directory-removed/iu,
       path,
     );
+  }
+});
+
+function assertToolchainLinterOwnership(manifest, ownerManifest, catalogs = []) {
+  const bundling = [manifest.bundledDependencies, manifest.bundleDependencies];
+  const bundled = bundling.some(value => value === true) ? true : bundling.flatMap(value => value ?? []);
+  for (const tool of ['oxlint', 'oxlint-tsgolint']) {
+    assert.ok(bundled !== true || !Object.keys(manifest.dependencies ?? {}).includes(tool), `${manifest.name} cannot bundle ${tool}`);
+    assert.ok(bundled === true || !bundled.includes(tool), `${manifest.name} cannot bundle ${tool}`);
+  }
+  for (const section of dependencySections) {
+    for (const [name, specifier] of Object.entries(manifest[section] ?? {})) {
+      const declaration = normalizeDependencyDeclaration({ catalogs, dependencyName: name, specifier, section, packageName: manifest.name, manifestPath: 'package.json' });
+      const protectedName = ['oxlint', 'oxlint-tsgolint'].find(tool => tool === name || tool === declaration.targetPackageName);
+      if (protectedName === undefined) { continue; }
+      assert.ok(bundled !== true && !bundled.includes(name) && !bundled.includes(protectedName), `${manifest.name} cannot bundle ${protectedName}`);
+      if (section === 'devDependencies') { continue; }
+      assert.equal(manifest.name, ownerManifest.name, `${manifest.name} cannot declare runtime ${protectedName}`);
+      assert.equal(section, 'dependencies', `${protectedName} belongs in its owner's required dependencies`);
+      assert.equal(name, protectedName, 'Toolchain runtime tools use canonical names');
+      assert.equal(specifier, ownerManifest.dependencies[protectedName]);
+    }
+  }
+}
+
+test('only Stack Toolchain owns runtime linter dependencies across all workspaces', async () => {
+  const owner = await json('packages/stack-toolchain/package.json');
+  assert.equal(owner.name, 'stack-toolchain');
+  for (const name of ['oxlint', 'oxlint-tsgolint']) { assert.equal(owner.dependencies[name], 'catalog:'); }
+  const rootManifest = await json('package.json');
+  const workspace = parseYaml(await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8'));
+  assert.deepEqual(workspace.packages, ['packages/*', 'spikes/*'], 'Update the owner-policy inventory before adding workspace patterns');
+  const catalogs = Object.entries(workspace.catalog).map(([dependencyName, version]) => ({ catalogName: 'default', dependencyName, version }));
+  for (const [catalogName, entries] of Object.entries(workspace.catalogs ?? {})) {
+    for (const [dependencyName, version] of Object.entries(entries)) { catalogs.push({ catalogName, dependencyName, version }); }
+  }
+  const manifests = [rootManifest];
+  for (const parent of ['packages', 'spikes']) {
+    for (const entry of await readdir(join(repositoryRoot, parent), { withFileTypes: true })) {
+      if (!entry.isDirectory()) { continue; }
+      const source = await readFile(join(repositoryRoot, parent, entry.name, 'package.json'), 'utf8').catch(error => {
+        if (error.code === 'ENOENT') { return null; } throw error;
+      });
+      if (source !== null) { manifests.push(JSON.parse(source)); }
+    }
+  }
+  for (const manifest of manifests) { assertToolchainLinterOwnership(manifest, owner, catalogs); }
+  for (const name of ['oxlint', 'oxlint-tsgolint']) {
+    for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+      assert.throws(() => assertToolchainLinterOwnership({ name: 'unrelated-consumer', [section]: { [name]: owner.dependencies[name] } }, owner), /cannot declare runtime/u);
+    }
+  }
+});
+
+test('runtime linter ownership rejects npm and catalog aliases and all bundling', () => {
+  const owner = { name: 'stack-toolchain', dependencies: { oxlint: 'catalog:', 'oxlint-tsgolint': 'catalog:' } };
+  for (const tool of Object.keys(owner.dependencies)) {
+    const catalogs = [{ catalogName: 'default', dependencyName: 'alias', version: `npm:${tool}@1.0.0` }];
+    for (const specifier of [`npm:${tool}@1.0.0`, 'catalog:']) {
+      assert.throws(() => assertToolchainLinterOwnership({ name: 'other', dependencies: { alias: specifier } }, owner, catalogs), /cannot declare runtime/u);
+    }
+    for (const field of ['bundleDependencies', 'bundledDependencies']) {
+      for (const name of ['other', owner.name]) {
+        assert.throws(() => assertToolchainLinterOwnership({ name, devDependencies: { [tool]: 'catalog:' }, [field]: [tool] }, owner), /cannot bundle/u);
+      }
+    }
   }
 });

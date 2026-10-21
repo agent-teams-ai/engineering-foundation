@@ -432,6 +432,96 @@
         "archiveIntegrity": "sha512-oE2OGPkhoa08Jr1LhwgePnuRImlE6b7fKK9C2pKcazLY2565SQHsZ2Tpn2WrHrzFJxN8jGh/QVCXhwVLrkhlGA==",
         "packageTree": "d2686d208af115b731ba135fc1980aa9355ff747"
       }
+    },
+    {
+      "id": "stack-toolchain",
+      "state": "approved",
+      "name": "stack-toolchain",
+      "root": "packages/stack-toolchain",
+      "manifestPath": "packages/stack-toolchain/package.json",
+      "bootstrapVersion": "0.0.0",
+      "dependencies": [
+        {
+          "name": "node-or-bun",
+          "specifier": "catalog:",
+          "version": "0.2.2"
+        },
+        {
+          "name": "typescript",
+          "specifier": "catalog:",
+          "version": "7.0.2"
+        },
+        {
+          "name": "oxlint",
+          "specifier": "catalog:",
+          "version": "1.83.0"
+        },
+        {
+          "name": "oxlint-tsgolint",
+          "specifier": "catalog:",
+          "version": "7.0.2001"
+        },
+        {
+          "name": "oxfmt",
+          "specifier": "catalog:",
+          "version": "0.74.0"
+        },
+        {
+          "name": "jsonc-parser",
+          "specifier": "catalog:",
+          "version": "3.3.1"
+        }
+      ],
+      "optionalDependencies": [
+        {
+          "name": "bun",
+          "specifier": "catalog:",
+          "version": "1.4.3"
+        },
+        {
+          "name": "tsrs",
+          "specifier": "catalog:",
+          "version": "0.18.0-ts7.1.0-dev.20260929"
+        }
+      ],
+      "contentPolicy": {
+        "exact": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json",
+          "toolchain-manifest.json"
+        ],
+        "prefixes": [
+          "dist/",
+          "presets/"
+        ],
+        "required": [
+          "CHANGELOG.md",
+          "LICENSE",
+          "README.md",
+          "package.json",
+          "toolchain-manifest.json"
+        ]
+      },
+      "deprecationMessage": "Bootstrap-only artifact; do not adopt. Use a supported stack-toolchain release instead.",
+      "tags": {
+        "required": [
+          "bootstrap"
+        ],
+        "allowed": [
+          "bootstrap",
+          "latest"
+        ]
+      },
+      "provenance": {
+        "workflowPath": ".github/workflows/npm-package-bootstrap.yml",
+        "ref": "refs/heads/main"
+      },
+      "approval": {
+        "archiveIntegrity": "sha512-SF0dnOmHrhkJTXYNZwrz7UgigTe0/2+X36+WoUEYMnqWLiX1HjvRHItujsG+0sy9OVP81QOEUQ1DvJ+oEY/5rQ==",
+        "packageTree": "aa197ab942033769991e2d603eb3317541e36e6a"
+      }
     }
   ]
 }

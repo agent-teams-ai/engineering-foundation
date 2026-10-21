@@ -16,9 +16,10 @@ policies:
     - "@types/proper-lockfile"
     - knip
     - nx
-    - oxlint
-    - oxlint-tsgolint
     - publint
+  # Oxlint and its typed companion are runtime tools only for stack-toolchain.
+  # tests/package-boundary.test.mjs rejects their production declarations in
+  # every other workspace package, including optional and peer dependencies.
   # TypeScript is the exact native runtime SDK of the public API adapter.
   # The source-dependency profile restricts its production imports to that adapter
   # and its pinned SDK loader; other workspace declarations stay development-only.

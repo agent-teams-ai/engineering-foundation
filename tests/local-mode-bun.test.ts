@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { link as hardlink, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import test, { type TestContext } from "node:test";
 import { inspectConsumerManifest } from "../packages/engineering-foundation/dist/local-mode/application/consumer-policy.js";
@@ -76,6 +76,28 @@ test("Bun registry inspection binds unique bounded lock and installed isolated i
   assert.deepEqual((await inspect()).issues, []);
   assert.equal((await inspect()).provenance?.integrity, integrity);
   assert.equal((await inspect()).provenance?.packageKey, name);
+  assert.deepEqual((await inspectFoundationRegistryProvenance(relative(process.cwd(), root), version)).issues, []);
+  const consumerAlias = join(root, "consumer-alias");
+  await symlink(root, consumerAlias, process.platform === "win32" ? "junction" : "dir");
+  assert.deepEqual((await inspectFoundationRegistryProvenance(consumerAlias, version)).issues, []);
+  await rm(consumerAlias);
+  for (const path of [join(root, "bun.lock"), join(root, "package.json"), join(installed, "package.json")]) {
+    const alias = `${path}.hardlink`;
+    await hardlink(path, alias);
+    try {
+      assert.deepEqual((await inspect()).issues, [], "stable hardlinked evidence remains admitted");
+    } finally {
+      await rm(alias);
+    }
+    assert.deepEqual((await inspect()).issues, [], "single-link evidence remains admitted");
+  }
+  const lockAlias = join(root, "aliased-bun.lock");
+  await writeFile(lockAlias, JSON.stringify(lock()));
+  await rm(join(root, "bun.lock"));
+  await symlink(lockAlias, join(root, "bun.lock"));
+  assert.ok((await inspect()).issues.length > 0, "symlink lock must reject even with valid bytes");
+  await rm(join(root, "bun.lock"));
+  await writeFile(join(root, "bun.lock"), JSON.stringify(lock()));
   for (const source of ["{}", "{", `${JSON.stringify(lock()).slice(0, -1)},"packages":{}}`,
     JSON.stringify(lock()).replace('"configVersion":1', '"configVersion":1,"configVersion":1'),
     " ".repeat(4 * 1024 * 1024 + 1)]) {

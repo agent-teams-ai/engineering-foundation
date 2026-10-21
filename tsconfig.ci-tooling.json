@@ -43,6 +43,8 @@
     "tests/repository-profile-lint.test.ts",
     "tests/repository-profile-git.test.ts",
     "tests/local-mode-bun.test.ts",
-    "tests/features/quality-coverage/governed-assets.test.ts"
+    "tests/features/quality-coverage/governed-assets.test.ts",
+    "packages/stack-toolchain/tests/**/*.ts",
+    "scripts/packed-stack-toolchain-qualification.ts"
   ]
 }

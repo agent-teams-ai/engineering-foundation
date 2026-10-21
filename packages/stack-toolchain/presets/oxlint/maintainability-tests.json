@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "complexity": ["error", 30],
+    "max-depth": ["error", 5],
+    "max-lines": [
+      "error",
+      {
+        "max": 800,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "max-lines-per-function": [
+      "error",
+      {
+        "max": 250,
+        "skipBlankLines": true,
+        "skipComments": true
+      }
+    ],
+    "max-params": ["error", 6]
+  }
+}

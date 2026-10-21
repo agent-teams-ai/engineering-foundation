@@ -1,5 +1,6 @@
 schemaVersion: 1
 governedRoots:
+  - packages/stack-toolchain/src
   - packages/ci-input-proof/src
   - packages/feature-module-standard/src
   - packages/docs-protocol-mcp/src

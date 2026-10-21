@@ -372,6 +372,7 @@ async function writeDocsMcpManifest(root, version = docsProtocolMcp.version) {
 }
 
 async function fixture(root, registry) {
+  await json(join(root, "packages/stack-toolchain/package.json"), { name: "stack-toolchain", version: "0.0.0", publishConfig: { registry } });
   await json(join(root, "package.json"), {
     name: "release-fixture",
     private: true,
@@ -430,7 +431,7 @@ async function fixture(root, registry) {
     ...freshPreState,
     changesets: ["consumed"],
     initialVersions: {
-      ...freshPreState.initialVersions,
+      ...freshPreState.initialVersions, "stack-toolchain": "0.0.0",
       [ciInputProof.name]: ciInputProof.version,
       [featureModuleStandard.name]: featureModuleStandard.version,
       [docsProtocol.name]: docsProtocol.version,
@@ -579,7 +580,7 @@ test("publish entrypoint independently rejects every publish-control drift bound
 });
 
 test("real release entrypoint proves multi-package registry state and fails closed on drift", async (t) => {
-  const versions = new Map([
+  const versions = new Map([["stack-toolchain", new Set(["0.0.0"])],
     ...[ciInputProof, featureModuleStandard, docsProtocol, docsProtocolAdapter, documentAuthoring, foundation, repositoryMutation]
       .map((item) => [item.name, new Set([item.version])]),
     [docsProtocolMcp.name, new Set([docsProtocolMcpBaselineVersion])],

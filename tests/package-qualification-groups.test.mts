@@ -94,7 +94,7 @@ async function producerFixture(t: TestContext, failureName?: string) {
   await symlink(join(repositoryRoot, "packages", "engineering-foundation"), join(source, "packages", "engineering-foundation"),
     process.platform === "win32" ? "junction" : "dir");
   await symlink(join(repositoryRoot, "node_modules"), join(source, "node_modules"), process.platform === "win32" ? "junction" : "dir");
-  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json"]) {
+  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json", ".pnpmfile.cjs"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
   }
   const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));

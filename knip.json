@@ -105,6 +105,13 @@
       "project": [
         "*.ts"
       ]
+    },
+    "packages/stack-toolchain": {
+      "ignoreDependencies": [
+        "oxlint",
+        "oxlint-tsgolint",
+        "oxfmt"
+      ]
     }
   }
 }

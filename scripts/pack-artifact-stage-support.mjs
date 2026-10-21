@@ -205,7 +205,7 @@ export async function boundedDirectoryEntries(path, label, state) {
   return entries;
 }
 
-export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, excludedEntries, label, state, validatePhysical }) {
+export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, excludedEntries, label, state, validatePhysical, maximumMemberBytes = () => MAX_MEMBER_BYTES }) {
   async function visit(source, destination, depth, countSelf = true, leafOnly = false) {
     if (depth > 64) {
       throw new Error(`${label} exceeds its bounded traversal depth.`);
@@ -229,7 +229,7 @@ export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks
     if (metadataBefore.isFile()) {
       const { bytes, mode } = await readStableRegularFile(source, state, label, {
         metadata: metadataBefore, pathname: pathnameBefore, physical,
-      });
+      }, maximumMemberBytes?.(source) ?? MAX_MEMBER_BYTES);
       // The directory owner already created every child parent.
       if (depth === 0) { await mkdir(dirname(destination), { recursive: true }); }
       await writeFile(destination, bytes, { flag: "wx", mode });
@@ -423,7 +423,14 @@ async function materializeExternalPackage(source, destination, context) {
     throw new Error(`External dependency tree reaches an internal source-workspace package: ${source}.`);
   }
   await assertNoInternalResolutionFromAncestors(physical, context.internalPackageNames);
+  const admitted = await readBoundedStableJson(join(source, "package.json"), "External native admission manifest");
+  const bunVersion = context.catalogVersions.get("bun");
+  const admittedBun = /^@oven\/bun-(?:darwin|linux|windows|freebsd)-(?:aarch64|x64)(?:-musl|-android)?$/u.test(context.requestedName) &&
+    admitted.name === context.requestedName && typeof bunVersion === "string" &&
+    admitted.version === bunVersion && context.requestedVersion === bunVersion;
+  const binaryPath = join(source, "bin", context.requestedName.includes("windows") ? "bun.exe" : "bun");
   await materializeStableTree(source, destination, {
+    maximumMemberBytes: candidate => admittedBun && candidate === binaryPath ? 128 * 1024 * 1024 : MAX_MEMBER_BYTES,
     allowLinks: true,
     excludedEntries: new Set(["node_modules"]),
     label: "External dependency tree",

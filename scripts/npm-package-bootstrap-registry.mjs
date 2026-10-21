@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import {
   NPM_PACKAGE_BOOTSTRAP,
+  assertOptionalDependencyManifest,
   fail,
   isRecord,
 } from "./npm-package-bootstrap-catalog.mjs";
@@ -61,6 +62,9 @@ export async function livePackageEvidence(profile, fetchImplementation = fetch, 
     fail(`${profile.name} registry packument has an invalid shape.`);
   }
   const version = packument.versions[profile.bootstrapVersion];
+  if (version !== undefined) {
+    assertOptionalDependencyManifest(profile, version, true);
+  }
   return {
     deprecatedMessage: version?.deprecated ?? null,
     gitHead: version?.gitHead ?? null,
@@ -74,7 +78,7 @@ export async function livePackageEvidence(profile, fetchImplementation = fetch, 
 
 export async function liveDependencyVersions(profile, fetchImplementation = fetch, observationOptions) {
   const result = {};
-  for (const dependency of profile.dependencies) {
+  for (const dependency of [...profile.dependencies, ...(profile.optionalDependencies ?? [])]) {
     const packageUrl = new URL(encodeURIComponent(dependency.name), NPM_PACKAGE_BOOTSTRAP.registry);
     const response = await fetchWithRetry(packageUrl, fetchImplementation, observationOptions);
     if (response.status === 404) {

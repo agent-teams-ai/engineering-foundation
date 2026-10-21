@@ -123,6 +123,46 @@ and does not authorize publication by itself.
 
 ## One-time namespace bootstrap
 
+### Pending Stack Toolchain namespace
+
+`stack-toolchain` starts as a `candidate` with `approval: null`; its current
+admission state and reviewed archive identity are recorded only in the bootstrap
+catalog. Its source version remains `0.0.0`, with a minor changeset for its first
+supported `0.1.0`. Prepare candidate evidence on the implementation PR before merge: the
+Ubuntu `linux-bootstrap-evidence` lane runs on a requested full-CI PR as well as
+on protected-main pushes. The ordinary release guard deliberately stops before
+Changesets versioning while any bootstrap candidate remains unapproved, so avoid
+merging a candidate merely to collect evidence.
+
+The existing Ubuntu `linux-bootstrap-evidence` lane retains the candidate archive,
+manifest, tar listings and receipt with `sourceCommit`, `packageTree`,
+`archiveIntegrity`, `archiveSha256` and `manifestDigest`. Review those exact bytes
+before preparing a separate catalog approval; never invent SRI or use a local
+pack as the approved writer artifact.
+
+The candidate records exact mandatory dependencies and a separate exact
+`optionalDependencies` map for Bun and tsrs. The bounded optional-dependency
+admission must pass its rejecting checks and approved-writer qualification before
+activation; collecting candidate bytes alone does not prove writer admission.
+Historical profiles omit that field and continue to reject an unreviewed optional
+runtime section. Do not remove optional dependencies, weaken that guard or reuse
+the CI Input Proof stage/predecessor exception.
+
+After that admission is implemented and reviewed, retain the PR's fresh Ubuntu
+candidate archive and receipt. Review them, then change the candidate to
+`approved` with that exact `packageTree` and `archiveIntegrity` on the same PR,
+without changing the package tree. The receipt's `sourceCommit` retains the
+candidate CI input; approval binds the package tree and SRI, while publication
+provenance binds the eventual protected-main commit. Run full CI again on the
+final approved head: `linux-package` must reproduce the approved writer bytes.
+After review and merge, require fresh green protected-main CI including that
+approved-writer validation before creating a bootstrap token. Only the final
+protected workflow activation needs the provider-required authentication and
+environment review below. After the exact `0.0.0` bootstrap is provenance-verified
+and deprecated, configure its npm Trusted Publisher, revoke/remove the short-lived
+token and disable bootstrap activation. The supported `0.1.0` then follows the
+ordinary Changesets/OIDC release route, with fresh registry installation proof.
+
 `architecture/foundation/npm-package-bootstrap.json` is the only package-specific
 authority. The selected profile must be `approved` with reviewed package-tree and SRI
 evidence before the protected `npm-package-bootstrap` environment can run. The
@@ -344,7 +384,7 @@ publish step is deliberately ordered rather than delegated to concurrent
 workspace publication. It packs every reviewed artifact and derives the
 publication order by topologically sorting the exact internal dependencies from
 the reviewed workspace manifests. The projection must equal the closed
-eight-package DAG owned solely by `scripts/publishable-packages.mjs`.
+package DAG owned solely by `scripts/publishable-packages.mjs`.
 [ADR-0043](decisions/0043-new-only-portable-documentation-package-boundary.md)
 retains the documentation package boundaries; CI Input Proof is an independent
 source package outside that documentation Cohort. Its `0.1.0-rc.0` registry

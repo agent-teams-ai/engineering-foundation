@@ -20,7 +20,7 @@ import {
   verifyReleaseBootstrapBaselines,
 } from "./npm-package-bootstrap.mjs";
 import { collectPlannedReleaseVersions } from "./npm-package-bootstrap-release-plan.mts";
-import { fail } from "./npm-package-bootstrap-catalog.mjs";
+import { fail, assertOptionalDependencyManifest } from "./npm-package-bootstrap-catalog.mjs";
 import {
   REGISTRY_OBSERVATION_ATTEMPTS,
   REGISTRY_OBSERVATION_RETRY_MILLISECONDS,
@@ -46,6 +46,7 @@ export function assertWorkspaceManifestMatchesProfile(profile, manifest) {
   ) {
     fail("workspace manifest does not match approved public bootstrap authority.");
   }
+  assertOptionalDependencyManifest(profile, manifest);
   const dependencyNames = Object.keys(manifest.dependencies ?? {}).toSorted();
   const expectedNames = profile.dependencies.map(({ name }) => name).toSorted();
   if (JSON.stringify(dependencyNames) !== JSON.stringify(expectedNames)) {

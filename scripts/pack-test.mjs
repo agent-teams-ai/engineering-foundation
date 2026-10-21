@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertPnpmProfileQualificationRoot } from "../tools/dev.mts";
+import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
 import { testPackedAgentWorkflow } from "./pack-agent-workflow-test.mjs";
 import { assertPackedDocsAdapterHistory } from "./pack-docs-adapter-history.mjs";
 import { testPackedQualityCoverage } from "./pack-quality-coverage-test.mjs";
@@ -563,6 +564,7 @@ export function qualifyPackedConsumers(handle, group) {
     const getFixture = async () => {
       fixture ??= await timedPhase("packed consumer fixture", async () => createPackedConsumerFixture({
         archiveFileSpecifier: artifact.archiveFileSpecifier,
+        stackToolchainArchiveFileSpecifier: artifacts["stack-toolchain"].archiveFileSpecifier,
         consumerRoot: join(temporaryRoot, "consumer"),
         documentAuthoringArchiveFileSpecifier: documentAuthoringArtifact.archiveFileSpecifier,
         mutationArchiveFileSpecifier: mutationArtifact.archiveFileSpecifier,
@@ -627,8 +629,10 @@ export function qualifyPackedConsumers(handle, group) {
         consumerRoot: current.consumerRoot,
         runPnpm
       })),
-      consumerPhase("quality coverage", current =>
-        testPackedQualityCoverage({ consumerRoot: current.consumerRoot, artifact })),
+      consumerPhase("quality coverage", async current => {
+        await qualifyInstalledStackToolchain(current.consumerRoot);
+        return testPackedQualityCoverage({ consumerRoot: current.consumerRoot, artifact });
+      }),
       consumerPhase("quality gate runner", current => testPackedQualityGateRunner({
         consumerRoot: current.consumerRoot,
         runPnpm

@@ -137,6 +137,13 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
   for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", ".pnpmfile.cjs"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
   }
+  // The real pack command imports runtime admission and reads its pinned policy.
+  // Keep those inputs owned by this producer instead of bypassing admission.
+  for (const path of ["tools/runtime-policy.mts", "tools/executable-policy.mts",
+    "architecture/foundation/repository-runtime.json"]) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await copyFile(join(repositoryRoot, path), join(source, path));
+  }
   // This owned producer declares pnpm for its real packaging commands; linked
   // dependencies remain the source graph, not a freshly installed pnpm profile.
   await writeFile(join(source, "package.json"), projectPackageManager(

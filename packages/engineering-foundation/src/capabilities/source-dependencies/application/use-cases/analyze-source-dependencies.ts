@@ -22,6 +22,8 @@ import type {
   SourceArchitecturePolicy
 } from "../model/source-workspace.js";
 import {
+  indexPortableRoots,
+  matchingPortableRootSpecificity,
   normalizeRepositoryPath,
   pathIsInside,
   portablePathIsInside,
@@ -57,28 +59,29 @@ interface BoundaryMatch {
   readonly specificity: number;
 }
 
+type BoundaryRootIndexes = ReadonlyMap<ArchitectureBoundaryPolicy, ReadonlyMap<string, number>>;
+
 function matchingBoundarySpecificity(
   path: string,
-  boundary: ArchitectureBoundaryPolicy,
-  portable: boolean
+  boundary: ArchitectureBoundaryPolicy
 ): number | undefined {
   const matchingRoots = boundary.roots
-    .filter((root) => pathInside(path, root, portable))
+    .filter((root) => pathIsInside(path, root))
     .map((root) => normalizeRepositoryPath(root).length);
   return matchingRoots.length === 0 ? undefined : Math.max(...matchingRoots);
 }
 
 function selectBoundary(
   file: SourceFileSnapshot,
-  policy: SourceArchitecturePolicy
+  policy: SourceArchitecturePolicy,
+  rootIndexes: BoundaryRootIndexes | undefined
 ): ArchitectureBoundaryPolicy | undefined {
   const matches: BoundaryMatch[] = [];
+  const pathIdentity = policy.schemaVersion === 1 ? undefined : portableRepositoryPathIdentity(file.path);
   for (const boundary of policy.boundaries) {
-    const specificity = matchingBoundarySpecificity(
-      file.path,
-      boundary,
-      policy.schemaVersion !== 1
-    );
+    const specificity = policy.schemaVersion === 1
+      ? matchingBoundarySpecificity(file.path, boundary)
+      : matchingPortableRootSpecificity(pathIdentity!, rootIndexes!.get(boundary)!);
     if (specificity !== undefined) {
       matches.push({ boundary, specificity });
     }
@@ -145,13 +148,17 @@ function classifyFiles(
 ): readonly ClassifiedSourceFile[] {
   const { signal, ownership } = options;
   const classified: ClassifiedSourceFile[] = [];
+  let rootIndexes: BoundaryRootIndexes | undefined;
   for (const file of files) {
     assertNotCancelled(signal);
     const normalizedFile: SourceFileSnapshot = {
       ...file,
       path: normalizeRepositoryPath(file.path)
     };
-    const boundary = selectBoundary(normalizedFile, policy);
+    if (policy.schemaVersion !== 1 && rootIndexes === undefined) {
+      rootIndexes = new Map(policy.boundaries.map((boundary) => [boundary, indexPortableRoots(boundary.roots)] as const));
+    }
+    const boundary = selectBoundary(normalizedFile, policy, rootIndexes);
     const workspacePackage = ownership === undefined
       ? containingPackage(normalizedFile.path, packages, policy.schemaVersion !== 1)
       : sourcePackageOwner(normalizedFile.path, packages, ownership);

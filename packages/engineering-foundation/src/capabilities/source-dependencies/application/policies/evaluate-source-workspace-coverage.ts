@@ -2,7 +2,12 @@ import { sourcePackageOwner, type SourcePackageOwnership } from "./source-packag
 import { compareBinaryStrings } from "../../../../binary-string-comparator.js";
 import { CapabilityInputError } from "../../../../features/validation-reporting/api.js";
 import type { FoundationDiagnostic } from "../../../../features/validation-reporting/api.js";
-import { portablePathIsInside } from "../model/repository-path.js";
+import {
+  indexPortableRoots,
+  matchingPortableRootSpecificity,
+  portablePathIsInside,
+  portableRepositoryPathIdentity
+} from "../model/repository-path.js";
 import type {
   SourceWorkspacePackageTopology,
   SourceWorkspaceTopology
@@ -58,10 +63,14 @@ function assertBoundaryOwnership(
   packages: readonly SourceWorkspacePackageTopology[],
   ownership?: SourcePackageOwnership
 ): void {
+  const sourcePaths = ownership === undefined ? [] : packages.flatMap((owner) =>
+    owner.sourcePaths.map((path) => ({ path, identity: portableRepositoryPathIdentity(path) }))
+  );
   for (const boundary of policy.boundaries) {
-    const observedPaths = ownership === undefined ? [] : packages.flatMap((owner) =>
-      owner.sourcePaths.filter((path) => boundary.roots.some((root) => portablePathIsInside(path, root)))
-    );
+    const roots = indexPortableRoots(boundary.roots);
+    const observedPaths = sourcePaths
+      .filter(({ identity }) => matchingPortableRootSpecificity(identity, roots) !== undefined)
+      .map(({ path }) => path);
     const paths = [...boundary.roots, ...boundary.entrypoints, ...observedPaths].toSorted(
       compareBinaryStrings
     );

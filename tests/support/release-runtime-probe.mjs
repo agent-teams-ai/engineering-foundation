@@ -23,7 +23,7 @@ globalThis.readProbeFile = async (path, options) => {
   const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
   // Model Changesets' staged release only in this child. The source package's
   // unreleased changelog must remain unreleased outside the intercepted read.
-  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/feature-module-standard'].includes(info.name)
+  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/feature-module-standard', 'stack-toolchain'].includes(info.name)
     ? `# Staged package\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
   const notes = scenario.startsWith('notes-')
     ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : stagedNotes;
@@ -48,6 +48,7 @@ const expectedPublications = [
   '@agent-teams/docs-protocol-mcp',
   '@agent-teams/engineering-foundation',
   '@agent-teams/feature-module-standard',
+  'stack-toolchain',
 ];
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
@@ -103,7 +104,7 @@ function begin() {
     const manifest = { name: info.name, version: info.version,
       dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[info.name].map(name => [name, versions.get(name)])) };
     const bytes = qualifiedArchive(manifest);
-    const archivePath = join(destination, `${info.name.slice(1).replace('/', '-')}-${info.version}.tgz`);
+    const archivePath = join(destination, `${info.name.replace(/^@/u, '').replace('/', '-')}-${info.version}.tgz`);
     writeFileSync(archivePath, bytes, { mode: 0o444 });
     const archive = { archivePath, sha256: createHash('sha256').update(bytes).digest('hex'),
       packageName: info.name, packageVersion: info.version, manifest, bytes,
@@ -112,7 +113,7 @@ function begin() {
     return archive;
   };
   const statement = name => ({ _type: 'https://in-toto.io/Statement/v1', predicateType: 'https://slsa.dev/provenance/v1',
-    subject: [{ name: `pkg:npm/%40${name.slice(1)}@${versions.get(name)}`, digest: { sha512: createHash('sha512').update(archiveByName.get(name).bytes).digest('hex') } }],
+    subject: [{ name: `pkg:npm/${name.startsWith('@') ? `%40${name.slice(1)}` : name}@${versions.get(name)}`, digest: { sha512: createHash('sha512').update(archiveByName.get(name).bytes).digest('hex') } }],
     predicate: { buildDefinition: { externalParameters: { workflow: { ref: 'refs/heads/main', repository: 'https://github.com/fixture/release-probe', path: '.github/workflows/release.yml' } },
       resolvedDependencies: [{ uri: 'git+https://github.com/fixture/release-probe@refs/heads/main', digest: { gitCommit: sourceCommit } }] } } });
   const bundle = name => ({ predicateType: 'https://slsa.dev/provenance/v1', bundle: { dsseEnvelope: {

@@ -205,7 +205,7 @@ export async function boundedDirectoryEntries(path, label, state) {
   return entries;
 }
 
-export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, excludedEntries, label, state, validatePhysical, maximumMemberBytes }) {
+export async function materializeStableTree(sourceRoot, stagedRoot, { allowLinks, excludedEntries, label, state, validatePhysical, maximumMemberBytes = () => MAX_MEMBER_BYTES }) {
   async function visit(source, destination, depth, countSelf = true, leafOnly = false) {
     if (depth > 64) {
       throw new Error(`${label} exceeds its bounded traversal depth.`);

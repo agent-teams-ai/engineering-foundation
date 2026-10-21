@@ -127,6 +127,10 @@ async function producerFixture(t: TestContext, { failBuild = false } = {}) {
   const source = join(root, "source");
   await mkdir(source);
   await cp(join(repositoryRoot, "scripts"), join(source, "scripts"), { recursive: true });
+  for (const path of ["tools/executable-policy.mts", "tools/runtime-policy.mts", "architecture/foundation/repository-runtime.json"]) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await copyFile(join(repositoryRoot, path), join(source, path));
+  }
   await mkdir(join(source, "packages"));
   // Use the real compiled library with its assets and package-local dependencies;
   // only the two disposable publication targets below belong to TEST authority.

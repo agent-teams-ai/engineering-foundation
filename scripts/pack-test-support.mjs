@@ -69,8 +69,19 @@ function packageManagerOptions(options) {
 }
 
 export function createPnpmRunner() {
-  return async (args, cwd, options = {}) =>
-    runCommand("pnpm", args, cwd, packageManagerOptions(options));
+  let invocation;
+  return async (args, cwd, options = {}) => {
+    invocation ??= import("./packaging-pnpm.ts").then(({ resolvePackagingPnpm }) => resolvePackagingPnpm());
+    const { node, entrypoint } = await invocation;
+    const trustedOptions = packageManagerOptions(options);
+    // pnpm's generated .bin shim adds workspace paths to NODE_PATH. Independent
+    // packed consumers must resolve only their own installed dependencies.
+    const environment = Object.fromEntries(
+      Object.entries(trustedOptions.environment ?? process.env)
+        .filter(([key]) => !/^NODE_(?:PATH|OPTIONS)$/iu.test(key))
+    );
+    return runCommand(node, [entrypoint, ...args], cwd, { ...trustedOptions, environment });
+  };
 }
 
 export function runNpmCommand(args, cwd, options = {}) {

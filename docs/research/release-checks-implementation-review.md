@@ -25,9 +25,25 @@ qualification separately.
 | Complete source coverage found the new package missing from suppression governance | Added its complete source root to the existing governed roots; no waiver or suppression was added |
 | The actual installed TEST canary has no Git-root package manifest | Removed the unconditional root-manifest assumption; the inventory must contain actual packages and retain exact paths and complete manifest/diff relations. Shared nested-package positive and unclassified-root negative cases cover the correction |
 | The Host's intent filename rule differed from the pinned Changesets reader | Matched Changesets 2.31.1 direct, non-hidden lowercase `.md` discovery and case-insensitive README exclusion. Real engine release and no-release cases retain those documents and reject their edits; dotted intent names and the V2 `AGENTS.md` intent remain accepted |
+| A nested pnpm script exposed workspace packages to an independent packed consumer through the generated shim's `NODE_PATH` | The private packaging runner binds its own installed policy-pinned pnpm JavaScript bin and verified qualification Node, removes module-search overrides only from the child environment, and preserves existing subprocess custody. A real generated-shim control reproduces the old CJS leak before the corrected runner proves both CJS and ESM isolation |
 
 No generic release manager, compiler-stage exception, public Foundation facade,
 new publisher or version-selection algorithm was added.
+
+The packaging correction is loaded only when pnpm is actually called, preserving
+bootstrap commands that run before dependency installation. Copied producer
+fixtures retain their real dependency graph and now include the private runtime
+policy inputs used by that runner. Their existing build, archive and cleanup
+assertions remain intact. The focused bootstrap, packaging, staging and process
+lifecycle owners are run together; final normal-script packaging and complete
+native CI results belong to the exact source recorded on owner PR 421.
+
+The earlier `e8ca01e2ea1677602ebc9f33c23458958b440f95` local full-check and
+literal package-script failures remain failed evidence. A later successful
+execution of the exact package-script body established that the package
+assertions could pass without the nested shim, but did not qualify the normal
+launcher. It motivated this source correction and cannot replace its own
+normal-script and final-head CI qualification.
 
 ## Executed local qualification
 

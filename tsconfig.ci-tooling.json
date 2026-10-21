@@ -26,6 +26,7 @@
     "scripts/release-candidate-host.ts",
     "scripts/release-candidate-observation.ts",
     "scripts/packed-release-checks.ts",
+    "scripts/packaging-pnpm.ts",
     "scripts/public-docs-quickstart.ts",
     "scripts/public-docs-documented-e2e.ts",
     "scripts/pack-quality-assets.ts",

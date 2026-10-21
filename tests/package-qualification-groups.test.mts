@@ -90,6 +90,10 @@ async function producerFixture(t: TestContext, failureName?: string) {
   await mkdir(controlRoot);
   await mkdir(source);
   await cp(join(repositoryRoot, "scripts"), join(source, "scripts"), { recursive: true });
+  for (const path of ["tools/executable-policy.mts", "tools/runtime-policy.mts", "architecture/foundation/repository-runtime.json"]) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await copyFile(join(repositoryRoot, path), join(source, path));
+  }
   await mkdir(join(source, "packages"));
   await symlink(join(repositoryRoot, "packages", "engineering-foundation"), join(source, "packages", "engineering-foundation"),
     process.platform === "win32" ? "junction" : "dir");

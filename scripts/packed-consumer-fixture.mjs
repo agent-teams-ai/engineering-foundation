@@ -44,7 +44,7 @@ async function writeInstallManifests(input) {
   );
   await writeFile(
     join(input.consumerRoot, "pnpm-workspace.yaml"),
-    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
+    `packages:\n  - "packages/*"\noverrides:\n  "@agent-teams/engineering-foundation": ${JSON.stringify(input.foundationVersion)}\n  "@agent-teams/document-authoring": ${JSON.stringify(input.documentAuthoringArchiveFileSpecifier)}\n  "@agent-teams/repository-mutation": ${JSON.stringify(input.mutationArchiveFileSpecifier)}\n  "stack-toolchain": ${JSON.stringify(input.stackToolchainArchiveFileSpecifier)}\ncatalogMode: strict\ncatalog:\n  jsonc-parser: 3.3.1\n  oxlint: ${input.toolingVersions.oxlint}\n  oxlint-tsgolint: ${input.toolingVersions.oxlintTsgolint}\n  typescript: ${input.toolingVersions.typescript}\n`,
     "utf8"
   );
 }
@@ -68,9 +68,10 @@ async function installPackedPackage(input) {
   if (versionOutput.trim() !== packedManifest.version) {
     throw new Error("Packed CLI version differs from packed package version.");
   }
+  const stackManifest = await readJson(join(input.consumerRoot, "node_modules", "stack-toolchain", "package.json"));
   await writeJson(
     join(input.consumerRoot, "package.json"),
-    { ...consumerManifest(packedManifest.version, input.packageManager), devDependencies: { ...consumerManifest(packedManifest.version, input.packageManager).devDependencies, "stack-toolchain": input.stackToolchainArchiveFileSpecifier } }
+    { ...consumerManifest(packedManifest.version, input.packageManager), devDependencies: { ...consumerManifest(packedManifest.version, input.packageManager).devDependencies, "stack-toolchain": stackManifest.version } }
   );
   return packedManifest;
 }
@@ -150,6 +151,7 @@ policies:
     - typescript
   exactRegistryDevelopmentOnlyPackages:
     - "@agent-teams/engineering-foundation"
+    - stack-toolchain
 `,
     "utf8"
   );

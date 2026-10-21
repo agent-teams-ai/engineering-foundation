@@ -43,6 +43,37 @@ export function portableRepositoryPathIdentity(path: string): string {
     .toLocaleLowerCase("en-US");
 }
 
+export function indexPortableRoots(roots: readonly string[]): ReadonlyMap<string, number> {
+  const indexed = new Map<string, number>();
+  for (const root of roots) {
+    const identity = portableRepositoryPathIdentity(root);
+    const specificity = normalizeRepositoryPath(root).length;
+    const prior = indexed.get(identity);
+    indexed.set(identity, prior === undefined ? specificity : Math.max(prior, specificity));
+  }
+  return indexed;
+}
+
+/** pathIdentity must be produced by portableRepositoryPathIdentity. */
+export function matchingPortableRootSpecificity(
+  pathIdentity: string,
+  roots: ReadonlyMap<string, number>
+): number | undefined {
+  let best = roots.get(".");
+  let candidate = pathIdentity;
+  for (;;) {
+    const specificity = roots.get(candidate);
+    if (specificity !== undefined && (best === undefined || specificity > best)) {
+      best = specificity;
+    }
+    const slash = candidate.lastIndexOf("/");
+    if (slash < 0) {
+      return best;
+    }
+    candidate = candidate.slice(0, slash);
+  }
+}
+
 const WINDOWS_RESERVED_SEGMENT = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/iu;
 
 function isRejectedControlCodePoint(codePoint: number): boolean {
@@ -95,9 +126,26 @@ export function portableRepositoryPathProblem(path: string): string | undefined 
   return undefined;
 }
 
-export function portablePathIsInside(path: string, root: string): boolean {
-  const pathIdentity = portableRepositoryPathIdentity(path);
-  const rootIdentity = portableRepositoryPathIdentity(root);
+function reusedPortablePathIdentity(
+  path: string,
+  identities?: Map<string, string>
+): string {
+  const prior = identities?.get(path);
+  if (prior !== undefined) {
+    return prior;
+  }
+  const identity = portableRepositoryPathIdentity(path);
+  identities?.set(path, identity);
+  return identity;
+}
+
+export function portablePathIsInside(
+  path: string,
+  root: string,
+  identities?: Map<string, string>
+): boolean {
+  const pathIdentity = reusedPortablePathIdentity(path, identities);
+  const rootIdentity = reusedPortablePathIdentity(root, identities);
   return (
     rootIdentity === "." ||
     pathIdentity === rootIdentity ||

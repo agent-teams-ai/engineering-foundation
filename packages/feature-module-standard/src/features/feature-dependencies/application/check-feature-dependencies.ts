@@ -203,8 +203,11 @@ function checkGraphs(ctx: Context, loadEdges: readonly Edge[]): void {
     }
   }
   for (const node of ctx.tree.nodes) {
+    if (node.parent === undefined) {
+      continue;
+    }
     const exposes = [...ctx.surfaces].some(([file, kinds]) => kinds.has('composition-surface') && ctx.tree.ownerOf(file) === node);
-    if (node.parent !== undefined && exposes && !ctx.wired.has(node.id)) {
+    if (exposes && !ctx.wired.has(node.id)) {
       ctx.problems.push(diagnostic('assembly-missing', `${node.id}: its composition surface is not wired by the feature composition of ${node.parent}.`, { path: node.root }));
     }
   }

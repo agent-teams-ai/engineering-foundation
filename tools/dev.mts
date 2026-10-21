@@ -36,11 +36,14 @@ function parseArguments(arguments_: readonly string[]): { readonly profile: Prof
     profile = selected;
     rest.splice(0, 2);
   }
-  if (rest.length !== 1 || !["install", "build", "check", "verify", "check:changed", "check:fast", "security:workflows", "test:qgr:lifecycle:built"].includes(rest[0] ?? "")) {
-    throw new Error("Usage: dev.mts [--profile bun|node] (install|build|check|verify|check:changed|check:fast|security:workflows|test:qgr:lifecycle:built)");
+  if (rest.length !== 1 || !["install", "build", "check", "verify", "check:changed", "check:fast", "security:workflows", "test:qgr:lifecycle:built", "package:check:built"].includes(rest[0] ?? "")) {
+    throw new Error("Usage: dev.mts [--profile bun|node] (install|build|check|verify|check:changed|check:fast|security:workflows|test:qgr:lifecycle:built|package:check:built)");
   }
   if ((rest[0] === "check" || rest[0] === "verify") && profile !== "node") {
     throw new Error("Full repository diagnostics require the explicit --profile node projection.");
+  }
+  if (rest[0] === "package:check:built" && profile !== "node") {
+    throw new Error("Package qualification requires the explicit --profile node projection.");
   }
   return { profile, command: rest[0] ?? "" };
 }
@@ -397,6 +400,22 @@ async function build(profile: Profile, sourceOwned = false): Promise<number> {
   return run(tools.node, [resolve(root, "node_modules/typescript/bin/tsc"), "--build", "tsconfig.json", "--pretty", "false"], root);
 }
 
+async function assertPackagePhaseReady(): Promise<void> {
+  const authority = await assertExplicitSourceGitAuthority(repositoryRoot);
+  const declaredRoot = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"];
+  const declaredSha = process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"];
+  if ((declaredRoot !== undefined && await realpath(declaredRoot) !== authority.sourceRoot) ||
+      (declaredSha !== undefined && declaredSha !== authority.sourceCommit)) {
+    throw new Error("Package qualification source claims differ from the actual source authority.");
+  }
+  const root = await assertOwnedProfileRoot(executionRoot("node", authority.sourceCommit), authority.sourceRoot);
+  const evidence = await assertPnpmProfileQualificationRoot(root, authority.sourceRoot);
+  if (evidence.sourceSha !== authority.sourceCommit) {
+    throw new Error("Node profile source commit evidence is stale.");
+  }
+  await assertPnpmProfileSourceIdentity(root, authority.sourceRoot);
+}
+
 async function execute(profile: Profile, command: string): Promise<number> {
   // Changed scope belongs to the source Git checkout and its Bun workflow policy.
   // Reaching it through a Node launcher does not qualify the isolated projection.
@@ -413,13 +432,16 @@ async function execute(profile: Profile, command: string): Promise<number> {
     ...(tools.bun === undefined ? {} : { AGENT_TEAMS_FOUNDATION_BUN_EXECUTABLE: tools.bun })
   };
   const launcher = resolve(root, "tools/repository-command.mts");
-  const operation = command === "check" || command === "verify" ? "script" : "tool";
+  const operation = command === "check" || command === "verify" || command === "package:check:built" ? "script" : "tool";
   const status = await run(tools.node, [launcher, operation, command], root, environment);
   return status;
 }
 
 async function main(): Promise<number> {
   const parsed = parseArguments(process.argv.slice(2));
+  if (parsed.command === "package:check:built") {
+    await assertPackagePhaseReady();
+  }
   if (parsed.command === "install") {
     return install(parsed.profile);
   }

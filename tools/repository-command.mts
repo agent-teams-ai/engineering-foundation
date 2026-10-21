@@ -184,6 +184,15 @@ async function invokeScript(id: string): Promise<number> {
   }
   if (id === "check:changed") { return invokeTool(id, []); }
   const runtime = await runtimeExecutables();
+  if (runtime.profile === "bun" && id === "package:check:built") {
+    const authority = await assertExplicitSourceGitAuthority(repositoryRoot);
+    return run(runtime.node, [resolve(repositoryRoot, "tools/dev.mts"), "--profile", "node", id],
+      repositoryRoot, runtimeEnvironment(runtime, {
+        ...process.env,
+        AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: process.env["AGENT_TEAMS_FOUNDATION_SOURCE_ROOT"] ?? authority.sourceRoot,
+        AGENT_TEAMS_FOUNDATION_SOURCE_SHA: process.env["AGENT_TEAMS_FOUNDATION_SOURCE_SHA"] ?? authority.sourceCommit
+      }));
+  }
   const command = runtime.profile === "bun" ? runtime.bun : runtime.node;
   const args = runtime.profile === "bun"
     ? ["run", id]

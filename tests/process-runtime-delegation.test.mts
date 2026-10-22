@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { delimiter, join } from "node:path";
 import test, { after } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { ProcessRuntimeError } from "node-or-bun";
 import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/application/command-failure.js";
@@ -13,7 +12,8 @@ import {
 } from "../packages/engineering-foundation/dist/process-execution/api.js";
 import {
   NodeProcessRunner,
-  executeManagedProcess
+  executeManagedProcess,
+  terminatePosixProcessGroup
 } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import {
   appendWrapperStderr,
@@ -30,6 +30,8 @@ import { assertSchema } from "../packages/engineering-foundation/dist/schema-cat
 import type { ManagedProcessRequest } from "../packages/engineering-foundation/dist/process-execution/api.js";
 import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
 import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
+import { assertWindowsCancellationProtocol } from "./support/process-runtime-windows-protocol.ts";
+import { assertCancellationPrecedence, waitForFixtureMarker } from "./support/process-runtime-cancellation-fixture.ts";
 
 const childRuntime = process.env["PROCESS_RUNTIME_DELEGATION_NODE"] ?? process.execPath;
 const fixtureParent = process.env["PROCESS_RUNTIME_DELEGATION_TEST_ROOT"] ??
@@ -41,46 +43,8 @@ after(() => {
   rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
-async function waitForFixtureMarker(
-  marker: string,
-  fixtureProcess: Promise<unknown>,
-  timeoutMs = 5_000
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let failure: unknown = new Error("Fixture marker readiness failed before its first observation.");
-  let settled = false;
-  let rejection: { readonly error: unknown } | undefined;
-  const observedProcess = fixtureProcess.then(
-    () => {
-      settled = true;
-      return true;
-    },
-    (error: unknown) => {
-      settled = true;
-      rejection = { error };
-      return false;
-    }
-  );
-  while (Date.now() < deadline) {
-    if (settled) {
-      await observedProcess;
-      if (rejection !== undefined) {
-        throw rejection.error;
-      }
-      throw new Error("Fixture process settled before its readiness marker.");
-    }
-    try {
-      await readFile(marker);
-      return;
-    } catch (error) {
-      failure = error;
-    }
-    await delay(2);
-  }
-  throw failure;
-}
 
-test("bounds fixture marker readiness and preserves settlement failures", async () => {
+void test("bounds fixture marker readiness and preserves settlement failures", async () => {
   const missing = join(fixtureRoot, "never-ready");
   await assert.rejects(
     waitForFixtureMarker(missing, new Promise<never>(() => {
@@ -95,7 +59,7 @@ test("bounds fixture marker readiness and preserves settlement failures", async 
   );
 });
 
-test("delegates normal, nonzero and signal results with original facts", {
+void test("delegates normal, nonzero and signal results with original facts", {
   skip: process.platform === "win32" ? "signal behavior is platform-specific" : false,
   timeout: 15_000
 }, async () => {
@@ -136,7 +100,7 @@ test("delegates normal, nonzero and signal results with original facts", {
   assert.deepEqual({ ...readProcessFailureFacts(signal) }, { reason: "exit", signal: "SIGTERM" });
 });
 
-test("preserves launch mapping and timeout-before-preabort validation ordering", {
+void test("preserves launch mapping and timeout-before-preabort validation ordering", {
   timeout: 15_000
 }, async () => {
   await assert.rejects(executeManagedProcess({
@@ -182,7 +146,7 @@ test("preserves launch mapping and timeout-before-preabort validation ordering",
   });
 });
 
-test("verifies the explicit supported Node used by the managed bootstrap", async () => {
+void test("verifies the explicit supported Node used by the managed bootstrap", async () => {
   assert.equal(requireAdmittedNodeExecutable({}, childRuntime), realpathSync(childRuntime));
   assert.equal(
     requireAdmittedNodeExecutable(
@@ -197,7 +161,7 @@ test("verifies the explicit supported Node used by the managed bootstrap", async
   ))(), /explicit admitted Node executable/u);
 });
 
-test("preserves strict UTF-8 and the one generic capture limit", {
+void test("preserves strict UTF-8 and the one generic capture limit", {
   timeout: 15_000
 }, async () => {
   await assert.rejects(executeManagedProcess({
@@ -220,217 +184,54 @@ test("preserves strict UTF-8 and the one generic capture limit", {
   });
 });
 
-test("keeps observed nonzero results after cancellation but timeout precedence after deadline", {
+void test("keeps observed nonzero results after cancellation but timeout precedence after deadline", {
   skip: process.platform === "win32" ? "POSIX group signal behavior is platform-specific" : false,
   timeout: 15_000
 }, async () => {
-  const marker = join(fixtureRoot, `observed-${String(Date.now())}-${String(process.pid)}`);
-  const controller = new AbortController();
-  const script = [
-    "process.on('SIGTERM',()=>process.exit(23));",
-    "process.stdout.write('before cancellation');process.stderr.write('failure detail');",
-    `require('node:fs').writeFileSync(${JSON.stringify(marker)},'x');`,
-    "setTimeout(()=>process.exit(23),1000)"
-  ].join("");
-  const cancelled = executeManagedProcess({
-    command: childRuntime,
-    args: ["-e", script],
-    cwd: fixtureRoot,
-    signal: controller.signal
-  });
-  try {
-    await waitForFixtureMarker(marker, cancelled);
-    controller.abort(new Error("cancel-after-observation"));
-    const observed = await cancelled;
-    assert.equal(observed.exitCode, 23);
-    assert.equal(observed.stdout, "before cancellation");
-    assert.equal(observed.stderr, "failure detail");
-    assert.deepEqual({ ...readProcessFailureFacts(observed) }, { reason: "exit", exitCode: 23 });
-  } finally {
-    if (!controller.signal.aborted) {
-      controller.abort(new Error("cancel-during-fixture-cleanup"));
-    }
-    await cancelled.catch(() => {
-      return;
-    });
-    await rm(marker, { force: true });
-  }
-
-  await assert.rejects(executeManagedProcess({
-    command: childRuntime,
-    args: ["-e", "process.on('SIGTERM',()=>process.exit(23));setTimeout(()=>process.exit(23),1000)"],
-    cwd: fixtureRoot,
-    timeoutMs: 25
-  }), (error: unknown) => {
-    assert.ok(error instanceof ProcessTimeoutError);
-    assert.deepEqual({ ...readProcessFailureFacts(error) }, { reason: "timeout", timeoutMs: 25 });
-    return true;
-  });
+  await assertCancellationPrecedence(childRuntime, fixtureRoot);
 });
 
-test("Windows cancellation protocol proves containment across Job assignment", async () => {
-  const [
-    nodeAdapterSource,
-    windowsManagedProcessSource,
-    managedLauncherSource,
-    processHostSource
-  ] = await Promise.all([
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/src/process-execution/node-process-runner.ts"
-    ), "utf8"),
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/assets/windows-managed-process/WindowsManagedProcess.cs"
-    ), "utf8"),
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/src/process-execution/windows-managed-process.ts"
-    ), "utf8"),
-    readFile(join(
-      process.cwd(),
-      "packages/engineering-foundation/src/process-execution/windows-process-host.ts"
-    ), "utf8")
-  ]);
+void test("Windows cancellation protocol proves containment across Job assignment", assertWindowsCancellationProtocol);
 
-  assert.match(
-    managedLauncherSource,
-    /writeFileSync\(control\.requestPath, serializedRequest/u
-  );
-  assert.match(
-    managedLauncherSource,
-    /assertWindowsCommandLineFits\(nodeExecutable, \[\s*PROCESS_HOST_PATH,\s*control\.requestPath\s*\]\)/u
-  );
-  assert.match(managedLauncherSource, /nodeExecutable,\s*processHostPath/u);
-  assert.match(
-    managedLauncherSource,
-    /cwd: control\.root,\s*env: launcherEnvironment[\s\S]*hostWorkingDirectory: control\.root/u
-  );
-  assert.doesNotMatch(managedLauncherSource, /encodedRequest/u);
-  assert.match(processHostSource, /JSON\.parse\(readFileSync\(requestPath, "utf8"\)\)/u);
-  assert.match(
-    windowsManagedProcessSource,
-    /BuildCommandLine\(\s*executable, new\[\] \{ hostPath, requestPath \}\)/u
-  );
-
-  const updateJobList = windowsManagedProcessSource.indexOf(
-    "if (!UpdateProcThreadAttribute("
-  );
-  const jobListAttribute = windowsManagedProcessSource.indexOf(
-    "PROC_THREAD_ATTRIBUTE_JOB_LIST,",
-    updateJobList
-  );
-  const createProcess = windowsManagedProcessSource.indexOf(
-    "if (!CreateProcess(",
-    updateJobList
-  );
-  const resumeThread = windowsManagedProcessSource.indexOf(
-    "if (ResumeThread(process.hThread)",
-    createProcess
-  );
-  const waitForLaunchAttempt = windowsManagedProcessSource.indexOf(
-    "var waitResult = WaitForSingleObject(process.hProcess, 10);",
-    resumeThread
-  );
-  const launchConfirmedCancellation = windowsManagedProcessSource.indexOf(
-    "if (LaunchSucceeded(launchPath) &&",
-    waitForLaunchAttempt
-  );
-  assert.ok(updateJobList >= 0);
-  assert.ok(jobListAttribute >= 0);
-  assert.ok(createProcess >= 0);
-  assert.ok(resumeThread >= 0);
-  assert.ok(waitForLaunchAttempt >= 0);
-  assert.ok(launchConfirmedCancellation >= 0);
-  assert.ok(updateJobList < jobListAttribute);
-  assert.ok(jobListAttribute < createProcess);
-  assert.ok(updateJobList < createProcess);
-  assert.ok(createProcess < resumeThread);
-  assert.ok(resumeThread < waitForLaunchAttempt);
-  assert.ok(waitForLaunchAttempt < launchConfirmedCancellation);
-  assert.match(
-    windowsManagedProcessSource,
-    /private static bool LaunchSucceeded[\s\S]*catch \(IOException\)/u
-  );
-
-  const assignedCancellationHelper = windowsManagedProcessSource.indexOf(
-    "private static bool CancelAssignedIfRequested"
-  );
-  const terminateAssignedJob = windowsManagedProcessSource.indexOf(
-    "TerminateRemainingProcessesAndWait(job);",
-    assignedCancellationHelper
-  );
-  const confirmAssignedContainment = windowsManagedProcessSource.indexOf(
-    "ConfirmContainment(confirmationPath);",
-    assignedCancellationHelper
-  );
-  assert.ok(assignedCancellationHelper < terminateAssignedJob);
-  assert.ok(terminateAssignedJob < confirmAssignedContainment);
-
-  const assignedJobTermination = windowsManagedProcessSource.slice(
-    windowsManagedProcessSource.indexOf("private static void TerminateRemainingProcessesAndWait"),
-    windowsManagedProcessSource.indexOf("private static void ConfirmContainment")
-  );
-  assert.match(assignedJobTermination, /TerminateJobObject\(job, 1\)/u);
-  assert.match(assignedJobTermination, /while \(ActiveProcessCount\(job\) > 0\)/u);
-
-  const requestTermination = nodeAdapterSource.indexOf(
-    "await requestWindowsManagedProcessTermination(child);"
-  );
-  assert.ok(requestTermination >= 0);
-  assert.doesNotMatch(nodeAdapterSource, /child\.kill\("SIGKILL"\)/u);
-  assert.match(nodeAdapterSource, /await waitForWindowsManagedProcessContainment\(child\)/u);
-  const nativeLaunch = nodeAdapterSource.indexOf("running = await nativeAdapter.launch(request);");
-  const forwardAbort = nodeAdapterSource.indexOf("launchAbort.succeed();", nativeLaunch);
-  const commandGate = nodeAdapterSource.indexOf("await waitForWindowsManagedProcessLaunch(", forwardAbort);
-  assert.ok(nativeLaunch >= 0 && forwardAbort > nativeLaunch && commandGate > forwardAbort);
-
-  assert.match(managedLauncherSource, /forceAndWaitForWrapperExit/u);
-  assert.match(managedLauncherSource, /requireAdmittedNodeExecutable/u);
-  assert.match(windowsManagedProcessSource, /File\.Move\(temporaryPath, confirmationPath\)/u);
-
-  const controlOwnership = managedLauncherSource.indexOf(
-    "windowsProcessControls.set(child, control);"
-  );
-  const retainChild = managedLauncherSource.indexOf("retain?.(child);", controlOwnership);
-  const firstLaterSetup = managedLauncherSource.indexOf("child.once(\"error\"", retainChild);
-  assert.ok(controlOwnership >= 0);
-  assert.ok(controlOwnership < retainChild);
-  assert.ok(retainChild < firstLaterSetup);
-
-  const waitForProcessExit = windowsManagedProcessSource.indexOf(
-    "var waitResult = WaitForSingleObject(process.hProcess, 10);"
-  );
-  const readExitCode = windowsManagedProcessSource.indexOf(
-    "if (!GetExitCodeProcess(process.hProcess, out exitCode))",
-    waitForProcessExit
-  );
-  assert.ok(waitForProcessExit >= 0);
-  assert.ok(readExitCode > waitForProcessExit);
-  assert.match(
-    windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
-    /LaunchSucceeded\(launchPath\)[\s\S]*CancelAssignedIfRequested/u
-  );
-  assert.match(
-    windowsManagedProcessSource.slice(waitForProcessExit, readExitCode),
-    /if \(LaunchSucceeded\(launchPath\) &&\s*CancelAssignedIfRequested\(cancellationPath, confirmationPath, job\)\)\s*\{\s*return 0;/u,
-    "the wrapper-consumed cancellation branch must be neutral"
-  );
-});
-
-test("maps cleanup failure once with initiating cause and incomplete custody", {
+void test("maps cleanup failure once with initiating cause and incomplete custody", {
   skip: process.platform === "win32" ? "POSIX group cleanup is the focused seam" : false,
   timeout: 15_000
-}, async () => {
-  const originalKill = process.kill;
+}, async t => {
+  const originalKillDescriptor = Object.getOwnPropertyDescriptor(process, "kill");
+  assert.ok(originalKillDescriptor !== undefined);
+  const invokeOriginalKill = process.kill.bind(process);
+  const processGroups = new Set<number>();
+  let successfulTerminations = 0;
+  let deniedProbes = 0;
+  const restoreKill = () => {
+    Object.defineProperty(process, "kill", originalKillDescriptor);
+  };
+  t.after(async () => {
+    restoreKill();
+    for (const group of processGroups) {
+      await terminatePosixProcessGroup(group);
+    }
+  });
   Object.defineProperty(process, "kill", {
     configurable: true,
     value: (pid: number, signal?: NodeJS.Signals | number) => {
       if (pid < 0) {
-        const result = originalKill(pid, signal);
-        throw Object.assign(new Error("synthetic group cleanup failure"), { code: "EPERM", result });
+        processGroups.add(-pid);
+        if (signal === 0) {
+          deniedProbes += 1;
+        } else {
+          try {
+            invokeOriginalKill(pid, signal);
+            successfulTerminations += 1;
+          } catch (error) {
+            if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) {
+              throw error;
+            }
+          }
+        }
+        throw Object.assign(new Error("synthetic group cleanup failure"), { code: "EPERM" });
       }
-      return originalKill(pid, signal);
+      return invokeOriginalKill(pid, signal);
     }
   });
   try {
@@ -449,15 +250,17 @@ test("maps cleanup failure once with initiating cause and incomplete custody", {
       assert.equal(runtimeCause.initiatingError.code, "timeout");
       return true;
     });
+    assert.ok(successfulTerminations > 0, "the cleanup fault must follow actual process-group termination");
+    if (process.platform === "darwin") {
+      assert.ok(deniedProbes > 0, "Darwin absence observations must remain denied");
+    }
   } finally {
-    Object.defineProperty(process, "kill", {
-      configurable: true,
-      value: originalKill
-    });
+    restoreKill();
+    t.diagnostic(`cleanup fault witness: ${JSON.stringify({ successfulTerminations, deniedProbes })}`);
   }
 });
 
-test("wrapper diagnostics forward once and retain a sliding copied last 64KiB", async () => {
+void test("wrapper diagnostics forward once and retain a sliding copied last 64KiB", async () => {
   const diagnostics = createWrapperStderrDiagnostics();
   const prefix = Buffer.alloc(64 * 1024 - 1);
   for (let index = 0; index < prefix.length; index += 1) {
@@ -517,7 +320,7 @@ async function runtimeGateFixture(packageManager: "bun" | "pnpm" = "bun"): Promi
 
 // A regular executable of the wrong kind must fail before any package script runs.
 // These invoke the real composition roots, rather than a verifier test double.
-test("quality gate composition rejects Node as Bun before script effects", async () => {
+void test("quality gate composition rejects Node as Bun before script effects", async () => {
   const requests: ManagedProcessRequest[] = [];
   const command = createNodeQualityGateCommand({
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: childRuntime,
@@ -536,7 +339,7 @@ test("quality gate composition rejects Node as Bun before script effects", async
   assert.equal(requests.length, 0);
 });
 
-test("agent workflow composition rejects Node as Bun before script effects", async () => {
+void test("agent workflow composition rejects Node as Bun before script effects", async () => {
   const root = mkdtempSync(join(fixtureRoot, "runtime-workflow-"));
   await executeManagedProcess({ command: "git", args: ["init", "--quiet"], cwd: root });
   await writeFile(join(root, "check.ts"), "// disposable runtime identity fixture\n");
@@ -584,10 +387,10 @@ function installedBunExecutable(): string | undefined {
 }
 
 const installedBun = installedBunExecutable();
-test("quality gate composition rejects installed Bun as Node before script effects", {
+void test("quality gate composition rejects installed Bun as Node before script effects", {
   skip: installedBun === undefined ? "Bun is not installed" : false
 }, async () => {
-  assert.ok(installedBun);
+  assert.ok(installedBun !== undefined && installedBun.length > 0);
   const command = createNodeQualityGateCommand({
     AGENT_TEAMS_FOUNDATION_NODE_EXECUTABLE: installedBun
   }, { async run() { throw new Error("Wrong-runtime script must not run"); } }, assertSchema);
@@ -596,7 +399,7 @@ test("quality gate composition rejects installed Bun as Node before script effec
   }), /explicit Node executable is unavailable/u);
 });
 
-test("runtime verifier accepts real Node and rejects symlinks and non-executables", async () => {
+void test("runtime verifier accepts real Node and rejects symlinks and non-executables", async () => {
   assert.equal(await verifyRepositoryRuntimeExecutable(childRuntime, "node"), true);
   assert.equal(await verifyRepositoryRuntimeExecutable(childRuntime, "bun"), false);
   const plainFile = join(fixtureRoot, "not-an-executable");
@@ -615,7 +418,7 @@ test("runtime verifier accepts real Node and rejects symlinks and non-executable
   }
 });
 
-test("quality gate composition runs a real Node/pnpm package script", async () => {
+void test("quality gate composition runs a real Node/pnpm package script", async () => {
   const policy = await readRepositoryRuntimePolicy();
   const manager = await resolvePnpmInvocation(childRuntime, policy.toolchain.pnpm.version);
   const pnpm = manager.kind === "javascript" ? manager.args[0] : manager.command;
@@ -636,10 +439,10 @@ test("quality gate composition runs a real Node/pnpm package script", async () =
   assert.equal(report.tasks[0]?.exitCode, 0);
 });
 
-test("runtime verifier and quality gate composition accept installed Bun in its own role", {
+void test("runtime verifier and quality gate composition accept installed Bun in its own role", {
   skip: installedBun === undefined ? "Bun is not installed" : false
 }, async () => {
-  assert.ok(installedBun);
+  assert.ok(installedBun !== undefined && installedBun.length > 0);
   assert.equal(await verifyRepositoryRuntimeExecutable(installedBun, "bun"), true);
   assert.equal(await verifyRepositoryRuntimeExecutable(installedBun, "node"), false);
   assert.throws(() => requireAdmittedNodeExecutable({
@@ -660,7 +463,7 @@ test("runtime verifier and quality gate composition accept installed Bun in its 
 });
 
 // Public engines and the Host admission policy must evolve in the same change.
-test("Node admission versions match both published and repository engines", async () => {
+void test("Node admission versions match both published and repository engines", async () => {
   const expected = SUPPORTED_NODE_VERSIONS.map(({ major, minimumMinor }) => `^${major}.${minimumMinor}.0`).join(" || ");
   for (const path of ["../package.json", "../packages/engineering-foundation/package.json"]) {
     const manifest = JSON.parse(await readFile(new URL(path, import.meta.url), "utf8")) as { engines: { node: string } };
@@ -670,7 +473,7 @@ test("Node admission versions match both published and repository engines", asyn
 
 // Trusted control markers, rather than the wrapper exit or captured stderr,
 // distinguish a command launch failure from an ordinary command failure.
-test("Windows launch handshake preserves exit-one commands and startup deadlines", {
+void test("Windows launch handshake preserves exit-one commands and startup deadlines", {
   skip: process.platform !== "win32" ? "native Windows handshake" : false,
   timeout: 30_000
 }, async () => {
@@ -688,7 +491,9 @@ test("Windows launch handshake preserves exit-one commands and startup deadlines
     timeoutMs: 10
   }), ProcessTimeoutError);
   const cancellation = new AbortController();
-  const cancelTimer = setTimeout(() => cancellation.abort(new Error("earlier Windows cancellation")), 1);
+  const cancelTimer = setTimeout(() => {
+    cancellation.abort(new Error("earlier Windows cancellation"));
+  }, 1);
   try {
     await assert.rejects(executeManagedProcess({
       command: childRuntime,
@@ -702,7 +507,7 @@ test("Windows launch handshake preserves exit-one commands and startup deadlines
   }
 });
 
-test("Windows command launch protocol validates markers and yields interrupted waits", async () => {
+void test("Windows command launch protocol validates markers and yields interrupted waits", async () => {
   const { waitForWindowsCommandLaunch } = await import("../packages/engineering-foundation/dist/process-execution/windows-command-launch.js");
   const root = mkdtempSync(join(fixtureRoot, "launch-protocol-"));
   const marker = join(root, "launched");

@@ -354,7 +354,7 @@ jobs:
       AGENT_TEAMS_FOUNDATION_RUNTIME_PROFILE: node
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { persist-credentials: false, fetch-depth: 0 }
       - name: Use a finite job-owned temporary directory
         shell: bash
         run: |
@@ -388,6 +388,8 @@ jobs:
         env:
           AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
       - name: Verify approved bootstrap writer evidence
+        env:
+          AGENT_TEAMS_FOUNDATION_SOURCE_ROOT: ${{ github.workspace }}
         run: node scripts/npm-package-bootstrap-local-evidence.mjs --output "${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence"
         working-directory: .worker-tmp/profiles/node-${{ github.sha }}
       - name: Retain bootstrap writer evidence

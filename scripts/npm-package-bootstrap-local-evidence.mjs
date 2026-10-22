@@ -12,6 +12,7 @@ import {
 import { preparePackages } from "./prepare-package.mjs";
 import { canonicalDigest } from "./pack-test-support.mjs";
 import { prepareExistingBootstrap } from "./npm-bootstrap-recovery.ts";
+import { assertExplicitSourceGitAuthority } from "../tools/profile-root.mts";
 
 const execute = promisify(execFile);
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
@@ -72,9 +73,13 @@ async function verifyProfile(profile, outputRoot) {
       // Recovery qualifies the immutable published artifact, never a new pack of
       // the evolving working package. The shared recovery verifier binds its SRI,
       // members, manifest and original source tree before retaining any evidence.
-      const packageTree = (await command("git", [
+      const authority = await assertExplicitSourceGitAuthority(
+        process.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT ?? process.cwd(),
+      );
+      const { stdout: treeOutput } = await execute("git", [
         "rev-parse", `${profile.recovery.sourceCommit}:${profile.root}`,
-      ])).trim();
+      ], { cwd: authority.sourceRoot, env: authority.environment, encoding: "utf8", maxBuffer: MAX_OUTPUT_BYTES });
+      const packageTree = treeOutput.trim();
       const evidence = await prepareExistingBootstrap(profile, packageTree, evidenceRoot);
       const [tarEntries, tarVerboseListing, manifest, archiveBytes] = await Promise.all([
         command("tar", ["-tzf", evidence.archivePath]),

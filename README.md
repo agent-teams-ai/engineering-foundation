@@ -151,11 +151,13 @@ independent fail-closed lanes. Its read-only `agent-workflow instructions`
 command explains the effective `AGENTS.md` chain for a selected repository file.
 
 `foundation:assert-dev-only` rejects runtime dependency placement.
-`foundation:assert-registry` additionally proves that the exact declared version
-has a matching pnpm lockfile importer, npm package entry, sha512 integrity, and
-snapshot without links, source URLs, overrides, or patches. The root and
-installed pnpm virtual-store lockfiles must agree, so a stale local installation
-cannot be hidden by editing only the repository lockfile.
+`foundation:assert-registry` inspects the exact declared registry selection.
+For pnpm 11, root and installed virtual-store lockfile provenance must match.
+For stable Bun 1, the active text lock must match a contained isolated store
+coordinate and installed manifest identity. Bun has no installed lock mirror;
+this cooperative selection check does not authenticate expanded archive bytes or
+detect every stale in-place package. Local attach and detach remain pnpm-only;
+see [the manager-specific evidence and limits](docs/development/local-mode.md).
 
 The scaffolding kernel exposes strict schemas and a journaled filesystem adapter.
 It includes a testing-only conformance fixture and one generic private Node

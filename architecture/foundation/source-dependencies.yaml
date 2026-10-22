@@ -2192,6 +2192,7 @@ boundaries:
     roots:
       - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
       - packages/engineering-foundation/src/local-mode/application/attach-transaction.ts
+      - packages/engineering-foundation/src/local-mode/application/bun-registry-policy.ts
       - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
       - packages/engineering-foundation/src/local-mode/application/mode-status.ts
       - packages/engineering-foundation/src/local-mode/application/model.ts
@@ -2212,6 +2213,7 @@ boundaries:
       runtimeReferences: []
     entrypoints:
       - packages/engineering-foundation/src/local-mode/application/inspection-failures.ts
+      - packages/engineering-foundation/src/local-mode/application/bun-registry-policy.ts
       - packages/engineering-foundation/src/local-mode/application/consumer-policy.ts
       - packages/engineering-foundation/src/local-mode/application/mode-status.ts
       - packages/engineering-foundation/src/local-mode/application/model.ts
@@ -2221,6 +2223,7 @@ boundaries:
       - packages/engineering-foundation/src/local-mode/api.ts
   - id: foundation.local-mode.adapters
     roots:
+      - packages/engineering-foundation/src/local-mode/adapters/node/bun-registry-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/local-state-store.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/mode-inspection.ts
@@ -2234,6 +2237,7 @@ boundaries:
         - foundation.local-mode.application
         - foundation.validation-reporting.error
       packages:
+        - jsonc-parser
         - yaml
       builtins:
         - node:fs/promises
@@ -2244,6 +2248,7 @@ boundaries:
       runtimeReferences:
         - dynamic
     entrypoints:
+      - packages/engineering-foundation/src/local-mode/adapters/node/bun-registry-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/consumer-inspection.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/local-state-store.ts
       - packages/engineering-foundation/src/local-mode/adapters/node/mode-inspection.ts

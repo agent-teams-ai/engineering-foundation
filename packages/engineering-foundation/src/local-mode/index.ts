@@ -1,6 +1,6 @@
-import { LocalPackageLifecycle } from "./api.js";
 import type { AttachResult, FoundationDevOnlyStatus, FoundationStatus, FoundationLocalModeServiceOptions } from "./api.js";
 import { createNodeLocalPackageLifecyclePorts } from "../composition/local-mode-ports.js";
+import { NodeLocalPackageLifecycle } from "./node.js";
 
 export { inspectFoundationDevOnly, inspectFoundationRegistryProvenance } from "./adapters/node/consumer-inspection.js";
 export { isExactVersion } from "./api.js";
@@ -40,10 +40,10 @@ export type {
 
 /** Supported public constructor; concrete dependencies are selected only here. */
 export class FoundationLocalModeService {
-  readonly #lifecycle: LocalPackageLifecycle;
+  readonly #lifecycle: NodeLocalPackageLifecycle;
 
   constructor(options: FoundationLocalModeServiceOptions) {
-    this.#lifecycle = new LocalPackageLifecycle({ ports: createNodeLocalPackageLifecyclePorts(options.runner), now: options.now });
+    this.#lifecycle = new NodeLocalPackageLifecycle({ ports: createNodeLocalPackageLifecyclePorts(options.runner), now: options.now });
   }
 
   async status(consumerPath: string): Promise<FoundationStatus> {

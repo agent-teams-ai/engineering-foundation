@@ -1231,6 +1231,10 @@
               "owner": "engineering-foundation/local-package-mode"
             },
             {
+              "path": "packages/engineering-foundation/src/local-mode/application/bun-registry-policy.ts",
+              "owner": "engineering-foundation/local-package-mode"
+            },
+            {
               "path": "packages/engineering-foundation/src/local-mode/application/consumer-policy.ts",
               "owner": "engineering-foundation/local-package-mode"
             },
@@ -1288,7 +1292,8 @@
             }
           ],
           "testRoots": [
-            "tests/local-mode.test.mjs"
+            "tests/local-mode.test.mjs",
+            "tests/local-mode-bun.test.ts"
           ]
         },
         {

@@ -40,6 +40,31 @@ Ordinary child commands discard inherited repository, index, object-store and
 injected-config selectors while preserving Git transport, identity and normal
 global configuration. Explicit source authority is local to source Git reads.
 
+When changed checking selects the complete `check` script, its package phase
+uses the explicitly prepared Node/pnpm projection. Prepare it from the source
+checkout before running that route:
+
+```bash
+node tools/dev.mts --profile node install
+bun tools/dev.mts check:changed
+```
+
+Only `package:check:built` crosses from the Bun script dispatcher into
+`node tools/dev.mts --profile node package:check:built`. Other phases, the
+workflow policy and Git observation stay in the Bun source checkout. The Node
+phase verifies the actual source Git identity, inherited source-root/SHA claims,
+owned projection location, complete projected source bytes and installed pnpm
+virtual store before its compiler runs. Missing, stale, foreign or modified
+projections refuse; the phase never installs dependencies automatically.
+Reprepare the projection after source changes. Direct package qualification
+inside an admitted Node projection retains its existing pnpm execution path.
+
+Local Node 26 test and package routes also require the explicit physical Node 24
+port `PACK_TEST_GENERATION2_NODE` for the retained
+[generation2 suites](node-26-compatibility.md#legacy-node-24-exceptions), matching
+native CI. Preserve host Git hooks and supply the author/committer identity
+required by the host when disposable fixtures create ordinary commits.
+
 Node-profile lint first checks all non-generated source bytes and paths against
 the source checkout. Only the three declared manager/workflow/dependency-policy
 projections are normalized, after validating their exact derived bytes. The

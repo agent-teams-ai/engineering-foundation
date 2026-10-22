@@ -365,6 +365,48 @@
         "static reader joins owned authorities and rejects removed or scope-only full activation"
       ],
       "kind": "test"
+    },
+    {
+      "file": "tests/local-mode-bun.test.ts",
+      "names": [
+        "Bun registry admission retains exact stable manager and development-only policy"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/local-mode-bun.test.ts",
+      "names": [
+        "Bun registry policy rejects ambiguous or non-registry lock selections"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/local-mode-bun.test.ts",
+      "names": [
+        "Bun registry inspection binds unique bounded lock and installed isolated identity without pnpm fallback"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/local-mode-bun.test.ts",
+      "names": [
+        "Bun registry inspection rejects hoisted external and symlinked manifest selections"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/local-mode-bun.test.ts",
+      "names": [
+        "Bun concrete lifecycle refuses attach detach and reattach before lease process or writes"
+      ],
+      "kind": "test"
+    },
+    {
+      "file": "tests/local-mode-bun.test.ts",
+      "names": [
+        "Bun concrete ports reject initial and post-lease manager changes while releasing the lease"
+      ],
+      "kind": "test"
     }
   ],
   "exceptions": [

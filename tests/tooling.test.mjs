@@ -296,9 +296,13 @@ test("packaging package-manager runners ignore executable environment overrides"
   const pnpm = await createPnpmRunner()(["--version"], root, { environment });
   const npm = await runNpmCommand(["--version"], root, { environment });
   const executed = await createPnpmRunner()([
-    "--reporter=silent", "exec", "node", "--eval", 'process.stdout.write("PACKAGING-PNPM-EXEC\\n")'
+    "--reporter=silent", "exec", "node", "--eval",
+    'process.stdout.write(JSON.stringify({ nodePath: process.env.NODE_PATH, marker: "PACKAGING-PNPM-EXEC" }))'
   ], root, { environment });
-  assert.equal(executed.stdout, "PACKAGING-PNPM-EXEC\n");
+  assert.deepEqual(JSON.parse(executed.stdout), {
+    ...(process.env.NODE_PATH === undefined ? {} : { nodePath: process.env.NODE_PATH }),
+    marker: "PACKAGING-PNPM-EXEC"
+  });
   assert.match(pnpm.stdout, /^11\.20\.0\s*$/u);
   assert.match(npm.stdout, /^11\./u);
 });

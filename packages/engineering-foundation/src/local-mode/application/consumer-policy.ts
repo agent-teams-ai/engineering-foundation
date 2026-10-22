@@ -72,6 +72,9 @@ function inspectDependencyOverrides(
   if (targetsFoundation(manifest?.resolutions)) {
     issues.push(`${FOUNDATION_PACKAGE_NAME} must not use dependency resolutions.`);
   }
+  if (targetsFoundation(manifest?.patchedDependencies)) {
+    issues.push(`${FOUNDATION_PACKAGE_NAME} must not use Bun patches.`);
+  }
   if (!isRecord(manifest?.pnpm)) {
     return;
   }
@@ -81,6 +84,14 @@ function inspectDependencyOverrides(
   if (targetsFoundation(manifest.pnpm.patchedDependencies)) {
     issues.push(`${FOUNDATION_PACKAGE_NAME} must not use pnpm patches.`);
   }
+}
+
+export function isSupportedPnpmManager(value: string): boolean {
+  return /^pnpm@11\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value);
+}
+
+function isSupportedBunManager(value: string): boolean {
+  return /^bun@1\.\d+\.\d+$/u.test(value) && isExactVersion(value.slice(4));
 }
 
 export function inspectConsumerManifest(
@@ -98,9 +109,10 @@ export function inspectConsumerManifest(
       : undefined;
   if (
     packageManager === undefined ||
-    !/^pnpm@11\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(packageManager)
+    (!isSupportedPnpmManager(packageManager) &&
+      !isSupportedBunManager(packageManager))
   ) {
-    issues.push("Consumer packageManager must pin an exact pnpm 11 version.");
+    issues.push("Consumer packageManager must pin an exact pnpm 11 or stable Bun 1 version.");
   }
 
   return {

@@ -11,6 +11,7 @@ import {
 } from "./npm-package-bootstrap.mjs";
 import { preparePackages } from "./prepare-package.mjs";
 import { canonicalDigest } from "./pack-test-support.mjs";
+import { prepareExistingBootstrap } from "./npm-bootstrap-recovery.ts";
 
 const execute = promisify(execFile);
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
@@ -67,6 +68,27 @@ async function retainWriterEvidence({
 async function verifyProfile(profile, outputRoot) {
   const evidenceRoot = await mkdtemp(join(tmpdir(), "npm-bootstrap-local-evidence-"));
   try {
+    if (profile.recovery !== undefined) {
+      // Recovery qualifies the immutable published artifact, never a new pack of
+      // the evolving working package. The shared recovery verifier binds its SRI,
+      // members, manifest and original source tree before retaining any evidence.
+      const packageTree = (await command("git", [
+        "rev-parse", `${profile.recovery.sourceCommit}:${profile.root}`,
+      ])).trim();
+      const evidence = await prepareExistingBootstrap(profile, packageTree, evidenceRoot);
+      const [tarEntries, tarVerboseListing, manifest, archiveBytes] = await Promise.all([
+        command("tar", ["-tzf", evidence.archivePath]),
+        command("tar", ["-tvzf", evidence.archivePath]),
+        command("tar", ["-xOf", evidence.archivePath, "package/package.json"]),
+        readFile(evidence.archivePath),
+      ]);
+      const writerEvidence = await retainWriterEvidence({
+        archiveBytes, archivePath: evidence.archivePath, outputRoot,
+        packedManifest: JSON.parse(manifest), profile, packageTree,
+        tarEntries, tarVerboseListing,
+      });
+      return Object.freeze({ ...evidence, writerEvidence });
+    }
     const packReport = JSON.parse(await command("pnpm", [
       "--filter",
       profile.name,

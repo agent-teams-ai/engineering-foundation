@@ -521,6 +521,15 @@
       "approval": {
         "archiveIntegrity": "sha512-ErKlc0rDdOsMaFeyTdpgXaUHcjbvuvjcmSxh8E15egp+C8YBJFKJmkR0iloa+38kS3PpLRCMamnGvL2xrT+Fgw==",
         "packageTree": "828fc03cc56bd30b2800ea101effba9da7facaef"
+      },
+      "providerPlaceholder": {
+        "version": "0.0.0-stage",
+        "archiveIntegrity": "sha512-17gDGy/D3GbqsDUbYAhwkmr0/tdMLnbAa5fJwjOHzjBp/iM9FhVZKJu472MrQ0UCH3ziEg6oELCLTAW2r5BoVA=="
+      },
+      "recovery": {
+        "sourceCommit": "67ccfb359fa2112e7a3554576391d4369477f937",
+        "runId": 39774275653,
+        "runAttempt": 1
       }
     }
   ]

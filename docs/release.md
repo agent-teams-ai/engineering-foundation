@@ -25,8 +25,10 @@ All ordinary releases of packages in the reviewed public-package catalog use
 npm Trusted Publishing from the protected `main` workflow with GitHub OIDC and
 automatic provenance. Manual workstation publication and persistent npm secrets
 are not supported.
-The sole exception is the reviewed one-time namespace bootstrap in ADR-0044;
-it cannot publish a supported release.
+The sole exception is the reviewed one-time namespace bootstrap in ADR-0044,
+with the bounded existing-artifact recovery in
+[ADR-0066](decisions/0066-qualified-existing-npm-bootstrap-recovery.md); neither
+can publish a supported release.
 
 Changesets maintains versions and release notes. The release workflow publishes
 only from protected `main`. It keeps Changesets versioning in the tracked Bun
@@ -100,10 +102,15 @@ retained evidence, while that obsolete writer no longer constrains source edits.
 Registry evidence on 2026-10-08 lists `0.0.0-stage` and `0.1.0-rc.0`, with
 `latest`/`rc` on the RC; future releases must re-read actual registry state.
 Ordinary releases still require baseline verification and fail on missing `0.0.0`
-or unsupported stage evidence. Before Changesets mutates manifests, the release
+or unsupported stage evidence. The ordinary pre-version `check-release` step
+must first build the minimum Foundation verifier, using
+`bun run --filter @agent-teams/engineering-foundation build` in the source workflow:
+placeholder archive qualification loads compiled Foundation code. This prerequisite
+also applies outside existing-artifact recovery. Before Changesets mutates manifests, the release
 guard reads the official Changesets release plan and applies bootstrap policy to
 the planned package versions; it never estimates versions or edits Changesets
-state. The narrow CI Input Proof successor policy is the only exception: an
+state. The narrow CI Input Proof successor policy is the only missing-baseline
+exception: an
 ordinary stable version accepted by the existing release rules as strictly later
 than `0.1.0-rc.0` must first prove the exact
 `@agent-teams/ci-input-proof@0.1.0-rc.0` predecessor name/version, archive SRI
@@ -123,45 +130,28 @@ and does not authorize publication by itself.
 
 ## One-time namespace bootstrap
 
-### Pending Stack Toolchain namespace
+### Candidate approval and Stack Toolchain state
 
-`stack-toolchain` starts as a `candidate` with `approval: null`; its current
-admission state and reviewed archive identity are recorded only in the bootstrap
-catalog. Its source version remains `0.0.0`, with a minor changeset for its first
-supported `0.1.0`. Prepare candidate evidence on the implementation PR before merge: the
-Ubuntu `linux-bootstrap-evidence` lane runs on a requested full-CI PR as well as
-on protected-main pushes. The ordinary release guard deliberately stops before
-Changesets versioning while any bootstrap candidate remains unapproved, so avoid
-merging a candidate merely to collect evidence.
+Stack Toolchain's catalog entry is approved and its exact `0.0.0` archive was
+accepted by npm in canonical run `39774275653`, attempt `1`, at source
+`67ccfb359fa2112e7a3554576391d4369477f937`. The post-publish install/audit failed;
+later unchanged read-only install, audit and source binding passed. The retained
+provider placeholder and absent deprecation still block whole-bootstrap success.
+Use only the existing-artifact recovery below after its implementation is
+qualified. Do not retry publication or call `0.0.0` a supported release.
 
-The existing Ubuntu `linux-bootstrap-evidence` lane retains the candidate archive,
-manifest, tar listings and receipt with `sourceCommit`, `packageTree`,
-`archiveIntegrity`, `archiveSha256` and `manifestDigest`. Review those exact bytes
-before preparing a separate catalog approval; never invent SRI or use a local
-pack as the approved writer artifact.
-
-The candidate records exact mandatory dependencies and a separate exact
-`optionalDependencies` map for Bun and tsrs. The bounded optional-dependency
-admission must pass its rejecting checks and approved-writer qualification before
-activation; collecting candidate bytes alone does not prove writer admission.
-Historical profiles omit that field and continue to reject an unreviewed optional
-runtime section. Do not remove optional dependencies, weaken that guard or reuse
-the CI Input Proof stage/predecessor exception.
-
-After that admission is implemented and reviewed, retain the PR's fresh Ubuntu
-candidate archive and receipt. Review them, then change the candidate to
-`approved` with that exact `packageTree` and `archiveIntegrity` on the same PR,
-without changing the package tree. The receipt's `sourceCommit` retains the
-candidate CI input; approval binds the package tree and SRI, while publication
-provenance binds the eventual protected-main commit. Run full CI again on the
-final approved head: `linux-package` must reproduce the approved writer bytes.
-After review and merge, require fresh green protected-main CI including that
-approved-writer validation before creating a bootstrap token. Only the final
-protected workflow activation needs the provider-required authentication and
-environment review below. After the exact `0.0.0` bootstrap is provenance-verified
-and deprecated, configure its npm Trusted Publisher, revoke/remove the short-lived
-token and disable bootstrap activation. The supported `0.1.0` then follows the
-ordinary Changesets/OIDC release route, with fresh registry installation proof.
+Future candidate profiles require retained Ubuntu `linux-bootstrap-evidence`
+from requested full PR CI, including exact package tree, archive SRI and source
+receipt. Review the archive, manifest and tar listings before catalog approval;
+never invent SRI or substitute a local pack. Exact mandatory and separately
+admitted optional dependency maps remain enforced. Approve the same package tree
+on the same PR, rerun final-head full CI including approved-writer reproduction,
+then require fresh protected-main CI after merge before creating a token.
+An unapproved candidate blocks ordinary Changesets before versioning; do not
+merge a candidate merely to collect evidence.
+The first supported Stack Toolchain `0.1.0` remains the minor Changesets release,
+after canonical bootstrap recovery, terminal credential cleanup and separate
+Trusted Publisher setup.
 
 `architecture/foundation/npm-package-bootstrap.json` is the only package-specific
 authority. The selected profile must be `approved` with reviewed package-tree and SRI
@@ -201,6 +191,49 @@ environment secret. Bootstrap dependent packages strictly in catalog dependency
 order with a fresh token for each package. Disable the bootstrap repository
 variable after the approved batch and confirm cleanup before merging the release
 PR.
+
+### Existing-artifact recovery after npm processing
+
+[ADR-0066](decisions/0066-qualified-existing-npm-bootstrap-recovery.md) adds a
+closed Stack recovery path; qualification and protected execution remain pending.
+Its catalog `providerPlaceholder` pins version/SRI; `recovery` pins original
+`sourceCommit`, `runId` and `runAttempt`, alongside the existing approved artifact.
+Full record plus bounded two-file archive
+qualification precedes history classification in bootstrap and ordinary release;
+`stub: true` or the `0.0.0-stage` spelling alone grants no exception. Only this
+exact pinned placeholder may use the format adapter: authenticate original SRI,
+bound gunzip to 16 KiB and 512-byte alignment, then append two zero tar end blocks
+solely to an inspection copy for the unchanged strict codec. Every complete
+extent must fit the original 2,560 bytes and the maximum end must equal its
+length; the view is never persisted, published or substituted for original bytes.
+This is not generic missing-end-block tolerance. The existing CI Input Proof
+predecessor policy remains separate and unchanged.
+
+Dispatch the existing `bootstrap` operation only after fresh green required CI,
+current-main proof and protected token-window/environment review. Catalog-selected
+`prepare` output derives `existing-artifact-only`; there is no operator recovery
+switch or missing-version publication fallback. Keep the signed
+artifact source on original `67ccfb359fa2112e7a3554576391d4369477f937` and require
+its exact signed invocation, run `39774275653`, attempt `1`. Recovery retains
+Node projection installation and only
+`pnpm --filter @agent-teams/engineering-foundation build` for its verifier codec;
+it cannot pack, publish or fall back to publication if `0.0.0` is absent.
+Observe availability for at most 180 seconds,
+with five-second polling and bounded requests/bodies, before the bounded
+install/signature audit with 120-second subprocess limits.
+
+After exact SRI/archive/signature/SLSA source and invocation checks, apply only the
+existing guarded deprecation and re-prove postconditions. Reconcile
+`stack-toolchain@0.0.0` and its GitHub prerelease at the original source commit;
+current-main execution separately authorizes the GitHub write. Unknown history,
+changed bytes, a tag targeting the placeholder or unverifiable provenance stops
+without publish retry, version deletion or tag movement. Preserve failed-run and
+read-only reconciliation evidence rather than relabeling it as workflow success.
+At every attempt's terminal state, including failure, immediately revoke the
+fresh token, delete the secret and disable activation before investigation or
+Trusted Publisher setup. Only after complete canonical proof may the separate
+interactive Trusted Publisher setup proceed; ordinary Changesets/OIDC then owns
+supported `0.1.0` publication.
 
 The bootstrap workflow installs and runs package operations exclusively in the
 clean Node/pnpm projection. Its package commands inherit explicit

@@ -311,6 +311,11 @@
       "id": "ADR-0065",
       "path": "docs/decisions/0065-explicit-toolchain-lint-scope-api.md",
       "immutableDigest": "sha256:246eb4452816b3357a8f83c24d6c784904f1ad1091253d1c4636364f0926d735"
+    },
+    {
+      "id": "ADR-0066",
+      "path": "docs/decisions/0066-qualified-existing-npm-bootstrap-recovery.md",
+      "immutableDigest": "sha256:a292b640e0268b269c5cfe5f2745c71124240773fe9abba90afe830afafef0e8"
     }
   ]
 }

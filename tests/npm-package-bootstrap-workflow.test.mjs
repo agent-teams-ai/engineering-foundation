@@ -173,7 +173,11 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.deepEqual(job.steps.flatMap(({ env }, index) => (env?.GH_TOKEN === undefined ? [] : [index])), [proof]);
   assert.equal(job["timeout-minutes"], 45);
   assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 0);
-  assert.equal(job.steps[install + 1].run, "pnpm build");
+  assert.equal(job.steps[install + 1].run, "pnpm --filter @agent-teams/engineering-foundation build");
+  assert.equal(job.steps[install + 1].if, "${{ steps.authority.outputs.mode == 'existing-artifact-only' }}");
+  assert.equal(job.steps[install + 2].run, "pnpm build");
+  assert.equal(job.steps[install + 2].if, "${{ steps.authority.outputs.mode == 'publish-capable' }}");
+  assert.equal(job.steps.find(({ id }) => id === "pack").if, "${{ steps.authority.outputs.mode == 'publish-capable' }}");
   assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
   assert.equal(job.steps.find(({ id }) => id === "pack")["working-directory"],
     ".worker-tmp/profiles/node-${{ inputs.expected_commit }}");
@@ -201,7 +205,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     publish.run.indexOf('test "${OPERATION}" = "bootstrap"'),
   );
   const publishBranch = publish.run.slice(
-    publish.run.indexOf('if [[ "${REGISTRY_ACTION}" == "publish" ]]'),
+    publish.run.indexOf('elif [[ "${BOOTSTRAP_MODE}" == "publish-capable" && "${REGISTRY_ACTION}" == "publish" ]]'),
     publish.run.indexOf('elif [[ "${REGISTRY_ACTION}" != "reuse" ]]'),
   );
   const postPublishBranch = publish.run.slice(publish.run.indexOf("mutation-proof"));
@@ -258,7 +262,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(reconcileStep.env.GH_TOKEN, "${{ github.token }}");
   assert.equal(reconcileStep.env.NODE_AUTH_TOKEN, undefined);
   assert.match(reconcileStep.run, /scripts\/github-release-reconciliation\.mjs/u);
-  assert.match(reconcileStep.run, /"\$\{TAG\}" "\$\{TITLE\}" "\$\{BODY\}" true "\$\{EXPECTED_COMMIT\}"/u);
+  assert.match(reconcileStep.run, /"\$\{TAG\}" "\$\{TITLE\}" "\$\{BODY\}" true "\$\{PUBLISHED_COMMIT\}" "\$\{EXPECTED_COMMIT\}"/u);
   assert.doesNotMatch(reconcileStep.run, /gh api|git\/ref\/tags|releases\/tags/u);
   assert.doesNotMatch(source, /on:\s*\n\s+push:/u);
   assert.doesNotMatch(source, /docs-protocol-bootstrap/u);

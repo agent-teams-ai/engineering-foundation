@@ -306,6 +306,11 @@
       "id": "ADR-0064",
       "path": "docs/decisions/0064-independent-stack-toolchain-package-boundary.md",
       "immutableDigest": "sha256:a60d107c0fd78952869fce811e9211b09321c54db54356c629e1b35503b65625"
+    },
+    {
+      "id": "ADR-0065",
+      "path": "docs/decisions/0065-explicit-toolchain-lint-scope-api.md",
+      "immutableDigest": "sha256:ccf4f00198145c4a79c3de5defcfd3b7c2493fb8b29ff2a77e0ad171889725a2"
     }
   ]
 }

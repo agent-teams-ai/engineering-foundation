@@ -13,7 +13,8 @@ import {
 } from "../packages/engineering-foundation/dist/process-execution/api.js";
 import {
   NodeProcessRunner,
-  executeManagedProcess
+  executeManagedProcess,
+  terminatePosixProcessGroup
 } from "../packages/engineering-foundation/dist/process-execution/node-process-runner.js";
 import {
   appendWrapperStderr,
@@ -421,14 +422,38 @@ test("Windows cancellation protocol proves containment across Job assignment", a
 test("maps cleanup failure once with initiating cause and incomplete custody", {
   skip: process.platform === "win32" ? "POSIX group cleanup is the focused seam" : false,
   timeout: 15_000
-}, async () => {
+}, async t => {
   const originalKill = process.kill;
+  const processGroups = new Set<number>();
+  let successfulTerminations = 0;
+  let deniedProbes = 0;
+  const restoreKill = () => Object.defineProperty(process, "kill", {
+    configurable: true,
+    value: originalKill
+  });
+  t.after(async () => {
+    restoreKill();
+    for (const group of processGroups) {
+      await terminatePosixProcessGroup(group);
+    }
+  });
   Object.defineProperty(process, "kill", {
     configurable: true,
     value: (pid: number, signal?: NodeJS.Signals | number) => {
       if (pid < 0) {
-        const result = originalKill(pid, signal);
-        throw Object.assign(new Error("synthetic group cleanup failure"), { code: "EPERM", result });
+        processGroups.add(-pid);
+        if (signal === 0) {
+          deniedProbes += 1;
+        } else {
+          try {
+            if (originalKill(pid, signal)) { successfulTerminations += 1; }
+          } catch (error) {
+            if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) {
+              throw error;
+            }
+          }
+        }
+        throw Object.assign(new Error("synthetic group cleanup failure"), { code: "EPERM" });
       }
       return originalKill(pid, signal);
     }
@@ -449,11 +474,13 @@ test("maps cleanup failure once with initiating cause and incomplete custody", {
       assert.equal(runtimeCause.initiatingError.code, "timeout");
       return true;
     });
+    assert.ok(successfulTerminations > 0, "the cleanup fault must follow actual process-group termination");
+    if (process.platform === "darwin") {
+      assert.ok(deniedProbes > 0, "Darwin absence observations must remain denied");
+    }
   } finally {
-    Object.defineProperty(process, "kill", {
-      configurable: true,
-      value: originalKill
-    });
+    restoreKill();
+    t.diagnostic(`cleanup fault witness: ${JSON.stringify({ successfulTerminations, deniedProbes })}`);
   }
 });
 

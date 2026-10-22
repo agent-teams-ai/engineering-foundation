@@ -28,31 +28,37 @@ function readPins() {
     }
     return version;
   };
-  pin("oxlint-tsgolint");
   return {
     typescript: pin("typescript"),
     bun: pin("bun"),
     tsrs: pin("tsrs"),
     oxlint: pin("oxlint"),
     oxfmt: pin("oxfmt"),
+    "oxlint-tsgolint": pin("oxlint-tsgolint"),
   };
 }
-const pins = readPins();
+export const toolchainPins = Object.freeze(readPins());
+const pins = toolchainPins;
+export type ToolName = keyof typeof pins;
+type NativeTool = Exclude<ToolName, "oxlint-tsgolint">;
+function installationPath(filename: string, root: string): string {
+  const resolved = fs.realpathSync(filename);
+  const marker = `${path.sep}node_modules${path.sep}`;
+  const realRoot = fs.realpathSync(root);
+  const boundaryIndex = realRoot.indexOf(marker);
+  if (boundaryIndex >= 0) {
+    const boundary = realRoot.slice(0, boundaryIndex + marker.length - 1);
+    const relative = path.relative(boundary, resolved);
+    if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error("TOOLCHAIN_DEPENDENCY_OUTSIDE_INSTALLATION");
+    }
+  }
+  return resolved;
+}
 function packageDirectory(name: string, root: string): string | null {
   const require = createRequire(path.join(root, "package.json"));
   try {
-    const resolved = path.dirname(require.resolve(`${name}/package.json`));
-    const marker = `${path.sep}node_modules${path.sep}`;
-    const realRoot = fs.realpathSync(root);
-    const boundaryIndex = realRoot.indexOf(marker);
-    if (boundaryIndex >= 0) {
-      const boundary = realRoot.slice(0, boundaryIndex + marker.length - 1);
-      const relative = path.relative(boundary, fs.realpathSync(resolved));
-      if (relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-        throw new Error("TOOLCHAIN_DEPENDENCY_OUTSIDE_INSTALLATION");
-      }
-    }
-    return resolved;
+    return installationPath(path.dirname(require.resolve(`${name}/package.json`)), root);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND") {
       return null;
@@ -60,7 +66,7 @@ function packageDirectory(name: string, root: string): string | null {
     throw error;
   }
 }
-function validateOwner(tool: keyof typeof pins, root: string): void {
+function validateOwner(tool: NativeTool, root: string): void {
   const owner = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as {
     name?: string;
     dependencies?: Record<string, string>;
@@ -90,7 +96,7 @@ function validateOwner(tool: keyof typeof pins, root: string): void {
     throw new Error(`TOOLCHAIN_DEPENDENCY_DECLARATION:${tool}`);
   }
 }
-function nativePlatform(tool: keyof typeof pins): { name: string; arch: string; libc: string } {
+function nativePlatform(tool: NativeTool): { name: string; arch: string; libc: string } {
   const platform = process.platform === "win32" ? "windows" : process.platform;
   const arch = process.arch === "arm64" && tool === "bun" ? "aarch64" : process.arch;
   const libc =
@@ -110,7 +116,7 @@ function nativePlatform(tool: keyof typeof pins): { name: string; arch: string; 
           : `@${tool}/binding-${process.platform}-${arch}${libc ? `-${libc}` : process.platform === "win32" ? "-msvc" : ""}`;
   return { name, arch, libc };
 }
-function native(tool: keyof typeof pins, root: string): CheckerExecutable | null {
+function native(tool: NativeTool, root: string): CheckerExecutable | null {
   validateOwner(tool, root);
   const directory = packageDirectory(tool, root);
   if (directory === null) {
@@ -147,7 +153,7 @@ function native(tool: keyof typeof pins, root: string): CheckerExecutable | null
     throw new Error(`TOOLCHAIN_NATIVE_PIN_MISMATCH:${tool}`);
   }
   try {
-    return nativeCommand(tool, directory, nativeDirectory, arch, libc);
+    return nativeCommand(tool, { root, directory, nativeDirectory }, arch, libc);
   } catch (error) {
     // Optional checker installation may exist without execution permission
     // (for example a scripts-disabled installation). Never repair consumer files.
@@ -158,32 +164,40 @@ function native(tool: keyof typeof pins, root: string): CheckerExecutable | null
   }
 }
 function nativeCommand(
-  tool: keyof typeof pins,
-  directory: string,
-  nativeDirectory: string,
+  tool: NativeTool,
+  location: { readonly root: string; readonly directory: string; readonly nativeDirectory: string },
   arch: string,
   libc: string,
 ): CheckerExecutable | null {
+  const { root, directory, nativeDirectory } = location;
   if (tool === "oxlint" || tool === "oxfmt") {
     if (process.release.name !== "node" || "bun" in process.versions) {
       throw new Error("TOOLCHAIN_NODE_REQUIRED");
     }
-    const binding = path.join(
-      nativeDirectory,
-      `${tool}.${process.platform}-${arch}${libc ? `-${libc}` : process.platform === "win32" ? "-msvc" : ""}.node`,
+    const binding = installationPath(
+      path.join(
+        nativeDirectory,
+        `${tool}.${process.platform}-${arch}${libc ? `-${libc}` : process.platform === "win32" ? "-msvc" : ""}.node`,
+      ),
+      root,
     );
     if (!fs.statSync(binding).isFile()) {
       throw new Error(`TOOLCHAIN_NATIVE_BINARY_MISSING:${tool}`);
     }
-    return { command: process.execPath, prefix: [path.join(directory, "bin", tool)] };
+    const wrapper = installationPath(path.join(directory, "bin", tool), root);
+    if (!fs.statSync(wrapper).isFile()) {
+      throw new Error(`TOOLCHAIN_NATIVE_BINARY_INVALID:${tool}`);
+    }
+    return { command: process.execPath, prefix: [wrapper] };
   }
-  const executable =
+  let executable =
     tool === "typescript"
       ? path.join(nativeDirectory, "lib", process.platform === "win32" ? "tsc.exe" : "tsc")
       : tool === "bun"
         ? path.join(nativeDirectory, "bin", process.platform === "win32" ? "bun.exe" : "bun")
         : path.join(nativeDirectory, process.platform === "win32" ? `${tool}.exe` : tool);
   try {
+    executable = installationPath(executable, root);
     if (!fs.statSync(executable).isFile()) {
       throw new Error(`TOOLCHAIN_NATIVE_BINARY_INVALID:${tool}`);
     }
@@ -253,10 +267,43 @@ export function resolveTsgolintExecutable(packageRoot: string = defaultRoot): st
   if (installed.version !== manifest.version) {
     throw new Error("TOOLCHAIN_TSGOLINT_NATIVE_PIN_MISMATCH");
   }
-  const executable = path.join(
-    nativeRoot,
-    process.platform === "win32" ? "tsgolint.exe" : "tsgolint",
+  const executable = installationPath(
+    path.join(nativeRoot, process.platform === "win32" ? "tsgolint.exe" : "tsgolint"),
+    packageRoot,
   );
+  if (!fs.statSync(executable).isFile()) {
+    throw new Error("TOOLCHAIN_NATIVE_BINARY_INVALID:oxlint-tsgolint");
+  }
   fs.accessSync(executable, fs.constants.X_OK);
   return executable;
+}
+
+export function installedToolVersion(
+  tool: ToolName,
+  packageRoot: string = defaultRoot,
+): string | null {
+  const directory = packageDirectory(tool, packageRoot);
+  if (directory === null) {
+    return null;
+  }
+  const value: unknown = JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf8"));
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("version" in value) ||
+    typeof value.version !== "string"
+  ) {
+    throw new Error("TOOLCHAIN_INSTALLED_MANIFEST_INVALID");
+  }
+  return value.version;
+}
+
+export function resolveDoctorExecutable(
+  tool: ToolName,
+  packageRoot: string = defaultRoot,
+): CheckerExecutable | null {
+  if (tool !== "oxlint-tsgolint") {
+    return native(tool, packageRoot);
+  }
+  return { command: resolveTsgolintExecutable(packageRoot), prefix: [] };
 }

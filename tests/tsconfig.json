@@ -13,6 +13,9 @@
     "repository-profile-git.test.ts",
     "local-mode-bun.test.ts",
     "support/process-runtime-windows-protocol.ts",
-    "support/process-runtime-cancellation-fixture.ts"
+    "support/process-runtime-cancellation-fixture.ts",
+    "github-release-reconciliation.test.ts",
+    "npm-bootstrap-recovery.test.ts",
+    "support/npm-bootstrap-recovery-fixtures.ts"
   ]
 }

@@ -199,7 +199,31 @@ function packageKeys(value) {
   if (!isRecord(value)) {
     return PACKAGE_KEYS;
   }
-  return [...PACKAGE_KEYS, ...["releasePredecessor", "optionalDependencies"].filter((key) => Object.hasOwn(value, key))];
+  return [...PACKAGE_KEYS, ...["releasePredecessor", "optionalDependencies", "providerPlaceholder", "recovery"].filter((key) => Object.hasOwn(value, key))];
+}
+
+function parseRegistryRecovery(value, label) {
+  const result = {};
+  if (Object.hasOwn(value, "providerPlaceholder")) {
+    exactKeys(value.providerPlaceholder, ["version", "archiveIntegrity"], `${label}.providerPlaceholder`);
+    if (value.providerPlaceholder.version !== "0.0.0-stage" || value.state === "candidate") {
+      fail(`${label}.providerPlaceholder requires reviewed staged history.`);
+    }
+    result.providerPlaceholder = Object.freeze({
+      version: value.providerPlaceholder.version,
+      archiveIntegrity: canonicalIntegrity(value.providerPlaceholder.archiveIntegrity),
+    });
+  }
+  if (Object.hasOwn(value, "recovery")) {
+    exactKeys(value.recovery, ["sourceCommit", "runId", "runAttempt"], `${label}.recovery`);
+    if (value.id !== "stack-toolchain" || value.name !== "stack-toolchain" || value.state === "candidate" ||
+        !GIT_OBJECT.test(value.recovery.sourceCommit) || !Number.isSafeInteger(value.recovery.runId) ||
+        value.recovery.runId <= 0 || value.recovery.runAttempt !== 1 || !result.providerPlaceholder) {
+      fail(`${label}.recovery must identify the reviewed Stack bootstrap publication.`);
+    }
+    result.recovery = Object.freeze({ ...value.recovery });
+  }
+  return result;
 }
 
 function parsePackage(value, index) {
@@ -248,6 +272,7 @@ function parsePackage(value, index) {
     dependencies: Object.freeze(value.dependencies.map((entry, dependencyIndex) =>
       parseDependency(entry, `${label}.dependencies[${dependencyIndex}]`))),
     ...optionalDependencies,
+    ...parseRegistryRecovery(value, label),
     deprecationMessage: value.deprecationMessage,
     id: value.id,
     manifestPath: value.manifestPath,

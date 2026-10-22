@@ -47,6 +47,12 @@
     "tests/features/quality-coverage/governed-assets.test.ts",
     "packages/stack-toolchain/tests/**/*.ts",
     "scripts/packed-stack-toolchain-qualification.ts",
-    "tests/support/process-runtime-cancellation-fixture.ts"
+    "tests/support/process-runtime-cancellation-fixture.ts",
+    "tests/github-release-reconciliation.test.ts",
+    "scripts/npm-registry-read.ts",
+    "scripts/npm-registry-history.ts",
+    "scripts/npm-bootstrap-recovery.ts",
+    "tests/npm-bootstrap-recovery.test.ts",
+    "tests/support/npm-bootstrap-recovery-fixtures.ts"
   ]
 }

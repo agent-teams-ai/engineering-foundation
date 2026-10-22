@@ -585,6 +585,7 @@ test("npm signature audit uses the shared cross-platform command runner", async 
   try {
     const result = await auditLivePackage(mcpProfile, root, {
       attempts: 1,
+      availability: async () => {},
       runNpm: async (args, cwd, options) => {
         calls.push({ args, cwd, options });
         return {

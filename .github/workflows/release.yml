@@ -51,6 +51,8 @@ jobs:
         run: node --input-type=module -e 'import { assertNpmVersion } from "./scripts/release-publish-ordered-runtime.mjs"; assertNpmVersion();'
       - name: Install the actual Bun source worktree
         run: node tools/dev.mts install
+      - name: Build the bootstrap archive verifier
+        run: bun run --filter @agent-teams/engineering-foundation build
       - name: Guard public package bootstrap baselines
         run: node scripts/npm-package-bootstrap-cli.mjs check-release
       - name: Configure and verify release Git identity

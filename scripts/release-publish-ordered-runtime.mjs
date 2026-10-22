@@ -217,7 +217,12 @@ function expectedIntegrityHex(integrity) {
 
 export function verifiedProvenanceFromNpmAudit(evidence, artifact, source) {
   const { provenanceBundle } = exactVerifiedAuditEntry(evidence, artifact);
-  const provenance = provenanceFrom(statementFromVerifiedBundle(provenanceBundle));
+  const statement = statementFromVerifiedBundle(provenanceBundle);
+  const provenance = provenanceFrom(statement);
+  if (source.expectedInvocation !== undefined &&
+      statement.predicate?.runDetails?.metadata?.invocationId !== source.expectedInvocation) {
+    throw new Error(`npm verified provenance invocation differs from reviewed publication for ${artifact.name}.`);
+  }
   const expectedSubject = `pkg:npm/${npmPurlName(artifact.name)}@${artifact.version}`;
   if (provenance?.repository !== source.repository || provenance.workflow !== source.workflow ||
       provenance.ref !== source.ref ||

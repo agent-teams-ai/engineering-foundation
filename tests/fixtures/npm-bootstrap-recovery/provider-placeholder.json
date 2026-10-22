@@ -1,0 +1,31 @@
+{
+  "name": "stack-toolchain",
+  "version": "0.0.0-stage",
+  "_id": "stack-toolchain@0.0.0-stage",
+  "stub": true,
+  "maintainers": [
+    {
+      "name": "ilyazelenko",
+      "email": "iliyazelenkog@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "11a97b42520fc8117edf07131f83ebbc0faeba4e",
+    "tarball": "https://registry.npmjs.org/stack-toolchain/-/stack-toolchain-0.0.0-stage.tgz",
+    "fileCount": 2,
+    "integrity": "sha512-17gDGy/D3GbqsDUbYAhwkmr0/tdMLnbAa5fJwjOHzjBp/iM9FhVZKJu472MrQ0UCH3ziEg6oELCLTAW2r5BoVA==",
+    "signatures": [
+      {
+        "sig": "MEUCID++kI8UOFMM8xoWNHxnSmFzIAzYf0+cyEFdn1/XQfM9AiEA86Ohu5c1YBl/4D9L5V3wxCd9ahXkBMPJRIZn7EyAxpY=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      }
+    ],
+    "unpackedSize": 337
+  },
+  "_npmUser": {
+    "name": "ilyazelenko",
+    "email": "iliyazelenkog@gmail.com"
+  },
+  "description": "Temporary package placeholder for staged publishing",
+  "directories": {}
+}

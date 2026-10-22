@@ -1,3 +1,4 @@
+import { prepareExistingBootstrap, publishedBootstrapCommit } from "./npm-bootstrap-recovery.ts";
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -63,7 +64,13 @@ async function prepare(args) {
   const profile = bootstrapPackageById(args[0], { approved: true });
   const manifest = JSON.parse(await readFile(profile.manifestPath, "utf8"));
   assertWorkspaceManifestMatchesProfile(profile, manifest);
+  if (profile.recovery !== undefined && args[3] !== "bootstrap") {
+    fail("reviewed recovery permits existing-artifact bootstrap reconciliation only.");
+  }
   await output(args[1], {
+    mode: profile.recovery === undefined ? "publish-capable" : "existing-artifact-only",
+    releaseCommit: publishedBootstrapCommit(profile, args[2]),
+    packageTree: profile.approval.packageTree,
     deprecationMessage: profile.deprecationMessage,
     name: profile.name,
     root: profile.root,
@@ -88,13 +95,19 @@ async function packEvidence(args) {
   await output(args[5], evidence);
 }
 
+async function existingEvidence(args) {
+  const profile = bootstrapPackageById(args[0], { approved: true });
+  const evidence = await prepareExistingBootstrap(profile, args[1], resolve(args[2]));
+  await output(args[3], evidence);
+}
+
 async function registryPreflight(args, observationOptions) {
   const profile = bootstrapPackageById(args[0], { approved: true });
   const action = await observeRegistryPreflight(profile, args[1], { observationOptions });
   await output(args[2], { action });
 }
 
-function verifiedEvidence({ deprecationMatches, distTags, expectedCommit, localIntegrity, profile }) {
+function verifiedEvidence({ deprecationMatches, distTags, expectedCommit, operatingCommit, localIntegrity, profile }) {
   const evidence = {
     schemaVersion: 2,
     verified: true,
@@ -108,6 +121,10 @@ function verifiedEvidence({ deprecationMatches, distTags, expectedCommit, localI
       distTags: Object.fromEntries(Object.keys(distTags).toSorted().map((tag) => [tag, distTags[tag]])),
     },
   };
+  if (operatingCommit !== undefined) {
+    if (!/^[a-f0-9]{40}$/u.test(operatingCommit)) {fail("operating main commit must be exact.");}
+    evidence.execution = { commit: operatingCommit };
+  }
   if (expectedCommit !== undefined) {
     evidence.provenance = {
       commit: expectedCommit,
@@ -176,6 +193,7 @@ export async function prove(
     deprecationMatches: live.deprecatedMessage === profile.deprecationMessage,
     distTags: live.metadata["dist-tags"],
     expectedCommit: args[2],
+    operatingCommit: args[4],
     localIntegrity: args[1],
     profile,
   });
@@ -252,6 +270,7 @@ const handlers = Object.freeze({
     writeOutput(`Verified required npm bootstrap baselines: ${verified.join(", ")}.\n`);
   },
   "pack-evidence": packEvidence,
+  "existing-evidence": existingEvidence,
   "mutation-proof": (args) => prove(
     args,
     assertBootstrapMutationPreconditions,

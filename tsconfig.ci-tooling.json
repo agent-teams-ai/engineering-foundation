@@ -30,6 +30,7 @@
     "scripts/materialize-validated-coverage.mjs",
     "tests/**/*.mts",
     "tests/support/release-changesets-fixture.ts",
+    "tests/support/process-runtime-windows-protocol.ts",
     "tests/test-manifests-typescript.test.ts",
     "tests/source-inline-types.test.ts",
     "tests/package-export-matcher.test.ts",

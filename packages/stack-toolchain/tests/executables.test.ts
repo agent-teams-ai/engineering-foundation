@@ -66,9 +66,28 @@ test('non-executable optional checker is unavailable while compiler remains mand
     fs.writeFileSync(path.join(compilerNative, 'package.json'), JSON.stringify({ version: pins['typescript'] }));
     const binary = path.join(compilerNative, 'lib', 'tsc');
     fs.writeFileSync(binary, 'compiler', { mode: 0o755 });
+    const bunName = `@oven/bun-${process.platform === 'win32' ? 'windows' : process.platform}-${process.arch === 'arm64' ? 'aarch64' : process.arch}${libc === '-musl' ? '-musl' : ''}`;
+    const bunWrapper = path.join(root, 'node_modules', 'bun');
+    const bunNative = path.join(root, 'node_modules', bunName);
+    fs.mkdirSync(bunWrapper, { recursive: true });
+    fs.mkdirSync(bunNative, { recursive: true });
+    fs.writeFileSync(path.join(bunWrapper, 'package.json'), JSON.stringify({ version: pins['bun'], optionalDependencies: { [bunName]: pins['bun'] } }));
+    fs.writeFileSync(path.join(bunNative, 'package.json'), JSON.stringify({ version: pins['bun'] }));
+    assert.equal(resolveExecutables(root).bun, null);
+    fs.writeFileSync(path.join(bunNative, 'bin'), 'invalid parent');
+    assert.throws(() => resolveExecutables(root), { code: 'ENOTDIR' });
+    fs.rmSync(path.join(bunNative, 'bin'));
     assert.equal(resolveExecutables(root).tsrs, null);
+    fs.rmSync(path.join(native, 'tsrs'));
+    assert.equal(resolveExecutables(root).tsrs, null);
+    fs.writeFileSync(path.join(bunNative, 'package.json'), JSON.stringify({ version: '0.0.0' }));
+    assert.throws(() => resolveExecutables(root), /TOOLCHAIN_NATIVE_PIN_MISMATCH:bun/u);
+    fs.writeFileSync(path.join(bunNative, 'package.json'), JSON.stringify({ version: pins['bun'] }));
+    fs.writeFileSync(path.join(native, 'tsrs'), 'not executable', { mode: 0o644 });
     assert.equal(fs.statSync(path.join(native, 'tsrs')).mode & 0o777, 0o644);
     fs.chmodSync(binary, 0o644);
     assert.throws(() => resolveCompilerExecutable(root), { code: 'EACCES' });
+    fs.rmSync(binary);
+    assert.throws(() => resolveCompilerExecutable(root), /TOOLCHAIN_NATIVE_BINARY_MISSING:typescript/u);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -82,7 +82,7 @@ function native(tool: keyof typeof pins, root: string): CheckerExecutable | null
     throw error;
   }
 }
-function nativeCommand(tool: keyof typeof pins, directory: string, nativeDirectory: string, arch: string, libc: string): CheckerExecutable {
+function nativeCommand(tool: keyof typeof pins, directory: string, nativeDirectory: string, arch: string, libc: string): CheckerExecutable | null {
   if (tool === 'oxlint' || tool === 'oxfmt') {
     if (process.release.name !== 'node' || 'bun' in process.versions) {throw new Error('TOOLCHAIN_NODE_REQUIRED');}
     const binding = path.join(nativeDirectory, `${tool}.${process.platform}-${arch}${libc ? `-${libc}` : process.platform === 'win32' ? '-msvc' : ''}.node`);
@@ -92,7 +92,15 @@ function nativeCommand(tool: keyof typeof pins, directory: string, nativeDirecto
   const executable = tool === 'typescript' ? path.join(nativeDirectory, 'lib', process.platform === 'win32' ? 'tsc.exe' : 'tsc')
     : tool === 'bun' ? path.join(nativeDirectory, 'bin', process.platform === 'win32' ? 'bun.exe' : 'bun')
     : path.join(nativeDirectory, process.platform === 'win32' ? `${tool}.exe` : tool);
-  if (!fs.existsSync(executable)) {throw new Error(`TOOLCHAIN_NATIVE_BINARY_MISSING:${tool}`);}
+  try {
+    if (!fs.statSync(executable).isFile()) { throw new Error(`TOOLCHAIN_NATIVE_BINARY_INVALID:${tool}`); }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (tool === 'bun' || tool === 'tsrs') { return null; }
+      throw new Error(`TOOLCHAIN_NATIVE_BINARY_MISSING:${tool}`, { cause: error });
+    }
+    throw error;
+  }
   fs.accessSync(executable, fs.constants.X_OK);
   return { command: executable, prefix: [], ...(tool === 'bun' ? { cwd: nativeDirectory } : {}) };
 }

@@ -11,6 +11,8 @@
     "architecture-baseline-replacement.test.ts",
     "repository-profile-lint.test.ts",
     "repository-profile-git.test.ts",
-    "local-mode-bun.test.ts"
+    "local-mode-bun.test.ts",
+    "support/process-runtime-windows-protocol.ts",
+    "support/process-runtime-cancellation-fixture.ts"
   ]
 }

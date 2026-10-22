@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { delimiter, join } from "node:path";
 import test, { after } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { ProcessRuntimeError } from "node-or-bun";
 import { foundationCommandFailure } from "../packages/engineering-foundation/dist/features/command-host/application/command-failure.js";
@@ -32,6 +31,7 @@ import type { ManagedProcessRequest } from "../packages/engineering-foundation/d
 import { resolvePnpmInvocation } from "../tools/pnpm-command.mts";
 import { readRepositoryRuntimePolicy } from "../tools/runtime-policy.mts";
 import { assertWindowsCancellationProtocol } from "./support/process-runtime-windows-protocol.ts";
+import { assertCancellationPrecedence, waitForFixtureMarker } from "./support/process-runtime-cancellation-fixture.ts";
 
 const childRuntime = process.env["PROCESS_RUNTIME_DELEGATION_NODE"] ?? process.execPath;
 const fixtureParent = process.env["PROCESS_RUNTIME_DELEGATION_TEST_ROOT"] ??
@@ -43,43 +43,6 @@ after(() => {
   rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
-async function waitForFixtureMarker(
-  marker: string,
-  fixtureProcess: Promise<unknown>,
-  timeoutMs = 5_000
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let failure: unknown = new Error("Fixture marker readiness failed before its first observation.");
-  const observation: { settled: boolean; rejection?: { readonly error: unknown } } = { settled: false };
-  const observedProcess = fixtureProcess.then(
-    () => {
-      observation.settled = true;
-      return true;
-    },
-    (error: unknown) => {
-      observation.settled = true;
-      observation.rejection = { error };
-      return false;
-    }
-  );
-  while (Date.now() < deadline) {
-    if (observation.settled) {
-      await observedProcess;
-      if (observation.rejection !== undefined) {
-        throw observation.rejection.error;
-      }
-      throw new Error("Fixture process settled before its readiness marker.");
-    }
-    try {
-      await readFile(marker);
-      return;
-    } catch (error) {
-      failure = error;
-    }
-    await delay(2);
-  }
-  throw failure;
-}
 
 void test("bounds fixture marker readiness and preserves settlement failures", async () => {
   const missing = join(fixtureRoot, "never-ready");
@@ -225,48 +188,7 @@ void test("keeps observed nonzero results after cancellation but timeout precede
   skip: process.platform === "win32" ? "POSIX group signal behavior is platform-specific" : false,
   timeout: 15_000
 }, async () => {
-  const marker = join(fixtureRoot, `observed-${String(Date.now())}-${String(process.pid)}`);
-  const controller = new AbortController();
-  const script = [
-    "process.on('SIGTERM',()=>process.exit(23));",
-    "process.stdout.write('before cancellation');process.stderr.write('failure detail');",
-    `require('node:fs').writeFileSync(${JSON.stringify(marker)},'x');`,
-    "setTimeout(()=>process.exit(23),1000)"
-  ].join("");
-  const cancelled = executeManagedProcess({
-    command: childRuntime,
-    args: ["-e", script],
-    cwd: fixtureRoot,
-    signal: controller.signal
-  });
-  try {
-    await waitForFixtureMarker(marker, cancelled);
-    controller.abort(new Error("cancel-after-observation"));
-    const observed = await cancelled;
-    assert.equal(observed.exitCode, 23);
-    assert.equal(observed.stdout, "before cancellation");
-    assert.equal(observed.stderr, "failure detail");
-    assert.deepEqual({ ...readProcessFailureFacts(observed) }, { reason: "exit", exitCode: 23 });
-  } finally {
-    if (!controller.signal.aborted) {
-      controller.abort(new Error("cancel-during-fixture-cleanup"));
-    }
-    await cancelled.catch(() => {
-      return;
-    });
-    await rm(marker, { force: true });
-  }
-
-  await assert.rejects(executeManagedProcess({
-    command: childRuntime,
-    args: ["-e", "process.on('SIGTERM',()=>process.exit(23));setTimeout(()=>process.exit(23),1000)"],
-    cwd: fixtureRoot,
-    timeoutMs: 25
-  }), (error: unknown) => {
-    assert.ok(error instanceof ProcessTimeoutError);
-    assert.deepEqual({ ...readProcessFailureFacts(error) }, { reason: "timeout", timeoutMs: 25 });
-    return true;
-  });
+  await assertCancellationPrecedence(childRuntime, fixtureRoot);
 });
 
 void test("Windows cancellation protocol proves containment across Job assignment", assertWindowsCancellationProtocol);

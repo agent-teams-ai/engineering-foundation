@@ -46,6 +46,7 @@
     "tests/local-mode-bun.test.ts",
     "tests/features/quality-coverage/governed-assets.test.ts",
     "packages/stack-toolchain/tests/**/*.ts",
-    "scripts/packed-stack-toolchain-qualification.ts"
+    "scripts/packed-stack-toolchain-qualification.ts",
+    "tests/support/process-runtime-cancellation-fixture.ts"
   ]
 }

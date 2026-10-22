@@ -519,8 +519,8 @@
         "ref": "refs/heads/main"
       },
       "approval": {
-        "archiveIntegrity": "sha512-SF0dnOmHrhkJTXYNZwrz7UgigTe0/2+X36+WoUEYMnqWLiX1HjvRHItujsG+0sy9OVP81QOEUQ1DvJ+oEY/5rQ==",
-        "packageTree": "aa197ab942033769991e2d603eb3317541e36e6a"
+        "archiveIntegrity": "sha512-5g1p39Z9+Qw+LP6J8y4/NP24k/cfWMKanjtJrp2RiR3cvzrhBqyy1KDDU29lvCRRjghIKfnDSXtlqnOzRzQjlA==",
+        "packageTree": "217a5c1ccc65b46efa11f61c043eb30be8bddc77"
       }
     }
   ]

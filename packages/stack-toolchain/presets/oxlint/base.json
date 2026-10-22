@@ -9,14 +9,7 @@
     "typeAware": false,
     "typeCheck": false
   },
-  "plugins": [
-    "eslint",
-    "typescript",
-    "oxc",
-    "unicorn",
-    "import",
-    "promise"
-  ],
+  "plugins": ["eslint", "typescript", "oxc", "unicorn", "import", "promise"],
   "rules": {
     "array-callback-return": "error",
     "curly": "error",

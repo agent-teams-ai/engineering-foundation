@@ -4406,6 +4406,7 @@ boundaries:
         - node:child_process
         - node:fs
         - node:fs/promises
+        - node:module
         - node:os
         - node:path
         - node:test

@@ -224,4 +224,6 @@ packages:
         kind: data
     tsconfigPath: packages/stack-toolchain/tsconfig.json
     releasedBaselinePath: architecture/public-api/stack-toolchain.json
-    approvedBreakingChanges: []
+    approvedBreakingChanges:
+      - fingerprint: sha256:7543fdd6717ebff41d39fae71faaa2cb9ce2811d7deaad99243cfa351294df36
+        decisionId: ADR-0065

@@ -24,14 +24,14 @@ separate packages rather than mandatory dependencies of every installation.
 
 ## Commands
 
-| Command | Responsibility |
-| --- | --- |
-| `typecheck` | Read-only checking of configured standalone TypeScript projects |
-| `lint` | Run the pinned linter and selected technical preset |
-| `format:check` | Check formatting without changing files |
-| `compile --project <path>` | Compile with the pinned official TypeScript compiler |
-| `compile --build <path>` | Build a TypeScript reference graph explicitly |
-| `doctor` | Explain profile, tool versions and executable availability |
+| Command                    | Responsibility                                                  |
+| -------------------------- | --------------------------------------------------------------- |
+| `typecheck`                | Read-only checking of configured standalone TypeScript projects |
+| `lint`                     | Run the pinned linter and selected technical preset             |
+| `format:check`             | Check formatting without changing files                         |
+| `compile --project <path>` | Compile with the pinned official TypeScript compiler            |
+| `compile --build <path>`   | Build a TypeScript reference graph explicitly                   |
+| `doctor`                   | Explain profile, tool versions and executable availability      |
 
 ## Type checking and fallback
 
@@ -68,6 +68,33 @@ result classification. It uses the published node-or-bun process mechanism.
 Consumers own checked scope and technical environment; Foundation may compose
 the commands into its existing quality gates without becoming a prerequisite.
 
+When syntax and typed lint cover different files, add an optional `lint.syntax`
+scope with its own `config` and nonempty `paths`. The existing `lint.config` and
+`lint.paths` remain the typed scope; configurations without `syntax` retain one
+typed invocation. For example:
+
+```json
+{
+  "lint": {
+    "config": ".oxlintrc.type-aware.json",
+    "paths": ["src"],
+    "syntax": {
+      "config": ".oxlintrc.json",
+      "paths": ["src", "scripts", "tests"]
+    }
+  }
+}
+```
+
+Both configurations are validated before execution. Syntax runs first and stops
+the command on failure. Only syntax success starts typed lint and resolves its
+typed companion. The lanes share the original cancellation signal and deadline;
+multi-lane reports name each executed lane. Syntax configuration and its inherited
+presets must not enable `typeAware` or `typeCheck`. No linter failure triggers a
+checker fallback. Consumers declare and enforce their production census and
+checked paths; the toolchain does not infer product ownership from directories.
+Type checking and formatting keep their independently configured scopes.
+
 Release qualification must cover positive and negative diagnostics, all
 fallback routes, cancellation and cleanup, unchanged files during checks,
 native platform support and clean installations with lifecycle scripts disabled.
@@ -91,6 +118,10 @@ version, ambient type dependencies, source inclusion and output configuration.
 Oxlint configurations extend the installed JSON file under
 `./node_modules/stack-toolchain/presets/oxlint/`: `node.json` supplies the fast
 Node rules and `type-aware.json` adds semantic lint rules with `typeCheck: false`.
+The type-aware preset applies semantic rules to `.ts`, `.tsx`, `.mts` and `.cts`.
+JavaScript (`.js`, `.jsx`, `.mjs` and `.cjs`) retains syntactic rules; this preset
+does not qualify checked JavaScript. Its JavaScript exception covers the pinned
+linter's complete typed-rule set and rejects unnoticed changes during upgrades.
 Add `maintainability.json` for production budgets or
 `maintainability-tests.json` for test budgets. These are portable technical
 presets; product policy and organization conformance remain in their consumers.

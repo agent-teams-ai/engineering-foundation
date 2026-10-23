@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { chmod, cp, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
+import fsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -262,4 +263,46 @@ void test('working-file observation reads regular handles and retains literal li
       await assert.rejects(readReleaseWorkingFile(root, 'pipe'), /not an ordinary bounded file/u);
     }
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+void test('working link observations reject ancestry replaced before or during the read',
+  { skip: process.platform === 'win32' ? 'POSIX symlink directory replacement fixture.' : false }, async () => {
+  for (const phase of ['before', 'during']) {
+    const fixture = await realpath(await mkdtemp(join(tmpdir(), 'foundation-release-link-race-TEST-')));
+    const root = join(fixture, 'source'); const inside = join(root, 'inside');
+    const saved = join(root, 'inside-saved'); const outside = join(fixture, 'outside');
+    const leaf = join(inside, 'leaf');
+    await mkdir(inside, { recursive: true });
+    await symlink('original-target', leaf);
+    if (phase === 'before') { await mkdir(outside); await symlink('external-target', join(outside, 'leaf')); }
+    const originalRealpath = fsPromises.realpath; const originalReadlink = fsPromises.readlink;
+    const mutableFs: { realpath: (path: string) => Promise<string>; readlink: (path: string) => Promise<string> } = fsPromises;
+    let swapped = false;
+    const swap = async (): Promise<void> => {
+      swapped = true;
+      // Moving the whole directory retains the leaf inode for the during-read case.
+      await fsPromises.rename(inside, phase === 'before' ? saved : outside);
+      await symlink(outside, inside, 'dir');
+    };
+    try {
+      // Named builtin exports are restored before cleanup. The one-shot swap
+      // intercepts only this test file's exact disposable paths.
+      mutableFs.realpath = async (path) => {
+        const result = await originalRealpath(path);
+        if (phase === 'before' && path === inside && !swapped) { await swap(); }
+        return result;
+      };
+      mutableFs.readlink = async (path) => {
+        const result = await originalReadlink(path);
+        if (phase === 'during' && path === leaf && !swapped) { await swap(); }
+        return result;
+      };
+      syncBuiltinESMExports();
+      await assert.rejects(readReleaseWorkingFile(root, 'inside/leaf'), /substituted directory ancestry/u);
+      assert.equal(swapped, true);
+    } finally {
+      mutableFs.realpath = originalRealpath; mutableFs.readlink = originalReadlink;
+      syncBuiltinESMExports(); await rm(fixture, { recursive: true, force: true });
+    }
+  }
 });

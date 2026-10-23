@@ -89,9 +89,11 @@ function sameFile(before: BigIntStats, after: BigIntStats): boolean {
   return (['dev', 'ino', 'mode', 'size', 'mtimeNs', 'ctimeNs', 'nlink'] as const).every(key => before[key] === after[key]);
 }
 
-async function readReleaseLink(absolute: string, path: string, metadata: BigIntStats): Promise<ReleaseFileBytes> {
+async function readReleaseLink(absolute: string, path: string, metadata: BigIntStats, parent: string): Promise<ReleaseFileBytes> {
+  if (await realpath(dirname(absolute)) !== parent) { throw new Error(`Release path has substituted directory ancestry: ${path}.`); }
   const bytes = Buffer.from(await readlink(absolute));
   if (!sameFile(metadata, await lstat(absolute, { bigint: true }))) { throw new Error(`Release link changed during observation: ${path}.`); }
+  if (await realpath(dirname(absolute)) !== parent) { throw new Error(`Release path has substituted directory ancestry: ${path}.`); }
   return { bytes, file: { type: 'symlink', mode: '120000', digest: releaseDigest(bytes) } };
 }
 
@@ -131,7 +133,7 @@ export async function readReleaseWorkingFile(root: string, path: string): Promis
       if (failure instanceof Error && 'code' in failure && failure.code === 'ENOENT') { return null; }
       throw failure;
     });
-    if (metadata?.isSymbolicLink() === true) { return readReleaseLink(absolute, path, metadata); }
+    if (metadata?.isSymbolicLink() === true) { return readReleaseLink(absolute, path, metadata, parent); }
     if (metadata === null && error instanceof Error && 'code' in error && error.code === 'ENOENT') { return null; }
     throw error;
   }
@@ -139,7 +141,7 @@ export async function readReleaseWorkingFile(root: string, path: string): Promis
     const metadata = await handle.stat({ bigint: true });
     const pathMetadata = await lstat(absolute, { bigint: true });
     // Platforms without O_NOFOLLOW can open the target, but never read it.
-    if (pathMetadata.isSymbolicLink()) { return await readReleaseLink(absolute, path, pathMetadata); }
+    if (pathMetadata.isSymbolicLink()) { return await readReleaseLink(absolute, path, pathMetadata, parent); }
     if (!metadata.isFile() || metadata.size >= 2n ** 31n) { throw new Error(`Release path is not an ordinary bounded file: ${path}.`); }
     if (!sameFile(metadata, pathMetadata) || await realpath(dirname(absolute)) !== parent) { throw new Error(`Release file changed before its read: ${path}.`); }
     const bytes = await readReleaseHandle(handle, metadata.size);

@@ -24,7 +24,7 @@ import {
 import { main as runPublishedCompatibility } from "../scripts/published-compatibility-e2e.mjs";
 
 import {
-  source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, RELEASE_CHECKS_PACKAGE, releaseChecks, FEATURE_MODULE_STANDARD_PACKAGE, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run,
+  STACK_TOOLCHAIN_PACKAGE, stackToolchain, source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, RELEASE_CHECKS_PACKAGE, releaseChecks, FEATURE_MODULE_STANDARD_PACKAGE, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run,
 } from "./support/release-publish-ordered-fixtures.mjs";
 
 test("allows bounded npm provenance propagation without a failed publish attempt", () => {
@@ -43,7 +43,7 @@ test("bounds idempotent GitHub release reconciliation during transient outages",
 
 test("accepts delayed visibility beyond six minutes with one publish and unchanged downstream gates", async () => {
   let elapsed = 0;
-  const runtime = harness(publishedState(mutation, authoring, docs, docsAdapter, docsMcp, foundation, featureModuleStandard, releaseChecks));
+  const runtime = harness(publishedState(stackToolchain, mutation, authoring, docs, docsAdapter, docsMcp, foundation, featureModuleStandard, releaseChecks));
   const snapshot = publishedState(ciInputProof)[ciInputProof.name];
   const publish = runtime.publish;
   runtime.publish = async (value, tag) => {
@@ -55,8 +55,8 @@ test("accepts delayed visibility beyond six minutes with one publish and unchang
     now: () => elapsed, wait: async milliseconds => { elapsed += milliseconds; },
     reportProgress: record => progress.push(record) });
   assert.equal(runtime.calls.filter(call => call.startsWith("publish:")).length, 1);
-  assert.equal(runtime.calls.filter(call => call.startsWith("signature:")).length, 9);
-  assert.equal(runtime.calls.filter(call => call.startsWith("release:")).length, 9);
+  assert.equal(runtime.calls.filter(call => call.startsWith("signature:")).length, 10);
+  assert.equal(runtime.calls.filter(call => call.startsWith("release:")).length, 10);
   assert.ok(elapsed > 360_000 && elapsed < REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS);
   assert.ok(progress.some(record => record.stage === "npm-publish" && record.status === "acknowledged"));
   assert.ok(progress.some(record => record.stage === "visibility" && record.status === "verified"));
@@ -158,7 +158,7 @@ test("a long visibility wait never authorizes a downstream write after main adva
   assert.equal(runtime.calls.some(call => call.startsWith("release:")), false);
 });
 
-test("publishes the exact derived nine-package dependency graph in order", async () => {
+test("publishes the exact derived ten-package dependency graph in order", async () => {
   const runtime = harness();
   await run(runtime);
   const ciInputProofPublish = runtime.calls.indexOf(`publish:${CI_INPUT_PROOF_PACKAGE}:latest`);
@@ -184,7 +184,7 @@ test("publishes the exact derived nine-package dependency graph in order", async
   const docsFinalInspect = runtime.calls.lastIndexOf(`inspect:${DOCS_PACKAGE}`);
   assert.deepEqual(runtime.calls.filter((entry) => entry.startsWith("publish:")), [
     CI_INPUT_PROOF_PACKAGE, RELEASE_CHECKS_PACKAGE, MUTATION_PACKAGE, DOCUMENT_AUTHORING_PACKAGE,
-    DOCS_PACKAGE, DOCS_ADAPTER_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE, FEATURE_MODULE_STANDARD_PACKAGE,
+    DOCS_PACKAGE, DOCS_ADAPTER_PACKAGE, DOCS_MCP_PACKAGE, FOUNDATION_PACKAGE, FEATURE_MODULE_STANDARD_PACKAGE, STACK_TOOLCHAIN_PACKAGE,
   ].map((name) => `publish:${name}:latest`));
   assert.ok(ciInputProofPublish >= 0 && ciInputProofPublish < ciInputProofSignature);
   assert.ok(ciInputProofSignature < releaseChecksPublish && releaseChecksPublish < releaseChecksSignature);
@@ -206,24 +206,11 @@ test("publishes the exact derived nine-package dependency graph in order", async
 test("publishes an RC wave directly on rc without moving latest", async () => {
   const runtime = harness();
   await run(runtime, { finalTag: "rc" });
-  assert.equal(runtime.states.get(CI_INPUT_PROOF_PACKAGE).distTags.rc, ciInputProof.version);
-  assert.equal(runtime.states.get(RELEASE_CHECKS_PACKAGE).distTags.rc, releaseChecks.version);
-  assert.equal(runtime.states.get(FEATURE_MODULE_STANDARD_PACKAGE).distTags.rc, featureModuleStandard.version);
-  assert.equal(runtime.states.get(MUTATION_PACKAGE).distTags.rc, mutation.version);
-  assert.equal(runtime.states.get(DOCUMENT_AUTHORING_PACKAGE).distTags.rc, authoring.version);
-  assert.equal(runtime.states.get(FOUNDATION_PACKAGE).distTags.rc, foundation.version);
-  assert.equal(runtime.states.get(DOCS_PACKAGE).distTags.rc, docs.version);
-  assert.equal(runtime.states.get(DOCS_ADAPTER_PACKAGE).distTags.rc, docsAdapter.version);
-  assert.equal(runtime.states.get(DOCS_MCP_PACKAGE).distTags.rc, docsMcp.version);
-  assert.equal(runtime.states.get(CI_INPUT_PROOF_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(RELEASE_CHECKS_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(FEATURE_MODULE_STANDARD_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(MUTATION_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(DOCUMENT_AUTHORING_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(FOUNDATION_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(DOCS_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(DOCS_ADAPTER_PACKAGE).distTags.latest, undefined);
-  assert.equal(runtime.states.get(DOCS_MCP_PACKAGE).distTags.latest, undefined);
+  for (const value of [ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring,
+    foundation, docs, docsAdapter, docsMcp, stackToolchain]) {
+    assert.equal(runtime.states.get(value.name).distTags.rc, value.version, `${value.name}: rc`);
+    assert.equal(runtime.states.get(value.name).distTags.latest, undefined, `${value.name}: latest`);
+  }
 });
 
 test("refuses every non-governed npm tag before publication", async () => {
@@ -410,7 +397,7 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
   assert.match(releaseDocs, /never creates,\s+removes, or moves either tag explicitly/u);
   assert.match(releaseDocs, /final required phase resolves the canonical public Docs Protocol coordinates/u);
   assert.match(releaseDocs, /derives the\s+publication order by topologically sorting the exact internal dependencies/u);
-  assert.match(releaseDocs, /closed\s+nine-package DAG owned solely by `scripts\/publishable-packages\.mjs`/u);
+  assert.match(releaseDocs, /closed\s+package DAG owned solely by `scripts\/publishable-packages\.mjs`/u);
   assert.doesNotMatch(releaseDocs, /five-package dependency DAG/u);
   assert.match(releaseDocs, /missing dependency-closed set in\s+reviewed topological order/u);
   assert.match(releaseDocs, /published package whose required\s+upstream dependency is missing is quarantined/u);
@@ -418,7 +405,7 @@ test("current runbook isolates the one-time token bootstrap from ordinary OIDC r
 });
 
 test("resumes a Foundation-only prior publish without republishing it", async () => {
-  const runtime = harness(publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
   const released = await run(runtime);
   assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${FOUNDATION_PACKAGE}`)), false);
   assert.equal(runtime.calls.some((entry) => entry.startsWith(`publish:${DOCS_PACKAGE}`)), true);
@@ -426,7 +413,7 @@ test("resumes a Foundation-only prior publish without republishing it", async ()
 });
 
 test("later protected main may publish missing Docs against a verified reusable Foundation", async () => {
-  const runtime = harness(publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
   const currentCommit = "b".repeat(40);
   const laterSource = {
     ...source,
@@ -455,7 +442,7 @@ test("later protected main may publish missing Docs against a verified reusable 
 });
 
 test("reused Foundation cannot publish missing Docs after protected main advances", async () => {
-  const runtime = harness(publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
   const currentCommit = "b".repeat(40);
   runtime.authorizePublish = () => {
     throw new Error("protected main advanced");
@@ -492,11 +479,12 @@ test("Docs-only ancestor state is quarantined before any Foundation npm write", 
     `inspect:${DOCS_MCP_PACKAGE}`,
     `inspect:${FOUNDATION_PACKAGE}`,
     `inspect:${FEATURE_MODULE_STANDARD_PACKAGE}`,
+    `inspect:${STACK_TOOLCHAIN_PACKAGE}`,
   ]);
 });
 
 test("fails when raw registry provenance disagrees with the verified npm audit bundle", async () => {
-  const runtime = harness(publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
+  const runtime = harness(publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation));
   const currentCommit = "b".repeat(40);
   runtime.verifySignature = async (value) => artifactProvenance(value, currentCommit);
   await assert.rejects(
@@ -602,8 +590,9 @@ test("retries signature verification without republishing Foundation", async () 
   );
 });
 
-test("nine published npm versions reach reconciliation after preflight on a later main without npm writes", async () => {
+test("ten published npm versions reach reconciliation after preflight on a later main without npm writes", async () => {
   const runtime = harness(publishedState(
+    stackToolchain,
     ciInputProof,
     releaseChecks,
     featureModuleStandard,
@@ -635,13 +624,13 @@ test("nine published npm versions reach reconciliation after preflight on a late
   const released = await run(runtime, {
     source: laterSource,
   });
-  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 9);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 10);
   assert.equal(changesetsReleaseOutput(released), "");
   assert.equal(runtime.calls.some((entry) => /^(?:publish|tag|untag):/u.test(entry)), false);
 });
 
 test("emits only the package released by the current commit when Foundation is an older ancestor", async () => {
-  const initial = publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp);
+  const initial = publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp);
   const currentCommit = "b".repeat(40);
   initial[DOCS_PACKAGE].provenance.commit = currentCommit;
   const runtime = harness(initial);
@@ -685,8 +674,9 @@ test("reconciles a partial GitHub release boundary exactly once per package", as
     DOCS_MCP_PACKAGE,
     FOUNDATION_PACKAGE,
     FEATURE_MODULE_STANDARD_PACKAGE,
+    STACK_TOOLCHAIN_PACKAGE,
   ]);
-  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 9);
+  assert.equal(runtime.calls.filter((entry) => entry.startsWith("publish:")).length, 10);
 });
 
 test("production GitHub reconciliation repairs a lost release response idempotently", async () => {
@@ -817,7 +807,7 @@ test("rejects immutable-version mismatch and requires quarantine/new version", a
 });
 
 test("rejects Docs published before Document Authoring without reconciling GitHub releases", async () => {
-  const initial = publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, docs);
+  const initial = publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, docs);
   initial[DOCS_PACKAGE].publishedAt = "2026-01-01T00:00:00.500Z";
   const runtime = harness(initial);
   await assert.rejects(run(runtime), /docs-protocol.*published before.*document-authoring/iu);
@@ -838,13 +828,13 @@ test("rejects local and published Docs manifests without the exact Document Auth
     [MUTATION_PACKAGE]: mutation.version,
   });
   await assert.rejects(
-    run(harness(), { artifacts: [ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, badDocs, docsAdapter, docsMcp] }),
+    run(harness(), { artifacts: [stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation, badDocs, docsAdapter, docsMcp] }),
     /docs-protocol.*exact.*document-authoring/iu,
   );
 
   const publishedDocs = present(docs, "2026-01-01T00:00:01.000Z");
   publishedDocs.manifest.dependencies[DOCUMENT_AUTHORING_PACKAGE] = "^0.1.0";
-  const initial = publishedState(ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation);
+  const initial = publishedState(stackToolchain, ciInputProof, releaseChecks, featureModuleStandard, mutation, authoring, foundation);
   initial[DOCS_PACKAGE] = publishedDocs;
   const runtime = harness(initial);
   await assert.rejects(run(runtime), /different packed manifest/iu);

@@ -539,6 +539,12 @@ test("full diagnostics require an explicit isolated Node profile before effects"
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Full repository diagnostics require the explicit --profile node projection/u);
+  const packagePhase = spawnSync(process.execPath,
+    [resolve(repositoryRoot, "tools/dev.mts"), "package:check:built"], {
+      cwd: repositoryRoot, encoding: "utf8", timeout: 5_000
+    });
+  assert.notEqual(packagePhase.status, 0);
+  assert.match(packagePhase.stderr, /Package qualification requires the explicit --profile node projection/u);
 });
 
 // Manager selection belongs to recorded profile policy, never an ambient override.

@@ -1,5 +1,21 @@
 # @agent-teams/engineering-foundation
 
+## 2.1.2
+
+### Patch Changes
+
+- [#431](https://github.com/agent-teams-ai/engineering-foundation/pull/431) [`7d9dd73`](https://github.com/agent-teams-ai/engineering-foundation/commit/7d9dd73b5f64dc7010232c2f4f050933ced00bd5) Thanks [@777genius](https://github.com/777genius)! - Support exact stable Bun 1 consumers for development-only and registry assertions.
+  Inspect the active text lock and contained isolated installed package identity;
+  keep local attach and detach limited to pnpm 11. Bun inspection is cooperative
+  selection evidence, without an installed lock mirror or archive authentication.
+
+  Repack Feature Module Standard with the matching exact Foundation development
+  dependency while retaining its supported optional peer window.
+
+- Updated dependencies [[`bf7dbd3`](https://github.com/agent-teams-ai/engineering-foundation/commit/bf7dbd30b07ea5916d869c29549790275f141e04)]:
+  - @agent-teams/repository-mutation@0.4.1
+  - @agent-teams/document-authoring@0.3.5
+
 ## 2.1.1
 
 ### Patch Changes

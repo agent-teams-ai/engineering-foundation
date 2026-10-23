@@ -52,6 +52,23 @@ explicit generation2 Node and managed test tools described in
 [Node compatibility](node-26-compatibility.md) and
 [managed runtime qualification](../reference/node26-managed-runtime-observation.md).
 
+Outside that dedicated full-check route, direct Bun package qualification crosses
+only `package:check:built` into
+`node tools/dev.mts --profile node package:check:built`. Prepare that explicit
+projection with `node tools/dev.mts --profile node install` before invoking it.
+Other phases, workflow policy and Git observation stay in the Bun source checkout.
+The package phase verifies actual source Git identity, inherited source-root/SHA
+claims, owned projection location, complete projected source bytes and installed
+pnpm virtual store before compilation. Missing, stale, foreign or modified
+projections refuse; this direct phase never installs dependencies automatically.
+Reprepare it after source changes. An admitted Node projection retains its
+existing pnpm execution path.
+
+Local Node 26 test and package routes require the explicit physical Node 24 port
+`PACK_TEST_GENERATION2_NODE` for the retained generation2 suites, matching native
+CI. Preserve host Git hooks and supply the required author/committer identity
+when disposable fixtures create ordinary commits.
+
 Node-profile lint first checks all non-generated source bytes and paths against
 the source checkout. Only the three declared manager/workflow/dependency-policy
 projections are normalized, after validating their exact derived bytes. The

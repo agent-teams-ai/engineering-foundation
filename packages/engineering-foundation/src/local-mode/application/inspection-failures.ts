@@ -1,6 +1,13 @@
 import { FoundationError } from "../../features/validation-reporting/api.js";
 import { FOUNDATION_PACKAGE_NAME } from "./model.js";
 
+export function bunLocalMutationUnsupported(): FoundationError {
+  return new FoundationError(
+    "CONSUMER_INVALID",
+    "Local attach and detach require pnpm 11; Bun consumers support registry inspection only."
+  );
+}
+
 export function targetIsConsumer(): FoundationError {
   return new FoundationError("PACKAGE_INVALID", "Foundation target cannot be the consumer repository.");
 }

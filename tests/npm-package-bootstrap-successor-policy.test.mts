@@ -1,3 +1,4 @@
+import { waitForBootstrapAvailability } from "../scripts/npm-package-bootstrap-registry.mjs";
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
@@ -643,4 +644,31 @@ void test("the actual publish entrypoint accepts exact stage-plus-RC history and
     }),
     /contains an unsupported version/u,
   );
+});
+
+
+void test("successor audit availability binds the reviewed RC instead of the old bootstrap SRI", async () => {
+  let observedIntegrity: string | undefined;
+  const options = {
+    catalog: successorCatalog(),
+    readManifest: async () => ({ name, version: "0.2.0" }),
+    observationOptions: { attempts: 1, wait: async () => {} },
+    fetchImplementation: async () => new Response(JSON.stringify(packument())),
+    auditPackage: async (profile: {
+      name: string; bootstrapVersion: string; approval: { archiveIntegrity: string } | null;
+    }) => {
+      observedIntegrity = profile.approval?.archiveIntegrity;
+      await waitForBootstrapAvailability(profile, {
+        fetchImplementation: async () => new Response(JSON.stringify({
+          name, version, dist: { integrity: archiveIntegrity },
+        })),
+      });
+      return auditEvidence();
+    },
+  };
+  await verifyLiveBootstrapBaselines(options);
+  assert.equal(observedIntegrity, archiveIntegrity);
+  const oldApproval = successorCatalog().packages[0].approval;
+  assert.ok(oldApproval !== null);
+  assert.notEqual(archiveIntegrity, oldApproval.archiveIntegrity);
 });

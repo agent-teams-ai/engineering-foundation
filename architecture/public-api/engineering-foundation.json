@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "@agent-teams/engineering-foundation",
-  "packageVersion": "2.1.1",
+  "packageVersion": "2.1.2",
   "extractorVersion": "typescript-native/7.0.2",
   "entrypoints": [
     {

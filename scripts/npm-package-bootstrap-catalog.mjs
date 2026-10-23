@@ -178,11 +178,57 @@ function parseTagPolicy(value, label) {
   });
 }
 
+function parseOptionalDependencies(value, label) {
+  if (!Object.hasOwn(value, "optionalDependencies")) {
+    return {};
+  }
+  if (Object.hasOwn(value, "optionalDependencies") && (
+    !Array.isArray(value.optionalDependencies) || value.optionalDependencies.length === 0 ||
+    new Set(value.optionalDependencies.map((entry) => entry?.name)).size !== value.optionalDependencies.length ||
+    value.optionalDependencies.some((entry) => value.dependencies.some((required) => required.name === entry?.name))
+  )) {
+    fail(`${label}.optionalDependencies must be non-empty, unique and disjoint from dependencies.`);
+  }
+  return {
+    optionalDependencies: Object.freeze(value.optionalDependencies.map((entry, index) =>
+      parseDependency(entry, `${label}.optionalDependencies[${index}]`))),
+  };
+}
+
+function packageKeys(value) {
+  if (!isRecord(value)) {
+    return PACKAGE_KEYS;
+  }
+  return [...PACKAGE_KEYS, ...["releasePredecessor", "optionalDependencies", "providerPlaceholder", "recovery"].filter((key) => Object.hasOwn(value, key))];
+}
+
+function parseRegistryRecovery(value, label) {
+  const result = {};
+  if (Object.hasOwn(value, "providerPlaceholder")) {
+    exactKeys(value.providerPlaceholder, ["version", "archiveIntegrity"], `${label}.providerPlaceholder`);
+    if (value.providerPlaceholder.version !== "0.0.0-stage" || value.state === "candidate") {
+      fail(`${label}.providerPlaceholder requires reviewed staged history.`);
+    }
+    result.providerPlaceholder = Object.freeze({
+      version: value.providerPlaceholder.version,
+      archiveIntegrity: canonicalIntegrity(value.providerPlaceholder.archiveIntegrity),
+    });
+  }
+  if (Object.hasOwn(value, "recovery")) {
+    exactKeys(value.recovery, ["sourceCommit", "runId", "runAttempt"], `${label}.recovery`);
+    if (value.id !== "stack-toolchain" || value.name !== "stack-toolchain" || value.state === "candidate" ||
+        !GIT_OBJECT.test(value.recovery.sourceCommit) || !Number.isSafeInteger(value.recovery.runId) ||
+        value.recovery.runId <= 0 || value.recovery.runAttempt !== 1 || !result.providerPlaceholder) {
+      fail(`${label}.recovery must identify the reviewed Stack bootstrap publication.`);
+    }
+    result.recovery = Object.freeze({ ...value.recovery });
+  }
+  return result;
+}
+
 function parsePackage(value, index) {
   const label = `packages[${index}]`;
-  const expectedKeys = isRecord(value) && Object.hasOwn(value, "releasePredecessor")
-    ? [...PACKAGE_KEYS, "releasePredecessor"]
-    : PACKAGE_KEYS;
+  const expectedKeys = packageKeys(value);
   exactKeys(value, expectedKeys, label);
   if (!PACKAGE_ID.test(value.id) || !PACKAGE_NAME.test(value.name)) {
     fail(`${label} has an invalid package ID or npm package name.`);
@@ -206,6 +252,7 @@ function parsePackage(value, index) {
   if (!Array.isArray(value.dependencies) || new Set(value.dependencies.map((entry) => entry?.name)).size !== value.dependencies.length) {
     fail(`${label}.dependencies must contain unique package names.`);
   }
+  const optionalDependencies = parseOptionalDependencies(value, label);
   const releasePredecessor = parseReleasePredecessor(
     value.releasePredecessor ?? null,
     `${label}.releasePredecessor`,
@@ -224,6 +271,8 @@ function parsePackage(value, index) {
     contentPolicy: parseContentPolicy(value.contentPolicy, `${label}.contentPolicy`),
     dependencies: Object.freeze(value.dependencies.map((entry, dependencyIndex) =>
       parseDependency(entry, `${label}.dependencies[${dependencyIndex}]`))),
+    ...optionalDependencies,
+    ...parseRegistryRecovery(value, label),
     deprecationMessage: value.deprecationMessage,
     id: value.id,
     manifestPath: value.manifestPath,
@@ -274,4 +323,20 @@ export function bootstrapPackageById(id, { approved = false, catalog = NPM_PACKA
     fail(`${profile.name} bootstrap is not approved.`);
   }
   return profile;
+}
+
+export function assertOptionalDependencyManifest(profile, manifest, packed = false) {
+  if (!Object.hasOwn(profile, "optionalDependencies")) {
+    if (Object.hasOwn(manifest, "optionalDependencies")) {
+      fail("unreviewed optionalDependencies section.");
+    }
+    return;
+  }
+  const actual = manifest.optionalDependencies;
+  const expected = Object.fromEntries(profile.optionalDependencies.map(({ name, version, specifier }) =>
+    [name, packed ? version : specifier]));
+  if (!isRecord(actual) || JSON.stringify(Object.entries(actual).toSorted()) !==
+      JSON.stringify(Object.entries(expected).toSorted())) {
+    fail("optionalDependencies differ from the exact reviewed dependency map.");
+  }
 }

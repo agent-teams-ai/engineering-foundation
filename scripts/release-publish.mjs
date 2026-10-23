@@ -1,3 +1,4 @@
+import { qualifyRegistryHistory } from "./npm-registry-history.ts";
 import { createHash } from "node:crypto";
 import { readFile, readdir, readlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
@@ -335,6 +336,7 @@ export async function changesetInventory(cwd) {
   };
 }
 
+/** @returns {Promise<{ distTags: Record<string, string>, exists: boolean, versions: string[], rawVersions?: string[], providerPlaceholders?: {version: string, archiveIntegrity: string, archiveSha256: string}[] }>} */
 export async function registryPackageMetadata(packageInfo, fetchImplementation = fetch) {
   const registry = packageInfo.registry ?? "https://registry.npmjs.org/";
   const packageUrl = new URL(
@@ -342,7 +344,7 @@ export async function registryPackageMetadata(packageInfo, fetchImplementation =
     registry.endsWith("/") ? registry : `${registry}/`,
   );
   const response = await fetchImplementation(packageUrl, {
-    headers: { accept: "application/vnd.npm.install-v1+json" },
+    headers: { accept: "application/json" },
     signal: AbortSignal.timeout(registryTimeoutMilliseconds),
   });
   if (response.status === 404) {
@@ -364,7 +366,8 @@ export async function registryPackageMetadata(packageInfo, fetchImplementation =
   return {
     distTags: Object.fromEntries(Object.entries(metadata["dist-tags"] ?? {}).toSorted()),
     exists: true,
-    versions: Object.keys(metadata.versions).toSorted(),
+    ...await qualifyRegistryHistory(metadata,
+      NPM_PACKAGE_BOOTSTRAP.packages.find(entry => entry.name === packageInfo.name) ?? packageInfo, fetchImplementation),
   };
 }
 
@@ -388,6 +391,8 @@ async function verifyPublishRegistryState(
       name: packageInfo.name,
       registry: packageInfo.registry ?? "https://registry.npmjs.org/",
       versions: metadata.versions,
+      rawVersions: metadata.rawVersions,
+      providerPlaceholders: metadata.providerPlaceholders,
     });
     const targetRc = parseRcVersion(packageInfo.version);
     const targetStable = parseStableVersion(packageInfo.version);

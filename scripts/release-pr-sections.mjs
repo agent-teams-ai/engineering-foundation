@@ -19,7 +19,7 @@ export function releaseSections(body) {
   }
   const value = normalized.slice(releases.index);
   const matches = [
-    ...value.matchAll(/^## (@agent-teams\/[A-Za-z0-9._-]+)@([^\s]+)\s*$/gmu),
+    ...value.matchAll(/^## ((?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*)@([^\s]+)\s*$/gmu),
   ];
   if (matches.length === 0) {
     throw new Error("pull request release body does not contain package releases");

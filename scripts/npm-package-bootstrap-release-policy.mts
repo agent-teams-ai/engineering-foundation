@@ -19,6 +19,7 @@ type BootstrapProfile = {
   provenance: { ref: string; workflowPath: string };
   releasePredecessor: ReleasePredecessor | null;
   state: string;
+  recovery?: { sourceCommit: string; runId: number; runAttempt: number };
   [key: string]: unknown;
 };
 
@@ -64,6 +65,12 @@ export function assertProvenanceBinding({
   if (profile.approval === null) {
     return refuse(`${profile.name} has no reviewed provenance approval.`);
   }
+  if (profile.recovery !== undefined && expectedCommit !== undefined &&
+      expectedCommit !== profile.recovery.sourceCommit) {
+    return refuse("recovery source differs from the closed publication authority.");
+  }
+  const repository: unknown = NPM_PACKAGE_BOOTSTRAP.repository;
+  if (typeof repository !== "string") {return refuse("bootstrap repository authority is malformed.");}
   let provenance: VerifiedProvenance;
   try {
     const result: unknown = verifiedProvenanceFromNpmAudit(
@@ -75,15 +82,19 @@ export function assertProvenanceBinding({
       },
       {
         ref: profile.provenance.ref,
-        repository: NPM_PACKAGE_BOOTSTRAP.repository,
+        repository,
         workflow: profile.provenance.workflowPath,
+        ...(profile.recovery === undefined ? {} : {
+          expectedInvocation: `${repository}/actions/runs/${profile.recovery.runId}/attempts/${profile.recovery.runAttempt}`,
+        }),
       },
     );
     provenance = result as VerifiedProvenance;
   } catch (error) {
     return refuse(error instanceof Error ? error.message : "npm provenance verification failed.");
   }
-  if (expectedCommit !== undefined && provenance.commit !== expectedCommit) {
+  const publishedCommit = profile.recovery?.sourceCommit ?? expectedCommit;
+  if (publishedCommit !== undefined && provenance.commit !== publishedCommit) {
     return refuse("SLSA provenance is not bound to the expected reviewed commit.");
   }
   return provenance.commit;
@@ -131,7 +142,7 @@ export function assertBootstrapRegistryVersionHistory(
   if (publishedVersions.some((version) => parsePublishedVersion(version) === undefined)) {
     return refuse(`${profile.name} registry history contains an unsupported version.`);
   }
-  return Object.freeze(publishedVersions) as readonly string[];
+  return Object.freeze(publishedVersions);
 }
 
 export function assertBootstrapReleasePolicy(
@@ -178,6 +189,7 @@ export async function verifySuccessorReleaseBaseline({
   const predecessorProfile = Object.freeze({
     ...profile,
     bootstrapVersion: predecessor.version,
+    approval: Object.freeze({ archiveIntegrity: predecessor.archiveIntegrity }),
     provenance: Object.freeze({
       ref: predecessor.provenance.ref,
       workflowPath: predecessor.provenance.workflowPath,

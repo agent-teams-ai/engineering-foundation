@@ -1,4 +1,14 @@
 {
   "extends": "../tsconfig.ci-tooling.json",
-  "include": ["**/*.mts", "release-candidate-*.ts", "packed-release-checks.ts", "public-api-native-migration-version.ts", "public-docs-quickstart.ts", "public-docs-documented-e2e.ts"]
+  "include": [
+    "**/*.mts",
+    "public-api-native-migration-version.ts",
+    "public-docs-quickstart.ts",
+    "public-docs-documented-e2e.ts",
+    "npm-registry-read.ts",
+    "npm-registry-history.ts",
+    "npm-bootstrap-recovery.ts",
+    "release-candidate-*.ts",
+    "packed-release-checks.ts"
+  ]
 }

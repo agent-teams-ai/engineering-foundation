@@ -1,6 +1,9 @@
 // oxlint-disable max-lines -- The registry matrix remains one auditable disposable orchestration.
+import { materializeStableTree } from "./pack-artifact-stage-support.mjs";
+import { qualifyInstalledStackToolchain } from "./packed-stack-toolchain-qualification.ts";
 import { createHash } from "node:crypto";
 import {
+  lstat,
   mkdir,
   readFile,
   readdir,
@@ -9,7 +12,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { availableParallelism } from "node:os";
-import { dirname, join, resolve as resolvePath } from "node:path";
+import { dirname, join, relative, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -298,12 +301,47 @@ async function closeServer(server) {
   });
 }
 
-async function packPackage(entry, index, { temporaryRoot, runPnpm }) {
+export async function seedExecutableFiles(root, directory = root, state = { entries: 0 }) {
+  if (relative(root, directory).split(/[\\/]/u).length > 64) { throw new Error("Seed executable inventory exceeds depth bound."); }
+  const files = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    state.entries += 1;
+    if (state.entries > 50_000) { throw new Error("Seed executable inventory exceeds its bound."); }
+    if (entry.name === "node_modules") { continue; }
+    const filename = join(directory, entry.name);
+    if (entry.isDirectory()) { files.push(...await seedExecutableFiles(root, filename, state)); }
+    else if (entry.isFile() && ((await lstat(filename)).mode & 0o111) !== 0) {
+      files.push(filename.slice(root.length + 1).replaceAll("\\", "/"));
+    }
+  }
+  return files;
+}
+
+export async function packPackage(entry, index, { temporaryRoot, runPnpm }) {
   const destination = join(temporaryRoot, "seed", String(index));
   await mkdir(destination, { recursive: true });
+  // pnpm normalizes non-bin members to 0644 unless executableFiles is declared.
+  // Change only a disposable copy; installed cache bytes remain untouched.
+  let seedSource = entry.root;
+  const executableFiles = await seedExecutableFiles(entry.root);
+  if (executableFiles.length > 0) {
+    seedSource = join(destination, "source");
+    const sourceManifest = JSON.parse(await readFile(join(entry.root, "package.json"), "utf8"));
+    const workspace = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+    const bunVersion = workspace.workspaces.catalog.bun;
+    const admittedBun = /^@oven\/bun-(?:darwin|linux|windows|freebsd)-(?:aarch64|x64)(?:-musl|-android)?$/u.test(sourceManifest.name) && sourceManifest.version === bunVersion;
+    await materializeStableTree(entry.root, seedSource, { allowLinks: false,
+      excludedEntries: new Set(["node_modules"]), label: "Registry seed copy", state: { entries: 0, bytes: 0 },
+      maximumMemberBytes: candidate => admittedBun && relative(entry.root, candidate).replaceAll("\\", "/") === `bin/${sourceManifest.name.includes("windows") ? "bun.exe" : "bun"}` ? 128 * 1024 * 1024 : 32 * 1024 * 1024,
+    });
+    const manifestPath = join(seedSource, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    await writeFile(manifestPath, JSON.stringify({ ...manifest,
+      publishConfig: { ...manifest.publishConfig, executableFiles } }));
+  }
   await runPnpm(
     ["pack", "--pack-destination", destination, "--config.ignore-scripts=true"],
-    entry.root,
+    seedSource,
   );
   const archives = (await readdir(destination)).filter((name) =>
     name.endsWith(".tgz"),
@@ -438,6 +476,7 @@ async function verifyPnpmRegistryPackage({ consumerRoot, registryUrl, target, us
 }
 
 async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
+  if (matrixEntry.profile === 'foundation-full') { matrixEntry = { ...matrixEntry, packageNames: [...matrixEntry.packageNames, 'stack-toolchain'] }; }
   const { consumerRoot, userConfigPath } = await installConsumer(
     targets, registryUrl, matrixEntry, commands,
   );
@@ -498,6 +537,7 @@ async function verifyConsumer(targets, registryUrl, matrixEntry, commands) {
     if (installedFoundationRoot === undefined || installedAdapterRoot === undefined) {
       throw new Error("Installed Foundation qualification package is missing.");
     }
+    await qualifyInstalledStackToolchain(consumerRoot);
     await verifyFoundationFeatures({
       consumerRoot,
       authoringVersion: authoringTarget.manifest.version,

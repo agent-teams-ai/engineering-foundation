@@ -12,13 +12,13 @@ const expected = Object.freeze({
   size: 18134,
 });
 
-const cmsPrefix = 'docs/architecture/evidence/runtime-profile-guidance-20261020/common-assembly';
+const cmsPrefix = 'docs/architecture/evidence/doctor-guidance-20261022/common-assembly';
 const cmsExpected = Object.freeze({
   repository: 'agent-teams-ai/get-modular', path: 'docs/architecture/common-assembly.md',
-  anchor: 'consumer-module-standard', commit: '300e7e1c459c08f5e271627e4ca7d2486bdf5e1f',
-  blob: 'ae6792543bd19acc948e177e8d55632c9d51134e',
-  sha256: 'c2fe582a14ff6e79620b232ca7ffc914afb0474ec21fd43f208251dd7252f4a3',
-  size: 81436,
+  anchor: 'consumer-module-standard', commit: '7131d0d7a6bb5dd4c3e8906ccac065c0be0e0333',
+  blob: 'dad8b6280cf999d9079d3106094e5626b63d83f4',
+  sha256: 'a6dac5d303adf80be3151c6703c919b715fd880a941a4ad68e927c87a7ee5882',
+  size: 81946,
 });
 
 const runtimeSeam = Object.freeze({
@@ -30,6 +30,9 @@ const runtimeSeam = Object.freeze({
     'Workflow boundary': 'existing-static-adapter',
     'Workflow owner': 'engineering-foundation/repository-agent-workflow',
     'Workflow lifecycle': 'Host custody and cleanup; no Assembly or lifecycle-kernel adoption',
+    'Doctor boundary': 'existing-static-adapter',
+    'Doctor owner': 'stack-toolchain/toolchain-execution',
+    'Doctor lifecycle': 'caller-owned process budget and cleanup; no Assembly adoption',
   }),
   tokens: Object.freeze([
     'Status: `not-adopted`; closed static selection only',
@@ -82,7 +85,7 @@ export async function checkEngineeringQualityStandard(root: string): Promise<voi
   await checkRetainedPin(resolve(root, cmsPrefix), cmsExpected, 'CMS', '.txt');
   const delta = await readFile(resolve(root, `${cmsPrefix}.diff`));
   if (createHash('sha256').update(delta).digest('hex') !==
-      '65b7b1e9d0cc45836fc188ef332ffcc8c35227df6045ef1acde0e8f6b9346af5') {
+      '1caa65055dcde91309e2317d70faf339cd82b2ba42f16a8902bc3025cf4f1bf3') {
     throw new Error('CMS retained delta does not match the reviewed input');
   }
   const seam = await readFile(resolve(root, 'docs/architecture/runtime-profile-static-seam.md'), 'utf8');

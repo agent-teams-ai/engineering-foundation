@@ -68,6 +68,11 @@ for (const [scenario, expectedSignatures] of [
   ["attestation-e404-persistent", REGISTRY_OBSERVATION_ATTEMPTS],
   ["attestation-e404-persistent-final-timeout", REGISTRY_OBSERVATION_ATTEMPTS],
   ["attestation-e404-persistent-final-auth-timeout", REGISTRY_OBSERVATION_ATTEMPTS],
+  ["attestation-empty-then-valid", PUBLISHABLE_PACKAGES.length + 1],
+  ["attestation-empty-persistent", REGISTRY_OBSERVATION_ATTEMPTS],
+  ...["malformed-json", "malformed-evidence", "malformed-bundles", "invalid", "missing-signature",
+    "ambiguous-target", "ambiguous-bundles", "partial", "wrong-source", "wrong-sri"]
+    .map(reason => [`attestation-${reason}`, 1]),
 ]) {
   test(`npm attestation verification handles ${scenario} without another publish`, () => {
     const result = spawnSync(process.execPath, [
@@ -78,7 +83,9 @@ for (const [scenario, expectedSignatures] of [
     const evidence = JSON.parse(result.stdout.trim().split("\n").at(-1));
     assert.equal(evidence.events.filter((event) => event.operation === "signature").length, expectedSignatures);
     assert.equal(evidence.events.filter((event) => event.operation === "publish-attempt").length,
-      scenario === "attestation-e404-then-valid" ? PUBLISHABLE_PACKAGES.length : 1);
+      scenario.endsWith("-then-valid") ? PUBLISHABLE_PACKAGES.length : 1);
+    assert.ok(evidence.events.filter(event => event.operation === "signature")
+      .every(event => event.preferOnline === true));
     assert.doesNotMatch(result.stdout + result.stderr, /credential-secret/u);
   });
 }
@@ -163,10 +170,10 @@ test("lost npm response logs sanitized failure and still verifies accepted artif
     }) });
   };
   await run(runtime, { reportPublishFailure: (message) => diagnostics.push(message) });
-  assert.equal(diagnostics.length, 9);
-  assert.equal(runtime.calls.filter((call) => call.startsWith("signature:")).length, 9);
-  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 9);
-  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 9);
+  assert.equal(diagnostics.length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("signature:")).length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("release:")).length, 10);
+  assert.equal(runtime.calls.filter((call) => call.startsWith("publish:")).length, 10);
   assert.match(diagnostics.join("\n"), /ECONNRESET/u);
   assert.doesNotMatch(diagnostics.join("\n"), /secret|password|Bearer|example/u);
 });

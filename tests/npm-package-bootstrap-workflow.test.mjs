@@ -83,7 +83,7 @@ test("bootstrap CLI runs before build in a clean source checkout", async (contex
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     await writeFile(manifestPath, JSON.stringify({ ...manifest, version: approved.bootstrapVersion }));
     const outputPath = join(temporary, "prepared.env");
-    const result = run(["prepare", approved.id, outputPath]);
+    const result = run(["prepare", approved.id, outputPath, "a".repeat(40)]);
     assert.equal(result.error, undefined);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, "");
@@ -197,7 +197,11 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.deepEqual(job.steps.flatMap(({ env }, index) => (env?.GH_TOKEN === undefined ? [] : [index])), [proof]);
   assert.equal(job["timeout-minutes"], 45);
   assert.equal(job.steps.filter(({ run }) => run === "pnpm check").length, 0);
-  assert.equal(job.steps[install + 1].run, "pnpm build");
+  assert.equal(job.steps[install + 1].run, "pnpm --filter @agent-teams/engineering-foundation build");
+  assert.equal(job.steps[install + 1].if, "${{ steps.authority.outputs.mode == 'existing-artifact-only' }}");
+  assert.equal(job.steps[install + 2].run, "pnpm build");
+  assert.equal(job.steps[install + 2].if, "${{ steps.authority.outputs.mode == 'publish-capable' }}");
+  assert.equal(job.steps.find(({ id }) => id === "pack").if, "${{ steps.authority.outputs.mode == 'publish-capable' }}");
   assert.match(job.steps.find(({ id }) => id === "pack").run, /node scripts\/prepare-package\.mjs[\s\S]*pnpm --filter/u);
   assert.equal(job.steps.find(({ id }) => id === "pack")["working-directory"],
     ".worker-tmp/profiles/node-${{ inputs.expected_commit }}");
@@ -225,7 +229,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
     publish.run.indexOf('test "${OPERATION}" = "bootstrap"'),
   );
   const publishBranch = publish.run.slice(
-    publish.run.indexOf('if [[ "${REGISTRY_ACTION}" == "publish" ]]'),
+    publish.run.indexOf('elif [[ "${BOOTSTRAP_MODE}" == "publish-capable" && "${REGISTRY_ACTION}" == "publish" ]]'),
     publish.run.indexOf('elif [[ "${REGISTRY_ACTION}" != "reuse" ]]'),
   );
   const postPublishBranch = publish.run.slice(publish.run.indexOf("mutation-proof"));
@@ -282,7 +286,7 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
   assert.equal(reconcileStep.env.GH_TOKEN, "${{ github.token }}");
   assert.equal(reconcileStep.env.NODE_AUTH_TOKEN, undefined);
   assert.match(reconcileStep.run, /scripts\/github-release-reconciliation\.mjs/u);
-  assert.match(reconcileStep.run, /"\$\{TAG\}" "\$\{TITLE\}" "\$\{BODY\}" true "\$\{EXPECTED_COMMIT\}"/u);
+  assert.match(reconcileStep.run, /"\$\{TAG\}" "\$\{TITLE\}" "\$\{BODY\}" true "\$\{PUBLISHED_COMMIT\}" "\$\{EXPECTED_COMMIT\}"/u);
   assert.doesNotMatch(reconcileStep.run, /gh api|git\/ref\/tags|releases\/tags/u);
   assert.doesNotMatch(source, /on:\s*\n\s+push:/u);
   assert.doesNotMatch(source, /docs-protocol-bootstrap/u);
@@ -295,6 +299,14 @@ test("generic npm bootstrap is manual, token-bounded, idempotent, and provenance
       ({ run }) => run === "node scripts/npm-package-bootstrap-local-evidence.mjs --output \"${RUNNER_TEMP}/npm-package-bootstrap-writer-evidence\"",
     ),
   );
+  const writerStep = ci.jobs["linux-package"].steps.find(
+    ({ name }) => name === "Verify approved bootstrap writer evidence",
+  );
+  assert.equal(writerStep.env.AGENT_TEAMS_FOUNDATION_SOURCE_ROOT, "${{ github.workspace }}");
+  const packageCheckout = ci.jobs["linux-package"].steps.find(
+    ({ uses }) => uses?.startsWith("actions/checkout@"),
+  );
+  assert.equal(packageCheckout.with["fetch-depth"], 0);
   assert.ok(
     ci.jobs["linux-package"].steps.some(({ uses, if: condition }) =>
       uses?.startsWith("actions/upload-artifact@") && condition === "${{ always() }}",

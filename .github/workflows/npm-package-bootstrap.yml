@@ -48,6 +48,7 @@ jobs:
     outputs:
       tag: ${{ steps.authority.outputs.tag }}
       title: ${{ steps.authority.outputs.title }}
+      releaseCommit: ${{ steps.authority.outputs.releaseCommit }}
     env:
       NPM_CONFIG_AUDIT: "false"
       NPM_CONFIG_FUND: "false"
@@ -77,6 +78,7 @@ jobs:
         env:
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
           PACKAGE_ID: ${{ inputs.package_id }}
+          BOOTSTRAP_OPERATION: ${{ inputs.operation }}
           TOKEN_CREATED_AT: ${{ inputs.token_created_at }}
           TOKEN_EXPIRES_AT: ${{ inputs.token_expires_at }}
         run: |
@@ -85,7 +87,7 @@ jobs:
           test "$(git rev-parse origin/main)" = "${EXPECTED_COMMIT}"
           node scripts/npm-package-bootstrap-cli.mjs token-window \
             "${TOKEN_CREATED_AT}" "${TOKEN_EXPIRES_AT}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          node scripts/npm-package-bootstrap-cli.mjs prepare "${PACKAGE_ID}" "${GITHUB_OUTPUT}"
+          node scripts/npm-package-bootstrap-cli.mjs prepare "${PACKAGE_ID}" "${GITHUB_OUTPUT}" "${EXPECTED_COMMIT}" "${BOOTSTRAP_OPERATION}"
       - name: Prove the exact commit passed the repository CI
         env:
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
@@ -96,9 +98,15 @@ jobs:
           AGENT_TEAMS_FOUNDATION_SOURCE_SHA: ${{ inputs.expected_commit }}
           AGENT_TEAMS_FOUNDATION_PNPM_ENTRYPOINT: ${{ steps.setup-pnpm.outputs.bin-dest }}/pnpm
         run: node tools/dev.mts --profile node install
+      - name: Build only the existing archive verifier
+        if: ${{ steps.authority.outputs.mode == 'existing-artifact-only' }}
+        run: pnpm --filter @agent-teams/engineering-foundation build
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - run: pnpm build
+        if: ${{ steps.authority.outputs.mode == 'publish-capable' }}
         working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Build and bind the exact tarball
+        if: ${{ steps.authority.outputs.mode == 'publish-capable' }}
         id: pack
         env:
           PACKAGE_ID: ${{ inputs.package_id }}
@@ -124,30 +132,46 @@ jobs:
             "${archive_path}" "${GITHUB_OUTPUT}" "${package_tree}" \
             "${evidence_root}/tar-verbose.txt"
         working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
+      - name: Bind the reviewed existing registry artifact without packing
+        if: ${{ steps.authority.outputs.mode == 'existing-artifact-only' }}
+        id: existing
+        env:
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          PUBLISHED_COMMIT: ${{ steps.authority.outputs.releaseCommit }}
+          PACKAGE_ID: ${{ inputs.package_id }}
+          PACKAGE_ROOT: ${{ steps.authority.outputs.root }}
+        run: |
+          set -Eeuo pipefail
+          git merge-base --is-ancestor "${PUBLISHED_COMMIT}" "${EXPECTED_COMMIT}"
+          original_tree="$(git rev-parse "${PUBLISHED_COMMIT}:${PACKAGE_ROOT}")"
+          node scripts/npm-package-bootstrap-cli.mjs existing-evidence \
+            "${PACKAGE_ID}" "${original_tree}" "${RUNNER_TEMP}/npm-package-bootstrap/existing" "${GITHUB_OUTPUT}"
+        working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Verify registry preconditions
         id: registry
         env:
-          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity || steps.existing.outputs.integrity }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: node scripts/npm-package-bootstrap-cli.mjs registry-preflight "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${GITHUB_OUTPUT}"
         working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove an existing artifact before reuse
         if: ${{ inputs.operation == 'bootstrap' && steps.registry.outputs.action == 'reuse' }}
         env:
-          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity || steps.existing.outputs.integrity }}
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          PUBLISHED_COMMIT: ${{ steps.authority.outputs.releaseCommit }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: |
           set -Eeuo pipefail
           evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
           node scripts/npm-package-bootstrap-cli.mjs reuse-proof \
-            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
-              "${evidence_root}/reuse-audit.json"
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${PUBLISHED_COMMIT}" \
+              "${evidence_root}/reuse-audit.json" "${EXPECTED_COMMIT}"
         working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove an exact uncertain artifact before quarantine
         if: ${{ inputs.operation == 'quarantine' }}
         env:
-          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity || steps.existing.outputs.integrity }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: |
           set -Eeuo pipefail
@@ -158,12 +182,14 @@ jobs:
         working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Publish, resume, or quarantine the exact bootstrap artifact
         env:
-          ARCHIVE_PATH: ${{ steps.pack.outputs.archivePath }}
-          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          ARCHIVE_PATH: ${{ steps.pack.outputs.archivePath || steps.existing.outputs.archivePath }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity || steps.existing.outputs.integrity }}
           DEPRECATION_MESSAGE: ${{ steps.authority.outputs.deprecationMessage }}
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_PACKAGE_BOOTSTRAP_TOKEN }}
           OPERATION: ${{ inputs.operation }}
+          BOOTSTRAP_MODE: ${{ steps.authority.outputs.mode }}
+          PUBLISHED_COMMIT: ${{ steps.authority.outputs.releaseCommit }}
           PACKAGE_ID: ${{ inputs.package_id }}
           PACKAGE_TAG: ${{ steps.authority.outputs.tag }}
           REGISTRY_ACTION: ${{ steps.registry.outputs.action }}
@@ -226,7 +252,10 @@ jobs:
             exit 0
           fi
           test "${OPERATION}" = "bootstrap"
-          if [[ "${REGISTRY_ACTION}" == "publish" ]]; then
+          [[ "${BOOTSTRAP_MODE}" == "existing-artifact-only" || "${BOOTSTRAP_MODE}" == "publish-capable" ]]
+          if [[ "${BOOTSTRAP_MODE}" == "existing-artifact-only" ]]; then
+            test "${REGISTRY_ACTION}" = "reuse"
+          elif [[ "${BOOTSTRAP_MODE}" == "publish-capable" && "${REGISTRY_ACTION}" == "publish" ]]; then
             assert_fresh_main_bounded
             final_registry_output="${evidence_root}/registry-before-publish.output"
             : > "${final_registry_output}"
@@ -246,8 +275,8 @@ jobs:
             exit 1
           fi
           node scripts/npm-package-bootstrap-cli.mjs mutation-proof \
-            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
-            "${evidence_root}/mutation-audit.json"
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${PUBLISHED_COMMIT}" \
+            "${evidence_root}/mutation-audit.json" "${EXPECTED_COMMIT}"
           deprecation_matches="$(
             jq -r 'if (.live.deprecationMatches | type) == "boolean" then (.live.deprecationMatches | tostring) else error("invalid evidence") end' \
               "${evidence_root}/mutation-audit.json"
@@ -272,20 +301,21 @@ jobs:
       - name: Prove registry postconditions and provenance
         if: ${{ inputs.operation == 'bootstrap' }}
         env:
-          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity || steps.existing.outputs.integrity }}
           EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+          PUBLISHED_COMMIT: ${{ steps.authority.outputs.releaseCommit }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: |
           set -Eeuo pipefail
           evidence_root="${RUNNER_TEMP}/npm-package-bootstrap"
           node scripts/npm-package-bootstrap-cli.mjs postconditions \
-            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${EXPECTED_COMMIT}" \
-            "${evidence_root}/audit.json"
+            "${PACKAGE_ID}" "${ARCHIVE_INTEGRITY}" "${PUBLISHED_COMMIT}" \
+            "${evidence_root}/audit.json" "${EXPECTED_COMMIT}"
         working-directory: .worker-tmp/profiles/node-${{ inputs.expected_commit }}
       - name: Prove quarantine postconditions
         if: ${{ inputs.operation == 'quarantine' }}
         env:
-          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity }}
+          ARCHIVE_INTEGRITY: ${{ steps.pack.outputs.integrity || steps.existing.outputs.integrity }}
           PACKAGE_ID: ${{ inputs.package_id }}
         run: |
           set -Eeuo pipefail
@@ -328,12 +358,13 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           TAG: ${{ needs.bootstrap.outputs.tag }}
           TITLE: ${{ needs.bootstrap.outputs.title }}
+          PUBLISHED_COMMIT: ${{ needs.bootstrap.outputs.releaseCommit }}
         run: |
           set -Eeuo pipefail
           evidence_root="${RUNNER_TEMP}/npm-package-github-reconciliation"
           mkdir -p "${evidence_root}"
           node scripts/github-release-reconciliation.mjs \
-            "${TAG}" "${TITLE}" "${BODY}" true "${EXPECTED_COMMIT}" \
+            "${TAG}" "${TITLE}" "${BODY}" true "${PUBLISHED_COMMIT}" "${EXPECTED_COMMIT}" \
             > "${evidence_root}/result.json"
       - name: Retain GitHub reconciliation evidence
         if: ${{ always() }}

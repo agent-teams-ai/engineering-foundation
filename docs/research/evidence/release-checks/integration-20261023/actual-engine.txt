@@ -1,0 +1,40 @@
+bun install v1.4.3 (c6da4a4d3)
+Saved lockfile
+
+Saved bun.lock (103 packages) [5.00ms]
+Scope: all 3 workspace projects
+✓ Lockfile passes supply-chain policies (verified 9s ago)
+Done in 466ms using pnpm v11.20.0
+✔ actual pinned Changesets TEST versioning passes final release file admission (27335.703364ms)
+ℹ TEST pnpm 11.20.0 SRI: sha512-mm8zCpW2ZEbqCI+vFSFAWooB8H/ecSTMmVjf7VLUu0NnN+ZbCPhfN7Rvy6N1CSVYrFEmK4FoRLIvY0Bu0Wa/7g==
+ℹ TEST versioned FMS peer: workspace:^1.8.0
+ℹ TEST versioned Bun lock diff:
+diff --git a/bun.lock b/bun.lock
+index 2c66496..1bb015a 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -10,11 +10,11 @@
+     },
+     "packages/engineering-foundation": {
+       "name": "@agent-teams/engineering-foundation",
+-      "version": "1.9.0",
++      "version": "1.10.0",
+     },
+     "packages/feature-module-standard": {
+       "name": "@agent-teams/feature-module-standard",
+-      "version": "0.1.0",
++      "version": "0.1.1",
+       "devDependencies": {
+         "@agent-teams/engineering-foundation": "workspace:*",
+       },
+
+ℹ TEST Changesets CLI 2.31.1 SRI: sha512-uO05WTcRBwuVOJVSW8Cmpqw6q0WDL53ajGCMyszutvOe5toOnunbpM4jZzf+qxBOz7i0AzopZ8diBuewjmF40w==
+ℹ TEST final Git guard accepted the actual release and rejected forged Bun graph SRI.
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27602.373612

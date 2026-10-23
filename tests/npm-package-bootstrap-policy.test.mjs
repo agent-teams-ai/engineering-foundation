@@ -152,17 +152,28 @@ test("bootstrap catalog is closed, data-only, and retains retired authorities", 
       { id: "docs-protocol-mcp", state: "historical" },
       { id: "ci-input-proof", state: "historical" },
       { id: "feature-module-standard", state: "historical" },
-      { id: "release-checks", state: "candidate" },
+      { id: "stack-toolchain", state: "approved" },
+      { id: "release-checks", state: "approved" },
     ],
   );
   const authoring = bootstrapPackageById("document-authoring");
-  const releaseChecks = bootstrapPackageById("release-checks");
-  assert.equal(releaseChecks.state, "candidate");
-  assert.equal(releaseChecks.approval, null);
+  const releaseChecks = bootstrapPackageById("release-checks", { approved: true });
+  assert.equal(releaseChecks.state, "approved");
+  assert.deepEqual(releaseChecks.approval, {
+    archiveIntegrity: "sha512-/rPqYywYkaoQUQFi5KMJVqOce/IkpqcpILQMJZDtKYSFkmCRc/oedvScDPP2+cbMPCf8R4qDp9+JdcnzN7cwww==",
+    packageTree: "76a214bd459937b28786880b4deb08cb20916da7",
+  });
   assert.deepEqual(releaseChecks.dependencies, []);
-  assert.throws(() => bootstrapPackageById("release-checks", { approved: true }), /not approved/u);
+  const pendingCatalog = structuredClone(NPM_PACKAGE_BOOTSTRAP);
+  const pendingReleaseChecks = pendingCatalog.packages.find(({ id }) => id === "release-checks");
+  pendingReleaseChecks.state = "candidate";
+  pendingReleaseChecks.approval = null;
+  const candidateCatalog = parseBootstrapCatalog(pendingCatalog);
+  assert.throws(() => bootstrapPackageById("release-checks", {
+    approved: true, catalog: candidateCatalog,
+  }), /not approved/u);
   assert.throws(() => assertBootstrapReleasePolicy(
-    releaseState(releaseChecks, "0.1.0"), [], NPM_PACKAGE_BOOTSTRAP,
+    releaseState(pendingReleaseChecks, "0.1.0"), [], candidateCatalog,
   ), /release-checks release requires reviewed bootstrap approval/u);
   const standard = bootstrapPackageById("feature-module-standard");
   assert.deepEqual(standard.approval, {
@@ -596,6 +607,7 @@ test("npm signature audit uses the shared cross-platform command runner", async 
   try {
     const result = await auditLivePackage(mcpProfile, root, {
       attempts: 1,
+      availability: async () => {},
       runNpm: async (args, cwd, options) => {
         calls.push({ args, cwd, options });
         return {
@@ -1110,4 +1122,47 @@ test("compatibility staging never relaxes default, full-baseline, release-subset
     readManifest: async () => ({ name: mcpProfile.name, version: "0.0.0" }),
     requireAllBaselines: true,
   }), /baseline is absent/u);
+});
+
+test("optional bootstrap dependencies require a disjoint exact reviewed map", async () => {
+  const { assertOptionalDependencyManifest } = await import("../scripts/npm-package-bootstrap-catalog.mjs");
+  const value = JSON.parse(await readFile(new URL("../architecture/foundation/npm-package-bootstrap.json", import.meta.url), "utf8"));
+  const entry = value.packages[0];
+  entry.optionalDependencies = [{ name: "bun", version: "1.4.3", specifier: "catalog:" }];
+  const profile = parseBootstrapCatalog(value).packages[0];
+  assert.doesNotThrow(() => assertOptionalDependencyManifest(profile, { optionalDependencies: { bun: "catalog:" } }));
+  assert.doesNotThrow(() => assertOptionalDependencyManifest(profile, { optionalDependencies: { bun: "1.4.3" } }, true));
+  for (const actual of [undefined, {}, { bun: "^1.4.3" }, { bun: "1.4.3", extra: "1.0.0" }]) {
+    assert.throws(() => assertOptionalDependencyManifest(profile, { optionalDependencies: actual }, true), /optionalDependencies/u);
+  }
+  assert.throws(() => assertOptionalDependencyManifest({ dependencies: [] }, { optionalDependencies: {} }), /unreviewed/u);
+  for (const optional of [[], [{ name: "bun", version: "^1.4.3", specifier: "catalog:" }], [...entry.optionalDependencies, ...entry.optionalDependencies]]) {
+    const changed = structuredClone(value); changed.packages[0].optionalDependencies = optional;
+    assert.throws(() => parseBootstrapCatalog(changed), /optionalDependencies/u);
+  }
+  const overlap = structuredClone(value); overlap.packages[0].dependencies = entry.optionalDependencies;
+  assert.throws(() => parseBootstrapCatalog(overlap), /disjoint/u);
+});
+
+const fetchManifest = (optionalDependencies) => async () => ({ status: 200, ok: true, json: async () => ({ versions: { "0.0.0": { optionalDependencies } }, "dist-tags": {} }) });
+
+test("optional bootstrap maps bind source manifests and registry observations", async () => {
+  const { liveDependencyVersions, livePackageEvidence } = await import("../scripts/npm-package-bootstrap-registry.mjs");
+  const profile = { ...authoringProfile, optionalDependencies: [{ name: "bun", version: "1.4.3", specifier: "catalog:" }] };
+  const source = JSON.parse(await readFile(authoringProfile.manifestPath, "utf8"));
+  source.version = profile.bootstrapVersion;
+  source.optionalDependencies = { bun: "catalog:" };
+  assert.doesNotThrow(() => assertWorkspaceManifestMatchesProfile(profile, source));
+  source.optionalDependencies.bun = "^1.4.3";
+  assert.throws(() => assertWorkspaceManifestMatchesProfile(profile, source), /optionalDependencies/u);
+  const requested = [];
+  const versions = await liveDependencyVersions(profile, async (url) => {
+    requested.push(String(url));
+    return { status: 200, ok: true, json: async () => ({ versions: Object.fromEntries([...profile.dependencies, ...profile.optionalDependencies].map(({ version }) => [version, {}])) }) };
+  });
+  assert.equal(versions.bun, "1.4.3");
+  assert.ok(requested.some((url) => url.endsWith("/bun")));
+  await assert.doesNotReject(() => livePackageEvidence(profile, fetchManifest({ bun: "1.4.3" })));
+  await assert.rejects(() => livePackageEvidence(profile, fetchManifest({ bun: "^1.4.3" })), /optionalDependencies/u);
+  await assert.rejects(() => livePackageEvidence(authoringProfile, fetchManifest({})), /unreviewed/u);
 });

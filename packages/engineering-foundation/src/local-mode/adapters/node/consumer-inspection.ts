@@ -1,7 +1,9 @@
 import { readFile, realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseDocument } from "yaml";
-import { inspectConsumerManifest, inspectLockfile } from "../../application/consumer-policy.js";
+import { inspectBunRegistryProvenance, readBoundedConsumerManifest } from "./bun-registry-inspection.js";
+import { bunLocalMutationUnsupported } from "../../application/inspection-failures.js";
+import { inspectConsumerManifest, inspectLockfile, isSupportedPnpmManager } from "../../application/consumer-policy.js";
 import type { ConsumerPolicyInspection, RegistryProvenanceInspection } from "../../application/model.js";
 import { FOUNDATION_PACKAGE_NAME } from "../../application/model.js";
 
@@ -9,22 +11,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8")) as unknown;
-}
-
 async function readConsumerManifest(
   consumerRoot: string,
   issues: string[]
 ): Promise<Record<string, unknown> | undefined> {
   try {
-    const candidate = await readJson(join(consumerRoot, "package.json"));
+    const candidate = await readBoundedConsumerManifest(consumerRoot);
     if (isRecord(candidate)) {
       return candidate;
     }
     issues.push("Consumer package.json must contain an object.");
   } catch {
-    issues.push("Consumer package.json cannot be read.");
+    issues.push("Consumer package.json cannot be read as bounded unambiguous JSON.");
   }
   return undefined;
 }
@@ -53,6 +51,16 @@ export async function inspectFoundationRegistryProvenance(
   consumerRoot: string,
   dependencySpec: string | undefined
 ): Promise<RegistryProvenanceInspection> {
+  const consumer = await inspectFoundationDevOnly(consumerRoot);
+  if (consumer.packageManager?.startsWith("bun@") === true) {
+    if (consumer.issues.length !== 0 || consumer.dependencySpec !== dependencySpec) {
+      return { issues: [...consumer.issues, "Bun registry inspection requires the exact admitted manifest dependency."] };
+    }
+    return inspectBunRegistryProvenance(consumerRoot, dependencySpec);
+  }
+  if (consumer.packageManager === undefined || !isSupportedPnpmManager(consumer.packageManager)) {
+    return { issues: [...consumer.issues, "Registry inspection requires an admitted package manager."] };
+  }
   const issues: string[] = [];
   const lockfilePath = join(consumerRoot, "pnpm-lock.yaml");
   let lockfile: Record<string, unknown>;
@@ -120,4 +128,12 @@ export async function inspectFoundationRegistryProvenance(
 
 export async function inspectCanonicalConsumerDevOnly(consumerPath: string): Promise<ConsumerPolicyInspection> {
   return inspectFoundationDevOnly(await realpath(resolve(consumerPath)));
+}
+
+/** Concrete Node mutation boundary; abstract lifecycle ports remain manager-neutral. */
+export async function assertNodeLocalMutationSupported(consumerPath: string): Promise<void> {
+  const consumer = await inspectCanonicalConsumerDevOnly(consumerPath);
+  if (consumer.packageManager === undefined || !isSupportedPnpmManager(consumer.packageManager)) {
+    throw bunLocalMutationUnsupported();
+  }
 }

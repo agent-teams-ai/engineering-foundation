@@ -11,7 +11,10 @@ editing the accepted decision.
 
 ## Accepted
 
-- [ADR-0064: Release Checks Package Admission](0064-release-checks-package-admission.md)
+- [ADR-0067: Release Checks Package Admission](0067-release-checks-package-admission.md)
+- [ADR-0066: Qualified Existing npm Bootstrap Recovery](0066-qualified-existing-npm-bootstrap-recovery.md)
+- [ADR-0065: Explicit Stack Toolchain Lint Scope API](0065-explicit-toolchain-lint-scope-api.md)
+- [ADR-0064: Independent Stack Toolchain Package Boundary](0064-independent-stack-toolchain-package-boundary.md)
 - [ADR-0063: Explicit Changed-Check Coverage Policy Schema](0063-explicit-changed-check-coverage-policy-schema.md)
 - [ADR-0062: Feature Module Standard Package Admission](0062-feature-module-standard-package-admission.md)
 - [ADR-0061: Library-First Foundation Boundary Evolution](0061-library-first-foundation-boundary-evolution.md)

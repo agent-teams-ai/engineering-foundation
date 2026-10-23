@@ -14,9 +14,10 @@ foundation:assert-registry
 ```
 
 `assert-dev-only` requires one exact version in `devDependencies` and rejects
-runtime, bundled, overridden, resolved, or patched declarations.
+runtime, bundled, overridden, resolved, or patched declarations. The consumer
+manager must pin exact pnpm 11 or an exact stable Bun 1 version.
 
-`assert-registry` also parses `pnpm-lock.yaml` structurally. The root importer
+For pnpm 11, `assert-registry` also parses `pnpm-lock.yaml` structurally. The root importer
 specifier must equal the manifest version. Its resolution must be that exact
 version, optionally followed by pnpm's peer-context suffix, and the matching
 snapshot must exist. The lockfile must contain the exact npm package key and
@@ -25,7 +26,36 @@ file/link/workspace/git/http source, override, patch, or non-npm tarball. The
 same provenance must be present in the installed pnpm virtual-store lockfile;
 this detects stale `node_modules` after a lockfile-only change.
 
-Attach validates that registry evidence first. It then validates the target
+For stable Bun 1, inspection instead reads the active `bun.lock` text format
+(`lockfileVersion: 2`, `configVersion: 1`). A unique root development dependency
+and exact default npm registry tuple must match the manifest version and carry
+canonical sha512 integrity. The reported locked-package key is the actual
+`packages` object key (`@agent-teams/engineering-foundation`); the tuple carries
+the separate name-and-version identity. Duplicate keys, ambiguous tuples, overrides, patches
+and other sources reject. The lock is bounded to 4 MiB; root and installed
+manifests are bounded to 1 MiB and must be unambiguous JSON. The installed package
+must resolve to the matching project-contained `.bun` isolated store coordinate
+(with an optional peer-layout suffix), with a regular canonical manifest of the
+same name and version. Hoisted, external/global-store and unknown layouts are
+unsupported. The peer suffix is layout identity, never integrity evidence.
+
+Bun has no installed lock mirror in this supported layout. Its root-lock SRI plus
+physical store coordinate and manifest identity are cooperative installed-selection
+evidence; they cannot detect every stale in-place package or authenticate expanded
+archive bytes. A retained pnpm rollback lock is never Bun provenance or a fallback.
+Clean frozen installs and separate artifact qualification remain required. See
+[Bun lockfiles](https://bun.com/docs/pm/lockfile) and
+[isolated installs](https://bun.com/docs/pm/isolated-installs).
+
+Bun support is registry inspection only. The concrete Node service and concrete
+Node lifecycle ports refuse attach, reattach and detach before an operation lease
+or target process; leased reinspection rejects a manager change before normal
+mutation. Existing pnpm rollback and lease cleanup remain available. Abstract
+custom lifecycle ports remain manager-neutral and gain no Bun mutation claim.
+The parser and selection policy are private helpers of the existing local-package
+mode feature, not independently composed modules or a new package-manager API.
+
+For pnpm 11, attach validates that registry evidence first. It then validates the target
 package identity, versioned local-mode protocol and compatibility metadata,
 required exports and build outputs, resolvable runtime dependencies, real CLI
 self-check, and Git evidence before creating a package-manager-neutral directory
@@ -96,7 +126,7 @@ power-loss guarantee. The package gate exercises the real lifecycle
 against an isolated tarball consumer. CI, package, and release commands use
 `foundation:assert-registry` and reject local or ambiguous state.
 
-The registry assertion proves package-manager provenance from the consumer
-manifest and lockfile. It does not claim to cryptographically re-hash every
+The registry assertion reports the supported manager-specific selection evidence
+from the consumer manifest, active lockfile and installed package. It does not claim to cryptographically re-hash every
 expanded file beneath `node_modules`; clean frozen installs remain a release and
 CI requirement.

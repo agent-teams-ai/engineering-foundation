@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-23T16:13:22.331Z",
+  "outcome": "passed",
+  "scope": "original Ubuntu artifact content review; no current writer reproduction",
+  "receiptDigest": "sha256:73cb9daf845b44fe89346d7ea52947ae3a8ca3cbf1855bac6673c87f20678dca",
+  "sourceCommit": "805d652c3b61dc69a02b2df2b852f1b26841be24",
+  "packageTree": "76a214bd459937b28786880b4deb08cb20916da7",
+  "archiveIntegrity": "sha512-/rPqYywYkaoQUQFi5KMJVqOce/IkpqcpILQMJZDtKYSFkmCRc/oedvScDPP2+cbMPCf8R4qDp9+JdcnzN7cwww==",
+  "archiveSha256": "sha256:d5e6eb3a48ea65f900ec18060dc1bfdb46fa2c3b694d2db1b239c698329318fe",
+  "manifestDigest": "sha256:e2c10744b92c1501b41b12b9d51b3baa9e93eeb0703071c739764f3031b6fb1d",
+  "entries": 40,
+  "compiledAndSourcePayloadMatchesCurrent": true,
+  "licenseSource": "LICENSE",
+  "packedManifestMatchesNormalizedReceipt": true,
+  "reviewProjection": "pack-report shape derived from the inspected original archive; not an original pnpm report or a new writer run",
+  "workflowSource": {
+    "base": "0e0de78d4c2089be8effc37da4cfd70eab22358c",
+    "head": "e162299f0505b95af02adca4edf9a363c91a731a",
+    "path": ".github/workflows/ci.yml",
+    "blob": "e3d5334ccd53c8a624025f027b6adf288513ef19",
+    "sha256": "fe35223d43e751b3df5d801d458fb9e28a60f6f63b69888cf51cc261a81d17b9"
+  },
+  "currentSourceReproduction": "pending required final-head/current-base full CI",
+  "bootstrapPublication": "not attempted",
+  "repository": "https://github.com/agent-teams-ai/engineering-foundation",
+  "artifact": {
+    "id": 12376897004,
+    "name": "npm-package-bootstrap-candidate-evidence-805d652c3b61dc69a02b2df2b852f1b26841be24",
+    "bytes": 31947,
+    "digest": "sha256:1b6a645765e76fe85351b2dd25499df34cccaad9fca43414fdefa3b6df83a683",
+    "createdAt": "2026-10-21T19:51:14Z",
+    "expiresAt": "2027-01-19T19:46:57Z",
+    "expiredAtReview": false
+  },
+  "workflowRun": {
+    "id": 39664614732,
+    "attempt": 2,
+    "event": "pull_request",
+    "conclusion": "success",
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39664614732"
+  },
+  "writerJob": {
+    "id": 119463834854,
+    "name": "linux-bootstrap-evidence",
+    "labels": [
+      "ubuntu-24.04"
+    ],
+    "attempt": 2,
+    "conclusion": "success",
+    "url": "https://github.com/agent-teams-ai/engineering-foundation/actions/runs/39664614732/job/119463834854"
+  },
+  "sourceTree": "1a45f90ae651f6a1d51925c0e015ba5843507b5f",
+  "sourceParents": [
+    "0e0de78d4c2089be8effc37da4cfd70eab22358c",
+    "e162299f0505b95af02adca4edf9a363c91a731a"
+  ],
+  "receiptFileSha256": "sha256:bd1a1d207d931d92fa5d9f764fce14af7ad4f7423ef9edd78f72303f58482e75",
+  "currentIntegratedBase": "97f7b16f25823149f8f884db761edb9ffb43a535",
+  "independentReview": {
+    "role": "independent release evidence reviewer",
+    "verdict": "GO for bounded tree/SRI approval",
+    "checks": [
+      "fresh artifact metadata and ZIP digest",
+      "receipt canonical digest",
+      "compressed archive SHA-256 and SHA-512",
+      "all 40 members and retained listings",
+      "normalized manifest and manifest digest",
+      "every nonmanifest payload byte against the current built/source package",
+      "unchanged package tree"
+    ],
+    "qualificationLimit": "The reviewer did not independently establish the writer job attempt/OS after its job-steps request timed out. The root review separately read the actual run and job API metadata and writer log."
+  },
+  "pending": [
+    "final-head/current-base full CI with approved writer reproduction",
+    "interactive npm maintainer readiness before public admission merge",
+    "fresh protected-main CI with all five bootstrap proof contexts",
+    "namespace bootstrap and supported release",
+    "public npm readback and external installed consumer E2E"
+  ]
+}

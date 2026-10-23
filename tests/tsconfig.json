@@ -12,6 +12,12 @@
     "sdk-json-record.test.ts",
     "architecture-baseline-replacement.test.ts",
     "repository-profile-lint.test.ts",
-    "repository-profile-git.test.ts"
+    "repository-profile-git.test.ts",
+    "local-mode-bun.test.ts",
+    "support/process-runtime-windows-protocol.ts",
+    "support/process-runtime-cancellation-fixture.ts",
+    "github-release-reconciliation.test.ts",
+    "npm-bootstrap-recovery.test.ts",
+    "support/npm-bootstrap-recovery-fixtures.ts"
   ]
 }

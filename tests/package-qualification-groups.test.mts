@@ -98,8 +98,14 @@ async function producerFixture(t: TestContext, failureName?: string) {
   await symlink(join(repositoryRoot, "packages", "engineering-foundation"), join(source, "packages", "engineering-foundation"),
     process.platform === "win32" ? "junction" : "dir");
   await symlink(join(repositoryRoot, "node_modules"), join(source, "node_modules"), process.platform === "win32" ? "junction" : "dir");
-  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json"]) {
+  for (const name of ["LICENSE", ".node-version", "pnpm-lock.yaml", "package.json", ".pnpmfile.cjs"]) {
     await copyFile(join(repositoryRoot, name), join(source, name));
+  }
+  // The copied pack command retains its real runtime admission dependencies.
+  for (const path of ["tools/runtime-policy.mts", "tools/executable-policy.mts",
+    "architecture/foundation/repository-runtime.json"]) {
+    await mkdir(dirname(join(source, path)), { recursive: true });
+    await copyFile(join(repositoryRoot, path), join(source, path));
   }
   const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
   manifest.packageManager = `pnpm@${(await readRepositoryRuntimePolicy()).toolchain.pnpm.version}`;

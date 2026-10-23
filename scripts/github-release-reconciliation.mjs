@@ -4,8 +4,8 @@ export const GITHUB_RECONCILIATION_ATTEMPTS = 37;
 export const GITHUB_RECONCILIATION_RETRY_MILLISECONDS = 5_000;
 
 const COMMIT = /^[a-f0-9]{40}$/u;
-const RELEASE_TAG = /^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*@(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/u;
-const STABLE_RELEASE_TAG = /^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*@(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
+const RELEASE_TAG = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*@(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/u;
+const STABLE_RELEASE_TAG = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*@(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 
 const delay = (milliseconds) => new Promise((resolve) => {
   setTimeout(resolve, milliseconds);
@@ -194,19 +194,26 @@ export async function verifyGithubTagRelease(tag, releaseCommit, options = {}) {
   }
 }
 
-async function cli() {
-  const [tag, title, body, prerelease, commit] = process.argv.slice(2);
+export async function reconcileGithubTagReleaseCli(args, options = {}) {
+  if (args.length !== 5 && args.length !== 6) {
+    throw new Error("GitHub release reconciliation CLI requires five arguments and an optional protected-main commit.");
+  }
+  const [tag, title, body, prerelease, commit, expectedMainCommit = commit] = args;
+  if (typeof commit !== "string" || !COMMIT.test(commit) ||
+      typeof expectedMainCommit !== "string" || !COMMIT.test(expectedMainCommit)) {
+    throw new Error("GitHub release reconciliation CLI requires exact release and protected-main commit identities.");
+  }
   if (!/^(?:true|false)$/u.test(prerelease ?? "")) {
     throw new Error("GitHub release reconciliation CLI requires an exact prerelease boolean.");
   }
-  const result = await reconcileGithubTagRelease(
+  return reconcileGithubTagRelease(
     { body, prerelease: prerelease === "true", tag, title },
     commit,
-    { expectedMainCommit: commit },
+    { ...options, expectedMainCommit },
   );
-  process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === process.argv[1]) {
-  await cli();
+  const result = await reconcileGithubTagReleaseCli(process.argv.slice(2));
+  process.stdout.write(`${JSON.stringify(result)}\n`);
 }

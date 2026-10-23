@@ -23,7 +23,7 @@ globalThis.readProbeFile = async (path, options) => {
   const body = scenario === 'notes-empty' ? '' : '\n### Minor Changes\n\nNew notes\n\n';
   // Model Changesets' staged release only in this child. The source package's
   // unreleased changelog must remain unreleased outside the intercepted read.
-  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/release-checks', '@agent-teams/feature-module-standard'].includes(info.name)
+  const stagedNotes = ['@agent-teams/ci-input-proof', '@agent-teams/release-checks', '@agent-teams/feature-module-standard', 'stack-toolchain'].includes(info.name)
     ? `# Staged package\n\n## ${info.version}\n\n### Minor Changes\n\nStaged TEST release notes.\n` : value;
   const notes = scenario.startsWith('notes-')
     ? `# package\n\n${heading} ${version}\n${body}## 0.0.0\n\nOld notes\n` : stagedNotes;
@@ -49,13 +49,15 @@ const expectedPublications = [
   '@agent-teams/docs-protocol-mcp',
   '@agent-teams/engineering-foundation',
   '@agent-teams/feature-module-standard',
+  'stack-toolchain',
 ];
 // This helper runs in a disposable child: all external effects are stubbed before
 // importing the actual runtime. Real archive readers, tar, and release policy stay active.
 const originalTimeout = globalThis.setTimeout;
 let acceleratedNow = 0;
 const bodyAbort = ['metadata-body-abort', 'tarball-body-abort', 'attestation-body-abort'].includes(scenario);
-const virtualTime = scenario.startsWith('attestation-e404-persistent') || scenario === 'ambiguous-absent' || bodyAbort;
+const virtualTime = scenario.startsWith('attestation-e404-persistent') ||
+  scenario.startsWith('attestation-empty-') || scenario === 'ambiguous-absent' || bodyAbort;
 const observationControllers = [];
 if (bodyAbort) {
   AbortSignal.timeout = milliseconds => {
@@ -104,7 +106,7 @@ function begin() {
     const manifest = { name: info.name, version: info.version,
       dependencies: Object.fromEntries(PUBLISHABLE_PACKAGE_DEPENDENCIES[info.name].map(name => [name, versions.get(name)])) };
     const bytes = qualifiedArchive(manifest);
-    const archivePath = join(destination, `${info.name.slice(1).replace('/', '-')}-${info.version}.tgz`);
+    const archivePath = join(destination, `${info.name.replace(/^@/u, '').replace('/', '-')}-${info.version}.tgz`);
     writeFileSync(archivePath, bytes, { mode: 0o444 });
     const archive = { archivePath, sha256: createHash('sha256').update(bytes).digest('hex'),
       packageName: info.name, packageVersion: info.version, manifest, bytes,
@@ -113,7 +115,7 @@ function begin() {
     return archive;
   };
   const statement = name => ({ _type: 'https://in-toto.io/Statement/v1', predicateType: 'https://slsa.dev/provenance/v1',
-    subject: [{ name: `pkg:npm/%40${name.slice(1)}@${versions.get(name)}`, digest: { sha512: createHash('sha512').update(archiveByName.get(name).bytes).digest('hex') } }],
+    subject: [{ name: `pkg:npm/${name.startsWith('@') ? `%40${name.slice(1)}` : name}@${versions.get(name)}`, digest: { sha512: createHash('sha512').update(archiveByName.get(name).bytes).digest('hex') } }],
     predicate: { buildDefinition: { externalParameters: { workflow: { ref: 'refs/heads/main', repository: 'https://github.com/fixture/release-probe', path: '.github/workflows/release.yml' } },
       resolvedDependencies: [{ uri: 'git+https://github.com/fixture/release-probe@refs/heads/main', digest: { gitCommit: sourceCommit } }] } } });
   const bundle = name => ({ predicateType: 'https://slsa.dev/provenance/v1', bundle: { dsseEnvelope: {
@@ -146,6 +148,34 @@ function begin() {
     },
     reconcile: release => { events.push({ operation: 'reconcile', body: release.body }); },
   };
+  const auditResult = () => {
+    const evidence = { invalid: [], missing: [], verified: [{
+    name: installed, version: versions.get(installed), attestations: { provenance: { predicateType: 'https://slsa.dev/provenance/v1' } },
+    attestationBundles: [bundle(installed), { predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1' }],
+    }] };
+    if (installed === packages[0].name) {
+      const entry = evidence.verified[0];
+      if (scenario === 'attestation-empty-persistent' ||
+          (scenario === 'attestation-empty-then-valid' && events.filter(event => event.operation === 'signature').length === 1)) {
+        evidence.verified = [];
+      }
+      if (scenario === 'attestation-malformed-json') { return ok('credential-secret'); }
+      if (scenario === 'attestation-malformed-evidence') { evidence.verified = {}; }
+      if (scenario === 'attestation-malformed-bundles') { entry.attestationBundles = {}; }
+      if (scenario === 'attestation-invalid') { evidence.invalid = [{ message: 'credential-secret' }]; }
+      if (scenario === 'attestation-missing-signature') { evidence.missing = [{ message: 'credential-secret' }]; }
+      if (scenario === 'attestation-ambiguous-target') { evidence.verified.push(entry); }
+      if (scenario === 'attestation-ambiguous-bundles') { entry.attestationBundles.push(entry.attestationBundles[0]); }
+      if (scenario === 'attestation-partial') { entry.attestationBundles.pop(); }
+      if (['attestation-wrong-source', 'attestation-wrong-sri'].includes(scenario)) {
+        const payload = statement(installed);
+        if (scenario === 'attestation-wrong-source') { payload.predicate.buildDefinition.externalParameters.workflow.repository = 'https://github.com/other/repository'; }
+        else { payload.subject[0].digest.sha512 = '0'.repeat(128); }
+        entry.attestationBundles[0].bundle.dsseEnvelope.payload = Buffer.from(JSON.stringify(payload)).toString('base64');
+      }
+    }
+    return ok(JSON.stringify(evidence));
+  };
   childProcess.spawnSync = (command, args, options = {}) => {
     if (command === 'tar') { return originalSpawn(command, args, options); }
     if (command === 'git' && args[0] === 'merge-base') { return ok(''); }
@@ -173,7 +203,7 @@ function begin() {
       return ok('');
     }
     if (command === 'npm' && args[0] === 'audit') {
-      events.push({ operation: 'signature', name: installed });
+      events.push({ operation: 'signature', name: installed, preferOnline: args.includes('--prefer-online') });
       if (['attestation-e404-persistent-final-timeout', 'attestation-e404-persistent-final-auth-timeout'].includes(scenario) &&
           events.filter(event => event.operation === 'signature').length === REGISTRY_OBSERVATION_ATTEMPTS) {
         assert.equal(options.timeout, 1);
@@ -194,10 +224,7 @@ function begin() {
         return { status: 1, stdout: 'credential-secret',
           stderr: `npm error code ${code}\nnpm error 404 Not Found - GET ${endpoint} - credential-secret` };
       }
-      return ok(JSON.stringify({ invalid: [], missing: [], verified: [{
-      name: installed, version: versions.get(installed), attestations: { provenance: { predicateType: 'https://slsa.dev/provenance/v1' } },
-      attestationBundles: [bundle(installed), { predicateType: 'https://github.com/npm/attestation/tree/main/specs/publish/v0.1' }],
-    }] })); }
+      return auditResult(); }
     throw new Error(`Unexpected suppressed subprocess: ${command} ${args[0]}`);
   };
   syncBuiltinESMExports();
@@ -246,7 +273,12 @@ assert.ok(['valid-wave', 'wrong-npm', 'advance-after-authorization', 'digest-mis
   'attestation-e404-then-valid', 'attestation-auth-failure',
   'attestation-other-e404', 'attestation-e404-persistent',
   'attestation-e404-persistent-final-timeout',
-  'attestation-e404-persistent-final-auth-timeout'].includes(scenario));
+  'attestation-e404-persistent-final-auth-timeout',
+  'attestation-empty-then-valid', 'attestation-empty-persistent',
+  'attestation-malformed-json', 'attestation-malformed-evidence', 'attestation-malformed-bundles',
+  'attestation-invalid', 'attestation-missing-signature', 'attestation-ambiguous-target',
+  'attestation-ambiguous-bundles', 'attestation-partial', 'attestation-wrong-source',
+  'attestation-wrong-sri'].includes(scenario));
 const events = begin();
 const { publishOrderedRelease } = await import(pathToFileURL(join(sourceRoot, 'scripts/release-publish-ordered-runtime.mjs')));
 let error;
@@ -258,7 +290,7 @@ const reconciliations = events.filter(event => event.operation === 'reconcile');
 if (scenario === 'wrong-npm') {
   assert.equal(error, 'Ordered publishing requires npm 11.19.0, observed 11.16.0.');
   assert.deepEqual(events, []);
-} else if (['valid-wave', 'notes-exact', 'lost-response', 'attestation-e404-then-valid'].includes(scenario)) {
+} else if (['valid-wave', 'notes-exact', 'lost-response', 'attestation-e404-then-valid', 'attestation-empty-then-valid'].includes(scenario)) {
   assert.equal(error, undefined);
   if (scenario === 'notes-exact') {
     assert.ok(reconciliations.every(event => event.body === '### Minor Changes\n\nNew notes'));
@@ -267,7 +299,7 @@ if (scenario === 'wrong-npm') {
   assert.equal(publications.length, expectedPublications.length);
   assert.equal(reconciliations.length, expectedPublications.length);
   assert.equal(events.filter(event => event.operation === 'signature').length,
-    expectedPublications.length + (scenario === 'attestation-e404-then-valid' ? 1 : 0));
+    expectedPublications.length + (scenario.endsWith('-then-valid') ? 1 : 0));
   assert.deepEqual(publications.map(item => item.name), expectedPublications);
   assert.ok(publications.every(item => item.liveMain === sourceCommit));
   assert.ok(events.lastIndexOf(publications.at(-1)) < events.indexOf(reconciliations[0]));
@@ -293,6 +325,21 @@ if (scenario === 'wrong-npm') {
     REGISTRY_VISIBILITY_TIMEOUT_MILLISECONDS / REGISTRY_OBSERVATION_RETRY_MILLISECONDS);
   assert.equal(error, `Ordered release refused: ${packages[0].name}@${packages[0].version} registry result remained absent; visibility deadline exceeded; initial publish failure: npm publish failed; code=ECONNRESET; exit=1; signal=none-or-unknown; raw output omitted`);
   assert.doesNotMatch(error, /publication did not start|credential-secret/u);
+} else if (scenario === 'attestation-empty-persistent') {
+  assert.equal(error, 'npm signature audit failed; code=attestations-not-yet-verified; raw output omitted.');
+  assert.equal(events.filter(event => event.operation === 'signature').length, REGISTRY_OBSERVATION_ATTEMPTS);
+  assert.equal(acceleratedNow, 360_000);
+  assert.equal(attempts.length, 1);
+  assert.equal(reconciliations.length, 0);
+} else if (['attestation-malformed-json', 'attestation-malformed-evidence', 'attestation-malformed-bundles',
+  'attestation-invalid', 'attestation-missing-signature', 'attestation-ambiguous-target',
+  'attestation-ambiguous-bundles', 'attestation-partial', 'attestation-wrong-source',
+  'attestation-wrong-sri'].includes(scenario)) {
+  assert.match(error, /^npm (?:signature audit|audit did not cryptographically verify|verified provenance is not bound)/u);
+  assert.equal(events.filter(event => event.operation === 'signature').length, 1);
+  assert.equal(attempts.length, 1);
+  assert.equal(reconciliations.length, 0);
+  assert.doesNotMatch(error, /credential-secret/u);
 } else if (['attestation-auth-failure', 'attestation-other-e404', 'attestation-e404-persistent',
   'attestation-e404-persistent-final-timeout',
   'attestation-e404-persistent-final-auth-timeout'].includes(scenario)) {

@@ -51,6 +51,26 @@ ordinary `.ts`, strict TypeScript 7.0.2 or newer, the actual required typecheck
 route and complete test inventories. Narrow edits of existing scripts do not
 require unrelated filename or architecture migrations.
 
+### Current integration disposition — 2026-10-23
+
+The table above retains the original preflight inputs. Current Foundation main
+is `97f7b16f25823149f8f884db761edb9ffb43a535`; its released Stack Toolchain
+`0.1.0`, accepted ADR-0064/0065/0066, bootstrap recovery and complete inventories
+remain authoritative. Release-checks admission now uses ADR-0067, preserving
+the earlier branch record in Git history. The package coordinate remains the
+owner's explicit `@agent-teams/release-checks` choice.
+
+Main's current bootstrap procedure requires actual Ubuntu candidate evidence
+and reviewed approval on the admission PR before its merge. P1 and P3 below
+follow that order. Earlier full CI on feature head
+`e162299f0505b95af02adca4edf9a363c91a731a` and base
+`0e0de78d4c2089be8effc37da4cfd70eab22358c` remains historical evidence; it does
+not qualify the integrated source. Get Modular main is
+`eadd9d391657ae6f508a874dd30e923bdc4054f0`. node-or-bun main is
+`b000bbdaf5ffe1bfa87f2b5ef8f6f03625c5cff2`, now version `0.2.3` with its own
+qualified development-only Stack Toolchain adoption; preserve that owner delta
+and derive any successor from its actual Changesets plan.
+
 ## Ownership and minimal contract
 
 ### Package and Host boundary
@@ -277,12 +297,23 @@ hermetic Verdaccio registry qualification owner; catalog membership alone is
 not installed-consumer evidence. This uses the existing test facility, not a
 new preview registry. Public npm installation remains a distinct P3 proof.
 
-Run required changed/fast/workflow-security and focused gates, independent
-technical review, then request the complete native final-head/base CI matrix.
-Merge by the canonical owner guard after revalidating current PR/source facts.
+Run required changed/fast/workflow-security and focused gates, then obtain
+requested full PR CI's actual Ubuntu candidate writer artifact. Inspect the
+archive, packed manifest, listings, package tree and SRI. Record reviewed
+approval of that same package tree in the existing profile on this admission
+PR. Complete independent final review and the complete native
+final-head/current-base CI matrix, including approved-writer reproduction.
+Merge by the canonical owner guard only after revalidating current PR/source
+facts and the separate interactive npm maintainer-readiness prerequisite.
+Missing readiness or writer evidence leaves admission unmerged. Retained Ubuntu
+writer evidence from an unchanged package tree may supply the reviewed approval
+target. It does not qualify the integrated source: final-head/current-base full
+CI must reproduce the approved archive under the current writer inputs. Changed
+output requires new reviewed evidence; a local pack cannot replace the writer.
 
-The accepted intermediate state is explicit: merged public admission blocks
-ALL ordinary Foundation publication until the new namespace completes P3.
+The accepted post-admission state is explicit: the reviewed approved profile
+has merged, but ALL ordinary Foundation publication remains blocked until the
+new namespace completes P3.
 Private staging, missing catalog entries and false historical/bootstrap states
 are not substitutes. Existing unrelated Foundation packages cannot publish in
 this window. Prepare independent P2 work early where possible to shorten it.
@@ -301,14 +332,15 @@ narrow retained-input successor and its rejection evidence before adoption.
 
 ### P3 — existing namespace bootstrap and supported release
 
-Use the existing ADR-0044 protocol only. Retain the exact Ubuntu pinned
-Node/pnpm writer archive, package tree and SRI; local platform packing does not
-replace writer evidence. Review those identities and approve the existing
-catalog profile only after exact evidence exists. Complete exact protected-main
-push CI for the approved-profile owner merge before the timed provider step and
-bootstrap dispatch. A catalog-only approval does not require different-platform
-re-packing: new writer evidence is needed only when the bound package tree or
-archive changes.
+Use the existing ADR-0044 protocol only. Revalidate the P1 reviewed profile,
+retained Ubuntu writer archive, package tree, SRI and actual protected main.
+Require successful push CI for that exact operating commit with all five
+bootstrap proof contexts before the timed credential step and bootstrap
+dispatch. Local platform packing cannot replace the writer evidence. Current
+writer reproduction must match the approved archive even when an earlier
+unchanged package tree supplied the reviewed approval target. ADR-0066's closed
+Stack Toolchain recovery does not authorize release-checks recovery or repeat
+publication.
 
 Use the existing one-package short-lived bootstrap credential and protected
 environment when required, with no permanent token. Preserve the one-attempt

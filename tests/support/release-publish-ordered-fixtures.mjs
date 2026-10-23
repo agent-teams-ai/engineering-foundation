@@ -18,6 +18,8 @@ const RELEASE_CHECKS_PACKAGE = "@agent-teams/release-checks";
 const releaseChecks = artifact(RELEASE_CHECKS_PACKAGE, "0.1.0", {});
 const FEATURE_MODULE_STANDARD_PACKAGE = "@agent-teams/feature-module-standard";
 const featureModuleStandard = artifact(FEATURE_MODULE_STANDARD_PACKAGE, "0.1.0", {});
+const STACK_TOOLCHAIN_PACKAGE = "stack-toolchain";
+const stackToolchain = artifact(STACK_TOOLCHAIN_PACKAGE, "0.1.0", {});
 const mutation = artifact(MUTATION_PACKAGE, "0.1.0", {});
 const authoring = artifact(DOCUMENT_AUTHORING_PACKAGE, "0.1.0", {
   [MUTATION_PACKAGE]: mutation.version,
@@ -36,6 +38,7 @@ const docsAdapter = artifact(DOCS_ADAPTER_PACKAGE, "0.1.0", {
 });
 const docsMcp = artifact(DOCS_MCP_PACKAGE, "0.1.0", { [DOCS_PACKAGE]: docs.version });
 const RELEASE_TIMESTAMPS = new Map([
+  [STACK_TOOLCHAIN_PACKAGE, "2026-01-01T00:00:06.000Z"],
   [CI_INPUT_PROOF_PACKAGE, "2025-12-31T23:59:58.000Z"],
   [RELEASE_CHECKS_PACKAGE, "2025-12-31T23:59:58.500Z"],
   [FEATURE_MODULE_STANDARD_PACKAGE, "2025-12-31T23:59:59.000Z"],
@@ -161,7 +164,7 @@ function harness(initial = {}) {
 async function run(runtime, overrides = {}) {
   let elapsed = 0;
   return await orderedRelease({
-    artifacts: [docsMcp, docsAdapter, docs, foundation, authoring, mutation, featureModuleStandard, releaseChecks, ciInputProof],
+    artifacts: [stackToolchain, docsMcp, docsAdapter, docs, foundation, authoring, mutation, featureModuleStandard, releaseChecks, ciInputProof],
     visibilityTimeoutMilliseconds: 2,
     finalTag: "latest",
     retryDelayMilliseconds: 1,
@@ -173,4 +176,4 @@ async function run(runtime, overrides = {}) {
   });
 }
 
-export { source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, RELEASE_CHECKS_PACKAGE, releaseChecks, FEATURE_MODULE_STANDARD_PACKAGE, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run };
+export { STACK_TOOLCHAIN_PACKAGE, stackToolchain, source, MUTATION_PACKAGE, DOCS_ADAPTER_PACKAGE, CI_INPUT_PROOF_PACKAGE, ciInputProof, RELEASE_CHECKS_PACKAGE, releaseChecks, FEATURE_MODULE_STANDARD_PACKAGE, featureModuleStandard, mutation, authoring, foundation, docs, docsAdapter, docsMcp, RELEASE_TIMESTAMPS, artifact, argumentField, artifactProvenance, auditEvidence, present, publishedState, harness, run };

@@ -651,3 +651,95 @@ isolation and the existing coverage inputs. Final-source qualification must
 prove this actual route, including the loader and all selected files. No timing
 projection or earlier source result replaces the fresh complete native run.
 The maintainer-readiness and public-admission hold remains in force.
+
+## Current-main integration and retained writer review — 2026-10-23
+
+The previous sections retain their original source and execution facts. The
+current integration combines feature head
+`e162299f0505b95af02adca4edf9a363c91a731a` with protected main
+`97f7b16f25823149f8f884db761edb9ffb43a535`. It preserves main's released Stack
+Toolchain `0.1.0`, its closed bootstrap recovery, package versions, baseline
+promotions and runtime changes. Release-checks remains one independent pure
+package and a private source-built Host; no universal release manager is added.
+
+All ten feature modules, nine bootstrap profiles and both complete lockfile
+projections are retained. The canonical test inventory contains 311 unique
+files across all eight shards; Windows retains its complete 303-file union.
+The previously recorded failed timing evidence and bounded shard relocation
+remain intact. No threshold, timeout, native lane or assertion is relaxed.
+Integration fixtures now model the actual ten-package graph, and the bootstrap
+prepare fixture supplies its required operating commit.
+
+Main's accepted ADR-0064/0065/0066 remain byte-exact. The unmerged admission is
+ADR-0067; the actual built architecture-decisions promoter added its canonical
+digest `sha256:b9038161b1a0f5ea4289dceed2b39af32567844f22e4654046243c81f81f07fb`
+while retaining all 63 protected ledger records. Earlier branch numbering and
+the former separate approval-PR description are historical. Current admission
+requires reviewed approval on this same PR before its final CI and merge.
+
+The [actual Ubuntu artifact review](evidence/release-checks/p1-ubuntu-writer-review-20261023.json)
+records download and inspection of artifact `12376897004` from full CI run
+`39664614732`, attempt 2, writer job `119463834854`. ZIP digest, receipt binding,
+manifest, both tar listings and all 40 archive entries passed inspection. An
+independent release evidence reviewer recomputed the content bindings and gave
+GO for the bounded package-tree/SRI approval. Every nonmanifest payload byte
+matches the current build/source for the unchanged leaf. The catalog records
+that exact approval, and the policy suite retains candidate refusal through an
+explicit candidate fixture.
+
+The inspection's derived pack-report shape is a projection of the original
+archive, not an original pnpm report or a new writer execution. The retained
+earlier full CI does not qualify this integrated source. Final-head/current-base
+full native CI must reproduce the approved bytes under the current packaging
+inputs; changed output requires new reviewed writer evidence.
+
+The exact Bun 1.4.3 source install and full build passed using the pinned Node
+26.11.1, pnpm 11.20.0 and TypeScript 7.0.2 toolchain. The focused integration
+run completed 374 tests: 373 passed, none failed or cancelled, and
+the existing opt-in actual Changesets TEST case was skipped by its flag. That
+run covers the pure leaf, Host, bootstrap recovery/policy/workflow, release
+guards and publisher, runtime projections and inventory/reporting consumers.
+The [retained local checks](evidence/release-checks/integration-20261023/checks.json)
+include complete logs, failed attempts and the subsequent outcomes. After
+approval, all 50 affected bootstrap tests passed. The opt-in actual engine case
+then passed without skips, accepting generated version/changelog/locks and
+rejecting a forged Bun graph SRI. The two final release fixture suites passed
+all 85 tests without skips.
+
+The initial fast gate rejected two test files exceeding the existing 800-line
+rule. A byte-equivalent fixture template and one explicit ten-package RC/latest
+assertion loop removed duplication without exclusions or relaxed assertions;
+Stack Toolchain now receives those two assertions too. The complete fast gate
+then passed. The workflow-security owner also passed with its unchanged pinned
+Actionlint/Zizmor route after an initial failed runtime observation.
+
+The required changed-check owner failed during its owned isolated pnpm install;
+the full check did not start. Its retained log ends at 643 of 645 dependencies,
+with archive-download error (23) for two packages. The filesystem concurrently
+reported zero available bytes, but the retained installer output contains no
+terminal ENOSPC exception; that observation does not establish a more precise
+failure cause. Only this task's disposable files were cleaned. The changed/full
+gate remains outstanding and is not replaced by focused success.
+
+The independent integration reviewer found no blocking source findings on index
+tree `b9c38037a9a80cb24328e341902a1b7b738c89c8` before this evidence append.
+That review preserved all main authorities, the complete assertions and the
+unchanged release-checks package tree. Local mutable checks are feedback, not
+final-head native CI or publication authority.
+
+node-or-bun independently integrated its actual main
+`b000bbdaf5ffe1bfa87f2b5ef8f6f03625c5cff2` as local merge
+`f67df0056705ec4db782fd31c142eed2547cc5a7`. Its retained evidence records strict
+Stack typecheck, typed lint and format, 29 release tests, and a disposable
+current-source Changesets `0.2.3` to `0.2.4` cycle followed by npm packing and
+installed Node, Bun and Node-in-Bun qualification. Production remains `0.2.3`;
+this TEST uses the local leaf and does not establish public `0.1.0` adoption.
+
+Public delivery is still pending. The exact leaf version remains absent from
+the public registry. The connected browser has no originating context, so npm
+maintainer readiness is unestablished. The current GitHub connector cannot set
+the canonical raw owner commit identity; ordinary Git/CLI write authentication
+is unavailable. Preserve correct local owner commits and the ready source rather
+than publish an invalid identity. These are capability limits, not a request
+for renewed owner authorization. Keep admission unmerged until provider
+readiness, actual final remote CI and the canonical merge protocol can complete.

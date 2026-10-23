@@ -1,0 +1,34 @@
+bun install v1.4.3 (c6da4a4d3)
+
++ @ast-grep/cli@0.45.0
++ @changesets/changelog-github@0.7.0
++ @changesets/cli@2.31.1
++ @modelcontextprotocol/server@2.0.0
++ @openai/codex@0.146.0
++ @types/node@24.13.3
++ ajv@8.20.0
++ c8@12.0.0
++ esbuild@0.28.2
++ fast-check@4.9.0
++ knip@6.31.0
++ node-or-bun@0.2.2
++ nx@23.3.0
++ oxc-parser@0.142.0
++ oxlint@1.83.0
++ oxlint-tsgolint@7.0.2001
++ pnpm@11.20.0
++ publint@0.3.22
++ semver@7.8.5
++ typescript@7.0.2
++ verdaccio@6.10.6
++ yaml@2.9.0
+
+651 packages installed [7.83s]
+Pinned Oxlint, TypeScript 7, Node/Bun Oxc, Nx and esbuild tools qualified.
+{
+  "outcome": "passed",
+  "packageContexts": 1256,
+  "packageCoordinates": 655,
+  "peerAssignments": 23,
+  "inventory": "/workspace/scratch/57dc7bcc28f6/foundation-release-checks-oct23/.worker-tmp/installed-dependencies.json"
+}

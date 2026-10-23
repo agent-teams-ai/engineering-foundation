@@ -1,0 +1,67 @@
+{
+  "name": "stack-toolchain",
+  "version": "0.1.0",
+  "description": "Versioned TypeScript tools, technical presets and sequential checker fallback for Node and Bun projects.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-teams-ai/engineering-foundation.git",
+    "directory": "packages/stack-toolchain"
+  },
+  "bin": {
+    "stack-toolchain": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "toolchain-manifest.json",
+    "presets"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json",
+    "./toolchain-manifest.json": "./toolchain-manifest.json",
+    "./presets/typescript/node.json": "./presets/typescript/node.json",
+    "./presets/typescript/bun.json": "./presets/typescript/bun.json",
+    "./presets/oxlint/base.json": "./presets/oxlint/base.json",
+    "./presets/typescript/base.json": "./presets/typescript/base.json",
+    "./presets/oxlint/maintainability-tests.json": "./presets/oxlint/maintainability-tests.json",
+    "./presets/oxlint/maintainability.json": "./presets/oxlint/maintainability.json",
+    "./presets/oxlint/type-aware.json": "./presets/oxlint/type-aware.json",
+    "./presets/oxlint/node.json": "./presets/oxlint/node.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json --pretty false",
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "jsonc-parser": "catalog:",
+    "node-or-bun": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "typescript": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  },
+  "optionalDependencies": {
+    "bun": "catalog:",
+    "tsrs": "catalog:"
+  },
+  "engines": {
+    "node": "^24.18.0 || ^26.0.0"
+  }
+}

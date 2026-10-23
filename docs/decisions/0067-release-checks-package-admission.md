@@ -1,13 +1,13 @@
 ---
-id: ADR-0064
+id: ADR-0067
 status: accepted
 supersedes: []
 superseded_by: []
 ---
 
-# ADR-0064: Release Checks Package Admission
+# ADR-0067: Release Checks Package Admission
 
-Status: Accepted. Decision owner: Product owner. Date: 2026-10-20.
+Status: Accepted. Decision owner: Product owner. Date: 2026-10-23.
 
 ## Context
 
@@ -25,6 +25,15 @@ improvement rounds and three independent critical reviews accepted its scope
 before implementation. [ADR-0061](0061-library-first-foundation-boundary-evolution.md)
 admits expected reuse with shared conformance, a disposable project and at least
 one real consumer in the same delivery.
+
+The owner accepted this scope on 2026-10-20. Integration with protected main
+`97f7b16f25823149f8f884db761edb9ffb43a535` assigns it ADR-0067 because that
+history already owns ADR-0064 through ADR-0066. The former branch-only record
+remains unchanged at commit `e162299f0505b95af02adca4edf9a363c91a731a`, path
+`docs/decisions/0064-release-checks-package-admission.md`. This record does not
+supersede Stack Toolchain's ADR-0064. The package retains the exact coordinate
+chosen by the owner for this delivery; general naming guidance does not reopen
+that explicit choice.
 
 ## Decision
 
@@ -82,15 +91,23 @@ one real consumer in the same delivery.
 7. This record authorizes source admission only. It grants no bootstrap
    approval or publication authority. The candidate profile and reviewed
    artifact approval belong only in
-   `architecture/foundation/npm-package-bootstrap.json`. Inclusion in the
-   closed public catalog deliberately blocks every ordinary Foundation
-   publication until the existing namespace bootstrap has reviewed approval
-   and its immutable deprecated `0.0.0` baseline. Pre-merge provider readiness
-   must be established; missing interactive npm access leaves admission
-   unmerged. Short-lived credentials are provisioned only at their actual
-   bootstrap step. [ADR-0044](0044-registry-neutral-npm-bootstrap-tags.md) and
-   the existing protected workflow retain all tag, provenance and cleanup
-   requirements.
+   `architecture/foundation/npm-package-bootstrap.json`. Keep approval null
+   while the required writer evidence is absent. Before merging admission,
+   establish availability of the authorized npm maintainer's interactive
+   bootstrap step and the existing environment-review route; retain and inspect
+   the exact Ubuntu writer archive, package tree, SHA-512 integrity, packed
+   manifest and archive listings from requested full PR CI; approve that same
+   package tree on this PR; and complete final-head/current-base full CI,
+   including approved-writer reproduction. Missing readiness or evidence leaves
+   admission unmerged. After the canonical owner merge, require fresh successful
+   protected-main CI for the exact operating commit before creating a
+   short-lived credential or dispatching protected bootstrap. Inclusion in the
+   closed catalog blocks every ordinary Foundation publication until the
+   existing namespace bootstrap proves its immutable deprecated `0.0.0`
+   baseline. [ADR-0044](0044-registry-neutral-npm-bootstrap-tags.md) and the
+   existing protected workflow retain all tag, provenance, reconciliation and
+   cleanup requirements. ADR-0066's closed Stack Toolchain recovery is not a
+   general exception for this package.
 
 ## Consequences
 

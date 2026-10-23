@@ -14,7 +14,8 @@
     "packages/docs-protocol-agent-teams/dist/**/*.js",
     "packages/docs-protocol-mcp/dist/**/*.js",
     "packages/engineering-foundation/dist/**/*.js",
-    "packages/feature-module-standard/dist/**/*.js"
+    "packages/feature-module-standard/dist/**/*.js",
+    "packages/stack-toolchain/dist/**/*.js"
   ],
   "exclude": [
     "packages/ci-input-proof/dist/**/*.d.ts",
@@ -25,7 +26,8 @@
     "packages/docs-protocol-agent-teams/dist/**/*.d.ts",
     "packages/docs-protocol-mcp/dist/**/*.d.ts",
     "packages/engineering-foundation/dist/**/*.d.ts",
-    "packages/feature-module-standard/dist/**/*.d.ts"
+    "packages/feature-module-standard/dist/**/*.d.ts",
+    "packages/stack-toolchain/dist/**/*.d.ts"
   ],
   "additionalTestsByShard": {
     "1": [

@@ -282,3 +282,35 @@ void test("source directory mutation during leaf staging still rejects the tree"
   }), /changed during staging/u);
   assert.equal(mutated, true);
 });
+
+void test("only exact catalog Bun binary receives bounded stage allowance", async t => {
+  const root = await mkdtemp(join(tmpdir(), "stage-bun-bound-TEST-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const version = "1.4.3";
+  for (const [index, packageName, installedVersion, member, size, accepted] of [
+    [0, "@oven/bun-darwin-aarch64", version, "bin/bun", 33 * 1024 * 1024, true],
+    [1, "@oven/bun-darwin-aarch64", version, "arbitrary", 33 * 1024 * 1024, false],
+    [2, "arbitrary-package", version, "bin/bun", 33 * 1024 * 1024, false],
+    [3, "@oven/bun-darwin-aarch64", "1.0.0", "bin/bun", 33 * 1024 * 1024, false],
+    [4, "@oven/bun-darwin-aarch64", version, "bin/bun", 128 * 1024 * 1024 + 1, false],
+  ] as const) {
+    const sourceRoot = join(root, `source-${index}`);
+    const stagedRoot = join(root, `stage-${index}`);
+    const dependency = join(sourceRoot, "node_modules", packageName);
+    await mkdir(dirname(join(dependency, member)), { recursive: true });
+    await mkdir(stagedRoot);
+    await writeFile(join(dependency, "package.json"), JSON.stringify({ name: packageName, version: installedVersion }));
+    const handle = await open(join(dependency, member), "w");
+    await handle.truncate(size);
+    await handle.close();
+    const manifest = { name: "fixture", dependencies: { [packageName]: version } };
+    const operation = wireStagedPackageDependencies({ sourceRoot, stagedRoot, manifest,
+      catalogVersions: new Map([["bun", version]]), internalPackageNames: new Set<string>(), physicalInternalRoots: [],
+      packageName: manifest.name, dependencyDeclarations: {}, stagedPackagesByName: new Map<string, string>(),
+    });
+    if (accepted) {
+      await operation;
+      assert.equal((await lstat(join(stagedRoot, "node_modules", packageName, member))).size, size);
+    } else { await assert.rejects(operation, /oversized/u); }
+  }
+});

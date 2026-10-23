@@ -110,8 +110,9 @@ and searches packed content for a source-owned secret canary before it may treat
 the package artifact as qualified for publication. The repository gate also proves two clean
 packs are byte-identical, enforces archive size and entry-count budgets, and
 rejects special tar entries. Foundation's package-specific entry ceiling is
-2,780: the retained 2,776-member inventory plus the private static Host lexer's
-four compiler outputs. Other packages retain the 2,500-entry default. The
+2,789: the main 2,781-member inventory, including the quality-source-coverage v3
+schema, plus eight compiler outputs from the two private local-mode Bun registry
+helpers. Other packages retain the 2,500-entry default. The
 complete-inventory regression requires requalification for each change and
 rejects one additional member; archive byte limits and other safety checks
 remain unchanged.

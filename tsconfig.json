@@ -2,6 +2,9 @@
   "files": [],
   "references": [
     {
+      "path": "./packages/stack-toolchain"
+    },
+    {
       "path": "./packages/repository-mutation"
     },
     {

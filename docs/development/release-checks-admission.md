@@ -1,7 +1,7 @@
 # Release Checks source admission
 
 `@agent-teams/release-checks` is an independent development library admitted by
-[ADR-0064](../decisions/0064-release-checks-package-admission.md) under
+[ADR-0067](../decisions/0067-release-checks-package-admission.md) under
 [ADR-0061](../decisions/0061-library-first-foundation-boundary-evolution.md).
 The [accepted delivery plan](release-checks-delivery-plan.md) and
 [review record](../research/release-checks-plan-review.md) retain the completed
@@ -45,7 +45,7 @@ adopt exact supported coordinates only after registry proof.
 | Hermetic registry consumer | The same qualified archive was published only to disposable no-uplink Verdaccio and installed by exact version with npm; public typing and all 12 runtime cases passed with matching archive integrity. Existing `npm-foundation` qualification invokes the same probe |
 | Complete inventories | Catalog, strict projects, source/feature/quality profiles and complete Linux/Windows/coverage inventories include the package and tests |
 | Initial typed baseline | Existing native promotion owner created only `release-checks.json` at `0.0.0`; the complete nine-package typed and artifact checks passed and all 13 historical baseline files retained their exact hashes |
-| Namespace bootstrap | Candidate only, `approval: null`; no bootstrap or publication is authorized by admission |
+| Namespace bootstrap | Exact Ubuntu writer tree/SRI reviewed and approved on 2026-10-23; current-head writer reproduction, maintainer readiness and protected publication remain pending |
 | Supported release and external consumers | Pending exact protected publication, registry readback and separate installed consumer evidence |
 
 The retained [installed qualification report](../research/evidence/release-checks/p1-installed-qualification.json)
@@ -88,25 +88,45 @@ Protected main subsequently advanced to
 publishing the source versions for Foundation 1.10.2 and its companion packages.
 The implementation branch incorporates that owner release and retains all its
 baseline, manifest, changelog and Bun-lock bytes. Those upstream baseline
-promotions are distinct from the initial-admission evidence above. Final PR
-qualification uses this current base; it does not restore the consumed intents
-or reuse old-base CI.
+promotions are distinct from the initial-admission evidence above. The
+2026-10-23 integration advances to main
+`97f7b16f25823149f8f884db761edb9ffb43a535`, preserving released Stack Toolchain
+`0.1.0`, its bootstrap recovery and all accepted main ADRs. Release-checks uses
+ADR-0067; the former branch record remains in Git history. Fresh final PR
+qualification must use the integrated head and actual current base, retaining
+consumed intents as history and never relabeling earlier CI.
 
 ## Source and publication hold
 
 The source manifest begins at `0.0.0` and a minor Changeset lets the existing
 engine derive supported `0.1.0`. This is not an npm publication. The public
-catalog and candidate bootstrap entry intentionally block **all ordinary
+catalog and bootstrap entry intentionally block **all ordinary
 Foundation publication** until the existing bootstrap completes.
 
-Pre-merge npm provider readiness remains unresolved: the required interactive
-account surface was blocked by Cloudflare during the accepted preflight.
-Finish source, review and CI work, but keep public admission unmerged until
-that existing readiness requirement is established. Do not enable bootstrap,
-create a timed token, enter approval identities or relax the release hold to
-work around the access limitation.
+Pre-merge npm provider readiness remains unresolved. Cloudflare blocked the
+interactive account surface during the original preflight; on 2026-10-23 the
+connected-browser runtime instead reported that the originating browser context
+was unavailable. Neither observation proves an available maintainer session.
+Finish source, review and CI preparation while keeping admission unmerged until
+that existing readiness requirement is established. Do not enable bootstrap or
+create a timed token early.
 
-P3 uses the existing protected namespace workflow, exact main/full-CI proof,
+The exact Ubuntu `linux-bootstrap-evidence` candidate from full PR CI run
+`39664614732`, attempt 2, was downloaded and reviewed on 2026-10-23. The
+[retained review](../research/evidence/release-checks/p1-ubuntu-writer-review-20261023.json)
+binds artifact `12376897004`, its receipt, manifest, all 40 archive entries,
+package tree and SRI. An independent reviewer recomputed the content bindings.
+The catalog approval records that exact tree/SRI; every nonmanifest payload
+byte matches the current unchanged package tree and build.
+
+This reviewed target does not qualify the integrated source. Final-head/current-base
+full CI must reproduce the approved archive under the current writer inputs,
+including the intervening packaging hook change. Changed output requires new
+reviewed evidence. Complete independent final review before the canonical owner
+merge. Maintainer readiness remains a separate pre-merge prerequisite.
+
+P3 revalidates that reviewed approval and fresh protected-main CI with all five
+bootstrap proof contexts before using the existing protected namespace workflow,
 reviewed writer archive SRI and package tree, one-package short-lived token,
 signature/provenance/deprecation readback and cleanup. Only after its immutable
 deprecated `0.0.0` baseline exists may the normal Changesets owner-PR flow
